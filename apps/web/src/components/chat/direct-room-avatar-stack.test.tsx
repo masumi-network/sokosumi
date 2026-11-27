@@ -272,8 +272,8 @@ describe("DirectRoomAvatarStack", () => {
     // row's name starts later.
     const first = screen.getByTestId("dm-sidebar-avatar-alice");
     const second = screen.getByTestId("dm-sidebar-avatar-bob");
-    expect(first.className.split(/\s+/)).not.toContain("-ml-1.5");
-    expect(second.className.split(/\s+/)).toContain("-ml-1.5");
+    expect(first.className.split(/\s+/)).not.toContain("ms-0.5");
+    expect(second.className.split(/\s+/)).toContain("ms-0.5");
     // The first face on top, so its presence dot is not buried under the
     // one beside it.
     expect(Number(first.style.zIndex)).toBeGreaterThan(

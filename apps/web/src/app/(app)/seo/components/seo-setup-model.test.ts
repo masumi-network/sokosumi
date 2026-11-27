@@ -34,6 +34,53 @@ describe("SEO header run action", () => {
   });
 });
 
+describe("SEO run action after a failed free first check", () => {
+  const failedFirst = (kind: "page_check" | "audit_full") => ({
+    id: "a1",
+    kind,
+    status: "failed" as const,
+    taskId: null,
+    pageIds: [] as string[],
+    scopeVersion: 2,
+    createdAt: new Date("2026-01-02T12:00:00Z"),
+  });
+
+  it("offers the free page check again, also where the paid full audit is possible", () => {
+    const workspace = seoTestWorkspace();
+    expect(seoRunAction(workspace)?.kind).toBe("audit_full");
+    workspace.analyses = [failedFirst("page_check")];
+    expect(seoRunAction(workspace)).toMatchObject({
+      kind: "page_check",
+      label: "runPageCheck",
+    });
+  });
+
+  it("offers the full audit again after the free retry failed too", () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      failedFirst("page_check"),
+      {
+        ...failedFirst("page_check"),
+        id: "a2",
+        createdAt: new Date("2026-01-02T13:00:00Z"),
+      },
+    ];
+    expect(seoRunAction(workspace)).toMatchObject({
+      kind: "audit_full",
+      label: "runFullAudit",
+    });
+  });
+
+  it("keeps the full audit after a failed full audit, and once a check saved a result", () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [failedFirst("audit_full")];
+    expect(seoRunAction(workspace)?.kind).toBe("audit_full");
+    workspace.analyses = [failedFirst("page_check")];
+    workspace.runs = [{ kind: "page_check", seconds: 30 } as never];
+    expect(seoRunAction(workspace)?.kind).toBe("audit_full");
+  });
+});
+
 describe("SEO first-run setup", () => {
   // The checks of these cases start on 2026-01-02 at 12:00: an hour later they are in flight.
   beforeEach(() => {
@@ -98,6 +145,12 @@ describe("SEO first-run setup", () => {
       },
     ];
     expect(seoSetup(workspace, undefined, true)).toMatchObject({
+      check: "running",
+      next: null,
+    });
+    // The free check of a new audit runs before the reader made a Google choice: the step stays open.
+    expect(seoSetup(workspace, undefined, false)).toMatchObject({
+      connection: "next",
       check: "running",
       next: null,
     });

@@ -293,6 +293,47 @@ describe("background runs", () => {
     });
   });
 
+  it("shows a blocked step as still to do, leaves a skipped one out and reads accepted plans only", async () => {
+    db.sokoBotTurn.findMany.mockResolvedValue([
+      run("RUNNING", {
+        toolCalls: [
+          {
+            input: {
+              steps: [
+                { id: "s1", step: "Read the posts", status: "done" },
+                {
+                  id: "s2",
+                  step: "Make pictures",
+                  status: "skipped",
+                  reason: "The owner said no pictures",
+                },
+                {
+                  id: "s3",
+                  step: "Post it",
+                  status: "blocked",
+                  blockedOn: "owner",
+                  reason: "Which account?",
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ]);
+
+    await expect(listCmoChatRecords(cuso)).resolves.toMatchObject([
+      {
+        steps: [
+          { label: "Read the posts", state: "done" },
+          { label: "Post it", state: "next" },
+        ],
+      },
+    ]);
+    expect(
+      db.sokoBotTurn.findMany.mock.calls[0]?.[0].select.toolCalls.where,
+    ).toEqual({ capability: "update_plan", status: "COMPLETED" });
+  });
+
   it("shows a finished run with its result, where it ended", async () => {
     db.sokoBotTurn.findMany.mockResolvedValue([
       run("COMPLETED", {
@@ -311,6 +352,17 @@ describe("background runs", () => {
       },
     ]);
   });
+
+  it.each(["DONE: Nothing to add.", "Nothing to add.", null])(
+    "leaves out a finished run that reported %s",
+    async (finalAnswer) => {
+      db.sokoBotTurn.findMany.mockResolvedValue([
+        run("COMPLETED", { completedAt: at(40), finalAnswer }),
+      ]);
+
+      await expect(listCmoChatRecords(cuso)).resolves.toEqual([]);
+    },
+  );
 
   it.each([
     ["CANCELLED", "stopped"],

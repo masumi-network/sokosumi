@@ -69,6 +69,7 @@ export type AdminSeoAlerts = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         } | null;
+        costDetail?: SeoFullAuditCostDetail | null;
     }>;
     connectionTotal: number;
     reconnect: number;
@@ -95,6 +96,99 @@ export type AdminSeoAlerts = {
         reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'speedPagesFailed' | 'editorialGemini' | 'editorialCodex' | 'editorialValidation' | 'webRiskNotRun' | 'webRiskFailed' | 'lighthouseFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
+    }>;
+};
+
+export type SeoFullAuditCostDetail = {
+    version: 1;
+    models: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        model: string;
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        provider: string | null;
+        calls: number;
+        microUsd: number | null;
+    }>;
+    dataForSeo: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        endpoint: string;
+        reads: number;
+        microUsd: number;
+    }>;
+    steps: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        step: string;
+        modelMicroUsd: number;
+        dataForSeoMicroUsd: number;
+        otherApiMicroUsd: number;
+    }>;
+};
+
+export type AdminSeoActionImpact = {
+    hasNext: boolean;
+    pageSize: number;
+    items: Array<{
+        auditId: string | null;
+        projectId: string | null;
+        workspaceId: string;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        userId: string;
+        actions: Array<{
+            id: string;
+            pageUrl: string;
+            title: string;
+            impact: ProjectSeoActionImpact;
+        }>;
+    }>;
+};
+
+export type ProjectSeoActionImpact = {
+    anchor: string;
+    anchorKind: 'completed' | 'verified';
+    days: number;
+    state: 'measured' | 'too_early' | 'not_measured' | 'low_counts';
+    before: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+    after: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+};
+
+export type AdminSeoImpactVerdicts = {
+    total: number;
+    rows: Array<{
+        id: string;
+        organizationSlug: string | null;
+        projectId: string;
+        projectName: string;
+        pageUrl: string;
+        suggestionTitle: string | null;
+        changeSource: 'cuso_done' | 'audit_recheck';
+        changedAt: Date;
+        crawledAt: Date | null;
+        windowStart: string | null;
+        windowEnd: string | null;
+        windowReadyOn: string | null;
+        state: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | 'worker_failed' | null;
     }>;
 };
 
@@ -283,6 +377,7 @@ export type AdminOrganizationOption = {
 export type AdminSokoBotList = {
     items: Array<AdminSokoBotListItem>;
     total: number;
+    summary: AdminSokoBotFleetSummary;
 };
 
 export type AdminSokoBotListItem = {
@@ -303,6 +398,7 @@ export type AdminSokoBotListItem = {
     pendingDecisionCount: number;
     scheduleCount: number;
     owner: AdminSokoBotOwner | null;
+    evalLane: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -320,6 +416,14 @@ export type AdminSokoBotOwner = {
     id: string;
     name: string | null;
     email: string;
+};
+
+export type AdminSokoBotFleetSummary = {
+    active: number;
+    activeRecently: number;
+    pendingDecisions: number;
+    attention: Array<AdminSokoBotListItem>;
+    attentionTotal: number;
 };
 
 export type AdminSokoBotQuality = {
@@ -521,6 +625,7 @@ export type AdminCmoSpend = {
     bots: Array<{
         sokoBotId: string;
         businessName: string;
+        evalLane: boolean;
         ownerEmail: string;
         turns: number;
         totalUsd: number;
@@ -579,6 +684,7 @@ export type AdminSokoBotFleetDays = {
         totalTokens: number;
         costUsd: number;
         cmoCostUsd: number;
+        evalCostUsd: number;
     }>;
 };
 
@@ -1398,6 +1504,37 @@ export const StripeSubscriptionStatus = {
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
+export type AdminPreprodAccess = {
+    enabled: boolean;
+    /**
+     * The 20 most recent changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        enabled: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodAccessBody = {
+    /**
+     * Whether the user or Organization may use Preprod
+     */
+    enabled: boolean;
+    /**
+     * Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.
+     */
+    reason: string;
+};
+
 export type AdminMatchedChannelOption = {
     id: string;
     name: string;
@@ -1489,6 +1626,44 @@ export type AdminRemoveMatchedChannelParticipant = {
     userId: string;
     roomId: string;
     outcome: 'removed';
+};
+
+export type AdminPreprodPause = {
+    /**
+     * Whether Preprod is paused. Paused until an admin opens it.
+     */
+    paused: boolean;
+    /**
+     * Preprod's generation number, raised by each wipe; 0 before the first.
+     */
+    generation: number;
+    /**
+     * The 20 most recent pause changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        paused: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodPauseBody = {
+    /**
+     * Whether Preprod is paused
+     */
+    paused: boolean;
+    /**
+     * Why Preprod is paused or opened: a ticket id, no personal details.
+     */
+    reason: string;
 };
 
 export type AdminOrganizationOverviewItem = {
@@ -1761,6 +1936,9 @@ export type EvalRunReport = {
             pending?: number;
             skipped?: number;
         };
+        costlier: number;
+        slower: number;
+        passRate: number | null;
         passed: number;
         scored: number;
         open: number;
@@ -1780,6 +1958,12 @@ export type EvalCaseReport = {
     passRate: number | null;
     baselinePassRate: number | null;
     history: Array<number | null>;
+    costUsd: number | null;
+    usualCostUsd: number | null;
+    costlier: boolean;
+    durationMs: number | null;
+    usualDurationMs: number | null;
+    slower: boolean;
     results: Array<EvalResult>;
 };
 
@@ -3670,6 +3854,24 @@ export type UpdateChatRoomRequest = {
      * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
      */
     groupName?: string | null;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    memberUserIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    coworkerIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    sokoBotIds?: Array<string>;
 };
 
 /**
@@ -4428,6 +4630,7 @@ export type ContactList = {
         listIds?: Array<string>;
         knownByUserId?: string;
         knownByMe?: boolean;
+        xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -4543,6 +4746,7 @@ export type Contact = {
     channels: Array<ContactChannel>;
     lists: Array<ContactListRef>;
     knownBy: Array<ContactKnownBy>;
+    user: ContactPerson | null;
 };
 
 export type ContactScore = {
@@ -4643,6 +4847,8 @@ export type ContactListRef = {
 export type ContactKnownBy = ContactPerson & {
     interactionCount: number;
     lastInteractionAt: Date | null;
+    followsOnX: boolean;
+    followedOnX: boolean;
 };
 
 export type ContactPerson = {
@@ -4650,6 +4856,20 @@ export type ContactPerson = {
     name: string;
     image: string | null;
 };
+
+/**
+ * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+ */
+export const ContactXFollowState = {
+    FOLLOWS_YOU: 'FOLLOWS_YOU',
+    YOU_FOLLOW: 'YOU_FOLLOW',
+    MUTUAL: 'MUTUAL'
+} as const;
+
+/**
+ * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+ */
+export type ContactXFollowState = typeof ContactXFollowState[keyof typeof ContactXFollowState];
 
 export type ContactUpsertResult = {
     contact: Contact;
@@ -4659,6 +4879,9 @@ export type ContactUpsertResult = {
 };
 
 export type ContactMergeSuggestion = {
+    /**
+     * `same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.
+     */
     reason: 'shared_channel' | 'same_name';
     contactIds: Array<string>;
 };
@@ -4693,6 +4916,10 @@ export type ContactMapContact = {
 
 export type ContactDuplicateGroup = {
     name: string;
+    /**
+     * Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).
+     */
+    reason: 'same_name' | 'same_company';
     contacts: Array<Contact>;
 };
 
@@ -4704,6 +4931,17 @@ export type ContactImportResult = {
     skipped: number;
     listsCreated: number;
     mergeSuggestions: Array<ContactMergeSuggestion>;
+};
+
+export type ContactLinkedInImportResult = {
+    connections: number;
+    created: number;
+    updated: number;
+    listId: string;
+};
+
+export type ContactLinkedInImportInput = {
+    csv: string;
 };
 
 export type ContactOrganization = {
@@ -5341,6 +5579,10 @@ export type LinkDriveGoogleSheetRequest = {
      * Folder to put the copy in; the Drive root when omitted
      */
     folder?: string;
+    /**
+     * The same as `folder`, as other Drive writes name it.
+     */
+    folderPath?: string;
 };
 
 export type DriveItems = Array<DriveItem>;
@@ -5667,19 +5909,6 @@ export type FileMetadataBatchResponse = {
     revisedCount: number | null;
 };
 
-export type FileMetadataBatchRequest = {
-    resourceIds?: Array<string>;
-    selectionToken?: string;
-    idempotencyKey: string;
-    addTagLabelIds?: Array<string>;
-    removeTagLabelIds?: Array<string>;
-    categoryLabelId?: string | null;
-    expectedRevisions?: Array<{
-        resourceId: string;
-        metadataRevision: number;
-    }>;
-};
-
 export type FileResource = {
     id: string;
     displayName: string;
@@ -5837,6 +6066,10 @@ export type FileSearchMeta = {
      */
     hasMore: boolean;
     nextCursor: string | null;
+    /**
+     * This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.
+     */
+    windowCursor: string;
     /**
      * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
      */
@@ -6346,6 +6579,10 @@ export type FundraisingPipeline = {
     }>;
     prospects: Array<FundraisingProspect>;
     research: FundraisingResearch;
+    mailbox: {
+        provider: string;
+        botId: string;
+    } | null;
 };
 
 export type FundraisingProspect = {
@@ -6358,7 +6595,11 @@ export type FundraisingProspect = {
     committedUsd: number | null;
     notes: string | null;
     source: string | null;
+    lastDraftAt: Date | null;
+    lastDraftSubject: string | null;
     dataRoom: FundraisingDataRoomVisit | null;
+    intro: FundraisingIntro;
+    bestPath: FundraisingPath | null;
 };
 
 export const FundraisingStage = {
@@ -6388,6 +6629,52 @@ export type FundraisingDataRoomVisit = {
     revoked: boolean;
 };
 
+export type FundraisingIntro = {
+    via: FundraisingConnector | null;
+    askedAt: Date | null;
+    madeAt: Date | null;
+    declinedAt: Date | null;
+};
+
+export type FundraisingConnector = {
+    kind: 'contact' | 'teammate';
+    id: string;
+    name: string;
+    image: string | null;
+    email: string | null;
+};
+
+export type FundraisingPath = {
+    kind: FundraisingPathKind;
+    via: ContactPerson | null;
+    linkedIn: boolean;
+    through: {
+        id: string;
+        name: string;
+        role: string | null;
+        organization: string | null;
+        avatarUrl: string | null;
+        email: string | null;
+    } | null;
+    company: {
+        name: string;
+        round: string | null;
+        date: string | null;
+    } | null;
+    strength: number;
+    touches: number;
+    lastTouchAt: Date | null;
+};
+
+export const FundraisingPathKind = {
+    DIRECT: 'direct',
+    LINKEDIN: 'linkedin',
+    FUND: 'fund',
+    PORTFOLIO: 'portfolio'
+} as const;
+
+export type FundraisingPathKind = typeof FundraisingPathKind[keyof typeof FundraisingPathKind];
+
 export type FundraisingResearch = {
     monthUsd: number;
     capUsd: number;
@@ -6403,7 +6690,21 @@ export type FundraisingProspectUpdate = {
     committedUsd?: number | null;
     notes?: string | null;
     source?: string | null;
+    intro?: {
+        state: FundraisingIntroState;
+        viaContactId?: string;
+        viaUserId?: string;
+    };
 };
+
+export const FundraisingIntroState = {
+    ASKED: 'ASKED',
+    MADE: 'MADE',
+    DECLINED: 'DECLINED',
+    NULL: null
+} as const;
+
+export type FundraisingIntroState = typeof FundraisingIntroState[keyof typeof FundraisingIntroState];
 
 export type FundraisingFindResult = {
     found: number;
@@ -6418,6 +6719,64 @@ export type FundraisingFindInput = {
 
 export type FundraisingSuggestionIds = {
     ids: Array<string>;
+};
+
+export type FundraisingPaths = {
+    portfolio: Array<FundraisingPortfolioCompany>;
+    researchedAt: Date | null;
+    researchUsd: number;
+    paths: Array<FundraisingPath>;
+    research: FundraisingResearch;
+};
+
+export type FundraisingPortfolioCompany = {
+    id: string;
+    name: string;
+    website: string | null;
+    round: string | null;
+    date: string | null;
+    amountUsd: number | null;
+    sourceUrl: string;
+    fetchedAt: Date;
+};
+
+export type FundraisingDraftResult = {
+    to: string;
+    subject: string;
+    body: string;
+    draftId: string;
+    provider: string;
+    roomLink: string | null;
+    prospect: FundraisingProspect;
+};
+
+export type FundraisingDraftInput = {
+    kind: 'intro' | 'follow_up';
+    viaContactId?: string;
+    inviteToRoomId?: string;
+    note?: string;
+};
+
+export type FundraisingIntroAskResult = {
+    ask: FundraisingMailDraft;
+    forwardable: FundraisingMailDraft;
+    provider: string;
+    roomLink: string | null;
+    prospect: FundraisingProspect;
+};
+
+export type FundraisingMailDraft = {
+    to: string;
+    subject: string;
+    body: string;
+    draftId: string;
+};
+
+export type FundraisingIntroAskInput = {
+    viaContactId?: string;
+    viaUserId?: string;
+    inviteToRoomId?: string;
+    note?: string;
 };
 
 export type HistoryList = Array<HistoryItem>;
@@ -6819,7 +7178,9 @@ export type ProjectTalkingVideo = {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch' | null;
+    shape: '9:16' | '4:5' | '1:1' | '16:9';
+    sourceJobId: string | null;
 };
 
 export type ImageStudioRecentProjects = {
@@ -6928,9 +7289,9 @@ export type DesignMdWrite = {
      */
     content: string | null;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type MemberWithOrganization = {
@@ -7057,6 +7418,10 @@ export type UserWorkspace = {
      * Whether a new session opens this workspace
      */
     preferred: boolean;
+    /**
+     * Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person's own Preprod access for the personal workspace and the organization's for an organization workspace
+     */
+    canUsePreprod: boolean;
 };
 
 export const ProjectSocialProvider = {
@@ -7438,8 +7803,12 @@ export type User = {
 };
 
 export type UpdateUserName = {
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
+    /**
+     * The display name other members see. Omitted, it stays as it is.
+     */
+    name?: string;
 };
 
 export type OrganizationDeletionEvaluation = {
@@ -9433,6 +9802,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -9469,6 +9839,45 @@ export type MarketingStrategy = MarketingStrategyVersion & {
         }>;
         changes?: Array<string>;
         fitted?: Array<string>;
+        monthWriter?: {
+            state: 'examples' | 'writing' | 'written' | 'stopped';
+            level?: 'steady' | 'active' | 'all_in';
+            start?: string;
+            attempts?: number;
+            startedAt?: string;
+            endedAt?: string;
+            error?: string;
+            costUsd?: number;
+            floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -9500,6 +9909,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -9772,6 +10182,7 @@ export type MarketingStrategyRequest = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -9808,6 +10219,45 @@ export type MarketingStrategyRequest = {
         }>;
         changes?: Array<string>;
         fitted?: Array<string>;
+        monthWriter?: {
+            state: 'examples' | 'writing' | 'written' | 'stopped';
+            level?: 'steady' | 'active' | 'all_in';
+            start?: string;
+            attempts?: number;
+            startedAt?: string;
+            endedAt?: string;
+            error?: string;
+            costUsd?: number;
+            floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -9839,6 +10289,7 @@ export type MarketingStrategyRequest = {
                 languageCode?: string;
                 alsoOn?: Array<string>;
                 videoOf?: string;
+                videoOfTalking?: boolean;
                 story?: string;
                 claim?: string;
                 imageFileId?: string;
@@ -11579,8 +12030,11 @@ export type SocialPost = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
+        applyOpId?: string;
+        applyCreateOpId?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -11992,7 +12446,12 @@ export type StudioBrandLook = {
 };
 
 export type SaveStudioBrandCopy = {
-    copy: StudioBrandCopy;
+    copy: StudioBrandCopy & {
+        /**
+         * The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.
+         */
+        tone?: string;
+    };
     version: Date | null;
 };
 
@@ -12060,6 +12519,9 @@ export type CreateProjectTalkingVideoJobRequest = {
     script: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
+    /**
+     * A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller's own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.
+     */
     presenter: {
         kind: 'stock';
         id: string;
@@ -12071,17 +12533,20 @@ export type CreateProjectTalkingVideoJobRequest = {
     siteShots?: boolean;
     broll?: boolean;
     music?: boolean;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
 export type CreateProjectShortVideoJobRequest = {
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     script: string;
     hookLine?: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    launchDate?: string;
+    shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
 
@@ -12095,7 +12560,7 @@ export type ProjectTalkingVideoScripts = {
 
 export type WriteProjectTalkingVideoScriptsRequest = {
     topic?: string;
-    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     languageCode?: string;
 };
 
@@ -12227,6 +12692,7 @@ export type ProjectSeoWorkspace = {
     searchBreakdown?: ProjectSeoWorkspaceSearchBreakdown | null;
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
+    aiAssistantPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     siteEvidence?: ProjectSeoSiteEvidence | null;
@@ -12413,6 +12879,7 @@ export type ProjectSeoWorkspace = {
             from: Date;
             to: Date;
         } | null;
+        requester?: true;
         propertyDataExpired?: true;
         propertyTotals?: {
             clicks: number | null;
@@ -12777,6 +13244,8 @@ export type ProjectSeoKeyword = {
     intent: string | null;
     conversion: 'high' | 'medium' | 'low' | null;
     feature: string | null;
+    intentClass?: 'product' | 'comparison' | 'problem' | 'learn' | null;
+    fit?: 'direct' | 'partial' | null;
     device: 'mobile' | 'desktop' | null;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
@@ -12786,6 +13255,7 @@ export type ProjectSeoKeyword = {
     priority: 'low' | 'medium' | 'high';
     version: number;
     positionHistory?: Array<ProjectSeoPositionPoint>;
+    positionHistoryCut?: boolean;
 };
 
 export type ProjectSeoPositionPoint = {
@@ -12793,6 +13263,7 @@ export type ProjectSeoPositionPoint = {
     observationId: string;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    checkedResults?: number | null;
     device: 'mobile' | 'desktop' | null;
 };
 
@@ -12881,6 +13352,7 @@ export type ProjectSeoAction = {
     status: 'recommended' | 'needs_review' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
+    impact?: ProjectSeoActionImpact;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };
@@ -12943,6 +13415,7 @@ export type ProjectSeoKeywordSeries = {
     keywords: Array<{
         keyword: string;
         countryCode?: string;
+        from?: string;
         points: Array<{
             date: string;
             clicks: number;
@@ -12993,6 +13466,7 @@ export type ProjectSeoLandingPages = {
     }>;
     truncated?: boolean;
     skippedUrls?: Array<string>;
+    pageUrls: Array<string>;
     observationId: string;
     propertyId: string;
     from: string;
@@ -13316,6 +13790,7 @@ export type ProjectSeoSerpPoint = {
         asyncLoaded: boolean;
         citedDomains: Array<string>;
         pageCited: boolean | null;
+        siteCited?: boolean | null;
     } | null;
     featured: {
         domain: string | null;
@@ -13444,9 +13919,22 @@ export type ProjectSeoMonitorChange = {
         device: 'mobile' | 'desktop' | null;
         from: number;
         to: number;
+    } | {
+        keyword: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        from: number;
+        to: null;
+        checkedResults: number;
     }>;
     moveCount: number;
     dropCount: number;
+    lostCitations: Array<{
+        keyword: string;
+        device: 'mobile' | 'desktop';
+        shown: boolean;
+    }>;
+    lostCitationCount: number;
 };
 
 export type AddProjectSeoPageRequest = {
@@ -13485,6 +13973,9 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    /**
+     * Required for `kind: "audit_full"`: `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}`. The audit costs its provider cost plus 50%, at least 750 credits. It has no credit cap: `fullAuditLimits.usd` bounds the provider cost. Leave out `maxCredits`. Confirm the price with the person first.
+     */
     fullAuditPrice?: {
         kind: 'cost_plus';
         version: 1;
@@ -13600,6 +14091,21 @@ export type SeoSiteTrafficReport = {
         date: string;
     }>;
     limited: boolean;
+    brand?: {
+        daily: Array<{
+            date: string;
+            branded: {
+                clicks: number;
+                impressions: number;
+            };
+            nonBranded: {
+                clicks: number;
+                impressions: number;
+            };
+        }>;
+        limited: boolean;
+        terms: Array<string>;
+    };
     pages: Array<{
         clicks: number;
         impressions: number;
@@ -13770,6 +14276,14 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
+    lastCheck: SeoAuditLastCheck | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SeoAuditLastCheck = {
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    status: 'requested' | 'running' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt: Date;
 };
@@ -13782,6 +14296,10 @@ export type CreateSeoAuditRequest = {
         relationship?: 'primary' | 'related';
     };
     projectId?: string;
+    /**
+     * Send the same key to retry a create: the first Audit comes back and no second one is made
+     */
+    idempotencyKey?: string;
 };
 
 export type SeoAuditWorkspaceMapping = {
@@ -13879,6 +14397,82 @@ export type FinalizeSeoConnectionRequest = {
 
 export type DisconnectSeoConnectionResponse = {
     disconnected: true;
+};
+
+export type SeoImpactClaim = {
+    claimId: string;
+    claimedUntil: Date;
+    input: SeoImpactInput;
+};
+
+export type SeoImpactInput = {
+    schema: 'sokosumi.seo-impact-input/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: Date;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    changeBounds: {
+        earliest: Date;
+        latest: Date;
+    } | null;
+    changeCheck: 'verified' | 'not_checked';
+    windowCrawl: Date;
+    pageByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    siteByDate: Array<{
+        date: string;
+        clicks: number;
+        impressions: number;
+        ctr: number;
+        position: number;
+    }>;
+    candidates: Array<{
+        pageUrl: string;
+        byDate: Array<{
+            date: string;
+            clicks: number;
+            impressions: number;
+            ctr: number;
+            position: number;
+        }>;
+    }>;
+    pin: {
+        comparisonPage: string;
+    } | null;
+    readAt: Date;
+};
+
+export type SeoImpactVerdictReceipt = {
+    impactId: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+};
+
+export type SeoImpactResult = {
+    schema: 'sokosumi.seo-impact/1';
+    impactId: string;
+    pageUrl: string;
+    property: string;
+    changedAt: string;
+    changeSource: 'cuso_done' | 'audit_recheck';
+    observedAt: string;
+    windowCrawl: string;
+    state: 'change not confirmed' | 'not crawled after change' | 'tested' | 'waiting';
+    verdict: {
+        verdict: 'effect detected' | 'no effect detected' | 'not measurable';
+        [key: string]: unknown;
+    } | null;
+    comparison: {
+        pageUrl: string | null;
+        [key: string]: unknown;
+    } | null;
+    retryAfter: string | null;
+    [key: string]: unknown;
 };
 
 export type PublicNewsletter = {
@@ -15399,6 +15993,7 @@ export type CmoPlan = {
         languageCode?: string;
         alsoOn?: Array<string>;
         videoOf?: string;
+        videoOfTalking?: boolean;
         story?: string;
         claim?: string;
         imageFileId?: string;
@@ -15435,6 +16030,45 @@ export type CmoPlan = {
     }>;
     changes?: Array<string>;
     fitted?: Array<string>;
+    monthWriter?: {
+        state: 'examples' | 'writing' | 'written' | 'stopped';
+        level?: 'steady' | 'active' | 'all_in';
+        start?: string;
+        attempts?: number;
+        startedAt?: string;
+        endedAt?: string;
+        error?: string;
+        costUsd?: number;
+        floorAlertAt?: string;
+    };
+    applyLog?: {
+        baseVersionId: string;
+        baseUpdatedAt: string;
+        state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+        startedAt: string;
+        updatedAt: string;
+        endedAt?: string;
+        ops?: Array<{
+            opId: string;
+            entryId: string;
+            kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+            postId: string | null;
+            prior: {
+                status: string;
+                scheduledAt: string | null;
+                text: string;
+                planning: string | null;
+                socialConnectionId: string | null;
+                revision: number;
+            } | null;
+            state: 'intent' | 'done' | 'refused';
+            reason?: string;
+            after?: {
+                revision: number | null;
+                postId: string | null;
+            };
+        }>;
+    };
     patched?: Array<{
         id: string;
         was: {
@@ -15466,6 +16100,7 @@ export type CmoPlan = {
             languageCode?: string;
             alsoOn?: Array<string>;
             videoOf?: string;
+            videoOfTalking?: boolean;
             story?: string;
             claim?: string;
             imageFileId?: string;
@@ -15572,9 +16207,9 @@ export type CmoMeasurement = {
  */
 export type CmoProduction = {
     /**
-     * starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
+     * planning: paid, and Core is writing the month's calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.
      */
-    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
+    state: 'waiting' | 'planning' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
     ready: number;
     total: number;
     /**
@@ -15615,6 +16250,17 @@ export type CmoProduction = {
      * When a stuck month's next production run starts. Null unless state is stuck.
      */
     retryAt: string | null;
+    /**
+     * A stuck month stopped because Core's month writer wrote nothing in the last run: a fault on our side, not Cuso's.
+     */
+    writerFailed: boolean;
+    /**
+     * cmo-v22: the posts the plan promises at least, and the month's posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.
+     */
+    floor: {
+        promised: number;
+        made: number;
+    } | null;
 };
 
 export type CmoOnboardingConflictError = {
@@ -16341,6 +16987,28 @@ export type CreateSokoBotScheduleRequest = {
     timezone: string;
     cronExpression: string;
     prompt: string;
+    stopRule?: SokoBotScheduleStopRuleInput;
+};
+
+export type SokoBotScheduleStopRuleInput = {
+    mode: 'never';
+} | {
+    mode: 'ends_on';
+    scheduleId?: string;
+    endsOn: Date;
+} | {
+    mode: 'ends_after_runs';
+    scheduleId?: string;
+    maxRuns: number;
+} | {
+    mode: 'when_target_settled';
+    scheduleId?: string;
+    targetKind: 'task' | 'job';
+    targetId: string;
+} | {
+    mode: 'owner_authorized_stop';
+    scheduleId?: string;
+    condition: string;
 };
 
 export type UpdateSokoBotScheduleRequest = {
@@ -16349,6 +17017,7 @@ export type UpdateSokoBotScheduleRequest = {
     timezone?: string;
     cronExpression?: string;
     prompt?: string;
+    stopRule?: SokoBotScheduleStopRuleInput;
     /**
      * Skip, move or restore one run; the cron stays as it is. Sent alone.
      */
@@ -16431,7 +17100,10 @@ export type SokoBotVersion = {
     }>;
     capabilities: Array<string> | null;
     inferenceRegion?: 'eu' | 'us' | null;
-    systemPrompt: string;
+    /**
+     * The composed system prompt. Sent to platform admins only, for the behaviour lab.
+     */
+    systemPrompt?: string;
 };
 
 export type UpdateSokoBotProactiveRequest = {
@@ -18270,6 +18942,80 @@ export type AblyTokenRequest = {
     mac: string;
 };
 
+export type RegistryAgent = {
+    /**
+     * Registry entry id. Use it as the pagination cursor.
+     */
+    id: string;
+    agentIdentifier: string;
+    name: string;
+    description: string | null;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    statusUpdatedAt: Date;
+    type: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
+    paymentType: 'Web3CardanoV1' | 'Web3CardanoV2' | 'None';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
+    image: string | null;
+    tags: Array<string>;
+    capability: {
+        name: string | null;
+        version: string | null;
+    } | null;
+    author: {
+        name: string | null;
+        organization: string | null;
+        contactEmail: string | null;
+        contactOther: string | null;
+    };
+    legal: {
+        privacyPolicy: string | null;
+        terms: string | null;
+        other: string | null;
+    };
+    pricing: RegistryAgentPricing;
+    uptime: {
+        count: number;
+        checkCount: number;
+        lastCheckedAt: Date;
+    };
+    policyId: string | null;
+    supersedesAgentIdentifier: string | null;
+    supersededByAgentIdentifier: string | null;
+    createdAt: Date;
+};
+
+/**
+ * Null when the registry sends a pricing shape Core does not know.
+ */
+export type RegistryAgentPricing = {
+    pricingType: 'Fixed';
+    amounts: Array<{
+        amount: string;
+        unit: string;
+    }>;
+} | {
+    pricingType: 'Free';
+} | {
+    pricingType: 'Dynamic';
+} | null;
+
+export type RegistryAgentsPaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
 export type VendorList = Array<Vendor>;
 
 export type VendorMembership = Vendor & {
@@ -18450,9 +19196,9 @@ export type AdHocDesignMdWrite = {
      */
     content: string;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type EffectiveDesignMd = {
@@ -18558,6 +19304,16 @@ export type ContextOrganizationId = string;
  * Native Mac app build, `macos/<build>`. A build older than the minimum gets 426 with `kind: client_update_required` on every operation (ADR 0053).
  */
 export type SokosumiClient = string;
+
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ */
+export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
+
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ */
+export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
 
 export type StopAdminImpersonationData = {
     body?: never;
@@ -18841,6 +19597,127 @@ export type ListAdminSeoAlertsResponses = {
 };
 
 export type ListAdminSeoAlertsResponse = ListAdminSeoAlertsResponses[keyof ListAdminSeoAlertsResponses];
+
+export type ListAdminSeoActionImpactData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+        page?: number;
+    };
+    url: '/admin/seo-action-impact';
+};
+
+export type ListAdminSeoActionImpactErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactError = ListAdminSeoActionImpactErrors[keyof ListAdminSeoActionImpactErrors];
+
+export type ListAdminSeoActionImpactResponses = {
+    /**
+     * Impact of done SEO actions
+     */
+    200: {
+        data: AdminSeoActionImpact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactResponse = ListAdminSeoActionImpactResponses[keyof ListAdminSeoActionImpactResponses];
+
+export type ListAdminSeoImpactVerdictsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        period?: '90' | '365' | 'all';
+    };
+    url: '/admin/seo-impact';
+};
+
+export type ListAdminSeoImpactVerdictsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsError = ListAdminSeoImpactVerdictsErrors[keyof ListAdminSeoImpactVerdictsErrors];
+
+export type ListAdminSeoImpactVerdictsResponses = {
+    /**
+     * Tracked SEO page changes
+     */
+    200: {
+        data: AdminSeoImpactVerdicts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsResponse = ListAdminSeoImpactVerdictsResponses[keyof ListAdminSeoImpactVerdictsResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -19840,6 +20717,10 @@ export type ListAdminSokoBotsData = {
          * Personal Soko Bots, Cuso (CMO.xyz) bots, or both.
          */
         kind?: 'all' | 'assistant' | 'cmo';
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots';
 };
@@ -20829,6 +21710,10 @@ export type GetAdminCmoSpendData = {
     path?: never;
     query?: {
         days?: number;
+        /**
+         * Leave eval-lane bots out (default), include them, or show only them.
+         */
+        evals?: 'exclude' | 'include' | 'only';
     };
     url: '/admin/soko-bots/cmo-spend';
 };
@@ -21668,6 +22553,171 @@ export type ListAdminUsersResponses = {
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
 
+export type GetAdminUserPreprodAccessData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type GetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessError = GetAdminUserPreprodAccessErrors[keyof GetAdminUserPreprodAccessErrors];
+
+export type GetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessResponse = GetAdminUserPreprodAccessResponses[keyof GetAdminUserPreprodAccessResponses];
+
+export type SetAdminUserPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type SetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessError = SetAdminUserPreprodAccessErrors[keyof SetAdminUserPreprodAccessErrors];
+
+export type SetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessResponse = SetAdminUserPreprodAccessResponses[keyof SetAdminUserPreprodAccessResponses];
+
 export type ListAdminMatchedChannelsData = {
     body?: never;
     path?: never;
@@ -22428,6 +23478,152 @@ export type RemoveAdminMatchedChannelParticipantResponses = {
 
 export type RemoveAdminMatchedChannelParticipantResponse = RemoveAdminMatchedChannelParticipantResponses[keyof RemoveAdminMatchedChannelParticipantResponses];
 
+export type GetAdminPreprodPauseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type GetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseError = GetAdminPreprodPauseErrors[keyof GetAdminPreprodPauseErrors];
+
+export type GetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminPreprodPauseResponse = GetAdminPreprodPauseResponses[keyof GetAdminPreprodPauseResponses];
+
+export type SetAdminPreprodPauseData = {
+    body: SetAdminPreprodPauseBody;
+    path?: never;
+    query?: never;
+    url: '/admin/networks/preprod/pause';
+};
+
+export type SetAdminPreprodPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseError = SetAdminPreprodPauseErrors[keyof SetAdminPreprodPauseErrors];
+
+export type SetAdminPreprodPauseResponses = {
+    /**
+     * The Preprod pause, its generation and its recent changes
+     */
+    200: {
+        data: AdminPreprodPause;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminPreprodPauseResponse = SetAdminPreprodPauseResponses[keyof SetAdminPreprodPauseResponses];
+
 export type ListAdminOrganizationsData = {
     body?: never;
     path?: never;
@@ -23149,6 +24345,171 @@ export type AssignAdminOrganizationMemberSeatResponses = {
 };
 
 export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
+
+export type GetAdminOrganizationPreprodAccessData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type GetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessError = GetAdminOrganizationPreprodAccessErrors[keyof GetAdminOrganizationPreprodAccessErrors];
+
+export type GetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessResponse = GetAdminOrganizationPreprodAccessResponses[keyof GetAdminOrganizationPreprodAccessResponses];
+
+export type SetAdminOrganizationPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type SetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessError = SetAdminOrganizationPreprodAccessErrors[keyof SetAdminOrganizationPreprodAccessErrors];
+
+export type SetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessResponse = SetAdminOrganizationPreprodAccessResponses[keyof SetAdminOrganizationPreprodAccessResponses];
 
 export type ListAdminInvoicesData = {
     body?: never;
@@ -25614,6 +26975,21 @@ export type GetAgentsData = {
 };
 
 export type GetAgentsErrors = {
+    /**
+     * Forbidden. Only with `X-Sokosumi-Network: preprod`. Branch on `kind`: preprod_off (Preprod is switched off) or preprod_access_required (an anonymous caller, a credential other than a browser session, or a person without Preprod access in the workspace)
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */
@@ -37263,6 +38639,7 @@ export type PostContactListsData = {
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
+            xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
             lastContactAfter?: Date;
             lastContactBefore?: Date;
             lastContactOlderThanDays?: number;
@@ -37549,6 +38926,7 @@ export type PatchContactListsByIdData = {
             listIds?: Array<string>;
             knownByUserId?: string;
             knownByMe?: boolean;
+            xFollow?: 'FOLLOWS_YOU' | 'YOU_FOLLOW' | 'MUTUAL';
             lastContactAfter?: Date;
             lastContactBefore?: Date;
             lastContactOlderThanDays?: number;
@@ -38562,6 +39940,10 @@ export type GetContactsData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -38879,6 +40261,10 @@ export type GetContactsExportCsvData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -39036,6 +40422,10 @@ export type GetContactsMapData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -39934,6 +41324,108 @@ export type PostContactsImportResponses = {
 };
 
 export type PostContactsImportResponse = PostContactsImportResponses[keyof PostContactsImportResponses];
+
+export type PostContactsLinkedinConnectionsData = {
+    body?: ContactLinkedInImportInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/contacts/linkedin-connections';
+};
+
+export type PostContactsLinkedinConnectionsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a LinkedIn export, or too many rows
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostContactsLinkedinConnectionsError = PostContactsLinkedinConnectionsErrors[keyof PostContactsLinkedinConnectionsErrors];
+
+export type PostContactsLinkedinConnectionsResponses = {
+    /**
+     * Imported
+     */
+    200: {
+        data: ContactLinkedInImportResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostContactsLinkedinConnectionsResponse = PostContactsLinkedinConnectionsResponses[keyof PostContactsLinkedinConnectionsResponses];
 
 export type GetContactsOrganizationsData = {
     body?: never;
@@ -41062,6 +42554,10 @@ export type GetContactsBreakdownData = {
         listId?: string;
         knownByUserId?: string;
         knownByMe?: 'true' | 'false';
+        /**
+         * How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.
+         */
+        xFollow?: ContactXFollowState;
         lastContactAfter?: Date;
         lastContactBefore?: Date;
         lastContactOlderThanDays?: number;
@@ -42535,6 +44031,142 @@ export type PutContactsByIdImportanceResponses = {
 };
 
 export type PutContactsByIdImportanceResponse = PutContactsByIdImportanceResponses[keyof PutContactsByIdImportanceResponses];
+
+export type PutContactsByIdUserData = {
+    body?: {
+        userId: string | null;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/contacts/{id}/user';
+};
+
+export type PutContactsByIdUserErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Contact was merged
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a member of this workspace, or the contact is archived or not a person
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutContactsByIdUserError = PutContactsByIdUserErrors[keyof PutContactsByIdUserErrors];
+
+export type PutContactsByIdUserResponses = {
+    /**
+     * Contact
+     */
+    200: {
+        data: Contact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutContactsByIdUserResponse = PutContactsByIdUserResponses[keyof PutContactsByIdUserResponses];
 
 export type PostContactsByIdEnrichData = {
     body?: never;
@@ -47616,6 +49248,9 @@ export type PostDriveResourcesSelectionTokenData = {
          */
         scope: 'me' | 'org';
         organizationId?: string;
+        /**
+         * The search response's `search.windowCursor` (any of its cursors names the same window).
+         */
         windowCursor: string;
     };
     headers?: {
@@ -47704,7 +49339,17 @@ export type PostDriveResourcesSelectionTokenResponses = {
 export type PostDriveResourcesSelectionTokenResponse = PostDriveResourcesSelectionTokenResponses[keyof PostDriveResourcesSelectionTokenResponses];
 
 export type PostDriveResourcesMetadataBatchData = {
-    body: FileMetadataBatchRequest & {
+    body: {
+        resourceIds?: Array<string>;
+        selectionToken?: string;
+        idempotencyKey: string;
+        addTagLabelIds?: Array<string>;
+        removeTagLabelIds?: Array<string>;
+        categoryLabelId?: string | null;
+        expectedRevisions?: Array<{
+            resourceId: string;
+            metadataRevision: number;
+        }>;
         /**
          * Drive file owner scope: 'me' for personal, 'org' for organization
          */
@@ -52590,6 +54235,512 @@ export type PostFundraisingSuggestionsDismissResponses = {
 };
 
 export type PostFundraisingSuggestionsDismissResponse = PostFundraisingSuggestionsDismissResponses[keyof PostFundraisingSuggestionsDismissResponses];
+
+export type GetFundraisingProspectsByContactIdPathsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/paths';
+};
+
+export type GetFundraisingProspectsByContactIdPathsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on the Investors list
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetFundraisingProspectsByContactIdPathsError = GetFundraisingProspectsByContactIdPathsErrors[keyof GetFundraisingProspectsByContactIdPathsErrors];
+
+export type GetFundraisingProspectsByContactIdPathsResponses = {
+    /**
+     * Paths
+     */
+    200: {
+        data: FundraisingPaths;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetFundraisingProspectsByContactIdPathsResponse = GetFundraisingProspectsByContactIdPathsResponses[keyof GetFundraisingProspectsByContactIdPathsResponses];
+
+export type PostFundraisingProspectsByContactIdResearchData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/research';
+};
+
+export type PostFundraisingProspectsByContactIdResearchErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not on the Investors list
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No fund on the contact, Exa missing, or the cap is reached
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Exa did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdResearchError = PostFundraisingProspectsByContactIdResearchErrors[keyof PostFundraisingProspectsByContactIdResearchErrors];
+
+export type PostFundraisingProspectsByContactIdResearchResponses = {
+    /**
+     * Paths
+     */
+    200: {
+        data: FundraisingPaths;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdResearchResponse = PostFundraisingProspectsByContactIdResearchResponses[keyof PostFundraisingProspectsByContactIdResearchResponses];
+
+export type PostFundraisingProspectsByContactIdDraftData = {
+    body?: FundraisingDraftInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/draft';
+};
+
+export type PostFundraisingProspectsByContactIdDraftErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No mailbox, or no email address
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The model or the mailbox did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdDraftError = PostFundraisingProspectsByContactIdDraftErrors[keyof PostFundraisingProspectsByContactIdDraftErrors];
+
+export type PostFundraisingProspectsByContactIdDraftResponses = {
+    /**
+     * Draft
+     */
+    200: {
+        data: FundraisingDraftResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdDraftResponse = PostFundraisingProspectsByContactIdDraftResponses[keyof PostFundraisingProspectsByContactIdDraftResponses];
+
+export type PostFundraisingProspectsByContactIdIntroAskData = {
+    body?: FundraisingIntroAskInput;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        contactId: string;
+    };
+    query?: never;
+    url: '/fundraising/prospects/{contactId}/intro-ask';
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No mailbox, no connector, or no email address
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The model or the mailbox did not answer
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskError = PostFundraisingProspectsByContactIdIntroAskErrors[keyof PostFundraisingProspectsByContactIdIntroAskErrors];
+
+export type PostFundraisingProspectsByContactIdIntroAskResponses = {
+    /**
+     * Drafts
+     */
+    200: {
+        data: FundraisingIntroAskResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostFundraisingProspectsByContactIdIntroAskResponse = PostFundraisingProspectsByContactIdIntroAskResponses[keyof PostFundraisingProspectsByContactIdIntroAskResponses];
 
 export type GetHistoryData = {
     body?: never;
@@ -73451,6 +75602,21 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
@@ -79616,6 +81782,21 @@ export type PostProjectsByIdImageStudioTalkingVideoScriptsErrors = {
         };
     };
     /**
+     * An agent reached its hourly limit
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Service Unavailable
      */
     503: {
@@ -80573,6 +82754,21 @@ export type PostProjectsByIdImageStudioAssetsByAssetIdCaptionErrors = {
      * CMO project is read-only
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * An agent reached its hourly limit
+     */
+    429: {
         error: string;
         message: string;
         kind?: string;
@@ -87142,6 +89338,169 @@ export type FinalizeSeoConnectionResponses = {
 
 export type FinalizeSeoConnectionResponse = FinalizeSeoConnectionResponses[keyof FinalizeSeoConnectionResponses];
 
+export type PostSeoImpactClaimsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/seo-impact/claims';
+};
+
+export type PostSeoImpactClaimsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsError = PostSeoImpactClaimsErrors[keyof PostSeoImpactClaimsErrors];
+
+export type PostSeoImpactClaimsResponses = {
+    /**
+     * A claim, or null
+     */
+    200: {
+        data: SeoImpactClaim | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsResponse = PostSeoImpactClaimsResponses[keyof PostSeoImpactClaimsResponses];
+
+export type PostSeoImpactClaimsByClaimIdVerdictData = {
+    body: SeoImpactResult;
+    path: {
+        claimId: string;
+    };
+    query?: never;
+    url: '/seo-impact/claims/{claimId}/verdict';
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictError = PostSeoImpactClaimsByClaimIdVerdictErrors[keyof PostSeoImpactClaimsByClaimIdVerdictErrors];
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponses = {
+    /**
+     * Result saved
+     */
+    200: {
+        data: SeoImpactVerdictReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostSeoImpactClaimsByClaimIdVerdictResponse = PostSeoImpactClaimsByClaimIdVerdictResponses[keyof PostSeoImpactClaimsByClaimIdVerdictResponses];
+
 export type GetPublicNewsletterUnsubscribeData = {
     body?: never;
     path?: never;
@@ -93360,6 +95719,13 @@ export type StartCmoPlanCheckoutForProjectData = {
          * Where Polar's back link leads without paying: no success marker.
          */
         backUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;
@@ -94785,6 +97151,21 @@ export type SetCmoSeoSuggestionStatusForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * The suggestion changed while it was saved
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type SetCmoSeoSuggestionStatusForProjectError = SetCmoSeoSuggestionStatusForProjectErrors[keyof SetCmoSeoSuggestionStatusForProjectErrors];
@@ -95430,6 +97811,13 @@ export type RequestCmoStrategyForProjectResponse = RequestCmoStrategyForProjectR
 export type StartCmoTopUpForProjectData = {
     body?: {
         returnUrl: string;
+        /**
+         * GA4 client and session id, only with the person's analytics consent; the paid order is reported to GA4 with them.
+         */
+        analytics?: {
+            clientId: string;
+            sessionId?: string;
+        };
     };
     path: {
         projectId: string;
@@ -105549,6 +107937,10 @@ export type GetTasksData = {
          */
         includeSubtasks?: 'true' | 'false';
         /**
+         * false sends each Task's `description` as null, for a list of many Tasks such as a board. A description can be long; read one with GET /tasks/{id}. Defaults to true.
+         */
+        includeDescription?: 'true' | 'false';
+        /**
          * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
          */
         unansweredMention?: 'true' | 'false';
@@ -111141,6 +113533,10 @@ export type PostTasksByIdEventsSeoSettlementV1Data = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         };
+        /**
+         * Optional display-only cost breakdown (SeoFullAuditCostDetail). An invalid detail is not stored and does not change the charge.
+         */
+        fullAuditCostDetail?: unknown;
     };
     path: {
         id: string;
@@ -113909,6 +116305,151 @@ export type PostRealtimeAblyTokenResponses = {
 };
 
 export type PostRealtimeAblyTokenResponse = PostRealtimeAblyTokenResponses[keyof PostRealtimeAblyTokenResponses];
+
+export type ListRegistryAgentsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * `nextCursor` from the previous page.
+         */
+        cursor?: string;
+        /**
+         * Number of agents to return (max 48).
+         */
+        limit?: number;
+        /**
+         * Filter by registry status. Supports repeated values and comma-separated lists. Omit to return every status.
+         */
+        status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
+    };
+    url: '/registry/agents';
+};
+
+export type ListRegistryAgentsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * API key required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Registry read budget used up
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Masumi registry unavailable
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListRegistryAgentsError = ListRegistryAgentsErrors[keyof ListRegistryAgentsErrors];
+
+export type ListRegistryAgentsResponses = {
+    /**
+     * One page of registry agents, newest first
+     */
+    200: {
+        data: Array<RegistryAgent>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: RegistryAgentsPaginationMetadata;
+        };
+    };
+};
+
+export type ListRegistryAgentsResponse = ListRegistryAgentsResponses[keyof ListRegistryAgentsResponses];
 
 export type ListVendorsData = {
     body?: never;

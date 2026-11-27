@@ -93,7 +93,10 @@ function signedInWithOrg() {
 
 function renderWithQueryClient(ui: ReactElement) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   const result = render(
     <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,

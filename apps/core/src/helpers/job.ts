@@ -164,6 +164,7 @@ async function createPaidJob(
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
+    "mainnet",
     input.ownerId,
     input.organizationId,
     cost.cents,

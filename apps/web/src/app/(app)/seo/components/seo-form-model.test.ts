@@ -305,24 +305,14 @@ describe("seoAnalysisMaxCredits", () => {
 });
 
 describe("full-audit price approval", () => {
-  it("approves cost plus 50% with a 750-credit minimum, no maximum, and never the old fixed price", () => {
+  it("sends no price terms from the browser, and never the old fixed price", () => {
     const form = analysisForm();
     form.set("kind", "audit_full");
     form.set("keywords", "stablecoins");
     // A stale or forged maximum field never reaches the approval.
     form.set("fullAuditMaxCredits", "750");
     const body = analysisSeoBody(form, seoTestWorkspace());
-    expect(body.fullAuditPrice).toEqual({
-      kind: "cost_plus",
-      version: 1,
-      minimumCredits: 750,
-      markupPercent: 50,
-    });
+    expect(body).not.toHaveProperty("fullAuditPrice");
     expect(body).not.toHaveProperty("fullAuditCredits");
-  });
-  it("sends no full-audit price with a focused check", () => {
-    expect(
-      analysisSeoBody(analysisForm(), seoTestWorkspace()),
-    ).not.toHaveProperty("fullAuditPrice");
   });
 });

@@ -358,6 +358,147 @@ describe("TikTokStudio", () => {
     });
   });
 
+  it("makes the video in every shape picked, and previews each", async () => {
+    startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
+    renderStudio();
+    fireEvent.click(screen.getByRole("button", { name: /names\.16:9/ }));
+    fireEvent.click(screen.getByRole("button", { name: /names\.4:5/ }));
+
+    // The shape just added is previewed.
+    const preview = screen.getByRole("tablist", { name: "shapes.previewIn" });
+    expect(
+      within(preview).getByRole("tab", { selected: true }),
+    ).toHaveTextContent("4:5");
+    fireEvent.click(within(preview).getByRole("tab", { name: /16:9/ }));
+    expect(
+      within(preview).getByRole("tab", { selected: true }),
+    ).toHaveTextContent("16:9");
+
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenCalledWith(
+        expect.objectContaining({ shapes: ["9:16", "4:5", "16:9"] }),
+      ),
+    );
+  });
+
+  it("keeps the last shape: a video is made in one at least", () => {
+    renderStudio();
+    expect(screen.getByRole("button", { name: /names\.9:16/ })).toBeDisabled();
+  });
+
+  const shapeJob = (
+    id: string,
+    shape: string,
+    sourceJobId: string | null,
+    status = "SUCCEEDED",
+  ) =>
+    ({
+      id,
+      prompt: SCRIPT,
+      status,
+      createdAt: new Date(),
+      talkingVideo: { presenterId: "maya", shape, sourceJobId },
+    }) as ProjectTalkingVideos["jobs"][number];
+  const shapeAsset = (id: string, jobId: string) =>
+    ({
+      id,
+      jobId,
+      contentPath: `/${id}.mp4`,
+    }) as ProjectTalkingVideos["assets"][number];
+  const renderVideos = (
+    videos: Parameters<typeof TikTokStudio>[0]["initialVideos"],
+  ) =>
+    render(
+      <TestQueryProvider>
+        <TikTokStudio
+          catalog={CATALOG}
+          projectId="project-1"
+          readOnly={false}
+          hasWebsite={false}
+          pictures={[]}
+          initialVideos={videos}
+        />
+      </TestQueryProvider>,
+    );
+
+  it("lists a video once and shows its other shapes on the stage", () => {
+    renderVideos({
+      jobs: [
+        shapeJob("wide", "16:9", "first"),
+        shapeJob("square", "1:1", "first"),
+        shapeJob("first", "9:16", null),
+      ],
+      assets: [
+        shapeAsset("asset-wide", "wide"),
+        shapeAsset("asset-square", "square"),
+        shapeAsset("asset-first", "first"),
+      ],
+    });
+
+    const tiles = screen.getAllByRole("button", { name: /videoReady/ });
+    expect(tiles).toHaveLength(1);
+    fireEvent.click(tiles[0]!);
+    const stage = screen.getByRole("region", { name: "stageVideo" });
+    const tabs = within(stage).getByRole("tablist", { name: "shapes.onStage" });
+    expect(
+      within(tabs)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["9:16", "1:1", "16:9"]);
+    expect(stage.querySelector("video")?.getAttribute("src")).toContain(
+      "asset-first",
+    );
+    fireEvent.click(within(tabs).getByRole("tab", { name: /16:9/ }));
+    expect(stage.querySelector("video")?.getAttribute("src")).toContain(
+      "asset-wide",
+    );
+  });
+
+  it("lists a video whose first shape is on an older page by one of its other shapes", () => {
+    renderVideos({
+      jobs: [
+        shapeJob("wide", "16:9", "older"),
+        shapeJob("square", "1:1", "older"),
+      ],
+      assets: [
+        shapeAsset("asset-wide", "wide"),
+        shapeAsset("asset-square", "square"),
+      ],
+      hasMore: true,
+    });
+
+    const tiles = screen.getAllByRole("button", { name: /videoReady/ });
+    expect(tiles).toHaveLength(1);
+    fireEvent.click(tiles[0]!);
+    const stage = screen.getByRole("region", { name: "stageVideo" });
+    expect(stage.querySelector("video")?.getAttribute("src")).toContain(
+      "asset-wide",
+    );
+    expect(
+      within(stage)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["1:1", "16:9"]);
+  });
+
+  it("opens on the shape still being cut, not on the finished first shape", () => {
+    renderVideos({
+      jobs: [
+        shapeJob("wide", "16:9", "first", "RUNNING"),
+        shapeJob("first", "9:16", null),
+      ],
+      assets: [shapeAsset("asset-first", "first")],
+    });
+
+    const stage = screen.getByRole("region", { name: "stageVideo" });
+    expect(stage.querySelector("video")).toBeNull();
+    expect(stage).toHaveTextContent("making");
+    expect(
+      within(stage).getByRole("tab", { selected: true }),
+    ).toHaveTextContent("16:9");
+  });
+
   it("pulses a presenter's tile until their photo has loaded", () => {
     // happy-dom treats every image as already loaded; a browser does not.
     const complete = vi
@@ -936,7 +1077,9 @@ describe("making a short", () => {
     expect(
       screen
         .getAllByRole("button", { pressed: true })
-        .map((button) => button.getAttribute("aria-label")),
+        .map((button) => button.getAttribute("aria-label"))
+        // The shape chips are pressed buttons too.
+        .filter(Boolean),
     ).toEqual([
       "pictureChosen",
       "pictureChosen",
@@ -985,6 +1128,37 @@ describe("making a short", () => {
       "p4",
       "p5",
     ]);
+  });
+
+  it("asks a launch for its date before it can start, and sends it", async () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.launch/ }));
+    fireEvent.change(screen.getByLabelText("script"), {
+      target: { value: SCRIPT },
+    });
+
+    expect(screen.getByText("launchDateMissing")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "create" }).hasAttribute("disabled"),
+    ).toBe(true);
+
+    fireEvent.change(screen.getByLabelText("launchDate"), {
+      target: { value: " 3 December " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(startShortVideoMock).toHaveBeenCalledTimes(1));
+    expect(startShortVideoMock.mock.calls[0]![0]).toMatchObject({
+      format: "launch",
+      launchDate: "3 December",
+    });
+  });
+
+  it("asks no date for any other short", async () => {
+    renderShortStudio();
+    fireEvent.click(screen.getByRole("radio", { name: /kinds\.voiceover/ }));
+
+    expect(screen.queryByLabelText("launchDate")).toBeNull();
   });
 
   it("asks no voice and no hook line for a slideshow", () => {

@@ -19,7 +19,10 @@ const {
   notifyCusoLowCredits: vi.fn(),
 }));
 
-vi.mock("@/lib/soko-bot/jev", () => ({ evaluateWithJev }));
+vi.mock("@/lib/soko-bot/jev", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/jev")>()),
+  evaluateWithJev,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     marketingStrategy: { updateMany },

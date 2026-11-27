@@ -7,15 +7,24 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import {
+  importLinkedInConnections,
+  parseLinkedInConnections,
+} from "./contact-linkedin-import.service";
+import {
   createContactList,
   updateContactListMembers,
 } from "./contact-lists.service";
-import { inContactTransaction, upsertContact } from "./contacts.service";
+import {
+  inContactTransaction,
+  logContactInteraction,
+  upsertContact,
+} from "./contacts.service";
 import {
   type FundraisingActor,
   listFundraisingPipeline,
   updateFundraisingProspect,
 } from "./fundraising.service";
+import { warmPaths } from "./fundraising-paths.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -204,6 +213,171 @@ describe.runIf(enabled)("fundraising on PostgreSQL", () => {
     await expect(
       updateFundraisingProspect(actor, randomUUID(), { stage: "PASSED" }),
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("finds warm paths through teammates, the fund and the portfolio, strongest first", async () => {
+    const asBob: FundraisingActor = { ...actor, userId: bob };
+    const colleague = await inContactTransaction((tx) =>
+      upsertContact(tx, actor, {
+        name: "Cole League",
+        organization: "Ann Capital",
+        role: "Analyst",
+        channels: [{ type: "EMAIL", value: "cole@anncapital.com" }],
+        upsert: false,
+      }),
+    );
+    const founder = await inContactTransaction((tx) =>
+      upsertContact(tx, actor, {
+        name: "Fay Founder",
+        organization: "AgentPay",
+        role: "Co-founder & CEO",
+        channels: [{ type: "EMAIL", value: "fay@agentpay.io" }],
+        upsert: false,
+      }),
+    );
+    await inContactTransaction((tx) =>
+      logContactInteraction(tx, asBob, founder.contact.id, {
+        occurredAt: new Date(Date.now() - 5 * 864e5).toISOString(),
+        channel: "MEETING",
+        summary: "Coffee about agent payments",
+      }),
+    );
+    await inContactTransaction((tx) =>
+      logContactInteraction(tx, actor, annId, {
+        occurredAt: new Date(Date.now() - 400 * 864e5).toISOString(),
+        channel: "EMAIL",
+        summary: "Old intro mail",
+      }),
+    );
+    await prisma.fundraisingPortfolioCompany.create({
+      data: {
+        workspaceId,
+        contactId: annId,
+        name: "AgentPay",
+        round: "Seed",
+        date: "2026-03",
+        sourceUrl: "https://anncapital.com/portfolio",
+      },
+    });
+
+    const result = await warmPaths(actor, annId);
+    expect(result.portfolio.map((c) => c.name)).toEqual(["AgentPay"]);
+    expect(result.researchedAt).not.toBeNull();
+    expect(
+      result.paths.map((p) => [
+        p.kind,
+        p.via?.name ?? null,
+        p.through?.name ?? null,
+      ]),
+    ).toEqual([
+      ["portfolio", "Bob", "Fay Founder"],
+      ["direct", "Alice", null],
+      ["fund", null, "Cole League"],
+    ]);
+    expect(result.paths[0]?.company).toEqual({
+      name: "AgentPay",
+      round: "Seed",
+      date: "2026-03",
+    });
+    expect(result.paths[0]?.strength).toBeGreaterThan(
+      result.paths[1]?.strength ?? 0,
+    );
+    await expect(warmPaths(actor, colleague.contact.id)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("imports a teammate's LinkedIn connections and ranks a connected teammate as a path", async () => {
+    const asBob: FundraisingActor = { ...actor, userId: bob };
+    const csv = [
+      "Notes:",
+      '"Some note"',
+      "",
+      "First Name,Last Name,URL,Email Address,Company,Position,Connected On",
+      "Ann,Investor,https://www.linkedin.com/in/ann-investor,,Ann Capital,Partner,20 Nov 2026",
+      "Gus,Guest,https://www.linkedin.com/in/gus-guest,gus@agentpay.io,AgentPay,Engineer,01 Jun 2026",
+      "Gus,Guest,https://www.linkedin.com/in/gus-guest,gus@agentpay.io,AgentPay,Engineer,01 Jun 2026",
+    ].join("\n");
+    const first = await importLinkedInConnections(
+      asBob,
+      parseLinkedInConnections(csv),
+    );
+    expect(first).toMatchObject({ connections: 3, created: 1 });
+    expect(first.updated).toBe(2);
+    const again = await importLinkedInConnections(
+      asBob,
+      parseLinkedInConnections(csv),
+    );
+    expect(again.created).toBe(0);
+
+    const ann = await prisma.contact.findUniqueOrThrow({
+      where: { id: annId },
+      include: { channels: true, linkedInConnections: true },
+    });
+    expect(ann.channels.some((c) => c.type === "LINKEDIN")).toBe(true);
+    expect(ann.linkedInConnections.map((c) => c.userId)).toEqual([bob]);
+    const gus = await prisma.contact.findFirstOrThrow({
+      where: { workspaceId, name: "Gus Guest" },
+    });
+    expect(gus.enrichedAt).not.toBeNull();
+    expect(gus.classifiedAt).not.toBeNull();
+
+    const result = await warmPaths(actor, annId);
+    const bobDirect = result.paths.find(
+      (p) => p.kind === "linkedin" && p.via?.name === "Bob",
+    );
+    expect(bobDirect).toBeDefined();
+    const viaGus = result.paths.find((p) => p.through?.name === "Gus Guest");
+    expect(viaGus).toMatchObject({ kind: "portfolio", linkedIn: true });
+    expect(viaGus?.via?.name).toBe("Bob");
+  });
+
+  it("moves an intro from asked to made to declined and shows the best path on the row", async () => {
+    const asked = await updateFundraisingProspect(actor, annId, {
+      intro: { state: "ASKED", viaUserId: bob },
+    });
+    expect(asked.intro).toMatchObject({
+      via: { kind: "teammate", id: bob, name: "Bob" },
+      madeAt: null,
+      declinedAt: null,
+    });
+    expect(asked.intro.askedAt).not.toBeNull();
+    expect(asked.contact.nextStep).toContain("Wait for Bob to make the intro");
+    expect(asked.contact.followUpAt).not.toBeNull();
+
+    const made = await updateFundraisingProspect(actor, annId, {
+      intro: { state: "MADE" },
+    });
+    expect(made.intro.madeAt).not.toBeNull();
+    expect(made.intro.via?.id).toBe(bob);
+    expect(made.contact.nextStep).toContain("thank Bob");
+
+    const declined = await updateFundraisingProspect(actor, annId, {
+      intro: { state: "DECLINED" },
+    });
+    expect(declined.intro.declinedAt).not.toBeNull();
+    expect(declined.contact.followUpAt).toBeNull();
+
+    await expect(
+      updateFundraisingProspect(actor, annId, {
+        intro: { state: "ASKED", viaUserId: stranger },
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+
+    const cleared = await updateFundraisingProspect(actor, annId, {
+      intro: { state: null },
+    });
+    expect(cleared.intro).toEqual({
+      via: null,
+      askedAt: null,
+      madeAt: null,
+      declinedAt: null,
+    });
+
+    const pipeline = await listFundraisingPipeline(actor);
+    const ann = pipeline.prospects.find((p) => p.contact.id === annId);
+    expect(ann?.bestPath).not.toBeNull();
+    expect(ann?.bestPath?.strength).toBeGreaterThan(0);
   });
 
   it("returns an empty pipeline without an Investors list", async () => {

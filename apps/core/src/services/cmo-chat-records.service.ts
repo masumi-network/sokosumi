@@ -1,4 +1,8 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
+import {
+  isSokoBotSilentAnswer,
+  SOKO_BOT_PLAN_STEP_STATUSES,
+} from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
@@ -109,7 +113,7 @@ const planSchema = z.object({
   steps: z.array(
     z.object({
       step: z.string(),
-      status: z.enum(["pending", "in_progress", "done"]),
+      status: z.enum(SOKO_BOT_PLAN_STEP_STATUSES),
     }),
   ),
 });
@@ -235,14 +239,22 @@ async function listRuns(cuso: Target): Promise<CmoChatRecord[]> {
       completedAt: true,
       finalAnswer: true,
       toolCalls: {
-        where: { capability: "update_plan" },
+        // A refused update never replaces the plan shown.
+        where: { capability: "update_plan", status: "COMPLETED" },
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { input: true },
       },
     },
   });
-  return runs.map((run) => {
+  // A run that finished with nothing to say ("Nothing to add.") delivered
+  // through its own cards: a "Done" card for it says nothing.
+  const told = runs.filter(
+    (run) =>
+      run.status !== "COMPLETED" ||
+      !isSokoBotSilentAnswer(report(run.finalAnswer)),
+  );
+  return told.map((run) => {
     const state = runState(run.status);
     const words = state === "ready" ? report(run.finalAnswer) : null;
     const plan = planSchema.safeParse(run.toolCalls[0]?.input);
@@ -258,15 +270,18 @@ async function listRuns(cuso: Target): Promise<CmoChatRecord[]> {
       readable: words !== null,
       steps:
         state === "making" && plan.success
-          ? plan.data.steps.map(({ step, status }) => ({
-              label: step,
-              state:
-                status === "done"
-                  ? "done"
-                  : status === "in_progress"
-                    ? "now"
-                    : "next",
-            }))
+          ? plan.data.steps
+              // A step the bot dropped with a reason is not shown as work.
+              .filter(({ status }) => status !== "skipped")
+              .map(({ step, status }) => ({
+                label: step,
+                state:
+                  status === "done"
+                    ? "done"
+                    : status === "in_progress"
+                      ? "now"
+                      : "next",
+              }))
           : [],
       turnId: run.id,
     };

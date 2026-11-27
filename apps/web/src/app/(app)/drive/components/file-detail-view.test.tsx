@@ -57,6 +57,7 @@ function makeMeta(): FileSearchMeta {
     truncated: false,
     hasMore: false,
     nextCursor: null,
+    windowCursor: "window-1",
     restarted: false,
     catalogIncomplete: false,
     indexCoverage: { indexed: 1, processing: 0, filenameOnly: 0 },
@@ -177,7 +178,10 @@ describe("FileDetailView", () => {
     api.updateFileMetadata.mockResolvedValue(withoutTag);
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(
@@ -256,7 +260,10 @@ describe("FileDetailView", () => {
     api.updateFileMetadata.mockResolvedValue(afterReopen);
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
 
     render(

@@ -2,13 +2,25 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
+
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
 
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 afterAll(async () => {
   await db?.$disconnect();
 });
@@ -67,18 +79,18 @@ async function withDuplicateDirects(
     .$transaction(
       async (tx) => {
         for (const id of [ANA, BEN, CY]) {
-          await tx.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${id}, ${id}, ${`${id}@fixture.invalid`}, true, now(), now())`;
         }
         for (const org of [ORG1, ORG2]) {
-          await tx.$executeRaw`INSERT INTO organization (id, name, slug) VALUES (${org}, ${org}, ${org})`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("organization")} (id, name, slug) VALUES (${org}, ${org}, ${org})`;
           for (const userId of [ANA, BEN]) {
-            await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${userId}, ${org}, 'member', now())`;
+            await tx.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${userId}, ${org}, 'member', now())`;
           }
         }
-        await tx.$executeRaw`INSERT INTO workspace (id, "organizationId", "updatedAt") VALUES (${WS1}::uuid, ${ORG1}, now())`;
-        await tx.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${ANA}, ${WS1}::uuid, now())`;
-        await tx.$executeRaw`INSERT INTO vendor (id, name, slug, "updatedAt") VALUES (${VENDOR}::uuid, 'Vendor', ${`vendor-${VENDOR}`}, now())`;
-        await tx.$executeRaw`INSERT INTO coworker (id, slug, name, "vendorId", "updatedAt") VALUES (${COWORKER}, ${COWORKER}, 'Coworker', ${VENDOR}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "organizationId", "updatedAt") VALUES (${WS1}::uuid, ${ORG1}, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${ANA}, ${WS1}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("vendor")} (id, name, slug, "updatedAt") VALUES (${VENDOR}::uuid, 'Vendor', ${`vendor-${VENDOR}`}, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("coworker")} (id, slug, name, "vendorId", "updatedAt") VALUES (${COWORKER}, ${COWORKER}, 'Coworker', ${VENDOR}::uuid, now())`;
 
         const rooms: [string, string | null, string, string, number][] = [
           [ORG1_PAIR, ORG1, "direct", PAIR_KEY, 0],
@@ -92,12 +104,12 @@ async function withDuplicateDirects(
           [ORG2_COWORKER, ORG2, "direct", COWORKER_KEY, 10],
         ];
         for (const [id, org, kind, key, minute] of rooms) {
-          await tx.$executeRaw`INSERT INTO chat_room (id, "organizationId", name, kind, "directKey", "createdByUserId", "createdAt", "updatedAt") VALUES (${id}::uuid, ${org}, 'Direct', ${kind}, ${key}, ${ANA}, ${at(minute)}, ${at(minute)})`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room")} (id, "organizationId", name, kind, "directKey", "createdByUserId", "createdAt", "updatedAt") VALUES (${id}::uuid, ${org}, 'Direct', ${kind}, ${key}, ${ANA}, ${at(minute)}, ${at(minute)})`;
         }
-        await tx.$executeRaw`INSERT INTO chat_room (id, "organizationId", name, slug, kind, discoverability, "createdByUserId", "updatedAt") VALUES (${CHANNEL}::uuid, ${ORG1}, 'general', ${`general-${CHANNEL}`}, 'channel', 'public', ${ANA}, now())`;
-        await tx.$executeRaw`INSERT INTO chat_room_soko_bot_member (id, "roomId", "sokoBotId") VALUES (${randomUUID()}::uuid, ${BOT_DIRECT}::uuid, ${BOT}::uuid)`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room")} (id, "organizationId", name, slug, kind, discoverability, "createdByUserId", "updatedAt") VALUES (${CHANNEL}::uuid, ${ORG1}, 'general', ${`general-${CHANNEL}`}, 'channel', 'public', ${ANA}, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_soko_bot_member")} (id, "roomId", "sokoBotId") VALUES (${randomUUID()}::uuid, ${BOT_DIRECT}::uuid, ${BOT}::uuid)`;
         for (const roomId of [ORG1_COWORKER, ORG2_COWORKER]) {
-          await tx.$executeRaw`INSERT INTO chat_room_coworker_member (id, "roomId", "coworkerId") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${COWORKER})`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_coworker_member")} (id, "roomId", "coworkerId") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${COWORKER})`;
         }
 
         // An earlier exit already took Cy out of the group.
@@ -119,7 +131,7 @@ async function withDuplicateDirects(
           [ORG2_COWORKER, ANA],
         ];
         for (const [roomId, userId] of memberships) {
-          await tx.$executeRaw`INSERT INTO chat_room_user_member (id, "roomId", "userId", access, "createdAt") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${userId}, 'member', now())`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_user_member")} (id, "roomId", "userId", access, "createdAt") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${userId}, 'member', now())`;
         }
 
         // Ana read the Org2 copy last, Ben the Personal copy.
@@ -131,7 +143,7 @@ async function withDuplicateDirects(
           [PERSONAL_PAIR, BEN, 15],
         ];
         for (const [roomId, userId, minute] of reads) {
-          await tx.$executeRaw`INSERT INTO chat_room_read_state (id, "roomId", "userId", "lastReadAt", "updatedAt") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${userId}, ${at(minute)}, now())`;
+          await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_read_state")} (id, "roomId", "userId", "lastReadAt", "updatedAt") VALUES (${randomUUID()}::uuid, ${roomId}::uuid, ${userId}, ${at(minute)}, now())`;
         }
 
         await run(tx);
@@ -152,24 +164,24 @@ async function sendMessage(
   parentMessageId: string | null = null,
 ) {
   const id = randomUUID();
-  await tx.$executeRaw`INSERT INTO chat_room_message (id, "roomId", "parentMessageId", content, "senderUserId", "createdAt") VALUES (${id}::uuid, ${roomId}::uuid, ${parentMessageId}::uuid, ${content}, ${ANA}, ${at(minute)})`;
+  await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_message")} (id, "roomId", "parentMessageId", content, "senderUserId", "createdAt") VALUES (${id}::uuid, ${roomId}::uuid, ${parentMessageId}::uuid, ${content}, ${ANA}, ${at(minute)})`;
   return id;
 }
 
 async function roomsWithKey(tx: Prisma.TransactionClient, directKey: string) {
   return tx.$queryRaw<{ id: string; organizationId: string | null }[]>`
-    SELECT id::text, "organizationId" FROM chat_room WHERE "directKey" = ${directKey}`;
+    SELECT id::text, "organizationId" FROM ${sharedTable("chat_room")} WHERE "directKey" = ${directKey}`;
 }
 
 async function memberIds(tx: Prisma.TransactionClient, roomId: string) {
   const rows = await tx.$queryRaw<{ userId: string }[]>`
-    SELECT "userId" FROM chat_room_user_member WHERE "roomId" = ${roomId}::uuid ORDER BY "userId"`;
+    SELECT "userId" FROM ${sharedTable("chat_room_user_member")} WHERE "roomId" = ${roomId}::uuid ORDER BY "userId"`;
   return rows.map((row) => row.userId);
 }
 
 async function roomIdsOf(tx: Prisma.TransactionClient, userId: string) {
   const rows = await tx.$queryRaw<{ roomId: string }[]>`
-    SELECT "roomId"::text FROM chat_room_user_member WHERE "userId" = ${userId} ORDER BY "roomId"`;
+    SELECT "roomId"::text FROM ${sharedTable("chat_room_user_member")} WHERE "userId" = ${userId} ORDER BY "roomId"`;
   return rows.map((row) => row.roomId).sort();
 }
 
@@ -178,7 +190,7 @@ describe.skipIf(!enabled)("retiring Org Directs against PostgreSQL", () => {
     await withDuplicateDirects(async (tx) => {
       const first = await sendMessage(tx, ORG1_PAIR, "org1 hello", 1);
       await sendMessage(tx, ORG1_PAIR, "org1 reply", 30, first);
-      await tx.$executeRaw`INSERT INTO chat_room_reaction (id, "messageId", "userId", emoji) VALUES (${randomUUID()}::uuid, ${first}::uuid, ${BEN}, '👍')`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("chat_room_reaction")} (id, "messageId", "userId", emoji) VALUES (${randomUUID()}::uuid, ${first}::uuid, ${BEN}, '👍')`;
       await sendMessage(tx, PERSONAL_PAIR, "personal hello", 12);
       await sendMessage(tx, ORG2_PAIR, "org2 hello", 21);
 
@@ -189,7 +201,7 @@ describe.skipIf(!enabled)("retiring Org Directs against PostgreSQL", () => {
       ]);
       const messages = await tx.$queryRaw<
         { content: string; parent: string | null }[]
-      >`SELECT content, "parentMessageId"::text AS parent FROM chat_room_message WHERE "roomId" = ${ORG1_PAIR}::uuid ORDER BY "createdAt"`;
+      >`SELECT content, "parentMessageId"::text AS parent FROM ${sharedTable("chat_room_message")} WHERE "roomId" = ${ORG1_PAIR}::uuid ORDER BY "createdAt"`;
       expect(messages).toEqual([
         { content: "org1 hello", parent: null },
         { content: "personal hello", parent: null },
@@ -197,12 +209,12 @@ describe.skipIf(!enabled)("retiring Org Directs against PostgreSQL", () => {
         { content: "org1 reply", parent: first },
       ]);
       const [reaction] = await tx.$queryRaw<{ n: number }[]>`
-        SELECT count(*)::int AS n FROM chat_room_reaction WHERE "messageId" = ${first}::uuid`;
+        SELECT count(*)::int AS n FROM ${sharedTable("chat_room_reaction")} WHERE "messageId" = ${first}::uuid`;
       expect(reaction?.n).toBe(1);
       expect(await memberIds(tx, ORG1_PAIR)).toEqual([ANA, BEN].sort());
 
       const reads = await tx.$queryRaw<{ userId: string; lastReadAt: Date }[]>`
-        SELECT "userId", "lastReadAt" FROM chat_room_read_state WHERE "roomId" = ${ORG1_PAIR}::uuid ORDER BY "userId"`;
+        SELECT "userId", "lastReadAt" FROM ${sharedTable("chat_room_read_state")} WHERE "roomId" = ${ORG1_PAIR}::uuid ORDER BY "userId"`;
       expect(
         Object.fromEntries(reads.map((r) => [r.userId, r.lastReadAt])),
       ).toEqual({ [ANA]: at(25), [BEN]: at(15) });
@@ -260,7 +272,7 @@ describe.skipIf(!enabled)("retiring Org Directs against PostgreSQL", () => {
     await withDuplicateDirects(async (tx) => {
       await tx.$executeRawUnsafe(migrationSql);
 
-      await tx.$executeRaw`DELETE FROM member WHERE "userId" = ${ANA} AND "organizationId" = ${ORG1}`;
+      await tx.$executeRaw`DELETE FROM ${sharedTable("member")} WHERE "userId" = ${ANA} AND "organizationId" = ${ORG1}`;
 
       // Org1's Coworker 1:1 goes with the Channel; Org2's stays.
       const anaAfterExit = [
@@ -272,7 +284,7 @@ describe.skipIf(!enabled)("retiring Org Directs against PostgreSQL", () => {
       expect(await roomIdsOf(tx, ANA)).toEqual(anaAfterExit);
       expect(await roomsWithKey(tx, BOT_KEY)).toEqual([]);
 
-      await tx.$executeRaw`INSERT INTO member (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${ANA}, ${ORG1}, 'member', now())`;
+      await tx.$executeRaw`INSERT INTO ${sharedTable("member")} (id, "userId", "organizationId", role, "createdAt") VALUES (${randomUUID()}, ${ANA}, ${ORG1}, 'member', now())`;
 
       expect(await roomIdsOf(tx, ANA)).toEqual(anaAfterExit);
     });

@@ -31,6 +31,7 @@ const KEY_STEP_PX = 16;
 
 interface Drag {
   startX: number;
+  railWidth: number;
   /**
    * `pressed` until the pointer travels `DRAG_START_PX`, then `dragging`; a
    * snap-shut ends it as `snapped`, and the rest of the drag does nothing.
@@ -90,6 +91,9 @@ export function SidebarEdgeHandle() {
     swallowClick.current = false;
     drag.current = {
       startX: event.clientX,
+      railWidth:
+        wrapper()?.querySelector("[data-global-rail]")?.getBoundingClientRect()
+          .width ?? 0,
       phase: "pressed",
       opened: false,
     };
@@ -119,7 +123,8 @@ export function SidebarEdgeHandle() {
       ref.current?.setAttribute("data-dragging", "true");
     }
 
-    if (event.clientX < SIDEBAR_COLLAPSE_AT) {
+    const contextualWidth = event.clientX - current.railWidth;
+    if (contextualWidth < SIDEBAR_COLLAPSE_AT) {
       // A drag that began collapsed and never passed the line has nothing to
       // hide: it stays shut.
       if (open || current.opened) snapShut(current);
@@ -130,7 +135,7 @@ export function SidebarEdgeHandle() {
       current.opened = true;
       setOpen(true);
     }
-    applySidebarWidth(clampSidebarWidth(event.clientX));
+    applySidebarWidth(clampSidebarWidth(contextualWidth));
   }
 
   function endDrag(event: PointerEvent<HTMLDivElement>, cancelled: boolean) {
@@ -157,7 +162,7 @@ export function SidebarEdgeHandle() {
       return;
     }
     if (open || current.opened) {
-      const next = clampSidebarWidth(event.clientX);
+      const next = clampSidebarWidth(event.clientX - current.railWidth);
       commitWidth(next);
       setWidth(next);
     }
@@ -218,8 +223,8 @@ export function SidebarEdgeHandle() {
       className={cn(
         // Straddles the sidebar's border, 3px each side; hidden, the strip
         // hugs the window's edge. Follows the panel as it slides.
-        "group/edge fixed inset-y-0 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
-        "left-[calc(var(--sidebar-width)-3px)] peer-data-[state=collapsed]:left-0 peer-data-[state=collapsed]:w-2",
+        "group/edge fixed inset-y-0 top-16 z-20 hidden w-1.5 cursor-col-resize touch-none outline-none md:block",
+        "left-[calc(var(--app-rail-width,0px)+var(--sidebar-width)-3px)] peer-data-[state=collapsed]:left-[var(--app-rail-width,0px)] peer-data-[state=collapsed]:w-2",
         `transition-[left] ${SIDEBAR_HIDE_TRANSITION} group-data-[resizing=true]/sidebar-wrapper:transition-none`,
         // A 6px strip is too thin to hit: its target reaches 8px into each
         // side, 22px in all, over the sidebar's and the page's own edges.

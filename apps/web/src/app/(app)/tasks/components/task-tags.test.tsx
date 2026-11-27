@@ -457,7 +457,7 @@ it("opens card tag overflow without following the task link", async () => {
   };
   render(<TaskCard task={task} />);
   const user = userEvent.setup();
-  const overflow = screen.getByRole("button", { name: "showAll" });
+  const overflow = screen.getByRole("button", { name: "moreTags" });
   expect(overflow.closest("a")).toBeNull();
   await user.click(overflow);
   const dialog = await screen.findByRole("dialog", { name: "label" });
@@ -491,7 +491,12 @@ function cachedCatalog(client: QueryClient) {
 }
 
 it("removes a canonical topic and its workspace alias with a single click", async () => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const label = {
     ...baseLabel,
     id: "seed-design",
@@ -567,7 +572,12 @@ it("shows a confirmed alias once on a read-only detail without workspace catalog
 });
 
 it("uses the workspace color for a verified default topic and keeps a human homonym distinct", () => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const manual = {
     ...baseLabel,
     id: "custom",
@@ -604,7 +614,12 @@ it("uses the workspace color for a verified default topic and keeps a human homo
 });
 
 it("drops a newly selected label from a draft when the catalog subsequently archives it", async () => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
   const label = { ...baseLabel, id: "vendors", displayName: "Vendors" };
   const queryKey = workspaceTagsQueryKey("org");
   client.setQueryData(queryKey, [label]);

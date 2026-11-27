@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AgentIcon } from "@/components/agents/agent-icon";
+import { AgentsTag } from "@/components/agents/directory/agents-page";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
@@ -14,6 +15,8 @@ interface JobsListHeaderProps {
   total?: number;
   /** Agent deleted or inaccessible: its page 404s, so Back goes to the catalog. */
   disabled?: boolean;
+  /** Left the catalog; the name is its current one, read through the viewer's jobs. */
+  unlisted?: boolean;
 }
 
 /**
@@ -26,6 +29,7 @@ export function JobsListHeader({
   agent,
   total,
   disabled,
+  unlisted,
 }: JobsListHeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const name = getAgentName(agent);
@@ -54,11 +58,14 @@ export function JobsListHeader({
           <h1 className="truncate text-base leading-tight font-semibold">
             {name}
           </h1>
-          <p className="text-muted-foreground text-sm">
-            {total === undefined
-              ? t("yourJobs")
-              : t("yourJobsCount", { count: total })}
-          </p>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <p>
+              {total === undefined
+                ? t("yourJobs")
+                : t("yourJobsCount", { count: total })}
+            </p>
+            {unlisted ? <AgentsTag>{t("noLongerListed")}</AgentsTag> : null}
+          </div>
         </div>
       </div>
     </div>

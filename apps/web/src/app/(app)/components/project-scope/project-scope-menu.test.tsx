@@ -64,7 +64,10 @@ function setup(
   const onCreate = vi.fn();
   const onDone = vi.fn();
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   render(
     <QueryClientProvider client={client}>

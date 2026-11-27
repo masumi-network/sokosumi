@@ -1,7 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { badRequest } from "@/helpers/error";
 import {
-  seoConversionSchema,
   seoDeviceSchema,
   seoEditorialKeywordSchema,
   seoIdeaRankSchema,
@@ -36,8 +35,9 @@ import {
 } from "./project-seo-public-report";
 import {
   difficulty,
-  FEATURE_CHARS,
+  ESTIMATE_KEYS,
   legacyReportKeywords,
+  storedEstimate,
 } from "./project-seo-report-keywords";
 import { seoReportPageScope } from "./project-seo-report-scope";
 import {
@@ -97,8 +97,7 @@ const keyword = source.extend({
   intent: text.nullable().optional(),
   editorial: seoEditorialKeywordSchema.optional(),
   ideaRank: seoIdeaRankSchema,
-  conversion: seoConversionSchema.nullable().optional(),
-  feature: z.string().max(FEATURE_CHARS).nullable().optional(),
+  ...storedEstimate,
   source: text.optional(),
 });
 const competitor = source.extend({
@@ -305,8 +304,7 @@ const partial = z
     keywords: z
       .array(
         keyword.omit({
-          conversion: true,
-          feature: true,
+          ...ESTIMATE_KEYS,
           editorial: true,
           ideaRank: true,
         }),

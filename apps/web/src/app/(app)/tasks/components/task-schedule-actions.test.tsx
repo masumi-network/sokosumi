@@ -118,7 +118,12 @@ function schedule(state: TaskSchedule["state"]): TaskSchedule {
   };
 }
 
-let queryClient = new QueryClient();
+let queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { gcTime: Number.POSITIVE_INFINITY },
+    mutations: { gcTime: Number.POSITIVE_INFINITY },
+  },
+});
 
 function renderActions(state: TaskSchedule["state"]) {
   return render(
@@ -179,7 +184,12 @@ const OK = { ok: true, value: { scheduleId: SCHEDULE_ID } };
 describe("TaskScheduleActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    queryClient = new QueryClient();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     loadMoreProjectsMock.mockReset();
     loadMoreProjectsMock.mockResolvedValue(page([], null));
     changeTaskScheduleStateMock.mockResolvedValue(OK);

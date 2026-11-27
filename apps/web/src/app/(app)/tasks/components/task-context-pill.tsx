@@ -33,7 +33,7 @@ export function StaticContextPill({
     <span
       className={cn(
         "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium",
-        "bg-secondary text-secondary-foreground border-transparent",
+        "bg-quaternary text-foreground border-transparent",
         className,
       )}
     >

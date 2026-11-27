@@ -117,6 +117,16 @@ const BOT: AuthenticationContext = {
   organizationId: null,
   workspaceId: NEWSLETTER_WORKSPACE_ID,
 };
+const AGENTS = [
+  ["Coworker", COWORKER],
+  ["Soko Bot", BOT],
+  ["user API key", { ...USER, authenticationMethod: "api_key" as const }],
+  [
+    "third-party OAuth token",
+    { ...USER, authenticationMethod: "oauth" as const, oauthClientId: "c" },
+  ],
+  ["MCP token", { ...USER, authenticationMethod: "oauth" as const }],
+] as const satisfies readonly (readonly [string, AuthenticationContext])[];
 const BASE = `http://localhost/${NEWSLETTER_PROJECT_ID}/newsletter/issues/${NEWSLETTER_ISSUE.id}`;
 const NOW = new Date("2026-10-23T10:00:00Z");
 function app(actor: AuthenticationContext = USER) {
@@ -357,21 +367,28 @@ describe("newsletter approval and delivery", () => {
       },
     });
   });
-  it.each([
-    COWORKER,
-    BOT,
-    { ...USER, authenticationMethod: "api_key" as const },
-    { ...USER, authenticationMethod: "oauth" as const },
-  ])(
-    "rejects $actor / $authenticationMethod approval with 403",
-    async (actor) => {
-      issue("NEEDS_APPROVAL");
-      expect((await request("approve", { revision: 0 }, actor)).status).toBe(
-        403,
-      );
-      expect(m.updateMany).not.toHaveBeenCalled();
-    },
-  );
+  // ADR 0077: a person approves, schedules and sends; an agent gets the link.
+  describe.each(["approve", "schedule", "send-now"])("%s", (action) => {
+    it.each(AGENTS)(
+      "sends %s to the issue in Sokosumi",
+      async (_name, actor) => {
+        issue("NEEDS_APPROVAL", true);
+        const response = await request(
+          action,
+          { revision: 0, scheduledAt: "2026-10-24T10:00:00Z", timezone: "UTC" },
+          actor,
+        );
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          message: "A person approves this in Sokosumi",
+          kind: "person_approval_required",
+          webUrl: `https://example.com/newsletter/issues/${NEWSLETTER_ISSUE.id}?projectId=${NEWSLETTER_PROJECT_ID}`,
+        });
+        expect(m.updateMany).not.toHaveBeenCalled();
+        expect(m.send).not.toHaveBeenCalled();
+      },
+    );
+  });
   it.each(["schedule", "send-now"])(
     "requires approval for %s",
     async (action) => {
@@ -533,25 +550,26 @@ describe("newsletter approval and delivery", () => {
       expect.objectContaining({ data: { status: "READY" } }),
     );
   });
-  it.each(["schedule", "cancel"])(
-    "rejects agent and non-session %s with 403",
-    async (action) => {
-      issue(action === "cancel" ? "SCHEDULED" : "NEEDS_APPROVAL", true);
-      const input = {
-        revision: 0,
-        scheduledAt: "2026-10-24T10:00:00Z",
-        timezone: "UTC",
-      };
-      for (const actor of [
-        COWORKER,
-        BOT,
-        { ...USER, authenticationMethod: "api_key" as const },
-      ]) {
-        expect((await request(action, input, actor)).status).toBe(403);
-      }
-      expect(m.updateMany).not.toHaveBeenCalled();
+  // ADR 0077: stopping a send is always allowed.
+  it.each(AGENTS.filter(([name]) => name !== "Soko Bot"))(
+    "lets an agent on a %s cancel a scheduled issue",
+    async (_name, actor) => {
+      issue("SCHEDULED", true);
+      expect((await request("cancel", { revision: 0 }, actor)).status).toBe(
+        200,
+      );
+      expect(m.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: "DRAFT", approvedAt: null }),
+        }),
+      );
     },
   );
+  it("keeps a Soko Bot from canceling, as before (ADR 0073)", async () => {
+    issue("SCHEDULED", true);
+    expect((await request("cancel", { revision: 0 }, BOT)).status).toBe(403);
+    expect(m.updateMany).not.toHaveBeenCalled();
+  });
   it("cancels a scheduled issue whose approval Task was archived or moved", async () => {
     issue("SCHEDULED", true);
     m.task.mockResolvedValue(null);

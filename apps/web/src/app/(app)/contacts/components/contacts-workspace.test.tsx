@@ -112,7 +112,12 @@ vi.mock("./use-contacts-data", () => ({
       }));
     return { data: { companies, total: companies.length } };
   },
-  useContactMap: () => undefined,
+  useContactMap: () => ({
+    data: { places: [], unplaced: 0, pending: 0, withoutLocation: 0 },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
   useContactOrganizations: () => ({ data: [] }),
   useTeammates: () => ({ teammates: [] }),
   useContactRows: ({ search = "" }: { search?: string }) => ({
@@ -150,7 +155,16 @@ beforeEach(() => {
 
 function renderSmartList(searchParams = "?list=list-leads") {
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NuqsTestingAdapter searchParams={searchParams} hasMemory>
         <ContactsWorkspace sync={null} />
       </NuqsTestingAdapter>
@@ -284,7 +298,16 @@ describe("ContactsWorkspace Archived view", () => {
   function renderAt(searchParams: string) {
     const onUrlUpdate = vi.fn();
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider
+        client={
+          new QueryClient({
+            defaultOptions: {
+              queries: { gcTime: Number.POSITIVE_INFINITY },
+              mutations: { gcTime: Number.POSITIVE_INFINITY },
+            },
+          })
+        }
+      >
         <NuqsTestingAdapter
           searchParams={searchParams}
           onUrlUpdate={onUrlUpdate}
@@ -369,6 +392,7 @@ describe("ContactsWorkspace Archived view", () => {
 
   it("clears the map layout when switching to the archive and returns to table", async () => {
     const onUrlUpdate = renderAt("?layout=map");
+    expect(await screen.findByText("emptyTitle")).toBeTruthy();
     await userEvent.click(screen.getByRole("button", { name: "toolbar.more" }));
     await userEvent.click(
       screen.getByRole("menuitem", { name: "presets.archived" }),

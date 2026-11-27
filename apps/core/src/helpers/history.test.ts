@@ -13,7 +13,10 @@ import {
   mapHistoryRow,
 } from "./history";
 
-type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job" | "task">;
+type HistoryPrismaClient = Pick<
+  typeof prisma,
+  "$queryRaw" | "history" | "job" | "task"
+>;
 
 const orgAuthContext: UserAuthenticationContext = {
   actor: "user",
@@ -30,7 +33,8 @@ function createHistoryPrismaClient(
   } = {},
 ): HistoryPrismaClient {
   return {
-    $queryRaw: vi.fn(),
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    history: { findMany: vi.fn().mockResolvedValue([]) },
     job: { findMany: vi.fn() },
     task: { findMany: vi.fn() },
     ...overrides,

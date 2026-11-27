@@ -12,7 +12,6 @@ import {
   ContactAvatar,
   ReplyChip,
 } from "@/app/contacts/components/contact-visuals";
-import { InlineField } from "@/app/contacts/components/inline-field";
 import { primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +35,7 @@ import {
   useProspectUpdate,
 } from "../use-fundraising";
 import { FindInvestors } from "./find-investors";
+import { IntroCell } from "./intro-cell";
 import { OwnerSelect, StageSelect } from "./prospect-controls";
 import { ProspectSheet } from "./prospect-sheet";
 
@@ -179,25 +179,25 @@ export function FundraisingBoard({
           <Table className="min-w-[880px] table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className={cn(CELL, "w-[24%]")}>
+                <TableHead className={cn(CELL, "w-[22%]")}>
                   {t("columns.investor")}
                 </TableHead>
                 <TableHead className={cn(CELL, "w-[11%]")}>
                   {t("columns.stage")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[12%]")}>
+                <TableHead className={cn(CELL, "w-[10%]")}>
                   {t("columns.owner")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[19%]")}>
-                  {t("columns.nextStep")}
+                <TableHead className={cn(CELL, "w-[26%]")}>
+                  {t("columns.nextAction")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[14%]")}>
+                <TableHead className={cn(CELL, "w-[12%]")}>
                   {t("columns.lastTouch")}
                 </TableHead>
                 <TableHead className={cn(CELL, "w-[13%]")}>
                   {t("columns.dataRoom")}
                 </TableHead>
-                <TableHead className={cn(CELL, "w-[7%] text-right")}>
+                <TableHead className={cn(CELL, "w-[6%] text-right")}>
                   {t("columns.cheque")}
                 </TableHead>
               </TableRow>
@@ -262,17 +262,11 @@ export function FundraisingBoard({
                       className={CELL}
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <InlineField
-                        label={t("columns.nextStep")}
-                        value={contact.nextStep ?? ""}
-                        placeholder={t("noNextStep")}
-                        maxLength={300}
-                        displayClassName="text-sm"
-                        onSave={(nextStep) =>
-                          update.updateContact(prospect, {
-                            nextStep: nextStep || null,
-                          })
-                        }
+                      <IntroCell
+                        prospect={prospect}
+                        pipeline={pipeline}
+                        now={now}
+                        onOpenSheet={() => setOpenId(contact.id)}
                       />
                     </TableCell>
                     <TableCell className={cn(CELL, "text-sm")}>
@@ -318,6 +312,7 @@ export function FundraisingBoard({
 
       <ProspectSheet
         prospect={open}
+        pipeline={pipeline}
         listId={pipeline.list.id}
         members={members.data ?? []}
         now={now}

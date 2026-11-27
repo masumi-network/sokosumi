@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { NewsletterSubscriber } from "@sokosumi/database";
-import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import { ACTION_LABELS, SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACTION_CAPABILITIES,
   EXTERNAL_EFFECT_CAPABILITIES,
 } from "@/lib/soko-bot/action-receipts";
-import { ACTION_LABELS } from "@/lib/soko-bot/action-response";
 import { newsletterConsentSchema } from "@/schemas/newsletter.schema";
 import {
   NEWSLETTER,
@@ -208,15 +207,35 @@ function execute(
   });
 }
 
-/** The owner typed this turn in their own chat. */
+/** The owner typed this turn in their own chat (or started a background run from one). */
 function ownerTurn(userMessage: string, parentTurnId: string | null = null) {
   m.ownerTurn.mockResolvedValue({
+    id: "turn",
+    sokoBotId: "bot",
+    workspaceId: NEWSLETTER_WORKSPACE_ID,
+    versionId: null,
     source: "CHAT",
     parentTurnId,
     askedByUserId: null,
+    requestedByUserId: "owner",
     chainDepth: 0,
     chatMentionId: "mention",
     userMessage,
+    sokoBot: { userId: "owner" },
+    parentTurn: parentTurnId
+      ? {
+          id: parentTurnId,
+          sokoBotId: "bot",
+          workspaceId: NEWSLETTER_WORKSPACE_ID,
+          versionId: null,
+          source: "CHAT",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: "owner",
+          chainDepth: 0,
+          sokoBot: { userId: "owner" },
+        }
+      : null,
   });
 }
 

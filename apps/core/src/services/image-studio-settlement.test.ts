@@ -69,6 +69,8 @@ vi.mock("@/lib/db/prisma", () => {
       findUnique: jobFindUniqueMock,
       findUniqueOrThrow: vi.fn(),
       findMany: jobFindManyMock,
+      // No shape of a delivered video waits to be cut.
+      findFirst: vi.fn().mockResolvedValue(null),
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
       count: vi.fn(),
@@ -410,7 +412,7 @@ describe("ad eval placement", () => {
     // Reservation recovery finds nothing; then the project's one live job.
     jobFindManyMock
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: "job-1" }]);
+      .mockResolvedValueOnce([{ id: "job-1", idempotencyKey: "studio-key-1" }]);
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
     fetchQueueResultMock.mockResolvedValue({
       kind: "media",

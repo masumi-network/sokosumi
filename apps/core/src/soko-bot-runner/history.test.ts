@@ -1,4 +1,4 @@
-import type { ModelMessage } from "ai";
+import type { ModelMessage, ToolResultPart } from "ai";
 import { describe, expect, it } from "vitest";
 import { compactHistory } from "./history";
 
@@ -53,6 +53,169 @@ describe("compactHistory", () => {
     expect(JSON.stringify(compacted).length).toBeLessThan(
       JSON.stringify(messages).length,
     );
+  });
+
+  it("keeps the latest plan whole on a planLoop turn, and only the latest", () => {
+    const big = "x".repeat(5_000);
+    const plan = (id: string): ModelMessage[] =>
+      toolRound(id, big).map((message) =>
+        message.role === "tool"
+          ? {
+              ...message,
+              content: message.content.map((part) => ({
+                ...part,
+                toolName: "update_plan",
+              })),
+            }
+          : message,
+      );
+    const messages: ModelMessage[] = [
+      { role: "user", content: "Do the three things" },
+      ...plan("p1"),
+      ...plan("p2"),
+      ...Array.from({ length: 8 }, (_, i) => toolRound(`c${i}`, big)).flat(),
+    ];
+    const kept = (compacted: ModelMessage[] | null) =>
+      compacted?.flatMap((message) =>
+        message.role === "tool"
+          ? message.content.flatMap((part) =>
+              part.type === "tool-result" &&
+              part.toolName === "update_plan" &&
+              part.output.type === "json"
+                ? [part.toolCallId]
+                : [],
+            )
+          : [],
+      );
+    expect(
+      kept(compactHistory(messages, 20_000, { keepLatestPlan: true })),
+    ).toEqual(["p2"]);
+    expect(kept(compactHistory(messages, 20_000))).toEqual([]);
+  });
+
+  it("keeps the accepted plan whole after a refused one, and nothing beside it", () => {
+    const big = "x".repeat(5_000);
+    const result = (
+      id: string,
+      toolName: string,
+      output: ToolResultPart["output"],
+    ): ToolResultPart => ({
+      type: "tool-result",
+      toolCallId: id,
+      toolName,
+      output,
+    });
+    const messages: ModelMessage[] = [
+      { role: "user", content: "Do the three things" },
+      {
+        role: "tool",
+        content: [
+          result("plan-ok", "update_plan", {
+            type: "json",
+            value: { plan: big },
+          }),
+          result("read", "search_inbox", {
+            type: "json",
+            value: { messages: big },
+          }),
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          result("plan-refused", "update_plan", {
+            type: "error-text",
+            value: `The plan is at revision 2 ${big}`,
+          }),
+        ],
+      },
+      ...Array.from({ length: 8 }, (_, i) => toolRound(`c${i}`, big)).flat(),
+    ];
+    const compacted = compactHistory(messages, 20_000, {
+      keepLatestPlan: true,
+    });
+    const outputs = Object.fromEntries(
+      (compacted ?? []).flatMap((message) =>
+        message.role === "tool"
+          ? message.content.flatMap((part) =>
+              part.type === "tool-result"
+                ? [[part.toolCallId, part.output.type]]
+                : [],
+            )
+          : [],
+      ),
+    );
+    expect(outputs["plan-ok"]).toBe("json");
+    expect(outputs.read).toBe("text");
+    // Shortened, the refusal is still an error, so compacting again keeps
+    // the accepted plan, not the refusal, as the plan.
+    expect(outputs["plan-refused"]).toBe("error-text");
+    const again = compactHistory(compacted ?? [], 20_000, {
+      keepLatestPlan: true,
+    });
+    const kept = (again ?? compacted ?? [])
+      .flatMap((message) => (message.role === "tool" ? message.content : []))
+      .find(
+        (part) => part.type === "tool-result" && part.toolCallId === "plan-ok",
+      );
+    expect(kept?.type === "tool-result" && kept.output.type).toBe("json");
+  });
+
+  it("counts only what the turn added after its first message", () => {
+    // A strategy turn's preloaded skills and packet open its first message.
+    const opening = `${"skill ".repeat(15_000)}LATE RULE`;
+    const messages: ModelMessage[] = [
+      { role: "user", content: opening },
+      ...Array.from({ length: 8 }, (_, i) =>
+        toolRound(`c${i}`, "small"),
+      ).flat(),
+    ];
+    expect(JSON.stringify(messages).length).toBeGreaterThan(80_000);
+    expect(compactHistory(messages)).toBeNull();
+  });
+
+  it("keeps a skill the model read whole, however old", () => {
+    const skill = `# Strategy\n${"rule ".repeat(10_000)}LAST RULE`;
+    const read: ModelMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "s",
+            toolName: "read_skill",
+            input: { skill: "cmo-strategy-v22" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "s",
+            toolName: "read_skill",
+            output: { type: "json", value: { content: skill } },
+          },
+        ],
+      },
+    ];
+    const messages: ModelMessage[] = [
+      { role: "user", content: "Why these pillars?" },
+      ...read,
+      ...Array.from({ length: 16 }, (_, i) =>
+        toolRound(`c${i}`, "x".repeat(5_000)),
+      ).flat(),
+    ];
+    const compacted = compactHistory(messages, 20_000);
+    expect(compacted?.[2]).toEqual(read[1]);
+    expect(JSON.stringify(compacted?.[2])).toContain("LAST RULE");
+    const searched = compacted?.[4];
+    expect(
+      searched?.role === "tool" &&
+        searched.content[0]?.type === "tool-result" &&
+        searched.content[0].output.type,
+    ).toBe("text");
   });
 
   it("shortens old call inputs and drops old reasoning", () => {

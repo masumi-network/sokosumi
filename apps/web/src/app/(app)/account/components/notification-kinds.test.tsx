@@ -172,7 +172,10 @@ function renderKinds(notificationPreferences = MATRIX) {
   current = notificationPreferences;
 
   queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   queryClient.setQueryData(getMyPreferencesQueryKey("user_1"), response());
 
@@ -187,7 +190,10 @@ function renderKinds(notificationPreferences = MATRIX) {
 function renderPending() {
   getMyPreferences.mockReturnValue(new Promise(() => {}));
   queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
 
   return render(
@@ -201,7 +207,10 @@ function renderPending() {
 function renderFailed() {
   getMyPreferences.mockRejectedValue(new Error("core_down"));
   queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
 
   return render(

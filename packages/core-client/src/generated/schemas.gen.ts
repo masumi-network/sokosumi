@@ -243,6 +243,16 @@ export const AdminSeoAlertsSchema = {
                             'otherApiMicroUsd'
                         ],
                         additionalProperties: false
+                    },
+                    costDetail: {
+                        anyOf: [
+                            {
+                                $ref: '#/components/schemas/SeoFullAuditCostDetail'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
                     }
                 },
                 required: [
@@ -468,6 +478,484 @@ export const AdminSeoAlertsSchema = {
         'reconnect',
         'connections',
         'items'
+    ]
+} as const;
+
+export const SeoFullAuditCostDetailSchema = {
+    type: 'object',
+    properties: {
+        version: {
+            type: 'number',
+            enum: [
+                1
+            ]
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    model: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    provider: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    calls: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 9007199254740991
+                    },
+                    microUsd: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0,
+                        maximum: 1000000000000
+                    }
+                },
+                required: [
+                    'model',
+                    'provider',
+                    'calls',
+                    'microUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        },
+        dataForSeo: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    endpoint: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    reads: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 9007199254740991
+                    },
+                    microUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    }
+                },
+                required: [
+                    'endpoint',
+                    'reads',
+                    'microUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    step: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 200,
+                        description: '1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.'
+                    },
+                    modelMicroUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    },
+                    dataForSeoMicroUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    },
+                    otherApiMicroUsd: {
+                        type: 'integer',
+                        minimum: 0,
+                        maximum: 1000000000000
+                    }
+                },
+                required: [
+                    'step',
+                    'modelMicroUsd',
+                    'dataForSeoMicroUsd',
+                    'otherApiMicroUsd'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 200
+        }
+    },
+    required: [
+        'version',
+        'models',
+        'dataForSeo',
+        'steps'
+    ],
+    additionalProperties: false
+} as const;
+
+export const AdminSeoActionImpactSchema = {
+    type: 'object',
+    properties: {
+        hasNext: {
+            type: 'boolean'
+        },
+        pageSize: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    userId: {
+                        type: 'string'
+                    },
+                    actions: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                id: {
+                                    type: 'string'
+                                },
+                                pageUrl: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                },
+                                title: {
+                                    type: 'string'
+                                },
+                                impact: {
+                                    $ref: '#/components/schemas/ProjectSeoActionImpact'
+                                }
+                            },
+                            required: [
+                                'id',
+                                'pageUrl',
+                                'title',
+                                'impact'
+                            ],
+                            additionalProperties: false
+                        }
+                    }
+                },
+                required: [
+                    'auditId',
+                    'projectId',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'userId',
+                    'actions'
+                ],
+                additionalProperties: false
+            }
+        }
+    },
+    required: [
+        'hasNext',
+        'pageSize',
+        'items'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ProjectSeoActionImpactSchema = {
+    type: 'object',
+    properties: {
+        anchor: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        anchorKind: {
+            type: 'string',
+            enum: [
+                'completed',
+                'verified'
+            ]
+        },
+        days: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'measured',
+                'too_early',
+                'not_measured',
+                'low_counts'
+            ]
+        },
+        before: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        to: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        clicks: {
+                            type: 'number'
+                        },
+                        impressions: {
+                            type: 'number'
+                        },
+                        position: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'clicks',
+                        'impressions',
+                        'position'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        after: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        to: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        clicks: {
+                            type: 'number'
+                        },
+                        impressions: {
+                            type: 'number'
+                        },
+                        position: {
+                            type: [
+                                'number',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'clicks',
+                        'impressions',
+                        'position'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'anchor',
+        'anchorKind',
+        'days',
+        'state',
+        'before',
+        'after'
+    ]
+} as const;
+
+export const AdminSeoImpactVerdictsSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer',
+            minimum: 0
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    organizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    projectId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    suggestionTitle: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    changeSource: {
+                        type: 'string',
+                        enum: [
+                            'cuso_done',
+                            'audit_recheck'
+                        ]
+                    },
+                    changedAt: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    crawledAt: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'date-time'
+                    },
+                    windowStart: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    windowEnd: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    windowReadyOn: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'waiting_crawl',
+                            'waiting_window',
+                            'ready',
+                            'waiting_retry',
+                            'measured',
+                            'not_measurable'
+                        ]
+                    },
+                    reason: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        enum: [
+                            'no_cuso',
+                            'not_connected',
+                            'no_property',
+                            'inspection_failed',
+                            'not_crawled_yet',
+                            'worker_failed',
+                            null
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'organizationSlug',
+                    'projectId',
+                    'projectName',
+                    'pageUrl',
+                    'suggestionTitle',
+                    'changeSource',
+                    'changedAt',
+                    'crawledAt',
+                    'windowStart',
+                    'windowEnd',
+                    'windowReadyOn',
+                    'state',
+                    'reason'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'rows'
     ]
 } as const;
 
@@ -1256,11 +1744,15 @@ export const AdminSokoBotListSchema = {
         total: {
             type: 'integer',
             minimum: 0
+        },
+        summary: {
+            $ref: '#/components/schemas/AdminSokoBotFleetSummary'
         }
     },
     required: [
         'items',
-        'total'
+        'total',
+        'summary'
     ]
 } as const;
 
@@ -1366,6 +1858,9 @@ export const AdminSokoBotListItemSchema = {
                 }
             ]
         },
+        evalLane: {
+            type: 'boolean'
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -1395,6 +1890,7 @@ export const AdminSokoBotListItemSchema = {
         'pendingDecisionCount',
         'scheduleCount',
         'owner',
+        'evalLane',
         'createdAt',
         'updatedAt'
     ]
@@ -1431,6 +1927,41 @@ export const AdminSokoBotOwnerSchema = {
         'id',
         'name',
         'email'
+    ]
+} as const;
+
+export const AdminSokoBotFleetSummarySchema = {
+    type: 'object',
+    properties: {
+        active: {
+            type: 'integer',
+            minimum: 0
+        },
+        activeRecently: {
+            type: 'integer',
+            minimum: 0
+        },
+        pendingDecisions: {
+            type: 'integer',
+            minimum: 0
+        },
+        attention: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotListItem'
+            }
+        },
+        attentionTotal: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'active',
+        'activeRecently',
+        'pendingDecisions',
+        'attention',
+        'attentionTotal'
     ]
 } as const;
 
@@ -2300,6 +2831,9 @@ export const AdminCmoSpendSchema = {
                     businessName: {
                         type: 'string'
                     },
+                    evalLane: {
+                        type: 'boolean'
+                    },
                     ownerEmail: {
                         type: 'string'
                     },
@@ -2419,6 +2953,7 @@ export const AdminCmoSpendSchema = {
                 required: [
                     'sokoBotId',
                     'businessName',
+                    'evalLane',
                     'ownerEmail',
                     'turns',
                     'totalUsd',
@@ -2551,6 +3086,9 @@ export const AdminSokoBotFleetDaysSchema = {
                     },
                     cmoCostUsd: {
                         type: 'number'
+                    },
+                    evalCostUsd: {
+                        type: 'number'
                     }
                 },
                 required: [
@@ -2560,7 +3098,8 @@ export const AdminSokoBotFleetDaysSchema = {
                     'turns',
                     'totalTokens',
                     'costUsd',
-                    'cmoCostUsd'
+                    'cmoCostUsd',
+                    'evalCostUsd'
                 ]
             }
         }
@@ -5864,6 +6403,89 @@ export const StripeSubscriptionStatusSchema = {
     description: 'Stripe subscription lifecycle status'
 } as const;
 
+export const AdminPreprodAccessSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    enabled: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'enabled',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent changes, newest first'
+        }
+    },
+    required: [
+        'enabled',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodAccessBodySchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean',
+            description: 'Whether the user or Organization may use Preprod'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'enabled',
+        'reason'
+    ]
+} as const;
+
 export const AdminMatchedChannelOptionSchema = {
     type: 'object',
     properties: {
@@ -6153,6 +6775,96 @@ export const AdminRemoveMatchedChannelParticipantSchema = {
         'userId',
         'roomId',
         'outcome'
+    ]
+} as const;
+
+export const AdminPreprodPauseSchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused. Paused until an admin opens it.'
+        },
+        generation: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Preprod\'s generation number, raised by each wipe; 0 before the first.'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    paused: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'paused',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent pause changes, newest first'
+        }
+    },
+    required: [
+        'paused',
+        'generation',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodPauseBodySchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why Preprod is paused or opened: a ticket id, no personal details.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'paused',
+        'reason'
     ]
 } as const;
 
@@ -7320,6 +8032,18 @@ export const EvalRunReportSchema = {
                         }
                     }
                 },
+                costlier: {
+                    type: 'integer'
+                },
+                slower: {
+                    type: 'integer'
+                },
+                passRate: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
                 passed: {
                     type: 'integer'
                 },
@@ -7335,6 +8059,9 @@ export const EvalRunReportSchema = {
             },
             required: [
                 'counts',
+                'costlier',
+                'slower',
+                'passRate',
                 'passed',
                 'scored',
                 'open',
@@ -7405,6 +8132,36 @@ export const EvalCaseReportSchema = {
                 ]
             }
         },
+        costUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualCostUsd: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        costlier: {
+            type: 'boolean'
+        },
+        durationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        usualDurationMs: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        slower: {
+            type: 'boolean'
+        },
         results: {
             type: 'array',
             items: {
@@ -7423,6 +8180,12 @@ export const EvalCaseReportSchema = {
         'passRate',
         'baselinePassRate',
         'history',
+        'costUsd',
+        'usualCostUsd',
+        'costlier',
+        'durationMs',
+        'usualDurationMs',
+        'slower',
         'results'
     ]
 } as const;
@@ -12911,7 +13674,8 @@ export const CreateChatRoomRequestSchema = {
             },
             required: [
                 'kind'
-            ]
+            ],
+            additionalProperties: false
         },
         {
             type: 'object',
@@ -13495,8 +14259,49 @@ export const UpdateChatRoomRequestSchema = {
             maxLength: 80,
             description: 'Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.',
             example: 'Launch crew'
+        },
+        memberUserIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 500,
+            description: 'Ignored. Add members with POST /chats/rooms/{id}/members.',
+            example: [
+                'user_123',
+                'user_456'
+            ],
+            deprecated: true
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            description: 'Ignored. Add members with POST /chats/rooms/{id}/members.',
+            example: [
+                'cow_123'
+            ],
+            deprecated: true
+        },
+        sokoBotIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Ignored. Add members with POST /chats/rooms/{id}/members.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
+            ],
+            deprecated: true
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const OrgChannelDiscoverabilitySchema = {
@@ -13541,7 +14346,8 @@ export const CreateChatRoomInvitationRequestSchema = {
     },
     required: [
         'email'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const ChatRoomGuestInviteLinkSchema = {
@@ -13624,7 +14430,8 @@ export const CreateChatRoomGuestInviteLinkRequestSchema = {
             minimum: 1,
             maximum: 10000
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const RevokeChatRoomGuestInviteLinkResultSchema = {
@@ -13700,7 +14507,8 @@ export const AddChatRoomMembersRequestSchema = {
                 '01960001-0001-7001-8001-000000000099'
             ]
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const ChatRoomThreadSchema = {
@@ -16110,6 +16918,14 @@ export const ContactListSchema = {
                         knownByMe: {
                             type: 'boolean'
                         },
+                        xFollow: {
+                            type: 'string',
+                            enum: [
+                                'FOLLOWS_YOU',
+                                'YOU_FOLLOW',
+                                'MUTUAL'
+                            ]
+                        },
                         lastContactAfter: {
                             type: 'string',
                             format: 'date-time'
@@ -16594,6 +17410,16 @@ export const ContactSchema = {
             items: {
                 $ref: '#/components/schemas/ContactKnownBy'
             }
+        },
+        user: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -16626,7 +17452,8 @@ export const ContactSchema = {
         'updatedAt',
         'channels',
         'lists',
-        'knownBy'
+        'knownBy',
+        'user'
     ]
 } as const;
 
@@ -16846,11 +17673,19 @@ export const ContactKnownBySchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                followsOnX: {
+                    type: 'boolean'
+                },
+                followedOnX: {
+                    type: 'boolean'
                 }
             },
             required: [
                 'interactionCount',
-                'lastInteractionAt'
+                'lastInteractionAt',
+                'followsOnX',
+                'followedOnX'
             ]
         }
     ]
@@ -16877,6 +17712,16 @@ export const ContactPersonSchema = {
         'name',
         'image'
     ]
+} as const;
+
+export const ContactXFollowStateSchema = {
+    type: 'string',
+    enum: [
+        'FOLLOWS_YOU',
+        'YOU_FOLLOW',
+        'MUTUAL'
+    ],
+    description: 'How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don\'t follow back) or MUTUAL.'
 } as const;
 
 export const ContactUpsertResultSchema = {
@@ -16918,7 +17763,8 @@ export const ContactMergeSuggestionSchema = {
             enum: [
                 'shared_channel',
                 'same_name'
-            ]
+            ],
+            description: '`same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.'
         },
         contactIds: {
             type: 'array',
@@ -17032,6 +17878,14 @@ export const ContactDuplicateGroupSchema = {
         name: {
             type: 'string'
         },
+        reason: {
+            type: 'string',
+            enum: [
+                'same_name',
+                'same_company'
+            ],
+            description: 'Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).'
+        },
         contacts: {
             type: 'array',
             items: {
@@ -17041,6 +17895,7 @@ export const ContactDuplicateGroupSchema = {
     },
     required: [
         'name',
+        'reason',
         'contacts'
     ]
 } as const;
@@ -17081,6 +17936,45 @@ export const ContactImportResultSchema = {
         'skipped',
         'listsCreated',
         'mergeSuggestions'
+    ]
+} as const;
+
+export const ContactLinkedInImportResultSchema = {
+    type: 'object',
+    properties: {
+        connections: {
+            type: 'integer'
+        },
+        created: {
+            type: 'integer'
+        },
+        updated: {
+            type: 'integer'
+        },
+        listId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'connections',
+        'created',
+        'updated',
+        'listId'
+    ]
+} as const;
+
+export const ContactLinkedInImportInputSchema = {
+    type: 'object',
+    properties: {
+        csv: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 5000000
+        }
+    },
+    required: [
+        'csv'
     ]
 } as const;
 
@@ -19394,12 +20288,19 @@ export const LinkDriveGoogleSheetRequestSchema = {
             maxLength: 1000,
             example: 'Finance',
             description: 'Folder to put the copy in; the Drive root when omitted'
+        },
+        folderPath: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Finance',
+            description: 'The same as `folder`, as other Drive writes name it.'
         }
     },
     required: [
         'url',
         'scope'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const DriveItemsSchema = {
@@ -20136,69 +21037,6 @@ export const FileMetadataBatchResponseSchema = {
     ]
 } as const;
 
-export const FileMetadataBatchRequestSchema = {
-    type: 'object',
-    properties: {
-        resourceIds: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 100
-        },
-        selectionToken: {
-            type: 'string'
-        },
-        idempotencyKey: {
-            type: 'string',
-            minLength: 8,
-            maxLength: 200
-        },
-        addTagLabelIds: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 20
-        },
-        removeTagLabelIds: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            maxItems: 20
-        },
-        categoryLabelId: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        expectedRevisions: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    resourceId: {
-                        type: 'string'
-                    },
-                    metadataRevision: {
-                        type: 'integer'
-                    }
-                },
-                required: [
-                    'resourceId',
-                    'metadataRevision'
-                ]
-            },
-            maxItems: 120
-        }
-    },
-    required: [
-        'idempotencyKey'
-    ]
-} as const;
-
 export const FileResourceSchema = {
     type: 'object',
     properties: {
@@ -20752,7 +21590,8 @@ export const UpdateFileMetadataRequestSchema = {
     },
     required: [
         'expectedMetadataRevision'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const FileSuggestionDecisionRequestSchema = {
@@ -20845,6 +21684,10 @@ export const FileSearchMetaSchema = {
                 'null'
             ]
         },
+        windowCursor: {
+            type: 'string',
+            description: 'This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.'
+        },
         restarted: {
             type: 'boolean',
             description: 'The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.'
@@ -20883,6 +21726,7 @@ export const FileSearchMetaSchema = {
         'truncated',
         'hasMore',
         'nextCursor',
+        'windowCursor',
         'restarted',
         'catalogIncomplete',
         'indexCoverage'
@@ -22476,13 +23320,37 @@ export const FundraisingPipelineSchema = {
         },
         research: {
             $ref: '#/components/schemas/FundraisingResearch'
+        },
+        mailbox: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        provider: {
+                            type: 'string'
+                        },
+                        botId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'provider',
+                        'botId'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
         'list',
         'rooms',
         'prospects',
-        'research'
+        'research',
+        'mailbox'
     ]
 } as const;
 
@@ -22543,10 +23411,37 @@ export const FundraisingProspectSchema = {
                 'null'
             ]
         },
+        lastDraftAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastDraftSubject: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         dataRoom: {
             anyOf: [
                 {
                     $ref: '#/components/schemas/FundraisingDataRoomVisit'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        intro: {
+            $ref: '#/components/schemas/FundraisingIntro'
+        },
+        bestPath: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingPath'
                 },
                 {
                     type: 'null'
@@ -22564,7 +23459,11 @@ export const FundraisingProspectSchema = {
         'committedUsd',
         'notes',
         'source',
-        'dataRoom'
+        'lastDraftAt',
+        'lastDraftSubject',
+        'dataRoom',
+        'intro',
+        'bestPath'
     ]
 } as const;
 
@@ -22651,6 +23550,229 @@ export const FundraisingDataRoomVisitSchema = {
     ]
 } as const;
 
+export const FundraisingIntroSchema = {
+    type: 'object',
+    properties: {
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/FundraisingConnector'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        askedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        madeAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        declinedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'via',
+        'askedAt',
+        'madeAt',
+        'declinedAt'
+    ]
+} as const;
+
+export const FundraisingConnectorSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'contact',
+                'teammate'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        email: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'name',
+        'image',
+        'email'
+    ]
+} as const;
+
+export const FundraisingPathSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            $ref: '#/components/schemas/FundraisingPathKind'
+        },
+        via: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ContactPerson'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        linkedIn: {
+            type: 'boolean'
+        },
+        through: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        name: {
+                            type: 'string'
+                        },
+                        role: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        organization: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        avatarUrl: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        email: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'role',
+                        'organization',
+                        'avatarUrl',
+                        'email'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        company: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string'
+                        },
+                        round: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        date: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        }
+                    },
+                    required: [
+                        'name',
+                        'round',
+                        'date'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strength: {
+            type: 'integer'
+        },
+        touches: {
+            type: 'integer'
+        },
+        lastTouchAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'via',
+        'linkedIn',
+        'through',
+        'company',
+        'strength',
+        'touches',
+        'lastTouchAt'
+    ]
+} as const;
+
+export const FundraisingPathKindSchema = {
+    type: 'string',
+    enum: [
+        'direct',
+        'linkedin',
+        'fund',
+        'portfolio'
+    ]
+} as const;
+
 export const FundraisingResearchSchema = {
     type: 'object',
     properties: {
@@ -22722,8 +23844,40 @@ export const FundraisingProspectUpdateSchema = {
                 'null'
             ],
             maxLength: 120
+        },
+        intro: {
+            type: 'object',
+            properties: {
+                state: {
+                    $ref: '#/components/schemas/FundraisingIntroState'
+                },
+                viaContactId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                viaUserId: {
+                    type: 'string',
+                    minLength: 1
+                }
+            },
+            required: [
+                'state'
+            ]
         }
     }
+} as const;
+
+export const FundraisingIntroStateSchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'ASKED',
+        'MADE',
+        'DECLINED',
+        null
+    ]
 } as const;
 
 export const FundraisingFindResultSchema = {
@@ -22793,6 +23947,244 @@ export const FundraisingSuggestionIdsSchema = {
     required: [
         'ids'
     ]
+} as const;
+
+export const FundraisingPathsSchema = {
+    type: 'object',
+    properties: {
+        portfolio: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingPortfolioCompany'
+            }
+        },
+        researchedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        researchUsd: {
+            type: 'number'
+        },
+        paths: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FundraisingPath'
+            }
+        },
+        research: {
+            $ref: '#/components/schemas/FundraisingResearch'
+        }
+    },
+    required: [
+        'portfolio',
+        'researchedAt',
+        'researchUsd',
+        'paths',
+        'research'
+    ]
+} as const;
+
+export const FundraisingPortfolioCompanySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        website: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        round: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        date: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        amountUsd: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        sourceUrl: {
+            type: 'string'
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'website',
+        'round',
+        'date',
+        'amountUsd',
+        'sourceUrl',
+        'fetchedAt'
+    ]
+} as const;
+
+export const FundraisingDraftResultSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        draftId: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        roomLink: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prospect: {
+            $ref: '#/components/schemas/FundraisingProspect'
+        }
+    },
+    required: [
+        'to',
+        'subject',
+        'body',
+        'draftId',
+        'provider',
+        'roomLink',
+        'prospect'
+    ]
+} as const;
+
+export const FundraisingDraftInputSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'intro',
+                'follow_up'
+            ]
+        },
+        viaContactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        inviteToRoomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    },
+    required: [
+        'kind'
+    ]
+} as const;
+
+export const FundraisingIntroAskResultSchema = {
+    type: 'object',
+    properties: {
+        ask: {
+            $ref: '#/components/schemas/FundraisingMailDraft'
+        },
+        forwardable: {
+            $ref: '#/components/schemas/FundraisingMailDraft'
+        },
+        provider: {
+            type: 'string'
+        },
+        roomLink: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        prospect: {
+            $ref: '#/components/schemas/FundraisingProspect'
+        }
+    },
+    required: [
+        'ask',
+        'forwardable',
+        'provider',
+        'roomLink',
+        'prospect'
+    ]
+} as const;
+
+export const FundraisingMailDraftSchema = {
+    type: 'object',
+    properties: {
+        to: {
+            type: 'string'
+        },
+        subject: {
+            type: 'string'
+        },
+        body: {
+            type: 'string'
+        },
+        draftId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'to',
+        'subject',
+        'body',
+        'draftId'
+    ]
+} as const;
+
+export const FundraisingIntroAskInputSchema = {
+    type: 'object',
+    properties: {
+        viaContactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        viaUserId: {
+            type: 'string',
+            minLength: 1
+        },
+        inviteToRoomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
 } as const;
 
 export const HistoryListSchema = {
@@ -24380,12 +25772,28 @@ export const ProjectTalkingVideoSchema = {
                         'voiceover',
                         'site_tour',
                         'top_three',
-                        'slideshow'
+                        'slideshow',
+                        'launch'
                     ]
                 },
                 {
                     type: 'null'
                 }
+            ]
+        },
+        shape: {
+            type: 'string',
+            enum: [
+                '9:16',
+                '4:5',
+                '1:1',
+                '16:9'
+            ]
+        },
+        sourceJobId: {
+            type: [
+                'string',
+                'null'
             ]
         }
     },
@@ -24396,7 +25804,9 @@ export const ProjectTalkingVideoSchema = {
         'siteShots',
         'broll',
         'music',
-        'format'
+        'format',
+        'shape',
+        'sourceJobId'
     ]
 } as const;
 
@@ -24669,13 +26079,13 @@ export const DesignMdWriteSchema = {
                 'string',
                 'null'
             ],
+            default: null,
             example: '12345',
-            description: 'Extraction id of the generated DESIGN.md, when known'
+            description: 'Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.'
         }
     },
     required: [
-        'content',
-        'extractionId'
+        'content'
     ]
 } as const;
 
@@ -25088,6 +26498,11 @@ export const UserWorkspaceSchema = {
             type: 'boolean',
             description: 'Whether a new session opens this workspace',
             example: true
+        },
+        canUsePreprod: {
+            type: 'boolean',
+            description: 'Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person\'s own Preprod access for the personal workspace and the organization\'s for an organization workspace',
+            example: false
         }
     },
     required: [
@@ -25101,7 +26516,8 @@ export const UserWorkspaceSchema = {
         'role',
         'memberCount',
         'enabledSocialProviders',
-        'preferred'
+        'preferred',
+        'canUsePreprod'
     ]
 } as const;
 
@@ -26208,12 +27624,15 @@ export const UpdateUserNameSchema = {
             type: 'string',
             minLength: 1,
             example: 'Lovelace'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128,
+            example: 'Ada Lovelace',
+            description: 'The display name other members see. Omitted, it stays as it is.'
         }
-    },
-    required: [
-        'firstName',
-        'lastName'
-    ]
+    }
 } as const;
 
 export const OrganizationDeletionEvaluationSchema = {
@@ -26932,7 +28351,8 @@ export const UpdateTeamStandupSchema = {
             maximum: 7,
             description: 'Week in review weekday, 1 Monday … 7 Sunday.'
         }
-    }
+    },
+    additionalProperties: false
 } as const;
 
 export const OrganizationLogoCleanupResultSchema = {
@@ -34853,6 +36273,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         maxLength: 64
                                     },
+                                    videoOfTalking: {
+                                        type: 'boolean'
+                                    },
                                     story: {
                                         type: 'string',
                                         minLength: 1,
@@ -35092,6 +36515,228 @@ export const MarketingStrategySchema = {
                             },
                             maxItems: 12
                         },
+                        monthWriter: {
+                            type: 'object',
+                            properties: {
+                                state: {
+                                    type: 'string',
+                                    enum: [
+                                        'examples',
+                                        'writing',
+                                        'written',
+                                        'stopped'
+                                    ]
+                                },
+                                level: {
+                                    type: 'string',
+                                    enum: [
+                                        'steady',
+                                        'active',
+                                        'all_in'
+                                    ]
+                                },
+                                start: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                },
+                                attempts: {
+                                    type: 'integer',
+                                    minimum: 0,
+                                    maximum: 1000,
+                                    default: 0
+                                },
+                                startedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                endedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                error: {
+                                    type: 'string',
+                                    maxLength: 300
+                                },
+                                costUsd: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                floorAlertAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                }
+                            },
+                            required: [
+                                'state'
+                            ]
+                        },
+                        applyLog: {
+                            type: 'object',
+                            properties: {
+                                baseVersionId: {
+                                    type: 'string',
+                                    maxLength: 64
+                                },
+                                baseUpdatedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                state: {
+                                    type: 'string',
+                                    enum: [
+                                        'applying',
+                                        'applied',
+                                        'undoing',
+                                        'undone',
+                                        'left'
+                                    ]
+                                },
+                                startedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                updatedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                endedAt: {
+                                    type: 'string',
+                                    maxLength: 40
+                                },
+                                ops: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            opId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            },
+                                            entryId: {
+                                                type: 'string',
+                                                maxLength: 64
+                                            },
+                                            kind: {
+                                                type: 'string',
+                                                enum: [
+                                                    'move',
+                                                    'update',
+                                                    'cancel',
+                                                    'create',
+                                                    'swap'
+                                                ]
+                                            },
+                                            postId: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 64
+                                            },
+                                            prior: {
+                                                type: [
+                                                    'object',
+                                                    'null'
+                                                ],
+                                                properties: {
+                                                    status: {
+                                                        type: 'string',
+                                                        maxLength: 40
+                                                    },
+                                                    scheduledAt: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 40
+                                                    },
+                                                    text: {
+                                                        type: 'string',
+                                                        maxLength: 10000
+                                                    },
+                                                    planning: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 20000
+                                                    },
+                                                    socialConnectionId: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 64
+                                                    },
+                                                    revision: {
+                                                        type: 'integer'
+                                                    }
+                                                },
+                                                required: [
+                                                    'status',
+                                                    'scheduledAt',
+                                                    'text',
+                                                    'planning',
+                                                    'socialConnectionId',
+                                                    'revision'
+                                                ]
+                                            },
+                                            state: {
+                                                type: 'string',
+                                                enum: [
+                                                    'intent',
+                                                    'done',
+                                                    'refused'
+                                                ]
+                                            },
+                                            reason: {
+                                                type: 'string',
+                                                maxLength: 400
+                                            },
+                                            after: {
+                                                type: 'object',
+                                                properties: {
+                                                    revision: {
+                                                        type: [
+                                                            'integer',
+                                                            'null'
+                                                        ]
+                                                    },
+                                                    postId: {
+                                                        type: [
+                                                            'string',
+                                                            'null'
+                                                        ],
+                                                        maxLength: 64
+                                                    }
+                                                },
+                                                required: [
+                                                    'revision',
+                                                    'postId'
+                                                ]
+                                            }
+                                        },
+                                        required: [
+                                            'opId',
+                                            'entryId',
+                                            'kind',
+                                            'postId',
+                                            'prior',
+                                            'state'
+                                        ]
+                                    },
+                                    maxItems: 2000,
+                                    default: []
+                                }
+                            },
+                            required: [
+                                'baseVersionId',
+                                'baseUpdatedAt',
+                                'state',
+                                'startedAt',
+                                'updatedAt'
+                            ]
+                        },
                         patched: {
                             type: 'array',
                             items: {
@@ -35270,6 +36915,9 @@ export const MarketingStrategySchema = {
                                             videoOf: {
                                                 type: 'string',
                                                 maxLength: 64
+                                            },
+                                            videoOfTalking: {
+                                                type: 'boolean'
                                             },
                                             story: {
                                                 type: 'string',
@@ -36838,6 +38486,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 maxLength: 64
                             },
+                            videoOfTalking: {
+                                type: 'boolean'
+                            },
                             story: {
                                 type: 'string',
                                 minLength: 1,
@@ -37077,6 +38728,228 @@ export const MarketingStrategyRequestSchema = {
                     },
                     maxItems: 12
                 },
+                monthWriter: {
+                    type: 'object',
+                    properties: {
+                        state: {
+                            type: 'string',
+                            enum: [
+                                'examples',
+                                'writing',
+                                'written',
+                                'stopped'
+                            ]
+                        },
+                        level: {
+                            type: 'string',
+                            enum: [
+                                'steady',
+                                'active',
+                                'all_in'
+                            ]
+                        },
+                        start: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                        },
+                        attempts: {
+                            type: 'integer',
+                            minimum: 0,
+                            maximum: 1000,
+                            default: 0
+                        },
+                        startedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        endedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        error: {
+                            type: 'string',
+                            maxLength: 300
+                        },
+                        costUsd: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        floorAlertAt: {
+                            type: 'string',
+                            maxLength: 40
+                        }
+                    },
+                    required: [
+                        'state'
+                    ]
+                },
+                applyLog: {
+                    type: 'object',
+                    properties: {
+                        baseVersionId: {
+                            type: 'string',
+                            maxLength: 64
+                        },
+                        baseUpdatedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        state: {
+                            type: 'string',
+                            enum: [
+                                'applying',
+                                'applied',
+                                'undoing',
+                                'undone',
+                                'left'
+                            ]
+                        },
+                        startedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        endedAt: {
+                            type: 'string',
+                            maxLength: 40
+                        },
+                        ops: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    opId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    },
+                                    entryId: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    },
+                                    kind: {
+                                        type: 'string',
+                                        enum: [
+                                            'move',
+                                            'update',
+                                            'cancel',
+                                            'create',
+                                            'swap'
+                                        ]
+                                    },
+                                    postId: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 64
+                                    },
+                                    prior: {
+                                        type: [
+                                            'object',
+                                            'null'
+                                        ],
+                                        properties: {
+                                            status: {
+                                                type: 'string',
+                                                maxLength: 40
+                                            },
+                                            scheduledAt: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 40
+                                            },
+                                            text: {
+                                                type: 'string',
+                                                maxLength: 10000
+                                            },
+                                            planning: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 20000
+                                            },
+                                            socialConnectionId: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 64
+                                            },
+                                            revision: {
+                                                type: 'integer'
+                                            }
+                                        },
+                                        required: [
+                                            'status',
+                                            'scheduledAt',
+                                            'text',
+                                            'planning',
+                                            'socialConnectionId',
+                                            'revision'
+                                        ]
+                                    },
+                                    state: {
+                                        type: 'string',
+                                        enum: [
+                                            'intent',
+                                            'done',
+                                            'refused'
+                                        ]
+                                    },
+                                    reason: {
+                                        type: 'string',
+                                        maxLength: 400
+                                    },
+                                    after: {
+                                        type: 'object',
+                                        properties: {
+                                            revision: {
+                                                type: [
+                                                    'integer',
+                                                    'null'
+                                                ]
+                                            },
+                                            postId: {
+                                                type: [
+                                                    'string',
+                                                    'null'
+                                                ],
+                                                maxLength: 64
+                                            }
+                                        },
+                                        required: [
+                                            'revision',
+                                            'postId'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'opId',
+                                    'entryId',
+                                    'kind',
+                                    'postId',
+                                    'prior',
+                                    'state'
+                                ]
+                            },
+                            maxItems: 2000,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'baseVersionId',
+                        'baseUpdatedAt',
+                        'state',
+                        'startedAt',
+                        'updatedAt'
+                    ]
+                },
                 patched: {
                     type: 'array',
                     items: {
@@ -37255,6 +39128,9 @@ export const MarketingStrategyRequestSchema = {
                                     videoOf: {
                                         type: 'string',
                                         maxLength: 64
+                                    },
+                                    videoOfTalking: {
+                                        type: 'boolean'
                                     },
                                     story: {
                                         type: 'string',
@@ -43690,6 +45566,9 @@ export const SocialPostSchema = {
                     type: 'string',
                     maxLength: 64
                 },
+                videoOfTalking: {
+                    type: 'boolean'
+                },
                 story: {
                     type: 'string',
                     minLength: 1,
@@ -43699,6 +45578,12 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 1,
                     maxLength: 400
+                },
+                applyOpId: {
+                    type: 'string'
+                },
+                applyCreateOpId: {
+                    type: 'string'
                 }
             },
             required: [
@@ -45314,7 +47199,21 @@ export const SaveStudioBrandCopySchema = {
     type: 'object',
     properties: {
         copy: {
-            $ref: '#/components/schemas/StudioBrandCopy'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/StudioBrandCopy'
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        tone: {
+                            type: 'string',
+                            maxLength: 400,
+                            description: 'The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.'
+                        }
+                    }
+                }
+            ]
         },
         version: {
             type: [
@@ -45710,7 +47609,8 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
                         'consent'
                     ]
                 }
-            ]
+            ],
+            description: 'A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller\'s own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.'
         },
         siteShots: {
             type: 'boolean'
@@ -45722,6 +47622,20 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
         music: {
             type: 'boolean',
             default: false
+        },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
         },
         idempotencyKey: {
             type: 'string',
@@ -45745,7 +47659,8 @@ export const CreateProjectShortVideoJobRequestSchema = {
                 'voiceover',
                 'site_tour',
                 'top_three',
-                'slideshow'
+                'slideshow',
+                'launch'
             ]
         },
         script: {
@@ -45807,6 +47722,25 @@ export const CreateProjectShortVideoJobRequestSchema = {
             maxItems: 6,
             default: []
         },
+        launchDate: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 32
+        },
+        shapes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    '9:16',
+                    '4:5',
+                    '1:1',
+                    '16:9'
+                ]
+            },
+            minItems: 1,
+            maxItems: 4
+        },
         idempotencyKey: {
             type: 'string',
             minLength: 8,
@@ -45864,7 +47798,8 @@ export const WriteProjectTalkingVideoScriptsRequestSchema = {
                 'voiceover',
                 'site_tour',
                 'top_three',
-                'slideshow'
+                'slideshow',
+                'launch'
             ]
         },
         languageCode: {
@@ -46536,6 +48471,16 @@ export const ProjectSeoWorkspaceSchema = {
             }
         },
         landingPages: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoLandingPages'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        aiAssistantPages: {
             anyOf: [
                 {
                     $ref: '#/components/schemas/ProjectSeoLandingPages'
@@ -47571,6 +49516,12 @@ export const ProjectSeoWorkspaceSchema = {
                             'averagePosition',
                             'from',
                             'to'
+                        ]
+                    },
+                    requester: {
+                        type: 'boolean',
+                        enum: [
+                            true
                         ]
                     },
                     propertyDataExpired: {
@@ -49678,6 +51629,30 @@ export const ProjectSeoKeywordSchema = {
                 'null'
             ]
         },
+        intentClass: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'product',
+                'comparison',
+                'problem',
+                'learn',
+                null
+            ]
+        },
+        fit: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'direct',
+                'partial',
+                null
+            ]
+        },
         device: {
             anyOf: [
                 {
@@ -49752,6 +51727,9 @@ export const ProjectSeoKeywordSchema = {
                 $ref: '#/components/schemas/ProjectSeoPositionPoint'
             },
             maxItems: 90
+        },
+        positionHistoryCut: {
+            type: 'boolean'
         }
     },
     required: [
@@ -49803,6 +51781,12 @@ export const ProjectSeoPositionPointSchema = {
                 'ranked',
                 'not_in_range',
                 'unavailable'
+            ]
+        },
+        checkedResults: {
+            type: [
+                'integer',
+                'null'
             ]
         },
         device: {
@@ -50302,6 +52286,9 @@ export const ProjectSeoActionSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        impact: {
+            $ref: '#/components/schemas/ProjectSeoActionImpact'
+        },
         kind: {
             type: 'string',
             enum: [
@@ -50624,6 +52611,10 @@ export const ProjectSeoKeywordSeriesSchema = {
                         type: 'string',
                         pattern: '^[A-Z]{2}$'
                     },
+                    from: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                    },
                     points: {
                         type: 'array',
                         items: {
@@ -50663,7 +52654,7 @@ export const ProjectSeoKeywordSeriesSchema = {
                     'points'
                 ]
             },
-            maxItems: 25
+            maxItems: 50
         }
     },
     required: [
@@ -50874,6 +52865,14 @@ export const ProjectSeoLandingPagesSchema = {
             },
             maxItems: 10
         },
+        pageUrls: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            }
+        },
         observationId: {
             type: 'string',
             format: 'uuid'
@@ -50896,6 +52895,7 @@ export const ProjectSeoLandingPagesSchema = {
     required: [
         'channel',
         'rows',
+        'pageUrls',
         'observationId',
         'propertyId',
         'from',
@@ -52779,6 +54779,12 @@ export const ProjectSeoSerpPointSchema = {
                                 'boolean',
                                 'null'
                             ]
+                        },
+                        siteCited: {
+                            type: [
+                                'boolean',
+                                'null'
+                            ]
                         }
                     },
                     required: [
@@ -53407,41 +55413,88 @@ export const ProjectSeoMonitorChangeSchema = {
         moves: {
             type: 'array',
             items: {
-                type: 'object',
-                properties: {
-                    keyword: {
-                        type: 'string'
-                    },
-                    pageUrl: {
-                        type: 'string'
-                    },
-                    device: {
-                        anyOf: [
-                            {
-                                type: 'string',
-                                enum: [
-                                    'mobile',
-                                    'desktop'
+                anyOf: [
+                    {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
                                 ]
                             },
-                            {
-                                type: 'null'
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'number'
                             }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to'
                         ]
                     },
-                    from: {
-                        type: 'number'
-                    },
-                    to: {
-                        type: 'number'
+                    {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'null'
+                            },
+                            checkedResults: {
+                                type: 'integer',
+                                exclusiveMinimum: 0
+                            }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to',
+                            'checkedResults'
+                        ]
                     }
-                },
-                required: [
-                    'keyword',
-                    'pageUrl',
-                    'device',
-                    'from',
-                    'to'
                 ]
             },
             maxItems: 10
@@ -53451,6 +55504,37 @@ export const ProjectSeoMonitorChangeSchema = {
             minimum: 0
         },
         dropCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        lostCitations: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    keyword: {
+                        type: 'string'
+                    },
+                    device: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    shown: {
+                        type: 'boolean'
+                    }
+                },
+                required: [
+                    'keyword',
+                    'device',
+                    'shown'
+                ]
+            },
+            maxItems: 10
+        },
+        lostCitationCount: {
             type: 'integer',
             minimum: 0
         }
@@ -53465,7 +55549,9 @@ export const ProjectSeoMonitorChangeSchema = {
         'fixed',
         'moves',
         'moveCount',
-        'dropCount'
+        'dropCount',
+        'lostCitations',
+        'lostCitationCount'
     ]
 } as const;
 
@@ -53727,7 +55813,8 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 'minimumCredits',
                 'markupPercent'
             ],
-            additionalProperties: false
+            additionalProperties: false,
+            description: 'Required for `kind: "audit_full"`: `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}`. The audit costs its provider cost plus 50%, at least 750 credits. It has no credit cap: `fullAuditLimits.usd` bounds the provider cost. Leave out `maxCredits`. Confirm the price with the person first.'
         },
         searchConsolePropertyId: {
             type: 'string',
@@ -54279,6 +56366,77 @@ export const SeoSiteTrafficReportSchema = {
         },
         limited: {
             type: 'boolean'
+        },
+        brand: {
+            type: 'object',
+            properties: {
+                daily: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            date: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            branded: {
+                                type: 'object',
+                                properties: {
+                                    clicks: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    },
+                                    impressions: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'clicks',
+                                    'impressions'
+                                ]
+                            },
+                            nonBranded: {
+                                type: 'object',
+                                properties: {
+                                    clicks: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    },
+                                    impressions: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'clicks',
+                                    'impressions'
+                                ]
+                            }
+                        },
+                        required: [
+                            'date',
+                            'branded',
+                            'nonBranded'
+                        ]
+                    },
+                    maxItems: 366
+                },
+                limited: {
+                    type: 'boolean'
+                },
+                terms: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    }
+                }
+            },
+            required: [
+                'daily',
+                'limited',
+                'terms'
+            ]
         },
         pages: {
             type: 'array',
@@ -55241,6 +57399,16 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
+        lastCheck: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SeoAuditLastCheck'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -55257,6 +57425,48 @@ export const SeoAuditSummarySchema = {
         'name',
         'projectId',
         'pageCount',
+        'lastCheck',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SeoAuditLastCheckSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'page_check',
+                'rankings',
+                'links',
+                'audit_lite',
+                'audit_full'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'requested',
+                'running',
+                'completed',
+                'failed'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'kind',
+        'status',
         'createdAt',
         'updatedAt'
     ]
@@ -55299,6 +57509,12 @@ export const CreateSeoAuditRequestSchema = {
         projectId: {
             type: 'string',
             format: 'uuid'
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128,
+            description: 'Send the same key to retry a create: the first Audit comes back and no second one is made'
         }
     },
     required: [
@@ -55777,6 +57993,403 @@ export const DisconnectSeoConnectionResponseSchema = {
     required: [
         'disconnected'
     ]
+} as const;
+
+export const SeoImpactClaimSchema = {
+    type: 'object',
+    properties: {
+        claimId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        claimedUntil: {
+            type: 'string',
+            format: 'date-time'
+        },
+        input: {
+            $ref: '#/components/schemas/SeoImpactInput'
+        }
+    },
+    required: [
+        'claimId',
+        'claimedUntil',
+        'input'
+    ]
+} as const;
+
+export const SeoImpactInputSchema = {
+    type: 'object',
+    properties: {
+        schema: {
+            type: 'string',
+            enum: [
+                'sokosumi.seo-impact-input/1'
+            ]
+        },
+        impactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        pageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        property: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2048
+        },
+        changedAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        changeSource: {
+            type: 'string',
+            enum: [
+                'cuso_done',
+                'audit_recheck'
+            ]
+        },
+        changeBounds: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                earliest: {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                latest: {
+                    type: 'string',
+                    format: 'date-time'
+                }
+            },
+            required: [
+                'earliest',
+                'latest'
+            ],
+            additionalProperties: false
+        },
+        changeCheck: {
+            type: 'string',
+            enum: [
+                'verified',
+                'not_checked'
+            ]
+        },
+        windowCrawl: {
+            type: 'string',
+            format: 'date-time'
+        },
+        pageByDate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    clicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    ctr: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    position: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'date',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 490
+        },
+        siteByDate: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    date: {
+                        type: 'string',
+                        pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                        example: '2026-11-27'
+                    },
+                    clicks: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    impressions: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    ctr: {
+                        type: 'number',
+                        minimum: 0,
+                        maximum: 1
+                    },
+                    position: {
+                        type: 'number',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'date',
+                    'clicks',
+                    'impressions',
+                    'ctr',
+                    'position'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 490
+        },
+        candidates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    pageUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    byDate: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                date: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+                                    example: '2026-11-27'
+                                },
+                                clicks: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                impressions: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                ctr: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 1
+                                },
+                                position: {
+                                    type: 'number',
+                                    minimum: 0
+                                }
+                            },
+                            required: [
+                                'date',
+                                'clicks',
+                                'impressions',
+                                'ctr',
+                                'position'
+                            ],
+                            additionalProperties: false
+                        },
+                        maxItems: 490
+                    }
+                },
+                required: [
+                    'pageUrl',
+                    'byDate'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 5
+        },
+        pin: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                comparisonPage: {
+                    type: 'string',
+                    maxLength: 4096,
+                    format: 'uri'
+                }
+            },
+            required: [
+                'comparisonPage'
+            ],
+            additionalProperties: false
+        },
+        readAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'schema',
+        'impactId',
+        'pageUrl',
+        'property',
+        'changedAt',
+        'changeSource',
+        'changeBounds',
+        'changeCheck',
+        'windowCrawl',
+        'pageByDate',
+        'siteByDate',
+        'candidates',
+        'pin',
+        'readAt'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SeoImpactVerdictReceiptSchema = {
+    type: 'object',
+    properties: {
+        impactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'change not confirmed',
+                'not crawled after change',
+                'tested',
+                'waiting'
+            ]
+        }
+    },
+    required: [
+        'impactId',
+        'state'
+    ]
+} as const;
+
+export const SeoImpactResultSchema = {
+    type: 'object',
+    properties: {
+        schema: {
+            type: 'string',
+            enum: [
+                'sokosumi.seo-impact/1'
+            ]
+        },
+        impactId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        pageUrl: {
+            type: 'string'
+        },
+        property: {
+            type: 'string'
+        },
+        changedAt: {
+            type: 'string'
+        },
+        changeSource: {
+            type: 'string',
+            enum: [
+                'cuso_done',
+                'audit_recheck'
+            ]
+        },
+        observedAt: {
+            type: 'string'
+        },
+        windowCrawl: {
+            type: 'string'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'change not confirmed',
+                'not crawled after change',
+                'tested',
+                'waiting'
+            ]
+        },
+        verdict: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                verdict: {
+                    type: 'string',
+                    enum: [
+                        'effect detected',
+                        'no effect detected',
+                        'not measurable'
+                    ]
+                }
+            },
+            required: [
+                'verdict'
+            ],
+            additionalProperties: {}
+        },
+        comparison: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                pageUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 4096
+                }
+            },
+            required: [
+                'pageUrl'
+            ],
+            additionalProperties: {}
+        },
+        retryAfter: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+            example: '2026-11-27'
+        }
+    },
+    required: [
+        'schema',
+        'impactId',
+        'pageUrl',
+        'property',
+        'changedAt',
+        'changeSource',
+        'observedAt',
+        'windowCrawl',
+        'state',
+        'verdict',
+        'comparison',
+        'retryAfter'
+    ],
+    additionalProperties: {}
 } as const;
 
 export const PublicNewsletterSchema = {
@@ -62880,6 +65493,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         maxLength: 64
                     },
+                    videoOfTalking: {
+                        type: 'boolean'
+                    },
                     story: {
                         type: 'string',
                         minLength: 1,
@@ -63119,6 +65735,228 @@ export const CmoPlanSchema = {
             },
             maxItems: 12
         },
+        monthWriter: {
+            type: 'object',
+            properties: {
+                state: {
+                    type: 'string',
+                    enum: [
+                        'examples',
+                        'writing',
+                        'written',
+                        'stopped'
+                    ]
+                },
+                level: {
+                    type: 'string',
+                    enum: [
+                        'steady',
+                        'active',
+                        'all_in'
+                    ]
+                },
+                start: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                attempts: {
+                    type: 'integer',
+                    minimum: 0,
+                    maximum: 1000,
+                    default: 0
+                },
+                startedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                endedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                error: {
+                    type: 'string',
+                    maxLength: 300
+                },
+                costUsd: {
+                    type: 'number',
+                    minimum: 0
+                },
+                floorAlertAt: {
+                    type: 'string',
+                    maxLength: 40
+                }
+            },
+            required: [
+                'state'
+            ]
+        },
+        applyLog: {
+            type: 'object',
+            properties: {
+                baseVersionId: {
+                    type: 'string',
+                    maxLength: 64
+                },
+                baseUpdatedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                state: {
+                    type: 'string',
+                    enum: [
+                        'applying',
+                        'applied',
+                        'undoing',
+                        'undone',
+                        'left'
+                    ]
+                },
+                startedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                updatedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                endedAt: {
+                    type: 'string',
+                    maxLength: 40
+                },
+                ops: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            opId: {
+                                type: 'string',
+                                maxLength: 64
+                            },
+                            entryId: {
+                                type: 'string',
+                                maxLength: 64
+                            },
+                            kind: {
+                                type: 'string',
+                                enum: [
+                                    'move',
+                                    'update',
+                                    'cancel',
+                                    'create',
+                                    'swap'
+                                ]
+                            },
+                            postId: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                maxLength: 64
+                            },
+                            prior: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    status: {
+                                        type: 'string',
+                                        maxLength: 40
+                                    },
+                                    scheduledAt: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 40
+                                    },
+                                    text: {
+                                        type: 'string',
+                                        maxLength: 10000
+                                    },
+                                    planning: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 20000
+                                    },
+                                    socialConnectionId: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 64
+                                    },
+                                    revision: {
+                                        type: 'integer'
+                                    }
+                                },
+                                required: [
+                                    'status',
+                                    'scheduledAt',
+                                    'text',
+                                    'planning',
+                                    'socialConnectionId',
+                                    'revision'
+                                ]
+                            },
+                            state: {
+                                type: 'string',
+                                enum: [
+                                    'intent',
+                                    'done',
+                                    'refused'
+                                ]
+                            },
+                            reason: {
+                                type: 'string',
+                                maxLength: 400
+                            },
+                            after: {
+                                type: 'object',
+                                properties: {
+                                    revision: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ]
+                                    },
+                                    postId: {
+                                        type: [
+                                            'string',
+                                            'null'
+                                        ],
+                                        maxLength: 64
+                                    }
+                                },
+                                required: [
+                                    'revision',
+                                    'postId'
+                                ]
+                            }
+                        },
+                        required: [
+                            'opId',
+                            'entryId',
+                            'kind',
+                            'postId',
+                            'prior',
+                            'state'
+                        ]
+                    },
+                    maxItems: 2000,
+                    default: []
+                }
+            },
+            required: [
+                'baseVersionId',
+                'baseUpdatedAt',
+                'state',
+                'startedAt',
+                'updatedAt'
+            ]
+        },
         patched: {
             type: 'array',
             items: {
@@ -63297,6 +66135,9 @@ export const CmoPlanSchema = {
                             videoOf: {
                                 type: 'string',
                                 maxLength: 64
+                            },
+                            videoOfTalking: {
+                                type: 'boolean'
                             },
                             story: {
                                 type: 'string',
@@ -63818,13 +66659,14 @@ export const CmoProductionSchema = {
             type: 'string',
             enum: [
                 'waiting',
+                'planning',
                 'starting',
                 'running',
                 'ready',
                 'stuck',
                 'blocked'
             ],
-            description: 'starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
+            description: 'planning: paid, and Core is writing the month\'s calendar (cmo-v22). starting: approved, but no run is working yet; the next sync starts one. stuck: the last run made nothing ready; the next starts at retryAt. blocked: no run could start for half an hour; Core keeps trying.'
         },
         ready: {
             type: 'integer'
@@ -63932,6 +66774,33 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'When a stuck month\'s next production run starts. Null unless state is stuck.'
+        },
+        writerFailed: {
+            type: 'boolean',
+            description: 'A stuck month stopped because Core\'s month writer wrote nothing in the last run: a fault on our side, not Cuso\'s.'
+        },
+        floor: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        promised: {
+                            type: 'integer'
+                        },
+                        made: {
+                            type: 'integer'
+                        }
+                    },
+                    required: [
+                        'promised',
+                        'made'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'cmo-v22: the posts the plan promises at least, and the month\'s posts made, gone out or paused by the owner. Null for a month Cuso wrote himself.'
         }
     },
     required: [
@@ -63946,7 +66815,9 @@ export const CmoProductionSchema = {
         'level',
         'beyondPlan',
         'withoutPicture',
-        'retryAt'
+        'retryAt',
+        'writerFailed',
+        'floor'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
@@ -66768,6 +69639,9 @@ export const CreateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         }
     },
     required: [
@@ -66777,6 +69651,138 @@ export const CreateSokoBotScheduleRequestSchema = {
         'prompt'
     ],
     additionalProperties: false
+} as const;
+
+export const SokoBotScheduleStopRuleInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'never'
+                    ]
+                }
+            },
+            required: [
+                'mode'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_on'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                endsOn: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-12-31T23:59:59+01:00'
+                }
+            },
+            required: [
+                'mode',
+                'endsOn'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'ends_after_runs'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                maxRuns: {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 10000
+                }
+            },
+            required: [
+                'mode',
+                'maxRuns'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'when_target_settled'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                targetKind: {
+                    type: 'string',
+                    enum: [
+                        'task',
+                        'job'
+                    ]
+                },
+                targetId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                }
+            },
+            required: [
+                'mode',
+                'targetKind',
+                'targetId'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                mode: {
+                    type: 'string',
+                    enum: [
+                        'owner_authorized_stop'
+                    ]
+                },
+                scheduleId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 120
+                },
+                condition: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 300
+                }
+            },
+            required: [
+                'mode',
+                'condition'
+            ],
+            additionalProperties: false
+        }
+    ]
 } as const;
 
 export const UpdateSokoBotScheduleRequestSchema = {
@@ -66804,6 +69810,9 @@ export const UpdateSokoBotScheduleRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 20000
+        },
+        stopRule: {
+            $ref: '#/components/schemas/SokoBotScheduleStopRuleInput'
         },
         run: {
             type: 'object',
@@ -67134,7 +70143,8 @@ export const SokoBotVersionSchema = {
             ]
         },
         systemPrompt: {
-            type: 'string'
+            type: 'string',
+            description: 'The composed system prompt. Sent to platform admins only, for the behaviour lab.'
         }
     },
     required: [
@@ -67144,8 +70154,7 @@ export const SokoBotVersionSchema = {
         'summary',
         'model',
         'skills',
-        'capabilities',
-        'systemPrompt'
+        'capabilities'
     ]
 } as const;
 
@@ -73164,6 +76173,352 @@ export const AblyTokenRequestSchema = {
     ]
 } as const;
 
+export const RegistryAgentSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Registry entry id. Use it as the pagination cursor.'
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'Online',
+                'Offline',
+                'Deregistered',
+                'Invalid'
+            ]
+        },
+        statusUpdatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'Standard',
+                'OpenApi',
+                'X402',
+                'A2A'
+            ]
+        },
+        paymentType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2',
+                'None'
+            ]
+        },
+        apiBaseUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        openApiSpecUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        x402ResourcesUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        capability: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                version: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'version'
+            ]
+        },
+        author: {
+            type: 'object',
+            properties: {
+                name: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                organization: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contactEmail: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                contactOther: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'name',
+                'organization',
+                'contactEmail',
+                'contactOther'
+            ]
+        },
+        legal: {
+            type: 'object',
+            properties: {
+                privacyPolicy: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                terms: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                other: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'privacyPolicy',
+                'terms',
+                'other'
+            ]
+        },
+        pricing: {
+            $ref: '#/components/schemas/RegistryAgentPricing'
+        },
+        uptime: {
+            type: 'object',
+            properties: {
+                count: {
+                    type: 'integer'
+                },
+                checkCount: {
+                    type: 'integer'
+                },
+                lastCheckedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'count',
+                'checkCount',
+                'lastCheckedAt'
+            ]
+        },
+        policyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        supersedesAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        supersededByAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'agentIdentifier',
+        'name',
+        'description',
+        'status',
+        'statusUpdatedAt',
+        'type',
+        'paymentType',
+        'apiBaseUrl',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
+        'image',
+        'tags',
+        'capability',
+        'author',
+        'legal',
+        'pricing',
+        'uptime',
+        'policyId',
+        'supersedesAgentIdentifier',
+        'supersededByAgentIdentifier',
+        'createdAt'
+    ]
+} as const;
+
+export const RegistryAgentPricingSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Fixed'
+                    ]
+                },
+                amounts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            amount: {
+                                type: 'string',
+                                example: '1000000'
+                            },
+                            unit: {
+                                type: 'string',
+                                example: 'lovelace'
+                            }
+                        },
+                        required: [
+                            'amount',
+                            'unit'
+                        ]
+                    }
+                }
+            },
+            required: [
+                'pricingType',
+                'amounts'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Free'
+                    ]
+                }
+            },
+            required: [
+                'pricingType'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                pricingType: {
+                    type: 'string',
+                    enum: [
+                        'Dynamic'
+                    ]
+                }
+            },
+            required: [
+                'pricingType'
+            ]
+        },
+        {
+            type: 'null'
+        }
+    ],
+    description: 'Null when the registry sends a pricing shape Core does not know.'
+} as const;
+
+export const RegistryAgentsPaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'nextCursor'
+    ]
+} as const;
+
 export const VendorListSchema = {
     type: 'array',
     items: {
@@ -73687,13 +77042,13 @@ export const AdHocDesignMdWriteSchema = {
                 'string',
                 'null'
             ],
+            default: null,
             example: '12345',
-            description: 'Extraction id of the generated DESIGN.md, when known'
+            description: 'Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.'
         }
     },
     required: [
-        'content',
-        'extractionId'
+        'content'
     ]
 } as const;
 

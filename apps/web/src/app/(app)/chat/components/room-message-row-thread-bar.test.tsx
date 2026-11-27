@@ -97,6 +97,24 @@ describe("thread reply bar", () => {
     ).not.toBeInTheDocument();
   });
 
+  // Focus lands here when the thread closes. The content column clips
+  // anything left of its edge, so the box and its ring stay inside it.
+  it.each([
+    [0, "3 replies"],
+    [2, "2 new replies"],
+  ])("draws a whole focus ring with %i unread", (unread, name) => {
+    renderRow({ threadReplyCount: 3, threadUnreadReplyCount: unread });
+
+    const bar = screen.getByRole("button", { name });
+    expect(bar).toHaveClass(
+      "mx-0.5",
+      "outline-hidden",
+      "focus-visible:ring-2",
+      "focus-visible:inset-ring-1",
+    );
+    expect(bar.className).not.toMatch(/(^|\s)-?mx-(0|1)(\s|$)/);
+  });
+
   it("uses the singular for one new reply", () => {
     renderRow({ threadReplyCount: 4, threadUnreadReplyCount: 1 });
 

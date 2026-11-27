@@ -5,8 +5,8 @@ import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
 import {
-  flagSocialPostQuotes,
-  QUOTED_POST_CANCELLED,
+  cancelUnpublishedSocialPosts,
+  UNPUBLISHED_SOCIAL_POST_STATUSES,
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -173,15 +173,6 @@ export async function testCopySourceBotId(
   return source?.id ?? null;
 }
 
-/** Posts that have not gone out: a torn-down copy keeps none of them. */
-const UNSENT_POST_STATUSES = [
-  "DRAFT",
-  "NEEDS_APPROVAL",
-  "SCHEDULED",
-  "FAILED",
-  "MISSED",
-] as const;
-
 /** What is left of a test copy; all zero and false once it is torn down. */
 export interface TestCopyCheck {
   projectId: string;
@@ -241,7 +232,10 @@ export async function checkTestCopy(projectId: string): Promise<TestCopyCheck> {
     providerRevocations,
   ] = await Promise.all([
     prisma.socialPost.count({
-      where: { projectId, status: { in: [...UNSENT_POST_STATUSES] } },
+      where: {
+        projectId,
+        status: { in: [...UNPUBLISHED_SOCIAL_POST_STATUSES] },
+      },
     }),
     prisma.projectSocialConnection.count({
       where: { projectId, status: { not: "disconnected" } },
@@ -299,6 +293,7 @@ export async function tearDownTestCopy(
     where: { ...LIVE_CUSO_WHERE, projectId },
     select: { id: true },
   });
+  let canceledByArchive = 0;
   if (cusos.length > 0) {
     // Archiving a shared bot is an owner's or admin's act; the teardown
     // archives in the name of the organization's longest-standing one.
@@ -315,10 +310,11 @@ export async function tearDownTestCopy(
       "@/services/soko-bot-control-plane.service"
     );
     for (const cuso of cusos) {
-      await sokoBotControlPlane.archive(manager.userId, project.workspaceId, {
-        kind: "id",
-        sokoBotId: cuso.id,
-      });
+      canceledByArchive += await sokoBotControlPlane.archive(
+        manager.userId,
+        project.workspaceId,
+        { kind: "id", sokoBotId: cuso.id },
+      );
     }
   }
 
@@ -336,21 +332,10 @@ export async function tearDownTestCopy(
       },
       data: { status: "CANCEL_REQUESTED", cancellationRequestedAt: now },
     });
-    const posts = await tx.socialPost.findMany({
-      where: { projectId, status: { in: [...UNSENT_POST_STATUSES] } },
-      select: { id: true },
+    // The archive canceled the unsent posts; failed and missed ones end here.
+    const canceledPosts = await cancelUnpublishedSocialPosts(tx, {
+      projectId,
     });
-    await tx.socialPost.updateMany({
-      where: { id: { in: posts.map((post) => post.id) } },
-      data: {
-        status: "CANCELED",
-        canceledAt: now,
-        revision: { increment: 1 },
-      },
-    });
-    for (const post of posts) {
-      await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
-    }
     const links = await tx.projectSocialConnection.findMany({
       where: { projectId, status: { not: "disconnected" } },
     });
@@ -379,7 +364,7 @@ export async function tearDownTestCopy(
       data: { testCopyTornDownAt: now },
     });
     return {
-      canceledPosts: posts.length,
+      canceledPosts: canceledByArchive + canceledPosts,
       unlinkedAccounts: links.length,
       stoppedTurns: queued.count + running.count,
       archivedCuso: cusos.length > 0,

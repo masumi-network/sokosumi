@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { buildChatMessagePreview, readChatMentionKeys } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -16,6 +17,7 @@ import {
   sqlChatSignalHasTag,
   storedChatSignalTags,
 } from "@/lib/chat-signals/derive";
+import { sokoBotFace } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
@@ -123,6 +125,7 @@ const defaultDeps: ChatSummaryDeps = {
     });
     const result = await generateText({
       ...request,
+      telemetry: { functionId: "chat-catch-up" },
       providerOptions: {
         ...request.providerOptions,
         google: { thinkingConfig: { thinkingLevel: "low" } },
@@ -256,7 +259,9 @@ const messageSelect = {
   createdAt: true,
   senderUser: { select: { name: true, image: true } },
   senderCoworker: { select: { name: true, image: true } },
-  senderSokoBot: { select: { name: true, avatarImageUrl: true } },
+  senderSokoBot: {
+    select: { name: true, avatarImageUrl: true, versionId: true },
+  },
   signal: { select: chatSignalSelect },
 } as const satisfies Prisma.ChatRoomMessageSelect;
 
@@ -275,11 +280,11 @@ async function unreadTaggedMessages(
   const after = `$${roomIds.length + 2}`;
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT m.id
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
-    LEFT JOIN "chat_room_read_state" room_read
+    FROM ${sharedTable("chat_message_signal").sql} s
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
+    LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${user}
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${user}
     WHERE s."roomId" IN (${roomIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})
       AND s.state = 'tagged'
@@ -323,7 +328,11 @@ async function mentionNames(
 interface MessageSender {
   senderUser: { name: string; image: string | null } | null;
   senderCoworker: { name: string; image: string | null } | null;
-  senderSokoBot: { name: string | null; avatarImageUrl: string | null } | null;
+  senderSokoBot: {
+    name: string | null;
+    avatarImageUrl: string | null;
+    versionId: string | null;
+  } | null;
 }
 
 /** Who wrote it: a person, a Coworker or a Soko Bot, with their picture. */
@@ -343,9 +352,10 @@ function messageSender(message: MessageSender): {
       senderImageUrl: message.senderCoworker.image,
     };
   }
+  const bot = message.senderSokoBot;
   return {
-    senderName: message.senderSokoBot?.name ?? "Someone",
-    senderImageUrl: message.senderSokoBot?.avatarImageUrl ?? null,
+    senderName: bot?.name ?? "Someone",
+    senderImageUrl: bot ? sokoBotFace(bot).avatarImageUrl : null,
   };
 }
 
@@ -557,11 +567,11 @@ async function unreadMentions(
   const user = `$${roomIds.length + 1}`;
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
     `SELECT DISTINCT ON (m."roomId") m.id
-    FROM "chat_room_user_mention" um
-    INNER JOIN "chat_room_message" m ON m.id = um."messageId"
-    LEFT JOIN "chat_room_read_state" room_read
+    FROM ${sharedTable("chat_room_user_mention").sql} um
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = um."messageId"
+    LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${user}
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${user}
     WHERE um."userId" = ${user}
       AND m."roomId" IN (${roomIds.map((_, i) => `$${i + 1}::uuid`).join(", ")})

@@ -1,16 +1,13 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../lib/agent";
-import { type CusoTrace, latestThought } from "../lib/trace";
+import type { CusoTrace } from "../lib/trace";
 
 type Activity = CmoOverview["activity"];
 
-/** The model's newest reasoning, as one quiet line under what Cuso is doing. */
-export function ReasoningLine({ activity }: { activity: Activity }) {
-  const thought = latestThought(activity?.reasoning);
-  return thought ? <p className="working-why">{thought}</p> : null;
-}
-
-/** Cuso at work in the chat: the step he is on and why, updating live. */
+/**
+ * Cuso at work in the chat: the step he is on, updating live. Only the step:
+ * the model's live reasoning names tools and ids ("a feed save… projectId").
+ */
 export function Working({ activity }: { activity: Activity }) {
   return (
     <div className="working" role="status" aria-live="polite">
@@ -22,7 +19,6 @@ export function Working({ activity }: { activity: Activity }) {
         </span>
         <span>{activity?.step ?? `${AGENT_NAME} is working`}</span>
       </p>
-      <ReasoningLine activity={activity} />
     </div>
   );
 }

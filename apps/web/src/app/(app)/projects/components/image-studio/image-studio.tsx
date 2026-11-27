@@ -299,10 +299,13 @@ export function ImageStudio({
     };
   });
 
+  const studioRootRef = useRef<HTMLDivElement>(null);
+
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
-      // A saved image selection needs an explicit project scope.
-      if (!projectId) return;
+      // A saved image selection needs an explicit project scope, and a hidden
+      // or unmounted studio must not rewrite the URL it left behind.
+      if (!projectId || !studioRootRef.current) return;
       const next = new URLSearchParams(searchParams.toString());
       if (assetId) next.set("v", assetId);
       else next.delete("v");
@@ -1769,6 +1772,7 @@ export function ImageStudio({
         isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
         STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
+      ref={studioRootRef}
     >
       {studioColumn}
       {assistant && activeProjectId ? (

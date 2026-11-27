@@ -94,6 +94,7 @@ const personalWorkspace: UserWorkspace = {
   logo: null,
   websiteUrl: null,
   preferred: false,
+  canUsePreprod: false,
   enabledSocialProviders: [],
 };
 
@@ -108,6 +109,7 @@ const orgWorkspace: UserWorkspace = {
   logo: null,
   websiteUrl: null,
   preferred: false,
+  canUsePreprod: false,
   enabledSocialProviders: ["x", "youtube", "linkedin", "instagram", "facebook"],
 };
 
@@ -115,10 +117,12 @@ function renderSwitcher({
   workspaces,
   activeOrganizationId,
   user = sessionUser,
+  placement = "sidebar",
 }: {
   workspaces: UserWorkspace[];
   activeOrganizationId: string | null;
   user?: SessionUser;
+  placement?: "sidebar" | "rail";
 }) {
   return render(
     <WorkspaceSwitcherProvider
@@ -126,7 +130,7 @@ function renderSwitcher({
       workspaces={workspaces}
       activeOrganizationId={activeOrganizationId}
     >
-      <WorkspaceSwitcherMenu placement="sidebar" />
+      <WorkspaceSwitcherMenu placement={placement} />
     </WorkspaceSwitcherProvider>,
   );
 }
@@ -137,6 +141,23 @@ describe("WorkspaceSwitcherMenu", () => {
     // clearAllMocks keeps implementations; an activation failure stays per test.
     mocks.handleSelectWorkspace.mockReset();
     mocks.isPending = false;
+  });
+
+  it("shows only the organisation's avatar in the rail and opens the same menu", async () => {
+    renderSwitcher({
+      workspaces: [personalWorkspace, orgWorkspace],
+      activeOrganizationId: "org-a",
+      placement: "rail",
+    });
+
+    const trigger = screen.getByRole("button", { name: "switchOrganization" });
+    expect(within(trigger).queryByText("Org A")).toBeNull();
+    expect(trigger.querySelector(".lucide-chevrons-up-down")).toBeNull();
+
+    await userEvent.click(trigger);
+    const menu = screen.getByRole("menu");
+    expect(within(menu).getAllByText("Org A").length).toBeGreaterThan(0);
+    expect(within(menu).getByText("justYou")).toBeInTheDocument();
   });
 
   it("skeletons the chip when the active org is missing from the workspaces", () => {

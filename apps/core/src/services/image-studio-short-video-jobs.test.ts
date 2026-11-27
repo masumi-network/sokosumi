@@ -37,6 +37,9 @@ const {
   assetFindManyMock,
   editShortVideoMock,
   loadStudioBrandMock,
+  jobCreateManyMock,
+  assetCreateMock,
+  transaction,
 } = vi.hoisted(() => ({
   jobCreateMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
@@ -65,6 +68,16 @@ const {
   assetFindManyMock: vi.fn(),
   editShortVideoMock: vi.fn(),
   loadStudioBrandMock: vi.fn(),
+  jobCreateManyMock: vi.fn(),
+  assetCreateMock: vi.fn(),
+  transaction: { open: false },
+}));
+
+vi.mock("@/helpers/task-credits", async () => ({
+  ...(await vi.importActual<typeof import("@/helpers/task-credits")>(
+    "@/helpers/task-credits",
+  )),
+  createTaskEventTransaction: vi.fn(async () => "transaction-1"),
 }));
 
 vi.mock("@vercel/blob", () => ({ put: putMock }));
@@ -88,13 +101,15 @@ vi.mock("@/lib/db/prisma", () => {
       findUniqueOrThrow: jobFindUniqueOrThrowMock,
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
+      createMany: jobCreateManyMock,
     },
     project: { findUnique: projectFindUniqueMock },
     projectImageAsset: {
       count: assetCountMock,
       findMany: assetFindManyMock,
       findUnique: vi.fn().mockResolvedValue(null),
-      create: vi.fn(async ({ data }) => ({ id: "asset-1", ...data })),
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: assetCreateMock,
     },
   };
   return { default: client };
@@ -103,8 +118,14 @@ vi.mock("@/lib/db/transaction", async () => ({
   ...(await vi.importActual<typeof import("@/lib/db/transaction")>(
     "@/lib/db/transaction",
   )),
-  serializableTransaction: async (run: (tx: unknown) => Promise<unknown>) =>
-    await run((await import("@/lib/db/prisma")).default),
+  serializableTransaction: async (run: (tx: unknown) => Promise<unknown>) => {
+    transaction.open = true;
+    try {
+      return await run((await import("@/lib/db/prisma")).default);
+    } finally {
+      transaction.open = false;
+    }
+  },
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: requireProjectAccessMock,
@@ -151,6 +172,8 @@ vi.mock("@/lib/image-studio/talking-video", async () => ({
     "@/lib/image-studio/talking-video",
   )),
   frameTalkingVideoPresenter: vi.fn(async () => new Uint8Array([9])),
+  keepVideoPicture: vi.fn(async () => new Uint8Array([9])),
+  fitVideoPicture: vi.fn(async (bytes: Uint8Array) => bytes),
 }));
 vi.mock("@/lib/image-studio/studio-brand", async () => ({
   ...(await vi.importActual<typeof import("@/lib/image-studio/studio-brand")>(
@@ -164,6 +187,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 
 import {
   createShortVideoJob,
+  reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 
@@ -199,6 +223,11 @@ let stored: Record<string, unknown> = {};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  assetCreateMock.mockImplementation(async ({ data }) => ({
+    id: "asset-1",
+    ...data,
+  }));
+  jobCreateManyMock.mockImplementation(async () => ({ count: 1 }));
   getEnvMock.mockReturnValue({
     FAL_KEY: "k",
     IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
@@ -342,6 +371,32 @@ describe("starting a short", () => {
     expect(jobCreateMock).not.toHaveBeenCalled();
   });
 
+  it("refuses a launch without the date of what it announces", async () => {
+    await expect(
+      createShortVideoJob({ ...BASE_INPUT, format: "launch", launchDate: " " }),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(jobCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a launch's date, and no date on any other short", async () => {
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      format: "launch",
+      launchDate: "3 December",
+    });
+    expect(stored.settings).toMatchObject({
+      format: "launch",
+      launchDate: "3 December",
+    });
+
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      idempotencyKey: "short-other-1",
+      launchDate: "3 December",
+    });
+    expect(stored.settings).not.toHaveProperty("launchDate");
+  });
+
   it("refuses a short with nothing to show", async () => {
     projectFindUniqueMock.mockResolvedValue({ websiteUrl: null });
 
@@ -422,6 +477,36 @@ describe("a short's music arriving", () => {
     );
   });
 
+  it("gives a launch its date and the brand's colours and font for its card", async () => {
+    stored = {
+      ...stored,
+      settings: {
+        ...(stored.settings as object),
+        format: "launch",
+        launchDate: "3 December",
+      },
+    };
+    loadStudioBrandMock.mockResolvedValue({
+      look: { colors: ["#6400FF", "#FFFFFF"], fonts: ["Inter"] },
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+
+    expect(editShortVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: "launch",
+        launch: {
+          date: "3 December",
+          brand: { colors: ["#6400FF", "#FFFFFF"], font: "Inter" },
+        },
+      }),
+    );
+  });
+
   it("fails the job, uncharged, when the short cannot be put together", async () => {
     editShortVideoMock.mockRejectedValue(new Error("ffmpeg exited 1"));
     const logged = expectCoreLog("warn", "Could not put a short together");
@@ -437,5 +522,196 @@ describe("a short's music arriving", () => {
       }),
     );
     expect(logged).toHaveLength(1);
+  });
+});
+
+describe("delivering a short with other shapes", () => {
+  beforeEach(async () => {
+    await createShortVideoJob({ ...BASE_INPUT, shapes: ["4:5", "16:9"] });
+    stored = { ...stored, status: "RUNNING", falRequestId: "fal-1" };
+    jobFindUniqueMock.mockImplementation(async () => ({
+      ...stored,
+      asset: null,
+    }));
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([4]),
+      contentType: "audio/wav",
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+    putMock.mockImplementation(async (pathname: string) => ({ pathname }));
+  });
+
+  it("reserves the other shapes in the transaction that stores and charges the first", async () => {
+    let reservedInTransaction = false;
+    jobCreateManyMock.mockImplementation(async () => {
+      reservedInTransaction = transaction.open;
+      return { count: 1 };
+    });
+
+    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav", {
+      // What a provider reports is the clip's size, not the edit's.
+      width: 1080,
+      height: 1920,
+    });
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ width: 1080, height: 1350 }),
+      }),
+    );
+    expect(jobCreateManyMock).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          idempotencyKey: "video-shape:job-1:16:9",
+          chargedCents: 0n,
+          settings: expect.objectContaining({
+            shape: "16:9",
+            sourceJobId: "job-1",
+          }),
+        }),
+      ],
+      skipDuplicates: true,
+    });
+    expect(reservedInTransaction).toBe(true);
+  });
+
+  it("stores nothing when the other shapes cannot be reserved, so the retry makes them", async () => {
+    jobCreateManyMock.mockRejectedValue(new Error("connection reset"));
+
+    await expect(
+      settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav"),
+    ).rejects.toThrow("connection reset");
+    // The asset and its charge were in the same transaction, which rolled back:
+    // the job has no asset, so the next reconcile settles it again.
+    expect(jobCreateManyMock).toHaveBeenCalledTimes(1);
+    expect(assetCreateMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a short in several shapes", () => {
+  it("makes the first shape it reads well in and keeps the rest for later", async () => {
+    await createShortVideoJob({
+      ...BASE_INPUT,
+      format: "site_tour",
+      shapes: ["16:9", "1:1", "9:16"],
+    });
+
+    expect(jobCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        settings: expect.objectContaining({
+          aspectRatio: "9:16",
+          shape: "9:16",
+          // A website tour reads badly in a square.
+          shapes: ["16:9"],
+        }),
+        // Only the first shape is quoted: the others cost nothing more.
+        chargedCents: convertCreditsToCents(12),
+      }),
+    });
+    // A phone's page for the upright shape, a desktop's for widescreen.
+    expect(captureSitePageMock).toHaveBeenCalledWith(
+      "https://roastery.example",
+      "phone",
+    );
+    expect(captureSitePageMock).toHaveBeenCalledWith(
+      "https://roastery.example",
+      "desktop",
+    );
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({
+            sitePagePathname: "projects/project-1/image-studio/job-1-site.jpg",
+            siteDesktopPagePathname:
+              "projects/project-1/image-studio/job-1-site-desktop.jpg",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("cuts another shape from the delivered short's music, uncharged", async () => {
+    await createShortVideoJob({ ...BASE_INPUT, shapes: ["9:16", "16:9"] });
+    const source = {
+      ...stored,
+      status: "SUCCEEDED",
+      falRequestId: "fal-1",
+    };
+    const shape = {
+      ...stored,
+      id: "job-2",
+      idempotencyKey: "video-shape:job-1:16:9",
+      status: "RUNNING",
+      falRequestId: null,
+      chargedCents: 0n,
+      settings: {
+        ...(stored.settings as object),
+        aspectRatio: "16:9",
+        shape: "16:9",
+        shapes: [],
+        sourceJobId: "job-1",
+        siteDesktopPagePathname: "desktop-page.jpg",
+      },
+      asset: null,
+    };
+    jobFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "job-1" ? source : shape,
+    );
+    fetchQueueResultMock.mockResolvedValue({
+      kind: "media",
+      media: [{ url: "https://v3b.fal.media/files/music.wav" }],
+    });
+    downloadMediaMock.mockResolvedValue({
+      bytes: new Uint8Array([4]),
+      contentType: "audio/wav",
+    });
+    editShortVideoMock.mockResolvedValue({
+      bytes: new Uint8Array([8]),
+      durationSeconds: 9.2,
+    });
+    putMock.mockRejectedValue(new Error("stop at the upload"));
+
+    await reconcileJob("job-2");
+
+    expect(fetchQueueResultMock).toHaveBeenCalledWith({
+      model: "fal-ai/lyria2",
+      requestId: "fal-1",
+    });
+    expect(readAssetBytesMock).toHaveBeenCalledWith("desktop-page.jpg");
+    expect(editShortVideoMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shape: "16:9", music: new Uint8Array([4]) }),
+    );
+    // Nothing new is asked of the provider.
+    expect(submitToQueueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a shape whose source failed", async () => {
+    jobFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { id: string } }) =>
+        where.id === "job-1"
+          ? { status: "FAILED", falRequestId: "fal-1", settings: {} }
+          : {
+              id: "job-2",
+              kind: "TALKING_VIDEO",
+              idempotencyKey: "video-shape:job-1:4:5",
+              falRequestId: null,
+              status: "RUNNING",
+              settings: { shape: "4:5", sourceJobId: "job-1" },
+            },
+    );
+
+    await reconcileJob("job-2");
+
+    expect(fetchQueueResultMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "job-2" }),
+        data: expect.objectContaining({ status: "FAILED" }),
+      }),
+    );
   });
 });

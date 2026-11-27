@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CMO_SCENARIOS,
   evaluateScenario,
+  SOKO_BOT_FEATURE_OFF,
   SOKO_BOT_SCENARIOS,
+  SOKO_BOT_TOOL_REFUSED,
   type SokoBotLabTurn,
   type SokoBotScenario,
 } from "../scenarios.js";
@@ -437,5 +440,370 @@ describe("evaluateScenario", () => {
       }),
     );
     expect(result.passed).toBeLessThan(result.total);
+  });
+});
+
+describe("readsSkills", () => {
+  const scenario: SokoBotScenario = {
+    id: "reads-landing-page",
+    title: "Reads the landing page skill",
+    intent: "",
+    prompt: "",
+    rubric: "",
+    expect: { routes: ["DELEGATE_TASK"], readsSkills: ["landing-page"] },
+  };
+  const check = (calls: SokoBotLabTurn["toolCalls"]) =>
+    evaluateScenario(scenario, turn({ toolCalls: calls })).checks.find(
+      (c) => c.label === "Reads skill landing-page",
+    );
+
+  it("passes when either read tool returned the skill", () => {
+    expect(
+      check([call("read_writing_skill", { skill: "landing-page" })])?.pass,
+    ).toBe(true);
+    expect(check([call("read_skill", { skill: "landing-page" })])?.pass).toBe(
+      true,
+    );
+  });
+
+  it("fails when only another skill was read", () => {
+    expect(
+      check([call("read_writing_skill", { skill: "brand-voice" })])?.actual,
+    ).toBe("not read: read brand-voice");
+  });
+});
+
+describe("playbook cases", () => {
+  const emails = CMO_SCENARIOS.find((s) => s.id === "cmo-trial-welcome-emails");
+  const avoids = (answer: string) =>
+    evaluateScenario(
+      emails!,
+      turn({ route: "MANAGE_WORK", finalAnswer: answer }),
+    ).checks.find((c) => c.label.startsWith("Answer avoids"))?.pass;
+
+  it("lets a draft link its button but not leave a placeholder", () => {
+    expect(avoids("[Start your trial](https://cal.com/teams)")).toBe(true);
+    expect(avoids("Hi [first name], welcome.")).toBe(false);
+  });
+});
+
+describe("scoring what the bot did, not how", () => {
+  const check = (
+    scenarioId: string,
+    done: Partial<SokoBotLabTurn>,
+    label: RegExp,
+  ) =>
+    evaluateScenario(byId(scenarioId), turn(done)).checks.find((c) =>
+      label.test(c.label),
+    );
+
+  it("counts only the refusal a scenario sets up as an outcome", () => {
+    const noFailures = (scenarioId: string, failed: Record<string, unknown>) =>
+      check(
+        scenarioId,
+        { toolCalls: [{ ...call("x"), status: "FAILED", ...failed }] },
+        /No failed/,
+      )?.pass;
+    const featureOff = {
+      capability: "fundraising_pipeline",
+      errorKind: SOKO_BOT_FEATURE_OFF,
+    };
+    expect(noFailures("fundraising-pipeline-off", featureOff)).toBe(true);
+    // Any other refusal or error of the same tool still fails the case.
+    for (const errorKind of [SOKO_BOT_TOOL_REFUSED, "Error", null])
+      expect(
+        noFailures("fundraising-pipeline-off", { ...featureOff, errorKind }),
+      ).toBe(false);
+    // The same refusal of a tool the scenario did not set up fails too.
+    expect(
+      noFailures("fundraising-pipeline-off", {
+        capability: "send_message",
+        errorKind: SOKO_BOT_FEATURE_OFF,
+      }),
+    ).toBe(false);
+    // And no other scenario forgives it.
+    expect(noFailures("workspace-data-work", featureOff)).toBe(false);
+  });
+
+  it("needs the scenario's refusal to happen, not just be allowed", () => {
+    const refusal = (calls: SokoBotLabTurn["toolCalls"]) =>
+      check(
+        "fundraising-pipeline-off",
+        { toolCalls: calls },
+        /Meets the refusal/,
+      )?.pass;
+    expect(
+      refusal([
+        {
+          ...call("fundraising_pipeline"),
+          status: "FAILED",
+          errorKind: SOKO_BOT_FEATURE_OFF,
+        },
+      ]),
+    ).toBe(true);
+    // The feature answered: what the scenario sets up never happened.
+    expect(refusal([call("fundraising_pipeline")])).toBe(false);
+    expect(
+      refusal([
+        {
+          ...call("fundraising_pipeline"),
+          status: "FAILED",
+          errorKind: SOKO_BOT_TOOL_REFUSED,
+        },
+      ]),
+    ).toBe(false);
+    // A scenario without one has no such check.
+    expect(
+      check("workspace-data-work", { toolCalls: [] }, /Meets the refusal/),
+    ).toBeUndefined();
+  });
+
+  describe("the saved file is its final content, row by row", () => {
+    const rows =
+      "Company,Amount,Status\nAcme,12000,won\nBeta,8000,lost\nGamma,20000,open\nDelta,5000,won\nEpsilon,15000,open\n";
+    const saves = (...calls: SokoBotLabTurn["toolCalls"]) =>
+      check("workspace-data-work", { toolCalls: calls }, /Saves pipeline\.csv/)
+        ?.pass;
+    const withInput = (
+      capability: string,
+      input: unknown,
+      result: unknown = null,
+    ) => ({ ...call(capability, result), input });
+    const write = (content: string) =>
+      withInput("workspace_write", { path: "work/pipeline.csv", content });
+
+    it("accepts a write or an upload of the whole table", () => {
+      expect(saves(write(rows))).toBe(true);
+      expect(
+        saves(
+          withInput(
+            "upload_file",
+            { filename: "pipeline.csv", content: rows },
+            { filename: "pipeline.csv" },
+          ),
+        ),
+      ).toBe(true);
+      // Saved under another name is not this file.
+      expect(
+        saves(
+          withInput(
+            "upload_file",
+            { filename: "pipeline.csv", content: rows },
+            { filename: "pipeline (2).csv" },
+          ),
+        ),
+      ).toBe(false);
+      expect(saves({ ...write(rows), status: "FAILED" })).toBe(false);
+    });
+
+    it("needs each company with its amount and status on one line", () => {
+      expect(
+        saves(write("pipeline.csv Acme Beta Gamma Delta Epsilon 12000")),
+      ).toBe(false);
+      expect(
+        saves(write(rows.replace("Gamma,20000,open", "Gamma,20000,won"))),
+      ).toBe(false);
+      // An echo of the names is no file at all.
+      expect(
+        saves(
+          withInput("bash", {
+            command: 'echo "pipeline.csv Acme 12000 Beta Gamma Delta Epsilon"',
+          }),
+        ),
+      ).toBe(false);
+    });
+
+    it("compares whole cells, so an amount off by ten fails", () => {
+      expect(saves(write(rows.replace("Acme,12000", "Acme,120000")))).toBe(
+        false,
+      );
+      expect(
+        saves(write(rows.replace("Acme,12000,won", '"Acme", "$12000", Won'))),
+      ).toBe(true);
+    });
+
+    it("follows appends, moves and partial reads", () => {
+      const partial = rows.replace("Epsilon,15000,open\n", "");
+      expect(
+        saves(
+          write(partial),
+          withInput("bash", {
+            command: 'echo "Epsilon,15000,open" >> pipeline.csv',
+          }),
+        ),
+      ).toBe(true);
+      expect(
+        saves(
+          write(partial),
+          withInput("workspace_write", {
+            path: "pipeline.csv",
+            content: "Epsilon,15000,open\n",
+            append: true,
+          }),
+        ),
+      ).toBe(true);
+      // Moved away: the file is no longer there as written.
+      expect(
+        saves(
+          write(rows),
+          withInput("bash", { command: "mv pipeline.csv old-pipeline.csv" }),
+        ),
+      ).toBe(false);
+      // A preview of the first lines is not the file.
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv", limit: 30 },
+            {
+              path: "pipeline.csv",
+              content: rows.slice(0, 30),
+              totalChars: rows.length,
+            },
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it("reads the sandbox's receipt, a copy and quoted thousands as written", () => {
+      // The sandbox stores what a tool returned as JSON text in `output`.
+      const receipt = (output: unknown) => ({ output: JSON.stringify(output) });
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv" },
+            receipt({
+              path: "pipeline.csv",
+              content: rows,
+              totalChars: rows.length,
+            }),
+          ),
+        ),
+      ).toBe(true);
+      const script = withInput("bash", {
+        command: "python3 make.py > pipeline.csv",
+      });
+      expect(
+        saves(
+          script,
+          withInput(
+            "bash",
+            { command: "cat pipeline.csv" },
+            receipt({ exitCode: 0, stdout: rows, stderr: "" }),
+          ),
+        ),
+      ).toBe(true);
+      // Clipped JSON shows nothing, so the write before it stands.
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv" },
+            { output: JSON.stringify({ content: rows }).slice(0, 40) },
+          ),
+        ),
+      ).toBe(true);
+      // A backup copy leaves the original as it was; a copy onto it does not.
+      expect(
+        saves(
+          write(rows),
+          withInput("bash", { command: "cp pipeline.csv pipeline.csv.bak" }),
+        ),
+      ).toBe(true);
+      expect(
+        saves(
+          write(rows),
+          withInput("bash", { command: "cp draft.csv pipeline.csv" }),
+        ),
+      ).toBe(false);
+      expect(
+        saves(
+          write(
+            rows
+              .replace("Acme,12000,won", 'Acme,"$12,000",won')
+              .replace("Gamma,20000,open", '"Gamma, Inc",20000,open'),
+          ),
+        ),
+      ).toBe(false);
+      expect(
+        saves(write(rows.replace("Acme,12000,won", 'Acme,"$12,000",won'))),
+      ).toBe(true);
+    });
+
+    it("takes the last write, so an overwrite counts", () => {
+      expect(saves(write(rows), write("Acme,12000,won\n"))).toBe(false);
+      expect(saves(write("Acme,12000,won\n"), write(rows))).toBe(true);
+    });
+
+    it("accepts a script-written file once it is read back", () => {
+      const script = withInput(
+        "bash",
+        { command: "python3 make_pipeline.py > pipeline.csv" },
+        { exitCode: 0, stdout: "", stderr: "" },
+      );
+      // Written out of sight: unknown until read.
+      expect(saves(script)).toBe(false);
+      expect(saves(write(rows), script)).toBe(false);
+      expect(
+        saves(
+          script,
+          withInput(
+            "workspace_read",
+            { path: "pipeline.csv" },
+            { path: "pipeline.csv", content: rows, totalChars: rows.length },
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        saves(
+          script,
+          withInput(
+            "bash",
+            { command: "cat pipeline.csv" },
+            { exitCode: 0, stdout: rows, stderr: "" },
+          ),
+        ),
+      ).toBe(true);
+      // Written by Python or Node out of sight, until it prints the rows.
+      expect(
+        saves(
+          withInput("bash", {
+            command: "node -e \"fs.writeFileSync('pipeline.csv', data)\"",
+          }),
+        ),
+      ).toBe(false);
+      expect(
+        saves(
+          withInput(
+            "bash",
+            {
+              command:
+                "python3 -c \"open('pipeline.csv', 'w').write(data); print(open('pipeline.csv').read())\"",
+            },
+            { exitCode: 0, stdout: rows, stderr: "" },
+          ),
+        ),
+      ).toBe(true);
+    });
+
+    it("keeps a written file when a script only reads it", () => {
+      expect(
+        saves(
+          write(rows),
+          withInput(
+            "bash",
+            {
+              command:
+                "python3 -c \"import csv; print(list(csv.reader(open('pipeline.csv'))))\"",
+            },
+            { exitCode: 0, stdout: "won 17000 open 35000", stderr: "" },
+          ),
+        ),
+      ).toBe(true);
+    });
   });
 });

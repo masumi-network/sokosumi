@@ -1,6 +1,7 @@
 "use client";
 
 import type { TaskTagSuggestion } from "@sokosumi/core-client";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTaskTagCatalog } from "@/app/tasks/components/task-tag-catalog";
 
@@ -41,7 +42,10 @@ export function useTaskTagSuggestions({
 }: DraftInput) {
   const catalog = useTaskTagCatalog();
   const normalizedName = name.trim().replace(/\s+/g, " ");
-  const normalizedDescription = description.trim().replace(/\s+/g, " ");
+  // Redact first: the request line is found by its line start, which the flattening removes.
+  const normalizedDescription = (hideSeoAuditRequest(description) ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
   const input = { name: normalizedName, description: normalizedDescription };
   const inputKey = JSON.stringify([
     workspaceKey,
@@ -74,14 +78,21 @@ export function useTaskTagSuggestions({
     status: "loading" | "unavailable";
   } | null>(null);
   const [settled, setSettled] = useState(0);
-  const inFlight = useRef(false);
   const mounted = useRef(false);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      controller.current?.abort();
+      const active = controller.current;
+      controller.current = null;
+      if (active) {
+        active.abort();
+        // Activity preserves state across hide/reveal; clear loading so reveal can retry.
+        setRequest((current) =>
+          current?.status === "loading" ? null : current,
+        );
+      }
     };
   }, []);
   const nextRequestAt = useRef(0);
@@ -97,19 +108,21 @@ export function useTaskTagSuggestions({
   const tags = [...new Set(current?.tags ?? [])].slice(0, 5);
 
   useEffect(() => {
-    if (!shouldRequest || inFlight.current) return;
+    if (!shouldRequest || controller.current) return;
     const requestGeneration = generation.current;
-    const isCurrent = () =>
-      mounted.current && requestGeneration === generation.current;
     const timer = window.setTimeout(
       async () => {
-        if (inFlight.current) return;
-        inFlight.current = true;
+        if (!mounted.current || controller.current) return;
+        const requestController = new AbortController();
+        controller.current = requestController;
+        const isCurrent = () =>
+          mounted.current &&
+          controller.current === requestController &&
+          requestGeneration === generation.current;
         nextRequestAt.current = Date.now() + REQUEST_INTERVAL_MS;
         setRequest({ key: wordKey, status: "loading" });
-        controller.current = new AbortController();
         const timeout = window.setTimeout(
-          () => controller.current?.abort(),
+          () => requestController.abort(),
           REQUEST_TIMEOUT_MS,
         );
         try {
@@ -120,11 +133,11 @@ export function useTaskTagSuggestions({
               name: normalizedName,
               description: normalizedDescription,
             }),
-            signal: controller.current.signal,
+            signal: requestController.signal,
           });
           if (response.ok) {
             const value: TaskTagSuggestion = await response.json();
-            failures.current = 0;
+            if (controller.current === requestController) failures.current = 0;
             if (isCurrent()) {
               const next = { inputKey, wordKey, ...value };
               const previous = lastShown.current;
@@ -132,32 +145,39 @@ export function useTaskTagSuggestions({
               setRequest(null);
             }
           } else {
-            failures.current += 1;
-            nextRequestAt.current =
-              Date.now() +
-              Math.max(
-                (Number(response.headers.get("Retry-After")) || 30) * 1000,
-                Math.min(300000, 30000 * 2 ** (failures.current - 1)),
-              );
+            if (controller.current === requestController) {
+              failures.current += 1;
+              nextRequestAt.current =
+                Date.now() +
+                Math.max(
+                  (Number(response.headers.get("Retry-After")) || 30) * 1000,
+                  Math.min(300000, 30000 * 2 ** (failures.current - 1)),
+                );
+            }
             if (isCurrent())
               setRequest({ key: wordKey, status: "unavailable" });
           }
         } catch {
-          failures.current += 1;
-          nextRequestAt.current =
-            Date.now() + Math.min(300000, 30000 * 2 ** (failures.current - 1));
+          if (controller.current === requestController) {
+            failures.current += 1;
+            nextRequestAt.current =
+              Date.now() +
+              Math.min(300000, 30000 * 2 ** (failures.current - 1));
+          }
           if (isCurrent()) setRequest({ key: wordKey, status: "unavailable" });
         } finally {
           window.clearTimeout(timeout);
-          controller.current = null;
-          inFlight.current = false;
-          // A newer input may have been waiting for this single in-flight request.
-          if (mounted.current) {
-            if (!isCurrent())
-              setRequest((current) =>
-                current?.key === wordKey ? null : current,
-              );
-            setSettled((value) => value + 1);
+          if (controller.current === requestController) {
+            const stale = requestGeneration !== generation.current;
+            controller.current = null;
+            // A newer input may have been waiting for this single in-flight request.
+            if (mounted.current) {
+              if (stale)
+                setRequest((current) =>
+                  current?.key === wordKey ? null : current,
+                );
+              setSettled((value) => value + 1);
+            }
           }
         }
       },

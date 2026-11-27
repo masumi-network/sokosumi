@@ -16,6 +16,7 @@ import {
   PenLine,
   Receipt,
   Store,
+  TrendingUp,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -108,6 +109,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     key: "seoAlerts",
     href: "/admin/seo-alerts",
     Icon: Activity,
+    group: "operations",
+  },
+  {
+    key: "seoImpact",
+    href: "/admin/seo-impact",
+    Icon: TrendingUp,
     group: "operations",
   },
   {

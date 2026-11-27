@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
@@ -9,6 +8,7 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { focusedReport, SEO_TEST_PAGE } from "@/test-fixtures/project-seo";
 import {
   addProjectSeoPage,
@@ -234,6 +234,7 @@ describe.skipIf(!enabled)("Independent Audit background ownership", () => {
     });
     const vars = {
       isAuthenticated: true,
+      networkScope: testNetworkScope(),
       authContext: {
         actor: "user" as const,
         userId,

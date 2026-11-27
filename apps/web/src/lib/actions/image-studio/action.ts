@@ -255,6 +255,7 @@ interface StartTalkingVideoParameters
       | "siteShots"
       | "broll"
       | "music"
+      | "shapes"
       | "idempotencyKey"
     > {
   projectId: string;
@@ -280,6 +281,7 @@ export const startTalkingVideo = withSession<
         siteShots: input.siteShots,
         broll: input.broll,
         music: input.music,
+        ...(input.shapes ? { shapes: input.shapes } : {}),
         idempotencyKey: input.idempotencyKey,
       },
     );
@@ -304,8 +306,10 @@ interface StartShortVideoParameters
       | "format"
       | "script"
       | "hookLine"
+      | "launchDate"
       | "languageCode"
       | "pictureAssetIds"
+      | "shapes"
       | "idempotencyKey"
     > {
   projectId: string;
@@ -321,11 +325,13 @@ export const startShortVideo = withSession<
       format: input.format,
       script: input.script,
       ...(input.hookLine ? { hookLine: input.hookLine } : {}),
+      ...(input.launchDate ? { launchDate: input.launchDate } : {}),
       // Core checks the voice against its own list.
       voice: input.voice as CreateProjectShortVideoJobRequest["voice"],
       languageCode: input.languageCode,
       pictureAssetIds: input.pictureAssetIds,
       pictureFileIds: [],
+      ...(input.shapes ? { shapes: input.shapes } : {}),
       idempotencyKey: input.idempotencyKey,
     });
     return { ok: true, job };

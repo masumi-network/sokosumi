@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import mountGetAdminSeoAlertsSync from "./admin-seo-alerts/get.js";
 import mountGetAgentsSync from "./agents/get.js";
 import mountGetAgentsSummarySync from "./agents-summary/get.js";
 import mountGetCalendarInvalidationsSync from "./calendar-invalidations/get.js";
@@ -23,6 +24,7 @@ import mountGetNotificationFollowUpsSync from "./notification-follow-ups/get.js"
 import mountGetNotificationPublishesSync from "./notification-publishes/get.js";
 import mountGetPolarYearlyGrantsSync from "./polar-yearly-grants/get.js";
 import mountGetProjectClosesSync from "./project-closes/get.js";
+import mountGetSeoImpactSync from "./seo-impact/get.js";
 import mountGetSkillCatalogSync from "./skill-catalog/get.js";
 import mountGetSocialPerformanceSync from "./social-performance/get.js";
 import mountGetSocialPostsPublishSync from "./social-posts-publish/get.js";
@@ -39,6 +41,7 @@ import mountGetTaskX402PaymentHeadersPurgeSync from "./task-x402-payment-headers
 
 const app = new Hono();
 
+mountGetAdminSeoAlertsSync(app);
 mountGetAgentsSync(app);
 mountGetAgentsSummarySync(app);
 mountGetCalendarInvalidationsSync(app);
@@ -62,6 +65,7 @@ mountGetNotificationFollowUpsSync(app);
 mountSendNewsletterIssues(app);
 mountGetNotificationPublishesSync(app);
 mountGetProjectClosesSync(app);
+mountGetSeoImpactSync(app);
 mountGetDataRoomsSync(app);
 mountGetSkillCatalogSync(app);
 mountGetSocialPerformanceSync(app);

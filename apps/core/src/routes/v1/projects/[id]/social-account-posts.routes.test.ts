@@ -37,6 +37,15 @@ const auth: AuthenticationContext = {
   role: "user",
   authenticationMethod: "session",
 };
+// ADR 0077: a person's API key, OAuth or MCP token is an agent, like a Coworker.
+const AGENT_CREDENTIALS = [
+  ["user API key", { authenticationMethod: "api_key" }],
+  [
+    "third-party OAuth token",
+    { authenticationMethod: "oauth", oauthClientId: "c" },
+  ],
+  ["MCP token", { authenticationMethod: "oauth" }],
+] as const;
 const workspace: WorkspaceContext = {
   workspaceId,
   userId: "owner",
@@ -96,13 +105,13 @@ const recycled = {
   connectionNeedsReconnect: false,
 };
 
-function createApp() {
+function createApp(actor: AuthenticationContext = auth) {
   const app = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
   });
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    c.set("authContext", auth);
+    c.set("authContext", actor);
     c.set("workspaceContext", workspace);
     await next();
   });
@@ -139,6 +148,25 @@ describe("recycle social account post route", () => {
       }),
     );
   });
+
+  it.each(AGENT_CREDENTIALS)(
+    "recycles for an agent on a %s as a post that needs approval",
+    async (_name, credential) => {
+      const response = await createApp({ ...auth, ...credential }).request(
+        `/${projectId}/social-account-posts/${accountPostId}/recycle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ delayDays: 7, timezone: "UTC" }),
+        },
+      );
+      expect(response.status).toBe(201);
+      expect(mocks.recycle).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: "owner", agent: true }),
+      );
+      expect((await response.json()).data.canPublishNow).toBe(false);
+    },
+  );
 
   it("rejects a delay without a time zone", async () => {
     const response = await createApp().request(

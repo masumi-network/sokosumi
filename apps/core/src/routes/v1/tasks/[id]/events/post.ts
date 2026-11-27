@@ -265,6 +265,7 @@ function mountTaskEventRoute(
           task,
           credits,
           masumiPayment,
+          scope: c.var.networkScope,
           tx,
         });
         cents = settled.cents;
@@ -291,6 +292,7 @@ function mountTaskEventRoute(
           channel,
           ...(cents !== undefined && { cents }),
           transactionId,
+          ...(transactionId && { network: c.var.networkScope.network }),
           ...actorData,
         },
       });

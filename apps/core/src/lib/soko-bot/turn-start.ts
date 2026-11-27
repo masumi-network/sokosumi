@@ -1,7 +1,9 @@
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
+import type { Network } from "@/lib/network";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
 export interface StartSokoBotTurnInput {
+  network: Network;
   /**
    * The person the turn acts for: the member who asked, or a personal bot's
    * owner. Null when a shared bot acts on its own (ADR 0057).
@@ -25,6 +27,11 @@ export interface StartSokoBotTurnInput {
      * the turn, so a plan reaches exactly one turn; a lost claim aborts it.
      */
     followUpDelegationIds?: string[];
+    /**
+     * The failed turn these plans were handed to first: this turn may take
+     * them over from it, once (`soko-bot-events-sync`).
+     */
+    followUpRetryOfTurnId?: string;
     status: string;
     taskCursorAt?: Date;
     delegationEventAt?: Date;
@@ -72,6 +79,12 @@ export interface StartSokoBotTurnInput {
      * never tilts a plain "yes" towards a clarifying question.
      */
     classifyMessage?: string;
+    /**
+     * What the person typed in this message, without the room's earlier
+     * messages. Cuso's context organizer reads only these, so a date in an
+     * older message never picks a calendar week.
+     */
+    said?: string;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth?: number;
   };

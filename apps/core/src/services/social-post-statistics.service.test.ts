@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
+import { configureSqlTables, sharedTable } from "@sokosumi/database/sql-tables";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getPost: vi.fn(),
@@ -206,7 +208,19 @@ describe("Social post statistics", () => {
       });
       await client.connect();
       try {
-        await client.query(`CREATE TEMP TABLE social_post (
+        const schema = `social_statistics_${randomUUID().replaceAll("-", "")}`;
+        onTestFinished(
+          configureSqlTables({
+            shared: schema,
+            mainnet: `${schema}_m`,
+            preprod: `${schema}_p`,
+            preprodOn: false,
+          }),
+        );
+        await client.query(`
+          BEGIN;
+          CREATE SCHEMA "${schema}";
+          CREATE TABLE ${sharedTable("social_post").sql} (
           "projectId" uuid, "workspaceId" uuid, provider text, status text,
           "publishedAt" timestamp, statistics jsonb
         )`);
@@ -243,7 +257,7 @@ describe("Social post statistics", () => {
           ...malformed,
         ]) {
           await client.query(
-            "INSERT INTO social_post VALUES ($1,$2,$3,$4,$5,$6)",
+            `INSERT INTO ${sharedTable("social_post").sql} VALUES ($1,$2,$3,$4,$5,$6)`,
             [
               pgScope.projectId,
               pgScope.workspaceId,

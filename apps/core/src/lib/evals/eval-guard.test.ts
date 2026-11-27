@@ -1,8 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+const { coworkerCount } = vi.hoisted(() => ({ coworkerCount: vi.fn() }));
 
-import { simulatedEvalTool } from "./eval-guard";
+vi.mock("@/lib/db/prisma", () => ({
+  default: { coworker: { count: coworkerCount } },
+}));
+
+import { evalCoworkerRefusal, simulatedEvalTool } from "./eval-guard";
+
+describe("evalCoworkerRefusal", () => {
+  it("refuses a Task Schedule for a Coworker the lane was never granted", async () => {
+    coworkerCount.mockResolvedValue(0);
+    await expect(
+      evalCoworkerRefusal("eval-ws-1", {
+        name: "Daily research",
+        assigneeCoworkerId: "global-paid-coworker",
+        cron: "0 9 * * 1-5",
+      }),
+    ).resolves.toMatch(/not available in this workspace/);
+    expect(coworkerCount).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: { in: ["global-paid-coworker"] } }),
+    });
+  });
+});
 
 describe("simulatedEvalTool", () => {
   it("answers tools that reach money or people outside Sokosumi without running them", () => {

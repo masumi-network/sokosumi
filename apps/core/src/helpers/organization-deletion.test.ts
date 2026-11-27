@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { APIError } from "better-auth/api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -109,10 +110,12 @@ describe("prepareOrganizationForDeletion", () => {
       expect.any(Object),
       "user-1",
     );
-    expect(
-      (queryRaw.mock.calls[0]?.[0] as TemplateStringsArray).join("?"),
-    ).toMatch(/FROM "organization"[\s\S]*WHERE id = \?[\s\S]*FOR UPDATE/);
-    expect(queryRaw.mock.calls[0]?.slice(1)).toEqual(["org-1"]);
+    const [strings, ...values] = queryRaw.mock.calls[0];
+    const lock = PrismaRaw.sql(strings as TemplateStringsArray, ...values);
+    expect(lock.sql).toMatch(
+      /FROM "public"."organization"[\s\S]*WHERE id = \?[\s\S]*FOR UPDATE/,
+    );
+    expect(lock.values).toEqual(["org-1"]);
     expect(workspaceFindUnique).toHaveBeenCalledWith({
       where: { organizationId: "org-1" },
       select: { id: true },

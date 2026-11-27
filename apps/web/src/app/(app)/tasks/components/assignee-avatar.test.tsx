@@ -17,6 +17,15 @@ describe("AssigneeAvatar", () => {
     expect(document.querySelector("video")).toBeNull();
   });
 
+  it("shows a person's initials as the activity feed does", () => {
+    render(
+      <AssigneeAvatar
+        assignee={{ id: "u-1", name: "Mira Tester", image: null, kind: "user" }}
+      />,
+    );
+    expect(screen.getByText("MT")).toBeInTheDocument();
+  });
+
   it("shows a Soko Bot's picture like any other assignee's, never a loop", () => {
     render(
       <AssigneeAvatar assignee={{ ...bot, image: "https://blob/m.webp" }} />,

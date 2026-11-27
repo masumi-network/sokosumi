@@ -53,6 +53,75 @@ export const fundraisingResearchSchema = z
   })
   .openapi("FundraisingResearch");
 
+export const FUNDRAISING_PATH_KINDS = [
+  "direct",
+  "linkedin",
+  "fund",
+  "portfolio",
+] as const;
+
+/** One way to reach an investor, strongest first. */
+export const fundraisingPathSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_PATH_KINDS).openapi("FundraisingPathKind"),
+    /** The teammate who holds the relationship; null when nobody has been in touch. */
+    via: z.union([contactPersonSchema, z.null()]),
+    /** The teammate is connected to the person on LinkedIn (from an import). */
+    linkedIn: z.boolean(),
+    /** The contact the path runs through; null for a direct path. */
+    through: z.union([
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+        role: z.string().nullable(),
+        organization: z.string().nullable(),
+        avatarUrl: z.string().nullable(),
+        email: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** The fund, or the portfolio company the path runs through. */
+    company: z.union([
+      z.object({
+        name: z.string(),
+        round: z.string().nullable(),
+        date: z.string().nullable(),
+      }),
+      z.null(),
+    ]),
+    /** 0 to 100: how much to trust this path. */
+    strength: z.int(),
+    touches: z.int(),
+    lastTouchAt: dateTimeSchema.nullable(),
+  })
+  .openapi("FundraisingPath");
+
+export const FUNDRAISING_INTRO_STATES = ["ASKED", "MADE", "DECLINED"] as const;
+export const fundraisingIntroStateSchema = z
+  .enum(FUNDRAISING_INTRO_STATES)
+  .openapi("FundraisingIntroState");
+
+/** The person asked to make the introduction: a contact or a teammate. */
+export const fundraisingConnectorSchema = z
+  .object({
+    kind: z.enum(["contact", "teammate"]),
+    id: z.string(),
+    name: z.string(),
+    image: z.string().nullable(),
+    email: z.string().nullable(),
+  })
+  .openapi("FundraisingConnector");
+
+/** The warm introduction in flight for an investor; all null before one is asked. */
+export const fundraisingIntroSchema = z
+  .object({
+    via: z.union([fundraisingConnectorSchema, z.null()]),
+    askedAt: dateTimeSchema.nullable(),
+    madeAt: dateTimeSchema.nullable(),
+    declinedAt: dateTimeSchema.nullable(),
+  })
+  .openapi("FundraisingIntro");
+
 export const fundraisingProspectSchema = z
   .object({
     contact: contactSchema,
@@ -65,7 +134,13 @@ export const fundraisingProspectSchema = z
     committedUsd: z.int().nullable(),
     notes: z.string().nullable(),
     source: z.string().nullable(),
+    /** The last outreach draft put in a teammate's mailbox; Sokosumi never sends it. */
+    lastDraftAt: dateTimeSchema.nullable(),
+    lastDraftSubject: z.string().nullable(),
     dataRoom: z.union([fundraisingDataRoomVisitSchema, z.null()]),
+    intro: fundraisingIntroSchema,
+    /** The strongest warm path the workspace has to this investor, or null. */
+    bestPath: z.union([fundraisingPathSchema, z.null()]),
   })
   .openapi("FundraisingProspect");
 
@@ -78,6 +153,11 @@ export const fundraisingPipelineSchema = z
     ),
     prospects: z.array(fundraisingProspectSchema),
     research: fundraisingResearchSchema,
+    /** The caller's connected mailbox for drafts, or null. */
+    mailbox: z.union([
+      z.object({ provider: z.string(), botId: z.uuid() }),
+      z.null(),
+    ]),
   })
   .openapi("FundraisingPipeline");
 
@@ -90,6 +170,17 @@ export const fundraisingProspectUpdateSchema = z
     committedUsd: z.int().min(0).nullable().optional(),
     notes: z.string().trim().max(10_000).nullable().optional(),
     source: z.string().trim().max(120).nullable().optional(),
+    /**
+     * Move the introduction along: ASKED (with the connector), MADE, DECLINED,
+     * or null to clear it. Stage, next step and follow-up date follow.
+     */
+    intro: z
+      .object({
+        state: fundraisingIntroStateSchema.nullable(),
+        viaContactId: z.uuid().optional(),
+        viaUserId: z.string().min(1).optional(),
+      })
+      .optional(),
   })
   .openapi("FundraisingProspectUpdate");
 
@@ -98,13 +189,14 @@ export type FundraisingProspectUpdate = z.infer<
   typeof fundraisingProspectUpdateSchema
 >;
 export type FundraisingProspectDto = z.input<typeof fundraisingProspectSchema>;
+export type FundraisingIntroDto = z.input<typeof fundraisingIntroSchema>;
+export type FundraisingConnectorDto = z.input<
+  typeof fundraisingConnectorSchema
+>;
 export type FundraisingPipelineDto = z.input<typeof fundraisingPipelineSchema>;
 export type FundraisingDataRoomVisitDto = z.input<
   typeof fundraisingDataRoomVisitSchema
 >;
-
-/** How many investors one search asks Exa for. */
-export const FUNDRAISING_SEARCH_SIZES = [10, 25] as const;
 
 export const fundraisingFindInputSchema = z
   .object({
@@ -128,3 +220,95 @@ export const fundraisingSuggestionIdsSchema = z
   .openapi("FundraisingSuggestionIds");
 
 export type FundraisingResearchDto = z.input<typeof fundraisingResearchSchema>;
+
+export const fundraisingPortfolioCompanySchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string(),
+    website: z.string().nullable(),
+    round: z.string().nullable(),
+    date: z.string().nullable(),
+    amountUsd: z.int().nullable(),
+    sourceUrl: z.string(),
+    fetchedAt: dateTimeSchema,
+  })
+  .openapi("FundraisingPortfolioCompany");
+
+export const fundraisingPathsSchema = z
+  .object({
+    portfolio: z.array(fundraisingPortfolioCompanySchema),
+    researchedAt: dateTimeSchema.nullable(),
+    /** What one portfolio research run costs. */
+    researchUsd: z.number(),
+    paths: z.array(fundraisingPathSchema),
+    research: fundraisingResearchSchema,
+  })
+  .openapi("FundraisingPaths");
+
+export type FundraisingPathDto = z.input<typeof fundraisingPathSchema>;
+export type FundraisingPathsDto = z.input<typeof fundraisingPathsSchema>;
+
+export const FUNDRAISING_DRAFT_KINDS = ["intro", "follow_up"] as const;
+
+export const fundraisingDraftInputSchema = z
+  .object({
+    kind: z.enum(FUNDRAISING_DRAFT_KINDS),
+    /** Ask this contact for an introduction instead of writing to the investor. */
+    viaContactId: z.uuid().optional(),
+    /** Let the investor into this data room and put its link in the mail. */
+    inviteToRoomId: z.uuid().optional(),
+    /** Anything the mail should mention. */
+    note: z.string().trim().max(1000).optional(),
+  })
+  .openapi("FundraisingDraftInput");
+
+export const fundraisingIntroAskInputSchema = z
+  .object({
+    /** The connector: a contact on the workspace, or a teammate by user id. */
+    viaContactId: z.uuid().optional(),
+    viaUserId: z.string().min(1).optional(),
+    /** Let the investor into this data room and put its link in the forwardable note. */
+    inviteToRoomId: z.uuid().optional(),
+    /** Anything the mails should mention. */
+    note: z.string().trim().max(1000).optional(),
+  })
+  .openapi("FundraisingIntroAskInput");
+
+export const fundraisingMailDraftSchema = z
+  .object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+    /** The mailbox's draft id. */
+    draftId: z.string(),
+  })
+  .openapi("FundraisingMailDraft");
+
+/** Two drafts in the caller's mailbox: the ask to the connector, and the note they can forward. */
+export const fundraisingIntroAskResultSchema = z
+  .object({
+    ask: fundraisingMailDraftSchema,
+    forwardable: fundraisingMailDraftSchema,
+    provider: z.string(),
+    roomLink: z.string().nullable(),
+    prospect: fundraisingProspectSchema,
+  })
+  .openapi("FundraisingIntroAskResult");
+
+export const fundraisingDraftResultSchema = z
+  .object({
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+    /** The mailbox's draft id. */
+    draftId: z.string(),
+    provider: z.string(),
+    roomLink: z.string().nullable(),
+    prospect: fundraisingProspectSchema,
+  })
+  .openapi("FundraisingDraftResult");
+
+export type FundraisingDraftInput = z.infer<typeof fundraisingDraftInputSchema>;
+export type FundraisingIntroAskInput = z.infer<
+  typeof fundraisingIntroAskInputSchema
+>;

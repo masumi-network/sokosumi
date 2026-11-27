@@ -96,7 +96,7 @@ function gscReportOf<Row extends z.ZodTypeAny>(row: Row) {
     rows: z.array(row).max(SEO_STATS_MAX_ROWS).default([]),
   });
 }
-const gscReportSchema = gscReportOf(
+export const gscReportSchema = gscReportOf(
   z.object({ ...gscRowFields, position: valueSchema }),
 );
 /**
@@ -127,13 +127,14 @@ export interface SeoNativeTool {
 export function unwrapNativeStatistics(
   input: unknown,
   expectedKeys: string[],
+  limit = SEO_STATS_PAYLOAD_LIMIT,
 ): Record<string, unknown> {
   let value = input;
   for (let depth = 0; depth < 4; depth++) {
     if (
       Buffer.byteLength(
         typeof value === "string" ? value : (JSON.stringify(value) ?? ""),
-      ) > SEO_STATS_PAYLOAD_LIMIT
+      ) > limit
     )
       throw new Error("Statistics response exceeded its limit");
     if (typeof value === "string") value = JSON.parse(value);
@@ -379,6 +380,10 @@ export const GSC_FINAL_LAG_DAYS = 3;
 const GSC_DAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Los_Angeles",
 });
+/** The Search Console date (Pacific day, YYYY-MM-DD) of an instant. */
+export function searchConsoleDay(instant: Date) {
+  return GSC_DAY.format(instant);
+}
 /**
  * The last day of the period Google has settled. A quiet page has no rows on
  * its last days, so its last row is not the processing lag.

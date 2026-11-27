@@ -94,7 +94,10 @@ function DialogHarness({
 }
 function showDialog(data: ProjectSeoWorkspace, monitor = false) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   vi.stubGlobal(
@@ -265,7 +268,7 @@ describe("Search Console audit launch", () => {
         screen.getByRole("dialog", { name: "Search Console coverage" }),
       ).toHaveAccessibleDescription(
         monitor
-          ? /At least 750 credits per successful run/
+          ? /Approximately 750 credits per run/
           : /Approximately 750 credits/,
       );
       expect(screen.queryByText(/private account diagnostic/)).toBeNull();
@@ -451,13 +454,7 @@ describe("SEO check credits", () => {
 });
 
 describe("full-audit price terms", () => {
-  const price = {
-    kind: "cost_plus",
-    version: 1,
-    minimumCredits: 750,
-    markupPercent: 50,
-  };
-  it("shows one price estimate and submits the full-audit price terms", async () => {
+  it("shows one price estimate and sends no price terms from the browser", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace());
     expect(within(dialog).getByText("Approximately 750 credits")).toBeVisible();
@@ -475,20 +472,20 @@ describe("full-audit price terms", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     const body = mutate.mock.calls[0][0].command.body;
-    expect(body.fullAuditPrice).toEqual(price);
+    expect(body).not.toHaveProperty("fullAuditPrice");
     expect(body).not.toHaveProperty("fullAuditCredits");
   });
 
-  it("approves the same terms per run for a schedule of full audits", async () => {
+  it("shows only the per-run estimate for a schedule of full audits", async () => {
     const user = userEvent.setup(),
       dialog = showDialog(workspace(), true);
-    // The terms show with the fields closed: the one submit is the consent, so no extra checkbox.
-    expect(dialog).toHaveTextContent(
-      "After each successful run, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum per run is 750 credits. There is no maximum.",
-    );
+    // The estimate by the button is the one price line.
     expect(
-      within(dialog).getByText("At least 750 credits per successful run"),
+      within(dialog).getByText("Approximately 750 credits per run"),
     ).toBeVisible();
+    expect(dialog).not.toHaveTextContent(
+      /api costs|50 ?%|there is no maximum|for example, usd|AI Gateway/i,
+    );
     expect(within(dialog).queryByText(/Up to/)).toBeNull();
     await user.click(
       within(dialog).getByRole("button", {
@@ -497,7 +494,7 @@ describe("full-audit price terms", () => {
     );
     await waitFor(() => expect(mutate).toHaveBeenCalled());
     const body = mutate.mock.calls[0][0].command.body;
-    expect(body.analysis.fullAuditPrice).toEqual(price);
+    expect(body.analysis).not.toHaveProperty("fullAuditPrice");
     expect(body.analysis).not.toHaveProperty("fullAuditCredits");
   });
 });

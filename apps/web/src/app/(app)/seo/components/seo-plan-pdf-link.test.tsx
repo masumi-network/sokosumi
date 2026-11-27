@@ -1,6 +1,7 @@
 import type { TaskFile } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
@@ -40,12 +41,22 @@ function file(ext: string, mimeType: string): TaskFile {
     uploader: { type: "coworker", id: coworker.id, coworker },
   };
 }
-function renderLink(files: TaskFile[]) {
-  getTaskById.mockResolvedValue({
-    data: { id: TASK, assigneeId: "seo", files },
-  });
+function taskWith(files: TaskFile[]) {
+  return { data: { id: TASK, assigneeId: "seo", files } };
+}
+function renderLink(files: TaskFile[] | null) {
+  if (files) getTaskById.mockResolvedValue(taskWith(files));
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       <NextIntlClientProvider
         locale="en"
         timeZone="UTC"
@@ -81,8 +92,27 @@ it("links the audit's PDF from the files of its Task", async () => {
   );
 });
 
-it("shows no PDF button for a Task without a PDF", async () => {
+it("says the check has no PDF when its Task has none", async () => {
   renderLink([file("json", "application/json")]);
-  await waitFor(() => expect(getTaskById).toHaveBeenCalledWith(TASK));
-  await waitFor(() => expect(screen.queryByRole("link")).toBeNull());
+  expect(
+    await screen.findByText(messages.App.Seo.planMessage.pdfMissing),
+  ).toBeVisible();
+  expect(screen.queryByRole("link")).toBeNull();
+});
+
+it("waits with a busy button, and offers a retry when the files do not load", async () => {
+  const user = userEvent.setup();
+  getTaskById.mockRejectedValueOnce(new Error("network"));
+  renderLink(null);
+  expect(
+    screen.getByRole("button", { name: "Open full audit PDF" }),
+  ).toHaveAttribute("aria-busy", "true");
+  expect(
+    await screen.findByText(messages.App.Seo.reportFiles.failed),
+  ).toBeVisible();
+  getTaskById.mockResolvedValue(taskWith([file("pdf", "application/pdf")]));
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  expect(
+    await screen.findByRole("link", { name: "Open full audit PDF" }),
+  ).toBeVisible();
 });

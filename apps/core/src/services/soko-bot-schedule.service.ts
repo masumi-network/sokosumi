@@ -1,18 +1,39 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
+import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
+import { sharedTable } from "@sokosumi/database/sql-tables";
+import {
+  evaluateScheduleStopRule,
+  getSokoBotVersion,
+  type OwnerAuthority,
+  OwnerAuthorityError,
+  parseOwnerAuthority,
+  type SokoBotCapability,
+} from "@sokosumi/soko-bot";
+import { z } from "zod";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { conflict } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { Network } from "@/lib/network";
+import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  checkScheduleFirstRunCapabilities,
+  intersectOwnerAuthority,
+} from "@/lib/soko-bot/owner-authority";
 import {
   effectiveRuns,
   isCronTime,
   nextEffectiveRun,
   type ScheduleRunChange,
 } from "@/lib/soko-bot/schedule-run-changes";
+import { storedScheduleCapabilities } from "@/lib/soko-bot/system-routes";
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
@@ -21,10 +42,72 @@ export const MAX_ACTIVE_SOKO_BOT_SCHEDULES = 10;
 /** Consecutive failed runs after which a schedule switches itself off. */
 export const MAX_CONSECUTIVE_SCHEDULE_FAILURES = 5;
 
+/**
+ * Turn failures of the platform (runtime, sandbox, deploy, limit), not the
+ * schedule's. The sandbox supervisor reports a runner that died as
+ * `runner_exited` and a sandbox that never started as `sandbox_launch_failed`.
+ */
+const PLATFORM_TURN_FAILURES: ReadonlySet<string> = new Set([
+  AI_BUDGET_EXCEEDED,
+  "busy",
+  "runner_exited",
+  "runtime_start_ambiguous",
+  "runtime_start_failed",
+  "runtime_stream_interrupted",
+  "runtime_unreachable",
+  "sandbox_launch_failed",
+  "start_aborted",
+  "turn_deadline_exceeded",
+]);
+
+/**
+ * Whether a failed turn says nothing about its schedule: the platform failed
+ * it (a provider or gateway error is stored by its class name, `AI_…` or
+ * `Gateway…`). Such failures do not count toward switching a schedule off,
+ * so an outage cannot turn off every bot's rhythms.
+ */
+export function isPlatformTurnFailure(errorKind: string | null): boolean {
+  if (!errorKind) return false;
+  return (
+    PLATFORM_TURN_FAILURES.has(errorKind) ||
+    errorKind.startsWith("AI_") ||
+    errorKind.startsWith("Gateway")
+  );
+}
+
 export class SokoBotScheduleNotFoundError extends Error {}
 export class SokoBotScheduleValidationError extends Error {}
 
+export interface ScheduleAuthorityResolveContext {
+  scheduleId: string;
+  sokoBotId: string;
+  workspaceId: string;
+  existingAuthority: OwnerAuthority | null;
+  botProjectId: string | null;
+  botVersionId: string | null;
+  sharedBot: boolean;
+}
+
+export type ResolveScheduleAuthority = (
+  context: ScheduleAuthorityResolveContext,
+) => OwnerAuthority | undefined;
+
+function resolveScheduleAuthorityField(
+  resolve: ResolveScheduleAuthority,
+  context: ScheduleAuthorityResolveContext,
+): OwnerAuthority | undefined {
+  try {
+    return resolve(context);
+  } catch (error) {
+    if (error instanceof OwnerAuthorityError) {
+      throw new SokoBotScheduleValidationError(error.message);
+    }
+    throw error;
+  }
+}
+
 export interface CreateSokoBotScheduleInput {
+  network: Network;
   /** The member who asked; null when a shared bot acts on its own. */
   userId: string | null;
   workspaceId: string;
@@ -39,9 +122,13 @@ export interface CreateSokoBotScheduleInput {
   prompt: string;
   /** The writing turn's tools, when the bot wrote it; see the schema. */
   capabilityNames?: readonly string[];
+  /** True when the caller explicitly declared the job's required tool list. */
+  explicitCapabilities?: boolean;
   /** Work the schedule watches; it is removed once that work finishes. */
   taskId?: string;
   jobId?: string;
+  /** Resolves the persisted OwnerAuthority bound to this schedule row. */
+  resolveAuthority?: ResolveScheduleAuthority;
 }
 
 const MAX_ONE_TIME_LEAD_MS = 366 * 24 * 60 * 60 * 1_000;
@@ -138,6 +225,14 @@ export interface UpdateSokoBotScheduleInput {
   prompt?: string;
   /** Replaces the run's tools, when a person rewrote the schedule. */
   capabilityNames?: readonly string[];
+  /** True when the caller explicitly declared the job's required tool list. */
+  explicitCapabilities?: boolean;
+  /**
+   * The editing turn's tools, when a bot edits. A new prompt on the stored
+   * tools needs every one of them: a narrower turn must not rewrite what a
+   * wider job does.
+   */
+  editorCapabilities?: readonly string[];
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
   /**
@@ -145,6 +240,8 @@ export interface UpdateSokoBotScheduleInput {
    * a person changes or pauses those.
    */
   keepBuiltInRhythms?: boolean;
+  /** Resolves an updated OwnerAuthority for this schedule row when needed. */
+  resolveAuthority?: ResolveScheduleAuthority;
 }
 
 /**
@@ -265,33 +362,32 @@ export async function createSokoBotSchedule(
         });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
   await requireWatchedWork(input, db);
+  const botDetails =
+    input.resolveAuthority || (input.capabilityNames?.length ?? 0) > 0
+      ? await db.sokoBot.findUnique({
+          where: { id: bot.id },
+          select: { userId: true, projectId: true, versionId: true },
+        })
+      : null;
   const link = { taskId: input.taskId ?? null, jobId: input.jobId ?? null };
   const mutate = async (tx: Prisma.TransactionClient) => {
-    // Same name = same follow-up: a model retrying or re-planning updates
-    // the existing schedule instead of stacking duplicates.
-    const existing = await tx.sokoBotSchedule.findFirst({
-      where: { sokoBotId: bot.id, name: name.slice(0, 120) },
-      select: { id: true },
+    const scheduleName = name.slice(0, 120);
+    // Built-in rhythms keep their reserved names. Check them with literal
+    // case-insensitive equality in JS (never Prisma `mode: "insensitive"`,
+    // which compiles to ILIKE and treats `%`/`_` as SQL wildcards).
+    // Custom schedules are never upserted by name — every create inserts a
+    // new row, and edits go through updateSokoBotSchedule.
+    const builtIns = await tx.sokoBotSchedule.findMany({
+      where: { sokoBotId: bot.id, systemKey: { not: null } },
+      select: { name: true },
     });
-    if (existing) {
-      // The Requester stays whoever asked first (ADR 0057).
-      return tx.sokoBotSchedule.update({
-        where: { id: existing.id },
-        data: {
-          enabled: true,
-          consecutiveFailures: 0,
-          workspaceId: input.workspaceId,
-          timezone: input.timezone,
-          cronExpression,
-          runOnce,
-          prompt: prompt.slice(0, 20_000),
-          nextRunAt,
-          capabilityNames: [...(input.capabilityNames ?? [])],
-          ...link,
-          // New timing: moved or skipped runs of the old one no longer apply.
-          runChanges: { deleteMany: {} },
-        },
-      });
+    const builtInMatch = builtIns.find(
+      (row) => row.name.toLowerCase() === scheduleName.toLowerCase(),
+    );
+    if (builtInMatch) {
+      throw new SokoBotScheduleValidationError(
+        `"${builtInMatch.name}" is a built-in rhythm. Choose a different name for a custom schedule, or update the built-in rhythm's timing instead.`,
+      );
     }
     const activeCount = await tx.sokoBotSchedule.count({
       where: { sokoBotId: bot.id, enabled: true, systemKey: null },
@@ -301,8 +397,49 @@ export async function createSokoBotSchedule(
         `Soko Bot supports at most ${MAX_ACTIVE_SOKO_BOT_SCHEDULES} active schedules`,
       );
     }
+    const scheduleId = input.resolveAuthority ? randomUUID() : undefined;
+    const nextAuthority =
+      input.resolveAuthority && scheduleId
+        ? resolveScheduleAuthorityField(input.resolveAuthority, {
+            scheduleId,
+            sokoBotId: bot.id,
+            workspaceId: input.workspaceId,
+            existingAuthority: null,
+            botProjectId: botDetails?.projectId ?? null,
+            botVersionId: botDetails?.versionId ?? null,
+            sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
+          })
+        : undefined;
+    if (
+      nextAuthority !== undefined &&
+      scheduleId !== undefined &&
+      (input.capabilityNames?.length ?? 0) > 0
+    ) {
+      const botUserId = botDetails?.userId ?? null;
+      const capabilityCheck = checkScheduleFirstRunCapabilities({
+        scheduleId,
+        sokoBotId: bot.id,
+        workspaceId: input.workspaceId,
+        authority: nextAuthority,
+        actingUserId: sokoBotScheduleActingUserId({
+          requestedByUserId: input.userId,
+          systemKey: null,
+          sokoBot: { userId: botUserId },
+        }),
+        botUserId,
+        botProjectId: botDetails?.projectId ?? null,
+        botVersionId: botDetails?.versionId ?? null,
+        requestedCapabilities: input.capabilityNames ?? [],
+        explicitCapabilities: input.explicitCapabilities,
+      });
+      if (!capabilityCheck.ok) {
+        throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+      }
+    }
     return tx.sokoBotSchedule.create({
       data: {
+        network: input.network,
+        ...(scheduleId ? { id: scheduleId } : {}),
         sokoBotId: bot.id,
         requestedByUserId: input.userId,
         workspaceId: input.workspaceId,
@@ -314,6 +451,9 @@ export async function createSokoBotSchedule(
         nextRunAt,
         capabilityNames: [...(input.capabilityNames ?? [])],
         ...link,
+        ...(nextAuthority !== undefined
+          ? { authority: nextAuthority as Prisma.InputJsonValue }
+          : {}),
       },
     });
   };
@@ -341,7 +481,12 @@ async function sharedBotScheduleScope(
     : null;
 }
 
-/** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
+/**
+ * Resolves a supplied id directly; otherwise resolves `scheduleName` only when
+ * exactly one accessible schedule matches the exact (case-insensitive) literal
+ * name. Never uses SQL pattern matching (`ILIKE`), and refuses ambiguous names
+ * with each matching id so the caller can address the intended row by id.
+ */
 async function findScheduleForUser(
   userId: string | null,
   ref: {
@@ -365,38 +510,70 @@ async function findScheduleForUser(
           ...(ref.sokoBotId !== undefined ? { sokoBotId: ref.sokoBotId } : {}),
           sokoBot: { userId },
         };
-  const matching = {
-    OR: [
-      ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
-      ...(ref.scheduleName
-        ? [
-            {
-              name: {
-                equals: ref.scheduleName.trim(),
-                mode: "insensitive" as const,
-              },
-            },
-          ]
-        : []),
-    ],
+  if (ref.scheduleId) {
+    const byId = { OR: [{ id: ref.scheduleId }] };
+    const schedule =
+      own &&
+      (await db.sokoBotSchedule.findFirst({ where: { ...own, ...byId } }));
+    if (schedule) return schedule;
+    const shared = await sharedBotScheduleScope(userId, ref, db);
+    const sharedSchedule =
+      shared &&
+      (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...byId } }));
+    if (sharedSchedule) return sharedSchedule;
+    const scope = shared ?? own;
+    const existing = scope
+      ? await db.sokoBotSchedule.findMany({
+          where: scope,
+          select: { id: true, name: true },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
+    const hint =
+      existing.length === 0
+        ? "There are no schedules."
+        : `Existing schedules: ${existing.map((s) => `${s.name} (${s.id})`).join("; ")}.`;
+    throw new SokoBotScheduleNotFoundError(`Schedule not found. ${hint}`);
+  }
+
+  const trimmedName = ref.scheduleName?.trim();
+  const wantedName = trimmedName?.toLowerCase();
+  const matchLiteralName = <T extends { id: string; name: string }>(
+    rows: T[],
+  ): T | null => {
+    if (!wantedName) return null;
+    const matches = rows.filter(
+      (row) => row.name.trim().toLowerCase() === wantedName,
+    );
+    if (matches.length === 1) return matches[0]!;
+    if (matches.length > 1) {
+      throw new SokoBotScheduleValidationError(
+        `Multiple schedules are named "${trimmedName}": ${matches.map((s) => `${s.name} (${s.id})`).join("; ")}. Pass scheduleId to pick which one.`,
+      );
+    }
+    return null;
   };
-  const schedule =
-    own &&
-    (await db.sokoBotSchedule.findFirst({ where: { ...own, ...matching } }));
-  if (schedule) return schedule;
-  const shared = await sharedBotScheduleScope(userId, ref, db);
-  const sharedSchedule =
-    shared &&
-    (await db.sokoBotSchedule.findFirst({ where: { ...shared, ...matching } }));
-  if (sharedSchedule) return sharedSchedule;
-  const scope = shared ?? own;
-  const existing = scope
+
+  const ownRows = own
     ? await db.sokoBotSchedule.findMany({
-        where: scope,
-        select: { id: true, name: true },
+        where: own,
         orderBy: { createdAt: "asc" },
       })
-    : [];
+    : null;
+  const ownMatch = ownRows ? matchLiteralName(ownRows) : null;
+  if (ownMatch) return ownMatch;
+
+  const shared = await sharedBotScheduleScope(userId, ref, db);
+  const sharedRows = shared
+    ? await db.sokoBotSchedule.findMany({
+        where: shared,
+        orderBy: { createdAt: "asc" },
+      })
+    : null;
+  const sharedMatch = sharedRows ? matchLiteralName(sharedRows) : null;
+  if (sharedMatch) return sharedMatch;
+
+  const existing = sharedRows ?? ownRows ?? [];
   const hint =
     existing.length === 0
       ? "There are no schedules."
@@ -415,6 +592,37 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
     );
+  // A built-in rhythm keeps its purpose and fixed system route: Joseph's
+  // end-of-day was rewritten into another job (2026-11-08) and the console
+  // went on describing the built-in. Its time, timezone and on/off change;
+  // anything else (name, prompt, or capabilities) is a schedule of its own.
+  const unchangedBuiltInPrompt =
+    input.prompt !== undefined && input.prompt.trim() === schedule.prompt;
+  if (
+    schedule.systemKey &&
+    ((input.name !== undefined && input.name.trim() !== schedule.name) ||
+      (input.prompt !== undefined && !unchangedBuiltInPrompt) ||
+      (input.capabilityNames !== undefined &&
+        (input.explicitCapabilities === true || !unchangedBuiltInPrompt)))
+  )
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
+    );
+  if (
+    input.editorCapabilities &&
+    input.capabilityNames === undefined &&
+    input.prompt !== undefined &&
+    input.prompt.trim() !== schedule.prompt
+  ) {
+    const editor = new Set(input.editorCapabilities);
+    const missing = storedScheduleCapabilities(schedule.capabilityNames).filter(
+      (capability) => !editor.has(capability),
+    );
+    if (missing.length > 0)
+      throw new SokoBotScheduleValidationError(
+        `"${schedule.name}" runs with tools this turn does not have (${missing.slice(0, 8).join(", ")}${missing.length > 8 ? ", …" : ""}), so this turn cannot change its prompt on them. Pass capabilities with only the tools the new job needs from your own, or leave the prompt for the owner to change in chat.`,
+      );
+  }
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
@@ -446,6 +654,56 @@ export async function updateSokoBotSchedule(
           nextRunAt,
         )
       : nextRunAt;
+  const existingAuthority = parseOwnerAuthority(schedule.authority);
+  const botDetails =
+    input.resolveAuthority ||
+    (input.capabilityNames !== undefined &&
+      existingAuthority !== null &&
+      schedule.systemKey === null)
+      ? await db.sokoBot.findUnique({
+          where: { id: schedule.sokoBotId },
+          select: { userId: true, projectId: true, versionId: true },
+        })
+      : null;
+  const nextAuthority = input.resolveAuthority
+    ? resolveScheduleAuthorityField(input.resolveAuthority, {
+        scheduleId: schedule.id,
+        sokoBotId: schedule.sokoBotId,
+        workspaceId: schedule.workspaceId,
+        existingAuthority,
+        botProjectId: botDetails?.projectId ?? null,
+        botVersionId: botDetails?.versionId ?? null,
+        sharedBot: botDetails ? isSharedSokoBot(botDetails) : false,
+      })
+    : undefined;
+  const effectiveUpdatedAuthority = nextAuthority ?? existingAuthority;
+  if (
+    effectiveUpdatedAuthority !== null &&
+    schedule.systemKey === null &&
+    (input.capabilityNames?.length ?? 0) > 0
+  ) {
+    const botUserId = botDetails?.userId ?? null;
+    const capabilityCheck = checkScheduleFirstRunCapabilities({
+      scheduleId: schedule.id,
+      sokoBotId: schedule.sokoBotId,
+      workspaceId: schedule.workspaceId,
+      authority: effectiveUpdatedAuthority,
+      actingUserId: sokoBotScheduleActingUserId({
+        requestedByUserId: schedule.requestedByUserId,
+        systemKey: schedule.systemKey,
+        sokoBot: { userId: botUserId },
+      }),
+      botUserId,
+      botProjectId: botDetails?.projectId ?? null,
+      botVersionId: botDetails?.versionId ?? null,
+      requestedCapabilities: input.capabilityNames ?? [],
+      explicitCapabilities: input.explicitCapabilities,
+      now,
+    });
+    if (!capabilityCheck.ok) {
+      throw new SokoBotScheduleValidationError(capabilityCheck.detail);
+    }
+  }
   const data = {
     ...(input.name !== undefined ? { name: input.name.trim() } : {}),
     ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
@@ -459,8 +717,11 @@ export async function updateSokoBotSchedule(
     // A new cron makes a one-time schedule recurring.
     ...(input.cronExpression ? { runOnce: false } : {}),
     ...(input.prompt !== undefined ? { prompt: input.prompt.trim() } : {}),
-    ...(input.capabilityNames
+    ...(input.capabilityNames && !schedule.systemKey
       ? { capabilityNames: [...input.capabilityNames] }
+      : {}),
+    ...(nextAuthority !== undefined
+      ? { authority: nextAuthority as Prisma.InputJsonValue }
       : {}),
     ...(timingChanged || reactivated
       ? { nextRunAt: restartAt ?? nextRunAt }
@@ -468,19 +729,91 @@ export async function updateSokoBotSchedule(
     // New timing: moved or skipped runs of the old one no longer apply.
     ...(timingChanged ? { runChanges: { deleteMany: {} } } : {}),
   };
-  if (input.enabled === true && !schedule.enabled) {
+  const effectiveAuthority =
+    nextAuthority ?? parseOwnerAuthority(schedule.authority);
+  const wantsEnabled = input.enabled ?? schedule.enabled;
+  // Metadata-only edits (e.g. a chat rename where resolveAuthority returns
+  // undefined) must not re-trigger an already-saved count stop rule; only an
+  // explicit authority/rule update or an explicit re-enable does, and only
+  // after passing the live grant check shared with settlement and due claims.
+  const checksCountLimit =
+    wantsEnabled &&
+    effectiveAuthority?.stopRule.mode === "ends_after_runs" &&
+    (nextAuthority !== undefined || input.enabled === true);
+  if ((input.enabled === true && !schedule.enabled) || checksCountLimit) {
     const mutate = async (tx: Prisma.TransactionClient) => {
-      const activeCount = await tx.sokoBotSchedule.count({
-        where: {
-          sokoBotId: schedule.sokoBotId,
-          enabled: true,
-          systemKey: null,
-        },
-      });
-      if (activeCount >= MAX_ACTIVE_SOKO_BOT_SCHEDULES) {
-        throw new SokoBotScheduleValidationError(
-          `Soko Bot supports at most ${MAX_ACTIVE_SOKO_BOT_SCHEDULES} active schedules`,
-        );
+      let countLimitAlreadyMet = false;
+      let currentlyEnabled = schedule.enabled;
+      if (checksCountLimit) {
+        await tx.$queryRaw`
+          SELECT "id" FROM ${sharedTable("soko_bot_schedule")}
+          WHERE "id" = ${schedule.id}::uuid
+          FOR UPDATE
+        `;
+        const current = await tx.sokoBotSchedule.findUniqueOrThrow({
+          where: { id: schedule.id },
+          select: {
+            completedRuns: true,
+            enabled: true,
+            authority: true,
+            sokoBot: { select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT },
+          },
+        });
+        const liveCompletedRuns =
+          typeof current.completedRuns === "number"
+            ? current.completedRuns
+            : (schedule.completedRuns ?? 0);
+        if (typeof current.enabled === "boolean") {
+          currentlyEnabled = current.enabled;
+        }
+        const liveAuthority =
+          nextAuthority ?? current.authority ?? schedule.authority;
+        const parsedLive = parseOwnerAuthority(liveAuthority);
+        if (
+          parsedLive?.stopRule.mode === "ends_after_runs" &&
+          liveCompletedRuns >= parsedLive.stopRule.maxRuns
+        ) {
+          const liveBot =
+            current.sokoBot ??
+            (await tx.sokoBot.findUnique({
+              where: { id: schedule.sokoBotId },
+              select: SCHEDULE_STOP_AUTHORITY_BOT_SELECT,
+            }));
+          countLimitAlreadyMet = await isCountStopRuleAuthorizedAndMet(
+            tx,
+            {
+              id: schedule.id,
+              sokoBotId: schedule.sokoBotId,
+              workspaceId: schedule.workspaceId,
+              completedRuns: liveCompletedRuns,
+              authority: liveAuthority,
+              sokoBot: liveBot,
+            },
+            now,
+          );
+        }
+      }
+      if (countLimitAlreadyMet) {
+        const updated = await tx.sokoBotSchedule.update({
+          where: { id: schedule.id },
+          data: { ...data, enabled: false },
+        });
+        await fenceUnstartedScheduleRuns(tx, schedule.id, now);
+        return updated;
+      }
+      if (input.enabled === true && !currentlyEnabled) {
+        const activeCount = await tx.sokoBotSchedule.count({
+          where: {
+            sokoBotId: schedule.sokoBotId,
+            enabled: true,
+            systemKey: null,
+          },
+        });
+        if (activeCount >= MAX_ACTIVE_SOKO_BOT_SCHEDULES) {
+          throw new SokoBotScheduleValidationError(
+            `Soko Bot supports at most ${MAX_ACTIVE_SOKO_BOT_SCHEDULES} active schedules`,
+          );
+        }
       }
       return tx.sokoBotSchedule.update({ where: { id: schedule.id }, data });
     };
@@ -535,7 +868,7 @@ async function changeScheduleRun(
   }
   const mutate = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`
-      SELECT "id" FROM "soko_bot_schedule"
+      SELECT "id" FROM ${sharedTable("soko_bot_schedule")}
       WHERE "id" = ${schedule.id}::uuid
       FOR UPDATE
     `;
@@ -720,36 +1053,349 @@ export async function deleteSokoBotSchedule(
   const schedule = await findScheduleForUser(userId, ref, transaction);
   if (schedule.systemKey) {
     throw new SokoBotScheduleValidationError(
-      `"${schedule.name}" is a built-in rhythm; pause it instead of deleting it`,
+      `"${schedule.name}" is a built-in rhythm: it can be paused (update_schedule with enabled false), not deleted. Pause it and tell the owner it is paused and can be turned back on.`,
     );
   }
   await db.sokoBotSchedule.delete({ where: { id: schedule.id } });
   return { id: schedule.id, name: schedule.name };
 }
 
-/** Bot-facing view: what runs, when, and what it will be asked. */
-export function listSokoBotSchedules(sokoBotId: string) {
-  return prisma.sokoBotSchedule.findMany({
-    // A one-time schedule that already ran is history, not a follow-up.
+export interface LiveScheduleStopAuthorityInput {
+  schedule: {
+    id: string;
+    sokoBotId: string;
+    workspaceId: string;
+    authority: unknown;
+    sokoBot: {
+      userId: string | null;
+      archivedAt: Date | null;
+      status: string;
+      adminPausedAt: Date | null;
+      projectId: string | null;
+      versionId: string | null;
+    } | null;
+  };
+  sokoBotId?: string;
+  workspaceId?: string;
+  actingUserId?: string | null;
+  askedByKind?: "OWNER" | "TEAMMATE" | "ASSISTANT";
+  versionId?: string | null;
+  offeredCapabilities: readonly SokoBotCapability[];
+  now: Date;
+  checkOrganizationSeat?: (
+    userId: string,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient,
+  ) => Promise<boolean>;
+}
+
+/**
+ * Verifies a schedule's persisted `OwnerAuthority` against live bot state,
+ * live grantor workspace membership and assigned organization seat, and
+ * `intersectOwnerAuthority`. Shared by both direct scheduled-run self-stop
+ * (`requireScheduledRunMayEnd`) and automatic settlement-time stopping
+ * (`recordCompletedScheduleRun`).
+ */
+export async function verifyScheduleStopAuthority(
+  tx: Prisma.TransactionClient,
+  input: LiveScheduleStopAuthorityInput,
+): Promise<
+  | { effective: false }
+  | { effective: true; authority: OwnerAuthority; botAlive: boolean }
+> {
+  const authority = parseOwnerAuthority(input.schedule.authority);
+  if (!authority) {
+    return { effective: false };
+  }
+  const bot = input.schedule.sokoBot;
+  const botAlive = Boolean(
+    bot &&
+      bot.archivedAt === null &&
+      bot.status !== "PAUSED" &&
+      bot.adminPausedAt === null,
+  );
+  const sharedBot = bot ? bot.userId === null : false;
+  const versionId = input.versionId ?? bot?.versionId ?? null;
+  const isCmo = getSokoBotVersion(versionId).profile === "cmo";
+
+  let hasWorkspaceAccess = false;
+  if (authority.ownerUserId) {
+    const workspace = await tx.workspace.findFirst({
+      where: sokoBotWorkspaceAccessWhere(
+        authority.ownerUserId,
+        input.schedule.workspaceId,
+      ),
+      select: { id: true, organizationId: true },
+    });
+    if (workspace) {
+      const checkSeat =
+        input.checkOrganizationSeat ?? hasAssignedOrganizationSeat;
+      hasWorkspaceAccess = await checkSeat(
+        authority.ownerUserId,
+        workspace.organizationId,
+        tx,
+      );
+    }
+  }
+
+  const liveTargetScope =
+    authority.targetScope.kind === "schedule"
+      ? { kind: "schedule" as const, scheduleId: input.schedule.id }
+      : bot?.projectId
+        ? { kind: "project" as const, projectId: bot.projectId }
+        : { kind: "workspace" as const };
+
+  const effective = intersectOwnerAuthority(authority, {
+    sokoBotId: input.sokoBotId ?? input.schedule.sokoBotId,
+    workspaceId: input.workspaceId ?? input.schedule.workspaceId,
+    versionId,
+    actingUserId: sharedBot
+      ? authority.ownerUserId
+      : (input.actingUserId ?? authority.ownerUserId),
+    askedByKind: sharedBot
+      ? isCmo
+        ? "TEAMMATE"
+        : "OWNER"
+      : (input.askedByKind ?? "OWNER"),
+    sharedBot,
+    source: "SCHEDULE",
+    scheduleId: input.schedule.id,
+    targetScope: liveTargetScope,
+    hasWorkspaceAccess,
+    botAlive,
+    offeredCapabilities: input.offeredCapabilities,
+    now: input.now,
+  });
+  if (!effective.effective) {
+    return { effective: false };
+  }
+  return {
+    effective: true,
+    authority: effective.authority,
+    botAlive,
+  };
+}
+
+async function fenceUnstartedScheduleRuns(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  now: Date,
+): Promise<void> {
+  // Fence any unstarted occurrence queued while the final run was active so
+  // recovery or concurrent binding cannot launch a run past maxRuns.
+  await tx.sokoBotScheduleRun.updateMany({
     where: {
-      sokoBotId,
-      NOT: { runOnce: true, enabled: false, lastRunAt: { not: null } },
+      scheduleId,
+      status: { in: ["PENDING", "CLAIMED"] },
+      turnId: null,
     },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      enabled: true,
-      timezone: true,
-      cronExpression: true,
-      runOnce: true,
-      prompt: true,
-      nextRunAt: true,
-      lastRunAt: true,
-      taskId: true,
-      jobId: true,
+    data: {
+      status: "DEAD_LETTER",
+      completedAt: now,
+      leaseToken: null,
+      leaseExpiresAt: null,
+      errorKind: "schedule_stop_rule_met",
     },
   });
+}
+
+const SCHEDULE_STOP_AUTHORITY_BOT_SELECT = {
+  userId: true,
+  archivedAt: true,
+  status: true,
+  adminPausedAt: true,
+  projectId: true,
+  versionId: true,
+} as const;
+
+async function isCountStopRuleAuthorizedAndMet(
+  tx: Prisma.TransactionClient,
+  schedule: {
+    id: string;
+    sokoBotId: string;
+    workspaceId: string;
+    completedRuns: number;
+    authority: unknown;
+    sokoBot: {
+      userId: string | null;
+      archivedAt: Date | null;
+      status: string;
+      adminPausedAt: Date | null;
+      projectId: string | null;
+      versionId: string | null;
+    } | null;
+  },
+  now: Date,
+  options?: {
+    checkOrganizationSeat?: (
+      userId: string,
+      organizationId: string | null,
+      tx: Prisma.TransactionClient,
+    ) => Promise<boolean>;
+  },
+): Promise<boolean> {
+  const parsed = parseOwnerAuthority(schedule?.authority);
+  if (parsed?.stopRule.mode !== "ends_after_runs") {
+    return false;
+  }
+  const verified = await verifyScheduleStopAuthority(tx, {
+    schedule,
+    offeredCapabilities: ["update_schedule"],
+    now,
+    checkOrganizationSeat: options?.checkOrganizationSeat,
+  });
+  if (!verified.effective) {
+    return false;
+  }
+  const evaluation = evaluateScheduleStopRule(verified.authority, {
+    sokoBotId: schedule.sokoBotId,
+    workspaceId: schedule.workspaceId,
+    ownScheduleId: schedule.id,
+    targetScheduleId: schedule.id,
+    revoked: !verified.botAlive,
+    completedRuns: schedule.completedRuns,
+    now,
+  });
+  return evaluation.allowed;
+}
+
+async function disableScheduleIfStopRuleMetTx(
+  tx: Prisma.TransactionClient,
+  schedule: {
+    id: string;
+    sokoBotId: string;
+    workspaceId: string;
+    enabled: boolean;
+    completedRuns: number;
+    authority: unknown;
+    sokoBot: {
+      userId: string | null;
+      archivedAt: Date | null;
+      status: string;
+      adminPausedAt: Date | null;
+      projectId: string | null;
+      versionId: string | null;
+    } | null;
+  },
+  now: Date,
+  options?: {
+    checkOrganizationSeat?: (
+      userId: string,
+      organizationId: string | null,
+      tx: Prisma.TransactionClient,
+    ) => Promise<boolean>;
+  },
+): Promise<{ stopped: boolean }> {
+  if (!schedule?.enabled) {
+    return { stopped: false };
+  }
+  if (!(await isCountStopRuleAuthorizedAndMet(tx, schedule, now, options))) {
+    return { stopped: false };
+  }
+  await tx.sokoBotSchedule.update({
+    where: { id: schedule.id },
+    data: { enabled: false },
+  });
+  await fenceUnstartedScheduleRuns(tx, schedule.id, now);
+  return { stopped: true };
+}
+
+/**
+ * Defense-in-depth check before claiming a due occurrence: if the schedule's
+ * persisted `ends_after_runs` count is already met AND live authority verifies,
+ * disables the schedule and fences unstarted runs atomically so no extra
+ * occurrence can start.
+ */
+export async function disableScheduleIfCountLimitMet(
+  scheduleId: string,
+  now: Date = new Date(),
+  options?: {
+    checkOrganizationSeat?: (
+      userId: string,
+      organizationId: string | null,
+      tx: Prisma.TransactionClient,
+    ) => Promise<boolean>;
+  },
+): Promise<boolean> {
+  const result = await serializableTransaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT "id" FROM ${sharedTable("soko_bot_schedule")}
+      WHERE "id" = ${scheduleId}::uuid
+      FOR UPDATE
+    `;
+    const schedule = await tx.sokoBotSchedule.findUnique({
+      where: { id: scheduleId },
+      select: {
+        id: true,
+        sokoBotId: true,
+        workspaceId: true,
+        enabled: true,
+        completedRuns: true,
+        authority: true,
+        sokoBot: {
+          select: {
+            userId: true,
+            archivedAt: true,
+            status: true,
+            adminPausedAt: true,
+            projectId: true,
+            versionId: true,
+          },
+        },
+      },
+    });
+    if (!schedule) return { stopped: false };
+    return disableScheduleIfStopRuleMetTx(tx, schedule, now, options);
+  }, "Soko Bot schedule count-limit check collided with another request");
+  return result.stopped;
+}
+
+/**
+ * Records one distinct successful schedule occurrence on `SokoBotSchedule`
+ * (durable across the 7-day `SokoBotScheduleRun` retention purge) and, when
+ * the schedule's persisted `ends_after_runs` stop rule is satisfied AND its
+ * grantor's live authority (workspace access, assigned seat, bot state) still
+ * verifies, disables the schedule and fences any unstarted pending/claimed
+ * occurrences atomically.
+ */
+export async function recordCompletedScheduleRun(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  now: Date = new Date(),
+  options?: {
+    checkOrganizationSeat?: (
+      userId: string,
+      organizationId: string | null,
+      tx: Prisma.TransactionClient,
+    ) => Promise<boolean>;
+  },
+): Promise<{ stopped: boolean }> {
+  const updated = await tx.sokoBotSchedule.update({
+    where: { id: scheduleId },
+    data: {
+      consecutiveFailures: 0,
+      completedRuns: { increment: 1 },
+    },
+    select: {
+      id: true,
+      sokoBotId: true,
+      workspaceId: true,
+      enabled: true,
+      completedRuns: true,
+      authority: true,
+      sokoBot: {
+        select: {
+          userId: true,
+          archivedAt: true,
+          status: true,
+          adminPausedAt: true,
+          projectId: true,
+          versionId: true,
+        },
+      },
+    },
+  });
+  return disableScheduleIfStopRuleMetTx(tx, updated, now, options);
 }
 
 /** How long a disabled schedule and a settled run stay visible. */
@@ -780,53 +1426,449 @@ export interface SokoBotSchedulePurgeResult {
  * rhythms and schedules with a run in flight are never touched. Each call
  * removes at most one batch per rule; the next cron tick takes the rest.
  */
+const SCHEDULE_ID_UUID = z.string().uuid();
+
+/**
+ * Returns schedule IDs whose persisted child work (`SokoBotDelegation` or
+ * `SokoBotWatch` carrying `authority.scheduleId`) is still pending, in flight,
+ * or eligible for follow-up/watch retry. Routine retention cleanup keeps those
+ * schedule rows alive as the source of live authority until their children
+ * settle, while explicit owner deletion/cancellation still removes or revokes
+ * them immediately.
+ */
+async function schedulesWithOutstandingChildWork(
+  retentionCutoff: Date,
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ scheduleId: string }[]>`
+    SELECT DISTINCT d."authority"->>'scheduleId' AS "scheduleId"
+    FROM ${sharedTable("soko_bot_delegation")} d
+    LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+    LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+    WHERE d."followUp" IS NOT NULL
+      AND d."authority"->>'scheduleId' IS NOT NULL
+      AND (
+        (
+          d."followUpTurnId" IS NULL
+          AND (
+            (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+            OR d."jobId" IS NOT NULL
+          )
+        )
+        OR (
+          d."followUpTurnId" IS NOT NULL
+          AND (
+            ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+            OR (
+              ft."status"::text = 'FAILED'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM ${sharedTable("soko_bot_event_inbox")} ei
+                WHERE ei."turnId" = ft."id"
+                  AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                  AND ei."eventId" LIKE '%:follow-up-retry'
+              )
+              AND ft."updatedAt" >= ${retentionCutoff}
+            )
+          )
+        )
+      )
+    UNION
+    SELECT DISTINCT w."authority"->>'scheduleId' AS "scheduleId"
+    FROM ${sharedTable("soko_bot_watch")} w
+    LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+    WHERE w."authority"->>'scheduleId' IS NOT NULL
+      AND (
+        w."status" = 'WAITING'
+        OR (
+          w."status" = 'FIRED'
+          AND (
+            (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+            OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+            OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+          )
+        )
+      )
+  `;
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (SCHEDULE_ID_UUID.safeParse(row.scheduleId).success) {
+      ids.push(row.scheduleId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Atomically deletes spent one-time schedules only when they still have no
+ * active run and no outstanding child delegation or watch at delete time.
+ */
+async function deleteSpentOneTimeSchedules(
+  candidateIds: string[],
+  retentionCutoff: Date,
+): Promise<number> {
+  if (candidateIds.length === 0) return 0;
+  return prisma.$executeRaw`
+    DELETE FROM ${sharedTable("soko_bot_schedule")} s
+    WHERE s."id" = ANY(${candidateIds}::uuid[])
+      AND s."systemKey" IS NULL
+      AND s."runOnce" = true
+      AND s."enabled" = false
+      AND s."lastRunAt" IS NOT NULL
+      AND s."updatedAt" < ${retentionCutoff}
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_schedule_run")} r
+        WHERE r."scheduleId" = s."id"
+          AND r."status"::text IN ('PENDING', 'CLAIMED', 'RUNNING')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_delegation")} d
+        LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+        LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+        WHERE d."followUp" IS NOT NULL
+          AND d."authority"->>'scheduleId' = s."id"::text
+          AND (
+            (
+              d."followUpTurnId" IS NULL
+              AND (
+                (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+                OR d."jobId" IS NOT NULL
+              )
+            )
+            OR (
+              d."followUpTurnId" IS NOT NULL
+              AND (
+                ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (
+                  ft."status"::text = 'FAILED'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${sharedTable("soko_bot_event_inbox")} ei
+                    WHERE ei."turnId" = ft."id"
+                      AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                      AND ei."eventId" LIKE '%:follow-up-retry'
+                  )
+                  AND ft."updatedAt" >= ${retentionCutoff}
+                )
+              )
+            )
+          )
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_watch")} w
+        LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+        WHERE w."authority"->>'scheduleId' = s."id"::text
+          AND (
+            w."status" = 'WAITING'
+            OR (
+              w."status" = 'FIRED'
+              AND (
+                (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+              )
+            )
+          )
+      )
+  `;
+}
+
+/**
+ * Atomically deletes finished watched-work schedules only when they still have
+ * no active run and no outstanding child delegation or watch at delete time.
+ */
+async function deleteWatchedWorkSchedules(
+  candidateIds: string[],
+  retentionCutoff: Date,
+): Promise<number> {
+  if (candidateIds.length === 0) return 0;
+  return prisma.$executeRaw`
+    DELETE FROM ${sharedTable("soko_bot_schedule")} s
+    WHERE s."id" = ANY(${candidateIds}::uuid[])
+      AND s."systemKey" IS NULL
+      AND (
+        (
+          s."taskId" IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM ${sharedTable("task")} wt_task
+            WHERE wt_task."id" = s."taskId"
+              AND (
+                wt_task."status"::text IN ('COMPLETED', 'CANCELED')
+                OR wt_task."archivedAt" IS NOT NULL
+              )
+          )
+        )
+        OR s."jobId" IS NOT NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_schedule_run")} r
+        WHERE r."scheduleId" = s."id"
+          AND r."status"::text IN ('PENDING', 'CLAIMED', 'RUNNING')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_delegation")} d
+        LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+        LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+        WHERE d."followUp" IS NOT NULL
+          AND d."authority"->>'scheduleId' = s."id"::text
+          AND (
+            (
+              d."followUpTurnId" IS NULL
+              AND (
+                (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+                OR d."jobId" IS NOT NULL
+              )
+            )
+            OR (
+              d."followUpTurnId" IS NOT NULL
+              AND (
+                ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (
+                  ft."status"::text = 'FAILED'
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM ${sharedTable("soko_bot_event_inbox")} ei
+                    WHERE ei."turnId" = ft."id"
+                      AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                      AND ei."eventId" LIKE '%:follow-up-retry'
+                  )
+                  AND ft."updatedAt" >= ${retentionCutoff}
+                )
+              )
+            )
+          )
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_watch")} w
+        LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+        WHERE w."authority"->>'scheduleId' = s."id"::text
+          AND (
+            w."status" = 'WAITING'
+            OR (
+              w."status" = 'FIRED'
+              AND (
+                (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+              )
+            )
+          )
+      )
+  `;
+}
+
+/**
+ * Atomically retires live (`enabled: true`) watched-work schedules into spent
+ * one-time form (`enabled: false, runOnce: true, lastRunAt`) only when their
+ * watched work is finished, no run is active, and an outstanding child
+ * delegation or watch still relies on the schedule as its authority anchor.
+ * Owner-paused schedules (`enabled: false, runOnce: false`) stay untouched.
+ */
+async function retireWatchedWorkSchedules(
+  candidateIds: string[],
+  now: Date,
+  retentionCutoff: Date,
+): Promise<number> {
+  if (candidateIds.length === 0) return 0;
+  return prisma.$executeRaw`
+    UPDATE ${sharedTable("soko_bot_schedule")} s
+    SET
+      "enabled" = false,
+      "runOnce" = true,
+      "lastRunAt" = COALESCE(s."lastRunAt", ${now})
+    WHERE s."id" = ANY(${candidateIds}::uuid[])
+      AND s."systemKey" IS NULL
+      AND s."enabled" = true
+      AND (
+        (
+          s."taskId" IS NOT NULL
+          AND EXISTS (
+            SELECT 1
+            FROM ${sharedTable("task")} wt_task
+            WHERE wt_task."id" = s."taskId"
+              AND (
+                wt_task."status"::text IN ('COMPLETED', 'CANCELED')
+                OR wt_task."archivedAt" IS NOT NULL
+              )
+          )
+        )
+        OR s."jobId" IS NOT NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("soko_bot_schedule_run")} r
+        WHERE r."scheduleId" = s."id"
+          AND r."status"::text IN ('PENDING', 'CLAIMED', 'RUNNING')
+      )
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM ${sharedTable("soko_bot_delegation")} d
+          LEFT JOIN ${sharedTable("task")} t ON t."id" = d."taskId"
+          LEFT JOIN ${sharedTable("soko_bot_turn")} ft ON ft."id" = d."followUpTurnId"
+          WHERE d."followUp" IS NOT NULL
+            AND d."authority"->>'scheduleId' = s."id"::text
+            AND (
+              (
+                d."followUpTurnId" IS NULL
+                AND (
+                  (d."taskId" IS NOT NULL AND t."id" IS NOT NULL AND t."archivedAt" IS NULL)
+                  OR d."jobId" IS NOT NULL
+                )
+              )
+              OR (
+                d."followUpTurnId" IS NOT NULL
+                AND (
+                  ft."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                  OR (
+                    ft."status"::text = 'FAILED'
+                    AND NOT EXISTS (
+                      SELECT 1
+                      FROM ${sharedTable("soko_bot_event_inbox")} ei
+                      WHERE ei."turnId" = ft."id"
+                        AND ei."entityId" = COALESCE(d."taskId", d."jobId")
+                        AND ei."eventId" LIKE '%:follow-up-retry'
+                    )
+                    AND ft."updatedAt" >= ${retentionCutoff}
+                  )
+                )
+              )
+            )
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM ${sharedTable("soko_bot_watch")} w
+          LEFT JOIN ${sharedTable("soko_bot_turn")} wt ON wt."id" = w."firedTurnId"
+          WHERE w."authority"->>'scheduleId' = s."id"::text
+            AND (
+              w."status" = 'WAITING'
+              OR (
+                w."status" = 'FIRED'
+                AND (
+                  (w."firedTurnId" IS NULL AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                  OR wt."status"::text IN ('QUEUED', 'STARTING', 'RUNNING', 'CANCEL_REQUESTED')
+                  OR (wt."status"::text = 'FAILED' AND COALESCE(w."firedAt", w."updatedAt") >= ${retentionCutoff})
+                )
+              )
+            )
+        )
+      )
+  `;
+}
+
 export async function purgeSokoBotSchedules(
   now = new Date(),
 ): Promise<SokoBotSchedulePurgeResult> {
   const retentionCutoff = new Date(
     now.getTime() - SOKO_BOT_SCHEDULE_RETENTION_MS,
   );
+  const protectedScheduleIds =
+    await schedulesWithOutstandingChildWork(retentionCutoff);
   const idle = {
     systemKey: null,
     runs: { none: { status: { in: [...ACTIVE_RUN_STATUSES] } } },
   } satisfies Prisma.SokoBotScheduleWhereInput;
-  const purge = async (where: Prisma.SokoBotScheduleWhereInput) => {
+  const purge = async (
+    where: Prisma.SokoBotScheduleWhereInput,
+    options?: {
+      atomicDelete?: (ids: string[]) => Promise<number>;
+      retireProtected?: boolean;
+    },
+  ) => {
+    const protectedDue =
+      options?.retireProtected && protectedScheduleIds.length > 0
+        ? await prisma.sokoBotSchedule.findMany({
+            where: {
+              ...idle,
+              ...where,
+              id: { in: protectedScheduleIds },
+              enabled: true,
+            },
+            select: { id: true },
+            orderBy: { id: "asc" },
+            take: PURGE_BATCH,
+          })
+        : [];
+    const scope: Prisma.SokoBotScheduleWhereInput = {
+      ...idle,
+      ...where,
+      ...(options?.atomicDelete && protectedScheduleIds.length > 0
+        ? { id: { notIn: protectedScheduleIds } }
+        : {}),
+    };
     const due = await prisma.sokoBotSchedule.findMany({
-      where: { ...idle, ...where },
+      where: scope,
       select: { id: true },
       orderBy: { id: "asc" },
       take: PURGE_BATCH,
     });
-    if (!due.length) return 0;
-    const deleted = await prisma.sokoBotSchedule.deleteMany({
-      where: { ...idle, ...where, id: { in: due.map((row) => row.id) } },
-    });
-    return deleted.count;
+    const dueIds = due.map((row) => row.id);
+    const deleted = dueIds.length
+      ? options?.atomicDelete
+        ? await options.atomicDelete(dueIds)
+        : (
+            await prisma.sokoBotSchedule.deleteMany({
+              where: { ...scope, id: { in: dueIds } },
+            })
+          ).count
+      : 0;
+    if (options?.retireProtected) {
+      // Retire both preliminarily-protected schedules and any candidate spared
+      // by the atomic DELETE because an active run committed a child and
+      // settled after the preliminary scan.
+      const retireIds = [
+        ...new Set([
+          ...protectedDue.map((row) => row.id),
+          ...(deleted < dueIds.length ? dueIds : []),
+        ]),
+      ];
+      if (retireIds.length > 0) {
+        await retireWatchedWorkSchedules(retireIds, now, retentionCutoff);
+      }
+    }
+    return deleted;
   };
-  const spentOneTime = await purge({
-    runOnce: true,
-    enabled: false,
-    lastRunAt: { not: null },
-    // Its run row is the Calendar's history of it, kept as long as any run.
-    updatedAt: { lt: retentionCutoff },
-  });
-  const watchedWorkFinished = await purge({
-    OR: [
-      {
-        task: {
-          OR: [
-            { status: { in: ["COMPLETED", "CANCELED"] } },
-            { archivedAt: { not: null } },
-          ],
+  const spentOneTime = await purge(
+    {
+      runOnce: true,
+      enabled: false,
+      lastRunAt: { not: null },
+      // Its run row is the Calendar's history of it, kept as long as any run.
+      updatedAt: { lt: retentionCutoff },
+    },
+    {
+      atomicDelete: (ids) => deleteSpentOneTimeSchedules(ids, retentionCutoff),
+    },
+  );
+  const watchedWorkFinished = await purge(
+    {
+      OR: [
+        {
+          task: {
+            OR: [
+              { status: { in: ["COMPLETED", "CANCELED"] } },
+              { archivedAt: { not: null } },
+            ],
+          },
         },
-      },
-      {
-        job: {
-          events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+        {
+          job: {
+            events: { some: { status: { in: ["COMPLETED", "FAILED"] } } },
+          },
         },
-      },
-    ],
-  });
+      ],
+    },
+    {
+      atomicDelete: (ids) => deleteWatchedWorkSchedules(ids, retentionCutoff),
+      retireProtected: true,
+    },
+  );
   const failedRecurring = await purge({
     runOnce: false,
     enabled: false,

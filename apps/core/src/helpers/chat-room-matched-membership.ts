@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -38,7 +39,7 @@ export async function ensureMatchedChannelParticipant(
   }
 
   await tx.$queryRaw`
-    SELECT "id" FROM "chat_room"
+    SELECT "id" FROM ${sharedTable("chat_room")}
     WHERE "id" = ${args.roomId}::uuid
     FOR UPDATE
   `;
@@ -191,7 +192,7 @@ export async function removeMatchedChannelParticipant(
   statusMessages: Awaited<ReturnType<typeof recordChannelMembershipStatus>>;
 }> {
   await tx.$queryRaw`
-    SELECT "id" FROM "chat_room"
+    SELECT "id" FROM ${sharedTable("chat_room")}
     WHERE "id" = ${args.roomId}::uuid
     FOR UPDATE
   `;

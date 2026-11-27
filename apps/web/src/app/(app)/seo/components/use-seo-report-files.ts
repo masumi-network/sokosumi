@@ -17,6 +17,10 @@ import {
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
 import {
+  missesFreshSeoActionImpact,
+  withFreshSeoActionImpact,
+} from "./seo-action-impact-model";
+import {
   type seoReportVersions,
   seoTaskReportFiles,
 } from "./seo-report-files-model";
@@ -63,7 +67,7 @@ export function useSeoReportFiles(
   );
   const canLoadProperty = Boolean(
     userId &&
-      evidence &&
+      evidence?.requester &&
       !evidence.propertyDataExpired &&
       needsPropertyEvidence(evidence),
   );
@@ -100,56 +104,68 @@ export function useSeoReportFiles(
       );
       if (!saved || (property && !saved.pageDiscovery && !saved.propertyTotals))
         throw new Error("Audit evidence unavailable");
+      const views = {
+        queryKey: [
+          "seo-workspace",
+          organizationId,
+          userId,
+          owner.kind,
+          owner.id,
+        ],
+      };
+      // A filtered view can show a done action the response does not hold. Only that view reads again.
+      const stale = property
+        ? []
+        : queryClient
+            .getQueriesData<ProjectSeoWorkspace>(views)
+            .flatMap(([queryKey, cached]) =>
+              cached?.auditSearchConsoleRetryTaskIds?.includes(id) &&
+              missesFreshSeoActionImpact(cached.actions, workspace.actions)
+                ? [queryKey]
+                : [],
+            );
       // The response describes the original audit pages. Keep each cached view's current filters and other runs.
-      queryClient.setQueriesData<ProjectSeoWorkspace>(
-        {
-          queryKey: [
-            "seo-workspace",
-            organizationId,
-            userId,
-            owner.kind,
-            owner.id,
-          ],
-        },
-        (cached) => {
-          if (property) {
-            if (
-              !cached?.auditSearchConsole?.some((entry) => entry.taskId === id)
-            )
-              return cached;
-            return {
-              ...cached,
-              auditSearchConsole: cached.auditSearchConsole.map((entry) =>
-                entry.taskId === id
-                  ? {
-                      ...entry,
-                      propertyTotals:
-                        saved.propertyTotals ?? entry.propertyTotals,
-                      pageDiscovery: saved.pageDiscovery ?? entry.pageDiscovery,
-                    }
-                  : entry,
-              ),
-            };
-          }
-          if (!cached?.auditSearchConsoleRetryTaskIds?.includes(id))
+      queryClient.setQueriesData<ProjectSeoWorkspace>(views, (cached) => {
+        if (property) {
+          if (!cached?.auditSearchConsole?.some((entry) => entry.taskId === id))
             return cached;
           return {
             ...cached,
-            auditSearchConsole: [
-              ...(cached.auditSearchConsole ?? []).filter(
-                (entry) => entry.taskId !== id,
-              ),
-              saved,
-            ],
-            auditSearchConsoleRetryTaskIds:
-              workspace.auditSearchConsoleRetryTaskIds?.includes(id)
-                ? cached.auditSearchConsoleRetryTaskIds
-                : cached.auditSearchConsoleRetryTaskIds.filter(
-                    (eligible) => eligible !== id,
-                  ),
+            auditSearchConsole: cached.auditSearchConsole.map((entry) =>
+              entry.taskId === id
+                ? {
+                    ...entry,
+                    propertyTotals:
+                      saved.propertyTotals ?? entry.propertyTotals,
+                    pageDiscovery: saved.pageDiscovery ?? entry.pageDiscovery,
+                  }
+                : entry,
+            ),
           };
-        },
-      );
+        }
+        if (!cached?.auditSearchConsoleRetryTaskIds?.includes(id))
+          return cached;
+        return {
+          ...cached,
+          // The recovery also stored each page's daily rows, which the impact of a done action reads.
+          actions: withFreshSeoActionImpact(cached.actions, workspace.actions),
+          auditSearchConsole: [
+            ...(cached.auditSearchConsole ?? []).filter(
+              (entry) => entry.taskId !== id,
+            ),
+            saved,
+          ],
+          auditSearchConsoleRetryTaskIds:
+            workspace.auditSearchConsoleRetryTaskIds?.includes(id)
+              ? cached.auditSearchConsoleRetryTaskIds
+              : cached.auditSearchConsoleRetryTaskIds.filter(
+                  (eligible) => eligible !== id,
+                ),
+        };
+      });
+      // After the patch above, which would mark the view fresh again.
+      for (const queryKey of stale)
+        void queryClient.invalidateQueries({ queryKey, exact: true });
       if (property && needsPropertyEvidence(saved))
         throw new Error("Property evidence incomplete");
     },

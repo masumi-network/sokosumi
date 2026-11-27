@@ -63,6 +63,9 @@ interface CreateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
   /** ISO time to start the Task at; Core then creates it Queued. */
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  priority?: TaskPriority;
+  /** `YYYY-MM-DD`. */
+  dueOn?: string;
 }
 
 interface UpdateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
@@ -160,6 +163,8 @@ interface CreateAndLinkTaskParameters
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
   runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
+  priority?: TaskPriority;
+  dueOn?: string;
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
 }
@@ -202,6 +207,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     status,
     runAt,
     visibility,
+    priority,
+    dueOn,
   }) => {
     try {
       const task = await createTaskFromDescription({
@@ -221,6 +228,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         status,
         runAt,
         visibility,
+        priority,
+        dueOn,
       });
 
       revalidatePath("/tasks");
@@ -624,6 +633,8 @@ export const createTaskAndLink = withSession<
     context,
     runAt,
     visibility,
+    priority,
+    dueOn,
     relation,
     note,
   }) => {
@@ -651,6 +662,8 @@ export const createTaskAndLink = withSession<
         status,
         runAt,
         visibility,
+        priority,
+        dueOn,
       });
 
       const link = await taskService.createTaskLink(normalizedTaskId, {

@@ -19,6 +19,10 @@ interface Branch {
   expires_at?: string;
 }
 
+const PREVIEW_HOST = "ep-preview.c-5.us-east-2.aws.neon.tech";
+const PREVIEW_POOLED_URL = `postgresql://role:secret@ep-preview-pooler.c-5.us-east-2.aws.neon.tech/db`;
+const PREVIEW_DIRECT_URL = `postgresql://role:secret@${PREVIEW_HOST}/db`;
+
 function setup() {
   const calls: { url: URL; method: string; body: Record<string, string> }[] =
     [];
@@ -66,11 +70,19 @@ function setup() {
         });
       }
       if (url.pathname.endsWith("/connection_uri")) {
+        assert.equal(url.searchParams.get("branch_id"), "br-preview");
         return json({
           uri:
             url.searchParams.get("pooled") === "true"
-              ? "postgres://preview-pooled"
-              : "postgres://preview-direct",
+              ? PREVIEW_POOLED_URL
+              : PREVIEW_DIRECT_URL,
+        });
+      }
+      if (url.pathname.endsWith("/branches/br-preview/endpoints")) {
+        return json({
+          endpoints: [
+            { branch_id: "br-preview", type: "read_write", host: PREVIEW_HOST },
+          ],
         });
       }
       const index = branches.findIndex((branch) =>
@@ -243,7 +255,11 @@ test("/deploy preprod provisions preprod before deployment and reuses its DB on 
   );
   assert.equal(
     envs.find((env) => env.key === "DATABASE_URL_UNPOOLED")?.value,
-    "postgres://preview-direct",
+    PREVIEW_DIRECT_URL,
+  );
+  assert.equal(
+    envs.find((env) => env.key === "DATABASE_URL")?.value,
+    PREVIEW_POOLED_URL,
   );
   assert.ok(
     deployments.every(
@@ -255,6 +271,13 @@ test("/deploy preprod provisions preprod before deployment and reuses its DB on 
   const firstDeploy = calls.findIndex(
     (call) => call.url.pathname === "/v13/deployments",
   );
+  const endpointLookup = calls.findIndex((call) =>
+    call.url.pathname.endsWith("/branches/br-preview/endpoints"),
+  );
+  const firstEnvWrite = calls.findIndex(
+    (call) => call.method === "POST" && call.url.pathname.endsWith("/env"),
+  );
+  assert.ok(endpointLookup >= 0 && endpointLookup < firstEnvWrite);
   assert.equal(
     calls
       .slice(0, firstDeploy)
@@ -270,6 +293,65 @@ test("/deploy preprod provisions preprod before deployment and reuses its DB on 
         call.method === "POST" && call.url.pathname.endsWith("/restore"),
     ),
   );
+});
+
+for (const pooled of [true, false]) {
+  const key = pooled ? "DATABASE_URL" : "DATABASE_URL_UNPOOLED";
+  test(`provision with ${key} from another branch refuses before writing either URL`, async () => {
+    const { options, calls, envs } = setup();
+    const neonFetchImpl: typeof fetch = (input, init) => {
+      const url = new URL(String(input));
+      if (
+        url.pathname.endsWith("/connection_uri") &&
+        url.searchParams.get("pooled") === String(pooled)
+      ) {
+        const uri = (pooled ? PREVIEW_POOLED_URL : PREVIEW_DIRECT_URL).replace(
+          "ep-preview",
+          "ep-other",
+        );
+        return Promise.resolve(Response.json({ uri }));
+      }
+      return options.neonFetchImpl(input, init);
+    };
+    await assert.rejects(
+      preparePreviewResources(
+        { ...options, neonFetchImpl },
+        deployTargets(["preprod"]),
+      ),
+      new RegExp(
+        `${key} does not match the read-write endpoint of Neon branch "preview/gh-99-pr-7"`,
+      ),
+    );
+    assert.deepEqual(envs, []);
+    assert.ok(
+      !calls.some(
+        (call) => call.method === "POST" && call.url.host === "api.vercel.com",
+      ),
+    );
+  });
+}
+
+test("provision refuses an endpoint response belonging to another branch", async () => {
+  const { options, envs } = setup();
+  const neonFetchImpl: typeof fetch = (input, init) =>
+    String(input).endsWith("/branches/br-preview/endpoints")
+      ? Promise.resolve(
+          Response.json({
+            endpoints: [
+              { branch_id: "br-other", type: "read_write", host: PREVIEW_HOST },
+            ],
+          }),
+        )
+      : options.neonFetchImpl(input, init);
+
+  await assert.rejects(
+    preparePreviewResources(
+      { ...options, neonFetchImpl },
+      deployTargets(["preprod"]),
+    ),
+    /Neon branch "preview\/gh-99-pr-7" has no read-write endpoint host/,
+  );
+  assert.deepEqual(envs, []);
 });
 
 test("closed PRs cannot recreate previews, and unprivileged commenters cannot provision", async () => {

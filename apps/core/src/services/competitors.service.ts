@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -57,7 +58,7 @@ async function lockCompetitors(
   tx: Prisma.TransactionClient,
   projectId: string,
 ): Promise<void> {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
 }
 
 /** A write that lost a name race to another: the same answer as the check. */

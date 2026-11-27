@@ -138,6 +138,10 @@ model Organization {
 
   stripeCustomerId String?
 
+  /// Preprod access, switched by a platform admin (PreprodAccessChange records
+  /// each change). Not a Better Auth field: never writable by a client.
+  preprodEnabled Boolean @default(false)
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -161,6 +165,7 @@ model Workspace {
   contactCompanies     ContactCompany[]
   contactCompanyLists  ContactCompanyList[]
   fundraisingProspects FundraisingProspect[]
+  fundraisingPortfolio FundraisingPortfolioCompany[]
 
   seoAudits            SeoAudit[]
   seoConnections       SeoConnection[]
@@ -191,6 +196,7 @@ model Workspace {
   sokoBotTurns             SokoBotTurn[]
   sokoBotPendingDecisions  SokoBotPendingDecision[]
   sokoBotSchedules         SokoBotSchedule[]
+  sokoBotAuthoritySpends   SokoBotAuthoritySpend[]
 
   sokoBots SokoBot[]
 
@@ -416,8 +422,16 @@ model History {
   sokoBotId      String?     @db.Uuid
   bucketSlug     String?
   archivedAt     DateTime?
+  /// "mainnet" or "preprod": the Network of the Job this row points
+  /// at. Null when it points at none, or on a row written before the column
+  /// or by a release that does not know it. The check
+  /// `history_network_check` holds the two values; it lives in SQL only,
+  /// because Prisma cannot express CHECKs.
+  network        String?
 
   @@unique([kind, entityId])
+  @@unique([network, kind, entityId], map: "history_network_kind_entityId_key")
+  @@unique([kind, entityId], map: "history_untagged_kind_entityId_key", where: { network: null })
   @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([sokoBotId])
@@ -508,6 +522,7 @@ model Project {
   seoAnalyses             ProjectSeoAnalysis[]
   seoActionTasks          ProjectSeoActionTask[]
   seoSuggestions          ProjectSeoSuggestion[]
+  seoImpactVerdicts       ProjectSeoImpactVerdict[]
   seoResearch             ProjectSeoResearch[]
   cmoPicturePicks         CmoPicturePick[]
   /// What the website runs on when it is a shop system Cuso can measure
@@ -2491,6 +2506,10 @@ model SokoBotWatch {
   outcome     String?
   firedAt     DateTime?
   firedTurnId String?   @db.Uuid
+  /// Core-owned OwnerAuthority envelope attenuated for this watch's follow-up
+  /// wake (ADR: neon-arch-owner-authority). Null for legacy rows created before
+  /// OwnerAuthority persistence.
+  authority   Json?
 
   @@index([status, createdAt])
   @@index([sokoBotId, status])
@@ -2666,8 +2685,12 @@ model SokoBot {
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
   followWholeBoard    Boolean   @default(true)
-  /// The owner put this bot in the organization's daily stand-up.
+  /// Unused: the old opt-in switch, superseded by `leftTeamStandupAt`. Kept
+  /// so a running deployment still reads it during a deploy; drop it later.
   joinsTeamStandup    Boolean   @default(false)
+  /// When a member took this bot out of the daily stand-up; null = it joins
+  /// (on by default, so every live bot speaks without a row written for it).
+  leftTeamStandupAt   DateTime?
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
   proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
@@ -2733,7 +2756,9 @@ model SokoBot {
   memoryRevisions      SokoBotMemoryRevision[]
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
+  accountQuestions     SokoBotAccountQuestion[]
   schedules            SokoBotSchedule[]
+  authoritySpends      SokoBotAuthoritySpend[]
   cmoUpgradesSeen      CmoUpgradeSeen[]
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
@@ -2781,6 +2806,10 @@ model SokoBotTurn {
   id               String                   @id @default(uuid(7)) @db.Uuid
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
+
+  /// Network that started the turn. Null on legacy writes during rollout.
+  /// SQL-only CHECK `soko_bot_turn_network_check`.
+  network String?
 
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
@@ -2893,7 +2922,9 @@ model SokoBotTurn {
   modelCalls          SokoBotModelCall[]
   delegations         SokoBotDelegation[]
   watches             SokoBotWatch[]
+  authoritySpends     SokoBotAuthoritySpend[]
   pendingDecisions    SokoBotPendingDecision[]
+  accountQuestions    SokoBotAccountQuestion[]
   memoryRevisions     SokoBotMemoryRevision[]
   scheduleRun         SokoBotScheduleRun?
   /// Marketing strategy versions this turn wrote.
@@ -3217,6 +3248,10 @@ model SokoBotDelegation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Network that delegated the work. Null on legacy rows with no Job or written during rollout.
+  /// SQL-only CHECK `soko_bot_delegation_network_check`.
+  network String?
+
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
@@ -3242,11 +3277,48 @@ model SokoBotDelegation {
   followUp       String?
   /// The EVENT turn that carried `followUp`; set once, so a plan runs once.
   followUpTurnId String? @db.Uuid
+  /// The owner's own limits for `followUp` ({ images?, maxCredits? }):
+  /// the turn that carries it out may make no more images or spend no more.
+  followUpAllows Json?
+  /// Core-owned OwnerAuthority envelope attenuated for this delegation's
+  /// follow-up wake (ADR: neon-arch-owner-authority). Null for legacy rows
+  /// created before OwnerAuthority persistence.
+  authority      Json?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
   @@map("soko_bot_delegation")
+}
+
+/// Durable spend reservation and settlement ledger keyed by OwnerAuthority
+/// `grantId` (ADR: neon-arch-owner-authority). Parallel children, retries, and
+/// mixed wakes reserve atomically under one shared balance per `grantId` and
+/// settle once per `operationKey`; `UNKNOWN` provider outcomes stay held so
+/// crashes cannot double-spend.
+model SokoBotAuthoritySpend {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  sokoBotId    String      @db.Uuid
+  sokoBot      SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  workspaceId  String      @db.Uuid
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  grantId      String
+  operationKey String?     @unique
+  turnId       String      @db.Uuid
+  turn         SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  toolCallId   String
+  capability   String
+  images       Int         @default(0)
+  videos       Int         @default(0)
+  credits      Float       @default(0)
+  /// RESERVED | SETTLED | UNKNOWN | RELEASED
+  status       String      @default("RESERVED")
+
+  @@unique([turnId, toolCallId])
+  @@index([sokoBotId, grantId, status])
+  @@map("soko_bot_authority_spend")
 }
 
 model SokoBotIntent {
@@ -3296,6 +3368,32 @@ model SokoBotIntentOutcome {
   @@map("soko_bot_intent_outcome")
 }
 
+/// "Which account?" asked before a social post (social-destination.ts): the
+/// options shown, in order. A later owner chat turn answers it by passing its
+/// id and one option to create_social_post.
+model SokoBotAccountQuestion {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime    @default(now())
+  sokoBotId         String      @db.Uuid
+  sokoBot           SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  turnId            String      @db.Uuid
+  turn              SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  requestedByUserId String?
+  destinationRoomId String?     @db.Uuid
+  provider          String
+  /// Connection ids, in the order the question showed them.
+  optionIds         String[]    @db.Uuid
+  /// When Core put the question with its options into the owner's reply;
+  /// a question never shown is never open.
+  shownAt           DateTime?
+  /// The owner turn that answered it; its drafts may use it, no later turn.
+  answeredTurnId    String?     @db.Uuid
+
+  @@unique([turnId, provider])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_account_question")
+}
+
 model SokoBotPendingDecision {
   intentId  String?        @db.Uuid
   intent    SokoBotIntent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
@@ -3337,6 +3435,10 @@ model SokoBotSchedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Network that created the schedule. Null on legacy rows with no Job or written during rollout.
+  /// SQL-only CHECK `soko_bot_schedule_network_check`.
+  network String?
+
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
@@ -3365,9 +3467,15 @@ model SokoBotSchedule {
   /// their chat tools. Empty for built-ins and console schedules written
   /// before 2026-11-16, which Jev classifies on every run.
   capabilityNames     String[]  @default([])
+  /// Core-owned OwnerAuthority envelope bound to this schedule (ADR:
+  /// neon-arch-owner-authority). Null for legacy schedules created before
+  /// OwnerAuthority persistence.
+  authority           Json?
   nextRunAt           DateTime
   lastRunAt           DateTime?
   consecutiveFailures Int       @default(0)
+  /// Durable count of distinct completed runs; survives the 7-day run retention purge.
+  completedRuns       Int       @default(0)
 
   /// The Task or Job this schedule follows. Core removes the schedule once
   /// that work finishes; the result itself wakes the bot through the events sync.
@@ -3461,6 +3569,28 @@ model SokoBotAdminAction {
   @@index([operatorId, createdAt(sort: Desc)])
   @@index([traceId, createdAt(sort: Desc)])
   @@map("soko_bot_admin_action")
+}
+
+/// Append-only record of Preprod access changes: who switched it, for whom and
+/// why. No foreign keys, like the other operator audit tables: a record
+/// outlives the user, the Organization and the admin it names. Nothing sweeps
+/// it, so `reason` takes a ticket id, no personal details.
+model PreprodAccessChange {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  /// "user" | "organization" | "network" (the Preprod pause)
+  targetType String
+  /// User.id, Organization.id, or "preprod". Intentionally not a relation.
+  targetId   String
+  /// The value the flag was switched to.
+  enabled    Boolean
+  /// User.id of the admin. Intentionally not a relation.
+  operatorId String
+  reason     String @db.VarChar(500)
+
+  @@index([targetType, targetId, createdAt])
+  @@map("preprod_access_change")
 }
 
 /// A member closed CMO's "Cuso got better" dialog for this Cuso's move onto
@@ -4006,6 +4136,13 @@ model TaskEvent {
 
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
+  /// "mainnet" or "preprod": the Network of this event's charge. It stays
+  /// when the Transaction is deleted and `transactionId` is cleared. Null on
+  /// an uncharged event, and on a row written before the column or by a
+  /// release that does not know it. The check `taskEvent_network_check`
+  /// holds the two values; it lives in SQL only, because Prisma cannot
+  /// express CHECKs.
+  network       String?
 
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?

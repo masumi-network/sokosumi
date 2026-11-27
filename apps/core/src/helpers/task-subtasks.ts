@@ -1,5 +1,6 @@
 import type { Prisma, TaskVisibility } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
@@ -146,7 +147,7 @@ export async function touchTaskRow(
   tx: Prisma.TransactionClient,
   taskId: string,
 ): Promise<void> {
-  await tx.$executeRaw`UPDATE "task" SET "position" = "position" WHERE "id" = ${taskId}`;
+  await tx.$executeRaw`UPDATE ${sharedTable("task")} SET "position" = "position" WHERE "id" = ${taskId}`;
 }
 
 /**
@@ -214,10 +215,10 @@ async function renumberSubtaskPositions(
   parentTaskId: string,
 ) {
   await tx.$executeRaw(PrismaRaw.sql`
-    UPDATE "task" AS t SET "position" = ordered.n
+    UPDATE ${sharedTable("task")} AS t SET "position" = ordered.n
     FROM (
       SELECT "id", row_number() OVER (ORDER BY "position", "id") AS n
-      FROM "task" WHERE "parentTaskId" = ${parentTaskId}
+      FROM ${sharedTable("task")} WHERE "parentTaskId" = ${parentTaskId}
     ) AS ordered
     WHERE t."id" = ordered."id"
   `);

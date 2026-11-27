@@ -7,7 +7,11 @@ import {
 } from "@sokosumi/soko-bot";
 import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { isProjectSocialProvider } from "@/config/social-providers";
-import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import {
+  CMO_REPORT_KEY,
+  CMO_REPORT_MESSAGE_PREFIX,
+  cmoReportMessageWhere,
+} from "@/helpers/cmo-report-card";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -69,10 +73,16 @@ import {
   isCompetitorSetup,
   prepareCompetitorCase,
 } from "./eval-cmo-competitors";
+import {
+  pollCmoMonthCalendarCase,
+  startCmoMonthCalendarCase,
+} from "./eval-cmo-month-calendar";
 import { clearCmoSeoReport, prepareCmoSeoReport } from "./eval-cmo-seo-report";
+import { prepareCmoWeeklyReview } from "./eval-cmo-weekly-review";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
+  wokenTurnIds,
 } from "./eval-infrastructure";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
@@ -187,10 +197,19 @@ function brand(name: string) {
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
-  brand: { url: string },
+  brand: { url: string; websiteOnly?: boolean },
   brandBrain: unknown,
 ) {
   const projectId = lane.cusoProjectId;
+  // Month cases leave stand-in accounts connected; a business with only a
+  // website has none, or Cuso rightly reads them as accounts it has.
+  await prisma.projectSocialConnection.updateMany({
+    where: {
+      projectId,
+      externalAccountId: { startsWith: `eval-${lane.lane}-cuso-` },
+    },
+    data: { status: brand.websiteOnly ? "disconnected" : "active" },
+  });
   await prisma.project.update({
     where: { id: projectId },
     data: {
@@ -463,6 +482,59 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
   });
 }
 
+/** Last week's weekly review, then three newer daily reports above it. */
+const EVAL_REPORTS = [
+  {
+    daysAgo: 8,
+    report: {
+      kind: "weekly",
+      headline: "LinkedIn carried the week",
+      done: ["Published 9 posts on LinkedIn and X"],
+      upNext: ["Open more LinkedIn posts with a customer's number"],
+      changes: [],
+      results:
+        "LinkedIn posts reached 4,210 people; X reached 380. Posts that opened with a customer's number got twice the clicks of the others.",
+      verdict: "test",
+      learnings: [
+        "Posts that open with a customer's number get twice the clicks.",
+      ],
+    },
+  },
+  ...[3, 2, 1].map((daysAgo) => ({
+    daysAgo,
+    report: {
+      kind: "daily",
+      headline: "Today's posts are scheduled",
+      done: ["Checked today's posts", "No new comments"],
+      upNext: [],
+      changes: [],
+    },
+  })),
+] as const;
+
+export async function seedCmoReports(lane: EvalLaneRecord): Promise<void> {
+  const room = await prisma.chatRoom.findFirst({
+    where: { sharedSokoBot: { id: lane.cusoBotId } },
+    select: { id: true },
+  });
+  if (!room) throw new Error("The lane's Cuso has no room for reports");
+  await prisma.chatRoomMessage.deleteMany({
+    where: cmoReportMessageWhere(lane.cusoBotId),
+  });
+  const now = Date.now();
+  for (const [index, { daysAgo, report }] of EVAL_REPORTS.entries())
+    await prisma.chatRoomMessage.create({
+      data: {
+        roomId: room.id,
+        clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}eval:${lane.lane}:${index}`,
+        senderSokoBotId: lane.cusoBotId,
+        createdAt: new Date(now - daysAgo * DAY_MS),
+        content: report.headline,
+        metadata: { [CMO_REPORT_KEY]: jsonInput(report) },
+      },
+    });
+}
+
 /**
  * Sets the lane up for a Cuso chat case. For the replies case: a published
  * Instagram post with the eval comments under it. The post has no external
@@ -483,6 +555,14 @@ export async function prepareCmoChatCase(
     return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup === "cmo-report") {
+    await seedCmoReports(lane);
+    return {};
+  }
+  if (setup === "cmo-weekly-review") {
+    await prepareCmoWeeklyReview(lane);
+    return {};
+  }
   if (
     setup === "cmo-competitor-ads" ||
     setup === "cmo-competitor-landing-page"
@@ -677,6 +757,14 @@ export async function startCmoCase(
     const frozen = parseMarketingPlan(evalCase.plan) as MarketingStrategyPlan;
     if (!frozen) throw new Error("The frozen plan does not parse");
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+    if (evalCase.writes) {
+      const { strategyId } = await startCmoMonthCalendarCase({
+        lane,
+        plan: frozen,
+        level: evalCase.writes,
+      });
+      return { kind: "started", turnId: null, state: { strategyId } };
+    }
     if (evalCase.pictures) await captureCmoHomepage(cuso);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
@@ -776,9 +864,11 @@ async function cancelMonthPosts(strategyId: string) {
   });
 }
 
-// Scoped by the approval's id prefix and the parent chain, not by time: the
-// turns' createdAt is PostgreSQL time and the case start is the host's.
-async function monthProductionTurns(botId: string, prefix: string) {
+// Scoped by the approval's id prefix, the parent chain and the runs' own
+// waits, not by time: the turns' createdAt is PostgreSQL time and the case
+// start is the host's. A run's wake is its sibling under the chat turn, so it
+// is found through the run's wait_for, and another case's watch never is.
+export async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
     clientTurnId: true,
@@ -803,7 +893,16 @@ async function monthProductionTurns(botId: string, prefix: string) {
       },
       select,
     });
-    frontier = children.filter((turn) => !turns.has(turn.id));
+    const woken = (await wokenTurnIds(frontier.map((turn) => turn.id))).filter(
+      (id) => !turns.has(id),
+    );
+    const wakes = woken.length
+      ? await prisma.sokoBotTurn.findMany({
+          where: { sokoBotId: botId, id: { in: woken } },
+          select,
+        })
+      : [];
+    frontier = [...children, ...wakes].filter((turn) => !turns.has(turn.id));
     for (const turn of frontier) turns.set(turn.id, turn);
   }
   return [...turns.values()];
@@ -1020,6 +1119,27 @@ async function pollMonth(
         turnIds: [],
       },
     };
+  if (evalCase.writes) {
+    const frozen = parseMarketingPlan(evalCase.plan);
+    const read = await pollCmoMonthCalendarCase({
+      strategyId,
+      examples: frozen?.calendar ?? [],
+      level: evalCase.writes,
+      startedAt: context.startedAt,
+      now: await databaseNow(),
+    });
+    if (read.kind === "waiting") return read;
+    await cancelMonthPosts(strategyId);
+    return {
+      kind: "done",
+      outcome: {
+        status: read.checks.every((check) => check.pass) ? "PASSED" : "FAILED",
+        checks: read.checks,
+        output: read.output,
+        turnIds: [],
+      },
+    };
+  }
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
   const approval = await prisma.marketingStrategy.findUniqueOrThrow({
@@ -1082,13 +1202,6 @@ async function pollMonth(
   if (!reviewed && !timedOut && production.state !== "stuck")
     return { kind: "waiting" };
 
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: {
-      sokoBotId: lane.cusoBotId,
-      createdAt: { gte: context.startedAt },
-    },
-    select: { id: true },
-  });
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
     select: {
@@ -1241,7 +1354,9 @@ async function pollMonth(
         files: files.filter((file) => file !== null),
         production: { pieces, ...metrics },
       },
-      turnIds: turns.map((turn) => turn.id),
+      // The month's own turns and every run or watch follow-up they started;
+      // a watch another case left on the lane is not this month's.
+      turnIds: productionTurns.map((turn) => turn.id),
     },
   };
 }

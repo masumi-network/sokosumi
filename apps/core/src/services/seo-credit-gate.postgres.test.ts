@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { createPrismaClient } from "@sokosumi/database/client";
 import {
   CORE_API_ERROR_KINDS,
   seoFullAuditPrice,
@@ -13,7 +14,6 @@ import {
   it,
   vi,
 } from "vitest";
-
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
@@ -27,7 +27,9 @@ import {
   type SeoActor,
 } from "@/schemas/project-seo.schema";
 import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
+import { testSchemaNames } from "@/test/split-layout";
 import { drainWaitUntil } from "@/test/wait-until";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
 import {
   createTaskScheduleTestApp,
@@ -72,9 +74,26 @@ vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
 
+const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
-  process.env.DATABASE_URL?.startsWith("postgres");
+  url?.startsWith("postgres");
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_MAINNET,
+      })
+    : null;
+
+afterAll(async () => {
+  await mainnet?.$disconnect();
+});
+
+function networkDatabase() {
+  if (!mainnet) throw new Error("Missing integration database");
+  return mainnet;
+}
+
 const CREDIT = 10n ** 10n;
 const userId = randomUUID(),
   workspaceId = randomUUID(),
@@ -92,6 +111,7 @@ const previousExecutor = env.SEO_ANALYSIS_EXECUTOR,
   previousDispatch = env.SEO_ANALYSIS_DISPATCH_ENABLED;
 const vars = {
   isAuthenticated: true,
+  networkScope: testNetworkScope(),
   authContext: {
     actor: "user" as const,
     userId,
@@ -129,13 +149,13 @@ const counts = async () => ({
   schedules: await prisma.taskSchedule.count({ where: { workspaceId } }),
 });
 async function setBalance(credits: bigint) {
-  await prisma.creditBucket.deleteMany({ where: { userId } });
+  await networkDatabase().creditBucket.deleteMany({ where: { userId } });
   if (credits === 0n) return;
-  const topUp = await prisma.transaction.create({
+  const topUp = await networkDatabase().transaction.create({
     data: { amount: credits * CREDIT, userId },
     select: { id: true },
   });
-  await prisma.creditBucket.create({
+  await networkDatabase().creditBucket.create({
     data: { amount: credits * CREDIT, userId, sourceTransactionId: topUp.id },
   });
 }
@@ -202,8 +222,8 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
     await prisma.task.deleteMany({ where: { workspaceId } });
     await prisma.taskSchedule.deleteMany({ where: { workspaceId } });
-    await prisma.creditBucket.deleteMany({ where: { userId } });
-    await prisma.transaction.deleteMany({ where: { userId } });
+    await networkDatabase().creditBucket.deleteMany({ where: { userId } });
+    await networkDatabase().transaction.deleteMany({ where: { userId } });
     await prisma.workspace.delete({ where: { id: workspaceId } });
     await prisma.user.delete({ where: { id: userId } });
     await prisma.coworker.deleteMany({ where: { vendorId } });
@@ -587,7 +607,9 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
           jsonRequest("POST", { status: "RUNNING" }),
         );
       const debits = () =>
-        prisma.transaction.count({ where: { userId, amount: { lt: 0 } } });
+        networkDatabase().transaction.count({
+          where: { userId, amount: { lt: 0 } },
+        });
       const charged = await debits();
       read.mockResolvedValueOnce({ siteEntry: [] });
       const held = await start();
@@ -768,7 +790,9 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       fullAuditCost,
     };
     const debits = () =>
-      prisma.transaction.count({ where: { userId, amount: { lt: 0 } } });
+      networkDatabase().transaction.count({
+        where: { userId, amount: { lt: 0 } },
+      });
     const before = await debits();
     expect((await post("", { credits: 1 })).status).toBe(422);
     expect((await post("/context-v1", body)).status).toBe(422);
@@ -809,7 +833,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     ).toHaveLength(1);
     expect(await debits()).toBe(before + 1);
     expect(
-      await prisma.transaction.findFirst({
+      await networkDatabase().transaction.findFirst({
         where: { userId, amount: -901n * CREDIT },
       }),
     ).toBeTruthy();
@@ -849,6 +873,249 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
         .status,
     ).toBe(201);
     expect(await debits()).toBe(before + 1);
+  });
+
+  it("stores the first valid cost detail beside the receipt, drops an invalid one, and never changes the charge", async () => {
+    const expectedContext = {
+      ownerId: userId,
+      organizationId: null,
+      workspaceId,
+    };
+    const fullAuditCost = {
+      version: 1,
+      gatewayMicroUsd: 4_000_000,
+      directModelMicroUsd: 500_000,
+      dataForSeoMicroUsd: 1_499_999,
+      otherApiMicroUsd: 2,
+    };
+    const detail = {
+      version: 1,
+      models: [
+        {
+          model: "openai/gpt-5",
+          provider: "openai",
+          calls: 3,
+          microUsd: 4_000_000,
+        },
+        // A surrogate pair is storable text and must not drop the detail.
+        {
+          model: `local-${String.fromCodePoint(0x1f50d)}`,
+          provider: null,
+          calls: 1,
+          microUsd: null,
+        },
+      ],
+      dataForSeo: [
+        {
+          endpoint: "/v3/serp/google/organic/task_post",
+          reads: 2,
+          microUsd: 1_499_999,
+        },
+      ],
+      steps: [
+        {
+          step: "other",
+          modelMicroUsd: 4_500_000,
+          dataForSeoMicroUsd: 1_499_999,
+          otherApiMicroUsd: 2,
+        },
+      ],
+    };
+    const settlement = {
+      status: "COMPLETED",
+      expectedContext,
+      credits: 901,
+      fullAuditCost,
+    };
+    const charges = async (taskId: string) => {
+      const events = await prisma.taskEvent.findMany({
+        where: { taskId, transactionId: { not: null } },
+        select: { transactionId: true },
+      });
+      return networkDatabase().transaction.findMany({
+        where: { id: { in: events.map((event) => event.transactionId!) } },
+        select: { amount: true },
+      });
+    };
+    const oneCharge = [{ amount: -901n * CREDIT }];
+    const storedRequest = async (taskId: string) =>
+      (await prisma.projectSeoAnalysis.findUniqueOrThrow({ where: { taskId } }))
+        .request as Record<string, unknown>;
+    async function runningAudit() {
+      await setBalance(1500n);
+      const taskId = (await requestProjectSeoAnalysis(actor, fullAudit()))
+        .taskId!;
+      const app = createTaskScheduleTestApp(
+        mountTaskEvents,
+        { actor: "coworker", coworkerId, vendorId },
+        null,
+      );
+      const post = (body: Record<string, unknown>) =>
+        app.request(
+          `http://localhost/${taskId}/events/seo-settlement-v1`,
+          jsonRequest("POST", body),
+        );
+      expect(
+        (
+          await app.request(
+            `http://localhost/${taskId}/events/context-v1`,
+            jsonRequest("POST", { status: "RUNNING", expectedContext }),
+          )
+        ).status,
+      ).toBe(201);
+      return { taskId, post };
+    }
+    const readBilling = async () => {
+      const response = await createTaskScheduleTestApp(
+        mountAdminSeoAlerts,
+        { ...vars.authContext, role: "admin" },
+        vars.workspaceContext,
+      ).request("http://localhost/seo-alerts?view=billing");
+      expect(response.status).toBe(200);
+      return (await response.json()).data.billing as Record<string, unknown>[];
+    };
+
+    // A detail sent while credits are short is kept, and a later different detail does not replace it.
+    const first = await runningAudit();
+    await setBalance(750n);
+    expect(
+      (await first.post({ ...settlement, fullAuditCostDetail: detail })).status,
+    ).toBe(422);
+    expect(await storedRequest(first.taskId)).toMatchObject({
+      pendingFullAuditCost: fullAuditCost,
+      fullAuditCostDetail: detail,
+    });
+    await setBalance(1500n);
+    await prisma.task.update({
+      where: { id: first.taskId },
+      data: { status: "CREDITS_TOPPED_UP" },
+    });
+    const later = { ...detail, models: [] };
+    expect(
+      (await first.post({ ...settlement, fullAuditCostDetail: later })).status,
+    ).toBe(201);
+    expect(await charges(first.taskId)).toEqual(oneCharge);
+    const settled = await storedRequest(first.taskId);
+    expect(settled).toMatchObject({
+      fullAuditCost,
+      fullAuditCostDetail: detail,
+    });
+    expect(settled).not.toHaveProperty("pendingFullAuditCost");
+    expect(await readBilling()).toContainEqual(
+      expect.objectContaining({
+        taskId: first.taskId,
+        status: "settled",
+        cost: fullAuditCost,
+        costDetail: detail,
+      }),
+    );
+
+    // A stored detail that no longer parses reads as absent.
+    await prisma.projectSeoAnalysis.update({
+      where: { taskId: first.taskId },
+      data: { request: { ...settled, fullAuditCostDetail: { version: 2 } } },
+    });
+    expect(await readBilling()).toContainEqual(
+      expect.objectContaining({
+        taskId: first.taskId,
+        status: "settled",
+        costDetail: null,
+      }),
+    );
+
+    // An unverified row withholds the detail with its cost.
+    await prisma.projectSeoAnalysis.update({
+      where: { taskId: first.taskId },
+      data: {
+        request: {
+          ...settled,
+          fullAuditCost: { ...fullAuditCost, gatewayMicroUsd: 9_000_000 },
+        },
+      },
+    });
+    expect(await readBilling()).toContainEqual(
+      expect.objectContaining({
+        taskId: first.taskId,
+        status: "unverified",
+        cost: null,
+        costDetail: null,
+      }),
+    );
+
+    const invalid = [
+      { ...detail, note: "extra key" },
+      {
+        ...detail,
+        dataForSeo: Array.from({ length: 201 }, () => detail.dataForSeo[0]),
+      },
+      // PostgreSQL jsonb rejects NUL and an unpaired surrogate, which would roll back the charge.
+      {
+        ...detail,
+        models: [
+          { ...detail.models[0], provider: `a${String.fromCharCode(0)}b` },
+        ],
+      },
+      {
+        ...detail,
+        steps: [{ ...detail.steps[0], step: String.fromCharCode(0xd800) }],
+      },
+      {
+        ...detail,
+        dataForSeo: [{ ...detail.dataForSeo[0], microUsd: 1_000_000_000_001 }],
+      },
+    ];
+    for (const fullAuditCostDetail of invalid) {
+      const audit = await runningAudit();
+      expect(
+        (await audit.post({ ...settlement, fullAuditCostDetail })).status,
+      ).toBe(201);
+      expect(await charges(audit.taskId)).toEqual(oneCharge);
+      const stored = await storedRequest(audit.taskId);
+      expect(stored).toHaveProperty("fullAuditCost", fullAuditCost);
+      expect(stored).not.toHaveProperty("fullAuditCostDetail");
+      expect(await readBilling()).toContainEqual(
+        expect.objectContaining({
+          taskId: audit.taskId,
+          status: "settled",
+          costDetail: null,
+        }),
+      );
+    }
+  });
+
+  it("refuses a charge on a free page check", async () => {
+    await setBalance(100n);
+    const created = await requestProjectSeoAnalysis(
+      actor,
+      requestSeoAnalysisSchema.parse({
+        kind: "page_check",
+        pageIds: [pageId],
+        countryCode: "US",
+        languageCode: "en",
+        maxProviderCalls: 0,
+        idempotencyKey: randomUUID(),
+      }),
+    );
+    const app = createTaskScheduleTestApp(
+      mountTaskEvents,
+      { actor: "coworker", coworkerId, vendorId },
+      null,
+    );
+    const post = (body: Record<string, unknown>) =>
+      app.request(
+        `http://localhost/${created.taskId}/events`,
+        jsonRequest("POST", body),
+      );
+    const debits = () =>
+      networkDatabase().transaction.count({
+        where: { userId, amount: { lt: 0 } },
+      });
+    const before = await debits();
+    const charged = await post({ credits: 5 });
+    expect(charged.status).toBe(422);
+    expect(await debits()).toBe(before);
+    // The free check still finishes without a charge.
+    expect((await post({ status: "COMPLETED" })).status).toBe(201);
   });
 
   it("checks the frozen 750-credit price again before provider work", async () => {
@@ -1092,12 +1359,14 @@ describe.skipIf(!enabled)("SEO credit ceiling of a Project's check", () => {
   };
   let projectPageId: string;
   async function setProjectCredits(credits: bigint) {
-    await prisma.creditBucket.deleteMany({ where: { organizationId } });
-    const topUp = await prisma.transaction.create({
+    await networkDatabase().creditBucket.deleteMany({
+      where: { organizationId },
+    });
+    const topUp = await networkDatabase().transaction.create({
       data: { amount: credits * CREDIT, organizationId },
       select: { id: true },
     });
-    await prisma.creditBucket.create({
+    await networkDatabase().creditBucket.create({
       data: {
         amount: credits * CREDIT,
         organizationId,
@@ -1167,8 +1436,12 @@ describe.skipIf(!enabled)("SEO credit ceiling of a Project's check", () => {
     env.SEO_ANALYSIS_EXECUTOR = previousExecutor;
     env.SEO_ANALYSIS_DISPATCH_ENABLED = previousDispatch;
     await prisma.task.deleteMany({ where: { workspaceId: orgWorkspaceId } });
-    await prisma.creditBucket.deleteMany({ where: { organizationId } });
-    await prisma.transaction.deleteMany({ where: { organizationId } });
+    await networkDatabase().creditBucket.deleteMany({
+      where: { organizationId },
+    });
+    await networkDatabase().transaction.deleteMany({
+      where: { organizationId },
+    });
     await prisma.project.deleteMany({ where: { id: projectId } });
     await prisma.organization.delete({ where: { id: organizationId } });
     await prisma.user.delete({ where: { id: memberId } });

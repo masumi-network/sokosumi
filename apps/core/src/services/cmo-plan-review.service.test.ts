@@ -23,6 +23,7 @@ import {
   cmoChannelFitProblems,
   cmoDistinctClaims,
   cmoDraftProblems,
+  cmoExampleProblems,
   cmoFitMonthToCalendar,
   cmoFollowCadenceChange,
   cmoFunnelPlanProblems,
@@ -45,9 +46,27 @@ import {
   cmoWeekGaps,
   cmoWithOwnerPace,
   funnelStageProblems,
+  goesOutOn,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
+
+describe("goesOutOn", () => {
+  it("counts a video's other shapes on their networks", () => {
+    const entry = {
+      id: "v1",
+      date: "2026-11-30",
+      channel: "tiktok",
+      format: "video",
+      title: "Roasted this morning",
+      status: "idea",
+      alsoOn: ["instagram_feed", "youtube_video", "x"],
+    } as MarketingStrategyPlan["calendar"][number];
+    for (const network of ["tiktok", "instagram", "youtube", "x"])
+      expect(goesOutOn(entry, network), network).toBe(true);
+    expect(goesOutOn(entry, "linkedin")).toBe(false);
+  });
+});
 
 /**
  * Texts naming one topic say one thing; every other text gets a direction
@@ -176,7 +195,6 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/funnel has 1 stages/);
     expect(problems.join("\n")).toMatch(/objective's metric, "Intro calls"/);
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
-    expect(problems.join("\n")).toMatch(/holds drafts/);
   });
 
   it("leaves the hard rules to the save, so it never sends Cuso back for them", () => {
@@ -1340,6 +1358,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
       weekly: true,
@@ -1352,6 +1372,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-part-patch"])).toEqual({
       weekly: true,
@@ -1364,6 +1386,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-channel-fit"])).toEqual({
       weekly: true,
@@ -1376,6 +1400,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-plain-words"])).toEqual({
       weekly: true,
@@ -1388,6 +1414,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v20"])).toEqual({
       weekly: true,
@@ -1400,6 +1428,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: true,
       pillarFacts: true,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     expect(cmoStrategyRules(["cmo-strategy-v21"])).toEqual({
       weekly: true,
@@ -1412,7 +1442,27 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: true,
       pillarFacts: true,
       industryTopics: true,
+      examplesOnly: false,
+      strategyStep: false,
     });
+    expect(cmoStrategyRules(["cmo-strategy-v22"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+      claims: true,
+      partPatch: true,
+      channelFit: true,
+      plainWords: true,
+      stageSpread: true,
+      pillarFacts: true,
+      industryTopics: true,
+      examplesOnly: true,
+      strategyStep: false,
+    });
+    expect(
+      cmoStrategyRules(["cmo-strategy-v22", "cmo-core-writes-strategy"])
+        .strategyStep,
+    ).toBe(true);
     expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
       weekly: false,
       aida: false,
@@ -1424,6 +1474,8 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
   });
 
@@ -1561,6 +1613,16 @@ describe("a network the Brand Brain shows no profile on", () => {
     ).toEqual([
       'the Brand Brain shows no profile on instagram; start its why with "New:" and say the owner opens the account.',
     ]);
+  });
+
+  it("never asks for New: on a network the business connected", () => {
+    expect(
+      cmoNewNetworkProblems(
+        plan({ channels: [on("instagram", "Teams look at product shots.")] }),
+        brain,
+        ["instagram"],
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -2099,6 +2161,8 @@ describe("claims", () => {
       stageSpread: false,
       pillarFacts: false,
       industryTopics: false,
+      examplesOnly: false,
+      strategyStep: false,
     });
     const strategy = plan({
       calendar: [
@@ -2433,6 +2497,67 @@ describe("cmoFollowCadenceChange", () => {
 
   it("leaves a calendar alone when no cadence changed", () => {
     expect(cmoFollowCadenceChange(before, before)).toBe(before);
+  });
+
+  // cmo-change-request on mainnet, 2026-11-25: LinkedIn cut to once a week
+  // left the month off its mix, and the save was refused for it.
+  it("cuts the pieces that keep the mix and pillars at their shares", () => {
+    const piece = (
+      id: string,
+      key: string,
+      index: number,
+      approach: "educational" | "product-led",
+    ) => ({
+      ...entry(id, key, "post"),
+      date: day(index),
+      approach,
+      pillar: approach === "educational" ? "Teach" : "Show",
+    });
+    const mixed = plan({
+      channels: [channel("x", "3 a week"), channel("linkedin", "3 a week")],
+      mix: [
+        { approach: "educational", share: 50, why: "Teach" },
+        { approach: "product-led", share: 50, why: "Show" },
+      ],
+      pillars: [
+        { name: "Teach", share: 50, why: "i1 i2 i3" },
+        { name: "Show", share: 50, why: "i4 i5 i6" },
+      ],
+      calendar: [
+        ...Array.from({ length: 12 }, (_, index) =>
+          piece(
+            `x-${index}`,
+            "x",
+            index,
+            index < 4 ? "educational" : "product-led",
+          ),
+        ),
+        // The latest LinkedIn pieces teach: cutting by date alone keeps
+        // only the product ones.
+        ...Array.from({ length: 12 }, (_, index) =>
+          piece(
+            `li-${index}`,
+            "linkedin",
+            index * 2,
+            index < 4 ? "product-led" : "educational",
+          ),
+        ),
+      ],
+    });
+    const cut = cmoFollowCadenceChange(
+      plan({
+        ...mixed,
+        channels: [channel("x", "3 a week"), channel("linkedin", "1 a week")],
+      }),
+      mixed,
+    );
+    expect(
+      cut.calendar.filter((item) => item.channel === "linkedin"),
+    ).toHaveLength(4);
+    const taught = cut.calendar.filter(
+      (item) => item.approach === "educational",
+    );
+    expect(taught.length / cut.calendar.length).toBe(0.5);
   });
 });
 
@@ -2869,5 +2994,109 @@ describe("cmoPlainWordsProblems", () => {
 
   it("passes the plain base plan, operations leads and all", () => {
     expect(cmoPlainWordsProblems(plan())).toEqual([]);
+  });
+});
+
+describe("cmo-v22's example posts", () => {
+  const example = (
+    id: string,
+    channel: string,
+    format: string,
+    pillar: string,
+    extra: Partial<MarketingStrategyPlan["calendar"][number]> = {},
+  ) => ({
+    ...entry(id, channel, format),
+    title: `Example ${id}`,
+    pillar,
+    approach: "educational" as const,
+    stage: "awareness" as const,
+    brief: "What it shows",
+    why: "Serves the pillar",
+    claim: `Claim ${id}`,
+    ...extra,
+  });
+  const networks = ["x", "linkedin", "instagram", "tiktok"].map((channel) => ({
+    channel,
+    cadence: "top rate",
+  }));
+  const shaped = (calendar: MarketingStrategyPlan["calendar"]) =>
+    plan({
+      channels: networks,
+      calendar,
+      monthWriter: { state: "examples", attempts: 0 },
+    });
+  const good = [
+    example("e1", "x", "image", "Recurring work"),
+    example("e2", "linkedin", "image", "Pilot results"),
+    example("e3", "tiktok", "video", "Setup", {
+      alsoOn: ["instagram"],
+      approach: "promotional",
+      stage: "action",
+    }),
+  ];
+
+  it("passes three to five whole examples on different pillars and networks", () => {
+    expect(
+      cmoExampleProblems(shaped(good), { stageSpread: true, claims: true }),
+    ).toEqual([]);
+  });
+
+  it("asks for the range: pillars, networks, a short video, whole briefs", () => {
+    const narrow = [
+      example("e1", "x", "image", "Recurring work"),
+      example("e2", "x", "post", "Recurring work"),
+      example("e3", "x", "image", "Recurring work", { claim: undefined }),
+    ];
+    expect(
+      cmoExampleProblems(shaped(narrow), { stageSpread: true, claims: true }),
+    ).toEqual([
+      "the examples cover 1 of the 3 pillars; give each example another pillar, so the owner sees what each pillar makes.",
+      "the examples go out on 1 network; put them on at least 3 of the strategy's networks.",
+      "no example is a short video; make one a instagram reel or tiktok video with the other short-video networks in alsoOn.",
+      "e3 is not whole examples; give each its brief, why, approach, stage and claim.",
+    ]);
+    expect(cmoExampleProblems(shaped(good.slice(0, 2)))[0]).toBe(
+      "the calendar holds 2 example posts; show 3 to 5, so the owner sees what the month makes before paying.",
+    );
+  });
+
+  it("holds the examples to no volume, cadence or share rule, and refuses more than five", () => {
+    const problems = cmoPlanProblems(shaped(good), {
+      ...cmoStrategyRules(["cmo-strategy-v22"]),
+    });
+    expect(
+      problems.filter((problem) =>
+        /calendar (covers|has|uses)|pieces a week|no piece serves|planned at|crowd/.test(
+          problem,
+        ),
+      ),
+    ).toEqual([]);
+    expect(cmoPlanRuleProblems(shaped(good))).toEqual([]);
+    const six = [0, 1, 2, 3, 4, 5].map((index) =>
+      example(`s${index}`, "x", "image", "Setup"),
+    );
+    expect(cmoPlanRuleProblems(shaped(six))).toEqual([
+      'Rule "5 example posts": the calendar has 6 pieces; before payment it holds 3 to 5 example posts, and Core writes the whole month after payment. Save only your best 5.',
+    ]);
+  });
+
+  it("promises nothing a finish turn or the approval would ask of Cuso", () => {
+    const rules = cmoStrategyRules(["cmo-strategy-v22"]);
+    expect(cmoPromiseGaps(shaped(good), rules)).toEqual([]);
+    expect(cmoMonthShortfall(shaped(good), rules)).toBeNull();
+    // Written after payment at Starter, the month is still Core's.
+    const written = plan({
+      channels: networks,
+      calendar: good,
+      monthWriter: { state: "written", level: "steady", attempts: 1 },
+    });
+    expect(cmoPromiseGaps(written, rules)).toEqual([]);
+  });
+
+  it("leaves a month without monthWriter to the rules it always had", () => {
+    const rules = cmoStrategyRules(["cmo-strategy-v22"]);
+    const old = plan({ channels: networks, calendar: good });
+    expect(cmoPromiseGaps(old, rules).length).toBeGreaterThan(0);
+    expect(cmoPlanRuleProblems(old)[0]).toContain('Rule "16 pieces"');
   });
 });

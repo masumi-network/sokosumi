@@ -22,6 +22,9 @@ describe("related-page trust boundary", () => {
     expect(seoPageComparisonKey("https://example.test/caf%c3%a9")).toBe(
       seoPageComparisonKey("https://example.test/caf%C3%A9"),
     );
+    expect(seoPageComparisonKey("https://example.test/page?")).toBe(
+      seoPageComparisonKey("https://example.test/page"),
+    );
     expect(seoPageComparisonKey("https://example.test/a%2fb")).not.toBe(
       seoPageComparisonKey("https://example.test/a/b"),
     );
@@ -169,6 +172,17 @@ describe("related-page trust boundary", () => {
     };
     expect(originalSeoAuditPacket(request)).toEqual(original);
     expect(originalSeoAuditPacket(original)).toEqual(original);
+    expect(
+      originalSeoAuditPacket({
+        ...request,
+        fullAuditCostDetail: {
+          version: 1,
+          models: [],
+          dataForSeo: [],
+          steps: [],
+        },
+      }),
+    ).toEqual(original);
     expect(() =>
       originalSeoAuditPacket({ ...request, pageUrls: selected }),
     ).toThrow("invalid");

@@ -9,6 +9,7 @@ import {
   SeoKeywordTrendChart,
   SeoKeywordTrendReason,
 } from "./seo-keyword-trend";
+import { seoRankShownTop } from "./seo-rank-detail-model";
 import type { SeoRankSeries } from "./seo-rank-history-model";
 import type { SeoKeywordTrend } from "./seo-search-model";
 import { SeoSerpFeatures } from "./seo-serp-features";
@@ -51,9 +52,27 @@ export function SeoKeywordHistory({
 }) {
   const t = useSeoResultTranslations("App.Seo.keywords");
   const format = useSeoResultFormatter();
+  // One date axis for the paid checks and the Search Console days: the same day sits at the same place in both.
+  const dates = [
+    ...series.flatMap((item) => item.points),
+    ...(trend.state === "measured" ? trend.points : []),
+  ]
+    .map((point) => point.date)
+    .toSorted();
+  const first = dates.at(0);
+  const last = dates.at(-1);
+  const domain =
+    series.length && trend.state === "measured" && first && last
+      ? { from: first, to: last }
+      : undefined;
   const searchConsole =
     trend.state === "measured" ? (
-      <SeoKeywordTrendChart keyword={keyword} points={trend.points} />
+      <SeoKeywordTrendChart
+        keyword={keyword}
+        points={trend.points}
+        truncated={trend.truncated}
+        domain={domain}
+      />
     ) : (
       <SeoKeywordTrendReason trend={trend} />
     );
@@ -62,7 +81,14 @@ export function SeoKeywordHistory({
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {series.length ? (
-        <HistoryPart title={t("historyPaidTitle")} note={t("historyPaidNote")}>
+        <HistoryPart
+          title={t("historyPaidTitle")}
+          note={
+            series.some((item) => item.cut)
+              ? `${t("historyPaidNote")} ${t("historyOlderHidden")}`
+              : t("historyPaidNote")
+          }
+        >
           {series.map((item) =>
             item.points.length ? (
               <SeoTrendChart
@@ -79,6 +105,12 @@ export function SeoKeywordHistory({
                 })}
                 formatValue={(value) => format.number(value)}
                 unavailable={t("historyNotInRange")}
+                outsideLabel={(top) =>
+                  top === null
+                    ? t("historyNotInRange")
+                    : t("historyNotInTop", { count: seoRankShownTop(top) })
+                }
+                domain={domain}
                 positionNote={t("historyPaidAxis")}
               />
             ) : null,

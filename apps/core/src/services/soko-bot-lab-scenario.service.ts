@@ -3,6 +3,7 @@ import {
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   SYSTEM_TURN_ROUTES,
@@ -88,6 +89,7 @@ export async function startLabScenarioTurn(
           ).message;
     return reconciled(
       await sokoBotControlPlane.startTurn({
+        network: DETACHED_SOKO_BOT_NETWORK,
         userId: owner.bot.userId,
         workspaceId: owner.workspaceId,
         clientTurnId,
@@ -133,6 +135,7 @@ export async function startLabScenarioTurn(
   if (key && !schedule) throw new Error(`Missing system schedule: ${key}`);
   return reconciled(
     await sokoBotControlPlane.startTurn({
+      network: DETACHED_SOKO_BOT_NETWORK,
       userId: owner.bot.userId,
       workspaceId: owner.workspaceId,
       clientTurnId,
@@ -165,7 +168,13 @@ export async function loadLabScenarioTurn(turnId: string) {
       errorDetail: true,
       toolCalls: {
         orderBy: { createdAt: "asc" },
-        select: { capability: true, status: true, input: true, result: true },
+        select: {
+          capability: true,
+          status: true,
+          input: true,
+          result: true,
+          errorKind: true,
+        },
       },
       events: { select: { type: true, toolName: true } },
       delegations: {

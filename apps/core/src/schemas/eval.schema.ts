@@ -49,6 +49,7 @@ const suiteScoreSchema = z.object({
   errors: z.number().int(),
   skipped: z.number().int(),
   open: z.number().int(),
+  /** Mean of the cases' pass rates: every case counts once, whatever its repeats. */
   passRate: z.number().nullable(),
 });
 
@@ -101,9 +102,20 @@ export const evalCaseReportSchema = z
     outcome: evalOutcomeSchema,
     states: z.array(evalResultStatusSchema),
     passRate: z.number().nullable(),
+    /** Pass rate in the last daily run that gave the case a verdict: the week it is compared with. */
     baselinePassRate: z.number().nullable(),
     /** Pass rate in earlier daily runs, newest first; null where it did not run. */
     history: z.array(z.number().nullable()),
+    /** Median cost of this run's scored repeats. */
+    costUsd: z.number().nullable(),
+    /** Median cost in the last five weekly runs; null with fewer than three. */
+    usualCostUsd: z.number().nullable(),
+    /** It cost more than 1.3 times its usual cost. */
+    costlier: z.boolean(),
+    durationMs: z.number().nullable(),
+    usualDurationMs: z.number().nullable(),
+    /** It took more than 1.3 times its usual time. */
+    slower: z.boolean(),
     results: z.array(evalResultSchema),
   })
   .openapi("EvalCaseReport");
@@ -117,6 +129,11 @@ export const evalRunReportSchema = z
     history: z.array(evalRunRefSchema),
     summary: z.object({
       counts: z.record(evalOutcomeSchema, z.number().int()),
+      /** Cases that cost or took more than 1.3 times their usual run. */
+      costlier: z.number().int(),
+      slower: z.number().int(),
+      /** Mean of the cases' pass rates: every case counts once, whatever its repeats. */
+      passRate: z.number().nullable(),
       passed: z.number().int(),
       scored: z.number().int(),
       open: z.number().int(),

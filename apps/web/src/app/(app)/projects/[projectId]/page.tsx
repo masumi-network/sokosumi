@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 
@@ -30,6 +31,21 @@ import { notificationService } from "@/lib/services/notification.service";
 import { projectService } from "@/lib/services/project.service";
 
 import { loadProjectOverviewData } from "./project-overview-data";
+import { projectPageMetadata } from "./project-page-metadata";
+
+/**
+ * The project's name as the tab title. Set here, not on the project layout:
+ * a layout's own title keeps the app's "Sokosumi - %s" template from every
+ * page below it.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const { projectId } = await params;
+  return projectPageMetadata(projectId);
+}
 
 export default async function ProjectDetailPage({
   params,

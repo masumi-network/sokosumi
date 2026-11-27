@@ -96,12 +96,12 @@ describe("pre-hire Site", () => {
       />,
     );
     expect(html).toContain(
-      "Give me your website. I&#x27;ll show you a month of posts.",
+      "Give me your website. I&#x27;ll show you a plan and the first posts.",
     );
     expect(html).toContain("Start reading");
     expect(html).toContain('value="acme.io"');
     expect(html).not.toContain("3 min");
-    expect(html).toContain("Drafts your first month");
+    expect(html).toContain("Drafts your first posts");
     expect(html).toMatch(/aria-current="step"[^>]*>(?:(?!<\/li>).)*Research/);
     // No organizations: nothing asks where Cuso goes.
     expect(html).not.toContain('name="organizationId"');
@@ -1008,7 +1008,7 @@ describe("Launch", () => {
     expect(html).not.toContain(">Search Console</button>");
   });
 
-  it("lists only the plan's networks, with their pieces, and no newsletter", () => {
+  it("lists only the plan's networks, with their pieces, and says where the newsletter's list goes", () => {
     const html = render(approved());
     expect(html).toContain("One thing, then I start.");
     expect(html).toContain("LinkedIn");
@@ -1023,8 +1023,12 @@ describe("Launch", () => {
     expect(html).not.toContain("Can wait");
     expect(html).toContain("Add later");
     expect(html).toContain("Facebook &amp; Instagram ads");
-    expect(html).not.toContain("Newsletter");
-    expect(html).not.toContain("mailing list");
+    // The newsletter is set up after hiring: a note, never a row or a chip.
+    expect(html).toContain(
+      "Newsletter: add your mailing list on the Channels page.",
+    );
+    expect(html).not.toContain(">Newsletter</button>");
+    expect(html).not.toMatch(/Newsletter, \+/);
   });
 
   it("launches once one of the plan's networks is connected", () => {

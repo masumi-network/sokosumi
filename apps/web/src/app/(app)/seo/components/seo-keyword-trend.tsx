@@ -62,7 +62,13 @@ export function SeoKeywordTrendReason({
   if (trend.state === "absent" || trend.state === "measured") return null;
   return (
     <p className={cn("text-muted-foreground text-xs", className)}>
-      {t(trend.state === "empty" ? "trendEmpty" : "trendNotRequested")}
+      {t(
+        trend.state === "not_requested"
+          ? "trendNotRequested"
+          : trend.truncated
+            ? "trendTruncated"
+            : "trendEmpty",
+      )}
     </p>
   );
 }
@@ -71,25 +77,39 @@ export function SeoKeywordTrendReason({
 export function SeoKeywordTrendChart({
   keyword,
   points,
+  truncated = false,
+  domain,
 }: {
   keyword: string;
   points: Extract<SeoKeywordTrend, { state: "measured" }>["points"];
+  /** The Search Console read stopped at its row limit: days can be missing. */
+  truncated?: boolean;
+  domain?: { from: string; to: string };
 }) {
   const t = useSeoResultTranslations("App.Seo.keywords");
   const format = useSeoResultFormatter();
   return (
-    <SeoTrendChart
-      points={points}
-      unit="position"
-      series={{ source: "search_console", key: "position" }}
-      label={t("trendLabel", { keyword })}
-      formatValue={(value) =>
-        format.number(value, {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        })
-      }
-      unavailable={t("trendNoImpressions")}
-    />
+    <>
+      <SeoTrendChart
+        points={points}
+        unit="position"
+        domain={domain}
+        series={{ source: "search_console", key: "position" }}
+        label={t("trendLabel", { keyword })}
+        formatValue={(value) =>
+          format.number(value, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })
+        }
+        // A read cut at its row limit cannot tell a day without impressions from a day it did not get.
+        unavailable={t(truncated ? "trendNoPosition" : "trendNoImpressions")}
+      />
+      {truncated ? (
+        <p className="text-muted-foreground mt-2 text-xs">
+          {t("trendTruncated")}
+        </p>
+      ) : null}
+    </>
   );
 }

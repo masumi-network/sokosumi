@@ -343,6 +343,39 @@ describe("authorized chat results", () => {
       await hydrateChatResultSnapshots([followUp], "someone-else"),
     ).toEqual([{ id: followUp.data.id, state: "unavailable" }]);
   });
+  it("hides a schedule's full-audit request line, also on a card saved before", async () => {
+    taskSchedule.mockResolvedValue({
+      id: "schedule-1",
+      name: "Weekly audit",
+      state: "ACTIVE",
+      description:
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}',
+      nextRunAt: capturedAt,
+      timezone: "Europe/Prague",
+      expr: "0 9 * * 1",
+    });
+    const card = await resolveChatResultReference({
+      reference: { kind: "task_schedule", id: "schedule-1" },
+      actor,
+    });
+    expect(card.data).toMatchObject({
+      summary: "Full SEO audit of 2 selected pages:",
+    });
+    const [hydrated] = await hydrateChatResultSnapshots(
+      [
+        {
+          ...card,
+          data: { ...card.data, summary: 'seo_monitor: {"version":2}' },
+        },
+      ],
+      "owner",
+    );
+    // The card keeps what it showed when saved, as a sentence, not the raw plan.
+    expect(hydrated).toMatchObject({
+      summary:
+        "SEO monitor. Review its saved plan before the next scheduled run.",
+    });
+  });
   it("reads scheduled posts through project access outside the Ads beta", async () => {
     socialPost.mockResolvedValue({
       text: "Our launch",

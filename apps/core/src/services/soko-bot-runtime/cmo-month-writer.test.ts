@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { type CmoPiece } from "@/services/cmo-production.service";
+import { expectCoreLog } from "@/test/core-log";
 
 const m = vi.hoisted(() => ({
   generateText: vi.fn(),
@@ -15,6 +17,7 @@ const m = vi.hoisted(() => ({
   styles: { on: true },
 }));
 
+vi.mock("node:timers/promises", () => ({ setTimeout: async () => undefined }));
 vi.mock("ai", async (original) => ({
   ...(await original<typeof import("ai")>()),
   generateText: m.generateText,
@@ -66,6 +69,15 @@ vi.mock("@/services/cmo-plan-review.service", () => ({
   cmoDraftProblems: m.draftProblems,
 }));
 vi.mock("./cmo", () => ({ chargeCheck: m.chargeCheck }));
+// No site captured and no industry research yet.
+vi.mock("@/services/cmo-site-pages.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-site-pages.service")>()),
+  readCmoSitePages: async () => null,
+}));
+vi.mock("@/services/cmo-industry.service", async (original) => ({
+  ...(await original<typeof import("@/services/cmo-industry.service")>()),
+  readCmoIndustry: async () => null,
+}));
 vi.mock("@/services/social-posts.service", () => ({
   getSocialPost: m.getSocialPost,
 }));
@@ -77,6 +89,7 @@ import {
   cmoWriterChunks,
   cmoWriterModelTimeoutMs,
   cmoWriterSystem,
+  cmoWrittenChunkSchema,
   writeCmoMonthPieces,
 } from "./cmo-month-writer";
 
@@ -122,6 +135,8 @@ function written(id: string, extra: Record<string, unknown> = {}) {
     presenter: null,
     voice: null,
     languageCode: null,
+    shortFormat: null,
+    hookLine: null,
     ...extra,
   };
 }
@@ -175,7 +190,7 @@ beforeEach(() => {
 });
 
 describe("cmoWriterChunks", () => {
-  it("chunks pieces per network in date order, ten at most", () => {
+  it("chunks pieces per network in date order, three at most", () => {
     const pieces = [
       ...Array.from({ length: 12 }, (_, n) =>
         piece(`x${n}`, { date: `2026-11-${String(30 - n).padStart(2, "0")}` }),
@@ -183,9 +198,9 @@ describe("cmoWriterChunks", () => {
       piece("li", { channel: "linkedin" }),
     ];
     const chunks = cmoWriterChunks(pieces);
-    expect(chunks.map((chunk) => chunk.length)).toEqual([10, 2, 1]);
+    expect(chunks.map((chunk) => chunk.length)).toEqual([3, 3, 3, 3, 1]);
     expect(chunks[0]![0]!.id).toBe("x11");
-    expect(new Set(chunks[2]!.map((one) => one.channel))).toEqual(
+    expect(new Set(chunks[4]!.map((one) => one.channel))).toEqual(
       new Set(["linkedin"]),
     );
   });
@@ -521,6 +536,110 @@ describe("writeCmoMonthPieces", () => {
     expect(now - start).toBeLessThan(115_000);
   });
 
+  it("writes a 24-piece month in chunks of three, each answered in time", async () => {
+    // cmo-month-timed, 2026-11-25: chunks of ten ran past 75 s, and the
+    // month wrote nothing.
+    const pieces = Array.from({ length: 24 }, (_, n) =>
+      piece(`p${n}`, { date: `2026-12-${String(n + 1).padStart(2, "0")}` }),
+    );
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: pieces,
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({ strategy, pending: [], failedMedia: new Set() });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockImplementation(
+      async ({ prompt }: { prompt: string }) => ({
+        output: {
+          pieces: pieces
+            .filter((one) => new RegExp(`\\b${one.id}\\b`).test(prompt))
+            .map((one) => written(one.id)),
+        },
+        usage: { inputTokens: 1_000, outputTokens: 200 },
+      }),
+    );
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(m.generateText).toHaveBeenCalledTimes(8);
+    expect(result).toMatchObject({ written: 24, refused: [], left: 0 });
+    // Low effort: at the default a 3-piece chunk reasoned past 75 s.
+    expect(m.generateText.mock.calls[0]![0].providerOptions.openai).toEqual({
+      reasoningEffort: "low",
+    });
+  });
+
+  it("writes a chunk again once when its call failed fast", async () => {
+    m.readCmoProduction
+      .mockResolvedValueOnce({
+        strategy,
+        pending: [piece("p1")],
+        failedMedia: new Set(),
+      })
+      .mockResolvedValue({ strategy, pending: [], failedMedia: new Set() });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText
+      .mockRejectedValueOnce(new Error("Gateway answered 502"))
+      .mockResolvedValue({
+        output: { pieces: [written("p1")] },
+        usage: { inputTokens: 1_000, outputTokens: 200 },
+      });
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(m.generateText).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ written: 1, refused: [], left: 0 });
+  });
+
+  it("leaves a chunk that ran out its time to the next call", async () => {
+    m.readCmoProduction.mockResolvedValue({
+      strategy,
+      pending: [piece("p1")],
+      failedMedia: new Set(),
+    });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockRejectedValue(
+      Object.assign(new Error("The operation was aborted due to timeout"), {
+        name: "TimeoutError",
+      }),
+    );
+    expectCoreLog("warn", "A chunk of the month wrote nothing");
+    expectCoreLog("error", "Core's month writer wrote nothing");
+    await writeCmoMonthPieces(runtime() as never, input, authorized);
+
+    expect(m.generateText).toHaveBeenCalledTimes(1);
+  });
+
+  it("says plainly that Core failed when every chunk wrote nothing", async () => {
+    // entry.fyi, 2026-11-23 to 25: every call answered "written 0, call again".
+    m.readCmoProduction.mockResolvedValue({
+      strategy,
+      pending: [piece("p1")],
+      failedMedia: new Set(),
+    });
+    m.draftProblems.mockResolvedValue({ problems: [], costUsd: 0 });
+    m.generateText.mockRejectedValue(new Error("Invalid schema"));
+    expectCoreLog("warn", "A chunk of the month wrote nothing");
+    expectCoreLog("error", "Core's month writer wrote nothing");
+    const result = await writeCmoMonthPieces(
+      runtime() as never,
+      input,
+      authorized,
+    );
+
+    expect(result).toMatchObject({ written: 0, refused: [], left: 1 });
+    expect(result.next).toContain("fault on our side");
+    expect(result.next).toContain("Do not call write_month_pieces again");
+  });
+
   it("gives a model call only what the deadline leaves", () => {
     expect(cmoWriterModelTimeoutMs(100_000, 0)).toBe(75_000);
     expect(cmoWriterModelTimeoutMs(100_000, 50_000)).toBe(35_000);
@@ -696,7 +815,11 @@ describe("writeCmoMonthPieces on cmo-v20", () => {
     ).toEqual(["p2", "p1"]);
   });
 
-  it("writes as before when the points call fails", async () => {
+  it("writes as before when the points call fails, and says it went on without them", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "The month writer went on without one of its inputs",
+    );
     const pieces = [piece("p1")];
     m.readCmoProduction
       .mockResolvedValueOnce({
@@ -719,6 +842,7 @@ describe("writeCmoMonthPieces on cmo-v20", () => {
       });
     const result = await writeCmoMonthPieces(runtime() as never, input, v17);
     expect(result).toMatchObject({ written: 1, refused: [] });
+    expect(warnings[0]?.event).toMatchObject({ writerInput: "points" });
   });
 });
 
@@ -785,5 +909,23 @@ describe("a cmo-v20 short video", () => {
       "Leave shortFormat and hookLine null.",
     );
     expect(cmoWriterSystem(base)).not.toContain("## Short videos");
+  });
+});
+
+// 2026-11-25: an optional key made OpenAI's strict structured output refuse
+// the schema, and every chunk of every month wrote nothing for two days.
+describe("cmoWrittenChunkSchema", () => {
+  it("requires every key, as strict structured output demands", () => {
+    const schema = z.toJSONSchema(cmoWrittenChunkSchema) as unknown as {
+      properties: {
+        pieces: {
+          items: { properties: Record<string, unknown>; required?: string[] };
+        };
+      };
+    };
+    const piece = schema.properties.pieces.items;
+    expect([...(piece.required ?? [])].sort()).toEqual(
+      Object.keys(piece.properties).sort(),
+    );
   });
 });

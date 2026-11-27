@@ -21,7 +21,7 @@ const PROPER_PHRASES = [
   "Content Studio",
   "TikTok Studio",
   "Sokosumi Projects",
-  "Agent Identities",
+  "Agent Marketplace",
   // Ad platforms.
   "Google Ads",
   "Google Search",
@@ -96,6 +96,9 @@ const PROPER_WORDS = new Set([
   "Jev",
   "YouTube",
   "TikTok",
+  // Networks named in the Files crop shapes.
+  "Instagram",
+  "Facebook",
   // AI assistants that GA4 counts in its AI Assistant channel.
   "ChatGPT",
   "Gemini",

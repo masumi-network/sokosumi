@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import { createMiddleware } from "hono/factory";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -90,6 +91,12 @@ function campaignRow(overrides: Record<string, unknown> = {}) {
     updatedAt: new Date("2026-10-01T00:00:00.000Z"),
     ...overrides,
   };
+}
+
+function capturedCampaignWrite() {
+  expect(executeMock).toHaveBeenCalledTimes(1);
+  const [strings, ...values] = executeMock.mock.calls[0];
+  return PrismaRaw.sql(strings as TemplateStringsArray, ...values);
 }
 
 function createApp() {
@@ -271,14 +278,17 @@ describe("admin badge campaigns", () => {
       },
       select: { id: true },
     });
-    expect(executeMock).toHaveBeenCalledWith(
-      expect.any(Array),
+    const write = capturedCampaignWrite();
+    expect(write.sql).toContain(
+      'UPDATE "public"."badge_campaign" SET "startsAt"',
+    );
+    expect(write.values).toEqual([
       new Date("2026-09-20T00:00:00.000Z"),
       NOW,
       NOW,
       CAMPAIGN_ID,
       new Date("2026-09-20T00:00:00.000Z"),
-    );
+    ]);
   });
 
   it("returns 404 when patching a missing campaign", async () => {
@@ -302,7 +312,9 @@ describe("admin badge campaigns", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(executeMock).toHaveBeenCalledWith(expect.any(Array), CAMPAIGN_ID);
+    const write = capturedCampaignWrite();
+    expect(write.sql).toContain('DELETE FROM "public"."badge_campaign"');
+    expect(write.values).toEqual([CAMPAIGN_ID]);
   });
 
   it("rejects deletion when the start arrives at the write boundary", async () => {
@@ -360,12 +372,11 @@ describe("admin badge campaigns", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(executeMock).toHaveBeenCalledWith(
-      expect.any(Array),
-      NOW,
-      NOW,
-      CAMPAIGN_ID,
+    const write = capturedCampaignWrite();
+    expect(write.sql).toContain(
+      'UPDATE "public"."badge_campaign" SET "endsAt"',
     );
+    expect(write.values).toEqual([NOW, NOW, CAMPAIGN_ID]);
   });
 
   it("starts a scheduled campaign at Core's clock", async () => {
@@ -387,12 +398,11 @@ describe("admin badge campaigns", () => {
       },
       select: { id: true },
     });
-    expect(executeMock).toHaveBeenCalledWith(
-      expect.any(Array),
-      NOW,
-      NOW,
-      CAMPAIGN_ID,
+    const write = capturedCampaignWrite();
+    expect(write.sql).toContain(
+      'UPDATE "public"."badge_campaign" SET "startsAt"',
     );
+    expect(write.values).toEqual([NOW, NOW, CAMPAIGN_ID]);
   });
 
   it("refuses to start a campaign that has started", async () => {

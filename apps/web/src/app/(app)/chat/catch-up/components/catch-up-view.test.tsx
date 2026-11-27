@@ -216,7 +216,12 @@ function catchUpTree(
 }
 
 function renderCatchUp(
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
 ) {
   return render(catchUpTree(client));
 }
@@ -224,7 +229,14 @@ function renderCatchUp(
 /** The app's browser client keeps answers fresh for a minute. */
 function appQueryClient() {
   return new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: 60_000,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
 }
 
@@ -378,6 +390,20 @@ describe("CatchUpView's unread rooms elsewhere", () => {
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(within(summary).getByText("A quiet morning")).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "App.Channels.Signals.catchUp",
+      }),
+    ).toHaveClass("sr-only");
+    expect(
+      within(summary).getByText("App.Channels.Signals.Briefing.welcomeBack"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: "App.Channels.Signals.whileYouWereAwayTitle",
+      }),
+    ).toBeNull();
     expect(within(summary).queryByText("launch")).toBeNull();
   });
 

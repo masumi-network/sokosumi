@@ -61,7 +61,10 @@ async function show(
 ) {
   m.locale.mockResolvedValue(locale);
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   const page = await SeoPage({ searchParams: Promise.resolve(params) });
@@ -233,6 +236,7 @@ describe("native SEO audit entry", () => {
       body: {
         name: "Launch pages",
         firstPage: { url: "https://example.test/launch" },
+        idempotencyKey: expect.any(String),
       },
     });
     expect(m.push).toHaveBeenCalledWith(`/seo?auditId=${SEO_TEST_AUDIT}`);
@@ -455,6 +459,7 @@ describe("native SEO audit entry", () => {
         name: "Launch pages",
         firstPage: { url: "https://example.test/launch" },
         projectId: SEO_TEST_PROJECT,
+        idempotencyKey: expect.any(String),
       },
     });
     expect(m.push).toHaveBeenCalledWith(
@@ -475,6 +480,7 @@ describe("native SEO audit entry", () => {
       body: {
         name: "example.test",
         firstPage: { url: "https://www.example.test/launch" },
+        idempotencyKey: expect.any(String),
       },
     });
   });

@@ -8,10 +8,13 @@ import {
   FileSourceScope,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
+    ...testSchemaNames(),
     DATABASE_URL: process.env.DATABASE_URL,
     DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
     AI_GATEWAY_API_KEY: "test-key",
@@ -131,7 +134,7 @@ async function seedDoc(name: string, withText = true): Promise<string> {
     const text = `this document ${name} concerns the quarterly reconciliation of the ledger`;
     // `search_vector` is not generated; the indexer writes it and so must this.
     await prisma.$executeRaw(PrismaRaw.sql`
-      INSERT INTO file_chunk (id,"createdAt","versionId","chunkId",ordinal,text,
+      INSERT INTO ${sharedTable("file_chunk")} (id,"createdAt","versionId","chunkId",ordinal,text,
         "evidenceScopeId","scopeVersion","inputDigest",search_vector)
       VALUES (gen_random_uuid(), now(), ${version.id}::uuid, 'c1', 1, ${text},
         ${scopeId}::uuid, 1, 'repro', to_tsvector('simple', ${text}))`);

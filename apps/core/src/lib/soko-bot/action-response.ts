@@ -1,17 +1,23 @@
 import type { Prisma } from "@sokosumi/database";
-import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import {
+  ACTION_LABELS,
+  getSokoBotVersion,
+  isSokoBotSilentAnswer,
+} from "@sokosumi/soko-bot";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
 import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
-
+import {
+  ACCOUNT_QUESTION_HEADING,
+  showAccountQuestion,
+} from "./account-question";
 import {
   ACTION_CAPABILITIES,
+  ACTION_RECEIPT_CAPABILITIES,
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
-
 import {
-  ACTION_LABELS,
   actionLabel,
   actionTarget,
   attemptedTarget,
@@ -24,7 +30,6 @@ import {
   taskLabels,
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
-
 import { linkCalendarContacts } from "./calendar-contact-links";
 
 /** Turns an owner asked for; the rest the bot started itself. */
@@ -33,8 +38,6 @@ const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 /** Shown when the claim check could not run; meant for someone who asked. */
 export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
-
-export { ACTION_LABELS };
 
 const QUESTIONS = {
   TARGET: "Which task or item do you mean?",
@@ -59,10 +62,31 @@ export const actionNarrativeSchema = z
     observationToolCallIds: z
       .array(z.string())
       .transform((ids) => ids.slice(0, MAX_OBSERVATIONS)),
+    /**
+     * Set by Core, never the model: the claim check could not run, or cut
+     * a sentence. The answer then says so beside the message.
+     */
+    replyCheck: z.enum(["unchecked", "cut"]).optional(),
   })
   .strict();
 
+/** Shown under the bot's words when Core left part of them out. */
+export const REPLY_CHECK_NOTES = {
+  unchecked:
+    "(I could not check this reply against my records just now, so I left out anything it said was done that my records do not show.)",
+  cut: "(I left out a line about a change my records do not show.)",
+} as const;
+
 export type ActionNarrative = z.infer<typeof actionNarrativeSchema>;
+
+const ACCOUNT_QUESTION_BLOCK = new RegExp(
+  `\\n\\n${ACCOUNT_QUESTION_HEADING.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\n\\d+\\. [^\\n]+)+$`,
+);
+
+/** The answer without the account question Core added at its end, if any. */
+function withoutAccountQuestionBlock(text: string): string {
+  return text.replace(ACCOUNT_QUESTION_BLOCK, "");
+}
 
 export function parseActionNarrative(value: unknown) {
   const parsed = actionNarrativeSchema.safeParse(value);
@@ -75,7 +99,11 @@ export function parseActionNarrativeText(text: string) {
   const end = text.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
   try {
-    return parseActionNarrative(JSON.parse(text.slice(start, end + 1)));
+    const parsed = parseActionNarrative(JSON.parse(text.slice(start, end + 1)));
+    if (!parsed) return null;
+    // Only Core says that it checked the reply.
+    const { replyCheck: _fromModel, ...narrative } = parsed;
+    return narrative;
   } catch {
     return null;
   }
@@ -254,7 +282,124 @@ const FILE_NAMING_KEYS = new Set(["filename", "overwrite"]);
  */
 const REWRITTEN_KEYS: Record<string, Set<string>> = {
   generate_talking_video: new Set(["script", "maxCredits"]),
+  // "Social post was modified, reload and retry": the same change again on
+  // the post's new revision (CMO chat read "Not confirmed: updated social
+  // post (4×)" over four posts it had changed).
+  update_social_post: new Set(["revision"]),
 };
+
+function normalizeMessageTarget(
+  value: unknown,
+  allowRoomHash: boolean,
+): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (allowRoomHash && trimmed.startsWith("#")) {
+    const room = trimmed.replace(/^#+/, "").trim();
+    return room.length > 0 ? `#${room}` : null;
+  }
+  const handle = trimmed.replace(/^@+/, "").trim();
+  return handle.length > 0 ? handle : null;
+}
+
+function normalizeMessageText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized.length > 0 ? normalized : null;
+}
+
+function sameOptionalText(later: unknown, earlier: unknown): boolean {
+  return normalizeMessageText(later) === normalizeMessageText(earlier);
+}
+
+/**
+ * Structured hand-off fields delivered by `send_message`: two hand-offs with
+ * the same opener ("Please handle this.") but different goals/deliverables are
+ * distinct assignments and must not mask each other.
+ */
+function sameHandoffRequest(later: unknown, earlier: unknown): boolean {
+  const laterObj = isPlainObject(later);
+  const earlierObj = isPlainObject(earlier);
+  if (!laterObj && !earlierObj) return true;
+  if (!laterObj || !earlierObj) return false;
+  return (
+    sameOptionalText(later.goal, earlier.goal) &&
+    sameOptionalText(later.deliverable, earlier.deliverable) &&
+    sameOptionalText(later.deadline, earlier.deadline) &&
+    sameOptionalText(later.context, earlier.context)
+  );
+}
+
+/**
+ * Whether `later` retried the same message to the same recipient as `earlier`.
+ * A rejected attempt whose extra or invalid field (e.g. a bad `projectId`) was
+ * dropped on retry should not print "Not confirmed" beside the confirmed send,
+ * while a different message, a different structured `request`, or a different
+ * address kind (`#Jordan` room vs `Jordan` person) stays reported.
+ */
+function sameMessageRetry(
+  later: unknown,
+  earlier: unknown,
+  capability: string,
+): boolean {
+  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  if (capability === "send_message") {
+    const laterTo = normalizeMessageTarget(later.to, true);
+    const earlierTo = normalizeMessageTarget(earlier.to, true);
+    const laterMsg = normalizeMessageText(later.message);
+    const earlierMsg = normalizeMessageText(earlier.message);
+    return (
+      laterTo !== null &&
+      laterTo === earlierTo &&
+      laterMsg !== null &&
+      laterMsg === earlierMsg &&
+      sameHandoffRequest(later.request, earlier.request) &&
+      sameOptionalText(later.then, earlier.then)
+    );
+  }
+  if (capability === "open_direct_chat") {
+    const laterPerson = normalizeMessageTarget(later.person, false);
+    const earlierPerson = normalizeMessageTarget(earlier.person, false);
+    const laterMsg = normalizeMessageText(later.message);
+    const earlierMsg = normalizeMessageText(earlier.message);
+    return (
+      laterPerson !== null &&
+      laterPerson === earlierPerson &&
+      laterMsg !== null &&
+      laterMsg === earlierMsg
+    );
+  }
+  if (capability === "post_chat") {
+    const laterContent = normalizeMessageText(later.content);
+    const earlierContent = normalizeMessageText(earlier.content);
+    return (
+      typeof later.roomId === "string" &&
+      later.roomId === earlier.roomId &&
+      laterContent !== null &&
+      laterContent === earlierContent
+    );
+  }
+  if (capability === "ask_coworker") {
+    if (
+      !Array.isArray(later.coworkerIds) ||
+      !Array.isArray(earlier.coworkerIds)
+    )
+      return false;
+    const laterIds = later.coworkerIds.map(String).sort();
+    const earlierIds = earlier.coworkerIds.map(String).sort();
+    const laterQuestion = normalizeMessageText(later.question);
+    const earlierQuestion = normalizeMessageText(earlier.question);
+    return (
+      laterIds.length > 0 &&
+      laterIds.length === earlierIds.length &&
+      laterIds.every((id, index) => id === earlierIds[index]) &&
+      laterQuestion !== null &&
+      laterQuestion === earlierQuestion
+    );
+  }
+  return false;
+}
 
 function inputCovers(
   later: unknown,
@@ -300,7 +445,12 @@ async function cmoSavedRecord(
     where: {
       turnId,
       capability: {
-        in: ["save_brand_brain", "save_strategy", "save_seo_suggestions"],
+        in: [
+          "save_brand_brain",
+          "save_strategy",
+          "write_strategy",
+          "save_seo_suggestions",
+        ],
       },
       status: "COMPLETED",
     },
@@ -320,18 +470,22 @@ export async function buildActionResponse(
   actionRequested = false,
   narrativeInput?: unknown,
 ) {
-  const narrative =
+  const narrative: ActionNarrative | null =
     parseActionNarrative(narrativeInput) ??
     parseActionNarrativeText(answerText);
   const turnCalls = await tx.sokoBotToolCall.findMany({
     where: {
       turnId,
-      capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
+      capability: {
+        in: [...ACTION_RECEIPT_CAPABILITIES, "list_calendar_events"],
+      },
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const calls = turnCalls.filter((call) =>
-    ACTION_CAPABILITIES.has(call.capability),
+  const calls = turnCalls.filter(
+    (call) =>
+      ACTION_CAPABILITIES.has(call.capability) ||
+      (call.capability === "investor_warm_paths" && call.disposition !== null),
   );
   const replayIds = calls.flatMap((call) =>
     call.replayedReceiptId ? [call.replayedReceiptId] : [],
@@ -390,8 +544,9 @@ export async function buildActionResponse(
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
   // A refused attempt the bot then made good — the same call on the same
-  // target, or again with the missing fields filled in — is not something the
-  // owner needs to hear about. One whose outcome is unknown always is.
+  // target, a retry of the same message to the same recipient, or again with
+  // the missing fields filled in — is not something the owner needs to hear
+  // about. One whose outcome is unknown always is.
   const madeGood = (call: (typeof calls)[number]) =>
     call.disposition !== "UNKNOWN" &&
     unique.some(
@@ -400,7 +555,8 @@ export async function buildActionResponse(
         applied.capability === call.capability &&
         applied.createdAt > call.createdAt &&
         ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input, call.capability)),
+          inputCovers(applied.input, call.input, call.capability) ||
+          sameMessageRetry(applied.input, call.input, call.capability)),
     );
   const unfulfilledActions = calls
     .filter(
@@ -640,18 +796,21 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
-  // A background run of Cuso's (a follow-up once a video is ready) that
-  // filed its card has delivered: its closing words would be a second
-  // message saying the same.
+  // A background run of Cuso's (a follow-up once a video is ready) or one
+  // of his schedules (the daily update) that filed its card has delivered:
+  // its closing words would be a second message saying the same, posted
+  // under the card ("The daily update is below.").
   const cardSaysIt =
     reportedByCard &&
     !actionText.length &&
     !question &&
-    Boolean((await turnInfo())?.parentTurnId);
+    (Boolean((await turnInfo())?.parentTurnId) ||
+      (await turnInfo())?.source === "SCHEDULE");
   // Cuso's owner reads his words and CMO's cards; "Updated social post
   // (28×)." beside them is bookkeeping. Refusals and unknowns still show.
+  // When Core cut his words, the receipts are what says what he did.
   const receiptsShown =
-    message && (await isCmo())
+    message && !narrative?.replyCheck && (await isCmo())
       ? actionText.filter((line) => !receiptLines.includes(line))
       : actionText;
   const text =
@@ -678,6 +837,28 @@ export async function buildActionResponse(
                 "Nothing to add."
               : "Nothing was changed in this turn."
             : answerText;
+  // Beside the bot's words, never inside them: an 8,000-character reply has
+  // no room left, and the note is Core's, not the bot's.
+  const noted =
+    narrative?.replyCheck && text !== "Nothing to add."
+      ? `${text}\n\n${REPLY_CHECK_NOTES[narrative.replyCheck]}`
+      : text;
+  // A draft Core refused for want of an account: Core asks, with the stored
+  // options in order, so what the owner reads is what the next turn checks.
+  // Settlement rebuilds the answer; the question goes in once.
+  const refusedPost = turnCalls.some(
+    (call) =>
+      call.capability === "create_social_post" && call.status === "FAILED",
+  );
+  // A rebuild from the stored answer drops Core's earlier question first: the
+  // options may have changed since, and the reply shows the current ones.
+  // Only Core's own block goes: the heading and its numbered options, last
+  // in the text, on a turn whose draft was refused. The bot's words stay.
+  const base = refusedPost ? withoutAccountQuestionBlock(noted) : noted;
+  const asked = refusedPost
+    ? await showAccountQuestion(tx, turnId, base !== "Nothing to add.")
+    : null;
+  const checked = asked ? `${base}\n\n${asked}` : base;
   return {
     appliedReceiptIds,
     narrative,
@@ -685,7 +866,7 @@ export async function buildActionResponse(
     unfulfilledActions,
     // Cuso's owner reads this in CMO.xyz, where nothing opens Sokosumi.
     answerText: (await isCmo())
-      ? withoutSokosumiLinks(text, getWebAppBaseUrl())
-      : linkCalendarContacts(text, turnCalls),
+      ? withoutSokosumiLinks(checked, getWebAppBaseUrl())
+      : linkCalendarContacts(checked, turnCalls),
   };
 }

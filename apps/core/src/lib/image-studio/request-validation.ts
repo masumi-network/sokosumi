@@ -92,17 +92,72 @@ export function describeImageStudioRefusal(
   if (field.startsWith("settings.")) {
     return {
       kind: IMAGE_STUDIO_REQUEST_ERROR_KINDS.unsupportedSetting,
-      message: "The studio does not offer one of these settings.",
+      message: `The studio does not offer one of these settings: ${fieldRule(issue)}`,
     };
   }
 
-  // A client bug rather than something the person typed — a malformed asset id, a
-  // missing idempotency key. Says so without naming the field, because the field
-  // name is no use to whoever is reading it.
+  // A client mistake rather than something the person typed: a malformed id, a
+  // missing idempotency key, a presenter shape an agent guessed. Name the field
+  // and what to send, so the caller can fix it (SOKD-481).
   return {
     kind: IMAGE_STUDIO_REQUEST_ERROR_KINDS.invalidRequest,
-    message: "The studio could not read this request.",
+    message: `The studio could not read this request: ${fieldRule(issue)}`,
   };
+}
+
+function quoted(values: readonly unknown[]): string {
+  const words = values.map((value) =>
+    typeof value === "string" ? `"${value}"` : String(value),
+  );
+  return words.length > 1
+    ? `${words.slice(0, -1).join(", ")} or ${words.at(-1)}`
+    : (words[0] ?? "");
+}
+
+/**
+ * "presenter.kind must be \"stock\" or \"file\"." In plain words, not Zod's:
+ * the field as sent, and what it has to be.
+ */
+function fieldRule(issue: z.core.$ZodIssue): string {
+  const field = issue.path.map(String).join(".") || "the body";
+  switch (issue.code) {
+    case "invalid_union":
+      if ("options" in issue && Array.isArray(issue.options))
+        return `${field} must be ${quoted(issue.options)}.`;
+      break;
+    case "invalid_value":
+      return `${field} must be ${quoted(issue.values)}.`;
+    case "invalid_type": {
+      // Zod leaves `input` off its issues; its message is what says "missing".
+      if (issue.message.endsWith("received undefined"))
+        return `${field} is required.`;
+      const type = issue.expected === "array" ? "list" : issue.expected;
+      return `${field} must be ${/^[aeiou]/.test(type) ? "an" : "a"} ${type}.`;
+    }
+    case "invalid_format":
+      return `${field} must be a ${issue.format === "uuid" ? "UUID" : `valid ${issue.format}`}.`;
+    case "too_small":
+    case "too_big": {
+      const exclusive = issue.inclusive === false;
+      const bound =
+        issue.code === "too_small"
+          ? exclusive
+            ? "more than"
+            : "at least"
+          : exclusive
+            ? "less than"
+            : "at most";
+      const limit = issue.code === "too_small" ? issue.minimum : issue.maximum;
+      const unit =
+        issue.origin === "string"
+          ? " characters"
+          : issue.origin === "array"
+            ? " items"
+            : "";
+      return `${field} must be ${bound} ${String(limit)}${unit}.`;
+    }
+  }
+  return `${field} is not valid.`;
 }
 
 /**

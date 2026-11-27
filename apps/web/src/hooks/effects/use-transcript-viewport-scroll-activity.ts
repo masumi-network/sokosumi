@@ -93,7 +93,7 @@ export function useTranscriptViewportScrollActivity({
     scrollerResize.observe(scroller);
     // An overlaid composer changes list padding without resizing the scroller.
     if (scroller.firstElementChild)
-      scrollerResize.observe(scroller.firstElementChild);
+      scrollerResize.observe(scroller.firstElementChild, { box: "border-box" });
     scroller.addEventListener("scroll", record, { passive: true });
     scroller.addEventListener("scrollend", settle, { passive: true });
     scroller.addEventListener("touchstart", touchStart, { passive: true });

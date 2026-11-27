@@ -371,13 +371,19 @@ export function SeoKeywords({
                     // no line about a sync: "not read in the last sync" or "no impressions" on every row of a
                     // check would be noise.
                     const trend =
-                      read.state !== "measured" && row.version === 0
+                      read.state !== "measured" &&
+                      row.version === 0 &&
+                      // A cut read is not noise: the keyword can have rows the sync did not get.
+                      !(read.state === "empty" && read.truncated)
                         ? ({ state: "absent" } as const)
                         : read;
                     const trendId = `seo-keyword-trend-${row.id}`;
                     // The paid checks' positions over time, one series per device.
                     // Every row of the group: a device the newest check did not read keeps its history.
-                    const history = seoRankHistory(group.rows);
+                    const history = seoRankHistory(
+                      group.rows,
+                      queries?.timeZone,
+                    );
                     // What the results page showed on each check: AI Overview, featured snippet, other features.
                     const marks = seoSerpMarkers(
                       model.data.serpHistory,
@@ -387,6 +393,7 @@ export function SeoKeywords({
                     // Without a rank or a listed average, the position cell says "no impressions"; the line under the keyword would repeat it.
                     const cellSaysEmpty =
                       read.state === "empty" &&
+                      !read.truncated &&
                       !reads.length &&
                       Boolean(queries) &&
                       !average?.averagePosition;
@@ -579,10 +586,7 @@ export function SeoKeywords({
                             <SeoDifficultyCell difficulty={group.difficulty} />
                           ) : null}
                           {shown.conversion ? (
-                            <SeoConversionCell
-                              conversion={group.conversion}
-                              feature={group.feature}
-                            />
+                            <SeoConversionCell {...group} />
                           ) : null}
                           {shown.priority ? (
                             <TableCell data-label={t("keywords.priority")}>

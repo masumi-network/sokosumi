@@ -1,4 +1,5 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
@@ -10,11 +11,14 @@ import {
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import {
+  CMO_CHANNELS,
   type CmoVolumeLevel,
   cmoMonthAtLevel,
+  cmoMonthFloor,
   isCmoOwnerConfirmedChannel,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
+import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
@@ -23,6 +27,8 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { failOpen } from "@/lib/fail-open";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
@@ -52,12 +58,21 @@ import {
   listCmoMediaJobs,
 } from "@/services/cmo-media-maker.service";
 import {
+  cmoMonthCalendarDue,
+  cmoMonthCalendarOutOfTries,
+  cmoMonthCalendarStopped,
+  cmoMonthCalendarWritten,
+  kickCmoMonthCalendar,
+  stopCmoMonthCalendar,
+} from "@/services/cmo-month-calendar.service";
+import {
   advanceCmoMonthReview,
   type CmoPillarShare,
   cmoBrandFacts,
   cmoPillarShares,
   parseCmoMonthReview,
 } from "@/services/cmo-month-review.service";
+import { cmoMonthByCore } from "@/services/cmo-plan-review.service";
 import { scheduleCmoSitePages } from "@/services/cmo-site-pages.service";
 import {
   approvedMarketingStrategy,
@@ -239,12 +254,20 @@ export function cmoProductionPieces(
 
 export interface CmoProductionStatus {
   /**
-   * waiting: not approved and paid yet; starting: approved, no run working
-   * yet (the next sync starts one); running: a run is making pieces; ready:
+   * waiting: not approved and paid yet; planning: paid, and Core is writing
+   * the month's calendar (cmo-v22); starting: approved, no run working yet
+   * (the next sync starts one); running: a run is making pieces; ready:
    * every piece is made; stuck: today's runs ended with pieces missing;
    * blocked: starting, but no run could start for half an hour.
    */
-  state: "waiting" | "starting" | "running" | "ready" | "stuck" | "blocked";
+  state:
+    | "waiting"
+    | "planning"
+    | "starting"
+    | "running"
+    | "ready"
+    | "stuck"
+    | "blocked";
   ready: number;
   total: number;
   /** Pieces whose words are written: the first pass of a run. */
@@ -267,8 +290,19 @@ export interface CmoProductionStatus {
    * drafts without one and no longer hold the month back.
    */
   withoutPicture: string[];
-  /** When a stopped month's next run starts; null unless stuck. */
+  /**
+   * When a stopped month's next run starts; null unless stuck, and null for
+   * a month Core stopped writing (stuck with writerFailed): no run follows.
+   */
   retryAt: string | null;
+  /** Stuck because Core's month writer wrote nothing in the last run: ours. */
+  writerFailed: boolean;
+  /**
+   * cmo-v22: the posts the plan promises at least (`cmoMonthFloor`) and
+   * those of the month made, gone out or paused by the owner; null for a
+   * month Cuso wrote.
+   */
+  floor: { promised: number; made: number } | null;
 }
 
 export async function cmoConnectedChannels(
@@ -596,6 +630,7 @@ async function startProductionRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId: runnerId,
     workspaceId: cuso.workspaceId,
     sokoBotId: cuso.sokoBotId,
@@ -648,11 +683,34 @@ async function startProductionRun(
 }
 
 type ProductionRun = {
+  id: string;
   clientTurnId: string;
   status: SokoBotTurnStatus;
   createdAt: Date;
   completedAt: Date | null;
 };
+
+/**
+ * Whether every write_month_pieces call of a run wrote nothing and refused
+ * nothing: Core's writer failed, not Cuso (entry.fyi, 2026-11-23 to 25).
+ */
+async function writerWroteNothing(turnId: string): Promise<boolean> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId, capability: "write_month_pieces", status: "COMPLETED" },
+    select: { result: true },
+  });
+  return (
+    calls.length > 0 &&
+    calls.every((call) => {
+      const result = call.result as { written?: unknown; refused?: unknown };
+      return (
+        result?.written === 0 &&
+        Array.isArray(result.refused) &&
+        result.refused.length === 0
+      );
+    })
+  );
+}
 
 /** Cuso's production runs of today and of this approval, newest first. */
 function productionRuns(
@@ -675,6 +733,7 @@ function productionRuns(
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
+      id: true,
       clientTurnId: true,
       status: true,
       createdAt: true,
@@ -741,6 +800,8 @@ export async function readCmoProduction(
         beyondPlan: [],
         withoutPicture: [],
         retryAt: null,
+        writerFailed: false,
+        floor: null,
       },
       version: null,
       strategy: plan,
@@ -763,7 +824,13 @@ export async function readCmoProduction(
   // The month is written at the top volume; the plan bought decides how much
   // of it is made, and a bigger plan makes more of the same month.
   const level = await cmoPlanLevel(cuso.projectId, now);
-  const inPlan = cmoMonthAtLevel(strategy.calendar, level);
+  // cmo-v22: Core writes the month after payment, from its own first day.
+  const byCore = cmoMonthByCore(plan);
+  const inPlan = cmoMonthAtLevel(
+    strategy.calendar,
+    level,
+    byCore ? plan.monthWriter?.start : undefined,
+  );
   const beyondPlan = strategy.calendar
     .filter(
       (entry) =>
@@ -821,8 +888,27 @@ export async function readCmoProduction(
             ),
         }
       : null;
+  const isPost = (channel: string) =>
+    (CMO_CHANNELS as Record<string, { owner: string }>)[channel.toLowerCase()]
+      ?.owner === "connect";
+  const floor = byCore
+    ? {
+        promised: cmoMonthFloor(plan.channels, level).total,
+        // A post the owner paused counts as theirs to hold back.
+        made: strategy.calendar.filter(
+          (entry) =>
+            isPost(entry.channel) &&
+            (entry.status === "skipped" ||
+              (inPlan.made.has(entry.id) &&
+                (entry.status === "published" ||
+                  ready.has(entry.id) ||
+                  withoutPicture.some((piece) => piece.id === entry.id)))),
+        ).length,
+      }
+    : null;
   /** When a stopped month's next run starts. */
   let retryAt: string | null = null;
+  let writerFailed = false;
   let restart = false;
   const read = (
     state: CmoProductionStatus["state"],
@@ -845,6 +931,8 @@ export async function readCmoProduction(
       beyondPlan,
       withoutPicture: withoutPicture.map((piece) => piece.id),
       retryAt,
+      writerFailed,
+      floor,
     },
     version: approved,
     strategy,
@@ -857,6 +945,14 @@ export async function readCmoProduction(
     restart,
   });
   if (!context.subscribed) return read("waiting");
+  // Paid: Core writes the month's calendar before any piece is made. A
+  // month Core stopped writing is stuck on our side, with no retry time.
+  if (byCore && cmoMonthCalendarStopped(plan.monthWriter, level)) {
+    writerFailed = true;
+    return read("stuck");
+  }
+  if (byCore && !cmoMonthCalendarWritten(plan.monthWriter, level))
+    return read("planning");
   // Runs' createdAt is PostgreSQL time, so their day is measured on it.
   const runsNow = await databaseNow();
   const all = await productionRuns(cuso.sokoBotId, approvedAt, runsNow);
@@ -906,6 +1002,7 @@ export async function readCmoProduction(
       : ended;
   if (runsNow < due) {
     retryAt = due.toISOString();
+    writerFailed = last ? await writerWroteNothing(last.id) : false;
     return read("stuck", runs);
   }
   restart = capped || stalled;
@@ -943,6 +1040,15 @@ export async function advanceCmoProduction(
     subscribed: await isCmoSubscribed(cuso),
     now,
   });
+  if (current.state === "planning" && version && strategy?.monthWriter) {
+    if (cmoMonthCalendarDue(strategy.monthWriter, current.level, now))
+      kickCmoMonthCalendar(cuso, version.id, current.level);
+    else if (
+      cmoMonthCalendarOutOfTries(strategy.monthWriter, current.level, now)
+    )
+      await stopCmoMonthCalendar(cuso, version.id, current.level, now);
+    return current;
+  }
   // Core makes the pictures from the visuals saved so far, runs or no runs.
   if (version && current.state !== "waiting")
     await advanceCmoMedia(
@@ -970,6 +1076,7 @@ export async function advanceCmoProduction(
   // A made month is reviewed for its pillars, skills and voice, and the
   // pieces that miss are rewritten once.
   if (current.state === "ready" && version) {
+    await alertCmoMonthBelowFloor(cuso, version.id, current, now);
     const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
     await advanceCmoMonthReview({
       sokoBotId: cuso.sokoBotId,
@@ -1031,6 +1138,53 @@ export async function advanceCmoProduction(
       },
     );
   return started ? { ...current, state: "running" } : current;
+}
+
+/**
+ * cmo-v22's promise: a made month holds at least the plan's floor of posts.
+ * Core says so once per approved version when it falls short.
+ */
+async function alertCmoMonthBelowFloor(
+  cuso: Cuso,
+  versionId: string,
+  status: CmoProductionStatus,
+  now: Date,
+): Promise<void> {
+  if (!status.floor || status.floor.made >= status.floor.promised) return;
+  const alerted = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT 1 FROM ${sharedTable("marketing_strategy")} WHERE id = ${versionId}::uuid FOR UPDATE`;
+    const version = await tx.marketingStrategy.findUnique({
+      where: { id: versionId },
+      select: { plan: true },
+    });
+    const plan = parseMarketingPlan(version?.plan);
+    if (!plan?.monthWriter || plan.monthWriter.floorAlertAt) return false;
+    await tx.marketingStrategy.update({
+      where: { id: versionId },
+      data: {
+        plan: jsonInput({
+          ...plan,
+          monthWriter: { ...plan.monthWriter, floorAlertAt: now.toISOString() },
+        }),
+      },
+    });
+    return true;
+  });
+  if (alerted)
+    recordCoreError(
+      { operation: "cmo_production", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message:
+          "A paid CMO month was made with fewer posts than its plan promises",
+        why: `${status.floor.made} posts made against the plan's floor of ${status.floor.promised} (${status.level})`,
+        fix: "Read this version's monthWriter and its Social posts: pieces skipped by the owner, posts without a picture, or a calendar short of the plan's rates.",
+      },
+      {
+        alert: "cmo_month_below_floor",
+        made: status.floor.made,
+        promised: status.floor.promised,
+      },
+    );
 }
 
 /**
@@ -1184,24 +1338,45 @@ export function cmoSyncOrder<T>(hires: T[], now: Date): T[] {
   return [...hires.slice(start), ...hires.slice(0, start)];
 }
 
+/** A step of the production sync that failed; the sync goes on without it. */
+function syncStepFailed<T>(fallback: T, step: string): (error: unknown) => T {
+  return failOpen(
+    fallback,
+    { operation: "cmo_production_sync", cmoSyncStep: step },
+    {
+      message: "A CMO production sync step failed",
+      why: "The step threw; the sync went on without it",
+      fix: "Read the failure fields on this event; the next sync (every few minutes) runs the step again.",
+    },
+  );
+}
+
 /** The cron: every Cuso with an approved plan, so new and missing pieces get made. */
 export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
   now: Date = new Date(),
-): Promise<{ checked: number }> {
+): Promise<{ checked: number; skipped: number }> {
   await pauseSeoAuditsOfEndedCusos();
   // A hiring strategy left short gets its next finish turn (or its fit).
   await import("@/services/cmo-strategy.service")
     .then(({ resumeCmoMonthFinishes }) => resumeCmoMonthFinishes(now))
-    .catch(() => undefined);
+    .catch(syncStepFailed(undefined, "resume_month_finishes"));
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
   // In the background from the start, so it has the whole run; one browser
   // a sync, so the site's pages wait for a sync without a brand capture.
-  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(() => true);
-  if (!capturing) await scheduleCmoSitePages(hires, now).catch(() => undefined);
+  const capturing = await scheduleMissingCmoBrandIndex(hires).catch(
+    syncStepFailed(true, "brand_index"),
+  );
+  if (!capturing)
+    await scheduleCmoSitePages(hires, now).catch(
+      syncStepFailed(undefined, "site_pages"),
+    );
   // cmo-v21: the buyer's industry again from the 25th, before the 27th's strategy.
-  await scheduleCmoIndustry(hires, now).catch(() => undefined);
+  await scheduleCmoIndustry(hires, now).catch(
+    syncStepFailed(undefined, "industry"),
+  );
   let checked = 0;
+  let skipped = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;
     try {
@@ -1211,6 +1386,7 @@ export async function syncCmoProduction(
       await keepCmoCompetitors(cuso, now);
       checked += 1;
     } catch (error) {
+      skipped += 1;
       // One event per Cuso skipped; the error can quote the plan or a prompt.
       recordCoreWarning(
         { operation: "cmo_production_sync", sokoBot: { id: cuso.sokoBotId } },
@@ -1223,5 +1399,5 @@ export async function syncCmoProduction(
       );
     }
   }
-  return { checked };
+  return { checked, skipped };
 }

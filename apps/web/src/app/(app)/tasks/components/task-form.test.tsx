@@ -193,6 +193,7 @@ vi.mock("./markdown-editor", () => ({
       insertLink: (label: string, url: string) =>
         onChange(`${value}[${label}](${url})`),
       openDrivePicker: () => undefined,
+      focus: () => document.getElementById(id)?.focus(),
     }));
     return (
       <div>
@@ -486,7 +487,7 @@ async function selectTaskStatus(
   user: ReturnType<typeof userEvent.setup>,
   statusLabel: string,
 ) {
-  await user.click(screen.getByRole("combobox", { name: "Status" }));
+  await user.click(screen.getByRole("combobox", { name: /^Status/ }));
   await user.click(
     screen.getByRole("option", { name: new RegExp(`^${statusLabel}`) }),
   );
@@ -500,7 +501,7 @@ async function setRunAt(
   user: ReturnType<typeof userEvent.setup>,
   localValue = RUN_AT_LOCAL,
 ) {
-  await user.click(screen.getByRole("button", { name: "Set start time" }));
+  await user.click(screen.getByRole("button", { name: /^Set start time/ }));
   fireEvent.change(screen.getByLabelText("label"), {
     target: { value: localValue },
   });
@@ -549,7 +550,7 @@ describe("TaskForm", () => {
     return render(renderToast("task-upload-toast"));
   }
 
-  it("shows the wizard when only a prompt is prefilled without a coworker", () => {
+  it("opens on the composer when only a prompt is prefilled", () => {
     render(
       <TaskForm
         mode="create"
@@ -561,9 +562,10 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+    expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
+    expect(screen.getByLabelText("Task name")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Start from scratch/i }),
+      screen.getByRole("combobox", { name: /^assignee: Elena/i }),
     ).toBeInTheDocument();
   });
 
@@ -581,16 +583,10 @@ describe("TaskForm", () => {
 
     expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "What should Elena do?" }),
-    ).toBeInTheDocument();
-    expect(
       screen
         .getAllByRole("button", { name: "Upload File" })
         .some((button) => !button.classList.contains("sr-only")),
     ).toBe(true);
-    expect(
-      screen.queryByRole("button", { name: /Start from scratch/i }),
-    ).not.toBeInTheDocument();
   });
 
   it("renders attachment previews from description links", () => {
@@ -619,7 +615,7 @@ describe("TaskForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not create a task from Ctrl+Enter on wizard step 1", async () => {
+  it("does not create an empty task from Ctrl+Enter", async () => {
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "Task one"));
 
@@ -637,8 +633,6 @@ describe("TaskForm", () => {
         onSuccess={vi.fn()}
       />,
     );
-
-    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
 
     await act(async () => {
       window.dispatchEvent(
@@ -687,7 +681,7 @@ describe("TaskForm", () => {
     expect(screen.queryByTestId("similar-tasks-hint")).not.toBeInTheDocument();
   });
 
-  it("hides the title field on create and shows it on edit", () => {
+  it("shows the title field on create and on edit", () => {
     const { rerender } = render(
       <TaskForm
         mode="create"
@@ -699,7 +693,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.queryByLabelText("Task name")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Task name")).toHaveClass("text-xl");
 
     rerender(
       <TaskForm
@@ -752,7 +746,7 @@ describe("TaskForm", () => {
     expect(nameField).toHaveValue("Plan November newsletter launch chef note");
   });
 
-  it("places project and context controls above the footer status row", () => {
+  it("leads with the project and keeps context beside attachments in the footer", () => {
     render(
       <TaskForm
         mode="create"
@@ -765,12 +759,12 @@ describe("TaskForm", () => {
       />,
     );
 
-    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    const statusControl = screen.getByRole("combobox", { name: /^Status/ });
     const contextAttachments = screen.getByTestId("context-attachments");
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
 
     expect(
-      contextAttachments.compareDocumentPosition(statusControl) &
+      statusControl.compareDocumentPosition(contextAttachments) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
@@ -779,7 +773,7 @@ describe("TaskForm", () => {
     ).toBeTruthy();
   });
 
-  it("puts visibility on the same chip row as project", () => {
+  it("puts visibility in the property row and the project in the breadcrumb", () => {
     render(
       <TaskForm
         mode="create"
@@ -796,7 +790,7 @@ describe("TaskForm", () => {
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
     const privateButton = screen.getByLabelText("Private");
 
-    expect(row).toContainElement(projectSelect);
+    expect(row).not.toContainElement(projectSelect);
     expect(row).toContainElement(privateButton);
     expect(row).toHaveClass("flex");
     expect(privateButton).not.toHaveClass("w-full");
@@ -826,7 +820,12 @@ describe("TaskForm", () => {
     vi.mocked(createTask).mockResolvedValue(
       createTaskSuccess("task-1", "Title"),
     );
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     render(
       <QueryClientProvider client={client}>
         <TaskForm
@@ -840,7 +839,8 @@ describe("TaskForm", () => {
         />
       </QueryClientProvider>,
     );
-    await user.click(screen.getByRole("button", { name: "add" }));
+    // The composer's tag pill reads "Tags" until a tag is picked.
+    await user.click(screen.getByRole("button", { name: "Tags" }));
     await user.click(await screen.findByRole("button", { name: "Release" }));
     await user.type(screen.getByRole("textbox", { name: "search" }), "Finance");
     expect(
@@ -884,7 +884,12 @@ describe("TaskForm", () => {
       color: "green",
       customColor: "#248F76",
     });
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     render(
       <QueryClientProvider client={client}>
         <TaskForm
@@ -965,7 +970,12 @@ describe("TaskForm", () => {
 
   it("removes both parts of a merged preset badge without dismissing a same-named custom topic", async () => {
     const user = userEvent.setup();
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const label = {
       kind: "TAG" as const,
       archived: false,
@@ -1029,7 +1039,12 @@ describe("TaskForm", () => {
       description: null,
       vocabularyVersion: 1,
     };
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const first =
       Promise.withResolvers<Awaited<ReturnType<typeof setWorkspaceTagColor>>>();
     let saved: string | null = null;
@@ -1192,7 +1207,12 @@ describe("TaskForm", () => {
     });
 
     function renderCopy(initialValues: Record<string, unknown>) {
-      const client = new QueryClient();
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      });
       render(
         <TaskForm
           mode="create"
@@ -1372,7 +1392,7 @@ describe("TaskForm", () => {
         renderCopy(initial);
 
         expect(
-          screen.getByRole("combobox", { name: /^Coworker/ }),
+          screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
         ).toHaveTextContent("Unavailable assignee");
         await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -1391,7 +1411,9 @@ describe("TaskForm", () => {
         const user = userEvent.setup();
         renderCopy({ assigneeSokoBotId: "gone-bot" });
 
-        await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+        await user.click(
+          screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+        );
         await user.click(screen.getByRole("option", { name: pick }));
         await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -1411,8 +1433,8 @@ describe("TaskForm", () => {
       renderCopy({});
 
       expect(
-        screen.getByRole("combobox", { name: /^Coworker/ }),
-      ).toHaveTextContent("Unassigned");
+        screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+      ).toHaveAccessibleName(/: Unassigned$/);
       await user.click(screen.getByRole("button", { name: "Create Task" }));
 
       expect(createTask).toHaveBeenCalledWith(
@@ -1435,7 +1457,9 @@ describe("TaskForm", () => {
       expect(
         screen.getByText("Private tasks cannot go to other people."),
       ).toBeInTheDocument();
-      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      await user.click(
+        screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+      );
       expect(screen.getByRole("option", { name: "Bob" })).toHaveAttribute(
         "aria-disabled",
         "true",
@@ -1458,7 +1482,9 @@ describe("TaskForm", () => {
       renderCopy({ assigneeId: "coworker-2", visibility: "PRIVATE" });
 
       await user.click(screen.getByLabelText("Private"));
-      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      await user.click(
+        screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+      );
       await user.click(screen.getByRole("option", { name: "Bob" }));
       await user.click(screen.getByRole("button", { name: "Create Task" }));
 
@@ -1517,7 +1543,7 @@ describe("TaskForm", () => {
       0,
     );
 
-    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    const statusControl = screen.getByRole("combobox", { name: /^Status/ });
     expect(statusControl).toHaveTextContent("Draft");
     expect(
       screen
@@ -1527,7 +1553,7 @@ describe("TaskForm", () => {
     ).toBeTruthy();
     expect(
       statusControl.compareDocumentPosition(
-        screen.getByRole("button", { name: "Set start time" }),
+        screen.getByRole("button", { name: /^Set start time/ }),
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
@@ -1554,7 +1580,7 @@ describe("TaskForm", () => {
 
     await setRunAt(user);
 
-    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    const statusControl = screen.getByRole("combobox", { name: /^Status/ });
     const runAtLabel = screen.getByText("footer");
     expect(
       statusControl.compareDocumentPosition(runAtLabel) &
@@ -1562,7 +1588,7 @@ describe("TaskForm", () => {
     ).toBeTruthy();
   });
 
-  it("hides status on the assignee wizard step", () => {
+  it("shows status and the editor together from the start", () => {
     render(
       <TaskForm
         mode="create"
@@ -1573,10 +1599,10 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
+    expect(screen.getByTestId("markdown-editor")).toBeInTheDocument();
     expect(
-      screen.queryByRole("combobox", { name: "Status" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("combobox", { name: /^Status/ }),
+    ).toBeInTheDocument();
   });
 
   it("defaults status to Ready when selecting a coworker", async () => {
@@ -1592,12 +1618,12 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getAllByRole("button", { name: /Soko/ })[0]!);
     await user.click(
-      screen.getByRole("button", { name: /Start from scratch/i }),
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
     );
+    await user.click(screen.getAllByRole("option", { name: /Soko/ })[0]!);
 
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Ready",
     );
   });
@@ -1772,7 +1798,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: "Set start time" });
+    const trigger = screen.getByRole("button", { name: /^Set start time/ });
     expect(trigger).toHaveAttribute("aria-pressed", "false");
 
     await user.click(trigger);
@@ -1800,18 +1826,18 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Ready",
     );
 
     await setRunAt(user);
 
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Queued",
     );
     expect(screen.getByText("footer")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Set start time" }),
+      screen.getByRole("button", { name: /^Set start time/ }),
     ).toHaveAttribute("aria-pressed", "true");
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
@@ -1842,10 +1868,10 @@ describe("TaskForm", () => {
     );
 
     await setRunAt(user);
-    await user.click(screen.getByRole("button", { name: "Set start time" }));
+    await user.click(screen.getByRole("button", { name: /^Set start time/ }));
     await user.click(screen.getByRole("button", { name: "clear" }));
 
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Ready",
     );
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
@@ -1880,7 +1906,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    const trigger = screen.getByRole("button", { name: "Set start time" });
+    const trigger = screen.getByRole("button", { name: /^Set start time/ });
     expect(trigger).toHaveAttribute("aria-disabled", "true");
 
     await user.hover(trigger);
@@ -1916,7 +1942,7 @@ describe("TaskForm", () => {
 
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Set start time" }),
+      screen.getByRole("button", { name: /^Set start time/ }),
     ).toHaveAttribute("aria-pressed", "false");
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
@@ -1942,7 +1968,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(screen.getByRole("combobox", { name: /^Status/ }));
     expect(screen.getByRole("option", { name: /^Queued/ })).toHaveAttribute(
       "aria-disabled",
       "true",
@@ -1951,7 +1977,7 @@ describe("TaskForm", () => {
     await user.keyboard("{Escape}");
     await setRunAt(user);
 
-    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(screen.getByRole("combobox", { name: /^Status/ }));
     expect(screen.getByRole("option", { name: /^Queued/ })).not.toHaveAttribute(
       "aria-disabled",
       "true",
@@ -1979,7 +2005,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(screen.getByRole("combobox", { name: /^Status/ }));
     expect(screen.getByRole("option", { name: /Queued/ })).toHaveAttribute(
       "aria-disabled",
       "true",
@@ -2015,7 +2041,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(screen.getByRole("combobox", { name: /^Status/ }));
     expect(screen.getByRole("option", { name: /Queued/ })).toHaveAttribute(
       "aria-disabled",
       "true",
@@ -2050,7 +2076,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: "Status" }));
+    await user.click(screen.getByRole("combobox", { name: /^Status/ }));
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),
     ).toEqual(["Draft1", "Ready2", "Completed3"]);
@@ -2075,13 +2101,12 @@ describe("TaskForm", () => {
       screen.getByRole("button", { name: /Schedule Task/ }),
     ).toBeInTheDocument();
     expect(screen.getByText("footer")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Queued",
     );
   });
 
-  it("clears a Calendar-provided Run at permanently when an untouched default becomes a member", async () => {
-    const user = userEvent.setup();
+  it("clears a Calendar-provided Run at permanently when an untouched default becomes a member", () => {
     const bob = mockCoworkerOption({
       id: "user-bob",
       slug: "bob",
@@ -2101,29 +2126,26 @@ describe("TaskForm", () => {
     );
 
     const { rerender } = render(renderProps(fullOptions));
-    await user.click(
-      screen.getByRole("button", { name: /Start from scratch/ }),
-    );
 
     expect(
       screen.getByRole("button", { name: /Schedule Task/ }),
     ).toBeInTheDocument();
     expect(screen.getByText("footer")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Queued",
     );
 
     // Agent lookup briefly degrades to member-only options.
     rerender(renderProps([bob]));
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Draft",
     );
 
     // Agent options recover: the cleared Run at must not resurrect.
     rerender(renderProps(fullOptions));
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Ready",
     );
     expect(
@@ -2247,17 +2269,21 @@ describe("TaskForm", () => {
     await setRunAt(user);
     expect(screen.getByText("footer")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    );
     expect(
       screen.queryByRole("option", { name: "Bob" }),
     ).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "Set start time" }));
+    await user.click(screen.getByRole("button", { name: /^Set start time/ }));
     await user.click(screen.getByRole("button", { name: "clear" }));
-    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    );
     await user.click(screen.getByRole("option", { name: "Bob" }));
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
+    expect(screen.getByRole("combobox", { name: /^Status/ })).toHaveTextContent(
       "Draft",
     );
 
@@ -2322,15 +2348,19 @@ describe("TaskForm", () => {
     );
 
     await setRunAt(user);
-    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    );
     expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "Set start time" }));
+    await user.click(screen.getByRole("button", { name: /^Set start time/ }));
     await user.click(screen.getByRole("button", { name: "clear" }));
-    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    );
     await user.click(screen.getByRole("option", { name: "Unassigned" }));
     expect(screen.queryByText("footer")).not.toBeInTheDocument();
 
@@ -2412,7 +2442,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    );
 
     expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
       "aria-disabled",
@@ -2454,7 +2486,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+    await user.click(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    );
 
     expect(screen.queryByRole("option", { name: "Bob" })).toBeNull();
     expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
@@ -2497,9 +2531,11 @@ describe("TaskForm", () => {
         />,
       );
 
-      await user.click(screen.getByRole("button", { name: "Set start time" }));
+      await user.click(screen.getByRole("button", { name: /^Set start time/ }));
       await user.click(screen.getByRole("button", { name: "clear" }));
-      await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
+      await user.click(
+        screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+      );
       await user.click(screen.getByRole("option", { name: "Bob" }));
       if (desiredStatus === TaskStatus.READY) {
         await selectTaskStatus(user, "Ready");
@@ -2541,7 +2577,7 @@ describe("TaskForm", () => {
 
     expect(screen.getAllByText("Soko").length).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByRole("combobox", { name: /^Coworker/ }),
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
     ).toBeInTheDocument();
 
     await selectTaskStatus(user, "Ready");
@@ -2678,7 +2714,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Set start time" }));
+    await user.click(screen.getByRole("button", { name: /^Set start time/ }));
     await user.click(screen.getByRole("button", { name: "clear" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -2747,7 +2783,7 @@ describe("TaskForm", () => {
 
     expect(screen.getByText("Unassigned")).toBeInTheDocument();
     expect(
-      screen.getByRole("combobox", { name: /^Coworker/ }),
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -3534,13 +3570,10 @@ describe("TaskForm", () => {
     );
 
     // The create modal defaults to Elena (matched by slug/name), not the first
-    // option. The rail renders twice (mobile + desktop), so assert all matches.
-    for (const button of screen.getAllByRole("button", { name: /Elena/ })) {
-      expect(button).toHaveAttribute("aria-pressed", "true");
-    }
-    for (const button of screen.getAllByRole("button", { name: /Soko/ })) {
-      expect(button).toHaveAttribute("aria-pressed", "false");
-    }
+    // option.
+    expect(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    ).toHaveAccessibleName(/: Elena$/);
   });
 
   it("passes agent mention options to MarkdownEditor", () => {
@@ -4146,7 +4179,12 @@ describe("TaskForm draft tags", () => {
   it("scores an unchanged draft again after the catalog meaning changes, and keeps its score after a recolor", async () => {
     vi.useFakeTimers();
     try {
-      const client = new QueryClient();
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      });
       const label = {
         id: "label",
         displayName: "Procurement",
@@ -4199,7 +4237,12 @@ describe("TaskForm draft tags", () => {
   it("drops a retired draft workspace veto while keeping its built-in topic veto", async () => {
     vi.useFakeTimers();
     try {
-      const client = new QueryClient();
+      const client = new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      });
       const label = {
         id: "preset",
         displayName: "Design",
@@ -4239,6 +4282,42 @@ describe("TaskForm draft tags", () => {
       expect(onCreateTask.mock.lastCall?.[0]).not.toHaveProperty(
         "dismissedWorkspaceTagIds",
       );
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
+  it("wraps the property row and says under it which tags Jev added", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", suggestTaskTags);
+    try {
+      suggestTaskTags.mockReset().mockResolvedValue(
+        Response.json({
+          tags: ["design"],
+          receipt: "receipt",
+          workspaceSuggestions: [],
+        }),
+      );
+      renderComposer();
+      const row = screen.getByTestId("task-compose-meta-row");
+      expect(row).toHaveClass("flex-wrap");
+      expect(row).not.toHaveClass("overflow-x-auto");
+      // Let the title's first-frame focus land, then type in the details.
+      await act(async () => vi.advanceTimersByTimeAsync(50));
+      screen.getByTestId("markdown-editor").focus();
+      // Mounted empty before Jev answers, so the later text is announced.
+      const announcement = row.nextElementSibling;
+      expect(announcement).toHaveAttribute("role", "status");
+      expect(announcement).toHaveAttribute("aria-live", "polite");
+      expect(announcement).toBeEmptyDOMElement();
+      await act(async () => vi.advanceTimersByTimeAsync(1150));
+      expect(within(row).getByText("vocabulary.design")).toBeVisible();
+      expect(row.nextElementSibling).toBe(announcement);
+      expect(announcement).toHaveTextContent("appliedByJev");
+      expect(screen.getByTestId("markdown-editor")).toHaveFocus();
+      fireEvent.click(within(row).getByRole("button", { name: "remove" }));
+      expect(announcement).toBeEmptyDOMElement();
     } finally {
       vi.unstubAllGlobals();
       vi.useRealTimers();
@@ -4498,9 +4577,9 @@ describe("TaskForm draft tags", () => {
       expect(onCreateTask).toHaveBeenCalledWith(
         expect.objectContaining({ tagSuggestionReceipt: "receipt-1" }),
       );
-      const progress = within(screen.getByRole("status")).getAllByRole(
-        "listitem",
-      );
+      const progress = screen
+        .getAllByRole("status")
+        .flatMap((status) => within(status).queryAllByRole("listitem"));
       expect(progress.map((item) => item.textContent)).toEqual([
         "naming",
         "tagsReady",
@@ -4521,7 +4600,7 @@ describe("TaskForm draft tags", () => {
 
   // Items 4/5: the suggestion request has to start from the wizard's first step,
   // where an offer or a deep-linked prompt has already filled the description.
-  it("asks for suggestions on wizard step 1, before the editor is reached", async () => {
+  it("asks for suggestions for a prefilled brief before anything is typed", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", suggestTaskTags);
     try {
@@ -4538,13 +4617,182 @@ describe("TaskForm draft tags", () => {
           initialValues={{ description }}
         />,
       );
-      // No assignee is prefilled, so this is the wizard and step 1 is on screen.
-      expect(screen.queryByTestId("markdown-editor")).not.toBeInTheDocument();
       await act(async () => vi.advanceTimersByTimeAsync(1200));
       expect(suggestTaskTags).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("TaskForm composer", () => {
+  const withOffers = [
+    coworkerOptions[0]!,
+    mockCoworkerOption({
+      id: "coworker-2",
+      slug: "elena",
+      name: "Elena",
+      offers: [
+        {
+          title: "Competitive analysis",
+          prompt: "Compare my top 3 competitors.",
+        },
+      ],
+    }),
+  ];
+
+  beforeEach(() => {
+    vi.mocked(createTask)
+      .mockReset()
+      .mockResolvedValue(createTaskSuccess("task-1", "Task one"));
+  });
+
+  it("sends the priority and due date it was given", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ description: "Ship the launch email" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: /^title:/ }));
+    await user.click(screen.getByRole("option", { name: "levels.HIGH" }));
+    await user.click(screen.getByRole("button", { name: "set" }));
+    fireEvent.change(screen.getByLabelText("label"), {
+      target: { value: "2026-12-04" },
+    });
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ priority: "HIGH", dueOn: "2026-12-04" }),
+    );
+  });
+
+  it("leaves priority and due date out when none was set", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ description: "Ship the launch email" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    const input = vi.mocked(createTask).mock.calls[0]?.[0];
+    expect(input).not.toHaveProperty("priority");
+    expect(input).not.toHaveProperty("dueOn");
+  });
+
+  it("creates a Task from a title alone, sending the title as its brief", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const create = screen.getByRole("button", { name: "Create Task" });
+    expect(create).toBeDisabled();
+    await user.type(screen.getByLabelText("Task name"), "Review the contract");
+    await user.click(create);
+
+    expect(createTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Review the contract",
+        description: "Review the contract",
+      }),
+    );
+  });
+
+  it("moves from the title to the description on Enter", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Task name"), "One line{Enter}");
+
+    expect(screen.getByLabelText("Task name")).toHaveValue("One line");
+    expect(screen.getByTestId("markdown-editor")).toHaveFocus();
+  });
+
+  it("fills the title and brief from the assignee's template", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={withOffers}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const templates = screen.getByRole("button", { name: "templates" });
+    expect(screen.getByTestId("task-compose-meta-row")).not.toContainElement(
+      templates,
+    );
+    await user.click(templates);
+    await user.click(
+      screen.getByRole("button", { name: /^Competitive analysis/ }),
+    );
+
+    expect(screen.getByLabelText("Task name")).toHaveValue(
+      "Competitive analysis",
+    );
+    expect(screen.getByTestId("markdown-editor")).toHaveValue(
+      "Compare my top 3 competitors.",
+    );
+  });
+
+  it("with Create more on, stays open, keeps the properties and clears the text", async () => {
+    const user = userEvent.setup();
+    const onDirtyChange = vi.fn();
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        onSuccess={vi.fn()}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("switch", { name: "createMore" }));
+    await user.type(screen.getByLabelText("Task name"), "First of two");
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Task name")).toHaveValue(""),
+    );
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    expect(
+      screen.getByRole("combobox", { name: /^(Coworker|Assignee)/i }),
+    ).toHaveAccessibleName(/: Elena$/);
+    expect(screen.queryByText("taskCreatedHint")).not.toBeInTheDocument();
   });
 });

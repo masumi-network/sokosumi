@@ -351,6 +351,7 @@ export async function deleteTaskLink(
   requireId(linkId, "linkId");
   await client.delete<unknown>(
     `${TASKS_PATH}/${encodeURIComponent(taskId)}/links/${encodeURIComponent(linkId)}`,
+    undefined,
     signal,
   );
 }
@@ -364,6 +365,7 @@ export async function archiveTask(
   const response = parseApiResponse(
     await client.delete<unknown>(
       `${TASKS_PATH}/${encodeURIComponent(taskId)}`,
+      undefined,
       signal,
     ),
   );

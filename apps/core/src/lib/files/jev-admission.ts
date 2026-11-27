@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { v7 as uuidv7 } from "uuid";
 
 import prisma from "@/lib/db/prisma";
@@ -266,7 +267,7 @@ export async function admitJevRequest(input: {
          * and reintroduce the bug it is here to remove.
          */
         const [clock] = await tx.$queryRaw<{ committedAt: Date }[]>(
-          PrismaRaw.sql`SELECT clock_timestamp() AS "committedAt"`,
+          PrismaRaw.sql`SELECT clock_timestamp() AT TIME ZONE 'UTC' AS "committedAt"`,
         );
         const committedAt = clock?.committedAt ?? new Date();
         // Only the counting windows. They are 60 s and 24 h, compared
@@ -308,7 +309,7 @@ export async function admitJevRequest(input: {
             coalesce(sum("costUsd") FILTER (
               WHERE "workspaceId" = ${input.workspaceId}::uuid
             ), 0)::float8 AS "workspaceDaySpend"
-          FROM file_authorization_admission
+          FROM ${sharedTable("file_authorization_admission")}
           WHERE "admittedAt" > ${dayStart}
         `);
 
@@ -401,7 +402,7 @@ export async function admitJevRequest(input: {
         >(
           PrismaRaw.sql`
             WITH t AS (SELECT clock_timestamp() AS ts)
-            INSERT INTO "file_authorization_admission" (
+            INSERT INTO ${sharedTable("file_authorization_admission")} (
               "id", "workspaceId", "actorFingerprint", "epochVector",
               "purpose", "payloadDigest", "provider", "model", "inputTokens",
               "admittedAt", "expiresAt"

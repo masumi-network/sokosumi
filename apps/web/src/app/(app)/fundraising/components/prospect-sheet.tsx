@@ -1,12 +1,13 @@
 "use client";
-import type { FundraisingProspect, Member } from "@sokosumi/core-client";
+import type {
+  FundraisingPipeline,
+  FundraisingProspect,
+  Member,
+} from "@sokosumi/core-client";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import {
-  ContactAvatar,
-  PersonAvatar,
-} from "@/app/contacts/components/contact-visuals";
+import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
 import { InlineField } from "@/app/contacts/components/inline-field";
 import { primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,10 @@ import {
 import { parseUsd } from "../fundraising-view";
 import { useProspectUpdate } from "../use-fundraising";
 import { RoomSummary } from "./fundraising-board";
+import { IntroCell } from "./intro-cell";
+import { Outreach } from "./outreach";
 import { OwnerSelect, StageSelect } from "./prospect-controls";
+import { WarmPaths } from "./warm-paths";
 
 function Field({
   label,
@@ -40,12 +44,14 @@ function Field({
 /** One investor's raise record, beside the board. */
 export function ProspectSheet({
   prospect,
+  pipeline,
   listId,
   members,
   now,
   onClose,
 }: {
   prospect: FundraisingProspect | null;
+  pipeline: FundraisingPipeline;
   listId: string;
   members: Member[];
   now: Date;
@@ -97,7 +103,7 @@ export function ProspectSheet({
               </div>
             </SheetHeader>
 
-            <div className="grid gap-5 px-4 pb-6">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-5 px-4 pb-6">
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("columns.stage")}>
                   <StageSelect
@@ -220,35 +226,16 @@ export function ProspectSheet({
                 />
               </Field>
 
-              <Field label={t("sheet.knownBy")}>
-                {contact.knownBy.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    {t("sheet.knownByNobody")}
-                  </p>
-                ) : (
-                  <ul className="grid gap-1.5">
-                    {contact.knownBy.map((person) => (
-                      <li
-                        key={person.id}
-                        className="flex items-center gap-2 text-sm"
-                      >
-                        <PersonAvatar person={person} />
-                        <span className="min-w-0 flex-1 truncate">
-                          {person.name}
-                        </span>
-                        <span className="text-muted-foreground text-xs tabular-nums">
-                          {t("sheet.touches", {
-                            count: person.interactionCount,
-                          })}
-                          {person.lastInteractionAt
-                            ? ` · ${format.relativeTime(new Date(person.lastInteractionAt), now)}`
-                            : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Field>
+              <div className="grid gap-2">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {t("intro.statusTitle")}
+                </span>
+                <IntroCell prospect={prospect} pipeline={pipeline} now={now} />
+              </div>
+
+              <WarmPaths prospect={prospect} now={now} pipeline={pipeline} />
+
+              <Outreach prospect={prospect} pipeline={pipeline} now={now} />
 
               <Field label={t("columns.dataRoom")}>
                 <p className="text-sm">

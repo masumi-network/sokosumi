@@ -9,13 +9,16 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import type { PrismaRaw } from "@sokosumi/database/client";
+import { netTable, netType } from "@sokosumi/database/sql-tables";
 import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import type { SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { type Network, networkKey } from "@/lib/network";
 
 import { listCardanoBillableUnitSpellings } from "./agent-cost";
 import { internalServerError, notFound, unprocessableEntity } from "./error";
@@ -259,10 +262,12 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
  * cron's own lag while letting instances disagree with each other.
  */
 export const getCardanoV2ReadySources = async (
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
+  // shortcut: callers off the Network scope read Mainnet's row; they pass their scope's Network when they move to it.
+  network: Network = "mainnet",
 ): Promise<CardanoV2ReadySource[]> => {
   const readiness = await tx.syncMetadata.findUnique({
-    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+    where: { key: networkKey(network, CARDANO_V2_RAIL_READINESS_KEY) },
   });
   if (!readiness?.cursorId) {
     return [];
@@ -445,12 +450,12 @@ export const calculateAverageExecutionTime = async (
     `
     SELECT 
       AVG(EXTRACT(EPOCH FROM (completed_event."createdAt" - j."createdAt"))) as avg_duration_seconds
-    FROM "Job" j
+    FROM ${netTable("mainnet", "Job").sql} j
     INNER JOIN LATERAL (
       SELECT js."createdAt"
-      FROM "jobEvent" js
+      FROM ${netTable("mainnet", "jobEvent").sql} js
       WHERE js."jobId" = j.id
-      AND js."status" = 'COMPLETED'::"AgentJobStatus"
+      AND js."status" = 'COMPLETED'::${netType("mainnet", "AgentJobStatus").sql}
       ORDER BY js."createdAt" DESC
       LIMIT 1
     ) completed_event ON true

@@ -14,6 +14,7 @@ import {
 } from "@/helpers/agent";
 import { getAgentCost } from "@/helpers/agent-cost";
 import { calculateAgentRatings } from "@/helpers/agent-rating";
+import type { NetworkDb } from "@/lib/db/network-scope";
 import { recordCoreWarning } from "@/lib/evlog";
 import {
   getAgentLegalFromAgent,
@@ -43,7 +44,7 @@ export type AgentSummaryRow = Prisma.AgentGetPayload<{
 export async function buildAgentSummaries(
   agents: AgentSummaryRow[],
   creditCosts: CreditCost[],
-  tx: Prisma.TransactionClient,
+  db: NetworkDb,
 ) {
   const agentsWithCredits = agents
     .map((agent) => {
@@ -87,7 +88,7 @@ export async function buildAgentSummaries(
     }));
 
   const agentIds = agentsWithCredits.map((agent) => agent.id);
-  const ratingsMap = await calculateAgentRatings(agentIds, tx);
+  const ratingsMap = await calculateAgentRatings(agentIds, db);
 
   return agentsWithCredits.map((agent) => {
     const ratingMetrics = ratingsMap.get(agent.id);

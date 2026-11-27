@@ -11,7 +11,7 @@ import {
   jobWithShare,
   jobWithTransaction,
 } from "@sokosumi/database/types/job";
-import { convertCentsToCredits } from "@sokosumi/utils";
+import { convertCentsToCredits, removeSeoTaskRequest } from "@sokosumi/utils";
 
 import { getAgentName } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -191,7 +191,10 @@ function mapPublicTask(task: PublicTaskWithRelations) {
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     name: task.name,
-    description: task.description,
+    // An SEO Task's request line holds its price terms: the public response carries only the readable text.
+    description: task.description
+      ? removeSeoTaskRequest(task.description) || null
+      : null,
     status: task.status,
     assignee,
     /** @deprecated Use `assignee`. Coworker assignee only. */

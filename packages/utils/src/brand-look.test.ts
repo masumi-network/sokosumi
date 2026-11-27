@@ -278,6 +278,34 @@ describe("designMdPalette", () => {
     ).toEqual(["#6400ff", "#ff6a00", "#0a7d4f", "#fafafa", "#111111"]);
   });
 
+  it("takes a Material DESIGN.md's primary container as its accent, and no tertiary that is its error colour", () => {
+    // entry.fyi, 2026-11-25: 63 of 68 pictures were refused for the acid-lime
+    // accent its own DESIGN.md names, while its error red counted as brand.
+    expect(
+      designMdPalette(
+        [
+          "colors:",
+          "  primary: '#143a2e'",
+          "  primary-container: '#d6f46a'",
+          "  secondary: '#3c403b'",
+          "  secondary-container: '#dde8e1'",
+          "  tertiary: '#b8321f'",
+          "  error: '#b8321f'",
+          "  background: '#ffffff'",
+          "  on-background: '#121513'",
+        ].join("\n"),
+      ),
+    ).toEqual(["#143a2e", "#d6f46a", "#ffffff"]);
+  });
+
+  it("leaves out a grey primary container", () => {
+    expect(
+      designMdPalette(
+        "colors:\n  primary: '#6400ff'\n  primary-container: '#e5e5e5'\n  background: '#ffffff'",
+      ),
+    ).toEqual(["#6400ff", "#ffffff"]);
+  });
+
   it("gives a block without roles in its order, status entries left out", () => {
     expect(
       designMdPalette(

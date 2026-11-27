@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hasSeoTaskRequest,
+  hideSeoAuditRequest,
   removeSeoTaskRequest,
   seoTaskDescription,
   seoTaskRequestPacket,
+  splitSeoTaskRequest,
 } from "./seo-task-request.js";
+import { removeTaskContextAttachmentLinks } from "./task-context-attachment.js";
 
 const packet = { version: 1, pageUrls: ["https://example.com/"] };
 
@@ -47,6 +51,11 @@ describe("seoTaskRequestPacket", () => {
 });
 
 describe("removeSeoTaskRequest", () => {
+  it("leaves a description without a request line exactly as written", () => {
+    const code = "    line one\r\n    line two\n";
+    expect(removeSeoTaskRequest(code)).toBe(code);
+  });
+
   it("shows the summary without the machine line", () => {
     const description = seoTaskDescription(
       "Full SEO audit of 1 page.",
@@ -64,5 +73,67 @@ describe("removeSeoTaskRequest", () => {
     expect(removeSeoTaskRequest("SEO_job: rewrite the titles")).toBe(
       "SEO_job: rewrite the titles",
     );
+  });
+});
+
+describe("hideSeoAuditRequest", () => {
+  it("hides a full audit's price terms and keeps a focused check's line", () => {
+    expect(
+      hideSeoAuditRequest(
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}',
+      ),
+    ).toBe("Full SEO audit of 2 selected pages:");
+    const focused = 'Check titles\n\nseo_job: {"version":1}';
+    expect(hideSeoAuditRequest(focused)).toBe(focused);
+    expect(hideSeoAuditRequest('seo_audit: {"version":1}')).toBeNull();
+  });
+});
+
+describe("splitSeoTaskRequest", () => {
+  const linkInPacket = { note: "see [BRIEFING.md](https://x)" };
+  const edit = (markdown: string) => {
+    const { prose, join } = splitSeoTaskRequest(markdown);
+    return join(removeTaskContextAttachmentLinks(prose));
+  };
+
+  it("edits the prose and keeps the request line byte for byte", () => {
+    const description = seoTaskDescription(
+      "Summary [BRIEFING.md](https://x)",
+      "seo_audit",
+      linkInPacket,
+    );
+    expect(edit(description)).toBe(
+      seoTaskDescription("Summary", "seo_audit", linkInPacket),
+    );
+  });
+
+  it("passes text without a request line to the edit whole", () => {
+    expect(edit("a [BRIEFING.md](https://x) b")).toBe("a  b");
+  });
+});
+
+describe("hasSeoTaskRequest", () => {
+  it.each([
+    [
+      "a seo_job line",
+      seoTaskDescription("Summary", "seo_job", packet),
+      "seo_job",
+      true,
+    ],
+    [
+      "a seo_audit line, asked for seo_job",
+      seoTaskDescription("Summary", "seo_audit", packet),
+      "seo_job",
+      false,
+    ],
+    [
+      "prose that starts with the marker",
+      "seo_job: fix titles",
+      "seo_job",
+      false,
+    ],
+    ["no text", null, "seo_job", false],
+  ] as const)("%s", (_name, text, marker, expected) => {
+    expect(hasSeoTaskRequest(text, marker)).toBe(expected);
   });
 });

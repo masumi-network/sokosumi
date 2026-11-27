@@ -440,7 +440,16 @@ it("reaches archived Tasks from the view options menu", async () => {
 it("returns focus to the view options button when the export dialog closes", async () => {
   const user = userEvent.setup();
   render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: {
+            queries: { gcTime: Number.POSITIVE_INFINITY },
+            mutations: { gcTime: Number.POSITIVE_INFINITY },
+          },
+        })
+      }
+    >
       {boardView([TASK])}
     </QueryClientProvider>,
   );
@@ -761,11 +770,11 @@ it("turns on Show sub-tasks without reloading the page", async () => {
 });
 
 it("keeps a task that left the server page when this tab did not archive it", () => {
-  const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
-  const { rerender } = renderBoard([TASK, shifted]);
+  const shifted: TaskWithCoworker = { ...CANCELED_TASK, id: "task-shifted" };
+  const { rerender } = render(boardView([CANCELED_TASK, shifted]));
   expect(boardCard(shifted.id)).toBeInTheDocument();
 
-  rerender(boardView([TASK]));
+  rerender(boardView([CANCELED_TASK], undefined, "cursor-1", 1));
 
   expect(boardCard(shifted.id)).toBeInTheDocument();
 });
@@ -2440,4 +2449,337 @@ it("releases the settled archive pin when a fresh server snapshot reports restor
   expect(
     screen.getByTestId("board-density").getAttribute("data-done-hidden"),
   ).toBe("1");
+});
+
+it("drops a loaded task archived in another tab once the server reports the column complete", async () => {
+  const archivedInOtherTab: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-loaded-archived-other-tab",
+  };
+  const todoLoaded: TaskWithCoworker = {
+    ...TASK,
+    id: "task-todo-loaded",
+    status: TaskStatus.READY,
+    columnId: "todo",
+  };
+  vi.mocked(loadMoreTasksColumn)
+    .mockResolvedValueOnce({ tasks: [todoLoaded], nextCursor: null })
+    .mockResolvedValueOnce({ tasks: [archivedInOtherTab], nextCursor: null });
+
+  const withTodoAndDone = (
+    tasks: TaskWithCoworker[],
+    doneCursor: string | null,
+    doneHidden: number,
+    todoCursor: string | null,
+    todoHidden: number,
+  ) =>
+    cloneElement(boardView(tasks, undefined, doneCursor, doneHidden), {
+      columnNextCursorById: {
+        backlog: null,
+        todo: todoCursor,
+        "in-progress": null,
+        "input-required": null,
+        done: doneCursor,
+      },
+      columnHiddenCountById: {
+        backlog: 0,
+        todo: todoHidden,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      },
+    });
+
+  const { rerender } = render(
+    withTodoAndDone([TASK], "done-cursor-1", 1, "todo-cursor-1", 1),
+  );
+  const buttons = screen.getAllByRole("button", { name: "Load more" });
+  act(() => buttons[0]?.click());
+  expect(
+    await screen.findByTestId(`board-card-${todoLoaded.id}`),
+  ).toBeInTheDocument();
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archivedInOtherTab.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Tab 2 archives the loaded Done task (not in this tab's archivedTaskIds).
+  // Server now reports Done complete (nextCursor: null) while To do stays paginated.
+  rerender(withTodoAndDone([TASK], null, 0, "todo-cursor-1", 1));
+
+  expect(
+    screen.queryByTestId(`board-card-${archivedInOtherTab.id}`),
+  ).not.toBeInTheDocument();
+  expect(boardCard(todoLoaded.id)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-todo-hidden"),
+  ).toBe("0");
+});
+
+it("drops a page-1 task archived in another tab once the server reports the column complete", () => {
+  const archivedInOtherTab: TaskWithCoworker = {
+    ...TASK,
+    id: "task-page-1-archived-other-tab",
+  };
+  const { rerender } = renderBoard([TASK, archivedInOtherTab]);
+  expect(boardCard(archivedInOtherTab.id)).toBeInTheDocument();
+
+  rerender(boardView([TASK]));
+
+  expect(
+    screen.queryByTestId(`board-card-${archivedInOtherTab.id}`),
+  ).not.toBeInTheDocument();
+  expect(boardCard(TASK.id)).toBeInTheDocument();
+});
+
+it("restores Load more on an ordinary refresh when a new low-priority row arrives behind an exhausted loaded row", async () => {
+  const loaded: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-loaded-low-prio-1",
+  };
+  const newLowPriority: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-done-new-low-prio-2",
+  };
+  vi.mocked(loadMoreTasksColumn)
+    .mockResolvedValueOnce({ tasks: [loaded], nextCursor: null })
+    .mockResolvedValueOnce({
+      tasks: [loaded, newLowPriority],
+      nextCursor: null,
+    });
+
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1", 1));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${loaded.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+
+  // Ordinary refresh: page 1 and cursor-1 are unchanged, but a new low-priority
+  // row arrived behind the loaded row so server overflow grows from 1 to 2.
+  rerender(boardView([TASK], undefined, "cursor-1", 2));
+
+  expect(boardCard(loaded.id)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
+
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${newLowPriority.id}`),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+});
+
+it("updates the remaining hidden count on an ordinary refresh when a new low-priority row arrives behind an active page-2 cursor", async () => {
+  const pageTwoDone: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...CANCELED_TASK,
+      id: `done-active-cursor-p2-${index + 1}`,
+    }),
+  );
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: pageTwoDone,
+    nextCursor: "cursor-2",
+  });
+
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1", 21));
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId("board-card-done-active-cursor-p2-20"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("1");
+
+  // A new low-priority row arrives behind page 2: server reports 22 hidden behind page 1.
+  rerender(boardView([TASK], undefined, "cursor-1", 22));
+
+  expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("2");
+
+  // Clicking Load more still uses the preserved page-2 cursor.
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: [],
+    nextCursor: null,
+  });
+  await act(async () => {
+    screen.getByRole("button", { name: "Load more" }).click();
+    await Promise.resolve();
+  });
+  expect(loadMoreTasksColumn).toHaveBeenLastCalledWith(
+    expect.objectContaining({ columnId: "done", cursor: "cursor-2" }),
+  );
+});
+
+it("accounts for a pending dragged task against its source column rather than its destination overflow", async () => {
+  const todoPageOne: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...TASK,
+      id: `todo-drag-p1-${index + 1}`,
+      status: TaskStatus.READY,
+      columnId: "todo",
+    }),
+  );
+  const todoPageTwo: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...TASK,
+      id: `todo-drag-p2-${index + 1}`,
+      status: TaskStatus.READY,
+      columnId: "todo",
+    }),
+  );
+  const draggedDone: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "done-drag-pending-reopen",
+  };
+  const newDonePageOne: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "done-new-pushes-dragged-off",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: todoPageTwo,
+    nextCursor: "todo-cursor-2",
+  });
+
+  const withTodoAndDone = (
+    tasks: TaskWithCoworker[],
+    todoCursor: string | null,
+    todoHidden: number,
+    doneCursor: string | null,
+    doneHidden: number,
+  ) =>
+    cloneElement(boardView(tasks, undefined, doneCursor, doneHidden), {
+      columnNextCursorById: {
+        backlog: null,
+        todo: todoCursor,
+        "in-progress": null,
+        "input-required": null,
+        done: doneCursor,
+      },
+      columnHiddenCountById: {
+        backlog: 0,
+        todo: todoHidden,
+        "in-progress": 0,
+        "input-required": 0,
+        done: doneHidden,
+      },
+    });
+
+  const { rerender } = render(
+    withTodoAndDone(
+      [...todoPageOne, draggedDone],
+      "todo-cursor-1",
+      21,
+      null,
+      0,
+    ),
+  );
+
+  // Load 40 of 41 To do tasks (20 page-1 + 20 page-2, 1 hidden).
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId("board-card-todo-drag-p2-20"),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-todo-hidden"),
+  ).toBe("1");
+
+  // Drag the first-page Done coworker task to To do and leave the reopen dialog pending.
+  await dropOnTodo(draggedDone.id, "done");
+  await screen.findByLabelText("commentLabel");
+  expect(boardCard(draggedDone.id)).toHaveAttribute("data-column", "todo");
+
+  // A new Done task pushes the dragged card off Done page 1 during a refresh.
+  rerender(
+    withTodoAndDone(
+      [...todoPageOne, newDonePageOne],
+      "todo-cursor-1",
+      21,
+      "done-cursor-1",
+      1,
+    ),
+  );
+
+  expect(boardCard(draggedDone.id)).toHaveAttribute("data-column", "todo");
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-todo-hidden"),
+  ).toBe("1");
+  expect(
+    screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+  ).toBe("0");
+
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+});
+
+it("clears a pending archive pin when a complete server snapshot replaces the column cursor", async () => {
+  const pageOneDone: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...CANCELED_TASK,
+      id: `done-pin-clear-p1-${index + 1}`,
+    }),
+  );
+  const pageTwoDone: TaskWithCoworker[] = Array.from(
+    { length: 20 },
+    (_, index) => ({
+      ...CANCELED_TASK,
+      id: `done-pin-clear-p2-${index + 1}`,
+    }),
+  );
+  const archived = pageTwoDone[19]!;
+  vi.mocked(loadMoreTasksColumn).mockResolvedValueOnce({
+    tasks: pageTwoDone,
+    nextCursor: "cursor-2",
+  });
+
+  try {
+    const { rerender } = render(
+      boardView(pageOneDone, undefined, "cursor-1", 21),
+    );
+    act(() => screen.getByRole("button", { name: "Load more" }).click());
+    expect(
+      await screen.findByTestId(`board-card-${archived.id}`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("1");
+
+    // Same-tab archive starts while page-2 cursor is active.
+    act(() => markTaskArchived(archived.id));
+    expect(
+      screen.queryByTestId(`board-card-${archived.id}`),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+
+    // Another tab brings Done down to a complete 20 rows while archive is still pending.
+    rerender(boardView([...pageOneDone], undefined, null, 0));
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("0");
+
+    // Next refresh reports 21 rows before the archive settles: Load more must appear.
+    rerender(boardView([...pageOneDone], undefined, "cursor-new", 1));
+    expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();
+    expect(
+      screen.getByTestId("board-density").getAttribute("data-done-hidden"),
+    ).toBe("1");
+  } finally {
+    settleTaskArchive(archived.id);
+  }
 });

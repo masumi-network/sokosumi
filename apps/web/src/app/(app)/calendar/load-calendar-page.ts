@@ -55,6 +55,7 @@ export interface CalendarPageSearchParams {
   status?: string;
   postStatus?: string;
   provider?: string;
+  showCanceled?: string;
   view?: string;
   timezone?: string;
 }

@@ -294,7 +294,7 @@ export function startCusoRig(fig: SVGSVGElement, shadow: HTMLElement): CusoRig {
     });
     st.squash = 0;
     if (!sprang) return;
-    if (art === "done") {
+    if (art === "correct") {
       const wobbled = await tween(900, (_, r) => {
         const s = r * 0.9;
         st.rot = 13 * Math.exp(-4.2 * s) * Math.sin(2 * Math.PI * 3 * s);

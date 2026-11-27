@@ -3,12 +3,12 @@ import {
   type SokoBotSeoCapability,
 } from "@sokosumi/soko-bot";
 import { badRequest } from "@/helpers/error";
+import { modelSeoWorkspace } from "@/helpers/seo-site-speed-model-view";
 import { isEvalWorkspace } from "@/lib/evals/eval-guard";
 
 import {
   addSeoPageSchema,
   createSeoScopeSchema,
-  type ProjectSeoWorkspace,
   requestSeoAnalysisSchema,
   type SeoActor,
   saveSeoCompetitorSchema,
@@ -43,75 +43,11 @@ const PROVIDER_BACKED_SEO_TOOLS = new Set<SokoBotSeoCapability>([
   "sync_seo_statistics",
 ]);
 
-type SiteSpeedRow = NonNullable<
-  ProjectSeoWorkspace["siteSpeed"]
->["rows"][number];
-
-/** A measurement as Soko Bot reads it: values, statuses and codes. A lab insight's text is the worker's: it is left out. */
-function botSpeedDevice({
-  pageUrl,
-  testedUrl,
-  device,
-  lab,
-  field,
-}: SiteSpeedRow["devices"][number]) {
-  return {
-    pageUrl,
-    testedUrl,
-    device,
-    lab:
-      lab.status === "measured"
-        ? {
-            status: lab.status,
-            median: lab.median,
-            runs: lab.runs,
-            ok: lab.ok,
-            ...(lab.pageSpeed && {
-              pageSpeed: {
-                scores: lab.pageSpeed.scores,
-                measuredAt: lab.pageSpeed.measuredAt,
-              },
-            }),
-          }
-        : { status: lab.status },
-    field:
-      field.status === "measured"
-        ? {
-            status: field.status,
-            level: field.level,
-            url: field.url,
-            p75: field.p75,
-            period: field.period,
-            history: field.history,
-          }
-        : { status: field.status },
-  };
-}
-
-/**
- * The workspace as Soko Bot reads it. The speed table holds the SEO worker's free text (a row's `why` and
- * `group`, a lab insight's sentences): it can carry instructions for a model, so only the SEO page gets it.
- * Each field of a row is named here: a new field of the table does not reach Soko Bot by default.
- */
+/** The workspace as Soko Bot reads it: speed reads without the worker's free text (modelSeoWorkspace). */
 async function botSeoWorkspace(
   ...args: Parameters<typeof getProjectSeoWorkspace>
 ) {
-  const workspace = await getProjectSeoWorkspace(...args);
-  if (!workspace.siteSpeed) return workspace;
-  return {
-    ...workspace,
-    siteSpeed: {
-      ...workspace.siteSpeed,
-      rows: workspace.siteSpeed.rows.map((row) => ({
-        url: row.url,
-        audited: row.audited,
-        cause: row.cause,
-        tier: row.tier,
-        check: row.check,
-        devices: row.devices.map(botSpeedDevice),
-      })),
-    },
-  };
+  return modelSeoWorkspace(await getProjectSeoWorkspace(...args));
 }
 
 /** Chat and the SEO page share authorization, validation and durable operations. */
@@ -136,8 +72,12 @@ export async function runSeoTool(
     );
   const link = `/seo?projectId=${encodeURIComponent(projectId)}&view=project`;
   if (capability === "get_seo_workspace") {
+    const { impactDays } =
+      SOKO_BOT_SEO_INPUT_SCHEMAS.get_seo_workspace.parse(parsed);
     return {
-      ...(await botSeoWorkspace(actor, seoWorkspaceQuerySchema.parse(fields))),
+      ...(await botSeoWorkspace(actor, seoWorkspaceQuerySchema.parse(fields), {
+        actionImpact: { days: impactDays },
+      })),
       link,
     };
   }
@@ -225,11 +165,13 @@ export async function runSeoTool(
     }
     case "sync_seo_statistics":
       return {
-        ...(await syncProjectSeoStatistics(
-          actor,
-          syncProjectSeoStatisticsSchema.parse(fields),
-          hooks,
-        )),
+        ...modelSeoWorkspace(
+          await syncProjectSeoStatistics(
+            actor,
+            syncProjectSeoStatisticsSchema.parse(fields),
+            hooks,
+          ),
+        ),
         link,
       };
   }

@@ -14,6 +14,7 @@ export const workCreatorInclude = {
       name: true,
       avatarSeed: true,
       avatarImageUrl: true,
+      versionId: true,
       userId: true,
       user: personSummarySelect,
     },

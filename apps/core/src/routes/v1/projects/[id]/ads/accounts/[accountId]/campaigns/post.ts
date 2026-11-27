@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createAdCampaignRequestSchema,
@@ -21,7 +21,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/ads/accounts/{accountId}/campaigns",
     description:
-      "Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (type SEARCH: locations, languages, keywords and a responsive search ad with optional sitelinks and callouts; type DISPLAY: a responsive display ad with Drive images, which must belong to the active Workspace's Drive; the tree is created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Requires an interactive user session in the Project's Workspace.",
+      "Create a campaign in an attached ad account. The campaign is always created paused. dailyBudget is a decimal in the account currency. Meta accounts require an objective and take no google spec (422 otherwise); Google accounts require a google spec (type SEARCH: locations, languages, keywords and a responsive search ad with optional sitelinks and callouts; type DISPLAY: a responsive display ad with Drive images, which must belong to the active Workspace's Drive; the tree is created in one atomic call) and take no objective (422 otherwise). A Google validation or policy failure is returned as 422 with Google's message. Open to a person and to an agent (user API key, OAuth or MCP token) in the Project's Workspace; Coworker keys get 403. A person resumes the campaign in Sokosumi before it spends (ADR 0077).",
     tags: ["Projects"],
     request: {
       params: projectAdAccountParamsSchema,
@@ -51,7 +51,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = requireUserAuthContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId } = c.req.valid("param");
     const { name, dailyBudget, objective, google } = c.req.valid("json");

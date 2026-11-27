@@ -103,7 +103,10 @@ function renderWorkspace(workspace: ProjectSeoWorkspace) {
       vi.fn(async () => Response.json(workspace)),
     );
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   const view = render(
@@ -1292,6 +1295,8 @@ describe("Keywords after a check", () => {
       clicks: null,
       conversion: "medium",
       feature: "Yield tracker",
+      intentClass: "problem",
+      fit: "direct",
     };
     renderWorkspace(workspace);
     const header = screen.getByRole("columnheader", {
@@ -1302,6 +1307,8 @@ describe("Keywords after a check", () => {
     const row = within(table).getByText("Stablecoins").closest("tr");
     if (!row) throw new Error("no keyword row");
     expect(within(row).getByText("Medium")).toBeVisible();
+    // The reader sees why the level is medium, in plain words.
+    expect(row).toHaveTextContent("Has a problem to solve, matches your offer");
     expect(row).toHaveTextContent("Feature: Yield tracker");
     await user.click(screen.getByRole("button", { name: "Daily positions" }));
     const chart = screen

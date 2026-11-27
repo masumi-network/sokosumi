@@ -70,6 +70,7 @@ type Page = ReactElement<{
   overview?: { projectId: string };
   adsError?: string | null;
   measureError?: string | null;
+  name?: string;
 }>;
 
 function render(error?: string | string[]): Promise<Page> {
@@ -428,6 +429,19 @@ describe("CMO home page", () => {
       expect(page.props.adsError).toBe(expectedError);
     },
   );
+
+  it("names the person as Core has them, not as the sign-up session did", async () => {
+    getSession.mockResolvedValue({
+      user: { name: "", email: "ada@example.com" },
+    });
+    const page = (await Home({
+      searchParams: Promise.resolve({ project: "project-1" }),
+      view: "today",
+    })) as Page;
+
+    expect(page.type).toBe(CmoApp);
+    expect(page.props.name).toBe("Ada Lovelace");
+  });
 
   it("parses /results?measure=failed on the server and passes measureError to CmoApp", async () => {
     const page = (await Home({

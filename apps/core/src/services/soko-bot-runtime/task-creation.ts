@@ -11,6 +11,7 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   actionInputHash,
   actionOperationKey,
@@ -21,6 +22,7 @@ import {
   describeDecision,
   parseDecisionProposal,
 } from "@/lib/soko-bot/decision-proposal";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import { createTaskForActor } from "@/services/task-domain.service";
@@ -285,8 +287,29 @@ export async function createTask(
       status: task.status,
       assigneeId: task.assigneeId,
     };
+    const delegationAuthority =
+      input.followUp !== undefined || input.followUpAllows
+        ? await deriveDelegationAuthority(
+            {
+              id: authorized.turn.id,
+              sokoBotId: authorized.turn.sokoBotId,
+              workspaceId: authorized.turn.workspaceId,
+              versionId: authorized.turn.versionId,
+              source: authorized.turn.source,
+              parentTurnId: authorized.turn.parentTurnId ?? null,
+              askedByUserId: authorized.turn.askedByUserId ?? null,
+              requestedByUserId: authorized.turn.requestedByUserId,
+              actingUserId: authorized.turn.actingUserId,
+              chainDepth: authorized.turn.chainDepth,
+              botProjectId: authorized.turn.botProjectId ?? null,
+            },
+            { followUpAllows: input.followUpAllows },
+            tx,
+          )
+        : undefined;
     await tx.sokoBotDelegation.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -295,6 +318,12 @@ export async function createTask(
         lastSeenStatus: result.status,
         taskId: result.id,
         ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
+        ...(input.followUpAllows
+          ? { followUpAllows: input.followUpAllows }
+          : {}),
+        ...(delegationAuthority
+          ? { authority: jsonInput(delegationAuthority) }
+          : {}),
       },
     });
     {

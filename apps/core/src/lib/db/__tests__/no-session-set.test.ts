@@ -13,7 +13,10 @@ const DIRECTORIES = [
 // The three clients share connections, so a search_path set on one is seen by
 // the others. Production SQL never touches it; it names schemas instead.
 // A file that must mention it goes here, with its reason.
-const ALLOWED: Record<string, string> = {};
+const ALLOWED: Record<string, string> = {
+  "apps/core/src/test/split-layout.ts":
+    "test fixtures only: `withFixtureSchemas` sets a transaction-local path for a fixture's writes",
+};
 
 function mentionsSearchPath(text: string): boolean {
   return /search_path/i.test(text);

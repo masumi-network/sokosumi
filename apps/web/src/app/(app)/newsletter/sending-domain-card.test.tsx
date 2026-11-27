@@ -111,7 +111,10 @@ const PAUSED_DOMAIN: NewsletterSendingDomain = {
 
 function renderCard(state: Partial<NewsletterSendingDomainState> = {}) {
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   function card(currentState: Partial<NewsletterSendingDomainState>) {
     return (

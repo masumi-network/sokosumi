@@ -1,3 +1,4 @@
+import type { SokoBotSchedule } from "@sokosumi/database";
 import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   getSokoBotVersion,
@@ -8,13 +9,13 @@ import {
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
 import {
   createSokoBotSchedule,
   deleteSokoBotSchedule,
-  listSokoBotSchedules,
   updateSokoBotSchedule,
 } from "@/services/soko-bot-schedule.service";
 import {
@@ -23,8 +24,14 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
-import { requireOwnScheduleScope, runScheduleTool } from "./schedule-scope";
-
+import { listSchedules } from "./schedule-reads";
+import {
+  requireOwnScheduleScope,
+  requireScheduledRunMayEnd,
+  resolveBotScheduleAuthority,
+  resolveRequestedScheduleCapabilities,
+  runScheduleTool,
+} from "./schedule-scope";
 export async function dispatchSchedulesTools(
   runtime: RuntimeOperations,
   input: ExecuteSokoBotToolInput,
@@ -88,7 +95,16 @@ export async function dispatchSchedulesTools(
     }
 
     case "list_schedules":
-      return listSokoBotSchedules(authorized.turn.sokoBotId);
+      return listSchedules(authorized, input.input);
+
+    case "save_task_schedule":
+
+    case "delete_task_schedule": {
+      const taskSchedules = await import("./task-schedules");
+      return input.capability === "save_task_schedule"
+        ? taskSchedules.saveTaskSchedule(runtime, input, authorized)
+        : taskSchedules.removeTaskSchedule(runtime, input, authorized);
+    }
 
     case "create_schedule":
 
@@ -103,47 +119,111 @@ export async function dispatchSchedulesTools(
             false,
             input.capability,
           );
-          if (authorized.turn.source === "SCHEDULE")
+          if (authorized.turn.source === "SCHEDULE") {
+            await requireScheduledRunMayEnd(
+              tx,
+              authorized.turn.id,
+              input.capability,
+              input.input,
+              authorized,
+            );
             await requireOwnScheduleScope(
               tx,
               authorized.turn.id,
               input.capability,
               input.input,
             );
+          }
           const {
             actingUserId: userId,
             workspaceId,
             sokoBotId,
           } = authorized.turn;
           const scope = { userId, workspaceId, sokoBotId };
-          const schedule =
-            input.capability === "create_schedule"
-              ? await createSokoBotSchedule(
+          let schedule:
+            | Omit<SokoBotSchedule, "network">
+            | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
+          if (input.capability === "create_schedule") {
+            const {
+              stopRule,
+              allowScheduledPosts,
+              capabilities,
+              ...scheduleInput
+            } = createScheduleInputSchema.parse(input.input);
+            const capabilityNames = resolveRequestedScheduleCapabilities(
+              capabilities,
+              authorized.grant.capabilities,
+            );
+            const row = await createSokoBotSchedule(
+              {
+                ...scope,
+                ...scheduleInput,
+                network: DETACHED_SOKO_BOT_NETWORK,
+                capabilityNames,
+                explicitCapabilities: capabilities !== undefined,
+                resolveAuthority: resolveBotScheduleAuthority(
+                  authorized,
                   {
-                    ...scope,
-                    ...createScheduleInputSchema.parse(input.input),
-                    capabilityNames: authorized.grant.capabilities,
+                    stopRule,
+                    allowScheduledPosts,
+                    capabilities: capabilityNames,
                   },
-                  tx,
-                )
-              : input.capability === "update_schedule"
-                ? await updateSokoBotSchedule(
-                    {
-                      ...scope,
-                      ...updateScheduleInputSchema.parse(input.input),
-                      // Cuso's rhythms are the work he was hired for: what
-                      // the owner asks for becomes a schedule of its own.
-                      keepBuiltInRhythms:
-                        getSokoBotVersion(authorized.turn.versionId).profile ===
-                        "cmo",
-                    },
-                    tx,
+                  { isUpdate: false },
+                ),
+              },
+              tx,
+            );
+            const { network: _network, ...created } = row;
+            schedule = created;
+          } else if (input.capability === "update_schedule") {
+            const {
+              stopRule,
+              allowScheduledPosts,
+              capabilities,
+              keepCapabilities: _keepCapabilities,
+              ...scheduleInput
+            } = updateScheduleInputSchema.parse(input.input);
+            const capabilityNames =
+              capabilities !== undefined
+                ? resolveRequestedScheduleCapabilities(
+                    capabilities,
+                    authorized.grant.capabilities,
                   )
-                : await deleteSokoBotSchedule(
-                    scope.userId,
-                    { ...scope, ...scheduleIdInputSchema.parse(input.input) },
-                    tx,
-                  );
+                : undefined;
+            const row = await updateSokoBotSchedule(
+              {
+                ...scope,
+                ...scheduleInput,
+                ...(capabilityNames !== undefined
+                  ? { capabilityNames, explicitCapabilities: true }
+                  : {}),
+                editorCapabilities: authorized.grant.capabilities,
+                // Cuso's rhythms are the work he was hired for: what
+                // the owner asks for becomes a schedule of its own.
+                keepBuiltInRhythms:
+                  getSokoBotVersion(authorized.turn.versionId).profile ===
+                  "cmo",
+                resolveAuthority: resolveBotScheduleAuthority(
+                  authorized,
+                  {
+                    stopRule,
+                    allowScheduledPosts,
+                    capabilities: capabilityNames,
+                  },
+                  { isUpdate: true },
+                ),
+              },
+              tx,
+            );
+            const { network: _network, ...updated } = row;
+            schedule = updated;
+          } else {
+            schedule = await deleteSokoBotSchedule(
+              scope.userId,
+              { ...scope, ...scheduleIdInputSchema.parse(input.input) },
+              tx,
+            );
+          }
           const result =
             input.capability === "delete_schedule"
               ? { ...schedule, deleted: true }

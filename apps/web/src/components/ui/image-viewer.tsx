@@ -53,6 +53,8 @@ interface ImageViewerProps {
   className?: string;
   /** Optional detail panel beside (below, on narrow screens) the open image. */
   aside?: React.ReactNode;
+  /** Extra toolbar buttons for the open image, before Print. */
+  actions?: React.ReactNode;
 }
 
 interface ViewerUiState {
@@ -65,13 +67,15 @@ const SWIPE_THRESHOLD = 50;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 0.25;
+const PRINT_LOAD_TIMEOUT_MS = 10_000;
+const PRINT_CLEANUP_FALLBACK_MS = 500;
 
 // aria-disabled, not disabled: a disabled button drops focus to the body,
 // and the arrow keys stop reaching the viewer after clicking to an end.
 const stepButtonClassName =
   "absolute top-1/2 size-11 -translate-y-1/2 rounded-full bg-scrim-strong text-on-media hover:bg-scrim hover:text-on-media aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-scrim-strong";
 
-const toolbarButtonClassName =
+export const toolbarButtonClassName =
   "size-9 shrink-0 rounded-full text-on-media hover:bg-on-media-quaternary hover:text-on-media";
 
 function clampZoom(zoom: number): number {
@@ -111,16 +115,37 @@ function printImage(src: string, alt: string): void {
   image.alt = alt;
   doc.body.appendChild(image);
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let cleaned = false;
+
   function cleanup(): void {
+    if (cleaned) return;
+    cleaned = true;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    iframe.onload = null;
     iframe.remove();
   }
 
+  timer = setTimeout(cleanup, PRINT_LOAD_TIMEOUT_MS);
+
   iframe.onload = () => {
+    if (cleaned) return;
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    const contentWindow = iframe.contentWindow;
+    contentWindow?.addEventListener("afterprint", cleanup, { once: true });
     try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
+      contentWindow?.focus();
+      contentWindow?.print();
     } finally {
-      window.setTimeout(cleanup, 500);
+      if (!cleaned) {
+        timer = setTimeout(cleanup, PRINT_CLEANUP_FALLBACK_MS);
+      }
     }
   };
 }
@@ -154,8 +179,10 @@ function ImageViewerChrome({
   onPrevious,
   onNext,
   aside,
+  actions,
 }: ImageViewerImage & {
   aside?: React.ReactNode;
+  actions?: React.ReactNode;
   position: number;
   total: number;
   onClose: () => void;
@@ -261,6 +288,7 @@ function ImageViewerChrome({
           <span className="truncate text-sm">{displayName}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {actions}
           <Button
             type="button"
             aria-label={t("print")}
@@ -403,6 +431,7 @@ export function ImageViewer({
   onActiveSrcChange,
   className,
   aside,
+  actions,
 }: ImageViewerProps) {
   const t = useTranslations("Components.ImageViewer");
   const activeIndex = images.findIndex((image) => image.src === activeSrc);
@@ -480,6 +509,7 @@ export function ImageViewer({
             onPrevious={handlePrevious}
             onNext={handleNext}
             aside={aside}
+            actions={actions}
           />
         ) : null}
         {[previousImage, nextImage].map((image) =>

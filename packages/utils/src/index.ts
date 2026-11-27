@@ -163,11 +163,18 @@ export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-type
 export {
   CMO_CHANNELS,
   CMO_OWNER_CONFIRMED_CHANNELS,
+  CMO_SHAPED_VIDEO_TARGETS,
   CMO_SHORT_VIDEO_FORMATS,
+  CMO_VIDEO_SHAPES_SKILL,
   type CmoChannelKey,
+  type CmoShapedVideoTarget,
+  cmoOfferedFormats,
+  cmoShapedVideoTarget,
   cmoShortVideoFormat,
+  cmoVideoShape,
   isCmoChannelFormat,
   isCmoOwnerConfirmedChannel,
+  isCmoShapedVideoFormat,
   isCmoShortVideoFormat,
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
@@ -181,6 +188,13 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_PIECE_CREDITS,
+  CMO_PLAN_CREDITS,
+  CMO_PLAN_CREDITS_KEPT,
+  cmoMonthPieceBudget,
+  cmoPieceCredits,
+} from "./cmo-month-credits.js";
+export {
   CMO_PLAIN_WORDS,
   cmoJargonIn,
   cmoPlainWordsLine,
@@ -189,11 +203,17 @@ export {
   CMO_NETWORK_VOLUME,
   CMO_SHORT_VIDEOS_PER_WEEK,
   CMO_VOLUME_LEVELS,
+  type CmoMonthTargets,
   type CmoMonthVolume,
   type CmoNetworkRate,
+  type CmoNetworkTarget,
+  type CmoTargetChannel,
   type CmoVolumeLevel,
   type CmoVolumeNetwork,
+  cmoCadencePerWeek,
   cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoMonthTargets,
   cmoNetworkMonth,
   cmoVolumeLevelForTier,
 } from "./cmo-plan-volume.js";
@@ -209,8 +229,10 @@ export {
   CONTACT_REPLY_WAIT_DAYS,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   type ContactChannelType,
   type ContactFilter,
+  type ContactXFollowState,
   calendarDateSchema,
   companyListInputSchema,
   companyListMembersSchema,
@@ -291,6 +313,7 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_FILE_MAX_NAME_LENGTH,
   DRIVE_OWNER_PREFIX_PATTERN,
   driveFolderPathFromSourceId,
   isDriveFolderMarker,
@@ -412,6 +435,7 @@ export {
   JOB_INPUT_REQUIRED_MESSAGE_KEY,
   MENTION_MESSAGE_KEYS,
   NEEDS_ACTION_MESSAGE_KEYS,
+  SEO_ADMIN_CRITICAL_MESSAGE_KEY,
   TASK_INPUT_REQUIRED_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed-kinds.js";
@@ -499,96 +523,7 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
-export {
-  SEO_CAPABILITIES,
-  SEO_CAPABILITY_GROUPS,
-  type SeoCapability,
-  type SeoCapabilityGroup,
-  type SeoCapabilityId,
-  type SeoCapabilityStatus,
-  type SeoCapabilityUnlock,
-} from "./seo-capabilities.js";
-export {
-  allowsSeoCompletionEvent,
-  seoCompletionEvent,
-} from "./seo-completion-event.js";
-export {
-  PAID_DATA_MARKUP_PERCENT,
-  SEO_DEFAULT_FULL_AUDIT_USD,
-  SEO_FULL_AUDIT_CREDITS,
-  SEO_FULL_AUDIT_MARKUP_PERCENT,
-  SEO_FULL_AUDIT_MAX_PROVIDER_USD,
-  SEO_FULL_AUDIT_MAX_SECONDS,
-  SEO_MIN_AUDIT_USD,
-  SEO_PAGE_CEILING_CENTS,
-  type SeoCreditCeilingInput,
-  seoCreditsForCents,
-  seoFullAuditAutoPages,
-  seoFullAuditPrice,
-  seoMaxCredits,
-} from "./seo-credits.js";
-export {
-  GOOGLE_EVENTS,
-  GOOGLE_EVENTS_AS_OF,
-  type GoogleEvent,
-  type GoogleEventKind,
-} from "./seo-google-events.js";
-export {
-  newerSeoAuditVerdict,
-  seoIndexReviewState,
-  seoInspectionCrawlTime,
-  seoInspectionEvidence,
-} from "./seo-index-verdict.js";
-export { seoIssueKey } from "./seo-issue-key.js";
-export {
-  isPublicSeoSitemapPage,
-  isSeoUtilityOrFilePath,
-  publicExplorationText,
-  publicExplorationUrl,
-} from "./seo-public-evidence-url.js";
-export { normalizeSeoQuery } from "./seo-query.js";
-export { seoReportFileFormat } from "./seo-report-file.js";
-export {
-  hasSeasonalDemandRise,
-  seasonalUpdateHasPassed,
-  seoSeasonalTiming,
-} from "./seo-seasonal-timing.js";
-export {
-  readSeoStatisticsNote,
-  SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_ANALYTICS_NO_AGGREGATE_NOTE,
-  SEO_STATISTICS_ANALYTICS_SAMPLING_NOTE,
-  SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE,
-  SEO_STATISTICS_ANALYTICS_THRESHOLDING_NOTE,
-  SEO_STATISTICS_ANALYTICS_TIME_ZONE_NOTE,
-  SEO_STATISTICS_ANALYTICS_TRUNCATED_NOTE,
-  SEO_STATISTICS_BREAKDOWN_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_KEYWORD_SERIES_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_NO_AGGREGATE_NOTE,
-  SEO_STATISTICS_QUERY_FAILED_NOTE,
-  SEO_STATISTICS_QUERY_ROWS_ANONYMIZED_NOTE,
-  SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE,
-  SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE,
-  type SeoStatisticsNoteGap,
-  type SeoStatisticsNoteReading,
-  seoStatisticsKeywordRowsCutNote,
-  seoStatisticsKeywordsLeftOutNote,
-  seoStatisticsLostData,
-  seoStatisticsQueryRowsCutNote,
-} from "./seo-statistics-notes.js";
-export {
-  removeSeoTaskRequest,
-  type SeoTaskMarker,
-  seoTaskDescription,
-  seoTaskRequestPacket,
-} from "./seo-task-request.js";
-export {
-  SEO_SEARCH_TYPES,
-  SEO_TRAFFIC_CHANNELS,
-  seoSearchSiteHost,
-  seoSearchUrlPrefixCovers,
-} from "./seo-traffic.js";
+export * from "./seo-exports.js";
 export {
   buildSocialAccountAvatarPathname,
   isOwnedSocialAccountAvatarUrl,
@@ -636,6 +571,7 @@ export {
   readSokoBotAttemptAt,
 } from "./soko-bot-reply-order.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
+export { strictBody } from "./strict-body.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
 export {
   studioAdBrief,
@@ -654,10 +590,12 @@ export { productBrief } from "./studio-product-brief.js";
 export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
+  CMO_WRITTEN_SHORT_VIDEO_FORMATS,
   creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
   SHORT_VIDEO_FORMAT_GUIDE,
   SHORT_VIDEO_FORMATS,
+  SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH,
   SHORT_VIDEO_MAX_PICTURES,
   SHORT_VIDEO_TEXT_FORMATS,
   type ShortVideoFormat,
@@ -760,6 +698,20 @@ export {
   type VideoLength,
   type VideoPriceFigures,
 } from "./video-credits.js";
+export {
+  DEFAULT_VIDEO_SHAPE,
+  VIDEO_KINDS,
+  VIDEO_RECIPES,
+  VIDEO_SHAPE_FRAMES,
+  VIDEO_SHAPE_LABELS,
+  VIDEO_SHAPES,
+  type VideoKind,
+  type VideoRecipe,
+  type VideoRecipeNeeds,
+  type VideoShape,
+  videoRecipeFor,
+  videoShapesFor,
+} from "./video-recipes.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

@@ -25,7 +25,10 @@ function normalized(value: string) {
 
 /** Match the worker's URL comparison without merging escaped reserved path characters such as %2F. */
 export function seoPageComparisonKey(value: string) {
-  return normalized(value).replace(/%[0-9a-f]{2}/gi, (escape) => {
+  const url = new URL(normalized(value));
+  // A lone "?" is no query.
+  if (!url.search) url.search = "";
+  return url.href.replace(/%[0-9a-f]{2}/gi, (escape) => {
     const character = String.fromCharCode(Number.parseInt(escape.slice(1), 16));
     return /^[A-Za-z0-9._~-]$/.test(character)
       ? character
@@ -270,6 +273,7 @@ export function originalSeoAuditPacket(value: unknown) {
   const {
     searchConsoleAccess: _access,
     fullAuditCost: _cost,
+    fullAuditCostDetail: _costDetail,
     pendingFullAuditCost: _pendingCost,
     fullAuditBillingContext: _billing,
     ...request

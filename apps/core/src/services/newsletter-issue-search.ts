@@ -1,4 +1,5 @@
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
+import { sharedTable, sharedType } from "@sokosumi/database/sql-tables";
 import prisma from "@/lib/db/prisma";
 import type { ListNewsletterIssuesQuery } from "@/schemas/newsletter.schema";
 import type { NewsletterScope } from "@/services/newsletter.service";
@@ -23,11 +24,11 @@ export async function findNewsletterIssueIds(
             'strict $.** ? (@.type() == "object").keyvalue() ? (@.key == "text" || @.key == "label" || @.key == "alt").value'
           ) AS part WHERE strpos(lower(part #>> '{}'), ${needle}) > 0
         ) THEN 2 END AS rank
-      FROM newsletter_issue
+      FROM ${sharedTable("newsletter_issue")}
       WHERE "workspaceId" = ${scope.workspaceId}::uuid
         AND "projectId" = ${scope.projectId}::uuid
         AND "newsletterId" = ${newsletterId}::uuid
-        ${query.status ? Prisma.sql`AND status = ${query.status}::"NewsletterIssueStatus"` : Prisma.empty}
+        ${query.status ? Prisma.sql`AND status = ${query.status}::${sharedType("NewsletterIssueStatus")}` : Prisma.empty}
         ${
           query.from && query.to
             ? Prisma.sql`

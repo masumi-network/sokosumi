@@ -330,3 +330,40 @@ export function isSocialPostWaitingForQuote(
     socialPostQuotePublishDecision(post, quoted, now).kind === "defer"
   );
 }
+
+/** Posts that have not gone out. */
+export const UNPUBLISHED_SOCIAL_POST_STATUSES = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+  "FAILED",
+  "MISSED",
+] as const satisfies readonly SocialPostStatus[];
+
+/**
+ * Cancels the posts `where` picks that have not gone out, as canceling each
+ * one by hand would, and returns how many it canceled.
+ */
+export async function cancelUnpublishedSocialPosts(
+  tx: Prisma.TransactionClient,
+  where: Prisma.SocialPostWhereInput,
+  statuses: readonly SocialPostStatus[] = UNPUBLISHED_SOCIAL_POST_STATUSES,
+): Promise<number> {
+  const posts = await tx.socialPost.findMany({
+    where: { ...where, status: { in: [...statuses] } },
+    select: { id: true },
+  });
+  if (posts.length === 0) return 0;
+  await tx.socialPost.updateMany({
+    where: { id: { in: posts.map((post) => post.id) } },
+    data: {
+      status: "CANCELED",
+      canceledAt: new Date(),
+      revision: { increment: 1 },
+    },
+  });
+  for (const post of posts) {
+    await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
+  }
+  return posts.length;
+}

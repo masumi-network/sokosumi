@@ -1,5 +1,6 @@
 import {
   CMO_CHANNELS,
+  cmoOfferedFormats,
   creditsPerTalkingVideoCents,
   isCmoOwnerConfirmedChannel,
   TALKING_VIDEO_PLANNED_SCRIPT,
@@ -8,6 +9,7 @@ import {
 import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { CMO_PLAYBOOKS } from "./cmo-playbooks-skill.js";
 import { productionWithStyles } from "./cmo-production-styles.js";
 import {
   EVERY_NETWORK_STRATEGY_SKILL,
@@ -41,6 +43,11 @@ import {
   cmoV20Strategy,
 } from "./cmo-v20-skills.js";
 import { CMO_INDUSTRY, cmoV21Strategy } from "./cmo-v21-skills.js";
+import { cmoV22Strategy } from "./cmo-v22-skills.js";
+import { CMO_CONTEXT_ON_DEMAND } from "./cmo-v23-skills.js";
+import { CMO_TOOL_HIGHLIGHTS } from "./cmo-v24-skills.js";
+import { CMO_STRATEGY_STEP } from "./cmo-v25-skills.js";
+import { CMO_VIDEO_SHAPES } from "./cmo-video-shapes-skill.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
@@ -177,6 +184,8 @@ const CHANNEL_MENU = Object.entries(CMO_CHANNELS)
       ? `- ${key} (${channel.name}), ${OWNER_TASKS[channel.owner]}. Formats: ${Object.entries(
           channel.formats,
         )
+          // A gated format is told only by the skill that opts into it.
+          .filter(([format]) => cmoOfferedFormats(key).includes(format))
           .map(
             ([format, about]) =>
               `${format} (${about.what}${about.image && !/image/i.test(about.what) ? ", with an image you make" : ""}${"video" in about && about.video ? ", a video you make" : ""})`,
@@ -725,6 +734,14 @@ const claims = claimsStrategy(everyNetwork);
 const seo = SKILLS.find((skill) => skill.id === "cmo-seo");
 if (!seo) throw new Error("cmo-seo is missing");
 
+const v21Strategy = cmoV21Strategy(
+  cmoV20Strategy(
+    stageSpreadStrategy(
+      plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
+    ),
+  ),
+);
+
 export const CMO_SKILLS: readonly SokoBotSkill[] = [
   ...SKILLS,
   productionWithStyles(production),
@@ -745,15 +762,15 @@ export const CMO_SKILLS: readonly SokoBotSkill[] = [
       plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
     ),
   ),
-  cmoV21Strategy(
-    cmoV20Strategy(
-      stageSpreadStrategy(
-        plainWordsStrategy(channelFitStrategy(partPatchStrategy(claims))),
-      ),
-    ),
-  ),
+  v21Strategy,
+  cmoV22Strategy(v21Strategy),
   seoPlain(seoReports(seo)),
   CMO_MONTH_POINTS,
   CMO_SITE_PAGES,
   CMO_INDUSTRY,
+  CMO_CONTEXT_ON_DEMAND,
+  CMO_STRATEGY_STEP,
+  CMO_PLAYBOOKS,
+  CMO_TOOL_HIGHLIGHTS,
+  CMO_VIDEO_SHAPES,
 ];

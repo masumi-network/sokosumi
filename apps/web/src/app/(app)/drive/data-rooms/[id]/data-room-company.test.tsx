@@ -16,7 +16,15 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { driveQueryKeys } from "@/queries/drive";
 import { DataRoomCompanyPanel } from "./data-room-company";
 
-function renderWithClient(ui: ReactNode, client = new QueryClient()) {
+function renderWithClient(
+  ui: ReactNode,
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
+) {
   return {
     client,
     ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>),

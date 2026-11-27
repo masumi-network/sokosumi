@@ -95,11 +95,6 @@
         "high": "High risk",
         "unacceptable": "Unacceptable risk"
       },
-      "AgentVerifiedBadge": {
-        "tooltip": "This agent's authenticity is verified through an Agent Identity.",
-        "learnMore": "Learn more",
-        "aboutAgentIdentities": "about Agent Identities."
-      },
       "Rating": {
         "title": "Ratings",
         "noRatings": "No ratings yet",
@@ -133,15 +128,6 @@
         }
       },
       "AgentDetail": {
-        "Stats": {
-          "executedJobs": "Executed jobs",
-          "averageExecutionTime": "Average execution time",
-          "rating": "Rating"
-        },
-        "Overview": {
-          "description": "Description",
-          "tags": "At a glance"
-        },
         "Examples": {
           "title": "Example outputs",
           "download": "Download"
@@ -152,22 +138,8 @@
           "terms": "Terms",
           "dpa": "Data Processing Agreement (DPA)",
           "other": "Other"
-        },
-        "Risk": {
-          "title": "EU AI Act risk classification"
         }
       },
-      "agentsNotAvailable": "No agents available",
-      "agentsNotFound": "No agents found",
-      "AgentCard": {
-        "view": "Show details",
-        "detailsUnavailable": "Details unavailable"
-      },
-      "Kind": {
-        "cardano": "Cardano",
-        "x402": "x402"
-      },
-      "othersCategory": "Others",
       "ActionButtons": {
         "back": "Back",
         "close": "Close",
@@ -208,6 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
+      "switchOrganization": "Switch organisation",
       "personalAccount": "Personal account",
       "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
@@ -2303,7 +2276,7 @@
         },
         "files": "Files",
         "assignee": "Assignee",
-        "noAssignee": "No assignee",
+        "noAssignee": "Unassigned",
         "memberFallback": "Member",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
@@ -2385,17 +2358,6 @@
         "unavailableAssignee": "Unavailable assignee",
         "changeCoworker": "Change coworker…",
         "noCoworkerMatches": "No coworker matches",
-        "defaultBadge": "Default",
-        "modelLabel": "Model",
-        "hostingLabel": "Hosted in",
-        "taskStepTitle": "What should {name} do?",
-        "noAgentsFound": "No agents found.",
-        "tasksTitle": "Ready-to-run tasks",
-        "startFromScratch": "Start from scratch",
-        "startFromScratchHint": "Write your own instructions",
-        "previewExample": "Preview example",
-        "previewUse": "Use this task",
-        "previewEmpty": "No example output available yet.",
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
@@ -2406,7 +2368,6 @@
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "createError": "Could not create “{name}”. Your input is still in the form.",
-        "back": "Back",
         "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
         "uploadingFile": "Uploading {fileName}",
@@ -2434,6 +2395,27 @@
           "keepOpen": "Keep this open until it says Task created."
         }
       },
+      "Composer": {
+        "titlePlaceholder": "Task title",
+        "descriptionPlaceholder": "Add description…",
+        "dialogDescription": "Write the task, set its properties, then create it.",
+        "properties": "Task properties",
+        "assignee": "Assignee",
+        "assignTo": "Assign to…",
+        "agents": "Agents",
+        "templates": "Templates",
+        "templatesFrom": "Ready-made tasks from {name}",
+        "previewTemplate": "Preview {title}",
+        "useTemplate": "Use this template",
+        "noExample": "No example output yet.",
+        "createMore": "Create more",
+        "expand": "Expand",
+        "collapse": "Collapse",
+        "discardTitle": "Discard this task?",
+        "discardDescription": "The title and description you typed will be lost.",
+        "keepEditing": "Keep editing",
+        "discard": "Discard"
+      },
       "EditTask": {
         "title": "Edit task",
         "details": "Details",
@@ -2458,7 +2440,6 @@
         "noCoworkerMatches": "No coworker matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
-        "back": "Back",
         "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
         "uploadingFile": "Uploading {fileName}",
@@ -2745,7 +2726,7 @@
         "checkingTag": "Being checked",
         "label": "Tags",
         "empty": "No tags yet",
-        "showAll": "Show all {count} tags",
+        "moreTags": "+{count} more {count, plural, one {tag} other {tags}}",
         "noProject": "No project",
         "openProject": "Open project: {name}",
         "vocabulary": {
@@ -3811,11 +3792,20 @@
           "document": "DESIGN.md",
           "colors": "Colors",
           "typography": "Typography",
-          "frontMatter": "Front matter"
+          "frontMatter": "Front matter",
+          "downloadBrandKit": "Download brand kit",
+          "brandKitFileName": "{name} brand kit",
+          "brandKitArchive": {
+            "failed": "Couldn't download the brand kit. Try again.",
+            "partial": "Downloaded {included} of {total} files. Not included: {names}{more, plural, =0 {} one { and # more} other { and # more}}. Try again to add it.",
+            "empty": "There is nothing to download yet."
+          }
         },
         "bots": {
-          "title": "Bots for this project"
-        }
+          "title": "Bots for this project",
+          "empty": "No bots for this project yet. A project bot sees the project's public Tasks, and everyone talks to it in one room."
+        },
+        "sectionTitle": "{section} · {project}"
       },
       "Newsletter": {
         "title": "Newsletter",
@@ -4684,14 +4674,16 @@
         "voiceover": "Story with voice",
         "site_tour": "Website tour",
         "top_three": "Top 3 list",
-        "slideshow": "Photo slideshow"
+        "slideshow": "Photo slideshow",
+        "launch": "Launch"
       },
       "kindHints": {
         "presenter": "A presenter says your script to camera.",
         "voiceover": "A voice tells a short story over your pictures and website.",
         "site_tour": "A voice walks people through your website.",
         "top_three": "A voice gives three numbered points.",
-        "slideshow": "Your pictures to music, with one line on each."
+        "slideshow": "Your pictures to music, with one line on each.",
+        "launch": "A voice announces something new, with its date on a card."
       },
       "kindNeedsSite": "Add your website to the project first.",
       "stepShows": "What it shows",
@@ -4708,22 +4700,48 @@
         "voiceover": "Most people get this wrong about…",
         "site_tour": "This is our website. Here is what you can do on it…",
         "top_three": "Three ways to… One, … Two, … Three, … Try it today.",
-        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today"
+        "slideshow": "Shipped the code?\nNow ship the page.\nTry it free today",
+        "launch": "Our winter menu is here. It starts on 3 December. Six warm dishes, made fresh each morning. Book your table today."
       },
       "scriptHints": {
         "voiceover": "The first sentence is the hook.",
         "site_tour": "Say what people see on your site, from the top down.",
         "top_three": "A sentence that names the list, one per point, then what to do next.",
-        "slideshow": "One short line per picture, one per row."
+        "slideshow": "One short line per picture, one per row.",
+        "launch": "Say what is new, then when. The date shows on a card while the second sentence is spoken."
       },
       "hookLine": "Words on screen at the start",
       "hookLinePlaceholder": "Leave empty and we write them for you",
       "hookLineHint": "Up to six words that tell people why to keep watching.",
+      "launchDate": "Date",
+      "launchDatePlaceholder": "3 December",
+      "launchDateHint": "When it starts, as it should show on the card.",
+      "launchDateMissing": "Add the date of what you are announcing.",
       "shortIncludes": "Captions, music and your logo at the end are included.",
       "slideshowIncludes": "Music and your logo at the end are included.",
       "costDetailShort": "charged only when the video is ready, in about a minute",
       "previewMetaSlideshow": "No voice: music and your lines on screen",
-      "aiLabelHintShort": "This video has a generated voice or music. It is labeled as AI-generated when it is published."
+      "aiLabelHintShort": "This video has a generated voice or music. It is labeled as AI-generated when it is published.",
+      "shapes": {
+        "label": "Shapes",
+        "hint": "You pay for the first shape. Every other shape is cut from the same video, free.",
+        "notForKind": "A website tour is hard to read in a square.",
+        "previewIn": "Preview in",
+        "onStage": "Shapes of this video",
+        "making": "(being cut)",
+        "names": {
+          "9:16": "Vertical",
+          "4:5": "Feed",
+          "1:1": "Square",
+          "16:9": "Widescreen"
+        },
+        "where": {
+          "9:16": "TikTok, Instagram, YouTube",
+          "4:5": "Instagram and Facebook feed",
+          "1:1": "X, LinkedIn, Facebook",
+          "16:9": "YouTube, LinkedIn, X"
+        }
+      }
     },
     "Studio": {
       "back": "Back to project",
@@ -6581,6 +6599,10 @@
             "title": "SEO audit alerts",
             "description": "Inspect audit failures and connection coverage."
           },
+          "seoImpact": {
+            "title": "SEO impact",
+            "description": "Track done page changes until Google crawls them."
+          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -7111,6 +7133,8 @@
           "archived": "Archived",
           "version": "Version",
           "showDormant": "Show unused and archived ({count})",
+          "showEvals": "Show eval bots",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Show",
           "kind": {
@@ -7685,8 +7709,10 @@
           "usersTitle": "People who wrote to a Soko Bot",
           "usersSub": "peak {peak} in {days} days",
           "usersBar": "{day}: {users} people, {messages} messages",
-          "costTitle": "Soko Bot model cost",
-          "cmoCostTitle": "CMO.xyz model cost",
+          "costTitle": "Soko Bot turn cost",
+          "cmoCostTitle": "CMO.xyz turn cost",
+          "evalCostTitle": "Evals and lab turn cost",
+          "costScope": "Turn cost: the model cost of a turn's loop, routing, judge and in-turn checks. Eval lanes and lab runs count only under Evals. Work outside a turn is not included: Cuso's style, industry and picture checks, the month writer, images and video.",
           "costSub": "{total} in {days} days",
           "costBar": "{day}: {cost}",
           "today": "today",
@@ -7697,7 +7723,8 @@
           "turns": "Turns",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Look",
@@ -7853,6 +7880,28 @@
       },
       "SeoAlerts": {
         "type": "Alert type",
+        "impactTab": "Action impact",
+        "impactDescription": "Search Console totals for the page of each done SEO action, for the same number of days before and after it. Each entry is one audit and the person whose Search Console data it holds. The figures do not rule out seasonality, other changes on the page or a Google update.",
+        "impactWindow": "Days before and after",
+        "impactEmpty": "No audit has stored daily page data yet.",
+        "impactNoActions": "No done action on a page with stored daily data.",
+        "impactCompleted": "Task completed on {date}",
+        "impactVerified": "Fix verified on {date}",
+        "impactMetric": "Metric",
+        "impactBefore": "{days, number} days before",
+        "impactAfter": "{days, number} days after",
+        "impactClicks": "Clicks",
+        "impactImpressions": "Impressions",
+        "impactPosition": "Average position",
+        "impactNotMeasured": "Not measured",
+        "impactPending": "Not final yet",
+        "impactNoPosition": "No impressions",
+        "impactState": {
+          "measured": "Measured",
+          "too_early": "Too early",
+          "not_measured": "Not measured",
+          "low_counts": "Too few impressions"
+        },
         "pricingAttention": "Audit payments to check: {count}",
         "billingTab": "Audit billing ({count})",
         "billingDescription": "Metered full audits and their latest settlement status. Costs come from verified provider receipts. Charged credits come from the debit transaction.",
@@ -7868,6 +7917,24 @@
         "directModelMicroUsd": "Direct model calls",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Other APIs",
+        "costDetail": "Cost breakdown",
+        "costByModel": "By model",
+        "costByDataForSeo": "By DataForSEO endpoint",
+        "costByStep": "By audit step",
+        "detailModel": "Model",
+        "detailProvider": "Provider",
+        "detailCalls": "Calls",
+        "detailEndpoint": "Endpoint",
+        "detailReads": "Reads",
+        "detailStep": "Step",
+        "detailCost": "Cost",
+        "detailModelCost": "Models",
+        "detailDataForSeoCost": "DataForSEO",
+        "detailOtherApiCost": "Other APIs",
+        "detailStepTotal": "Step total",
+        "unattributed": "Unattributed",
+        "unpriced": "Unpriced",
+        "providerUnknown": "Unknown",
         "runId": "Run ID",
         "taskId": "Task ID",
         "receiptsPending": "Waiting for cost receipts",
@@ -7887,7 +7954,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Connections to reconnect: {count}",
-        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "summary": "Open or from the last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
         "unavailable": "Alert counts are unavailable.",
         "title": "SEO audit alerts",
         "description": "The latest finished or overdue run for each audit. Page failure warnings start at {percent}% of attempted pages.",
@@ -7938,10 +8005,58 @@
           "gscSkipped": "The owner chose to continue without Search Console."
         }
       },
+      "SeoImpact": {
+        "title": "SEO impact",
+        "description": "Page changes that customers marked done. Each row waits for Google's first crawl after the change, then gets the four weeks its verdict compares.",
+        "summary": "Showing {shown} of {total} tracked page changes.",
+        "period": "Period",
+        "periods": {
+          "90": "90 days",
+          "365": "365 days",
+          "all": "All"
+        },
+        "empty": "No page change was tracked in this period.",
+        "customer": "Customer",
+        "page": "Page",
+        "suggestion": "Suggestion",
+        "source": "Source",
+        "changedAt": "Changed",
+        "crawledAt": "First observed crawl after change",
+        "window": "Window",
+        "state": "State",
+        "reason": "Reason",
+        "none": "None",
+        "notYet": "Not yet",
+        "windowRange": "{start} to {end}",
+        "readyOn": "Data final on {date}",
+        "sources": {
+          "cuso_done": "Marked done",
+          "audit_recheck": "Audit recheck"
+        },
+        "states": {
+          "waiting_crawl": "Waits for crawl",
+          "waiting_window": "Waits for window",
+          "ready": "Ready for verdict",
+          "waiting_retry": "Waits for more data",
+          "measured": "Measured",
+          "not_measurable": "Not measurable"
+        },
+        "reasons": {
+          "no_cuso": "The project has no live Cuso.",
+          "not_connected": "Search Console is not connected.",
+          "no_property": "No Search Console property covers the page.",
+          "inspection_failed": "URL Inspection failed or was refused.",
+          "not_crawled_yet": "Google has not crawled the page since the change.",
+          "worker_failed": "The SEO worker gave no verdict after three claims."
+        }
+      },
       "CmoSpend": {
         "title": "CMO spend",
         "description": "What each CMO bot spent on its work, what its owner was charged, and where the money went: each model, web search, Exa, overhead and images.",
         "summary": "{bots, plural, one {# CMO bot} other {# CMO bots}} spent {spent} and charged {charged} credits.",
+        "showEvals": "Show eval Cusos",
+        "hideEvals": "Hide eval Cusos",
+        "evalBadge": "Eval",
         "period": "Period",
         "days": "{days} days",
         "empty": "No CMO bot worked in this period.",
@@ -8119,6 +8234,9 @@
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
         "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
+        "costlier": "Costlier: {cost}, usually {usual}",
+        "slower": "Slower: {minutes} min, usually {usual} min",
+        "usageCounts": "{costlier} costlier, {slower} slower than usual",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
         "comparedWith": "Compared with the weekly run of {when}",
@@ -8183,6 +8301,9 @@
           "cmo": "CMO",
           "repeats": "Repeats",
           "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "sokoBotVersion": "Soko Bot version",
+          "cusoVersion": "Cuso version",
+          "defaultVersion": "Default ({version})",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -8252,6 +8373,38 @@
           "help": "Training opt-ins only. Brand text omitted; image links expire in 10 minutes.",
           "download": "Download JSONL",
           "error": "Failed to export ad data. Try again."
+        }
+      },
+      "PreprodAccess": {
+        "title": "Preprod access",
+        "noEffect": "Nothing reads this switch yet: it does not change what anyone can do.",
+        "state": "{enabled, select, true {On} other {Off}}",
+        "saved": "{enabled, select, true {Preprod access is on.} other {Preprod access is off.}}",
+        "history": {
+          "title": "Recent changes",
+          "entry": "{enabled, select, true {Switched on} other {Switched off}} by {operator}",
+          "unknown": "an unknown admin",
+          "empty": "No changes yet."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {Switch Preprod access on?} other {Switch Preprod access off?}}",
+          "description": "{enabled, select, true {{type, select, user {The user} other {The Organization}} {name} gets Preprod access.} other {{type, select, user {The user} other {The Organization}} {name} loses Preprod access.}} Your name and the reason are recorded with the change.",
+          "reasonLabel": "Reason",
+          "reasonHint": "Ticket id, no personal details.",
+          "reasonRequired": "Enter a reason.",
+          "cancel": "Cancel",
+          "confirm": "{enabled, select, true {Switch on} other {Switch off}}"
+        },
+        "errors": {
+          "forbidden": "Not allowed: only an admin signed in as themselves can change Preprod access.",
+          "notFound": "{type, select, user {This user no longer exists.} other {This Organization no longer exists.}}",
+          "invalid": "The change was not accepted. Check the reason and try again.",
+          "failed": "The change could not be saved. Try again."
+        },
+        "unavailable": {
+          "title": "Preprod access could not be loaded.",
+          "description": "The rest of the page works.",
+          "retry": "Try again"
         }
       }
     },
@@ -8764,7 +8917,8 @@
           "key": "Key",
           "status": "Status",
           "actions": "Actions",
-          "created": "Created"
+          "created": "Created",
+          "lastUsed": "Last used"
         },
         "Status": {
           "enabled": "Enabled",
@@ -8794,7 +8948,8 @@
           "confirmLabelPrefix": "Type",
           "confirmLabelSuffix": "to confirm deletion:",
           "cancelButton": "Cancel",
-          "deleteButton": "Delete API key"
+          "deleteButton": "Delete API key",
+          "recentUse": "This key was used {when}. Anything still using it will stop working."
         },
         "Messages": {
           "loadError": "Failed to load API keys",
@@ -8815,7 +8970,11 @@
           "keyIdRequired": "API key ID is required",
           "confirmNameRequired": "Please confirm the API key name"
         },
-        "retry": "Retry"
+        "retry": "Retry",
+        "LastUsed": {
+          "used": "Used {when}",
+          "none": "No recorded use"
+        }
       },
       "AuthorizedClients": {
         "title": "Authorized applications",
@@ -9368,62 +9527,16 @@
     },
     "Agents": {
       "Metadata": {
-        "title": "Agents gallery",
+        "title": "Agents",
         "description": "Explore our collection of agents."
       },
       "CoworkerGallerySection": {
-        "title": "Coworker marketplace",
-        "whatTheyDo": {
-          "title": "What they do",
-          "description": "AI coworkers you can assign real work to. They work on their own and get it done."
-        },
-        "marketingExpertise": {
-          "title": "Marketing expertise",
-          "description": "Trained on real campaign work - strategy, content, media planning, and brand communications."
-        },
-        "others": "Others",
-        "moreComingSoon": "+ More coming soon",
-        "startTask": "Start a task with {name}",
-        "featuredEyebrow": "Featured coworker",
-        "all": "All",
-        "examplesTitle": "What {name} can do",
-        "startShort": "Start a task",
-        "startForCoworker": "Start a new task for {name}",
-        "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
-        "searchOffers": "Search offers, coworkers…",
-        "byCompany": "Company",
-        "offerPrefilled": "Pre-filled task",
-        "noOffers": "No offers match your filters.",
-        "offersLabel": "Quick-start offers",
-        "allCategories": "All",
-        "moreOffers": "+{count} more",
-        "searchHero": "What do you want to get done?",
-        "recommendedLabel": "Recommended",
-        "searchHint": "Search agents, coworkers, and offers",
-        "clearFilters": "Clear filters",
-        "coworkersTitle": "Your AI coworkers",
-        "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-to-run tasks",
-        "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
         "startThisTask": "Start this task",
-        "viewDetails": "View details",
-        "examplePending": "Example coming soon",
         "examplePendingHint": "A sample output (PDF or image) will appear here.",
         "openInNewTab": "Open in new tab",
         "offerDetails": "Offer details",
-        "heroHeadline": "What do you want to get done?",
-        "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
-        "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProofFallback": "AI coworkers ready to work",
-        "companyWebsite": "Visit website",
-        "companyLegal": "Legal",
-        "coworkerCount": "{count, plural, one {# coworker} other {# coworkers}}",
-        "otherCompanyLabel": "Independent",
-        "showAllCoworkers": "Show all {count}",
-        "showLess": "Show less",
-        "showMoreCompanies": "Show {count, plural, one {# more company} other {# more companies}}",
         "outputTypes": {
           "pdf": "PDF",
           "slides": "Slides",
@@ -9432,13 +9545,7 @@
           "text": "Text",
           "image": "Image",
           "html": "Web"
-        },
-        "showAllOffers": "Show all {count} offers",
-        "offerCount": "{count, plural, one {# offer} other {# offers}}",
-        "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need.",
-        "coworkersFound": "{count, plural, =0 {No coworkers match your search} one {# coworker matches your search} other {# coworkers match your search}}",
-        "noCoworkers": "No coworkers to show right now."
+        }
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -9451,7 +9558,9 @@
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}",
           "backToAgent": "Back to {name}",
           "yourJobs": "Your jobs",
-          "yourJobsCount": "Your jobs · {count}"
+          "yourJobsCount": "Your jobs · {count}",
+          "unavailableAgent": "Unavailable agent",
+          "noLongerListed": "No longer listed"
         },
         "Modal": {
           "back": "Back",
@@ -9467,23 +9576,93 @@
           "noExecutedJobs": "No executed jobs"
         }
       },
-      "allAgentsTitle": "Browse all agents",
-      "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
-      "FilterSection": {
-        "reset": "Reset",
-        "kind": {
-          "all": "All",
-          "cardano": "Cardano",
-          "x402": "x402"
+      "Directory": {
+        "title": "Agents",
+        "sokoBotsTitle": "Soko Bots",
+        "sokoBotsNote": "Assistants that work for one person, a project or the whole team.",
+        "sokoBotsUnavailable": "Soko Bots can't be loaded right now. Try again in a moment.",
+        "createOwnBot": "Set up your Soko Bot",
+        "createOwnBotHint": "Your own assistant for mail, tasks and chats.",
+        "coworkersTitle": "Coworkers",
+        "coworkersNote": "Specialists you can give whole tasks to or chat with.",
+        "coworkersEmpty": "No coworkers in this workspace yet.",
+        "marketplaceTitle": "Agent Marketplace",
+        "marketplaceShort": "Marketplace",
+        "sectionNavLabel": "Agents sections",
+        "marketplaceNote": "Agents built and run by other companies. Each one does one job.",
+        "marketplaceEmpty": "No agents to show right now.",
+        "external": "External",
+        "bringYourOwn": "Connect your own agent",
+        "searchLabel": "Search the Agent Marketplace",
+        "searchPlaceholder": "Search agents",
+        "noMatch": "No agents match your search.",
+        "found": "{count, plural, =0 {No agents match} one {# agent matches} other {# agents match}}",
+        "byVendor": "by {vendor}",
+        "vendorLogo": "Logo of the company behind {agent}",
+        "botFallbackName": "Soko Bot",
+        "ownerYou": "Yours",
+        "ownerYouAbout": "You",
+        "ownerPerson": "{name}'s",
+        "ownerTeam": "Team",
+        "ownerProject": "{project} project",
+        "ownerProjectUnnamed": "A project",
+        "purposePersonal": "Personal assistant",
+        "purposeTeam": "Works for the whole team",
+        "purposeProject": "Works on one project",
+        "status": {
+          "IDLE": "Idle",
+          "RUNNING": "Working now",
+          "PAUSED": "Waiting on you",
+          "ERROR": "Needs a look"
         },
-        "scope": {
-          "label": "Show",
-          "all": "All",
-          "coworkers": "Coworkers",
-          "agents": "Agents"
-        }
-      },
-      "agentsFound": "{count, plural, =0 {No agents match your search} one {# agent matches your search} other {# agents match your search}}"
+        "backToAgents": "Agents",
+        "message": "Message",
+        "messageError": "The chat could not be opened. Try again.",
+        "giveTask": "Give a task",
+        "sectionWhat": "What it does",
+        "sectionWork": "Recent work",
+        "sectionSettings": "Settings",
+        "sectionAbout": "About",
+        "botDoes": {
+          "you": "Your personal assistant. It reads your mail and chats, keeps track of your tasks and does work for you when you ask.",
+          "person": "A teammate's personal assistant. You can message it, and it answers for the person it works for.",
+          "team": "A shared assistant for the whole team. Everyone talks to it in one room and anyone can change its settings.",
+          "project": "A shared assistant for one project. It works on that project's tasks and talks with the team in the project room."
+        },
+        "statTasks": "Tasks",
+        "statMessages": "Messages",
+        "statBackground": "Background runs",
+        "statCount": "{count, number} in the last {days, plural, one {day} other {# days}}",
+        "botSettingsNote": "Tools, connections, schedules and memory.",
+        "openSettings": "Open settings",
+        "aboutBelongsTo": "Belongs to",
+        "aboutKind": "Kind",
+        "aboutWorkspace": "Workspace",
+        "aboutLastActive": "Last active",
+        "readyTasks": "Ready-to-run tasks",
+        "aboutCompany": "Company",
+        "aboutRole": "Role",
+        "aboutWorks": "Works by",
+        "worksTasks": "Tasks",
+        "worksChat": "Chat",
+        "aboutModels": "Models",
+        "aboutHosting": "Hosted in",
+        "aboutMadeBy": "Made by",
+        "aboutSource": "Source",
+        "aboutSourceExternal": "External agent",
+        "aboutRuns": "Runs so far",
+        "aboutAverageTime": "Average time",
+        "aboutRisk": "Risk level",
+        "yourJobs": "{count, plural, one {Your # job with this agent} other {Your # jobs with this agent}}",
+        "groupPersonal": "Personal",
+        "groupShared": "Team and projects",
+        "messageName": "Message {name}",
+        "chat": "Chat",
+        "chatName": "Chat with {name}",
+        "giveTaskName": "Give a task to {name}",
+        "startTask": "Start a task",
+        "startTaskName": "Start a task with {name}"
+      }
     },
     "DesignMd": {
       "adHocDialogTitle": "Use a different brand",
@@ -9775,6 +9954,8 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Back to rooms",
+        "allChats": "All chats",
         "tasks": "Tasks",
         "agents": "Agents",
         "chats": "Chats",
@@ -9831,7 +10012,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (AI agent)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
       "openDirectMessage": "Message",
@@ -9863,6 +10045,7 @@
       },
       "Empty": {
         "noChannels": "No channels yet.",
+        "messageSomeone": "Start a message",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "peopleLoadFailedDescription": "People you can message are temporarily unavailable. Try again in a moment.",
@@ -10429,7 +10612,6 @@
         "needsYouSection": "Needs you",
         "catchUp": "Catch up",
         "whileYouWereAway": "While you were away:",
-        "whileYouWereAwayTitle": "While you were away",
         "dismissCatchUp": "Hide catch-up",
         "summarize": "Summary",
         "summarizing": "Writing your summary…",
@@ -11084,6 +11266,40 @@
           "saved": "Settings saved",
           "saveFailed": "Could not save the settings"
         }
+      },
+      "Crop": {
+        "open": "Crop for social",
+        "title": "Crop for social",
+        "description": "Pick a shape, then drag the frame or move the slider to place the crop. A copy is saved next to the original; the original stays as it is.",
+        "shapeLabel": "Shape",
+        "loading": "Loading image…",
+        "loadError": "Failed to load image. Close and try again.",
+        "result": "Saves {name}, {width, number} × {height, number} px",
+        "save": "Save copy",
+        "saved": "Saved {name} to Files",
+        "duplicate": "{name} already exists. Rename or delete it, then save again.",
+        "saveError": "Failed to save copy. Try again.",
+        "shapes": {
+          "square": {
+            "name": "Square",
+            "hint": "1:1 · Instagram, Facebook"
+          },
+          "portrait": {
+            "name": "Portrait",
+            "hint": "4:5 · Instagram feed"
+          },
+          "story": {
+            "name": "Story",
+            "hint": "9:16 · stories, reels, TikTok"
+          },
+          "landscape": {
+            "name": "Landscape",
+            "hint": "1.91:1 · LinkedIn, X, link posts"
+          }
+        },
+        "tooLarge": "Images over 25 MB can't be cropped here yet. Download it and crop it on your device.",
+        "positionX": "Crop position, left to right",
+        "positionY": "Crop position, top to bottom"
       }
     },
     "SokoBot": {
@@ -11227,17 +11443,10 @@
         "mailAutoReadError": "Could not update mail handling",
         "followBoardError": "Could not update the setting.",
         "teamStandupTitle": "Join the team stand-up",
-        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up, from its Tasks and posts, never mail or calendar.",
+        "teamStandupDescription": "This assistant posts its own update in your organization's daily stand-up for you: what it and the Coworkers you gave Tasks to did, what's running, what waits on you. From public Tasks and posts, never mail or calendar. On unless you turn it off.",
         "teamStandupError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
-        "archive": "Archive",
-        "archiveConfirmTitle": "Archive your Soko Bot?",
-        "archiveConfirmDescription": "Running turns are cancelled and schedules stop. You can reactivate it any time from this page.",
-        "archiveCancel": "Keep",
-        "archiveConfirm": "Archive",
-        "archived": "Soko Bot archived.",
-        "archiveError": "Could not archive the Soko Bot.",
         "delete": "Delete",
         "deleteConfirm": "Delete forever",
         "deleteCancel": "Cancel",
@@ -11247,8 +11456,6 @@
         "deleteError": "Could not delete your Soko Bot.",
         "deleted": "Soko Bot deleted.",
         "sharedArchiveDescription": "Stops all turns and schedules for everyone. An owner or admin can reactivate it; history is kept.",
-        "sharedArchiveConfirmTitle": "Archive this shared bot?",
-        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
         "sharedDeleteConfirmTitle": "Delete this shared bot?",
         "sharedDeleteConfirmDescription": "This cannot be undone. Its history, memory, schedules and connected accounts are erased for everyone. Tasks it created stay where they are."
       },
@@ -11405,7 +11612,6 @@
         }
       },
       "Console": {
-        "tagline": "Your personal project manager. It delegates work, follows up, and keeps you posted — talk to it in chat.",
         "lastTurnFailed": "{name} couldn't finish its last reply.",
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
@@ -11479,7 +11685,8 @@
           "Usage": "Usage didn't load.",
           "help": "Schedules and chat still work.",
           "retry": "Try again"
-        }
+        },
+        "back": "Agents"
       },
       "Avatar": {
         "edit": "Change look",
@@ -11683,49 +11890,36 @@
       "Unavailable": {
         "title": "Couldn't load your team's assistants",
         "description": "Nothing was lost. Try again in a moment.",
-        "retry": "Try again",
-        "placeholder": "Your assistant shows here once the team loads."
+        "retry": "Try again"
       },
-      "createAssistant": "Create your assistant",
-      "createAssistantHint": "Get an assistant that takes on Tasks, follows up and keeps you posted. Setup takes a minute.",
-      "assistantFallback": "Personal assistant",
-      "chatError": "Could not open the chat.",
-      "manage": "Settings",
-      "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here.",
-      "teamEmpty": "Nobody else is in this workspace yet. Invite your team, and their assistants show up here.",
-      "inviteTeam": "Invite your team",
-      "disabled": "Soko Bot is temporarily unavailable",
-      "noAssistantYou": "You don't have an assistant yet",
-      "chat": "Chat",
-      "teamSummary": "{bots, plural, one {# assistant} other {# assistants}} · {people, plural, one {# person} other {# people}}",
-      "notSetUp": "Not set up yet",
-      "messageBot": "Message {name}",
-      "lastActive": "Last active {date}",
-      "notActiveYet": "Not active yet",
-      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
-      "statsMessages": "{count, plural, one {# message} other {# messages}} in {days} days",
-      "assistantOf": "Assistant of",
-      "message": "Message",
-      "roleLine": "Delegates work, follows up and keeps you posted.",
-      "heroCaption": "Soko Bots for everyone on your team",
-      "heroTitle": "Your team's personal assistants",
-      "chatWith": "Chat with {name}",
-      "yourAssistantTitle": "Your assistant",
-      "teamTitle": "Your team's assistants",
-      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat.",
+      "settings": "Settings",
+      "settingsName": "Settings for {name}",
+      "pause": "Pause",
+      "resume": "Resume",
+      "pauseName": "Pause {name}",
+      "resumeName": "Resume {name}",
+      "paused": "Paused",
+      "pausedToast": "{name} is paused. It still answers when messaged.",
+      "resumed": "{name} is back at work.",
+      "pauseError": "Could not pause the Soko Bot.",
+      "resumeError": "Could not resume the Soko Bot.",
+      "archivedTitle": "Archived",
+      "archivedOn": "Archived {date}",
+      "notSetUpTitle": "Not set up yet",
+      "invitePeople": "Invite people",
+      "teamEmpty": "Nobody else is in this workspace yet. Invite your team, and they can set up their own Soko Bots.",
+      "Archive": {
+        "archive": "Archive",
+        "sharedArchiveConfirmTitle": "Archive this shared bot?",
+        "archiveConfirmTitle": "Archive your Soko Bot?",
+        "sharedArchiveConfirmDescription": "It stops for everyone: running turns are cancelled and schedules stop. Its history is kept.",
+        "archiveConfirmDescription": "Running turns are cancelled and schedules stop. Set it up again any time to bring it back.",
+        "archiveCancel": "Keep",
+        "archiveError": "Could not archive the Soko Bot.",
+        "archived": "Soko Bot archived.",
+        "archiveConfirm": "Archive"
+      },
       "Shared": {
-        "title": "Shared bots",
-        "count": "{count, plural, one {# bot} other {# bots}}",
-        "countSplit": "{active, number} active · {archived, number} archived",
-        "empty": "No shared bots yet. A shared bot works for one project or the whole workspace, and everyone talks to it in one room.",
-        "noneActive": "No shared bot is active right now.",
-        "scopeWorkspace": "Works for the whole workspace",
-        "scopeProject": "Works for a project",
-        "scopeProjectNamed": "Works for {project}",
-        "archived": "Archived",
-        "archivedGroup": "Archived",
-        "fallbackName": "Shared assistant",
-        "openBot": "Settings for {name}",
         "Create": {
           "trigger": "New Soko Bot",
           "title": "Create a Soko Bot",
@@ -11756,12 +11950,14 @@
         "Archived": {
           "title": "{name} is archived",
           "description": "An archived bot no longer reads, runs its schedules or answers in its room. Its history stays.",
-          "back": "Back to Soko Bots",
-          "reactivate": "Reactivate",
-          "reactivated": "Soko Bot reactivated.",
-          "reactivateError": "Could not reactivate the Soko Bot."
+          "back": "Agents",
+          "reactivate": "Restore",
+          "reactivateName": "Restore {name}",
+          "reactivated": "Soko Bot restored.",
+          "reactivateError": "Could not restore the Soko Bot."
         }
-      }
+      },
+      "moreName": "More for {name}"
     },
     "Calendar": {
       "Metadata": {
@@ -11787,7 +11983,8 @@
         "newsletter": "Newsletter",
         "contacts": "Follow-ups",
         "marketing": "Marketing strategy",
-        "sokoBot": "Soko Bot"
+        "sokoBot": "Soko Bot",
+        "canceled": "Show canceled events"
       },
       "source": {
         "WORKSPACE": "Workspace",
@@ -11909,8 +12106,14 @@
       "tables": "Tables",
       "newTable": "New table",
       "openAsTable": "Open as table",
-      "loadingCsv": "Reading the CSV…",
-      "fileMissing": "Failed to open the file. It is no longer in Files.",
+      "loadingFile": "Reading the file…",
+      "sheet": "Sheet",
+      "sheetCutRows": "This sheet has {count, number} data rows. Only the first {limit, number} will be imported.",
+      "sheetCutColumns": "This sheet has {count, number} columns. Only the first {limit, number} will be imported.",
+      "sheetEmpty": "This sheet has no rows to import. Choose another sheet.",
+      "workbookEmpty": "This workbook has no rows to import.",
+      "untitledColumn": "Column {number}",
+      "fileMissing": "Failed to open the file. It is no longer available.",
       "createDescription": "Start with a blank table or import a CSV file.",
       "title": "Title",
       "description": "Description",
@@ -11919,15 +12122,15 @@
       "firstColumn": "Name",
       "importCsv": "Import CSV (optional)",
       "chooseCsv": "Choose CSV file",
+      "importXlsx": "Excel file",
+      "chooseXlsx": "Choose Excel file",
       "noFileChosen": "No file chosen",
       "csvLimit": "Up to 5 MB, 10,000 rows and 100 columns. First row contains column names.",
-      "mapping": "Map columns and preview",
       "numberGuess": "Every filled cell is a number, so this starts as Number. Change it if the digits are a code.",
       "columnName": "Column name",
       "type": "Type",
       "options": "Options (separated by semicolons)",
       "optionsFor": "Options for {column} (separated by semicolons)",
-      "preview": "{count, plural, one {Preview of # row} other {Preview of # rows}}. All values are validated before importing.",
       "row": "Row",
       "importProgress": "{count, plural, one {# row imported} other {# rows imported}}. Completed batches are preserved if interrupted.",
       "create": "Create table",
@@ -12081,6 +12284,7 @@
         "csvColumns": "CSV files can contain up to 100 columns.",
         "csvRows": "CSV files can contain up to 10,000 data rows.",
         "csv": "Check the quotes and separators in the CSV file.",
+        "sheet": "This Excel file could not be read. Check that it opens in Excel, then try again.",
         "csvHeaders": "Give every CSV column a non-empty header.",
         "csvWidth": "Every CSV row must have the same number of columns.",
         "layout": "Column layout wasn't saved and was reset. {reason}",
@@ -12129,7 +12333,10 @@
         "add": "Add copy",
         "loadMore": "Show more tables",
         "loadMoreError": "Couldn't load more tables. Try again."
-      }
+      },
+      "rowCount": "{count, plural, one {# row} other {# rows}}",
+      "columns": "Columns",
+      "examples": "Examples"
     },
     "ProjectScope": {
       "clearSearch": "Clear search",
@@ -12275,7 +12482,8 @@
         "more": "More actions",
         "filter": "Filter",
         "kind": "Type",
-        "source": "Source"
+        "source": "Source",
+        "onX": "On X"
       },
       "bulk": {
         "label": "Selected contacts",
@@ -12578,7 +12786,22 @@
         "restoreName": "Restore {name}",
         "restored": "{name} restored",
         "restoreFailed": "Could not restore {name}. The contact is still archived.",
-        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them."
+        "archivedOn": "Archived on {date}. Archived people stay out of your lists and searches until you restore them.",
+        "isYou": "This is you",
+        "isTeammate": "This is {name}, a teammate",
+        "thisIs": "This is…",
+        "thisIsMe": "Me ({name})",
+        "thisIsNoOne": "No one on the team",
+        "x": {
+          "mutual": "Follow each other on X",
+          "follows": "Follows {name} on X",
+          "followed": "{name} follows them on X"
+        },
+        "xYou": {
+          "mutual": "You follow each other on X",
+          "follows": "Follows you on X · you don't follow back",
+          "followed": "You follow them on X · they don't follow back"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12763,6 +12986,31 @@
           "industry": "Industry",
           "lists": "Lists"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Not followed back",
+        "YOU_FOLLOW": "Don't follow you back",
+        "MUTUAL": "Follow each other"
+      },
+      "linkedInImport": {
+        "menu": "Import LinkedIn connections",
+        "title": "Import your LinkedIn connections",
+        "description": "Every connection becomes a contact (or fills one you already have), and the raise knows you can ask them for an introduction.",
+        "doneDescription": "Done. Your connections are on the “LinkedIn connections” list.",
+        "step1": "On LinkedIn open Settings → Data privacy → Get a copy of your data.",
+        "step2": "Tick Connections and request the archive; LinkedIn mails it within minutes.",
+        "step3": "Upload the Connections.csv from that archive here.",
+        "fileLabel": "Connections.csv",
+        "tooLarge": "That file is over 5 MB. Split it first.",
+        "failed": "The import did not finish. Nothing was changed.",
+        "result": {
+          "connections": "Connections",
+          "created": "New contacts",
+          "updated": "Already known"
+        },
+        "import": "Import",
+        "cancel": "Cancel",
+        "done": "Done"
       }
     },
     "Fundraising": {
@@ -12789,7 +13037,8 @@
         "nextStep": "Next step",
         "lastTouch": "Last touch",
         "dataRoom": "Data room",
-        "cheque": "Cheque"
+        "cheque": "Cheque",
+        "nextAction": "Next action"
       },
       "stages": {
         "TO_RESEARCH": "To research",
@@ -12821,9 +13070,6 @@
         "thesisPlaceholder": "What they invest in, in a line or two",
         "notes": "Notes",
         "notesPlaceholder": "What was said, what they need, who else is involved",
-        "knownBy": "Who knows them",
-        "knownByNobody": "Nobody on the team has been in touch yet.",
-        "touches": "{count, plural, one {# touch} other {# touches}}",
         "room": "Room",
         "firstVisit": "First visit",
         "downloads": "Downloads",
@@ -12862,7 +13108,109 @@
         "cost": "{perSearch} per search · {spent} of {cap} spent this month",
         "capReached": "This month's research budget is used up. Raise the cap in Core's FUNDRAISING_EXA_MONTHLY_CAP_USD to keep searching.",
         "cancel": "Cancel",
+        "running": "Reading fund pages and deal news. This takes a few minutes; keep this open.",
         "run": "Search for {cost}"
+      },
+      "paths": {
+        "pathsTitle": "Warm paths",
+        "loading": "Looking for paths",
+        "loadFailed": "Could not load the paths",
+        "noPathsYet": "Nobody on the team knows them, anyone at the fund, or anyone at a company they backed yet.",
+        "noPathsNoPortfolio": "Nobody on the team knows them or anyone at the fund yet. Research the portfolio to look for a path through a founder they backed.",
+        "you": "You",
+        "direct": "{self, select, yes {You already know them} other {{who} already knows them}}",
+        "viaFund": "{self, select, yes {You know {through} at {company}} other {{who} knows {through} at {company}}}",
+        "viaPortfolio": "{self, select, yes {You know {through} at {company}, which they backed} other {{who} knows {through} at {company}, which they backed}}",
+        "coldFund": "{through} is at {company}, in Contacts, no touch yet",
+        "coldPortfolio": "{through} is at {company}, which they backed; in Contacts, no touch yet",
+        "touches": "{count, plural, one {# touch} other {# touches}}",
+        "noTouches": "No touch yet",
+        "usePath": "Use this path",
+        "pathUsed": "Next step set. Stage moved to Warm path where it was To research.",
+        "nextStepDirect": "{self, select, yes {Write to them directly, you already know each other} other {{who}: write to them directly, they already know each other}}",
+        "nextStepIntro": "{self, select, yes {Ask {through} to introduce you to {investor}} other {Ask {who} to introduce you to {investor} through {through}}}",
+        "showMore": "Show {count} more",
+        "showFewer": "Show fewer",
+        "portfolioTitle": "Portfolio of {fund}",
+        "portfolioTitleNoFund": "Portfolio",
+        "researchedAt": "researched {when}",
+        "research": "Research portfolio · {cost}",
+        "researchAgain": "Research again · {cost}",
+        "researched": "{count, plural, =0 {No investments found} one {# investment found} other {# investments found}} · {cost}",
+        "researchFailed": "The research did not finish. Nothing was charged.",
+        "noExa": "Exa is not configured on this server, so research is off.",
+        "noFund": "Add the fund to this contact first; the research looks the fund up.",
+        "capReached": "This month's research budget is used up.",
+        "researching": "Reading the fund’s portfolio pages and deal news. A minute or two.",
+        "noPortfolio": "No portfolio researched yet.",
+        "source": "Source",
+        "linkedinDirect": "{self, select, yes {You are connected with them on LinkedIn} other {{who} is connected with them on LinkedIn}}",
+        "linkedinPortfolio": "{self, select, yes {You are connected with {through} at {company}, which they backed, on LinkedIn} other {{who} is connected with {through} at {company}, which they backed, on LinkedIn}}",
+        "linkedinFund": "{self, select, yes {You are connected with {through} at {company} on LinkedIn} other {{who} is connected with {through} at {company} on LinkedIn}}",
+        "onLinkedIn": "connected on LinkedIn",
+        "importHint": "Import your LinkedIn connections in Contacts to find more paths."
+      },
+      "outreach": {
+        "title": "Outreach",
+        "noMailbox": "Drafts go into your own Gmail through your Soko Bot. Connect Gmail there first.",
+        "connect": "Open Soko Bots",
+        "kind": "What to write",
+        "kinds": {
+          "intro": "First mail",
+          "follow_up": "Follow-up"
+        },
+        "via": "Through whom",
+        "direct": "Write to them directly",
+        "viaName": "Ask {name} for an intro",
+        "inviteRoom": "Let them into “{room}” and link it",
+        "linkRoom": "Link “{room}” (they are already in)",
+        "noteLabel": "Anything to mention",
+        "notePlaceholder": "e.g. we met at the Draper dinner; mention the Cardano partnership",
+        "noEmail": "No email address on file; add one in Contacts or ask a mutual contact for an intro.",
+        "draft": "Write draft in {mailbox}",
+        "neverSends": "Sokosumi never sends. You read it in your mailbox and send it yourself.",
+        "drafted": "Draft is in your {mailbox}",
+        "failed": "The draft could not be written",
+        "inMailbox": "In your {mailbox} drafts, to {to}",
+        "openDrafts": "Open Gmail drafts",
+        "another": "Write another",
+        "lastDraft": "Last draft “{subject}” · {when}"
+      },
+      "intro": {
+        "statusTitle": "Introduction",
+        "asked": "Asked {who} {when}",
+        "made": "Intro made by {who} {when}",
+        "declinedBy": "{who} declined; find another path",
+        "declinedBefore": "({who} declined earlier)",
+        "askDirect": "Ask {who}, they know {investor}",
+        "askFund": "Ask {who} at {company}",
+        "askPortfolio": "Ask {who}, {company} is one they backed",
+        "via": "via {who}",
+        "youKnow": "You know them; write to them directly",
+        "noPath": "No warm path yet",
+        "draftAsk": "Draft the ask",
+        "introMade": "Intro made",
+        "declined": "Declined",
+        "meetingBooked": "Meeting booked",
+        "passed": "Passed",
+        "writeDraft": "Write draft",
+        "dialogTitle": "Ask {who} for an intro to {investor}",
+        "dialogDescription": "Two drafts go into your Gmail: the ask to {who}, with a note they can forward below it, and that note on its own. Nothing is sent.",
+        "weakTie": "You barely know {who}. A strong cold mail beats a weak warm one; consider another path or a short catch-up first.",
+        "inviteRoom": "Let {investor} into “{room}” and link it in the note",
+        "noteLabel": "Anything to mention",
+        "notePlaceholder": "e.g. mention the Cardano partnership",
+        "neverSends": "Sokosumi never sends. You read both in Gmail and send them yourself.",
+        "cancel": "Cancel",
+        "write": "Write both drafts",
+        "done": "Both drafts are in your {mailbox}",
+        "failed": "The drafts could not be written",
+        "askTo": "The ask, to {to}",
+        "noteTo": "The forwardable note, to {to}",
+        "openDrafts": "Open Gmail drafts",
+        "close": "Done",
+        "noMailbox": "Drafts go into your own Gmail through your Soko Bot. Connect Gmail there first.",
+        "connect": "Open Soko Bots"
       }
     },
     "Seo": {
@@ -12912,7 +13260,7 @@
       "runFullAudit": "Run full audit",
       "runPageCheck": "Run page check",
       "brief": {
-        "completionEvent": "GA4 event that records completion (optional)",
+        "completionEvent": "Google Analytics event when a visitor completes the goal (optional)",
         "title": "Audit brief",
         "private": "Only you can read this brief. A full audit shares a page goal only when you select it.",
         "confirmed": "Confirmed by you on {date}.",
@@ -13265,9 +13613,11 @@
         "notInKeptRows": "Not in the first {count} rows kept",
         "trendShow": "Daily positions",
         "trendEmpty": "No Search Console impressions in any country",
-        "trendNotRequested": "Not read in the last sync. Up to 25 tracked keywords get daily positions.",
+        "trendNotRequested": "Not read in the last sync. Up to 50 tracked keywords get daily positions.",
         "trendLabel": "Average position for “{keyword}”",
         "trendNoImpressions": "No impressions",
+        "trendTruncated": "A Search Console read reached its row limit. Some days can be missing.",
+        "trendNoPosition": "No position reported",
         "summary": "In Google's top results for {found} of {read, plural, one {# checked keyword} other {# checked keywords}}",
         "firstPage": "{count} on the first page",
         "more": "{count, plural, one {Show # more keyword} other {Show # more keywords}}",
@@ -13279,7 +13629,19 @@
             "medium": "Medium chance to convert",
             "high": "High chance to convert"
           },
-          "note": "Goal fit is an estimate based on what people search for and what your page offers.",
+          "note": "Chance to convert is the SEO check's own judgement, made from what people search for and what your page offers. It is not a measured conversion rate.",
+          "checkedOn": "From the check on <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Searches for a product",
+            "comparison": "Compares options",
+            "problem": "Has a problem to solve",
+            "learn": "Wants to learn"
+          },
+          "fit": {
+            "direct": "matches your offer",
+            "partial": "partly matches your offer"
+          },
           "high": "High",
           "medium": "Medium",
           "low": "Low"
@@ -13383,14 +13745,17 @@
         "historyShow": "History",
         "historyPaidTitle": "Positions in paid checks",
         "historyPaidNote": "Each point is one check of the search results on that day.",
+        "historyOlderHidden": "Older checks are not shown.",
         "historyPaidLabel": "{device, select, mobile {Mobile} desktop {Desktop} other {All devices}}: position in paid checks for “{keyword}”",
         "historyNotInRange": "Not in the checked results",
-        "historyPaidAxis": "Position 1 is at the top. A lower position is better. A check that did not find the page in its results has no position.",
+        "historyNotInTop": "Not in the top {count}",
+        "historyPaidAxis": "Position 1 is at the top. A lower position is better. A hollow mark at the bottom is a check that did not find the page in its results: it has no position.",
         "historyGscTitle": "Search Console average position, daily",
         "historyGscNote": "An average over all impressions of the day, not one check.",
         "serp": {
           "title": "Search results in paid checks",
           "note": "What the results page showed on each check, newest first.",
+          "aiNote": "An AI Overview is the summary Google writes above the results. It cites a page when it links to that page as a source.",
           "check": "Check",
           "aiOverview": "AI Overview",
           "featured": "Featured snippet",
@@ -13404,8 +13769,13 @@
             "not_checked": "AI Overview not checked",
             "undetermined": "Citation not determined",
             "cited_checked": "Cites a checked page",
-            "other_page": "Checked for another page"
+            "other_page": "Checked for another page",
+            "site_cited": "Cites the page's site",
+            "site_cited_checked": "Cites a checked site"
           },
+          "aiSources": "Sources",
+          "ownSource": "{domain} (your site)",
+          "moreSources": "+{count} more",
           "snippet": {
             "owned": "The page's site",
             "checked_site": "A checked site",
@@ -13445,15 +13815,15 @@
         "shortlist": {
           "label": "Recommended",
           "chartKey": "Recommended · estimated extra clicks at position 10",
-          "summary": "{count, plural, one {# idea is recommended} other {# ideas are recommended}} for goal fit, low competition and potential extra clicks.",
-          "none": "No ideas meet all three criteria: goal fit, low competition and potential extra clicks.",
+          "summary": "{count, plural, one {# idea is recommended} other {# ideas are recommended}} for a high chance to convert, low competition and potential extra clicks.",
+          "none": "No ideas meet all three criteria: a high chance to convert, low competition and potential extra clicks.",
           "gain": "Est. gain at #10",
           "clicks": "{count, plural, =0 {0 clicks/mo} one {+# click/mo} other {+# clicks/mo}}",
           "lift": "{percent} more monthly clicks than the current estimate.",
-          "priority": "Strong goal fit and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
-          "fitUnknown": "Goal fit has not been assessed.",
-          "medium": "The estimated fit with your page goal is medium.",
-          "low": "The estimated fit with your page goal is low.",
+          "priority": "High chance to convert and low difficulty. The middle gain for ideas in this market is {median, number} extra clicks/month.",
+          "fitUnknown": "Chance to convert has not been assessed.",
+          "medium": "The chance to convert is medium.",
+          "low": "The chance to convert is low.",
           "difficultyUnknown": "Difficulty has not been measured.",
           "competition": "Competition is too high for a recommendation.",
           "gainUnknown": "There is no click estimate for position 10.",
@@ -13535,6 +13905,7 @@
         "copyFix": "Copy change",
         "copyInstructions": "Copy agent instructions",
         "copyPage": "Page",
+        "copyTarget": "What to change",
         "copied": "Copied to the clipboard",
         "copyFailed": "Could not copy. Select the text and copy it by hand.",
         "copyAgentLead": "Make this SEO change on the website. Change only what it names, then check the page again.",
@@ -13572,7 +13943,25 @@
         "alternative": "Alternative",
         "nextCheck": "Next check",
         "canceled": "Task canceled",
-        "failed": "Task failed"
+        "failed": "Task failed",
+        "impact": {
+          "title": "Before and after",
+          "completed": "Counted from {date}, the day the Task was completed.",
+          "verified": "Counted from {date}, the day the fix was verified.",
+          "metric": "Metric",
+          "beforeDays": "{days, number} days before",
+          "afterDays": "{days, number} days after",
+          "clicks": "Clicks",
+          "impressions": "Impressions",
+          "position": "Average position",
+          "notMeasured": "Not measured",
+          "pending": "Not final yet",
+          "noPosition": "No impressions",
+          "tooEarly": "From {date}, Search Console has final data for the {days, number} days after. The next audit after that day reads them.",
+          "notMeasuredNote": "No audit has read the daily Search Console data of this page for the whole period. A new audit reads the 400 days before it.",
+          "lowCounts": "A period has fewer than {min, number} impressions or clicks. That is too few for a percent.",
+          "caveat": "These are Search Console figures for this page alone. They do not rule out seasonality, other changes on the page or a Google update."
+        }
       },
       "pages": {
         "title": "Pages",
@@ -13764,8 +14153,8 @@
         "unverifiedPagePerformance": "Page performance is unverified.",
         "pagePerformance": "Web search performance for audited pages",
         "auditedUrls": "Audited URLs",
-        "googleCanonical": "Measured Google canonical URL: {url}",
-        "canonicalUnverified": "The audit measured the submitted URL. Its canonical URL is unverified.",
+        "googleCanonical": "Main URL that Google uses: {url}",
+        "canonicalUnverified": "The audit checked the URL you entered. It could not confirm which URL Google uses as the main one.",
         "missingSearchConsole": "No Search Console results are available for this check.",
         "period": "{from} to {to}",
         "matchedHistory": "Compared with the same weekdays last year",
@@ -13787,8 +14176,8 @@
         "empty": "This run has no report files available.",
         "pdf": "Open PDF",
         "markdown": "Open Markdown",
-        "json": "Report data (JSON)",
-        "import": "Import report into SEO",
+        "json": "Raw report data (JSON)",
+        "import": "Add findings to SEO",
         "imported": "Report imported",
         "access": "You do not have access to the report files for this check.",
         "refresh": "Refresh files",
@@ -13796,7 +14185,7 @@
         "recoverMarkets": "Recover market comparison",
         "recoverMarketsHelp": "Read the market comparison from the original report. This uses no audit credits.",
         "marketsChecked": "Market comparison checked",
-        "importHelp": "Import this report to add its findings to your SEO results.",
+        "importHelp": "This adds the report’s findings to your SEO results.",
         "recoverPageSpeed": "Read page speed from the saved report",
         "speedChecked": "Read page speed from the saved report",
         "noPageMetrics": "No page performance figures were saved for this check.",
@@ -13838,11 +14227,11 @@
         "viewEachResult": "{count, plural, one {Show # check} other {Show # checks}}"
       },
       "analysis": {
-        "unconfirmed": "Sokosumi could not confirm whether the previous audit request succeeded. Retry that request before starting another.",
+        "unconfirmed": "Sokosumi could not confirm that your last request went through. Send that request again before you start a new one.",
         "retryPrevious": "Retry previous request",
         "coverage": {
           "limitedScope": "The audit still samples public pages and their internal links. It will skip Search Console clicks, impressions and indexing data.",
-          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Your account details stay private.",
+          "privateConnection": "The audit uses your Google connection only for the approved Search Console property. Everyone who can see the audit sees its Search Console results. Your Google connection and account details stay private.",
           "withoutSearch": "Without Search Console",
           "withSearch": "Include Search Console",
           "title": "Search Console coverage",
@@ -13851,7 +14240,7 @@
           "manualRun": "Choose which data to include in this extra audit. The approved price applies to this run only.",
           "notConnected": "Connect Search Console to check indexing and read search statistics for these pages.",
           "reconnect": "Choose or reconnect a Google account to use Search Console for these pages.",
-          "property": "Choose an authorized Search Console property that covers every selected page.",
+          "property": "Choose a Search Console site that you can access. It must include every selected page.",
           "unavailable": "Sokosumi could not verify Search Console access. Try again.",
           "retry": "Retry and start audit",
           "retryMonitor": "Retry and create schedule",
@@ -13869,7 +14258,7 @@
         "page_check": "Page check",
         "rankings": "Keyword positions",
         "links": "Backlink overview",
-        "audit_lite": "Audit lite",
+        "audit_lite": "Custom check",
         "audit_full": "Full audit",
         "keywords": "Keywords, one per line",
         "competitors": "Competitor URLs, one per line",
@@ -13882,9 +14271,7 @@
         "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}",
         "maxCreditsPerRun": "Up to {credits, plural, =1 {# credit} other {# credits}} per run",
         "fullAuditCredits": "Approximately {credits, plural, =1 {# credit} other {# credits}}",
-        "fullAuditCreditsPerRun": "At least {credits, plural, =1 {# credit} other {# credits}} per successful run",
-        "fullAuditTermsPerRun": "After each successful run, you pay its model and data API costs plus {markup}%. This includes Vercel AI Gateway. The minimum per run is {minimum, number} credits. There is no maximum.",
-        "fullAuditExample": "For example, USD {lowCost, number} in costs bills {lowCharge, number} credits. USD {highCost, number} bills {highCharge, number} credits.",
+        "fullAuditCreditsPerRun": "Approximately {credits, plural, =1 {# credit} other {# credits}} per run",
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",
@@ -13895,8 +14282,8 @@
         "importSitemapHelp": "Review the first {count} eligible page URLs below. Starting the audit shares those URLs. The XML file stays on your device.",
         "sitemapReading": "Reading sitemap…",
         "sitemapInvalid": "Choose a sitemap URL set under 512 KiB with public pages from this site.",
-        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in my private report.",
-        "includeSitemaps": "Include Google’s submitted sitemap status for this property in my private report.",
+        "includePropertyTotals": "Include property-wide web search totals, pages, and search queries in the report. Everyone who can see the audit sees them.",
+        "includeSitemaps": "Include Google’s submitted sitemap status for this property in the report. Everyone who can see the audit sees it.",
         "alreadyRunning": "A check is running. Wait for its result before you start the next one.",
         "noPermission": "A check cannot be requested for these pages.",
         "running": "Checks in progress",
@@ -14039,10 +14426,16 @@
           "fixed": "{count} fixed",
           "drops": "{count, plural, one {# ranking drop} other {# ranking drops}}",
           "rises": "{count, plural, one {# ranking gain} other {# ranking gains}}",
+          "lostCitations": "{count, plural, one {# lost AI Overview citation} other {# lost AI Overview citations}}",
           "newFailuresTitle": "Now failing",
           "fixedTitle": "Fixed",
           "movesTitle": "Ranking moves",
           "move": "{keyword}: position {from} → {to}",
+          "lost": "{keyword}: was position {from}, now not in the top {checked}",
+          "lostCitationsTitle": "AI Overview citations lost",
+          "lostCitation": "{keyword}: the AI Overview no longer cites your page",
+          "lostCitationGone": "{keyword}: the AI Overview that cited your page no longer shows",
+          "lostCitationsShowing": "Showing {shown} of {total}",
           "band": "A ranking move counts only when it is larger than normal search noise: 2 places in the top 3, 5 in the top 10, 7 in the top 20."
         },
         "plan": {
@@ -14069,34 +14462,37 @@
       },
       "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
       "audits": {
-        "archive": "Archive report",
+        "archive": "Archive audit",
         "archiveTitle": "Archive “{name}”?",
-        "archiveDescription": "This report will be archived for everyone in this workspace, along with all its audit runs, results and related tasks. You can restore it from Archived reports. Tasks that were waiting to run return as unscheduled drafts.",
-        "archiveFailed": "Could not archive this report. Try again.",
+        "archiveDescription": "This audit will be archived for everyone in this workspace, along with all its checks, results and related tasks. You can restore it from Archived audits. Tasks that were waiting to run return as unscheduled drafts.",
+        "archiveFailed": "Could not archive this audit. Try again.",
         "archiveTaskBlocked": "A related task cannot be archived in its current status. Finish or cancel it, then try again.",
         "archiveActiveCheck": "Wait for the current check to finish, or cancel its task. Then try again.",
         "archiveActiveChat": "A chat reply is in progress. Wait for it to finish, then try again.",
-        "archiveScheduled": "End this report’s scheduled checks, then try again.",
-        "restoreTaskScopeConflict": "A related task also belongs to another SEO report or project. Review its parent and subtasks in the archived task list before restoring this report.",
-        "taskScopeConflict": "A related task is linked to another SEO report or project. If tasks from different reports are nested, open the subtask in Tasks and choose “Remove from parent”. Then try again.",
-        "archiveBlocked": "The report or a related task cannot be archived right now. Check for work in progress and try again.",
-        "archiveUnavailable": "You can no longer archive this report.",
-        "listOptions": "Report list options",
-        "showArchived": "Show archived reports",
-        "showActive": "Show active reports",
-        "archived": "Archived reports",
-        "archivedEmpty": "No archived reports.",
+        "archiveScheduled": "End this audit’s scheduled checks, then try again.",
+        "restoreTaskScopeConflict": "A related task also belongs to another SEO audit or project. Review its parent and subtasks in the archived task list before restoring this audit.",
+        "taskScopeConflict": "A related task is linked to another SEO audit or project. If tasks from different audits are nested, open the subtask in Tasks and choose “Remove from parent”. Then try again.",
+        "archiveBlocked": "The audit or a related task cannot be archived right now. Check for work in progress and try again.",
+        "archiveUnavailable": "You can no longer archive this audit.",
+        "listOptions": "Audit list options",
+        "showArchived": "Show archived audits",
+        "showActive": "Show active audits",
+        "archived": "Archived audits",
+        "archivedEmpty": "No archived audits.",
         "restore": "Restore",
         "restoreLabel": "Restore {name}",
-        "restoreFailed": "Could not restore this report. Check your access to its related tasks and try again.",
+        "restoreFailed": "Could not restore this audit. Check your access to its related tasks and try again.",
         "continue": "Continue",
         "create": "Create audit",
         "saved": "Saved audits",
         "updated": "Updated",
         "created": "Created",
+        "lastCheck": "Last check: {kind}",
+        "checkFailed": "Last check failed",
+        "checkUnfinished": "Last check did not finish",
         "projectWorkspace": "Project SEO workspace",
         "emptyBody": "Create an audit and add its first page. You can add related pages later.",
-        "createHelp": "Add a public page URL. This saves the page without running a paid check.",
+        "createHelp": "Add a public page URL. A free page check starts right away.",
         "name": "Audit name",
         "firstPage": "First page URL",
         "createFailed": "Could not create the audit. Check the name and URL, then try again.",
@@ -14109,12 +14505,12 @@
           "titleProject": "Start this project's first SEO audit",
           "body": "Your agent tracks rankings, finds page issues and drafts fixes. You approve each one.",
           "addTitle": "Add a page",
-          "addBody": "Start with one public page. You can add related pages later.",
+          "addBody": "Start with one public page. A free page check starts right away. You can add related pages later.",
           "connectTitle": "Connect Google",
           "connectBody": "Connect Google to see the searches and clicks of your page. You do this after you create the audit.",
           "checkTitle": "Run the first check",
           "checkBody": "The agent reads your pages, finds issues and drafts fixes.",
-          "trust": "Saving a page is free. Paid checks only run when you start them.",
+          "trust": "The first page check is free. Paid checks only run when you start them.",
           "steps": "Setup steps"
         }
       },
@@ -14245,6 +14641,7 @@
       "planMessage": {
         "title": "Your plan",
         "pdf": "Open full audit PDF",
+        "pdfMissing": "No PDF for this check",
         "direction": "Direction:",
         "steps": "Steps of the plan",
         "order": "Why at this position:",
@@ -14738,7 +15135,18 @@
         "loading": "Loading Search Console traffic.",
         "failed": "Could not read traffic for this selection.",
         "unavailable": "Live traffic requires a matching Search Console property for this website.",
-        "saved": "Traffic for selected pages"
+        "saved": "Traffic for selected pages",
+        "brandBuckets": {
+          "branded": "Branded",
+          "nonBranded": "Non-branded",
+          "unlisted": "No query listed"
+        },
+        "brandUnlistedNote": "Google lists no query for rare searches. That traffic is in the total and shows as No query listed.",
+        "brandLimited": "There are more query rows than the split can read. The branded and non-branded numbers are a lower limit.",
+        "brandListedOnly": "These numbers count the listed queries only. The day totals could not be compared, so there are no shares.",
+        "brandUnavailable": "Could not read the queries for this period, so there is no brand split.",
+        "brandLoading": "Reading the brand split…",
+        "brandEmpty": "Add your brand terms to see how much traffic comes from searches for your name."
       },
       "traffic": {
         "periodInsight": {
@@ -14772,8 +15180,7 @@
           "googleNews": "Google News"
         },
         "keyEvents": "Key events (organic)",
-        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see conversions here.",
-        "keyEventsAiAssistant": "Key events (AI assistants)",
+        "noKeyEvents": "Google Analytics recorded no key events for these pages. Set up key events there to see them here.",
         "aiAssistants": "AI assistants",
         "aiAssistantsHelp": "Visits in Google Analytics' AI Assistant channel (ChatGPT, Perplexity, Gemini, Copilot and others) by the page they landed on",
         "aiAssistantsTruncated": "Only the first rows were kept, so the totals can be higher",
@@ -14788,7 +15195,9 @@
           "branded": "Branded",
           "non_branded": "Non-branded"
         },
-        "brandTotals": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
+        "brandTotals": "Listed queries: {branded} clicks branded ({brandedShare}), {nonBranded} clicks non-branded ({nonBrandedShare})",
+        "brandTotalsNoShare": "Listed queries: {branded} clicks branded, {nonBranded} clicks non-branded",
+        "brandSuggested": "Suggested from your website name. Check the terms before you save.",
         "editBrandTerms": "Edit brand terms",
         "addBrandTerms": "Add brand terms",
         "brandTerms": "Brand terms",
@@ -14797,7 +15206,8 @@
         "cancelBrandTerms": "Cancel",
         "brandSaved": "Brand terms saved",
         "noQueryData": "This search type has no query data",
-        "keyEventsNotRead": "Not read: shares a landing path with another selected page"
+        "keyEventsNotRead": "Not read: shares a landing path with another selected page",
+        "keyEventsNotSelected": "Not in this read"
       },
       "export": {
         "menu": "Export: {table}",
@@ -15042,7 +15452,7 @@
           },
           "39": {
             "title": "AI Overview citation history",
-            "missing": "AI Overviews that Google loads after the page are not checked, because that read costs extra."
+            "missing": "You get no alert when an AI Overview stops citing your page."
           },
           "40": {
             "title": "AI assistant referral traffic",
@@ -15321,7 +15731,7 @@
     "TeamStandup": {
       "title": "Daily agent stand-up",
       "enabledLabel": "Run the stand-up",
-      "enabledHelp": "Every weekday each agent posts its own update in the Stand-up channel: what it did, what's next, what waits on a person. Up to three hand-offs between agents follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from Tasks, approvals and posts, never from mail or calendars. Nothing new means nothing is posted.",
+      "enabledHelp": "Every weekday each Soko Bot posts its own update in the Stand-up channel for its person or team: what it and the Coworkers they gave Tasks to did, what's next, what waits on a person. Coworkers post nothing of their own. Up to three hand-offs follow as replies. Once a week a Week in review thread adds one line per person and per agent. Lines come from public Tasks, approvals and posts, never from mail or calendars. Every assistant joins unless its owner turns it off. Nothing new means nothing is posted.",
       "timeLabel": "Time",
       "timezoneLabel": "Time zone",
       "weekdaysLabel": "Days",
@@ -15628,7 +16038,11 @@
         "assigned": "You were assigned {taskName}",
         "participantAdded": "You were added to {taskName} as a participant",
         "followUp": "{taskName} is still waiting for you",
-        "seoMonitorWorse": "{taskName}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}."
+        "seoMonitorWorse": "{site}: the newest scheduled SEO result got worse. New failures: {newFailures}. Ranking drops: {drops}. Lost AI Overview citations: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: Search Console clicks fell from {clicksFrom} to {clicksTo} against the period before."
+      },
+      "System": {
+        "seoAdminCritical": "An SEO audit has a critical alert. Open the admin SEO alerts to check it."
       },
       "Billing": {
         "lowBalance": "Your credits are running low: {credits} left",

@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { literalSubstringPattern } from "@/helpers/project-activity";
 import { escapeLikeText } from "@/helpers/query-params";
 import prisma from "@/lib/db/prisma";
@@ -71,7 +72,7 @@ async function locationSearchWhere(
 ): Promise<Prisma.ContactWhereInput> {
   const pattern = literalSubstringPattern(search);
   const rows = await prisma.$queryRaw<{ location: string }[]>(PrismaRaw.sql`
-    SELECT DISTINCT "location" FROM "contact"
+    SELECT DISTINCT "location" FROM ${sharedTable("contact")}
     WHERE "workspaceId" = ${workspaceId}::uuid
       AND "mergedIntoId" IS NULL
       AND unaccent("location") ILIKE unaccent(${pattern}) ESCAPE '\\'

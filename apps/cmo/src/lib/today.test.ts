@@ -327,6 +327,13 @@ describe("todayLine", () => {
     production: { ...hired.production, state },
   });
 
+  // cmo-v22: after payment Core plans the month before any post is made.
+  it("says Cuso is planning the month, never that nothing needs doing", () => {
+    expect(todayLine(at("planning"), 0)).toBe(
+      "I'm planning your month, topic by topic. It takes a few minutes, then I make every post.",
+    );
+  });
+
   it("never says nothing needs doing while the month stopped half made", () => {
     const line = todayLine(at("stuck"), 0);
     expect(line).not.toMatch(/Nothing needs you|on its day/);
@@ -349,6 +356,46 @@ describe("todayLine", () => {
       0,
     );
     expect(line).toMatch(/so I try the rest again (tomorrow )?at \d\d:\d\d\.$/);
+  });
+
+  it("says a month stopped by Core's writer is our fault, not Cuso's", () => {
+    const stopped = at("stuck");
+    const line = todayLine(
+      {
+        ...stopped,
+        timeZone: "Europe/Zurich",
+        production: {
+          ...stopped.production,
+          writerFailed: true,
+          retryAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      },
+      0,
+    );
+    expect(line).toMatch(
+      new RegExp(
+        `^Something on our side stopped your month at ${made.ready} of ${made.total}\\. We're fixing it, and I try again (tomorrow )?at \\d\\d:\\d\\d\\.$`,
+      ),
+    );
+  });
+
+  it("says a month Core stopped writing is not tried again, without a retry time", () => {
+    const stopped = at("stuck");
+    const line = todayLine(
+      {
+        ...stopped,
+        production: {
+          ...stopped.production,
+          writerFailed: true,
+          retryAt: null,
+        },
+      },
+      0,
+    );
+    expect(line).toBe(
+      "I couldn't finish this month's posts. Our team has been told, and I won't try again on my own.",
+    );
+    expect(line).not.toMatch(/again soon|try again \(/);
   });
 
   it("counts the month while a run is about to make the rest", () => {

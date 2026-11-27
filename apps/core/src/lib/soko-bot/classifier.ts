@@ -14,11 +14,18 @@ import {
 } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import { recordCoreWarning } from "@/lib/evlog";
+import { chatGptPlanEffectiveModel } from "@/lib/local-chatgpt-plan";
+import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
+import { planJevMode, planUsesJevStandIn } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationClassifierContext } from "./evaluation-dispatch";
-import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
+import {
+  JEV_PROVIDER_OPTIONS,
+  recordedOnPlan,
+  SOKO_BOT_JEV_MODEL,
+} from "./jev";
 
 /**
  * Jev, TypeSafe AI's evaluation model, picks every route.
@@ -38,7 +45,18 @@ export const PRESET_VERSION = "soko-bot-system-route-v1";
  * recover that inside the old single 8 s budget.
  */
 const ATTEMPT_TIMEOUT_MS = 3_500;
+/**
+ * The plan's stand-in is a full model on a shared plan, not Jev: at 3.5 s, 88
+ * of 101 routing calls in one plan suite timed out and became clarifications.
+ */
+const PLAN_ATTEMPT_TIMEOUT_MS = 45_000;
 const MAX_ATTEMPTS = 2;
+
+export function classifierAttemptTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  return planUsesJevStandIn(env) ? PLAN_ATTEMPT_TIMEOUT_MS : ATTEMPT_TIMEOUT_MS;
+}
 const MAX_MESSAGE_LENGTH = 8_000;
 const MAX_PREVIOUS_REPLY_LENGTH = 1_500;
 /** Below this the turn only gets reads: acting on a guess is worse than asking. */
@@ -286,6 +304,14 @@ export interface RouteEvaluation {
   providerMetadata?: unknown;
 }
 
+/** The routing model that actually answers: Jev, or the plan's stand-in. */
+export function routeModelName(): string {
+  if (planJevMode() === "real") return SOKO_BOT_ROUTE_MODEL;
+  return (
+    chatGptPlanEffectiveModel(SOKO_BOT_ROUTE_MODEL) ?? SOKO_BOT_ROUTE_MODEL
+  );
+}
+
 /** The single seam to Jev; tests replace it with scripted answers. */
 export type RouteEvaluator = (request: {
   state: {
@@ -302,15 +328,25 @@ const evaluateWithJev: RouteEvaluator = async ({
   hasPendingProposals,
   abortSignal,
 }) => {
-  const result = await experimental_evaluate({
-    model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
-    // Clipped text can end in half an emoji, which the Gateway refuses.
-    state: wellFormed(state),
-    questions: routeQuestions(hasPendingProposals),
-    abortSignal,
-    maxRetries: 0,
-    providerOptions: JEV_PROVIDER_OPTIONS,
-  }).catch(rethrowAiGatewayFailure);
+  const mode = planJevMode();
+  if (mode === "stand-in")
+    return evaluateOnChatGptPlan({
+      state,
+      questions: routeQuestions(hasPendingProposals),
+      abortSignal,
+    });
+  const result = await recordedOnPlan(
+    mode,
+    experimental_evaluate({
+      model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
+      // Clipped text can end in half an emoji, which the Gateway refuses.
+      state: wellFormed(state),
+      questions: routeQuestions(hasPendingProposals),
+      abortSignal,
+      maxRetries: 0,
+      providerOptions: JEV_PROVIDER_OPTIONS,
+    }).catch(rethrowAiGatewayFailure),
+  );
   return {
     answers: result.answers,
     usage: result.usage,
@@ -603,7 +639,7 @@ export class JevTurnClassifier implements TurnClassifier {
       try {
         return await this.evaluate({
           ...request,
-          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          abortSignal: AbortSignal.timeout(classifierAttemptTimeoutMs()),
         });
       } catch (error) {
         if (error instanceof AiGatewayBudgetError || attempt >= MAX_ATTEMPTS) {
@@ -673,7 +709,7 @@ export class JevTurnClassifier implements TurnClassifier {
           routeAnswersSchema.parse(result.answers),
           pending,
         ),
-        model: SOKO_BOT_ROUTE_MODEL,
+        model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: false,
@@ -692,7 +728,7 @@ export class JevTurnClassifier implements TurnClassifier {
           fix: "If it repeats, check the AI gateway and the classifier's model: meanwhile every request is answered with reads only.",
         },
         {
-          model: SOKO_BOT_ROUTE_MODEL,
+          model: routeModelName(),
           failure: messageSafeErrorFields(error),
         },
       );
@@ -703,7 +739,7 @@ export class JevTurnClassifier implements TurnClassifier {
           "Classifier unavailable; reads only.",
           0,
         ),
-        model: SOKO_BOT_ROUTE_MODEL,
+        model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: true,

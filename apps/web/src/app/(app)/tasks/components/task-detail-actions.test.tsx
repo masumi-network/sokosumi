@@ -769,7 +769,12 @@ const coworkerOptions = [
 ];
 
 /** The app's query cache; the sub-task checklist reads and writes it. */
-let queryClient = new QueryClient();
+let queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { gcTime: Number.POSITIVE_INFINITY },
+    mutations: { gcTime: Number.POSITIVE_INFINITY },
+  },
+});
 
 function renderActionsElement(
   props?: Partial<ComponentProps<typeof TaskDetailActions>>,
@@ -832,7 +837,12 @@ describe("TaskDetailActions", () => {
     vi.clearAllMocks();
     pushMock.mockReset();
     refreshMock.mockReset();
-    queryClient = new QueryClient();
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     createRelatedVisibilityMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
@@ -2482,6 +2492,57 @@ describe("TaskDetailActions", () => {
       await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
 
       expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+    });
+  });
+
+  describe("Repeat and Duplicate of a focused SEO check", () => {
+    const focusedCheck = {
+      name: "Focused check",
+      description: 'Check titles.\n\nseo_job: {"version":1}',
+      projectId: null,
+      visibility: "PUBLIC" as const,
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+    };
+
+    it("shows no menu when the check has no other action", () => {
+      renderActions({ taskBlueprint: focusedCheck, isReadOnly: true });
+
+      expect(
+        screen.queryByRole("button", { name: actionsMenuLabel }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("are not offered for a Task with a seo_job line", async () => {
+      const user = userEvent.setup();
+      renderActions({ taskBlueprint: focusedCheck });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "repeat" })).toBeNull();
+      // A copy would start a check outside its audit, without its price terms.
+      expect(screen.queryByRole("menuitem", { name: "duplicate" })).toBeNull();
+    });
+
+    it("starts the menu with its only action, not a separator", async () => {
+      const user = userEvent.setup();
+      renderActions({
+        taskBlueprint: focusedCheck,
+        status: "GRANT_PENDING" as TaskStatus,
+        organizations: undefined,
+        isTaskOwner: true,
+        isReadOnly: true,
+      });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(
+        screen.getByRole("menuitem", { name: labels.archive }),
+      ).toBeInTheDocument();
+      expect(
+        document.querySelector('[data-slot="dropdown-menu-separator"]'),
+      ).toBeNull();
     });
   });
 

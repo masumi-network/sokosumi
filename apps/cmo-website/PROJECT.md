@@ -75,9 +75,10 @@ weekly -> improves. Forever.
 5. **Who it is for and what a plan buys (Patrick, 2026-11-17).** The
    customer is a small business owner with no marketing person, or a team
    of one to three, who wants to grow and has no budget for an agency or a
-   full-time hire. The site describes plans by posting pace, as the app
-   does: Starter one post a day on each network, Growth two, Scale up to
-   three. On Scale a person on our team checks every post before it goes
+   full-time hire. The site describes plans by posts a month on all six
+   networks, as the app's Subscribe page does without a strategy (the
+   floors of `cmoMonthFloor` in `packages/utils`: 356, 532, 896, rounded to
+   360, 530, 900; 2026-11-25). On Scale a person on our team checks every post before it goes
    out. The app does not have that review step yet.
 6. **Words match the app (Patrick, 2026-11-17).** Cuso's month of
    marketing is the **strategy**, never the "plan". "Plan" means only a

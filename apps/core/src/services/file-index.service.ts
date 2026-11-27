@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { BlobNotFoundError } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
@@ -127,11 +128,11 @@ export async function writeVersionChunks(input: {
 
   for (const chunk of input.chunks) {
     await client.$executeRaw(PrismaRaw.sql`
-      INSERT INTO file_chunk (
+      INSERT INTO ${sharedTable("file_chunk")} (
         id, "createdAt", "versionId", "chunkId", ordinal, anchor, text,
         "evidenceScopeId", "scopeVersion", "inputDigest", search_vector
       ) VALUES (
-        gen_random_uuid(), now(), ${input.versionId}::uuid, ${chunk.chunkId},
+        gen_random_uuid(), now() AT TIME ZONE 'UTC', ${input.versionId}::uuid, ${chunk.chunkId},
         ${chunk.ordinal}, ${JSON.stringify(chunk.anchor)}::jsonb, ${chunk.text},
         ${input.evidenceScopeId}::uuid, ${input.scopeVersion},
         ${chunk.inputDigest}, to_tsvector('simple', ${chunk.text})
@@ -149,6 +150,7 @@ export async function writeVersionChunks(input: {
  */
 export async function downloadBlob(
   objectKey: string,
+  maxBytes = FILE_EXTRACTION_MAX_BYTES,
 ): Promise<Uint8Array | null> {
   if (!getEnv().BLOB_READ_WRITE_TOKEN) return null;
 
@@ -157,7 +159,7 @@ export async function downloadBlob(
     abortSignal: AbortSignal.timeout(HEAD_TIMEOUT_MS),
   });
   if (!metadata) throw new BlobNotFoundError();
-  if (metadata.size > FILE_EXTRACTION_MAX_BYTES) return null;
+  if (metadata.size > maxBytes) return null;
 
   const read = await driveRead(objectKey, {
     abortSignal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
@@ -166,9 +168,23 @@ export async function downloadBlob(
   // written again after a delete answers 404 for a few seconds. Thrown, the
   // job retries instead of recording the file as unreadable for good.
   if (!read) throw new Error("Blob download failed: no store had the object");
-  const response = new Response(read.stream);
-
-  return new Uint8Array(await response.arrayBuffer());
+  const reader = read.stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return Buffer.concat(chunks, size);
+      size += value.byteLength;
+      if (size > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 export interface ExtractionRunOutcome {

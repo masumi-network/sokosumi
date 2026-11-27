@@ -2,6 +2,7 @@ import type { AdminCmoSpend } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 
+import { StatusBadge } from "@/components/soko-bot/status-badge";
 import {
   Table,
   TableBody,
@@ -79,11 +80,16 @@ export async function CmoSpendTable({
   spend,
   days,
   periods,
+  withEvals,
 }: {
   spend: AdminCmoSpend;
   days: number;
   periods: number[];
+  /** Eval-lane Cusos are listed too; by default totals are customers' only. */
+  withEvals: boolean;
 }) {
+  const href = (period: number, evals: boolean) =>
+    `/admin/cmo-spend?days=${period}${evals ? "&evals=include" : ""}`;
   const [t, format] = await Promise.all([
     getTranslations("App.Admin.CmoSpend"),
     getFormatter(),
@@ -113,11 +119,20 @@ export async function CmoSpendTable({
             charged: credits(charged),
           })}
         </p>
-        <nav className="flex gap-1" aria-label={t("period")}>
+        <nav
+          className="flex flex-wrap items-center gap-1"
+          aria-label={t("period")}
+        >
+          <Link
+            href={href(days, !withEvals)}
+            className="text-muted-foreground hover:text-foreground me-2 text-sm underline-offset-4 hover:underline"
+          >
+            {withEvals ? t("hideEvals") : t("showEvals")}
+          </Link>
           {periods.map((period) => (
             <Link
               key={period}
-              href={`/admin/cmo-spend?days=${period}`}
+              href={href(period, withEvals)}
               aria-current={period === days ? "page" : undefined}
               className={cn(
                 "rounded-md px-2.5 py-1 text-sm",
@@ -157,6 +172,11 @@ export async function CmoSpendTable({
                   >
                     {bot.businessName}
                   </Link>
+                  {bot.evalLane ? (
+                    <StatusBadge tone="warning" className="ml-2">
+                      {t("evalBadge")}
+                    </StatusBadge>
+                  ) : null}
                   <p className="text-muted-foreground text-xs">
                     {bot.ownerEmail}
                   </p>

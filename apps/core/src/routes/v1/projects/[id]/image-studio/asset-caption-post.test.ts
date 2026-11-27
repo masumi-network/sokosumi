@@ -35,7 +35,9 @@ import mount from "./asset-caption-post";
 const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const ASSET_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
-function createApp() {
+function createApp(
+  authenticationMethod: "session" | "api_key" | "oauth" = "session",
+) {
   const app = new OpenAPIHono<EnvVariables>();
   app.use(coreEvlogMiddleware());
   app.onError(errorHandler);
@@ -43,7 +45,7 @@ function createApp() {
     c.set("requestId", "studio-caption-request");
     c.set("authContext", {
       actor: "user",
-      authenticationMethod: "session",
+      authenticationMethod,
       userId: "user-a",
       organizationId: null,
       role: "user",
@@ -85,6 +87,37 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
       projectId: PROJECT_ID,
       assetId: ASSET_ID,
     });
+  });
+
+  // SOKD-394: an agent's captions are capped per workspace and hour.
+  it.each(["api_key", "oauth"] as const)(
+    "refuses a %s caller past the hourly cap without calling the model",
+    async (authenticationMethod) => {
+      vi.mocked(incrementRedisRateLimit).mockResolvedValueOnce(61);
+
+      const response = await createApp(authenticationMethod).request(
+        `/${PROJECT_ID}/image-studio/assets/${ASSET_ID}/caption`,
+        { method: "POST" },
+      );
+
+      expect(response.status).toBe(429);
+      expect(mocks.write).not.toHaveBeenCalled();
+    },
+  );
+
+  it("writes for an agent under the cap", async () => {
+    vi.mocked(incrementRedisRateLimit).mockResolvedValueOnce(1);
+
+    const response = await createApp("api_key").request(
+      `/${PROJECT_ID}/image-studio/assets/${ASSET_ID}/caption`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(incrementRedisRateLimit).toHaveBeenCalledWith(
+      "studio:agent-writing:workspace-a",
+      3600,
+    );
   });
 
   it("returns 404 when the image is gone", async () => {

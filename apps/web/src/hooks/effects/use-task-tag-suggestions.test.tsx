@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
+import { Activity, StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTaskTagSuggestions } from "./use-task-tag-suggestions";
 
@@ -16,6 +17,17 @@ function success() {
 }
 async function advance(ms: number) {
   await act(async () => vi.advanceTimersByTimeAsync(ms));
+}
+
+function SuggestionProbe(props: typeof defaults) {
+  const { status, tags, tagSuggestionReceipt } = useTaskTagSuggestions(props);
+  return (
+    <div>
+      <span data-testid="status">{status ?? "idle"}</span>
+      <span data-testid="tags">{tags.join(",")}</span>
+      <span data-testid="receipt">{tagSuggestionReceipt ?? ""}</span>
+    </div>
+  );
 }
 
 beforeEach(() => {
@@ -130,6 +142,19 @@ describe("draft tag suggestions", () => {
     expect(result.current.tagSuggestionReceipt).toBe("receipt-1");
     await advance(10000);
     expect(suggestTaskTags).toHaveBeenCalledOnce();
+  });
+
+  it("sends no full audit request line", async () => {
+    renderHook(useTaskTagSuggestions, {
+      initialProps: {
+        ...defaults,
+        description: `${description}\nseo_audit: {"markupBps":2000}`,
+      },
+    });
+    await advance(1200);
+    expect(suggestTaskTags).toHaveBeenCalledOnce();
+    const body = JSON.parse(String(suggestTaskTags.mock.calls[0][1]?.body));
+    expect(body.description).toBe(description);
   });
 
   it("ignores stale responses and serializes the next changed input after cooldown", async () => {
@@ -313,5 +338,115 @@ describe("draft tag suggestions", () => {
     expect(result.current.status).toBeNull();
     expect(result.current.tags).toEqual([]);
     expect(result.current.tagSuggestionReceipt).toBeUndefined();
+  });
+
+  it("clears the loading state and loads suggestions again after Activity hide and reveal during a pending request", async () => {
+    suggestTaskTags
+      .mockImplementationOnce(
+        (_input, init) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () =>
+              reject(
+                new DOMException("The operation was aborted", "AbortError"),
+              ),
+            );
+          }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({ tags: ["research"], receipt: "receipt-after-reveal" }),
+      );
+
+    const { rerender, unmount } = render(
+      <StrictMode>
+        <Activity mode="visible">
+          <SuggestionProbe {...defaults} />
+        </Activity>
+      </StrictMode>,
+    );
+
+    await advance(1200);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("status")).toHaveTextContent("loading");
+
+    // Hiding aborts the in-flight request while the subtree stays mounted.
+    rerender(
+      <StrictMode>
+        <Activity mode="hidden">
+          <SuggestionProbe {...defaults} />
+        </Activity>
+      </StrictMode>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Revealing must not leave the loading indicator stuck, and should request
+    // again once the normal request interval elapses (not a 30s error backoff).
+    rerender(
+      <StrictMode>
+        <Activity mode="visible">
+          <SuggestionProbe {...defaults} />
+        </Activity>
+      </StrictMode>,
+    );
+    expect(screen.getByTestId("status")).toHaveTextContent("idle");
+
+    await advance(10000);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("status")).toHaveTextContent("idle");
+    expect(screen.getByTestId("tags")).toHaveTextContent("research");
+    expect(screen.getByTestId("receipt")).toHaveTextContent(
+      "receipt-after-reveal",
+    );
+
+    unmount();
+  });
+
+  it("ignores a pending request that resolves late across Activity hide and reveal and loads fresh suggestions", async () => {
+    const first = Promise.withResolvers<Response>();
+    suggestTaskTags
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce(
+        Response.json({ tags: ["planning"], receipt: "receipt-fresh" }),
+      );
+
+    const { rerender, unmount } = render(
+      <Activity mode="visible">
+        <SuggestionProbe {...defaults} />
+      </Activity>,
+    );
+
+    await advance(1200);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("status")).toHaveTextContent("loading");
+
+    rerender(
+      <Activity mode="hidden">
+        <SuggestionProbe {...defaults} />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <SuggestionProbe {...defaults} />
+      </Activity>,
+    );
+    expect(screen.getByTestId("status")).toHaveTextContent("idle");
+
+    await act(async () => {
+      first.resolve(
+        Response.json({ tags: ["stale"], receipt: "receipt-stale" }),
+      );
+      await first.promise;
+    });
+    expect(screen.getByTestId("tags")).toHaveTextContent("");
+    expect(screen.getByTestId("receipt")).toHaveTextContent("");
+
+    await advance(10000);
+    expect(suggestTaskTags).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("status")).toHaveTextContent("idle");
+    expect(screen.getByTestId("tags")).toHaveTextContent("planning");
+    expect(screen.getByTestId("receipt")).toHaveTextContent("receipt-fresh");
+
+    unmount();
   });
 });

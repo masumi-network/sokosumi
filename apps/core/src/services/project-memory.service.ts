@@ -1,6 +1,9 @@
 import * as Sentry from "@sentry/node";
 import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  hideSeoAuditRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import { generateText } from "ai";
 import { getEnv } from "@/config/env";
 import {
@@ -170,7 +173,9 @@ function formatTaskForPrompt(task: ProjectMemoryTask): string {
   return `<completed_task id="${formatPromptData(task.id)}">
 <name>${formatPromptData(task.name, MAX_NAME_CHARS)}</name>
 <description>${formatPromptData(
-    removeTaskContextAttachmentLinks(task.description ?? "") || "None",
+    removeTaskContextAttachmentLinks(
+      hideSeoAuditRequest(task.description) ?? "",
+    ) || "None",
     MAX_TASK_DESCRIPTION_CHARS,
   )}</description>
 <assignee>${formatPromptData(
@@ -386,6 +391,7 @@ async function refreshProjectMemoryIteration({
     };
     const generation = await generateText({
       ...generationOptions,
+      telemetry: { functionId: "project-memory" },
       system: PROJECT_MEMORY_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
@@ -402,6 +408,7 @@ async function refreshProjectMemoryIteration({
     ) {
       const compaction = await generateText({
         ...generationOptions,
+        telemetry: { functionId: "project-memory-compaction" },
         system: `${PROJECT_MEMORY_SYSTEM_PROMPT}
 
 The candidate exceeds the size budget. Compact it once using the original sources as evidence. Preserve constraints, unresolved approvals and essential links; remove history and repetition first. Return the whole document, never just a prefix or a patch.`,

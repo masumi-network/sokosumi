@@ -149,6 +149,37 @@ describe("the extraction drain stays inside the sync window", () => {
 });
 
 describe("every call inside an extraction job is bounded", () => {
+  it("applies a direct read's smaller limit to metadata and received bytes", async () => {
+    headMock.mockResolvedValueOnce({
+      size: 6,
+      url: "https://example.test/brief",
+    });
+    await expect(
+      downloadBlob("drive/users/u/brief.pdf", 5),
+    ).resolves.toBeNull();
+    expect(getMock).not.toHaveBeenCalled();
+    headMock.mockResolvedValueOnce({
+      size: 4,
+      url: "https://example.test/brief",
+    });
+    const cancel = vi.fn();
+    getMock.mockResolvedValueOnce({
+      statusCode: 200,
+      stream: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array(6));
+        },
+        cancel,
+      }),
+      headers: new Headers(),
+      blob: { contentType: "application/pdf", size: 4 },
+    });
+    await expect(
+      downloadBlob("drive/users/u/brief.pdf", 5),
+    ).resolves.toBeNull();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it("gives the metadata lookup a timeout", async () => {
     /**
      * `head` was called with no signal, so one hung request could hold a

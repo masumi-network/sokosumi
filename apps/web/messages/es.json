@@ -95,11 +95,6 @@
         "high": "Riesgo alto",
         "unacceptable": "Riesgo inaceptable"
       },
-      "AgentVerifiedBadge": {
-        "tooltip": "La autenticidad de este Agent está verificada mediante una identidad de Agent.",
-        "learnMore": "Más información",
-        "aboutAgentIdentities": "sobre identidades de Agent."
-      },
       "Rating": {
         "title": "Valoraciones",
         "noRatings": "Aún sin valoraciones",
@@ -133,15 +128,6 @@
         }
       },
       "AgentDetail": {
-        "Stats": {
-          "executedJobs": "Jobs ejecutados",
-          "averageExecutionTime": "Tiempo medio de ejecución",
-          "rating": "Valoración"
-        },
-        "Overview": {
-          "description": "Descripción",
-          "tags": "De un vistazo"
-        },
         "Examples": {
           "title": "Outputs de ejemplo",
           "download": "Descargar"
@@ -152,22 +138,8 @@
           "terms": "Términos de uso",
           "dpa": "Acuerdo de procesamiento de datos (DPA)",
           "other": "Otros"
-        },
-        "Risk": {
-          "title": "Clasificación de riesgo según la Ley de IA de la UE"
         }
       },
-      "agentsNotAvailable": "No hay agents disponibles",
-      "agentsNotFound": "No se encontraron agents",
-      "AgentCard": {
-        "view": "Ver detalles",
-        "detailsUnavailable": "Detalles no disponibles"
-      },
-      "Kind": {
-        "cardano": "Cardano",
-        "x402": "x402"
-      },
-      "othersCategory": "Otros",
       "ActionButtons": {
         "back": "Atrás",
         "close": "Cerrar",
@@ -208,6 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
+      "switchOrganization": "Cambiar de organización",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
@@ -2303,7 +2276,7 @@
         },
         "files": "Archivos",
         "assignee": "Responsable",
-        "noAssignee": "Sin responsable",
+        "noAssignee": "Sin asignar",
         "memberFallback": "Miembro",
         "schedule": "Programación",
         "privateSchedule": "Programación privada",
@@ -2395,7 +2368,6 @@
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "createError": "No se pudo crear «{name}». Tus datos siguen en el formulario.",
-        "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
         "uploadingFile": "Uploading {fileName}",
@@ -2406,17 +2378,6 @@
         "openRunAt": "Configurar hora de inicio",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
-        "defaultBadge": "Predeterminado",
-        "modelLabel": "Modelo",
-        "hostingLabel": "Alojado en",
-        "taskStepTitle": "¿Qué debe hacer {name}?",
-        "noAgentsFound": "No se encontraron agentes.",
-        "tasksTitle": "Tareas listas para ejecutar",
-        "startFromScratch": "Empezar desde cero",
-        "startFromScratchHint": "Escribe tus propias instrucciones",
-        "previewExample": "Ver ejemplo",
-        "previewUse": "Usar esta tarea",
-        "previewEmpty": "Aún no hay salida de ejemplo disponible.",
         "taskCreated": "Tarea creada",
         "taskCreatedHint": "{status, select, DRAFT {Está como borrador en Pendiente. Nada empieza hasta que la pases a Listo.} QUEUED {Espera en Pendiente y empieza a la hora que elegiste.} other {Está en Por hacer, lista para empezar.}}",
         "goToTask": "Ir a la tarea",
@@ -2433,6 +2394,27 @@
           "saving": "Guardar la tarea",
           "keepOpen": "Mantén esto abierto hasta que diga Tarea creada."
         }
+      },
+      "Composer": {
+        "titlePlaceholder": "Título de la tarea",
+        "descriptionPlaceholder": "Añadir descripción…",
+        "dialogDescription": "Escribe la tarea, define sus propiedades y créala.",
+        "properties": "Propiedades de la tarea",
+        "assignee": "Responsable",
+        "assignTo": "Asignar a…",
+        "agents": "Agentes",
+        "templates": "Plantillas",
+        "templatesFrom": "Tareas listas de {name}",
+        "previewTemplate": "Vista previa: {title}",
+        "useTemplate": "Usar esta plantilla",
+        "noExample": "Todavía no hay un resultado de ejemplo.",
+        "createMore": "Crear más",
+        "expand": "Ampliar",
+        "collapse": "Reducir",
+        "discardTitle": "¿Descartar esta tarea?",
+        "discardDescription": "Se perderán el título y la descripción que escribiste.",
+        "keepEditing": "Seguir editando",
+        "discard": "Descartar"
       },
       "EditTask": {
         "title": "Editar Task",
@@ -2458,7 +2440,6 @@
         "noCoworkerMatches": "Ningún coworker coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
-        "back": "Atrás",
         "uploadFile": "Subir archivo",
         "uploadFileError": "No se pudo subir el archivo",
         "uploadingFile": "Uploading {fileName}",
@@ -2745,7 +2726,7 @@
         "checkingTag": "En revisión",
         "label": "Etiquetas",
         "empty": "Sin etiquetas todavía",
-        "showAll": "Mostrar las {count} etiquetas",
+        "moreTags": "+{count} {count, plural, one {etiqueta más} other {etiquetas más}}",
         "noProject": "Sin proyecto",
         "openProject": "Abrir proyecto: {name}",
         "vocabulary": {
@@ -3811,11 +3792,20 @@
           "document": "DESIGN.md",
           "colors": "Colores",
           "typography": "Tipografía",
-          "frontMatter": "Front matter"
+          "frontMatter": "Front matter",
+          "downloadBrandKit": "Descargar kit de marca",
+          "brandKitFileName": "Kit de marca de {name}",
+          "brandKitArchive": {
+            "failed": "No se pudo descargar el kit de marca. Inténtalo de nuevo.",
+            "partial": "Se descargaron {included} de {total} archivos. No incluido: {names}{more, plural, =0 {} one { y # más} other { y # más}}. Inténtalo de nuevo para añadirlo.",
+            "empty": "Todavía no hay nada que descargar."
+          }
         },
         "bots": {
-          "title": "Bots de este proyecto"
-        }
+          "title": "Bots de este proyecto",
+          "empty": "Aún no hay bots para este proyecto. Un bot de proyecto ve las Tasks públicas del proyecto y todos hablan con él en una sala."
+        },
+        "sectionTitle": "{section} · {project}"
       },
       "Newsletter": {
         "title": "Boletín",
@@ -4684,14 +4674,16 @@
         "voiceover": "Historia con voz",
         "site_tour": "Recorrido por la web",
         "top_three": "Lista de 3",
-        "slideshow": "Pase de fotos"
+        "slideshow": "Pase de fotos",
+        "launch": "Lanzamiento"
       },
       "kindHints": {
         "presenter": "Una persona dice tu guion a cámara.",
         "voiceover": "Una voz cuenta una historia corta sobre tus imágenes y tu web.",
         "site_tour": "Una voz recorre tu web.",
         "top_three": "Una voz da tres puntos numerados.",
-        "slideshow": "Tus imágenes con música y una frase en cada una."
+        "slideshow": "Tus imágenes con música y una frase en cada una.",
+        "launch": "Una voz anuncia algo nuevo, con su fecha en una tarjeta."
       },
       "kindNeedsSite": "Añade primero tu web al proyecto.",
       "stepShows": "Qué muestra",
@@ -4708,22 +4700,48 @@
         "voiceover": "Casi todo el mundo se equivoca con…",
         "site_tour": "Esta es nuestra web. Esto es lo que puedes hacer en ella…",
         "top_three": "Tres formas de… Uno, … Dos, … Tres, … Pruébalo hoy.",
-        "slideshow": "¿Código listo?\nAhora la página.\nPruébalo gratis hoy"
+        "slideshow": "¿Código listo?\nAhora la página.\nPruébalo gratis hoy",
+        "launch": "Llega nuestro menú de invierno. Empieza el 3 de diciembre. Seis platos calientes, hechos cada mañana. Reserva tu mesa hoy."
       },
       "scriptHints": {
         "voiceover": "La primera frase es el gancho.",
         "site_tour": "Di lo que se ve en tu web, de arriba abajo.",
         "top_three": "Una frase que nombra la lista, una por punto y luego el siguiente paso.",
-        "slideshow": "Una frase corta por imagen, una por línea."
+        "slideshow": "Una frase corta por imagen, una por línea.",
+        "launch": "Di qué es nuevo y luego cuándo. La fecha aparece en una tarjeta mientras se dice la segunda frase."
       },
       "hookLine": "Texto en pantalla al principio",
       "hookLinePlaceholder": "Déjalo vacío y lo escribimos por ti",
       "hookLineHint": "Hasta seis palabras que digan por qué seguir viendo.",
+      "launchDate": "Fecha",
+      "launchDatePlaceholder": "3 de diciembre",
+      "launchDateHint": "Cuándo empieza, tal como debe aparecer en la tarjeta.",
+      "launchDateMissing": "Añade la fecha de lo que anuncias.",
       "shortIncludes": "Incluye subtítulos, música y tu logo al final.",
       "slideshowIncludes": "Incluye música y tu logo al final.",
       "costDetailShort": "solo se cobra cuando el vídeo está listo, en un minuto aproximadamente",
       "previewMetaSlideshow": "Sin voz: música y tus frases en pantalla",
-      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo."
+      "aiLabelHintShort": "Este vídeo tiene una voz o música generada. Se etiqueta como generado con IA al publicarlo.",
+      "shapes": {
+        "label": "Formatos",
+        "hint": "Pagas el primer formato. Cada formato más se corta gratis del mismo vídeo.",
+        "notForKind": "Un recorrido por la web se lee mal en cuadrado.",
+        "previewIn": "Vista previa en",
+        "onStage": "Formatos de este vídeo",
+        "making": "(se está cortando)",
+        "names": {
+          "9:16": "Vertical",
+          "4:5": "Feed",
+          "1:1": "Cuadrado",
+          "16:9": "Panorámico"
+        },
+        "where": {
+          "9:16": "TikTok, Instagram, YouTube",
+          "4:5": "Feed de Instagram y Facebook",
+          "1:1": "X, LinkedIn, Facebook",
+          "16:9": "YouTube, LinkedIn, X"
+        }
+      }
     },
     "Studio": {
       "back": "Volver al proyecto",
@@ -6402,6 +6420,10 @@
             "title": "Alertas de auditorías SEO",
             "description": "Revisa los fallos de auditoría y el estado de las conexiones."
           },
+          "seoImpact": {
+            "title": "Impacto SEO",
+            "description": "Sigue los cambios de página hechos hasta que Google los rastree."
+          },
           "x402Payments": {
             "title": "Pagos x402",
             "description": "Revisa pagos directos y resuelve cargos x402 retenidos o disputados."
@@ -7075,6 +7097,8 @@
           "archived": "Archivado",
           "version": "Versión",
           "showDormant": "Mostrar sin uso y archivados ({count})",
+          "showEvals": "Mostrar bots de evals",
+          "evalBadge": "Eval",
           "chat": "Chat",
           "kindLabel": "Mostrar",
           "kind": {
@@ -7649,8 +7673,10 @@
           "usersTitle": "Personas que escribieron a un Soko Bot",
           "usersSub": "máximo {peak} en {days} días",
           "usersBar": "{day}: {users} personas, {messages} mensajes",
-          "costTitle": "Coste de modelo de Soko Bots",
-          "cmoCostTitle": "Coste de modelo de CMO.xyz",
+          "costTitle": "Coste por turno de Soko Bots",
+          "cmoCostTitle": "Coste por turno de CMO.xyz",
+          "evalCostTitle": "Coste por turno de evals y laboratorio",
+          "costScope": "Coste por turno: el coste de modelo del bucle, el enrutado, el juez y las comprobaciones dentro de un turno. Las lanes de evals y las ejecuciones de laboratorio solo cuentan en Evals. No incluye el trabajo fuera de un turno: las comprobaciones de estilo, sector e imagen de Cuso, el redactor del mes, imágenes y vídeo.",
           "costSub": "{total} en {days} días",
           "costBar": "{day}: {cost}",
           "today": "hoy",
@@ -7661,7 +7687,8 @@
           "turns": "Turnos",
           "tokens": "Tokens",
           "cost": "Soko Bots",
-          "cmoCost": "CMO.xyz"
+          "cmoCost": "CMO.xyz",
+          "evalCost": "Evals"
         },
         "Avatar": {
           "title": "Aspecto",
@@ -7817,6 +7844,28 @@
       },
       "SeoAlerts": {
         "type": "Tipo de alerta",
+        "impactTab": "Efecto de las acciones",
+        "impactDescription": "Totales de Search Console de la página de cada acción SEO hecha, para el mismo número de días antes y después. Cada entrada es una auditoría y la persona cuyos datos de Search Console contiene. Las cifras no descartan la estacionalidad, otros cambios en la página ni una actualización de Google.",
+        "impactWindow": "Días antes y después",
+        "impactEmpty": "Ninguna auditoría ha guardado datos diarios de página todavía.",
+        "impactNoActions": "Ninguna acción hecha en una página con datos diarios guardados.",
+        "impactCompleted": "Tarea completada el {date}",
+        "impactVerified": "Corrección verificada el {date}",
+        "impactMetric": "Métrica",
+        "impactBefore": "{days, number} días antes",
+        "impactAfter": "{days, number} días después",
+        "impactClicks": "Clics",
+        "impactImpressions": "Impresiones",
+        "impactPosition": "Posición media",
+        "impactNotMeasured": "Sin medir",
+        "impactPending": "Aún no es definitivo",
+        "impactNoPosition": "Sin impresiones",
+        "impactState": {
+          "measured": "Medido",
+          "too_early": "Demasiado pronto",
+          "not_measured": "Sin medir",
+          "low_counts": "Muy pocas impresiones"
+        },
         "pricingAttention": "Cobros de auditorías que revisar: {count}",
         "billingTab": "Facturación de auditorías ({count})",
         "billingDescription": "Auditorías completas facturadas por consumo y su estado de cobro. Los costes proceden de recibos verificados. Los créditos cobrados proceden de la transacción.",
@@ -7832,6 +7881,24 @@
         "directModelMicroUsd": "Llamadas directas a modelos",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Otras API",
+        "costDetail": "Desglose de costes",
+        "costByModel": "Por modelo",
+        "costByDataForSeo": "Por endpoint de DataForSEO",
+        "costByStep": "Por paso de la auditoría",
+        "detailModel": "Modelo",
+        "detailProvider": "Proveedor",
+        "detailCalls": "Llamadas",
+        "detailEndpoint": "Endpoint",
+        "detailReads": "Consultas",
+        "detailStep": "Paso",
+        "detailCost": "Coste",
+        "detailModelCost": "Modelos",
+        "detailDataForSeoCost": "DataForSEO",
+        "detailOtherApiCost": "Otras API",
+        "detailStepTotal": "Total del paso",
+        "unattributed": "Sin asignar",
+        "unpriced": "Sin precio",
+        "providerUnknown": "Desconocido",
         "runId": "ID de ejecución",
         "taskId": "ID de tarea",
         "receiptsPending": "Pendiente de recibos",
@@ -7851,7 +7918,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Conexiones que requieren reconexión: {count}",
-        "summary": "Últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
+        "summary": "Abiertas o de los últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
         "unavailable": "Los recuentos de alertas no están disponibles.",
         "title": "Alertas de auditorías SEO",
         "description": "Última ejecución finalizada o atrasada de cada auditoría. La alerta se activa cuando falla al menos el {percent}% de las páginas que se intentaron analizar.",
@@ -7902,10 +7969,58 @@
           "gscSkipped": "El propietario optó por continuar sin Search Console."
         }
       },
+      "SeoImpact": {
+        "title": "Impacto SEO",
+        "description": "Cambios de página que los clientes marcaron como hechos. Cada fila espera el primer rastreo de Google tras el cambio y luego recibe las cuatro semanas que compara su veredicto.",
+        "summary": "{shown} de {total} cambios de página seguidos.",
+        "period": "Periodo",
+        "periods": {
+          "90": "90 días",
+          "365": "365 días",
+          "all": "Todo"
+        },
+        "empty": "No se siguió ningún cambio de página en este periodo.",
+        "customer": "Cliente",
+        "page": "Página",
+        "suggestion": "Sugerencia",
+        "source": "Origen",
+        "changedAt": "Cambiado",
+        "crawledAt": "Primer rastreo observado tras el cambio",
+        "window": "Ventana",
+        "state": "Estado",
+        "reason": "Motivo",
+        "none": "Ninguno",
+        "notYet": "Todavía no",
+        "windowRange": "Del {start} al {end}",
+        "readyOn": "Datos definitivos el {date}",
+        "sources": {
+          "cuso_done": "Marcado como hecho",
+          "audit_recheck": "Nueva revisión de auditoría"
+        },
+        "states": {
+          "waiting_crawl": "Espera el rastreo",
+          "waiting_window": "Espera la ventana",
+          "ready": "Listo para el veredicto",
+          "waiting_retry": "Espera más datos",
+          "measured": "Medido",
+          "not_measurable": "No medible"
+        },
+        "reasons": {
+          "no_cuso": "El proyecto no tiene un Cuso activo.",
+          "not_connected": "Search Console no está conectado.",
+          "no_property": "Ninguna propiedad de Search Console cubre la página.",
+          "inspection_failed": "La inspección de URL falló o fue rechazada.",
+          "not_crawled_yet": "Google no ha rastreado la página desde el cambio.",
+          "worker_failed": "El worker de SEO no dio un veredicto tras tres reclamaciones."
+        }
+      },
       "CmoSpend": {
         "title": "Gasto de CMO",
         "description": "Lo que gastó cada bot CMO en su trabajo, lo que se cobró a su dueño y en qué: cada modelo, búsqueda web, Exa, gastos generales e imágenes.",
         "summary": "{bots, plural, one {# bot CMO gastó} other {# bots CMO gastaron}} {spent} y cobraron {charged} créditos.",
+        "showEvals": "Mostrar Cusos de evals",
+        "hideEvals": "Ocultar Cusos de evals",
+        "evalBadge": "Eval",
         "period": "Periodo",
         "days": "{days} días",
         "empty": "Ningún bot CMO trabajó en este periodo.",
@@ -8083,6 +8198,9 @@
         "trendBarTitle": "{rate} passed ({passed} of {scored})",
         "noRuns": "No eval run yet. Start one, or wait for the weekly run.",
         "wasRate": "was {rate}",
+        "costlier": "Costlier: {cost}, usually {usual}",
+        "slower": "Slower: {minutes} min, usually {usual} min",
+        "usageCounts": "{costlier} costlier, {slower} slower than usual",
         "noCasesMatch": "No case matches this filter.",
         "runTitle": "{trigger} run, {when}",
         "comparedWith": "Compared with the weekly run of {when}",
@@ -8147,6 +8265,9 @@
           "cmo": "CMO",
           "repeats": "Repeats",
           "repeatsHint": "The weekly run does one. Each extra repeat runs in its own lane, side by side; three tell chance from a real change.",
+          "sokoBotVersion": "Soko Bot version",
+          "cusoVersion": "Cuso version",
+          "defaultVersion": "Default ({version})",
           "cases": "Only these cases",
           "casesPlaceholder": "ambiguous-request, cmo-strategy-cal-com",
           "casesHint": "Leave empty to run every case of the suites.",
@@ -8216,6 +8337,38 @@
           "help": "Solo con permiso de entrenamiento. Se omite el texto de marca; los enlaces caducan en 10 minutos.",
           "download": "Descargar JSONL",
           "error": "No se pudieron exportar los datos de anuncios. Inténtalo de nuevo."
+        }
+      },
+      "PreprodAccess": {
+        "title": "Acceso a Preprod",
+        "noEffect": "Este ajuste todavía no cambia el acceso a Preprod.",
+        "state": "{enabled, select, true {Activado} other {Desactivado}}",
+        "saved": "{enabled, select, true {El acceso a Preprod está activado.} other {El acceso a Preprod está desactivado.}}",
+        "history": {
+          "title": "Cambios recientes",
+          "entry": "{enabled, select, true {Activado} other {Desactivado}} por {operator}",
+          "unknown": "un admin desconocido",
+          "empty": "Todavía no hay cambios."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {¿Activar el acceso a Preprod?} other {¿Desactivar el acceso a Preprod?}}",
+          "description": "{enabled, select, true {{type, select, user {El usuario} other {La organización}} {name} obtiene acceso a Preprod.} other {{type, select, user {El usuario} other {La organización}} {name} pierde el acceso a Preprod.}} Tu nombre y el motivo se guardan con el cambio.",
+          "reasonLabel": "Motivo",
+          "reasonHint": "ID del ticket, sin datos personales.",
+          "reasonRequired": "Escribe un motivo.",
+          "cancel": "Cancelar",
+          "confirm": "{enabled, select, true {Activar} other {Desactivar}}"
+        },
+        "errors": {
+          "forbidden": "No permitido: solo un admin que haya iniciado sesión como sí mismo puede cambiar el acceso a Preprod.",
+          "notFound": "{type, select, user {Este usuario ya no existe.} other {Esta organización ya no existe.}}",
+          "invalid": "El cambio no se aceptó. Revisa el motivo e inténtalo de nuevo.",
+          "failed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+        },
+        "unavailable": {
+          "title": "No se pudo cargar el acceso a Preprod.",
+          "description": "El resto de la página funciona.",
+          "retry": "Reintentar"
         }
       }
     },
@@ -8728,7 +8881,8 @@
           "key": "Key",
           "status": "Estado",
           "actions": "Acciones",
-          "created": "Creado"
+          "created": "Creado",
+          "lastUsed": "Último uso"
         },
         "Status": {
           "enabled": "Activada",
@@ -8758,7 +8912,8 @@
           "confirmLabelPrefix": "Escribe",
           "confirmLabelSuffix": "para confirmar la eliminación:",
           "cancelButton": "Cancelar",
-          "deleteButton": "Eliminar API Key"
+          "deleteButton": "Eliminar API Key",
+          "recentUse": "Esta clave se usó {when}. Todo lo que aún la use dejará de funcionar."
         },
         "Messages": {
           "loadError": "No se pudieron cargar las API Keys",
@@ -8779,7 +8934,11 @@
           "keyIdRequired": "El ID de la API Key es obligatorio",
           "confirmNameRequired": "Por favor, confirma el nombre de la API Key"
         },
-        "retry": "Reintentar"
+        "retry": "Reintentar",
+        "LastUsed": {
+          "used": "Usada {when}",
+          "none": "Sin uso registrado"
+        }
       },
       "AuthorizedClients": {
         "title": "Aplicaciones autorizadas",
@@ -9332,62 +9491,16 @@
     },
     "Agents": {
       "Metadata": {
-        "title": "Galería de Agents",
+        "title": "Agentes",
         "description": "Descubre nuestra colección de Agents."
       },
       "CoworkerGallerySection": {
-        "title": "Coworkers agénticos",
-        "whatTheyDo": {
-          "title": "Qué hacen",
-          "description": "AI Coworkers a los que puedes asignar trabajo real. Trabajan de forma autónoma y entregan resultados."
-        },
-        "marketingExpertise": {
-          "title": "Expertise en marketing",
-          "description": "Entrenados en trabajo de campaña real: estrategia, contenido, planificación de medios y comunicación de marca."
-        },
-        "others": "Otros",
-        "moreComingSoon": "+ Más próximamente",
-        "startTask": "Start a task with {name}",
-        "featuredEyebrow": "Featured coworker",
-        "all": "All",
-        "examplesTitle": "What {name} can do",
-        "startShort": "Start a task",
-        "startForCoworker": "Iniciar una tarea nueva para {name}",
-        "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
-        "searchOffers": "Search offers, coworkers…",
-        "byCompany": "Company",
-        "offerPrefilled": "Pre-filled task",
-        "noOffers": "No offers match your filters.",
-        "offersLabel": "Quick-start offers",
-        "allCategories": "All",
-        "moreOffers": "+{count} more",
-        "searchHero": "What do you want to get done?",
-        "recommendedLabel": "Recommended",
-        "searchHint": "Search agents, coworkers, and offers",
-        "clearFilters": "Clear filters",
-        "coworkersTitle": "Your AI coworkers",
-        "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Tareas listas para ejecutar",
-        "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
         "startThisTask": "Start this task",
-        "viewDetails": "View details",
-        "examplePending": "Example coming soon",
         "examplePendingHint": "A sample output (PDF or image) will appear here.",
         "openInNewTab": "Open in new tab",
         "offerDetails": "Offer details",
-        "heroHeadline": "What do you want to get done?",
-        "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
-        "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProofFallback": "AI coworkers ready to work",
-        "companyWebsite": "Visit website",
-        "companyLegal": "Legal",
-        "coworkerCount": "{count, plural, one {# coworker} other {# coworkers}}",
-        "otherCompanyLabel": "Independent",
-        "showAllCoworkers": "Show all {count}",
-        "showLess": "Show less",
-        "showMoreCompanies": "Show {count, plural, one {# more company} other {# more companies}}",
         "outputTypes": {
           "pdf": "PDF",
           "slides": "Slides",
@@ -9396,13 +9509,7 @@
           "text": "Text",
           "image": "Image",
           "html": "Web"
-        },
-        "showAllOffers": "Show all {count} offers",
-        "offerCount": "{count, plural, one {# offer} other {# offers}}",
-        "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "Aún no hay tareas listas para ejecutar. Inicia una tarea nueva y describe lo que necesitas.",
-        "coworkersFound": "{count, plural, =0 {Ningún coworker coincide con tu búsqueda} one {# coworker coincide con tu búsqueda} other {# coworkers coinciden con tu búsqueda}}",
-        "noCoworkers": "No hay coworkers disponibles en este momento."
+        }
       },
       "Jobs": {
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
@@ -9415,7 +9522,9 @@
           "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}",
           "backToAgent": "Volver a {name}",
           "yourJobs": "Tus jobs",
-          "yourJobsCount": "Tus jobs · {count}"
+          "yourJobsCount": "Tus jobs · {count}",
+          "unavailableAgent": "Agente no disponible",
+          "noLongerListed": "Ya no está en el catálogo"
         },
         "Modal": {
           "back": "Atrás",
@@ -9431,23 +9540,93 @@
           "noExecutedJobs": "No hay jobs ejecutados"
         }
       },
-      "allAgentsTitle": "Explorar todos los agents",
-      "allAgentsSubtitle": "Todos los agents de Sokosumi, agrupados por lo que hacen.",
-      "FilterSection": {
-        "reset": "Restablecer",
-        "kind": {
-          "all": "Todos",
-          "cardano": "Cardano",
-          "x402": "x402"
+      "Directory": {
+        "title": "Agentes",
+        "sokoBotsTitle": "Soko Bots",
+        "sokoBotsNote": "Asistentes que trabajan para una persona, un proyecto o todo el equipo.",
+        "sokoBotsUnavailable": "Ahora no se pueden cargar los Soko Bots. Vuelve a intentarlo en un momento.",
+        "createOwnBot": "Configura tu Soko Bot",
+        "createOwnBotHint": "Tu propio asistente para correo, tareas y chats.",
+        "coworkersTitle": "Coworkers",
+        "coworkersNote": "Especialistas a los que puedes encargar tareas completas o escribir.",
+        "coworkersEmpty": "Todavía no hay coworkers en este espacio de trabajo.",
+        "marketplaceTitle": "Mercado de agentes",
+        "marketplaceShort": "Mercado",
+        "sectionNavLabel": "Secciones de agentes",
+        "marketplaceNote": "Agentes creados y gestionados por otras empresas. Cada uno hace un trabajo.",
+        "marketplaceEmpty": "Ahora no hay agentes que mostrar.",
+        "external": "Externo",
+        "bringYourOwn": "Conecta tu propio agente",
+        "searchLabel": "Buscar en el mercado de agentes",
+        "searchPlaceholder": "Buscar agentes",
+        "noMatch": "Ningún agente coincide con tu búsqueda.",
+        "found": "{count, plural, =0 {Ningún agente coincide} one {# agente coincide} other {# agentes coinciden}}",
+        "byVendor": "de {vendor}",
+        "vendorLogo": "Logotipo de la empresa detrás de {agent}",
+        "botFallbackName": "Soko Bot",
+        "ownerYou": "Tuyo",
+        "ownerYouAbout": "Ti",
+        "ownerPerson": "De {name}",
+        "ownerTeam": "Equipo",
+        "ownerProject": "Proyecto {project}",
+        "ownerProjectUnnamed": "Un proyecto",
+        "purposePersonal": "Asistente personal",
+        "purposeTeam": "Trabaja para todo el equipo",
+        "purposeProject": "Trabaja en un proyecto",
+        "status": {
+          "IDLE": "Libre",
+          "RUNNING": "Trabajando",
+          "PAUSED": "Te espera",
+          "ERROR": "Necesita revisión"
         },
-        "scope": {
-          "label": "Mostrar",
-          "all": "Todo",
-          "coworkers": "Coworkers",
-          "agents": "Agents"
-        }
-      },
-      "agentsFound": "{count, plural, =0 {Ningún agent coincide con tu búsqueda} one {# agent coincide con tu búsqueda} other {# agents coinciden con tu búsqueda}}"
+        "backToAgents": "Agentes",
+        "message": "Mensaje",
+        "messageError": "No se pudo abrir el chat. Vuelve a intentarlo.",
+        "giveTask": "Dar una tarea",
+        "sectionWhat": "Qué hace",
+        "sectionWork": "Trabajo reciente",
+        "sectionSettings": "Ajustes",
+        "sectionAbout": "Información",
+        "botDoes": {
+          "you": "Tu asistente personal. Lee tu correo y tus chats, sigue tus tareas y hace trabajo por ti cuando se lo pides.",
+          "person": "El asistente personal de un compañero. Puedes escribirle y responde por la persona para la que trabaja.",
+          "team": "Un asistente compartido para todo el equipo. Todos hablan con él en una sala y cualquiera puede cambiar sus ajustes.",
+          "project": "Un asistente compartido para un proyecto. Trabaja en las tareas del proyecto y habla con el equipo en su sala."
+        },
+        "statTasks": "Tareas",
+        "statMessages": "Mensajes",
+        "statBackground": "Ejecuciones en segundo plano",
+        "statCount": "{count, number} en {days, plural, one {el último día} other {los últimos # días}}",
+        "botSettingsNote": "Herramientas, conexiones, horarios y memoria.",
+        "openSettings": "Abrir ajustes",
+        "aboutBelongsTo": "Pertenece a",
+        "aboutKind": "Tipo",
+        "aboutWorkspace": "Espacio de trabajo",
+        "aboutLastActive": "Última actividad",
+        "readyTasks": "Tareas listas para empezar",
+        "aboutCompany": "Empresa",
+        "aboutRole": "Función",
+        "aboutWorks": "Trabaja por",
+        "worksTasks": "Tareas",
+        "worksChat": "Chat",
+        "aboutModels": "Modelos",
+        "aboutHosting": "Alojado en",
+        "aboutMadeBy": "Creado por",
+        "aboutSource": "Origen",
+        "aboutSourceExternal": "Agente externo",
+        "aboutRuns": "Ejecuciones hasta ahora",
+        "aboutAverageTime": "Tiempo medio",
+        "aboutRisk": "Nivel de riesgo",
+        "yourJobs": "{count, plural, one {Tu # trabajo con este agente} other {Tus # trabajos con este agente}}",
+        "groupPersonal": "Personales",
+        "groupShared": "Equipo y proyectos",
+        "messageName": "Mensaje a {name}",
+        "chat": "Chat",
+        "chatName": "Chatear con {name}",
+        "giveTaskName": "Dar una tarea a {name}",
+        "startTask": "Iniciar una tarea",
+        "startTaskName": "Iniciar una tarea con {name}"
+      }
     },
     "EmailVerificationNotice": {
       "title": "Verifica tu dirección de correo",
@@ -9775,6 +9954,8 @@
     },
     "Channels": {
       "MobileNav": {
+        "backToRooms": "Volver a las salas",
+        "allChats": "Todos los chats",
         "tasks": "Tareas",
         "agents": "Agents",
         "chats": "Chats",
@@ -9831,7 +10012,8 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
-      "aiAgentSender": "{name} (agente de IA)",
+      "coworkerSender": "{name} (Coworker)",
+      "sokoBotSender": "{name} (Soko Bot)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Asistente personal",
       "openDirectMessage": "Mensaje",
@@ -9863,6 +10045,7 @@
       },
       "Empty": {
         "noChannels": "No channels yet.",
+        "messageSomeone": "Iniciar un mensaje",
         "noDirectMessages": "No direct messages yet.",
         "noMessagesTitle": "No messages yet",
         "peopleLoadFailedDescription": "Las personas a las que puedes escribir no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
@@ -10429,7 +10612,6 @@
         "needsYouSection": "Te esperan",
         "catchUp": "Ponerse al día",
         "whileYouWereAway": "Mientras no estabas:",
-        "whileYouWereAwayTitle": "Mientras no estabas",
         "dismissCatchUp": "Ocultar resumen",
         "summarize": "Resumen",
         "summarizing": "Escribiendo tu resumen…",
@@ -11084,6 +11266,40 @@
           "saved": "Ajustes guardados",
           "saveFailed": "No se pudieron guardar los ajustes"
         }
+      },
+      "Crop": {
+        "open": "Recortar para redes",
+        "title": "Recortar para redes",
+        "description": "Elige un formato y arrastra el marco o mueve el control para colocar el recorte. Se guarda una copia junto al original; el original no cambia.",
+        "shapeLabel": "Formato",
+        "loading": "Cargando imagen…",
+        "loadError": "No se pudo cargar la imagen. Cierra e inténtalo de nuevo.",
+        "result": "Guarda {name}, {width, number} × {height, number} px",
+        "save": "Guardar copia",
+        "saved": "{name} guardado en Archivos",
+        "duplicate": "{name} ya existe. Cámbiale el nombre o elimínalo y vuelve a guardar.",
+        "saveError": "No se pudo guardar la copia. Inténtalo de nuevo.",
+        "shapes": {
+          "square": {
+            "name": "Cuadrado",
+            "hint": "1:1 · Instagram, Facebook"
+          },
+          "portrait": {
+            "name": "Vertical",
+            "hint": "4:5 · feed de Instagram"
+          },
+          "story": {
+            "name": "Historia",
+            "hint": "9:16 · stories, reels, TikTok"
+          },
+          "landscape": {
+            "name": "Horizontal",
+            "hint": "1.91:1 · LinkedIn, X, enlaces"
+          }
+        },
+        "tooLarge": "Las imágenes de más de 25 MB aún no se pueden recortar aquí. Descárgala y recórtala en tu dispositivo.",
+        "positionX": "Posición del recorte, de izquierda a derecha",
+        "positionY": "Posición del recorte, de arriba abajo"
       }
     },
     "SokoBot": {
@@ -11227,17 +11443,10 @@
         "mailAutoReadError": "No se pudo actualizar la gestión del correo",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "teamStandupTitle": "Unirse al stand-up del equipo",
-        "teamStandupDescription": "Este asistente publica su propia actualización en el stand-up diario de tu organización, a partir de sus Tasks y publicaciones, nunca del correo ni del calendario.",
+        "teamStandupDescription": "Este asistente publica su propia actualización en el stand-up diario de tu organización por ti: lo que hicieron él y los Coworkers a los que diste Tasks, lo que sigue en marcha y lo que espera de ti. A partir de Tasks públicas y publicaciones, nunca del correo ni del calendario. Activado salvo que lo desactives.",
         "teamStandupError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
-        "archive": "Archivar",
-        "archiveConfirmTitle": "¿Archivar tu Soko Bot?",
-        "archiveConfirmDescription": "Los turnos en curso se cancelan y las programaciones se detienen. Puedes reactivarlo en cualquier momento desde esta página.",
-        "archiveCancel": "Conservar",
-        "archiveConfirm": "Archivar",
-        "archived": "Soko Bot archivado.",
-        "archiveError": "No se pudo archivar el Soko Bot.",
         "delete": "Eliminar",
         "deleteConfirm": "Eliminar para siempre",
         "deleteCancel": "Cancelar",
@@ -11247,8 +11456,6 @@
         "deleteError": "No se pudo eliminar tu Soko Bot.",
         "deleted": "Soko Bot eliminado.",
         "sharedArchiveDescription": "Detiene todos los turnos y programaciones para todos. Un propietario o administrador puede reactivarlo; el historial se conserva.",
-        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
-        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
         "sharedDeleteConfirmTitle": "¿Eliminar este bot compartido?",
         "sharedDeleteConfirmDescription": "Esto no se puede deshacer. Su historial, memoria, programaciones y cuentas conectadas se borran para todos. Las tareas que creó se quedan donde están."
       },
@@ -11405,7 +11612,6 @@
         }
       },
       "Console": {
-        "tagline": "Tu gestor de proyectos personal. Delega trabajo, hace seguimiento y te mantiene al día — háblale en el chat.",
         "lastTurnFailed": "{name} no pudo terminar su última respuesta.",
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
@@ -11479,7 +11685,8 @@
           "Usage": "No se cargó el uso.",
           "help": "Las programaciones y el chat siguen funcionando.",
           "retry": "Reintentar"
-        }
+        },
+        "back": "Agentes"
       },
       "Avatar": {
         "edit": "Cambiar aspecto",
@@ -11683,49 +11890,36 @@
       "Unavailable": {
         "title": "No se pudieron cargar los asistentes de tu equipo",
         "description": "No se ha perdido nada. Vuelve a intentarlo en un momento.",
-        "retry": "Reintentar",
-        "placeholder": "Tu asistente aparecerá aquí cuando se cargue el equipo."
+        "retry": "Reintentar"
       },
-      "createAssistant": "Crea tu asistente",
-      "createAssistantHint": "Consigue un asistente que se encarga de tareas, hace seguimiento y te mantiene al día. Configurarlo lleva un minuto.",
-      "assistantFallback": "Asistente personal",
-      "chatError": "No se pudo abrir el chat.",
-      "manage": "Ajustes",
-      "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",
-      "teamEmpty": "Aún no hay nadie más en este espacio de trabajo. Invita a tu equipo y sus asistentes aparecerán aquí.",
-      "inviteTeam": "Invita a tu equipo",
-      "disabled": "Soko Bot no está disponible temporalmente",
-      "noAssistantYou": "Aún no tienes asistente",
-      "chat": "Chat",
-      "teamSummary": "{bots, plural, one {# asistente} other {# asistentes}} · {people, plural, one {# persona} other {# personas}}",
-      "notSetUp": "Aún sin configurar",
-      "messageBot": "Escribir a {name}",
-      "lastActive": "Activo por última vez el {date}",
-      "notActiveYet": "Aún sin actividad",
-      "statsTasks": "{count, plural, one {# tarea} other {# tareas}}",
-      "statsMessages": "{count, plural, one {# mensaje} other {# mensajes}} en {days} días",
-      "assistantOf": "Asistente de",
-      "message": "Escribir",
-      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día.",
-      "heroCaption": "Soko Bots para todo tu equipo",
-      "heroTitle": "Los asistentes personales de tu equipo",
-      "chatWith": "Chatear con {name}",
-      "yourAssistantTitle": "Tu asistente",
-      "teamTitle": "Los asistentes de tu equipo",
-      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat.",
+      "settings": "Ajustes",
+      "settingsName": "Ajustes de {name}",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "pauseName": "Pausar {name}",
+      "resumeName": "Reanudar {name}",
+      "paused": "En pausa",
+      "pausedToast": "{name} está en pausa. Sigue respondiendo cuando le escriben.",
+      "resumed": "{name} vuelve a trabajar.",
+      "pauseError": "No se pudo pausar el Soko Bot.",
+      "resumeError": "No se pudo reanudar el Soko Bot.",
+      "archivedTitle": "Archivados",
+      "archivedOn": "Archivado el {date}",
+      "notSetUpTitle": "Aún sin configurar",
+      "invitePeople": "Invitar personas",
+      "teamEmpty": "Aún no hay nadie más en este espacio de trabajo. Invita a tu equipo y cada persona podrá configurar su propio Soko Bot.",
+      "Archive": {
+        "archive": "Archivar",
+        "sharedArchiveConfirmTitle": "¿Archivar este bot compartido?",
+        "archiveConfirmTitle": "¿Archivar tu Soko Bot?",
+        "sharedArchiveConfirmDescription": "Se detiene para todos: los turnos en curso se cancelan y las programaciones se detienen. El historial se conserva.",
+        "archiveConfirmDescription": "Los turnos en curso se cancelan y las programaciones se detienen. Vuelve a configurarlo cuando quieras para recuperarlo.",
+        "archiveCancel": "Conservar",
+        "archiveError": "No se pudo archivar el Soko Bot.",
+        "archived": "Soko Bot archivado.",
+        "archiveConfirm": "Archivar"
+      },
       "Shared": {
-        "title": "Bots compartidos",
-        "count": "{count, plural, one {# bot} other {# bots}}",
-        "countSplit": "{active, plural, one {# activo} other {# activos}} · {archived, plural, one {# archivado} other {# archivados}}",
-        "empty": "Aún no hay bots compartidos. Un bot compartido trabaja para un proyecto o para todo el espacio de trabajo, y todos hablan con él en una sala.",
-        "noneActive": "Ahora mismo no hay ningún bot compartido activo.",
-        "scopeWorkspace": "Trabaja para todo el espacio de trabajo",
-        "scopeProject": "Trabaja para un proyecto",
-        "scopeProjectNamed": "Trabaja para {project}",
-        "archived": "Archivado",
-        "archivedGroup": "Archivados",
-        "fallbackName": "Asistente compartido",
-        "openBot": "Ajustes de {name}",
         "Create": {
           "trigger": "Nuevo Soko Bot",
           "title": "Crear un Soko Bot",
@@ -11756,12 +11950,14 @@
         "Archived": {
           "title": "{name} está archivado",
           "description": "Un bot archivado ya no lee, no ejecuta sus programaciones ni responde en su sala. Su historial se conserva.",
-          "back": "Volver a Soko Bots",
-          "reactivate": "Reactivar",
-          "reactivated": "Soko Bot reactivado.",
-          "reactivateError": "No se pudo reactivar el Soko Bot."
+          "back": "Agentes",
+          "reactivate": "Restaurar",
+          "reactivateName": "Restaurar {name}",
+          "reactivated": "Soko Bot restaurado.",
+          "reactivateError": "No se pudo restaurar el Soko Bot."
         }
-      }
+      },
+      "moreName": "Más opciones de {name}"
     },
     "Calendar": {
       "Metadata": {
@@ -11787,7 +11983,8 @@
         "newsletter": "Newsletter",
         "contacts": "Seguimientos",
         "marketing": "Estrategia de marketing",
-        "sokoBot": "Soko Bot"
+        "sokoBot": "Soko Bot",
+        "canceled": "Mostrar eventos cancelados"
       },
       "source": {
         "WORKSPACE": "Espacio de trabajo",
@@ -11909,8 +12106,14 @@
       "tables": "Tablas",
       "newTable": "Nueva tabla",
       "openAsTable": "Abrir como tabla",
-      "loadingCsv": "Leyendo el CSV…",
-      "fileMissing": "No se pudo abrir el archivo. Ya no está en Archivos.",
+      "loadingFile": "Leyendo el archivo…",
+      "sheet": "Hoja",
+      "sheetCutRows": "Esta hoja tiene {count, number} filas de datos. Solo se importarán las primeras {limit, number}.",
+      "sheetCutColumns": "Esta hoja tiene {count, number} columnas. Solo se importarán las primeras {limit, number}.",
+      "sheetEmpty": "Esta hoja no tiene filas para importar. Elige otra hoja.",
+      "workbookEmpty": "Este libro no tiene filas para importar.",
+      "untitledColumn": "Columna {number}",
+      "fileMissing": "No se pudo abrir el archivo. Ya no está disponible.",
       "createDescription": "Empieza con una tabla vacía o importa un archivo CSV.",
       "title": "Título",
       "description": "Descripción",
@@ -11919,15 +12122,15 @@
       "firstColumn": "Nombre",
       "importCsv": "Importar CSV (opcional)",
       "chooseCsv": "Elegir archivo CSV",
+      "importXlsx": "Archivo de Excel",
+      "chooseXlsx": "Elegir archivo de Excel",
       "noFileChosen": "Ningún archivo seleccionado",
       "csvLimit": "Hasta 5 MB, 10.000 filas y 100 columnas. La primera fila contiene los nombres de las columnas.",
-      "mapping": "Asignar columnas y vista previa",
       "numberGuess": "Todas las celdas con contenido son números, por eso empieza como Número. Cámbialo si los dígitos son un código.",
       "columnName": "Nombre de columna",
       "type": "Tipo",
       "options": "Opciones (separadas por punto y coma)",
       "optionsFor": "Opciones de {column} (separadas por punto y coma)",
-      "preview": "{count, plural, one {Vista previa de # fila} other {Vista previa de # filas}}. Todos los valores se validan antes de importar.",
       "row": "Fila",
       "importProgress": "{count, plural, one {# fila importada} other {# filas importadas}}. Los lotes completados se conservan si se interrumpe.",
       "create": "Crear tabla",
@@ -12081,6 +12284,7 @@
         "csvColumns": "Los archivos CSV pueden contener hasta 100 columnas.",
         "csvRows": "Los archivos CSV pueden contener hasta 10.000 filas de datos.",
         "csv": "Comprueba las comillas y los separadores del archivo CSV.",
+        "sheet": "No se pudo leer este archivo de Excel. Comprueba que se abre en Excel y vuelve a intentarlo.",
         "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
         "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas.",
         "layout": "El diseño de columnas no se guardó y se restableció. {reason}",
@@ -12129,7 +12333,10 @@
         "add": "Añadir copia",
         "loadMore": "Mostrar más tablas",
         "loadMoreError": "No se pudieron cargar más tablas. Inténtalo de nuevo."
-      }
+      },
+      "rowCount": "{count, plural, one {# fila} other {# filas}}",
+      "columns": "Columnas",
+      "examples": "Ejemplos"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
@@ -12275,7 +12482,8 @@
         "more": "Más acciones",
         "filter": "Filtrar",
         "kind": "Tipo",
-        "source": "Origen"
+        "source": "Origen",
+        "onX": "En X"
       },
       "bulk": {
         "label": "Contactos seleccionados",
@@ -12578,7 +12786,22 @@
         "restoreName": "Restaurar a {name}",
         "restored": "{name} restaurado",
         "restoreFailed": "No se pudo restaurar a {name}. El contacto sigue archivado.",
-        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures."
+        "archivedOn": "Archivado el {date}. Los contactos archivados no aparecen en listas ni búsquedas hasta que los restaures.",
+        "isYou": "Eres tú",
+        "isTeammate": "Es {name}, de tu equipo",
+        "thisIs": "Es…",
+        "thisIsMe": "Yo ({name})",
+        "thisIsNoOne": "Nadie del equipo",
+        "x": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Sigue a {name} en X",
+          "followed": "{name} sigue a esta persona en X"
+        },
+        "xYou": {
+          "mutual": "Se siguen mutuamente en X",
+          "follows": "Te sigue en X · tú no lo sigues",
+          "followed": "Lo sigues en X · no te sigue"
+        }
       },
       "stageGroups": {
         "general": "General",
@@ -12763,6 +12986,31 @@
           "industry": "Sector",
           "lists": "Listas"
         }
+      },
+      "xFollows": {
+        "FOLLOWS_YOU": "Sin seguir de vuelta",
+        "YOU_FOLLOW": "No te siguen de vuelta",
+        "MUTUAL": "Se siguen mutuamente"
+      },
+      "linkedInImport": {
+        "menu": "Importar contactos de LinkedIn",
+        "title": "Importa tus contactos de LinkedIn",
+        "description": "Cada conexión se convierte en un contacto (o completa uno que ya tienes), y la ronda sabe que puedes pedirles una presentación.",
+        "doneDescription": "Listo. Tus conexiones están en la lista “LinkedIn connections”.",
+        "step1": "En LinkedIn abre Ajustes → Privacidad de datos → Obtener una copia de tus datos.",
+        "step2": "Marca Contactos y solicita el archivo; LinkedIn lo envía por correo en minutos.",
+        "step3": "Sube aquí el Connections.csv de ese archivo.",
+        "fileLabel": "Connections.csv",
+        "tooLarge": "Ese archivo supera los 5 MB. Divídelo primero.",
+        "failed": "La importación no terminó. No se cambió nada.",
+        "result": {
+          "connections": "Conexiones",
+          "created": "Contactos nuevos",
+          "updated": "Ya conocidos"
+        },
+        "import": "Importar",
+        "cancel": "Cancelar",
+        "done": "Hecho"
       }
     },
     "Fundraising": {
@@ -12789,7 +13037,8 @@
         "nextStep": "Siguiente paso",
         "lastTouch": "Último contacto",
         "dataRoom": "Data room",
-        "cheque": "Ticket"
+        "cheque": "Ticket",
+        "nextAction": "Siguiente paso"
       },
       "stages": {
         "TO_RESEARCH": "Por investigar",
@@ -12821,9 +13070,6 @@
         "thesisPlaceholder": "En qué invierten, en una o dos líneas",
         "notes": "Notas",
         "notesPlaceholder": "Qué se dijo, qué necesitan, quién más participa",
-        "knownBy": "Quién los conoce",
-        "knownByNobody": "Nadie del equipo ha tenido contacto todavía.",
-        "touches": "{count, plural, one {# contacto} other {# contactos}}",
         "room": "Sala",
         "firstVisit": "Primera visita",
         "downloads": "Descargas",
@@ -12862,7 +13108,109 @@
         "cost": "{perSearch} por búsqueda · {spent} de {cap} gastados este mes",
         "capReached": "El presupuesto de investigación de este mes se ha agotado. Sube FUNDRAISING_EXA_MONTHLY_CAP_USD en Core para seguir buscando.",
         "cancel": "Cancelar",
+        "running": "Leyendo páginas de fondos y noticias de rondas. Tarda unos minutos; deja esto abierto.",
         "run": "Buscar por {cost}"
+      },
+      "paths": {
+        "pathsTitle": "Vías cálidas",
+        "loading": "Buscando vías",
+        "loadFailed": "No se pudieron cargar las vías",
+        "noPathsYet": "Nadie del equipo los conoce todavía, ni a nadie del fondo ni de una empresa que hayan financiado.",
+        "noPathsNoPortfolio": "Nadie del equipo los conoce todavía, ni a nadie del fondo. Investiga el portfolio para buscar una vía a través de un fundador al que hayan financiado.",
+        "you": "Tú",
+        "direct": "{self, select, yes {Ya los conoces} other {{who} ya los conoce}}",
+        "viaFund": "{self, select, yes {Conoces a {through} en {company}} other {{who} conoce a {through} en {company}}}",
+        "viaPortfolio": "{self, select, yes {Conoces a {through} en {company}, una empresa que financiaron} other {{who} conoce a {through} en {company}, una empresa que financiaron}}",
+        "coldFund": "{through} está en {company}, en Contactos, sin contacto todavía",
+        "coldPortfolio": "{through} está en {company}, una empresa que financiaron; en Contactos, sin contacto todavía",
+        "touches": "{count, plural, one {# contacto} other {# contactos}}",
+        "noTouches": "Sin contacto todavía",
+        "usePath": "Usar esta vía",
+        "pathUsed": "Siguiente paso guardado. La fase pasó a Vía cálida donde era Por investigar.",
+        "nextStepDirect": "{self, select, yes {Escribirles directamente, ya os conocéis} other {{who}: escribirles directamente, ya se conocen}}",
+        "nextStepIntro": "{self, select, yes {Pedir a {through} que te presente a {investor}} other {Pedir a {who} que te presente a {investor} a través de {through}}}",
+        "showMore": "Mostrar {count} más",
+        "showFewer": "Mostrar menos",
+        "portfolioTitle": "Portfolio de {fund}",
+        "portfolioTitleNoFund": "Portfolio",
+        "researchedAt": "investigado {when}",
+        "research": "Investigar portfolio · {cost}",
+        "researchAgain": "Investigar de nuevo · {cost}",
+        "researched": "{count, plural, =0 {No se encontraron inversiones} one {# inversión encontrada} other {# inversiones encontradas}} · {cost}",
+        "researchFailed": "La investigación no terminó. No se cobró nada.",
+        "noExa": "Exa no está configurado en este servidor, así que la investigación está desactivada.",
+        "noFund": "Añade primero el fondo a este contacto; la investigación busca el fondo.",
+        "capReached": "El presupuesto de investigación de este mes se ha agotado.",
+        "researching": "Leyendo las páginas del portfolio del fondo y noticias de rondas. Uno o dos minutos.",
+        "noPortfolio": "Aún no se ha investigado el portfolio.",
+        "source": "Fuente",
+        "linkedinDirect": "{self, select, yes {Estás conectado con ellos en LinkedIn} other {{who} está conectado con ellos en LinkedIn}}",
+        "linkedinPortfolio": "{self, select, yes {Estás conectado con {through} en {company}, una empresa que financiaron, en LinkedIn} other {{who} está conectado con {through} en {company}, una empresa que financiaron, en LinkedIn}}",
+        "linkedinFund": "{self, select, yes {Estás conectado con {through} en {company} en LinkedIn} other {{who} está conectado con {through} en {company} en LinkedIn}}",
+        "onLinkedIn": "conectados en LinkedIn",
+        "importHint": "Importa tus contactos de LinkedIn en Contactos para encontrar más vías."
+      },
+      "outreach": {
+        "title": "Contacto",
+        "noMailbox": "Los borradores van a tu propio Gmail a través de tu Soko Bot. Conecta Gmail allí primero.",
+        "connect": "Abrir Soko Bots",
+        "kind": "Qué escribir",
+        "kinds": {
+          "intro": "Primer correo",
+          "follow_up": "Seguimiento"
+        },
+        "via": "A través de quién",
+        "direct": "Escribirles directamente",
+        "viaName": "Pedir a {name} una presentación",
+        "inviteRoom": "Darles acceso a “{room}” y enlazarlo",
+        "linkRoom": "Enlazar “{room}” (ya tienen acceso)",
+        "noteLabel": "Algo que mencionar",
+        "notePlaceholder": "p. ej. nos vimos en la cena de Draper; menciona la alianza con Cardano",
+        "noEmail": "No hay correo registrado; añade uno en Contactos o pide una presentación a un contacto común.",
+        "draft": "Escribir borrador en {mailbox}",
+        "neverSends": "Sokosumi nunca envía. Lo lees en tu buzón y lo envías tú.",
+        "drafted": "El borrador está en tu {mailbox}",
+        "failed": "No se pudo escribir el borrador",
+        "inMailbox": "En tus borradores de {mailbox}, para {to}",
+        "openDrafts": "Abrir borradores de Gmail",
+        "another": "Escribir otro",
+        "lastDraft": "Último borrador “{subject}” · {when}"
+      },
+      "intro": {
+        "statusTitle": "Presentación",
+        "asked": "Pedido a {who} {when}",
+        "made": "Presentación hecha por {who} {when}",
+        "declinedBy": "{who} declinó; busca otra vía",
+        "declinedBefore": "({who} declinó antes)",
+        "askDirect": "Pide a {who}, conoce a {investor}",
+        "askFund": "Pide a {who} en {company}",
+        "askPortfolio": "Pide a {who}, {company} es una empresa que financiaron",
+        "via": "vía {who}",
+        "youKnow": "Los conoces; escríbeles directamente",
+        "noPath": "Aún no hay vía cálida",
+        "draftAsk": "Redactar la petición",
+        "introMade": "Presentación hecha",
+        "declined": "Declinó",
+        "meetingBooked": "Reunión fijada",
+        "passed": "Descartado",
+        "writeDraft": "Escribir borrador",
+        "dialogTitle": "Pedir a {who} una presentación a {investor}",
+        "dialogDescription": "Dos borradores van a tu Gmail: la petición a {who}, con una nota reenviable debajo, y esa nota por separado. No se envía nada.",
+        "weakTie": "Apenas conoces a {who}. Un buen correo en frío vale más que una presentación débil; considera otra vía o ponte al día antes.",
+        "inviteRoom": "Dar acceso a {investor} a «{room}» y enlazarlo en la nota",
+        "noteLabel": "Algo que mencionar",
+        "notePlaceholder": "p. ej. mencionar la alianza con Cardano",
+        "neverSends": "Sokosumi nunca envía. Lees ambos en Gmail y los envías tú.",
+        "cancel": "Cancelar",
+        "write": "Escribir ambos borradores",
+        "done": "Ambos borradores están en tu {mailbox}",
+        "failed": "No se pudieron escribir los borradores",
+        "askTo": "La petición, para {to}",
+        "noteTo": "La nota reenviable, para {to}",
+        "openDrafts": "Abrir borradores de Gmail",
+        "close": "Listo",
+        "noMailbox": "Los borradores van a tu propio Gmail a través de tu Soko Bot. Conecta Gmail allí primero.",
+        "connect": "Abrir Soko Bots"
       }
     },
     "Seo": {
@@ -12912,7 +13260,7 @@
       "runFullAudit": "Iniciar auditoría completa",
       "runPageCheck": "Iniciar comprobación de página",
       "brief": {
-        "completionEvent": "Evento de GA4 que registra la finalización (opcional)",
+        "completionEvent": "Evento de Google Analytics cuando un visitante completa el objetivo (opcional)",
         "title": "Objetivos de la auditoría",
         "private": "Solo tú puedes leer este documento. La auditoría completa solo comparte los objetivos de las páginas que selecciones.",
         "confirmed": "Lo confirmaste el {date}.",
@@ -13265,9 +13613,11 @@
         "notInKeptRows": "No está entre las primeras {count} filas guardadas",
         "trendShow": "Posiciones diarias",
         "trendEmpty": "Sin impresiones de Search Console en ningún país",
-        "trendNotRequested": "No se leyó en la última sincronización. Hasta 25 palabras clave seguidas reciben posiciones diarias.",
+        "trendNotRequested": "No se leyó en la última sincronización. Hasta 50 palabras clave seguidas reciben posiciones diarias.",
         "trendLabel": "Posición media de «{keyword}»",
         "trendNoImpressions": "Sin impresiones",
+        "trendTruncated": "Una lectura de Search Console alcanzó su límite de filas. Pueden faltar algunos días.",
+        "trendNoPosition": "Sin posición comunicada",
         "summary": "En los primeros resultados de Google para {found} de {read, plural, one {# palabra clave comprobada} other {# palabras clave comprobadas}}",
         "firstPage": "{count} en la primera página",
         "more": "{count, plural, one {Mostrar # palabra clave más} other {Mostrar # palabras clave más}}",
@@ -13279,7 +13629,19 @@
             "medium": "Probabilidad de conversión media",
             "high": "Probabilidad de conversión alta"
           },
-          "note": "El ajuste al objetivo se estima según lo que la gente busca y lo que ofrece la página.",
+          "note": "La probabilidad de conversión es una valoración propia de la comprobación SEO, basada en lo que la gente busca y lo que ofrece tu página. No es una tasa de conversión medida.",
+          "checkedOn": "De la comprobación del <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Busca un producto",
+            "comparison": "Compara opciones",
+            "problem": "Quiere resolver un problema",
+            "learn": "Quiere aprender"
+          },
+          "fit": {
+            "direct": "coincide con tu oferta",
+            "partial": "coincide en parte con tu oferta"
+          },
           "high": "Alta",
           "medium": "Media",
           "low": "Baja"
@@ -13383,14 +13745,17 @@
         "historyShow": "Historial",
         "historyPaidTitle": "Posiciones en comprobaciones de pago",
         "historyPaidNote": "Cada punto es una comprobación de los resultados de búsqueda de ese día.",
+        "historyOlderHidden": "No se muestran las comprobaciones más antiguas.",
         "historyPaidLabel": "{device, select, mobile {Móvil} desktop {Escritorio} other {Todos los dispositivos}}: posición en comprobaciones de pago para «{keyword}»",
         "historyNotInRange": "No está en los resultados comprobados",
-        "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una comprobación que no encontró la página en sus resultados no tiene posición.",
+        "historyNotInTop": "No está en el top {count}",
+        "historyPaidAxis": "La posición 1 está arriba. Una posición más baja es mejor. Una marca hueca abajo es una comprobación que no encontró la página en sus resultados: no tiene posición.",
         "historyGscTitle": "Posición media en Search Console, diaria",
         "historyGscNote": "Una media de todas las impresiones del día, no una sola comprobación.",
         "serp": {
           "title": "Resultados de búsqueda en comprobaciones de pago",
           "note": "Lo que mostró la página de resultados en cada comprobación, la más reciente primero.",
+          "aiNote": "Un AI Overview es el resumen que Google escribe encima de los resultados. Cita una página cuando la enlaza como fuente.",
           "check": "Comprobación",
           "aiOverview": "AI Overview",
           "featured": "Fragmento destacado",
@@ -13404,8 +13769,13 @@
             "not_checked": "AI Overview no comprobado",
             "undetermined": "Cita no determinada",
             "cited_checked": "Cita una página comprobada",
-            "other_page": "Comprobado para otra página"
+            "other_page": "Comprobado para otra página",
+            "site_cited": "Cita el sitio de la página",
+            "site_cited_checked": "Cita un sitio comprobado"
           },
+          "aiSources": "Fuentes",
+          "ownSource": "{domain} (tu sitio)",
+          "moreSources": "+{count} más",
           "snippet": {
             "owned": "El sitio de la página",
             "checked_site": "Un sitio comprobado",
@@ -13445,15 +13815,15 @@
         "shortlist": {
           "label": "Recomendada",
           "chartKey": "Recomendada · clics adicionales estimados en la posición 10",
-          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su relevancia, baja competencia y posibles clics adicionales.",
-          "none": "Ninguna idea cumple los tres criterios: relevancia, baja competencia y posibles clics adicionales.",
+          "summary": "{count, plural, one {# idea recomendada} other {# ideas recomendadas}} por su alta probabilidad de conversión, baja competencia y posibles clics adicionales.",
+          "none": "Ninguna idea cumple los tres criterios: alta probabilidad de conversión, baja competencia y posibles clics adicionales.",
           "gain": "Aumento estimado en puesto 10",
           "clicks": "{count, plural, =0 {0 clics/mes} one {+# clic/mes} other {+# clics/mes}}",
           "lift": "Un {percent} más de clics al mes que la estimación actual.",
-          "priority": "Buen ajuste al objetivo y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
-          "fitUnknown": "Falta valorar el ajuste al objetivo.",
-          "medium": "El ajuste estimado al objetivo de la página es medio.",
-          "low": "El ajuste estimado al objetivo de la página es bajo.",
+          "priority": "Alta probabilidad de conversión y baja dificultad. La mediana de las ideas de este mercado es de {median, number} clics adicionales al mes.",
+          "fitUnknown": "Falta valorar la probabilidad de conversión.",
+          "medium": "La probabilidad de conversión es media.",
+          "low": "La probabilidad de conversión es baja.",
           "difficultyUnknown": "Falta medir la dificultad.",
           "competition": "La competencia es demasiado alta para recomendar esta idea.",
           "gainUnknown": "No hay una estimación de clics para el puesto 10.",
@@ -13535,6 +13905,7 @@
         "copyFix": "Copiar cambio",
         "copyInstructions": "Copiar instrucciones para agente",
         "copyPage": "Página",
+        "copyTarget": "Qué cambiar",
         "copied": "Copiado al portapapeles",
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo a mano.",
         "copyAgentLead": "Aplica este cambio SEO en el sitio web. Cambia solo lo que indica y luego revisa la página.",
@@ -13572,7 +13943,25 @@
         "alternative": "Alternativa",
         "nextCheck": "Próxima comprobación",
         "canceled": "Tarea cancelada",
-        "failed": "Tarea fallida"
+        "failed": "Tarea fallida",
+        "impact": {
+          "title": "Antes y después",
+          "completed": "Contado desde el {date}, el día en que se completó la tarea.",
+          "verified": "Contado desde el {date}, el día en que se verificó la corrección.",
+          "metric": "Métrica",
+          "beforeDays": "{days, number} días antes",
+          "afterDays": "{days, number} días después",
+          "clicks": "Clics",
+          "impressions": "Impresiones",
+          "position": "Posición media",
+          "notMeasured": "Sin medir",
+          "pending": "Aún no es definitivo",
+          "noPosition": "Sin impresiones",
+          "tooEarly": "Search Console tiene datos definitivos de los {days, number} días posteriores desde el {date}. La siguiente auditoría después de ese día los lee.",
+          "notMeasuredNote": "Ninguna auditoría ha leído los datos diarios de Search Console de esta página para todo el periodo. Una auditoría nueva lee los 400 días anteriores.",
+          "lowCounts": "Un periodo tiene menos de {min, number} impresiones o clics. Es muy poco para un porcentaje.",
+          "caveat": "Son cifras de Search Console solo de esta página. No descartan la estacionalidad, otros cambios en la página ni una actualización de Google."
+        }
       },
       "pages": {
         "title": "Páginas",
@@ -13764,8 +14153,8 @@
         "unverifiedPagePerformance": "No se ha verificado el rendimiento de las páginas.",
         "pagePerformance": "Rendimiento de las páginas auditadas en la búsqueda web",
         "auditedUrls": "URLs auditadas",
-        "googleCanonical": "URL canónica de Google medida: {url}",
-        "canonicalUnverified": "Se midió la URL enviada. No se verificó la URL canónica.",
+        "googleCanonical": "URL principal que usa Google: {url}",
+        "canonicalUnverified": "La auditoría comprobó la URL que introdujiste. No pudo confirmar qué URL usa Google como principal.",
         "missingSearchConsole": "No hay resultados de Search Console disponibles para esta comprobación.",
         "period": "Del {from} al {to}",
         "matchedHistory": "Comparación con los mismos días de la semana del año anterior",
@@ -13787,8 +14176,8 @@
         "empty": "Esta comprobación no tiene archivos de informe disponibles.",
         "pdf": "Abrir PDF",
         "markdown": "Abrir Markdown",
-        "json": "Datos del informe (JSON)",
-        "import": "Importar informe en SEO",
+        "json": "Datos sin procesar del informe (JSON)",
+        "import": "Añadir hallazgos a SEO",
         "imported": "Informe importado",
         "access": "No tienes acceso a los archivos del informe de esta comprobación.",
         "refresh": "Actualizar archivos",
@@ -13796,7 +14185,7 @@
         "recoverMarkets": "Recuperar la comparación de mercados",
         "recoverMarketsHelp": "Lee la comparación de mercados del informe original. Esta acción no consume créditos de auditoría.",
         "marketsChecked": "Comparación de mercados comprobada",
-        "importHelp": "Importa este informe para añadir sus hallazgos a tus resultados de SEO.",
+        "importHelp": "Esto añade los hallazgos del informe a tus resultados de SEO.",
         "recoverPageSpeed": "Leer el rendimiento de página del informe guardado",
         "speedChecked": "Se leyó el rendimiento de página del informe guardado",
         "noPageMetrics": "No se guardaron datos de rendimiento de las páginas para esta comprobación.",
@@ -13838,11 +14227,11 @@
         "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
       },
       "analysis": {
-        "unconfirmed": "Sokosumi no ha podido confirmar si la solicitud de auditoría anterior se completó. Reintenta esa solicitud antes de iniciar otra.",
+        "unconfirmed": "Sokosumi no pudo confirmar que tu última solicitud llegó. Vuelve a enviar esa solicitud antes de iniciar otra.",
         "retryPrevious": "Reintentar la solicitud anterior",
         "coverage": {
           "limitedScope": "La auditoría sigue revisando una muestra de páginas públicas y sus enlaces internos. Los clics, impresiones y resultados de indexación de Google no estarán disponibles.",
-          "privateConnection": "La auditoría usa tu conexión de Google solo para la propiedad aprobada de Search Console. Los datos de tu cuenta se mantienen privados.",
+          "privateConnection": "La auditoría usa tu conexión de Google solo para la propiedad aprobada de Search Console. Todas las personas que pueden ver la auditoría ven sus resultados de Search Console. Tu conexión de Google y los datos de tu cuenta se mantienen privados.",
           "withoutSearch": "Sin Search Console",
           "withSearch": "Incluir Search Console",
           "title": "Cobertura de Search Console",
@@ -13851,7 +14240,7 @@
           "manualRun": "Elige qué datos incluir en esta auditoría adicional. El precio aprobado solo se aplica a esta ejecución.",
           "notConnected": "Conecta Search Console para comprobar la indexación y consultar las estadísticas de búsqueda de estas páginas.",
           "reconnect": "Elige una cuenta de Google o vuelve a conectarla para usar Search Console con estas páginas.",
-          "property": "Elige una propiedad de Search Console autorizada que incluya todas las páginas seleccionadas.",
+          "property": "Elige un sitio de Search Console al que tengas acceso. Debe incluir todas las páginas seleccionadas.",
           "unavailable": "Sokosumi no ha podido verificar el acceso a Search Console. Inténtalo de nuevo.",
           "retry": "Volver a comprobar e iniciar la auditoría",
           "retryMonitor": "Volver a comprobar y crear la programación",
@@ -13869,7 +14258,7 @@
         "page_check": "Comprobación de página",
         "rankings": "Posiciones de palabras clave",
         "links": "Resumen de enlaces entrantes",
-        "audit_lite": "Audit Lite",
+        "audit_lite": "Comprobación personalizada",
         "audit_full": "Auditoría completa",
         "keywords": "Palabras clave, una por línea",
         "competitors": "URL de competidores, una por línea",
@@ -13882,9 +14271,7 @@
         "maxCredits": "Hasta {credits, plural, =1 {# crédito} other {# créditos}}",
         "maxCreditsPerRun": "Hasta {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
         "fullAuditCredits": "Aproximadamente {credits, plural, =1 {# crédito} other {# créditos}}",
-        "fullAuditCreditsPerRun": "Al menos {credits, plural, =1 {# crédito} other {# créditos}} por ejecución completada",
-        "fullAuditTermsPerRun": "Tras cada ejecución exitosa, pagas el coste de las API de modelos y datos más un {markup} %. Esto incluye Vercel AI Gateway. El mínimo por ejecución es de {minimum, number} créditos. No hay un límite máximo.",
-        "fullAuditExample": "Por un coste de {lowCost, number} USD pagas {lowCharge, number} créditos. Por {highCost, number} USD pagas {highCharge, number} créditos.",
+        "fullAuditCreditsPerRun": "Aproximadamente {credits, plural, =1 {# crédito} other {# créditos}} por ejecución",
         "htmlService": "Este servicio admite comprobaciones de páginas HTML. Los datos de búsqueda y las auditorías completas no están disponibles aquí.",
         "submit": "Iniciar comprobación",
         "queued": "Comprobación solicitada",
@@ -13895,8 +14282,8 @@
         "importSitemapHelp": "Se compartirán hasta {count} URL de páginas de la lista en esta auditoría. El archivo XML permanece en tu dispositivo.",
         "sitemapReading": "Leyendo sitemap…",
         "sitemapInvalid": "Elige un sitemap de menos de 512 KiB con páginas públicas de este sitio.",
-        "includePropertyTotals": "Incluir en mi informe privado los totales, las páginas y las consultas de búsqueda web de toda la propiedad.",
-        "includeSitemaps": "Incluir el estado de los sitemaps enviados a Google para esta propiedad en mi informe privado.",
+        "includePropertyTotals": "Incluir en el informe los totales, las páginas y las consultas de búsqueda web de toda la propiedad. Todas las personas que ven la auditoría también los ven.",
+        "includeSitemaps": "Incluir en el informe el estado de los sitemaps enviados a Google para esta propiedad. Todas las personas que ven la auditoría también lo ven.",
         "alreadyRunning": "Hay una comprobación en curso. Espera su resultado antes de iniciar la siguiente.",
         "noPermission": "No se puede solicitar una comprobación para estas páginas.",
         "running": "Comprobaciones en curso",
@@ -14039,10 +14426,16 @@
           "fixed": "{count, plural, one {# corregido} other {# corregidos}}",
           "drops": "{count, plural, one {# caída de posición} other {# caídas de posición}}",
           "rises": "{count, plural, one {# subida de posición} other {# subidas de posición}}",
+          "lostCitations": "{count, plural, one {# cita perdida en AI Overview} other {# citas perdidas en AI Overview}}",
           "newFailuresTitle": "Ahora fallan",
           "fixedTitle": "Corregidos",
           "movesTitle": "Cambios de posición",
           "move": "{keyword}: posición {from} → {to}",
+          "lost": "{keyword}: estaba en la posición {from}, ahora fuera de los primeros {checked}",
+          "lostCitationsTitle": "Citas perdidas en AI Overview",
+          "lostCitation": "{keyword}: AI Overview ya no cita tu página",
+          "lostCitationGone": "{keyword}: el AI Overview que citaba tu página ya no aparece",
+          "lostCitationsShowing": "Mostrando {shown} de {total}",
           "band": "Un cambio de posición cuenta solo si supera el ruido normal de búsqueda: 2 puestos en el top 3, 5 en el top 10, 7 en el top 20."
         },
         "plan": {
@@ -14069,34 +14462,37 @@
       },
       "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
       "audits": {
-        "archive": "Archivar informe",
+        "archive": "Archivar auditoría",
         "archiveTitle": "¿Archivar «{name}»?",
-        "archiveDescription": "Se archivarán el informe, todas sus auditorías y resultados, y las tareas creadas para el informe. Este cambio afecta a todo el espacio de trabajo. Puedes restaurarlo desde «Informes archivados». Las tareas que estaban a la espera de ejecutarse se restauran como borradores sin programar.",
-        "archiveFailed": "No se pudo archivar este informe. Inténtalo de nuevo.",
+        "archiveDescription": "Se archivarán la auditoría, todas sus comprobaciones y resultados, y las tareas creadas para ella. Este cambio afecta a todo el espacio de trabajo. Puedes restaurarla desde «Auditorías archivadas». Las tareas que estaban a la espera de ejecutarse se restauran como borradores sin programar.",
+        "archiveFailed": "No se pudo archivar esta auditoría. Inténtalo de nuevo.",
         "archiveTaskBlocked": "Una tarea relacionada no se puede archivar en su estado actual. Complétala o cancélala y vuelve a intentarlo.",
         "archiveActiveCheck": "Espera a que termine la comprobación actual o cancela su tarea. Después, inténtalo de nuevo.",
         "archiveActiveChat": "Hay una respuesta de chat en curso. Espera a que termine y vuelve a intentarlo.",
-        "archiveScheduled": "Finaliza las comprobaciones programadas de este informe y vuelve a intentarlo.",
-        "restoreTaskScopeConflict": "Una tarea relacionada también pertenece a otro informe SEO o proyecto. Revisa su tarea principal y sus subtareas en la lista de tareas archivadas antes de restaurar este informe.",
-        "taskScopeConflict": "Una tarea relacionada está vinculada a otro informe SEO o proyecto. Si hay tareas anidadas de distintos informes, abre la subtarea en Tareas y selecciona «Quitar de la tarea principal». Luego vuelve a intentarlo.",
-        "archiveBlocked": "Ahora no se puede archivar el informe o una de sus tareas. Comprueba si hay trabajo en curso y vuelve a intentarlo.",
-        "archiveUnavailable": "Ya no puedes archivar este informe.",
-        "listOptions": "Opciones de la lista de informes",
-        "showArchived": "Mostrar informes archivados",
-        "showActive": "Mostrar informes activos",
-        "archived": "Informes archivados",
-        "archivedEmpty": "No hay informes archivados.",
+        "archiveScheduled": "Finaliza las comprobaciones programadas de esta auditoría y vuelve a intentarlo.",
+        "restoreTaskScopeConflict": "Una tarea relacionada también pertenece a otra auditoría SEO o proyecto. Revisa su tarea principal y sus subtareas en la lista de tareas archivadas antes de restaurar esta auditoría.",
+        "taskScopeConflict": "Una tarea relacionada está vinculada a otra auditoría SEO o proyecto. Si hay tareas anidadas de distintas auditorías, abre la subtarea en Tareas y selecciona «Quitar de la tarea principal». Luego vuelve a intentarlo.",
+        "archiveBlocked": "Ahora no se puede archivar la auditoría o una de sus tareas. Comprueba si hay trabajo en curso y vuelve a intentarlo.",
+        "archiveUnavailable": "Ya no puedes archivar esta auditoría.",
+        "listOptions": "Opciones de la lista de auditorías",
+        "showArchived": "Mostrar auditorías archivadas",
+        "showActive": "Mostrar auditorías activas",
+        "archived": "Auditorías archivadas",
+        "archivedEmpty": "No hay auditorías archivadas.",
         "restore": "Restaurar",
         "restoreLabel": "Restaurar {name}",
-        "restoreFailed": "No se pudo restaurar el informe. Comprueba tu acceso a las tareas relacionadas y vuelve a intentarlo.",
+        "restoreFailed": "No se pudo restaurar la auditoría. Comprueba tu acceso a las tareas relacionadas y vuelve a intentarlo.",
         "continue": "Continuar",
         "create": "Crear auditoría",
         "saved": "Auditorías guardadas",
         "updated": "Actualizada",
         "created": "Creada",
+        "lastCheck": "Última comprobación: {kind}",
+        "checkFailed": "La última comprobación falló",
+        "checkUnfinished": "La última comprobación no terminó",
         "projectWorkspace": "Espacio SEO del proyecto",
         "emptyBody": "Crea una auditoría y añade su primera página. Puedes añadir páginas relacionadas después.",
-        "createHelp": "Añade la URL de una página pública. Esto guarda la página sin iniciar una comprobación de pago.",
+        "createHelp": "Añade la URL de una página pública. Una comprobación gratuita de la página empieza enseguida.",
         "name": "Nombre de la auditoría",
         "firstPage": "URL de la primera página",
         "createFailed": "No se pudo crear la auditoría. Revisa el nombre y la URL e inténtalo de nuevo.",
@@ -14109,12 +14505,12 @@
           "titleProject": "Empieza la primera auditoría SEO de este proyecto",
           "body": "Tu agente sigue las posiciones, encuentra problemas en las páginas y prepara correcciones. Tú apruebas cada una.",
           "addTitle": "Añade una página",
-          "addBody": "Empieza con una página pública. Puedes añadir páginas relacionadas después.",
+          "addBody": "Empieza con una página pública. Una comprobación gratuita de la página empieza enseguida. Puedes añadir páginas relacionadas después.",
           "connectTitle": "Conecta Google",
           "connectBody": "Conecta Google para ver las búsquedas y los clics de tu página. Lo haces después de crear la auditoría.",
           "checkTitle": "Inicia la primera comprobación",
           "checkBody": "El agente lee tus páginas, encuentra problemas y prepara correcciones.",
-          "trust": "Guardar una página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
+          "trust": "La primera comprobación de la página es gratis. Las comprobaciones de pago solo se ejecutan cuando tú las inicias.",
           "steps": "Pasos de configuración"
         }
       },
@@ -14245,6 +14641,7 @@
       "planMessage": {
         "title": "Tu plan",
         "pdf": "Abrir el PDF completo de la auditoría",
+        "pdfMissing": "Esta comprobación no tiene PDF",
         "direction": "Dirección:",
         "steps": "Pasos del plan",
         "order": "Por qué en esta posición:",
@@ -14738,7 +15135,18 @@
         "loading": "Cargando el tráfico de Search Console.",
         "failed": "No se pudo consultar el tráfico de esta selección.",
         "unavailable": "Los datos actuales requieren una propiedad de Search Console que corresponda a este sitio.",
-        "saved": "Tráfico de las páginas seleccionadas"
+        "saved": "Tráfico de las páginas seleccionadas",
+        "brandBuckets": {
+          "branded": "De marca",
+          "nonBranded": "Sin marca",
+          "unlisted": "Sin consulta"
+        },
+        "brandUnlistedNote": "Google no muestra la consulta de las búsquedas poco frecuentes. Ese tráfico está en el total y aparece como Sin consulta.",
+        "brandLimited": "Hay más filas de consultas de las que la división puede leer. Las cifras de marca y sin marca son un límite inferior.",
+        "brandListedOnly": "Estas cifras solo cuentan las consultas listadas. No se pudieron comparar los totales diarios, por lo que no hay porcentajes.",
+        "brandUnavailable": "No se pudieron leer las consultas de este periodo, por lo que no hay división por marca.",
+        "brandLoading": "Leyendo la división por marca…",
+        "brandEmpty": "Añade tus términos de marca para ver cuánto tráfico viene de búsquedas de tu nombre."
       },
       "traffic": {
         "periodInsight": {
@@ -14772,8 +15180,7 @@
           "googleNews": "Google Noticias"
         },
         "keyEvents": "Eventos clave (orgánico)",
-        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para ver las conversiones aquí.",
-        "keyEventsAiAssistant": "Eventos clave (asistentes de IA)",
+        "noKeyEvents": "Google Analytics no registró eventos clave para estas páginas. Configura eventos clave allí para verlos aquí.",
         "aiAssistants": "Asistentes de IA",
         "aiAssistantsHelp": "Visitas del canal «AI Assistant» de Google Analytics (ChatGPT, Perplexity, Gemini, Copilot y otros) según la página de entrada",
         "aiAssistantsTruncated": "Solo se guardaron las primeras filas, así que los totales pueden ser mayores",
@@ -14788,7 +15195,9 @@
           "branded": "De marca",
           "non_branded": "Sin marca"
         },
-        "brandTotals": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "brandTotals": "Consultas listadas: {branded} clics de marca ({brandedShare}), {nonBranded} clics sin marca ({nonBrandedShare})",
+        "brandTotalsNoShare": "Consultas listadas: {branded} clics de marca, {nonBranded} clics sin marca",
+        "brandSuggested": "Sugerencia a partir del nombre de tu sitio web. Revisa los términos antes de guardar.",
         "editBrandTerms": "Editar términos de marca",
         "addBrandTerms": "Añadir términos de marca",
         "brandTerms": "Términos de marca",
@@ -14797,7 +15206,8 @@
         "cancelBrandTerms": "Cancelar",
         "brandSaved": "Términos de marca guardados",
         "noQueryData": "Este tipo de búsqueda no tiene datos de consultas",
-        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
+        "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada",
+        "keyEventsNotSelected": "No está en esta lectura"
       },
       "export": {
         "menu": "Exportar: {table}",
@@ -15042,7 +15452,7 @@
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
-            "missing": "No se comprueban los resúmenes de IA que Google carga después de la página, porque esa lectura cuesta más."
+            "missing": "No recibes ningún aviso cuando un resumen de IA deja de citar tu página."
           },
           "40": {
             "title": "Tráfico desde asistentes de IA",
@@ -15321,7 +15731,7 @@
     "TeamStandup": {
       "title": "Stand-up diario de agentes",
       "enabledLabel": "Hacer el stand-up",
-      "enabledHelp": "Cada día laborable cada agente publica su propia actualización en el canal Stand-up: qué hizo, qué sigue y qué espera a una persona. Hasta tres traspasos entre agentes siguen como respuestas. Una vez por semana, un Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks, aprobaciones y publicaciones, nunca del correo ni de calendarios. Si no hay nada nuevo, no se publica nada.",
+      "enabledHelp": "Cada día laborable, cada Soko Bot publica su propia actualización en el canal Stand-up por su persona o equipo: lo que hicieron él y los Coworkers a los que dieron Tasks, lo que viene y lo que espera a una persona. Los Coworkers no publican nada propio. Hasta tres traspasos siguen como respuestas. Una vez por semana, un hilo de Resumen semanal añade una línea por persona y por agente. Las líneas salen de Tasks públicas, aprobaciones y publicaciones, nunca del correo ni de los calendarios. Todos los asistentes participan salvo que su propietario lo desactive. Si no hay nada nuevo, no se publica nada.",
       "timeLabel": "Hora",
       "timezoneLabel": "Zona horaria",
       "weekdaysLabel": "Días",
@@ -15628,7 +16038,11 @@
         "assigned": "Se te asignó {taskName}",
         "participantAdded": "Te añadieron a {taskName} como participante",
         "followUp": "{taskName} sigue esperándote",
-        "seoMonitorWorse": "{taskName}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}."
+        "seoMonitorWorse": "{site}: el último resultado SEO programado empeoró. Fallos nuevos: {newFailures}. Caídas de posición: {drops}. Citas perdidas en AI Overview: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: los clics de Search Console bajaron de {clicksFrom} a {clicksTo} frente al periodo anterior."
+      },
+      "System": {
+        "seoAdminCritical": "Una auditoría SEO tiene una alerta crítica. Abre las alertas SEO de administración para revisarla."
       },
       "Billing": {
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",

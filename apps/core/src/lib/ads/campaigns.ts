@@ -34,11 +34,19 @@ export const AD_CAMPAIGN_STATUSES = [
 export type AdCampaignStatus = (typeof AD_CAMPAIGN_STATUSES)[number];
 
 /** What a campaign update may change; at least one field is set. */
-export interface AdCampaignUpdate {
+export interface AdCampaignUpdate extends AgentCampaignChange {
   status?: (typeof AD_CAMPAIGN_SETTABLE_STATUSES)[number];
   /** Decimal in the account currency. */
   dailyBudget?: number;
 }
+
+/** An agent's change: refused with 409 unless the campaign is paused (ADR 0077). */
+export interface AgentCampaignChange {
+  onlyWhilePaused?: boolean;
+}
+
+export const AGENT_PAUSED_ONLY_MESSAGE =
+  "An agent changes a campaign only while it is paused";
 
 /** Objectives a new Meta campaign may have. Google campaigns have none. */
 export const META_CAMPAIGN_OBJECTIVES = [
@@ -175,7 +183,9 @@ export type GoogleCampaignEditSpec =
   | GoogleDisplayEditSpec;
 
 /** The new settings of an editable Google campaign; it replaces every field of the spec. */
-export interface GoogleCampaignEdit extends AdCampaignCreate {
+export interface GoogleCampaignEdit
+  extends AdCampaignCreate,
+    AgentCampaignChange {
   google: GoogleCampaignEditSpec;
 }
 

@@ -13,6 +13,7 @@ import {
   checkNetworkLayout,
   networkLayoutShape,
 } from "@/config/network-layout";
+import { seoImpactEnvShape } from "@/config/seo-impact-env";
 import { failStartup } from "@/lib/startup-failure";
 
 // Blank means unset, so a copied `KEY=` line does not fail startup.
@@ -102,6 +103,7 @@ const baseEnvSchema = z.object({
   // A shared service requires explicit global mode; Task authority and billing remain per actor.
   // Omit both SEO overrides to use the built-in live Mainnet service. Preview and Preprod stay opt-in.
   SEO_ANALYSIS_EXECUTOR: seoAnalysisExecutorEnvSchema,
+  ...seoImpactEnvShape,
 
   // Native SEO chat allowance per reader and Workspace, reset at 00:00 UTC.
   SEO_CHAT_DAILY_TURN_LIMIT: z.coerce.number().int().positive().default(100),
@@ -183,6 +185,10 @@ const baseEnvSchema = z.object({
   POLAR_ACCESS_TOKEN: z.string().min(1).optional(),
   POLAR_WEBHOOK_SECRET: z.string().min(1).optional(),
   POLAR_ENVIRONMENT: z.enum(["sandbox", "production"]).optional(),
+
+  // Measurement Protocol secret of CMO.xyz's GA4 stream: Polar purchases,
+  // refunds and cancellations go to it. Unset sends nothing; production only.
+  GA4_MP_API_SECRET: z.string().min(1).optional(),
 
   // Project newsletters use a separate sending domain from transactional email.
   NEWSLETTER_FROM_DOMAIN: z.hostname().optional(),
@@ -294,15 +300,10 @@ const baseEnvSchema = z.object({
   /** Optional GitHub token for skill installs (raises the anonymous API rate limit). */
   GITHUB_TOKEN: z.string().min(1).optional(),
   /**
-   * Judge model for lab runs and per-turn quality scores (AI Gateway id).
-   *
-   * The judge grades every settled turn, so its mistakes become the quality
-   * signal. Measured against turns whose outcome was checked by hand, Haiku
-   * and Sonnet score the same once the transcript is complete — the errors
-   * were missing evidence, not model strength. Haiku stays the default
-   * because nothing measured says the more expensive model judges better,
-   * and this runs on every turn. `soko-bot:judge-eval` re-grades with any
-   * model, so a case for changing it can be made with numbers.
+   * Judge model (AI Gateway id) for lab runs and eval runs someone starts.
+   * The weekly eval run uses the cheaper `WEEKLY_JUDGE_MODEL`
+   * (`eval-runs.service.ts`). Production turns are not judged: a turn's
+   * quality score comes only from a lab or eval run.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
   /**

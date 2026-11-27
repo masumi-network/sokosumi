@@ -20,6 +20,7 @@ import {
   seoTestMetric,
   seoTestWorkspace,
 } from "./seo-test-fixture";
+import { seoKeyEvents } from "./seo-traffic-model";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -37,6 +38,9 @@ vi.mock("next/navigation", async () => ({
 }));
 
 const clients: QueryClient[] = [];
+/** Workspace reads of the current test, and a wait the traffic route does before it answers. */
+let workspaceReads = 0;
+let beforeTraffic: (() => Promise<void>) | undefined;
 function renderTraffic(
   workspace: ProjectSeoWorkspace,
   searchParams = "",
@@ -45,7 +49,10 @@ function renderTraffic(
   propertyIds?: string[],
 ) {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 0 } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   vi.stubGlobal(
@@ -58,10 +65,22 @@ function renderTraffic(
       )
         return searchConsoleStatus;
       if (url.pathname.endsWith("/statistics/traffic")) {
+        await beforeTraffic?.();
         const { scope, from, to, pageUrls, propertyId } = JSON.parse(
           String(init?.body),
         );
         const site = scope === "site";
+        const noDays = Boolean(workspace.brandTerms?.includes("nodays"));
+        // The term "older" stands for a list that another tab replaced after this one loaded:
+        // Core splits by the saved list, and the next workspace read returns that list.
+        const replaced = Boolean(workspace.brandTerms?.includes("older"));
+        if (replaced) workspace.brandTerms = ["newer"];
+        const madeWith = replaced
+          ? ["newer"]
+          : workspace.brandTerms?.includes("other-list")
+            ? ["never saved here"]
+            : // One term of two lines is not the list of its two lines.
+              workspace.brandTerms?.flatMap((term) => term.split("\n"));
         const home = {
           url: "https://www.example.com/",
           clicks: 3,
@@ -85,7 +104,26 @@ function renderTraffic(
           to,
           limited: false,
           totals,
-          daily: [{ date: from, ...totals }],
+          // The term "nodays" stands for a report whose daily read failed.
+          ...(!noDays && { daily: [{ date: from, ...totals }] }),
+          ...(workspace.brandTerms?.length && {
+            brand: {
+              limited: false,
+              // The term "legacy" stands for a Core from before the split named its terms.
+              ...(!workspace.brandTerms?.includes("legacy") && {
+                terms: madeWith,
+              }),
+              daily: noDays
+                ? []
+                : [
+                    {
+                      date: from,
+                      branded: { clicks: 2, impressions: 20 },
+                      nonBranded: { clicks: 1, impressions: 10 },
+                    },
+                  ],
+            },
+          }),
           pages: [
             ...(!aboutOnly
               ? [
@@ -123,6 +161,7 @@ function renderTraffic(
             { id: "sc-domain:example.com", name: "example.com" },
           ],
         });
+      workspaceReads++;
       return Response.json(workspace);
     }),
   );
@@ -146,6 +185,8 @@ function renderTraffic(
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  workspaceReads = 0;
+  beforeTraffic = undefined;
 });
 afterEach(() => {
   sessionStorage.clear();
@@ -703,9 +744,14 @@ function twoPageWorkspace() {
   };
   return workspace;
 }
-function landingPages(rows: Array<{ pageUrl: string; keyEvents: number }>) {
+function landingPages(
+  rows: Array<{ pageUrl: string; keyEvents: number }>,
+  // The pages the read asked for: both pages of the workspace.
+  pageUrls = ["https://example.com/", "https://example.com/shop"],
+) {
   return {
     channel: "organic" as const,
+    pageUrls,
     observationId: "0b6f6a3e-1c55-4b1a-9a43-1f3d2c4b5a69",
     propertyId: "properties/123",
     from: "2026-01-01",
@@ -735,9 +781,30 @@ describe("SEO Traffic key events", () => {
     ).toBeVisible();
     const shop = table.getByRole("row", { name: /example\.com\/shop/ });
     expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+    // The read asked for the home page and Google Analytics has no row for it: no organic session, so 0.
+    const home = table.getByRole("row", { name: /example\.com\/(?!shop)/ });
+    expect(within(home).getAllByRole("cell").at(-2)).toHaveTextContent(/^0$/);
     expect(topPagesTable()).not.toHaveTextContent("recorded no key events");
     // The key events read names its own period beside the Search Console one.
     expect(topPagesTable()).toHaveTextContent(/Key events \(organic\) Jan 1/);
+  });
+
+  it("gives no number to a page the read did not ask for, and joins a page written with www and a slash", () => {
+    const workspace = twoPageWorkspace();
+    workspace.landingPages = landingPages(
+      // Google Analytics names the page with "www." and a trailing slash; Search Console does not.
+      [{ pageUrl: "https://www.example.com/shop/", keyEvents: 3 }],
+      ["https://www.example.com/shop/"],
+    );
+    renderTraffic(workspace);
+    const table = within(topPagesTable());
+    const shop = table.getByRole("row", { name: /example\.com\/shop/ });
+    expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+    // The home page was not in the read: 0 would claim a measurement nobody made.
+    const home = table.getByRole("row", { name: /example\.com\/(?!shop)/ });
+    expect(within(home).getAllByRole("cell").at(-2)).toHaveTextContent(
+      "Not in this read",
+    );
   });
 
   it("says a page left out of the landing read was not read", () => {
@@ -754,6 +821,47 @@ describe("SEO Traffic key events", () => {
     );
     const shop = table.getByRole("row", { name: /example\.com\/shop/ });
     expect(within(shop).getAllByRole("cell").at(-2)).toHaveTextContent("3");
+  });
+
+  it("reads a page by its URL as written before another spelling, and takes a value that is no URL", () => {
+    const read = seoKeyEvents({
+      ...landingPages(
+        [{ pageUrl: "https://example.com/shop", keyEvents: 3 }],
+        ["https://example.com/shop", "https://example.com/blog/"],
+      ),
+      skippedUrls: ["https://example.com/shop/"],
+    });
+    // The row's own spelling keeps its number; the spelling the read left out says so.
+    expect(read?.cell("https://example.com/shop")).toBe(3);
+    expect(read?.cell("https://example.com/shop/")).toBe(
+      "traffic.keyEventsNotRead",
+    );
+    // Another spelling of a selected page with no row is the same page: a measured 0.
+    expect(read?.cell("https://www.example.com/blog")).toBe(0);
+    // A selected page whose row has another spelling keeps the row's number.
+    expect(read?.cell("https://www.example.com/shop")).toBe(3);
+    expect(read?.cell("/shop")).toBe("traffic.keyEventsNotSelected");
+    // A page the read left out, under another spelling and with no row, is not read: 0 would be a claim.
+    const left = seoKeyEvents({
+      ...landingPages([], ["https://example.com/shop/"]),
+      skippedUrls: ["https://example.com/shop/"],
+    });
+    expect(left?.cell("https://www.example.com/shop")).toBe(
+      "traffic.keyEventsNotRead",
+    );
+    // An AI assistant read from an older Core version is no organic count.
+    expect(
+      seoKeyEvents({ ...landingPages([]), channel: "ai_assistant" as never }),
+    ).toBeNull();
+    // A response of an older Core version has no pageUrls: the row keeps its number, no page gets a 0.
+    const { pageUrls: _, ...older } = landingPages([
+      { pageUrl: "https://example.com/shop", keyEvents: 3 },
+    ]);
+    const old = seoKeyEvents(older as ReturnType<typeof landingPages>);
+    expect(old?.cell("https://example.com/shop/")).toBe(3);
+    expect(old?.cell("https://example.com/")).toBe(
+      "traffic.keyEventsNotSelected",
+    );
   });
 
   it("says when Google Analytics recorded no key events and shows no column without a read", () => {
@@ -776,20 +884,21 @@ describe("SEO Traffic key events", () => {
 });
 
 describe("SEO Traffic AI assistant channel", () => {
-  it("reads AI assistant traffic when that channel is chosen and names its key events", async () => {
+  it("reads AI assistant traffic when that channel is chosen, and keeps its key events out of the organic column", async () => {
     const user = userEvent.setup();
     const workspace = twoPageWorkspace();
     workspace.metrics.push({ ...seoTestMetric(), source: "ga4" });
-    workspace.landingPages = {
+    workspace.aiAssistantPages = {
       ...landingPages([{ pageUrl: "https://example.com/", keyEvents: 1 }]),
       channel: "ai_assistant",
     };
     renderTraffic(workspace);
+    // The Top pages rows are organic search: an AI assistant read gives them no key events column.
     expect(
-      within(topPagesTable()).getByRole("columnheader", {
-        name: "Key events (AI assistants)",
+      within(topPagesTable()).queryByRole("columnheader", {
+        name: /Key events/,
       }),
-    ).toBeVisible();
+    ).toBeNull();
     await user.click(screen.getByRole("combobox", { name: "Traffic" }));
     await user.click(
       screen.getByRole("option", {
@@ -811,9 +920,9 @@ describe("SEO Traffic AI assistants", () => {
     workspace.metrics = [
       { ...seoTestMetric(), source: "ga4", channel: "ai_assistant" },
     ];
-    workspace.landingPages = {
+    const assistants = {
       ...landingPages([{ pageUrl: "https://example.com/", keyEvents: 1 }]),
-      channel: "ai_assistant",
+      channel: "ai_assistant" as const,
       sources: [
         {
           pageUrl: "https://example.com/",
@@ -830,6 +939,7 @@ describe("SEO Traffic AI assistants", () => {
       ],
       truncated: false,
     };
+    workspace.aiAssistantPages = assistants;
     renderTraffic(workspace, "&channel=ai_assistant");
     const section = screen
       .getByRole("heading", { name: "AI assistants" })
@@ -841,11 +951,7 @@ describe("SEO Traffic AI assistants", () => {
       within(section).getByRole("row", { name: /perplexity\.ai/ }),
     ).toBeVisible();
     cleanup();
-    workspace.landingPages = {
-      ...workspace.landingPages,
-      rows: [],
-      sources: [],
-    };
+    workspace.aiAssistantPages = { ...assistants, rows: [], sources: [] };
     renderTraffic(workspace, "&channel=ai_assistant");
     expect(screen.getByText("No AI Assistant channel data")).toBeVisible();
     // An empty read is no key events claim either.
@@ -868,6 +974,16 @@ describe("SEO Traffic branded split", () => {
     if (terms) workspace.brandTerms = terms;
     return workspace;
   }
+  /** The term editor opens on the list the workspace holds. */
+  async function expectTermEditor(
+    section: ReturnType<typeof within>,
+    terms: string,
+  ) {
+    await userEvent.click(
+      section.getByRole("button", { name: "Edit brand terms" }),
+    );
+    expect(section.getByLabelText("Brand terms")).toHaveValue(terms);
+  }
   const queriesSection = () => {
     const section = screen
       .getByRole("heading", { name: "Search Console queries" })
@@ -880,7 +996,7 @@ describe("SEO Traffic branded split", () => {
     const user = userEvent.setup();
     renderTraffic(brandWorkspace(["acme"]));
     expect(screen.getByTestId("seo-brand-totals")).toHaveTextContent(
-      "Listed queries: 9 clicks branded, 6 clicks non-branded",
+      "Listed queries: 9 clicks branded (60%), 6 clicks non-branded (40%)",
     );
     await user.click(screen.getByRole("button", { name: "Branded" }));
     expect(queriesSection().getByText("Acmé shoes")).toBeVisible();
@@ -888,6 +1004,149 @@ describe("SEO Traffic branded split", () => {
     await user.click(screen.getByRole("button", { name: "Non-branded" }));
     expect(queriesSection().queryByText("Acmé shoes")).toBeNull();
     expect(queriesSection().getByText("example shop")).toBeVisible();
+  });
+
+  it("shows the site split with the traffic that has no listed query", async () => {
+    const user = userEvent.setup();
+    renderTraffic(brandWorkspace(["acme"]), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    // 90 impressions in total: 20 branded, 10 non-branded, 60 under no query.
+    const part = (name: string) =>
+      section.getByRole("button", { name }).closest("div");
+    expect(part("Branded")).toHaveTextContent("20 22%");
+    expect(part("Non-branded")).toHaveTextContent("10 11%");
+    expect(part("No query listed")).toHaveTextContent("60 67%");
+    await user.click(section.getByRole("button", { name: "No query listed" }));
+    expect(section.getByRole("table")).toHaveTextContent(
+      "No query listed · Times shown",
+    );
+    expect(section.getByRole("table")).toHaveTextContent("60");
+  });
+
+  it("shows the split without a chart when no day has data", async () => {
+    renderTraffic(brandWorkspace(["nodays"]), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    expect(section.getByRole("button", { name: "Branded" })).toBeVisible();
+    expect(section.queryByRole("table")).toBeNull();
+  });
+
+  it("reads the term list again when Core split by a newer one", async () => {
+    // The reads of the first render end before the report answers. Only the report can
+    // then start the workspace read that brings the newer list.
+    let readsBefore = -1;
+    beforeTraffic = async () => {
+      if (readsBefore >= 0) return;
+      await waitFor(() => expect(workspaceReads).toBeGreaterThan(0));
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      readsBefore = workspaceReads;
+    };
+    renderTraffic(brandWorkspace(["older"]), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    expect(
+      await section.findByRole("button", { name: "Branded" }),
+    ).toBeVisible();
+    expect(workspaceReads).toBeGreaterThan(readsBefore);
+    await expectTermEditor(section, "newer");
+  });
+
+  it.each(["other-list", "legacy", "two\nlines"])(
+    "shows the report without a split that is not proved for this list (%s)",
+    async (term) => {
+      renderTraffic(brandWorkspace([term]), "", true);
+      const heading = await screen.findByRole("heading", {
+        name: "Brand split",
+      });
+      const section = within(heading.closest("section") as HTMLElement);
+      await screen.findByRole("heading", { name: "Traffic by page" });
+      expect(
+        section.getByText(
+          "Could not read the queries for this period, so there is no brand split.",
+        ),
+      ).toBeVisible();
+      expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
+    },
+  );
+
+  it("reads the report again for a saved term list and keeps the totals in view", async () => {
+    const user = userEvent.setup();
+    const workspace = brandWorkspace(["acme"]);
+    renderTraffic(workspace, "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    await section.findByRole("button", { name: "Branded" });
+    // The read for the new list waits, so the page shows what it holds meanwhile.
+    const read = vi.mocked(fetch).getMockImplementation() as typeof fetch;
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const trafficBodies: string[] = [];
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input).endsWith("/statistics/traffic")) {
+        trafficBodies.push(String(init?.body));
+        await held;
+      }
+      return read(input, init);
+    });
+    mutate.mockImplementation(async () => {
+      workspace.brandTerms = ["acme", "acme shop"];
+      return { ok: true, value: null };
+    });
+    await user.click(section.getByRole("button", { name: "Edit brand terms" }));
+    await user.type(section.getByLabelText("Brand terms"), "{enter}acme shop");
+    await user.click(section.getByRole("button", { name: "Save brand terms" }));
+    expect(await section.findByText("Reading the brand split…")).toBeVisible();
+    expect(trafficBodies).toHaveLength(1);
+    expect(section.queryByRole("button", { name: "Branded" })).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Traffic by page" }),
+    ).toBeVisible();
+    release();
+    expect(
+      await section.findByRole("button", { name: "Branded" }),
+    ).toBeVisible();
+  });
+
+  it("shows no share when the listed queries have no click", async () => {
+    const workspace = brandWorkspace(["acme"]);
+    for (const row of workspace.searchQueries?.rows ?? []) row.clicks = 0;
+    renderTraffic(workspace);
+    expect(await screen.findByTestId("seo-brand-totals")).toHaveTextContent(
+      "Listed queries: 0 clicks branded, 0 clicks non-branded",
+    );
+  });
+
+  it("reads a report with the split of another list again at the next chance", async () => {
+    renderTraffic(brandWorkspace(["other-list"]), "", true);
+    await screen.findByRole("heading", { name: "Traffic by page" });
+    const reads = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.filter(([input]) =>
+          String(input).endsWith("/statistics/traffic"),
+        ).length;
+    expect(reads()).toBe(1);
+    // A fresh report waits five minutes. This one does not: the window gets the focus again.
+    window.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(reads()).toBe(2));
+  });
+
+  it("shows no split for a feed, which has no queries", async () => {
+    renderTraffic(brandWorkspace(["acme"]), "&searchType=discover", true);
+    await screen.findByRole("heading", { name: "Traffic by page" });
+    expect(screen.queryByRole("heading", { name: "Brand split" })).toBeNull();
+  });
+
+  it("offers the site name as the first brand terms", async () => {
+    const user = userEvent.setup();
+    renderTraffic(brandWorkspace(), "", true);
+    const heading = await screen.findByRole("heading", { name: "Brand split" });
+    const section = within(heading.closest("section") as HTMLElement);
+    await user.click(section.getByRole("button", { name: "Add brand terms" }));
+    expect(section.getByLabelText("Brand terms")).toHaveValue("example");
   });
 
   it("counts only the queries the search filter lists", async () => {
@@ -907,7 +1166,7 @@ describe("SEO Traffic branded split", () => {
     renderTraffic(workspace);
     await user.type(await screen.findByRole("searchbox"), "acm");
     expect(screen.getByTestId("seo-brand-totals")).toHaveTextContent(
-      "Listed queries: 9 clicks branded, 0 clicks non-branded",
+      "Listed queries: 9 clicks branded (100%), 0 clicks non-branded (0%)",
     );
   });
 

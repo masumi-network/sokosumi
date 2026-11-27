@@ -44,6 +44,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
   "list_chats",
   "read_chat",
   "post_chat",
@@ -91,6 +93,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "export_contacts_to_table",
   "find_people",
   "enrich_contact",
+  "fundraising_pipeline",
+  "investor_warm_paths",
+  "find_investors",
   "create_project",
   "update_project",
   "list_integrations",
@@ -142,6 +147,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "update_newsletter_subscriber",
   "remove_newsletter_subscriber",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
@@ -160,8 +166,15 @@ export const SOKO_BOT_CAPABILITIES = [
   "search_exa",
   "read_social_profile",
   "read_writing_skill",
+  "read_skill",
   "find_style_references",
   "write_month_pieces",
+  "write_strategy",
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
   "list_social_comments",
   "handle_social_comment",
   "read_seo",
@@ -205,6 +218,23 @@ export function isSokoBotAnnouncementCapability(
 }
 
 /**
+ * Cuso's reads of what his organized context leaves out (cmo-v23): the
+ * calendar, the strategy's parts, the Brand Brain's sections, the reports and
+ * the competitor moves. Read-only, capped, and only his own Project's.
+ */
+export const SOKO_BOT_CMO_READ_CAPABILITIES = [
+  "read_calendar",
+  "read_strategy",
+  "read_brand_brain",
+  "read_report",
+  "read_competitor_moves",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCmoReadCapability(value: string): boolean {
+  return (SOKO_BOT_CMO_READ_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/**
  * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
  * workspace (Brand Brain, strategy), so a CMO bot has them on every turn and
  * no other bot ever does; `applyVersionCapabilities` enforces both.
@@ -221,6 +251,10 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "find_style_references",
   // Core writes the month's pieces at once (cmo-v6's production run).
   "write_month_pieces",
+  // Core writes, checks and saves the strategy in one step (cmo-v25).
+  "write_strategy",
+  // What an organized context leaves out, read when a turn needs it (cmo-v23).
+  ...SOKO_BOT_CMO_READ_CAPABILITIES,
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
@@ -319,7 +353,7 @@ export function isSokoBotSandboxCapability(
 
 export * from "./policy-taint.js";
 
-const DIRECT_READ_CAPABILITIES = [
+export const SOKO_BOT_DIRECT_READ_CAPABILITIES = [
   ...SOKO_BOT_SEO_READ_CAPABILITIES,
   "refresh_context",
   "get_task_status",
@@ -347,6 +381,8 @@ const DIRECT_READ_CAPABILITIES = [
   "search_companies",
   "get_company",
   "find_contact_duplicates",
+  "fundraising_pipeline",
+  "investor_warm_paths",
   "list_integrations",
   "find_integrations",
   "search_inbox",
@@ -388,10 +424,13 @@ const DIRECT_READ_CAPABILITIES = [
   "find_agents",
 ] as const satisfies readonly SokoBotCapability[];
 
+const DIRECT_READ_CAPABILITIES = SOKO_BOT_DIRECT_READ_CAPABILITIES;
+
 /** Social posts can publish externally, including edits to already queued content. */
 const SOCIAL_WRITE_CAPABILITIES = [
   "create_social_post",
   "update_social_post",
+  "update_social_posts",
   "schedule_social_post",
   "cancel_social_post",
   "publish_social_post",
@@ -411,13 +450,19 @@ const BACKGROUND_RUN_CAPABILITIES = [
   "stop_background_run",
 ] as const satisfies readonly SokoBotCapability[];
 
-/** Follow-ups the bot sets up for itself; never need owner approval. */
+/**
+ * Follow-ups the bot sets up for itself, and the workspace's Task Schedules
+ * it keeps for the owner. Core asks the owner's own chat for a change to a
+ * Task Schedule someone else made.
+ */
 const SCHEDULE_CAPABILITIES = [
   "wait_for",
   "create_schedule",
   "update_schedule",
   "manage_reminder",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -446,6 +491,7 @@ const CONTACT_WRITE_CAPABILITIES = [
   "export_contacts_to_table",
   "find_people",
   "enrich_contact",
+  "find_investors",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Writes into chat and the owner's Drive; not available on read-only routes. */

@@ -48,6 +48,8 @@ export const CORE_API_ERROR_KINDS = {
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  /** `X-Sokosumi-Network` names no Network: only `mainnet` and `preprod` are. */
+  NETWORK_UNKNOWN: "network_unknown",
   NEWSLETTER_APPROVAL_REQUIRED: "newsletter_approval_required",
   NEWSLETTER_SENDER_NOT_CONFIGURED: "newsletter_sender_not_configured",
   NEWSLETTER_NO_ACTIVE_SUBSCRIBERS: "newsletter_no_active_subscribers",
@@ -68,6 +70,12 @@ export const CORE_API_ERROR_KINDS = {
   FREE_CREDIT_INVALID: "free_credit_invalid",
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
+  /** A person approves, publishes or sends this in Sokosumi (ADR 0077); `webUrl` links the item. */
+  PERSON_APPROVAL_REQUIRED: "person_approval_required",
+  /** The request names Preprod, and Preprod is switched off on this deployment. */
+  PREPROD_OFF: "preprod_off",
+  /** The request names Preprod, and the caller has no Preprod access in this Workspace. */
+  PREPROD_ACCESS_REQUIRED: "preprod_access_required",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
   SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
   SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",

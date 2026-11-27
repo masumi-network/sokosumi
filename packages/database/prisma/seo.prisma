@@ -14,6 +14,10 @@ model SeoAudit {
   archivedAt   DateTime?
   /// Tasks archived by the current report archive, eligible for restoration with it.
   archivedTaskIds String[] @default([])
+  /// Set when the create form sends a key: a retried create returns this Audit. Null for older Audits.
+  idempotencyKey String?
+  /// Hash of the create request without its key, to refuse a reused key with other input.
+  requestHash  String?
   pages        ProjectSeoPage[]
   scopes       ProjectSeoScope[]
   observations ProjectSeoObservation[]
@@ -23,6 +27,7 @@ model SeoAudit {
   actionTasks  ProjectSeoActionTask[]
   chatTurns    SeoAuditChatTurn[]
 
+  @@unique([workspaceId, idempotencyKey])
   @@index([workspaceId, createdAt, id])
   @@index([projectId])
   @@map("seo_audit")
@@ -90,6 +95,7 @@ model ProjectSeoObservation {
   payload      Json
   observedAt   DateTime
   createdAt    DateTime  @default(now())
+  rankPoints   ProjectSeoRankPoint[]
 
   @@unique([projectId, sourceKey])
   @@unique([auditId, sourceKey])
@@ -97,6 +103,28 @@ model ProjectSeoObservation {
   @@index([auditId, ownerId, observedAt])
   @@index([sourceTaskId])
   @@map("project_seo_observation")
+}
+
+/// One paid position read of a keyword, copied out of its result at import. The rank history reads these rows
+/// and not the result payloads: a full audit's payload is too heavy to load once per history point.
+model ProjectSeoRankPoint {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  observationId  String                @db.Uuid
+  observation    ProjectSeoObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the keyword identity (keyword, page, device, reason, Market): fixed length for the index.
+  key            String
+  observedAt     DateTime
+  /// The payload takes any number here, so the column does too: a point must never fail an import.
+  position       Float?
+  /// "ranked" or "not_in_range". A failed read is no point.
+  positionStatus String
+  /// The payload accepts any integer, also above the 32-bit range. A double holds each safe integer exactly.
+  checkedResults Float?
+  device         String?
+
+  @@unique([observationId, key])
+  @@index([key, observedAt])
+  @@map("project_seo_rank_point")
 }
 
 model ProjectSeoKeyword {
@@ -224,10 +252,62 @@ model ProjectSeoSuggestion {
   verifiedAt    DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  impactVerdicts ProjectSeoImpactVerdict[]
 
   @@unique([projectId, key])
   @@index([projectId, kind, status])
   @@map("project_seo_suggestion")
+}
+
+/// One measured page change: when it went live, when Google crawled it, and the window a worker compares.
+/// A suggestion marked done again after a reopen gets a new row; earlier rows stay.
+model ProjectSeoImpactVerdict {
+  id              String                @id @default(uuid(7)) @db.Uuid
+  projectId       String                @db.Uuid
+  project         Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// cuso_done | audit_recheck
+  changeSource    String
+  suggestionId    String?               @db.Uuid
+  suggestion      ProjectSeoSuggestion? @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  changedAt       DateTime
+  /// An audit recheck: the earliest and latest time the change can have gone live.
+  changeEarliest  DateTime?
+  changeLatest    DateTime?
+  pageUrl         String
+  /// The suggestion's title and kind when the change was recorded: a later edit does not relabel it.
+  title           String?
+  kind            String?
+  /// The Search Console property the page was inspected in.
+  property        String?
+  /// waiting_crawl | waiting_window | ready | waiting_retry | measured | not_measurable
+  state           String                @default("waiting_crawl")
+  /// Why the row waits or cannot be measured, as a code.
+  reason          String?
+  /// The last URL Inspection attempt, failed ones included.
+  lastInspectedAt DateTime?
+  /// The first Google crawl seen after changedAt.
+  crawledAt       DateTime?
+  /// The URL Google reports the page's traffic under: the page, or its www alias that Google confirmed at that crawl.
+  measuredUrl     String?
+  /// The compared weeks, as Search Console (Pacific) dates.
+  windowStart     DateTime?             @db.Date
+  windowEnd       DateTime?             @db.Date
+  attempts        Int                   @default(0)
+  waits           Int                   @default(0)
+  taskId          String?               @unique
+  /// The worker's current claim on a ready row, and when it ends.
+  claimId         String?               @unique @db.Uuid
+  claimedUntil    DateTime?
+  input           Json?
+  verdict         Json?
+  verdictAt       DateTime?
+  closingEvidence Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([suggestionId, changedAt])
+  @@index([state])
+  @@map("project_seo_impact_verdict")
 }
 
 /// The latest read of one research source for a Project: keyword ideas for a topic, or its Search Console property.

@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { forbidden } from "@/helpers/error";
 import {
   buildCoworkerJobParentTaskWhere,
@@ -79,7 +80,7 @@ function coworkerProjectReaderSqlVisibility(
     job: PrismaRaw.sql`AND (
       t."assigneeId" = ${authContext.coworkerId}
       OR (t.visibility = 'PRIVATE' AND EXISTS (
-        SELECT 1 FROM coworker c
+        SELECT 1 FROM ${sharedTable("coworker")} c
         WHERE c.id = t."assigneeId" AND c."vendorId" = ${authContext.vendorId}::uuid
       ))
     )`,

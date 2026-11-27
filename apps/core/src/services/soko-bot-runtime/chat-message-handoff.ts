@@ -1,3 +1,4 @@
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import {
@@ -62,7 +63,7 @@ async function background(
     // A private Task is the owner's; the other side sees only that one exists.
     lines.push(
       task.visibility === "PUBLIC"
-        ? `Task "${task.name}" (${task.status.toLowerCase()}): ${clip(task.description, BACKGROUND_CHARS) || "no description"}`
+        ? `Task "${task.name}" (${task.status.toLowerCase()}): ${clip(hideSeoAuditRequest(task.description), BACKGROUND_CHARS) || "no description"}`
         : "It is about a private Task of the person I work for.",
     );
   }
@@ -70,7 +71,7 @@ async function background(
     const project = UUID.test(input.projectId)
       ? await prisma.project.findFirst({
           where: { id: input.projectId, workspaceId },
-          select: { name: true, description: true },
+          select: { name: true, briefing: true },
         })
       : null;
     if (!project)
@@ -78,7 +79,7 @@ async function background(
         "No Project with that projectId here; drop projectId or use one from your context.",
       );
     lines.push(
-      `Project "${project.name}": ${clip(project.description, BACKGROUND_CHARS) || "no description"}`,
+      `Project "${project.name}": ${clip(project.briefing, BACKGROUND_CHARS) || "no briefing"}`,
     );
   }
   return lines;
@@ -98,6 +99,7 @@ const detectedSchema = z.object({
  */
 async function detectHandoff(message: string) {
   const detected = await askSmallModel({
+    label: "handoff-detect",
     purpose: "soko-bot",
     system:
       'An assistant is about to send this message to a colleague or another agent. handoff is true when it asks them to make, find or deliver something (a table, a draft, research, a review), false for a quick question or a status check. When true, give the goal in a few words, the deliverable, and the deadline as written ("Friday"), or an empty string when it names none.',
@@ -188,6 +190,7 @@ export async function guardPrivateData(input: {
   });
   if (read === 0) return;
   const verdict = await askSmallModel({
+    label: "handoff-verdict",
     purpose: "soko-bot",
     system:
       "You check a message an assistant is about to send to someone other than its owner. Earlier in the conversation it read the owner's private mail or calendar. Say whether the message shares private content from them (who wrote, what an email says, subjects, attachments, meeting details or attendees) that the owner's own request does not clearly ask to share. Plain work facts the owner stated, Task names and general questions are not private content.",
@@ -210,6 +213,7 @@ export async function describeReply(
   reply: string,
 ): Promise<{ replyStatus: ReplyStatus | null; links: string[] }> {
   const classified = await askSmallModel({
+    label: "handoff-reply-status",
     purpose: "soko-bot",
     system:
       'Classify the answer to a hand-off of work: "done" when it delivers the result, "needs_input" when it asks something before it can go on, "declined" when it says no or that someone else should do it, "working" when it accepts and will deliver later.',

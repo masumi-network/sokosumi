@@ -19,7 +19,7 @@ const ART: Record<CusoPose, CusoArt> = {
   reading: "researching",
   thinking: "thinking",
   reporting: "friendly",
-  done: "done",
+  done: "correct",
   "needs-you": "pointing",
 };
 
@@ -59,13 +59,18 @@ export function cusoMood(overview: CmoOverview, now: Date = new Date()): Mood {
       ? "One thing needs you"
       : needs > 1
         ? `${needs} things need you`
-        : production.state === "running" || production.state === "starting"
-          ? madeLine(overview)
-          : production.state === "stuck"
-            ? stoppedLine(overview)
-            : cusoStatus(overview);
+        : production.state === "planning"
+          ? "Planning your month"
+          : production.state === "running" || production.state === "starting"
+            ? madeLine(overview)
+            : production.state === "stuck"
+              ? stoppedLine(overview)
+              : cusoStatus(overview);
   const busy =
-    pose === "reading" || pose === "thinking" || production.state === "running";
+    pose === "reading" ||
+    pose === "thinking" ||
+    production.state === "running" ||
+    production.state === "planning";
   // A month that stopped or could not start is said on every page.
   const alarm = production.state === "stuck" || production.state === "blocked";
   return { pose, art: ART[pose], line, needs, busy, alarm };
@@ -122,7 +127,7 @@ export function cusoBubble(
 }
 
 /** How long a passing pose holds before he settles back. */
-export const MOMENT_MS = { walking: 1200, done: 2600 } as const;
+export const MOMENT_MS = { walking: 1200, correct: 2600 } as const;
 
 /**
  * A passing pose on top of his state: he walks for a moment when the owner
@@ -140,7 +145,7 @@ export function useCusoMoment(
   if (seen.view !== view || seen.busy !== busy) {
     setSeen({ view, busy });
     if (seen.view !== view) setMoment("walking");
-    else if (seen.busy && !busy) setMoment("done");
+    else if (seen.busy && !busy) setMoment("correct");
   }
   useTimeout(
     () => setMoment(null),

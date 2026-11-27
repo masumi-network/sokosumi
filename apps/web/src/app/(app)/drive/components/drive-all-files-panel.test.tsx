@@ -200,7 +200,9 @@ function makeQueryClient() {
     defaultOptions: {
       queries: {
         retry: false,
+        gcTime: Number.POSITIVE_INFINITY,
       },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
     },
   });
 }
@@ -272,7 +274,14 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     api.deleteDriveUploads.mockResolvedValueOnce([fileFail.pathname!]);
 
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+      defaultOptions: {
+        queries: {
+          retry: false,
+          staleTime: 60_000,
+          gcTime: Number.POSITIVE_INFINITY,
+        },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const orgBPickerKey = driveQueryKeys.picker(orgB);
     client.setQueryData(orgBPickerKey, [

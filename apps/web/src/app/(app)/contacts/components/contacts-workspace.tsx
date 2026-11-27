@@ -6,6 +6,7 @@ import type {
   ContactList,
   ContactReplyState,
   ContactStage,
+  ContactXFollowState,
   PostContactsStageUndoData,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,6 +23,7 @@ import {
   CONTACT_REPLY_STATES,
   CONTACT_SORTS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   type ContactSort,
   contactEmails,
   contactQuery,
@@ -73,6 +75,7 @@ import { ContactsViewMenus } from "./contacts-views-bar";
 import { ContactsWorkspaceHeader } from "./contacts-workspace-header";
 import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
+import { ImportLinkedInDialog } from "./import-linkedin-dialog";
 import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
@@ -100,6 +103,7 @@ const ContactsMap = dynamic(
 type Dialog =
   | { kind: "add" }
   | { kind: "import" }
+  | { kind: "linkedin" }
   | { kind: "list"; list?: ContactList }
   | { kind: "deleteList"; list: ContactList }
   | { kind: "duplicates" }
@@ -147,6 +151,10 @@ export function ContactsWorkspace({
     "source",
     parseAsStringLiteral(CONTACT_CHANNEL_SOURCES),
   );
+  const [xFollow, setXFollow] = useQueryState(
+    "x",
+    parseAsStringLiteral(CONTACT_X_FOLLOWS),
+  );
   const [sort, setSort] = useQueryState(
     "sort",
     parseAsStringLiteral(CONTACT_SORTS).withDefault("lastContactAt"),
@@ -180,7 +188,14 @@ export function ContactsWorkspace({
   const duplicateGroups = duplicates.data ?? [];
   const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
   const organizations = useContactOrganizations(debouncedCompanySearch);
-  const filters: ContactFilters = { stage, replyState, kind, knownBy, source };
+  const filters: ContactFilters = {
+    stage,
+    replyState,
+    kind,
+    knownBy,
+    source,
+    xFollow,
+  };
   const query = contactQuery({
     view,
     company,
@@ -223,6 +238,7 @@ export function ContactsWorkspace({
     kind: (value) => setKind(value as ContactKind | null),
     knownBy: setKnownBy,
     source: (value) => setSource(value as ContactChannelSource | null),
+    xFollow: (value) => setXFollow(value as ContactXFollowState | null),
   };
   function clearFilters() {
     void setSearch(null);
@@ -666,6 +682,9 @@ export function ContactsWorkspace({
       ) : null}
       {dialog?.kind === "import" ? (
         <ImportContactsDialog onClose={() => setDialog(null)} />
+      ) : null}
+      {dialog?.kind === "linkedin" ? (
+        <ImportLinkedInDialog onClose={() => setDialog(null)} />
       ) : null}
       {dialog?.kind === "list" ? (
         <ContactListDialog

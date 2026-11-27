@@ -8,7 +8,10 @@ import {
   cmoProductMetadataSchema,
   getCmoCatalog,
 } from "@/services/cmo-catalog.service";
-import { startCmoCheckout } from "@/services/cmo-checkout.service";
+import {
+  type CheckoutAnalytics,
+  startCmoCheckout,
+} from "@/services/cmo-checkout.service";
 import { CmoConflictError, type CusoTarget } from "@/services/cmo-cuso.service";
 import { grantPolarCredits } from "@/services/polar-credit-grant.service";
 import {
@@ -24,7 +27,7 @@ import {
  * subscription is paused, so credits for him are not sold.
  */
 export async function startCmoTopUpCheckout(
-  input: CusoTarget & { returnUrl: string },
+  input: CusoTarget & { returnUrl: string; analytics?: CheckoutAnalytics },
 ): Promise<{ url: string }> {
   // A top-up's return address carries no success marker, so "back" leads to
   // the same place.

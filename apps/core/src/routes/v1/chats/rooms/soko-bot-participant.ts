@@ -2,6 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import { getFirstName } from "@sokosumi/utils";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotOwnerOf } from "@/helpers/soko-bot-owner";
+import { sokoBotFace } from "@/lib/cuso-face";
 import type { ChatRoomSokoBotParticipant } from "@/schemas/chat-room-participant.schema";
 
 export const chatRoomSokoBotSelect = {
@@ -10,6 +11,7 @@ export const chatRoomSokoBotSelect = {
   avatarImageUrl: true,
   avatarCode: true,
   avatarSeed: true,
+  versionId: true,
   userId: true,
   projectId: true,
   sharedRoomId: true,
@@ -23,6 +25,7 @@ export interface ChatRoomSokoBotRow {
   avatarImageUrl: string | null;
   avatarCode: string | null;
   avatarSeed: string | null;
+  versionId: string | null;
   userId: string | null;
   projectId: string | null;
   sharedRoomId: string | null;
@@ -60,12 +63,13 @@ export function mapChatRoomSokoBotParticipant(
   bot: ChatRoomSokoBotRow,
 ): ChatRoomSokoBotParticipant {
   const owner = sokoBotOwnerOf(bot);
+  const face = sokoBotFace(bot);
   return {
     id: bot.id,
     name: sokoBotDisplayName(bot),
     caption: sokoBotCaption(bot),
-    image: bot.avatarImageUrl ?? null,
-    avatarCode: bot.avatarCode,
+    image: face.avatarImageUrl,
+    avatarCode: face.avatarCode,
     avatarSeed: sokoBotAvatarSeedFor(bot),
     ownerUserId: owner.kind === "personal" ? owner.userId : null,
     scope: owner.kind === "personal" ? "personal" : owner.scope,

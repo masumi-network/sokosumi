@@ -47,6 +47,17 @@ function fixture(t: TestContext, response: unknown = { data: [] }) {
 
 const API = ["--api-url", "https://fixture.invalid"];
 
+test("agents input-schema reads the form and never starts a Job (SOKD-466)", async (t) => {
+  const body = { data: { input_data: [{ id: "file", type: "file" }] } };
+  const f = fixture(t, body);
+  await runCli([...API, "agents", "input-schema", "agent-1"], f.deps);
+  assert.deepEqual(
+    f.calls.map((call) => `${call.method} ${new URL(call.url).pathname}`),
+    ["GET /v1/agents/agent-1/input-schema"],
+  );
+  assert.deepEqual(JSON.parse(f.output.join("")), body);
+});
+
 for (const [command, resource] of [
   ["events", "events"],
   ["files", "files"],
@@ -128,6 +139,43 @@ test("a generic write sends --input-json or --input-file as the body", async () 
     { path: "/v1/things/x-1/move", body: { to: "b" } },
   ]);
   assert.deepEqual(JSON.parse(output[0]!), { data: { id: "x-1" } });
+});
+
+test("a generic DELETE sends a body only when its row takes one", async () => {
+  const calls: { path: string; body: unknown }[] = [];
+  const client = {
+    delete: async <T>(path: string, body?: unknown) => {
+      calls.push({ path, body });
+      return undefined as T;
+    },
+  } as unknown as CoreHttpClient;
+  const run = (body: boolean, options: Record<string, string>) =>
+    runGenericCommand({
+      client,
+      stdout: { write() {} },
+      row: {
+        command: "things delete",
+        usage: "",
+        operation: "DELETE /things/delete",
+        ...(body ? { body: true as const } : {}),
+      },
+      args: [],
+      options,
+    });
+  await run(true, { "input-json": '{"pathname":"a.pdf"}' });
+  await run(false, {});
+  await assert.rejects(
+    run(true, {}),
+    /`things delete` needs --input-json or --input-file/,
+  );
+  await assert.rejects(
+    run(false, { "input-json": "{}" }),
+    /`things delete` takes no --input-json or --input-file/,
+  );
+  assert.deepEqual(calls, [
+    { path: "/v1/things/delete", body: { pathname: "a.pdf" } },
+    { path: "/v1/things/delete", body: undefined },
+  ]);
 });
 
 test("a generic Task command resolves a short identifier to the Task id", async (t) => {
@@ -304,3 +352,91 @@ for (const [argv, message] of [
     assert.equal(f.calls.length, 0);
   });
 }
+
+test("contacts export prints Core's CSV as is", async (t) => {
+  const csv = 'name,email\n"Keller, Nina",nina@example.com\n';
+  const output: string[] = [];
+  const urls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    urls.push(String(input));
+    return new Response(csv, {
+      headers: { "content-type": "Text/CSV; charset=utf-8" },
+    });
+  });
+  await runCli([...API, "contacts", "export", "--query", "stage=PROSPECT"], {
+    env: { SOKOSUMI_AUTH_TOKEN: "fixture-token" },
+    authManager: new AuthManager({
+      credentialStore: { read: () => null, write() {}, clear() {} },
+      apiKeyStore: { read: () => null, write() {}, clear() {} },
+    }),
+    stdout: { write: (value) => output.push(value) },
+  });
+  assert.deepEqual(urls, [
+    "https://fixture.invalid/v1/contacts/export.csv?stage=PROSPECT",
+  ]);
+  assert.equal(output.join(""), csv);
+});
+
+test("a JSON command still refuses a non-JSON body", async (t) => {
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () =>
+      new Response("<html>proxy</html>", {
+        headers: { "content-type": "text/html" },
+      }),
+  );
+  await assert.rejects(
+    runCli([...API, "jobs", "events", "job-1"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "fixture-token" },
+      authManager: new AuthManager({
+        credentialStore: { read: () => null, write() {}, clear() {} },
+        apiKeyStore: { read: () => null, write() {}, clear() {} },
+      }),
+      stdout: { write() {} },
+    }),
+    /invalid JSON/,
+  );
+});
+
+test("tasks receipt reads a Task's receipt as a person, in the selected Workspace (SOKD-467)", async (t) => {
+  const body = { data: { settled: false, txHash: null } };
+  const f = fixture(t, body);
+  const id = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+  await runCli(
+    [...API, "tasks", "receipt", id, "--organization-slug", "utxo", "--json"],
+    f.deps,
+  );
+  assert.deepEqual(f.calls, [
+    {
+      method: "GET",
+      url: `https://fixture.invalid/v1/tasks/${id}/receipt`,
+      slug: "utxo",
+      body: undefined,
+    },
+  ]);
+  assert.deepEqual(JSON.parse(f.output.join("")), body);
+});
+
+test("coworkers get reads one Coworker on any target (SOKD-479)", async (t) => {
+  const body = { data: { id: "cw-1", name: "Private Coworker" } };
+  const f = fixture(t, body);
+  await runCli([...API, "coworkers", "get", "cw-1", "--json"], f.deps);
+  assert.deepEqual(
+    f.calls.map((call) => `${call.method} ${new URL(call.url).pathname}`),
+    ["GET /v1/coworkers/cw-1"],
+  );
+  assert.deepEqual(JSON.parse(f.output.join("")), body);
+});
+
+test("coworkers api-key refuses --name, which would leave the key unnamed (SOKD-479)", async (t) => {
+  const f = fixture(t);
+  await assert.rejects(
+    runCli(
+      [...API, "--preprod", "coworkers", "api-key", "cw-1", "--name", "x"],
+      f.deps,
+    ),
+    /--api-key-name/,
+  );
+  assert.deepEqual(f.calls, []);
+});

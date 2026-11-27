@@ -8,6 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 
@@ -20,6 +21,7 @@ export interface TaskMetadataStatusFieldLabels {
   /** Field name, prefixed to the trigger's accessible name: "Status: Running". */
   status: string;
   statusLabels: Record<TaskStatus, string>;
+  columnLabels: Record<KanbanColumnId, string>;
   changeStatus: string;
   noStatusMatches: string;
   reopenToReadyCommentRequired: string;
@@ -129,6 +131,7 @@ export function TaskMetadataStatusField({
         options={selectableStatuses}
         labels={{
           statusLabels: labels.statusLabels,
+          columnLabels: labels.columnLabels,
           ariaLabel: `${labels.status}: ${labels.statusLabels[currentStatus]}`,
           searchPlaceholder: labels.changeStatus,
           noResults: labels.noStatusMatches,

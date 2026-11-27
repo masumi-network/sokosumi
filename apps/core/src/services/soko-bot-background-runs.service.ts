@@ -11,6 +11,7 @@ import {
   logCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { BACKGROUND_RUN_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/turn-model";
@@ -104,6 +105,7 @@ export async function startBackgroundRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId: authorized.turn.actingUserId,
     workspaceId: authorized.turn.workspaceId,
     // Cuso shares a workspace with the owner's own assistant: the run belongs
@@ -212,7 +214,8 @@ export async function listBackgroundRuns(authorized: AuthorizedSokoBotRuntime) {
       errorKind: true,
       _count: { select: { toolCalls: true } },
       toolCalls: {
-        where: { capability: "update_plan" },
+        // A refused update never replaces the plan shown.
+        where: { capability: "update_plan", status: "COMPLETED" },
         orderBy: { createdAt: "desc" },
         take: 1,
         select: { input: true },

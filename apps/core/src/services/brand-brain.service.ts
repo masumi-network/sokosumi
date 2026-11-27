@@ -2,6 +2,7 @@ import type {
   BrandBrain as BrandBrainRecord,
   Prisma,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type BrandBrain,
   brandBrainSchema,
@@ -22,7 +23,7 @@ import { jsonInput } from "@/helpers/prisma-json";
 import { keepAskedQuestions } from "@/helpers/question-answers";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
-import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
+import type { SaveStudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
 
 /**
  * The Project's Brand Brain (ADR 0062): one per Project, read by every bot in
@@ -70,7 +71,7 @@ export async function getBrandBrain(
  * run in parallel, and none may overwrite another.
  */
 async function lockBrandBrain(tx: Prisma.TransactionClient, projectId: string) {
-  await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
+  await tx.$executeRaw`SELECT 1 FROM ${sharedTable("project")} WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
   return await tx.brandBrain.findUnique({
     where: { projectId },
     select: { body: true, updatedAt: true },
@@ -191,7 +192,7 @@ export async function saveBrandBrain(
 
 export async function saveStudioBrandCopy(
   projectId: string,
-  copy: StudioBrandCopy,
+  copy: SaveStudioBrandCopy["copy"],
   version: string | null,
 ): Promise<string> {
   return await prisma.$transaction(async (tx) => {
@@ -200,6 +201,13 @@ export async function saveStudioBrandCopy(
       throw conflict("The brand kit changed. Reload it before saving.");
     }
     const existing = parseBrandBrain(row?.body);
+    // The brand kit reads an unset tone as "": sending it back keeps the
+    // stored one (SOKD-480). A Brand Brain can't be stored without one.
+    const tone = copy.tone || existing?.voice.tone;
+    if (!tone)
+      throw unprocessableEntity(
+        'copy.tone: this Project has no voice tone yet, and the brand kit can\'t be saved without one. Ask the person how the brand should sound (for example "Warm and direct") and send that as copy.tone.',
+      );
     const body = jsonInput(
       brandBrainSchema.parse({
         products: [],
@@ -212,7 +220,7 @@ export async function saveStudioBrandCopy(
         voice: {
           do: existing?.voice.do ?? [],
           dont: existing?.voice.dont ?? [],
-          tone: copy.tone,
+          tone,
           examples: copy.approvedLines,
         },
       }),

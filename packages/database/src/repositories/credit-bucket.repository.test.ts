@@ -95,6 +95,7 @@ describe("creditBucketRepository.prepareConsumption (personal)", () => {
     } as unknown as Prisma.TransactionClient;
 
     const consumptions = await creditBucketRepository.prepareConsumption(
+      "mainnet",
       "user-1",
       null,
       100n,
@@ -114,7 +115,14 @@ describe("creditBucketRepository.prepareConsumption (personal)", () => {
     } as unknown as Prisma.TransactionClient;
 
     await assert.rejects(
-      () => creditBucketRepository.prepareConsumption("user-1", null, 100n, tx),
+      () =>
+        creditBucketRepository.prepareConsumption(
+          "mainnet",
+          "user-1",
+          null,
+          100n,
+          tx,
+        ),
       (error: unknown) => {
         assert.ok(error instanceof InsufficientBalanceError);
         assert.match(error.message, /Insufficient balance/);
@@ -145,6 +153,7 @@ describe("creditBucketRepository.prepareConsumption (organization)", () => {
     } as unknown as Prisma.TransactionClient;
 
     const consumptions = await creditBucketRepository.prepareConsumption(
+      "mainnet",
       "user-1",
       "org-1",
       100n,
@@ -175,7 +184,13 @@ describe("creditBucketRepository.prepareConsumption (organization)", () => {
 
     await assert.rejects(
       () =>
-        creditBucketRepository.prepareConsumption("user-1", "org-1", 100n, tx),
+        creditBucketRepository.prepareConsumption(
+          "mainnet",
+          "user-1",
+          "org-1",
+          100n,
+          tx,
+        ),
       (error: unknown) => {
         assert.ok(error instanceof InsufficientBalanceError);
         assert.match(error.message, /Insufficient balance/);
@@ -291,6 +306,7 @@ describe("creditBucketRepository.getBalance (organization)", () => {
     } as unknown as Prisma.TransactionClient;
 
     const consumptions = await creditBucketRepository.prepareConsumption(
+      "mainnet",
       "user_1",
       "org_1",
       5n,
@@ -458,7 +474,13 @@ describe("creditBucketRepository.prepareConsumption (organization scope SQL)", (
       },
     } as unknown as Prisma.TransactionClient;
 
-    await creditBucketRepository.prepareConsumption("user-1", "org-1", 5n, tx);
+    await creditBucketRepository.prepareConsumption(
+      "mainnet",
+      "user-1",
+      "org-1",
+      5n,
+      tx,
+    );
 
     const values = extractNestedSqlValues(queryArgs);
     assert.ok(values.includes("org-1"));
@@ -509,12 +531,44 @@ describe("creditBucketRepository with Project credits", () => {
     assert.ok(query.includes('LEFT JOIN "shared"."project" p ON'));
   });
 
+  it("chooses the buckets of the Network it is given", async () => {
+    const { tx, calls } = capturingTx([{ id: "bucket-1", available: 10n }]);
+    onTestFinished(
+      configureSqlTables({
+        shared: "shared",
+        mainnet: "mainnet",
+        preprod: "preprod",
+        preprodOn: true,
+      }),
+    );
+
+    await creditBucketRepository.prepareConsumption(
+      "preprod",
+      "user-1",
+      null,
+      5n,
+      tx,
+    );
+
+    const query = queryText(calls[0]);
+    assert.ok(query.includes('FROM "preprod"."credit_bucket" cb'));
+    assert.ok(query.includes('LEFT JOIN "preprod"."credit_consumption" cc ON'));
+    assert.ok(!query.includes('"mainnet"'));
+  });
+
   it("draws a Project's buckets first, then the pool in today's order", async () => {
     const { tx, calls } = capturingTx([{ id: "bucket-1", available: 10n }]);
 
-    await creditBucketRepository.prepareConsumption("user-1", "org-1", 5n, tx, {
-      projectId: "project-1",
-    });
+    await creditBucketRepository.prepareConsumption(
+      "mainnet",
+      "user-1",
+      "org-1",
+      5n,
+      tx,
+      {
+        projectId: "project-1",
+      },
+    );
 
     const { values, text } = extractNestedSql(calls[0]);
     assert.ok(values.includes("project-1"));
@@ -528,7 +582,13 @@ describe("creditBucketRepository with Project credits", () => {
   it("without a Project consumes only the pool, in today's order", async () => {
     const { tx, calls } = capturingTx([{ id: "bucket-1", available: 10n }]);
 
-    await creditBucketRepository.prepareConsumption("user-1", "org-1", 5n, tx);
+    await creditBucketRepository.prepareConsumption(
+      "mainnet",
+      "user-1",
+      "org-1",
+      5n,
+      tx,
+    );
 
     const { values, text } = extractNestedSql(calls[0]);
     assert.ok(text.includes('cb."projectId" IS NULL'));

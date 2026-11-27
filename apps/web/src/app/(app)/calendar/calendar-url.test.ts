@@ -15,6 +15,7 @@ describe("calendarUrl", () => {
       status: "READY",
       postStatus: "FAILED",
       provider: "x",
+      showCanceled: "true",
       view: "week",
       timezone: "UTC",
     };

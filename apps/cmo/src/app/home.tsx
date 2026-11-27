@@ -21,7 +21,7 @@ import {
 } from "../lib/connect-return";
 import { asSignedInPersonInPage, renderRequestHeaders } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
-import { isValidPersonName } from "../lib/person-name";
+import { isValidPersonName, personName } from "../lib/person-name";
 import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { VIEW_PATHS, type View } from "../lib/views";
 import { signOut } from "./actions";
@@ -200,6 +200,7 @@ export interface HomeSearchParams {
   ads?: string | string[];
   measure?: string | string[];
   from?: string | string[];
+  signed_in?: string | string[];
 }
 
 interface HomeProps {
@@ -238,6 +239,9 @@ export async function Home({ searchParams, view }: HomeProps) {
       `Core did not read the person (${person.response?.status})`,
     );
   }
+  // Core's name, not the session's: the session keeps the sign-up name until
+  // its next token refresh, so the name step's answer would not show for hours.
+  const name = personName(person.data.data);
 
   const project = first(params.project) || undefined;
   const opened = await openedScreen({
@@ -251,16 +255,15 @@ export async function Home({ searchParams, view }: HomeProps) {
   // form (ADR 0065).
   if (opened === undefined) {
     return (
-      <SignedIn
-        name={session.user.name}
-        email={session.user.email}
-        signOut={signOut}
-      />
+      <SignedIn name={name} email={session.user.email} signOut={signOut} />
     );
   }
   if (opened.kind === "only") {
+    // The sign-in marker rides along, so the next page sends sign_up or login.
+    const signedIn =
+      first(params.signed_in) === undefined ? "" : "&signed_in=1";
     redirect(
-      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}`,
+      `${VIEW_PATHS[view]}?project=${encodeURIComponent(opened.projectId)}${signedIn}`,
     );
   }
   if (opened.kind === "picker") {
@@ -269,7 +272,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (opened.kind === "inviteOnly") {
     return (
       <SignedIn
-        name={session.user.name}
+        name={name}
         email={session.user.email}
         signOut={signOut}
         inviteOnly
@@ -380,7 +383,7 @@ export async function Home({ searchParams, view }: HomeProps) {
       }
       messages={messages}
       work={work}
-      name={session.user.name}
+      name={name}
       email={session.user.email}
       image={session.user.image ?? null}
       initialView={step === "connect" ? "channels" : view}

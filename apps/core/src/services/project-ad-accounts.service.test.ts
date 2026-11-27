@@ -708,6 +708,14 @@ describe("project ad accounts service", () => {
       });
     });
 
+    it("hands an agent's onlyWhilePaused to Google", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await edit({ onlyWhilePaused: true });
+      expect(m.googleEdit).toHaveBeenCalledWith(
+        expect.objectContaining({ onlyWhilePaused: true }),
+      );
+    });
+
     it("normalizes the file URL of a new image", async () => {
       m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
       const spaced = {
@@ -900,6 +908,20 @@ describe("project ad accounts service", () => {
       );
       expect(m.metaUpdate).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["google_ads", "111", () => m.googleUpdate],
+      ["meta_ads", "act_9", () => m.metaUpdate],
+    ] as const)(
+      "hands an agent's onlyWhilePaused to the %s module",
+      async (provider, externalId, module) => {
+        m.accountFindFirst.mockResolvedValue(accountRow(provider, externalId));
+        await update({ dailyBudget: 9, onlyWhilePaused: true });
+        expect(module()).toHaveBeenCalledWith(
+          expect.objectContaining({ dailyBudget: 9, onlyWhilePaused: true }),
+        );
+      },
+    );
 
     it("updates a Meta campaign inside the attached ad account", async () => {
       m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));

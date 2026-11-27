@@ -199,6 +199,31 @@ describe("Core database clients", () => {
     }
   });
 
+  it("sends the credit costs read as the same query through the Mainnet client as through the default client, on today's layout", async () => {
+    const { default: prisma, networkPrisma, query } = await loadClients();
+
+    const sent = [];
+    for (const client of [prisma, networkPrisma("mainnet")]) {
+      query.mockClear();
+      await client.creditCost.findMany();
+      const calls: unknown[][] = query.mock.calls;
+      sent.push(
+        calls.map(([config]) => {
+          // Without `types`: each adapter passes its own parser functions.
+          const { types: _types, ...rest } = config as { types: unknown };
+          return rest;
+        }),
+      );
+    }
+
+    expect(sent[0]).toEqual([
+      expect.objectContaining({
+        text: expect.stringContaining('FROM "public"."CreditCost"'),
+      }),
+    ]);
+    expect(sent[1]).toEqual(sent[0]);
+  });
+
   it.each([
     ["today's layout", {}],
     [

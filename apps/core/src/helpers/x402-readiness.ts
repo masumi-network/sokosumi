@@ -7,7 +7,9 @@ import { isValidHttpUrl } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
+import type { SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { type Network, networkKey } from "@/lib/network";
 
 /**
  * x402 buy-side readiness (PR1-SPEC §6, ticket 011 Q5).
@@ -235,10 +237,12 @@ export function findX402ReadySource(
  * pass and removes the cache as a trusted input.
  */
 export const getX402ReadySources = async (
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
+  // shortcut: callers off the Network scope read Mainnet's row; they pass their scope's Network when they move to it.
+  network: Network = "mainnet",
 ): Promise<X402ReadySource[]> => {
   const readiness = await tx.syncMetadata.findUnique({
-    where: { key: X402_BUY_SIDE_READINESS_KEY },
+    where: { key: networkKey(network, X402_BUY_SIDE_READINESS_KEY) },
   });
   if (!readiness?.cursorId) {
     return [];

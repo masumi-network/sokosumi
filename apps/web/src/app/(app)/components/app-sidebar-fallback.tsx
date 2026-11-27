@@ -1,15 +1,16 @@
 import { SidebarProjectScopeSkeleton } from "@/app/components/project-scope/sidebar-project-scope-shape";
+import { SidebarWorkspaceRow } from "@/app/components/workspace-switcher/sidebar-workspace-row";
 import { WorkspaceSwitcherSkeleton } from "@/app/components/workspace-switcher/workspace-switcher-skeleton";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
+import { GlobalRail } from "./sidebar/components/global-rail.client";
 import MenuItems from "./sidebar/components/menu-items";
 import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
-import SidebarLogo from "./sidebar/components/sidebar-logo.client";
+import { SidebarContextPanel } from "./sidebar/components/sidebar-context-panel";
 import { SidebarAccountChipFallback } from "./sidebar-deferred-account";
 
 /**
@@ -26,32 +27,14 @@ import { SidebarAccountChipFallback } from "./sidebar-deferred-account";
  */
 export function AppSidebarFallback() {
   return (
-    <Sidebar>
-      {/* Mirrors `Sidebar`'s own header so the hairline lands on the same
-          line across the shell/sidebar swap: the switcher at the start, then
-          Search and New task. All three need what this frame has not loaded
-          (the workspaces, the search dialog, the wizard and a seat), so each
-          is a placeholder in its shape, desktop only like Search. */}
-      <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex size-full items-center justify-between gap-2 px-2">
-          {/* The Workspace switcher's workspaces are session-backed, so it
-              is a placeholder in the switcher's own shape. */}
-          <div className="flex min-w-0 flex-1 max-md:hidden">
-            <WorkspaceSwitcherSkeleton placement="sidebar" />
-          </div>
-          <SidebarLogo className="md:hidden" />
-          <div className="flex shrink-0 items-center gap-1 max-md:hidden">
-            {["search", "new-task"].map((action) => (
-              <div
-                key={action}
-                aria-hidden
-                data-testid="sidebar-header-action-skeleton"
-                className="bg-muted size-10 animate-pulse rounded-md md:size-8"
-              />
-            ))}
-          </div>
-        </div>
-      </SidebarHeader>
+    <Sidebar
+      mobileTriggerId="app-sidebar-toggle"
+      className="md:top-16 md:h-[calc(100dvh-4rem)] md:left-(--app-rail-width) md:group-data-[collapsible=offcanvas]:left-[calc(var(--app-rail-width)-var(--sidebar-width))]"
+    >
+      <SidebarWorkspaceRow mobile>
+        <WorkspaceSwitcherSkeleton placement="drawer" />
+      </SidebarWorkspaceRow>
+      <GlobalRail mobile />
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex w-full flex-col gap-0">
           {/* Soko Bot's nav and the Ads row are beta-gated on membership
@@ -61,11 +44,12 @@ export function AppSidebarFallback() {
           {/* The project title's scope is session-backed, so it is a
               placeholder in the title's shape, and the line the groups hang
               from has something to start under. */}
-          <SidebarProjectScopeSkeleton />
-          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
-            <MenuItems />
-          </div>
-          <SidebarChatListSkeleton />
+          <SidebarContextPanel chats={<SidebarChatListSkeleton />}>
+            <SidebarProjectScopeSkeleton />
+            <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+              <MenuItems />
+            </div>
+          </SidebarContextPanel>
         </div>
       </SidebarContent>
       {/* Hairline twin of the header's, matching `Sidebar`'s own footer: it

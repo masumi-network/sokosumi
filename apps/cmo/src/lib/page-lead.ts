@@ -6,6 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { AGENT_NAME } from "./agent";
 import { connectedNetworks } from "./calendar";
+import { planningLine } from "./production";
 import { isSiteFix, trendLine } from "./seo-next";
 import { strategyApproved } from "./strategy";
 import { dayIn, monthEntries, monthProgress, waitingByNetwork } from "./today";
@@ -98,6 +99,9 @@ function resultsTitle(overview: CmoOverview, now: Date): string {
 }
 
 function calendarTitle(overview: CmoOverview): string {
+  // The examples are not the month: say what is being planned.
+  const planning = planningLine(overview.production);
+  if (planning) return planning;
   const total = monthProgress(monthEntries(overview)).total;
   if (total > 0) return `${count(total, "post", "posts")} this month.`;
   if (strategyApproved(overview)) return "Your month is being made.";

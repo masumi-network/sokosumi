@@ -7,6 +7,7 @@
  */
 import type { ContactImportanceSource, Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { notFound } from "@/helpers/error";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
@@ -44,26 +45,26 @@ export async function refreshContactFamiliarity(
       ? PrismaRaw.sql`s."contactId" = ${scope.contactId}::uuid`
       : PrismaRaw.sql`s."workspaceId" = ${scope.workspaceId}::uuid`;
   await tx.$executeRaw`
-    UPDATE contact_score s SET familiarity = 0, "updatedAt" = now()
+    UPDATE ${sharedTable("contact_score")} s SET familiarity = 0, "updatedAt" = now() AT TIME ZONE 'UTC'
     WHERE ${reset} AND s.familiarity <> 0 AND NOT EXISTS (
-      SELECT 1 FROM contact_interaction i
+      SELECT 1 FROM ${sharedTable("contact_interaction")} i
       WHERE i."contactId" = s."contactId" AND i."userId" = s."userId"
     )
   `;
   await tx.$executeRaw`
-    INSERT INTO contact_score (id, "workspaceId", "contactId", "userId", familiarity, "updatedAt")
+    INSERT INTO ${sharedTable("contact_score")} (id, "workspaceId", "contactId", "userId", familiarity, "updatedAt")
     SELECT gen_random_uuid(), i."workspaceId", i."contactId", i."userId",
       round(100 * (
           0.45 * least(1, ln(1 + count(*)) / ln(31))
         + 0.30 * least(1, 2.0 * count(*) FILTER (WHERE i.direction IN ('IN', 'BOTH')) / count(*))
         + 0.25 * least(1, count(*) FILTER (WHERE i.channel IN ('MEETING', 'CALL')) / 3.0)
-      ) * (0.35 + 0.65 * exp(-greatest(0, extract(epoch FROM (now() - max(i."occurredAt")))) / 86400 / 180)))::int,
-      now()
-    FROM contact_interaction i
+      ) * (0.35 + 0.65 * exp(-greatest(0, extract(epoch FROM ((now() AT TIME ZONE 'UTC') - max(i."occurredAt")))) / 86400 / 180)))::int,
+      now() AT TIME ZONE 'UTC'
+    FROM ${sharedTable("contact_interaction")} i
     WHERE ${where} AND i."userId" IS NOT NULL
     GROUP BY i."workspaceId", i."contactId", i."userId"
     ON CONFLICT ("contactId", "userId")
-    DO UPDATE SET familiarity = EXCLUDED.familiarity, "updatedAt" = now()
+    DO UPDATE SET familiarity = EXCLUDED.familiarity, "updatedAt" = now() AT TIME ZONE 'UTC'
     WHERE contact_score.familiarity IS DISTINCT FROM EXCLUDED.familiarity
   `;
 }
@@ -206,10 +207,10 @@ export async function judgeWorkspaceImportance(input: {
     { contactId: string; userId: string; interactions: number }[]
   >`
     SELECT i."contactId", i."userId", count(*)::int AS interactions
-    FROM contact_interaction i
-    JOIN contact c ON c.id = i."contactId"
+    FROM ${sharedTable("contact_interaction")} i
+    JOIN ${sharedTable("contact")} c ON c.id = i."contactId"
       AND c."mergedIntoId" IS NULL AND c."archivedAt" IS NULL
-    LEFT JOIN contact_score s
+    LEFT JOIN ${sharedTable("contact_score")} s
       ON s."contactId" = i."contactId" AND s."userId" = i."userId"
     WHERE i."workspaceId" = ${input.workspaceId}::uuid AND i."userId" IS NOT NULL
       AND (s."importanceSource" IS NULL OR s."importanceSource" = 'JEV')

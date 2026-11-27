@@ -1,6 +1,7 @@
 import type { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { SEO_FULL_AUDIT_CREDITS, seoFullAuditPrice } from "@sokosumi/utils";
 import {
   SEO_PRICE_PENDING_COMMENT,
@@ -19,6 +20,7 @@ import {
   SEO_PAGE_FAILURE_PERCENT,
   SEO_WORKER_DEADLINE_MINUTES,
 } from "@/schemas/admin-seo-alerts.schema";
+import { seoFullAuditCostDetailSchema } from "@/schemas/seo-audit-price.schema";
 
 /** Project-only analyses predate named audits. Each is a distinct run. */
 export async function listAdminSeoAlerts(
@@ -36,7 +38,7 @@ export async function listAdminSeoAlerts(
   >(PrismaRaw.sql`
     WITH workspaces AS (
       SELECT w.id, w."userId" AS "workspaceUserId", org.slug AS "workspaceOrganizationSlug"
-      FROM workspace w LEFT JOIN organization org ON org.id = w."organizationId"
+      FROM ${sharedTable("workspace")} w LEFT JOIN ${sharedTable("organization")} org ON org.id = w."organizationId"
     ), runs AS (
       SELECT coalesce(a."auditId", a.id) AS id, a.id AS run, a."createdAt", a."taskId", a."auditId", a."projectId",
         a."requestedBy", a.request, a.status, a."failureReason" = ${SEO_REPORT_IMPORT_REJECTED} AS rejected,
@@ -49,21 +51,21 @@ export async function listAdminSeoAlerts(
         terminal.cents AS attempted_charge,
         coalesce(terminal."createdAt", t."updatedAt") AS settled_at,
         greatest(a."updatedAt", marker."createdAt", coalesce(terminal."createdAt", t."updatedAt")) AS at
-      FROM project_seo_analysis a
-      LEFT JOIN seo_audit au ON au.id = a."auditId"
-      LEFT JOIN project p ON p.id = a."projectId"
+      FROM ${sharedTable("project_seo_analysis")} a
+      LEFT JOIN ${sharedTable("seo_audit")} au ON au.id = a."auditId"
+      LEFT JOIN ${sharedTable("project")} p ON p.id = a."projectId"
       LEFT JOIN workspaces w ON w.id = coalesce(au."workspaceId",p."workspaceId")
-      LEFT JOIN task t ON t.id = a."taskId"
-      LEFT JOIN LATERAL (SELECT e."createdAt", e."coworkerId",e.cents FROM "taskEvent" e
+      LEFT JOIN ${sharedTable("task")} t ON t.id = a."taskId"
+      LEFT JOIN LATERAL (SELECT e."createdAt", e."coworkerId",e.cents FROM ${sharedTable("taskEvent")} e
         WHERE e."taskId" = t.id AND e.status = t.status AND t.status IN ('FAILED','COMPLETED','RUNNING','OUT_OF_CREDITS')
         ORDER BY e."createdAt" DESC, e.id DESC LIMIT 1) terminal ON true
-      LEFT JOIN LATERAL (SELECT e."createdAt", e.status FROM "taskEvent" e
+      LEFT JOIN LATERAL (SELECT e."createdAt", e.status FROM ${sharedTable("taskEvent")} e
         WHERE e."taskId" = t.id AND e."coworkerId" = a.request #>> '{fullAuditBillingContext,coworkerId}'
           AND e."userId" IS NULL AND e."sokoBotId" IS NULL
           AND ((e.status IS NULL AND e.comment = ${SEO_PRICE_PENDING_COMMENT})
             OR (e.status = 'OUT_OF_CREDITS' AND e.cents > 0 AND e."transactionId" IS NULL))
           AND a.request #>> '{price,kind}' = 'cost_plus'
-          AND NOT EXISTS(SELECT 1 FROM "taskEvent" closed WHERE closed."taskId"=t.id
+          AND NOT EXISTS(SELECT 1 FROM ${sharedTable("taskEvent")} closed WHERE closed."taskId"=t.id
             AND closed.status IN ('FAILED','COMPLETED','CANCELED') AND closed."createdAt" >= e."createdAt")
         ORDER BY e."createdAt" DESC, e.id DESC LIMIT 1) marker ON true
       WHERE a.kind = 'audit_full' AND au."deletedAt" IS NULL AND au."archivedAt" IS NULL
@@ -72,7 +74,7 @@ export async function listAdminSeoAlerts(
         (status NOT IN ('completed','failed') AND task_status = 'RUNNING' AND worker_failed
         AND settled_at <= (now() AT TIME ZONE 'UTC') - make_interval(mins => ${SEO_WORKER_DEADLINE_MINUTES}::int)) AS overdue
       FROM runs
-    ), ${seoBillingCtes}, priced_runs AS (
+    ), ${seoBillingCtes()}, priced_runs AS (
       SELECT p.*, b.cap AS "approvedMaxCredits", b.billing_status, b.cost, b.attempted_credits, b.charged_credits, b.data_budget, b.over_budget,
         coalesce(b.billing_status IN ('unverified', 'abandoned') OR b.over_budget, false) AS billing_attention
       FROM progress p LEFT JOIN billing_summary b USING(run)
@@ -85,11 +87,11 @@ export async function listAdminSeoAlerts(
       WHERE recency = 1 OR billing_attention OR (metered AND price_pending) OR needs_credits OR retrying
     ), billing_runs AS (
       SELECT run AS id,"taskId","auditId","projectId",workspace AS "workspaceId",at,"approvedMaxCredits",
-        billing_status AS status,cost,attempted_credits AS "attemptedCredits",charged_credits AS "chargedCredits",data_budget AS "dataBudgetUsd",billing_attention
+        billing_status AS status,cost,CASE WHEN cost IS NOT NULL THEN request -> 'fullAuditCostDetail' END AS "costDetail",attempted_credits AS "attemptedCredits",charged_credits AS "chargedCredits",data_budget AS "dataBudgetUsd",billing_attention
       FROM priced_runs WHERE metered ${periodFilter}
     ), current_connections AS (
       SELECT c.id,c."userId",c.provider,c.status,c."updatedAt",c."workspaceId",w."workspaceOrganizationSlug",w."workspaceUserId"
-      FROM seo_connection c LEFT JOIN workspaces w ON w.id=c."workspaceId"
+      FROM ${sharedTable("seo_connection")} c LEFT JOIN workspaces w ON w.id=c."workspaceId"
       WHERE c.provider IN ('ga4','search_console') AND c.status IN ('NEEDS_RECONNECT','DISCONNECTED')
         AND EXISTS(SELECT 1 FROM runs r WHERE r.workspace = c."workspaceId" AND r."requestedBy" = c."userId")
     ), evidence AS (
@@ -104,7 +106,7 @@ export async function listAdminSeoAlerts(
       FROM latest l
       LEFT JOIN LATERAL (
         SELECT o."pageIds", o.payload
-        FROM project_seo_observation o
+        FROM ${sharedTable("project_seo_observation")} o
         WHERE o."sourceTaskId" = l."taskId" AND o.kind = 'audit_full' AND o.source = 'seo_coworker'
           AND o."auditId" IS NOT DISTINCT FROM l."auditId" AND o."projectId" IS NOT DISTINCT FROM l."projectId"
         ORDER BY o."createdAt" DESC, o.id DESC LIMIT 1
@@ -114,7 +116,7 @@ export async function listAdminSeoAlerts(
           bool_or(o.payload #>> '{receipt,status}' = 'needs_property') AS needs_property,
           bool_or(o.payload #>> '{receipt,status}' = 'unavailable' AND
             o.payload -> 'providerAnsweredAll' IS DISTINCT FROM 'true'::jsonb) AS unavailable
-        FROM project_seo_observation o
+        FROM ${sharedTable("project_seo_observation")} o
         WHERE o."sourceTaskId" = l."taskId" AND o.source = 'search_console' AND o.kind = 'index_inspection'
           AND o."ownerId" = l."requestedBy" AND o."auditId" IS NOT DISTINCT FROM l."auditId"
           AND o."projectId" IS NOT DISTINCT FROM l."projectId"
@@ -172,7 +174,7 @@ export async function listAdminSeoAlerts(
       (SELECT count(*)::int FROM billing_runs) AS "billingTotal",
       (SELECT count(*)::int FROM billing_runs WHERE billing_attention OR status IN ('receiptsPending','needsCredits','retrying')) AS "pricingAttention",
       coalesce((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.at DESC,b.id) FROM (
-        SELECT id,"taskId","auditId","projectId","workspaceId","approvedMaxCredits",status,cost,"attemptedCredits","chargedCredits","dataBudgetUsd",to_char(at,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at FROM billing_runs
+        SELECT id,"taskId","auditId","projectId","workspaceId","approvedMaxCredits",status,cost,"costDetail","attemptedCredits","chargedCredits","dataBudgetUsd",to_char(at,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS at FROM billing_runs
         ORDER BY billing_runs.at DESC,id LIMIT ${view === "billing" ? SEO_ALERTS_PAGE_SIZE : 0} OFFSET ${(page - 1) * SEO_ALERTS_PAGE_SIZE}) b), '[]'::jsonb) AS billing,
       (SELECT count(*)::int FROM current_connections) AS "connectionTotal",
       (SELECT count(*)::int FROM current_connections WHERE status = 'NEEDS_RECONNECT') AS reconnect,
@@ -188,6 +190,15 @@ export async function listAdminSeoAlerts(
   `);
   return adminSeoAlerts.parse({
     ...result,
+    // Stored worker JSON: a detail that no longer parses reads as absent.
+    billing: Array.isArray(result?.billing)
+      ? result.billing.map((row) => ({
+          ...row,
+          costDetail:
+            seoFullAuditCostDetailSchema.safeParse(row?.costDetail).data ??
+            null,
+        }))
+      : result?.billing,
     pageSize: SEO_ALERTS_PAGE_SIZE,
     failurePercent: SEO_PAGE_FAILURE_PERCENT,
     importGraceMinutes: SEO_IMPORT_GRACE_MINUTES,

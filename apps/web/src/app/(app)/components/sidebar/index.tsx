@@ -2,11 +2,11 @@ import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
+import { SidebarWorkspaceRow } from "@/app/components/workspace-switcher/sidebar-workspace-row";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarHeader,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import type { CreditUsage } from "@/lib/types/credit";
@@ -14,11 +14,9 @@ import type { CreditUsage } from "@/lib/types/credit";
 import type { CreditWalletScope } from "./components/account-summary-types";
 
 import AnnouncementCards from "./components/announcement-cards";
+import { GlobalRail } from "./components/global-rail.client";
 import MenuItems from "./components/menu-items";
-import PersonalAssistantNav from "./components/personal-assistant-nav";
-import SidebarLogo from "./components/sidebar-logo.client";
-import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
-import { SidebarSearchButton } from "./components/sidebar-search-button.client";
+import { SidebarContextPanel } from "./components/sidebar-context-panel";
 
 export type SidebarCreditsSubscription =
   GetUsersByIdCreditsResponse["data"]["subscription"];
@@ -86,7 +84,6 @@ export function mapAccountCreditsChrome(
 }
 
 interface SidebarProps {
-  /** The Workspace switcher, at the start of the header on desktop. */
   workspaceSwitcher: ReactNode;
   accountFooter: ReactNode;
   chatList: ReactNode;
@@ -100,44 +97,25 @@ export default function Sidebar({
   newsletterEnabled,
 }: SidebarProps) {
   return (
-    <ShadcnSidebar>
-      {/*
-        h-16 border-b must match HeaderChrome's desktop control row so the
-        hairline is one continuous rule across the sidebar/content seam. The
-        sidebar is shown and hidden from the top bar's toggle, so its own
-        header carries no collapse control: Search and New task are its
-        actions.
-      */}
-      <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex size-full items-center justify-between gap-2 px-2">
-          {/* As in Linear: the switcher at the start, as wide as its content,
-              and the actions at the end. It hides with the sidebar: nothing
-              stands in for it in the top bar. The phone keeps its switcher
-              and Search in the top bar instead, so its sheet keeps the
-              wordmark. */}
-          <div className="flex min-w-0 flex-1 max-md:hidden">
-            {workspaceSwitcher}
-          </div>
-          <SidebarLogo className="md:hidden" />
-          <div className="flex shrink-0 items-center gap-1">
-            <SidebarSearchButton />
-            <SidebarNewTaskButton />
-          </div>
-        </div>
-      </SidebarHeader>
+    <ShadcnSidebar
+      mobileTriggerId="app-sidebar-toggle"
+      className="md:top-16 md:h-[calc(100dvh-4rem)] md:left-(--app-rail-width) md:group-data-[collapsible=offcanvas]:left-[calc(var(--app-rail-width)-var(--sidebar-width))]"
+    >
+      <SidebarWorkspaceRow mobile>{workspaceSwitcher}</SidebarWorkspaceRow>
+      <GlobalRail mobile />
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
-          <PersonalAssistantNav />
-          {/* The project scope titles the nav groups it scopes; the chat
+          <SidebarContextPanel chats={chatList}>
+            {/* The project scope titles the nav groups it scopes; the chat
               area after them, under its own Chats heading, is outside it. */}
-          <Suspense fallback={null}>
-            <SidebarProjectScope />
-          </Suspense>
-          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
-            <MenuItems newsletterEnabled={newsletterEnabled} />
-          </div>
-          {chatList}
+            <Suspense fallback={null}>
+              <SidebarProjectScope />
+            </Suspense>
+            <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
+              <MenuItems newsletterEnabled={newsletterEnabled} />
+            </div>
+          </SidebarContextPanel>
         </div>
       </SidebarContent>
       {/*

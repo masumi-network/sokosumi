@@ -68,17 +68,24 @@ export function SokoBotFleetTable({
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<FleetKind>("all");
   const [showDormant, setShowDormant] = useState(false);
+  const [showEvals, setShowEvals] = useState(false);
   const dormantSwitchId = useId();
+  const evalsSwitchId = useId();
   const [isPending, startTransition] = useTransition();
   const latestRequestId = useRef(0);
 
-  const reload = (query: string, nextKind: FleetKind) => {
+  const reload = (
+    query: string,
+    nextKind: FleetKind,
+    withEvals: boolean = showEvals,
+  ) => {
     const requestId = ++latestRequestId.current;
     startTransition(async () => {
       const result = await listAdminSokoBotsAction({
         query: query.trim() || undefined,
         limit,
         kind: nextKind,
+        evals: withEvals ? "include" : "exclude",
       });
       if (requestId !== latestRequestId.current) return;
       if (!result.ok) {
@@ -148,7 +155,24 @@ export function SokoBotFleetTable({
             {t("showDormant", { count: dormantCount })}
           </Label>
         </div>
-        {kind === "cmo" && !search.trim() && list.total > 0 ? (
+        <div className="flex items-center gap-2">
+          <Switch
+            id={evalsSwitchId}
+            checked={showEvals}
+            onCheckedChange={(checked) => {
+              setShowEvals(checked);
+              reload(search, kind, checked);
+            }}
+          />
+          <Label
+            htmlFor={evalsSwitchId}
+            className="text-muted-foreground text-xs font-normal"
+          >
+            {t("showEvals")}
+          </Label>
+        </div>
+        {/* Deleting all Cusos never takes the eval lanes' Cusos with them. */}
+        {kind === "cmo" && !showEvals && !search.trim() && list.total > 0 ? (
           <AdminDeleteAllCusos
             count={list.total}
             onDeleted={() => reload("", "cmo")}
@@ -197,6 +221,11 @@ export function SokoBotFleetTable({
                     {item.kind === "cmo" ? (
                       <StatusBadge tone="neutral" className="ml-2">
                         {t("cmoBadge")}
+                      </StatusBadge>
+                    ) : null}
+                    {item.evalLane ? (
+                      <StatusBadge tone="warning" className="ml-2">
+                        {t("evalBadge")}
                       </StatusBadge>
                     ) : null}
                   </TableCell>

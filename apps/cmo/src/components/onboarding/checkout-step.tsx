@@ -1,9 +1,15 @@
 "use client";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
+import {
+  cmoMonthAtLevel,
+  cmoMonthFloor,
+  cmoVolumeLevelForTier,
+} from "@sokosumi/utils";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
+import { usePlansViewed } from "../../hooks/effects/use-analytics";
+import { beginCheckout, planItem, track } from "../../lib/analytics";
 import { channelLabel } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
 import { postsGoingOut } from "../../lib/strategy";
@@ -27,12 +33,14 @@ const NETWORKS = [
   "facebook",
 ];
 
-/** What each plan posts, as the landing page says it, when there is no strategy yet. */
-const PLAN_LINES = [
-  "One post a day on each account you connect.",
-  "Two posts a day on each account you connect.",
-  "Up to three posts a day on each account you connect.",
-];
+/** What a plan posts on all six networks, as the landing page says it, when there is no strategy yet. */
+function planLine(tier: string): string {
+  const { total } = cmoMonthFloor(
+    NETWORKS.map((channel) => ({ channel })),
+    cmoVolumeLevelForTier(tier),
+  );
+  return `About ${Math.round(total / 10) * 10} posts a month on six networks`;
+}
 
 /** The top plan's extra, as the landing page says it. */
 const TEAM_CHECK = "Our team checks every post before it goes out.";
@@ -48,13 +56,14 @@ const PLAN_FRAMES: Record<string, string> = {
 };
 
 /**
- * What credits buy, from Core's prices: a Muse Image picture is $0.01 (1
- * credit); a short video's music is $0.10, plus its voice and captions when
- * it speaks. Cuso's own work is paid from the same credits, so this names
- * prices, never a count a plan makes.
+ * What credits buy, from `CMO_PIECE_CREDITS`: a picture 1 to 4 (Muse Image is
+ * 1, remakes cost more), a short video up to 14, a talking video 134 to 251
+ * (its script, the site behind the presenter, B-roll and music). Cuso's own
+ * work is paid from the same credits, so this names prices, never a count a
+ * plan makes.
  */
 const CREDITS_BUY =
-  "Credits pay for everything Cuso makes: a picture costs 1 credit, a short video about 10 to 20.";
+  "Credits pay for everything Cuso makes: a picture costs 1 to 4 credits, a short video about 10 to 15, a talking video about 150 to 250.";
 
 /** The guarantee, as plainly as it can be said. */
 const REFUND = "Not happy in the first 14 days? Full refund.";
@@ -64,7 +73,7 @@ const QUOTE = {
   text: "CMO.xyz complements and connects our established agency offerings. Agentic services enable interaction, and with it the thread that ties together all of our AI applications and services.",
   name: "Florian Haller",
   role: "CEO, Serviceplan Group",
-  initials: "FH",
+  photo: "/florian-haller.webp",
 };
 
 /** A plan's monthly credits, in plain words. */
@@ -78,6 +87,10 @@ function creditsLine(credits: number): string {
  * volume, and each plan makes its share of it (Core makes the same).
  */
 function planPosts(strategy: Strategy, tier: string): number {
+  // cmo-v22: Core writes the month after payment, so each plan promises
+  // its floor, from the strategy's networks alone.
+  if (strategy.monthWriter)
+    return cmoMonthFloor(strategy.channels, cmoVolumeLevelForTier(tier)).total;
   const { made } = cmoMonthAtLevel(
     strategy.calendar,
     cmoVolumeLevelForTier(tier),
@@ -86,7 +99,8 @@ function planPosts(strategy: Strategy, tier: string): number {
 }
 
 /** What a plan makes of the month, in one plain line. */
-function postsLine(posts: number, most: number): string {
+function postsLine(posts: number, most: number, floor: boolean): string {
+  if (floor) return `At least ${posts} posts a month`;
   if (posts >= most) return `All ${posts} posts a month`;
   const about = posts >= 20 ? Math.round(posts / 10) * 10 : posts;
   return `About ${about} posts a month`;
@@ -159,6 +173,11 @@ function yearlySaving(plans: CmoSubscriptionPlan[]): number {
 
 /** The networks the approved month posts on; ads are not a network here. */
 function strategyNetworks(strategy: Strategy | null): string[] {
+  // cmo-v22: the calendar holds a few examples; the plan's networks are its own.
+  if (strategy?.monthWriter)
+    return NETWORKS.filter((network) =>
+      strategy.channels.some((entry) => channelKey(entry.channel) === network),
+    );
   const live = strategy?.calendar.filter((entry) => entry.status !== "skipped");
   if (!live?.length) return NETWORKS;
   return [
@@ -209,6 +228,7 @@ export function CheckoutStep({
   const [picked, setPicked] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [opening, startOpening] = useTransition();
+  usePlansViewed(phase === "choosing", plans, interval);
 
   if (phase === "confirming") {
     return (
@@ -242,7 +262,9 @@ export function CheckoutStep({
       : [],
   );
   const most = Math.max(0, ...makes.values());
-  // The smallest plan that makes the whole strategy.
+  // The smallest plan that makes the whole strategy. A cmo-v22 strategy has
+  // no whole month yet, only floors: the top one is picked, never named so.
+  const floors = Boolean(planned?.monthWriter);
   const whole = planned
     ? offered.find((plan) => makes.get(plan.tier) === most)?.tier
     : undefined;
@@ -266,6 +288,10 @@ export function CheckoutStep({
       try {
         const result = await onCheckout(interval, chosenTier);
         if (result.url) {
+          const plan = offered.find(
+            (candidate) => candidate.tier === chosenTier,
+          );
+          if (plan) track(...beginCheckout(plan));
           window.location.assign(result.url);
           return;
         }
@@ -304,14 +330,20 @@ export function CheckoutStep({
             <button
               type="button"
               aria-pressed={interval === "month"}
-              onClick={() => setInterval("month")}
+              onClick={() => {
+                setInterval("month");
+                track("billing_period_select", { billing_period: "month" });
+              }}
             >
               Monthly
             </button>
             <button
               type="button"
               aria-pressed={interval === "year"}
-              onClick={() => setInterval("year")}
+              onClick={() => {
+                setInterval("year");
+                track("billing_period_select", { billing_period: "year" });
+              }}
             >
               Yearly
               {yearly ? <span className="ob-save">{yearly}</span> : null}
@@ -338,9 +370,15 @@ export function CheckoutStep({
                       ? "card ob-plan-option ob-plan-top"
                       : "card ob-plan-option"
                   }
-                  onClick={() => setPicked(plan.tier)}
+                  onClick={() => {
+                    setPicked(plan.tier);
+                    track("select_item", {
+                      item_list_id: `plans_${interval}`,
+                      items: [planItem(plan)],
+                    });
+                  }}
                 >
-                  {plan.tier === whole && offered.length > 1 ? (
+                  {plan.tier === whole && offered.length > 1 && !floors ? (
                     <span className="ob-plan-fit">Makes all of it</span>
                   ) : null}
                   <span className="ob-plan-name">{tierName(plan.tier)}</span>
@@ -382,10 +420,12 @@ export function CheckoutStep({
                       : "Billed monthly"}
                   </span>
                   {posts !== undefined ? (
-                    <span className="ob-small">{postsLine(posts, most)}</span>
-                  ) : PLAN_LINES[place] ? (
-                    <span className="ob-small">{PLAN_LINES[place]}</span>
-                  ) : null}
+                    <span className="ob-small">
+                      {postsLine(posts, most, floors)}
+                    </span>
+                  ) : (
+                    <span className="ob-small">{planLine(plan.tier)}</span>
+                  )}
                   <span className="ob-small">{creditsLine(plan.credits)}</span>
                   {saved > 0 ? (
                     <span
@@ -413,9 +453,13 @@ export function CheckoutStep({
           <figure className="ob-quote">
             <blockquote>“{QUOTE.text}”</blockquote>
             <figcaption>
-              <span className="ob-quote-avatar" aria-hidden="true">
-                {QUOTE.initials}
-              </span>
+              <img
+                className="ob-quote-avatar"
+                src={QUOTE.photo}
+                alt={QUOTE.name}
+                width={40}
+                height={40}
+              />
               <span>
                 <span className="ob-quote-name">{QUOTE.name}</span>
                 <span className="muted">{QUOTE.role}</span>
@@ -440,7 +484,7 @@ export function CheckoutStep({
               {opening
                 ? "Opening checkout…"
                 : chosen
-                  ? `Start ${tierName(chosen.tier)} for ${price(chosen, months)} a month`
+                  ? `Start ${tierName(chosen.tier)} for ${price(chosen)} ${chosen.interval === "year" ? "a year" : "a month"}`
                   : "Continue to payment"}
               {opening ? null : <ArrowRight size={16} aria-hidden="true" />}
             </button>

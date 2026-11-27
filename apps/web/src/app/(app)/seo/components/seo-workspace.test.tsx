@@ -159,7 +159,10 @@ function renderWorkspace(
 ) {
   const View = monitorsOnly ? SeoMonitorPanel : SeoWorkspace;
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime } },
+    defaultOptions: {
+      queries: { retry: false, staleTime, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   clients.push(client);
   const content = (
@@ -247,7 +250,7 @@ describe("SEO report archiving", () => {
     menu.focus();
     await user.keyboard("{ArrowDown}");
     const item = await screen.findByRole("menuitem", {
-      name: "Archive report",
+      name: "Archive audit",
     });
     expect(screen.queryByRole("menuitem", { name: /delete/i })).toBeNull();
     await user.keyboard("{End}");
@@ -273,7 +276,7 @@ describe("SEO report archiving", () => {
     const user = userEvent.setup();
     await user.click(renderReport({ auditId: null }).menu);
     const menu = within(await screen.findByRole("menu"));
-    expect(menu.queryByRole("menuitem", { name: "Archive report" })).toBeNull();
+    expect(menu.queryByRole("menuitem", { name: "Archive audit" })).toBeNull();
   });
 
   it("clears the open confirmation when another member views the same report", async () => {
@@ -281,7 +284,7 @@ describe("SEO report archiving", () => {
     const { menu, refreshViewer } = renderReport({});
     await user.click(menu);
     await user.click(
-      await screen.findByRole("menuitem", { name: "Archive report" }),
+      await screen.findByRole("menuitem", { name: "Archive audit" }),
     );
     expect(await screen.findByRole("alertdialog")).toBeVisible();
     for (const reader of ["teammate", "owner"]) {
@@ -311,10 +314,10 @@ describe("SEO report archiving", () => {
       renderReport({ projectId: null, sharing: "personal" }).menu,
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: "Archive report" }),
+      await screen.findByRole("menuitem", { name: "Archive audit" }),
     );
     const dialog = within(await screen.findByRole("alertdialog"));
-    const confirm = dialog.getByRole("button", { name: "Archive report" });
+    const confirm = dialog.getByRole("button", { name: "Archive audit" });
     await user.dblClick(confirm);
     expect(setSeoAuditArchivedAction).toHaveBeenCalledExactlyOnceWith({
       auditId: SEO_TEST_AUDIT,
@@ -802,7 +805,10 @@ describe("SEO workspace integration", () => {
       });
     }
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     vi.stubGlobal(
@@ -5564,7 +5570,7 @@ describe("SEO workspace integration", () => {
         screen.queryByRole("option", { name: "Backlink overview" }),
       ).toBeNull();
       expect(screen.queryByRole("option", { name: "Full audit" })).toBeNull();
-      await user.click(screen.getByRole("option", { name: "Audit lite" }));
+      await user.click(screen.getByRole("option", { name: "Custom check" }));
       expect(within(dialog).queryByLabelText("Keyword positions")).toBeNull();
       expect(
         within(dialog).queryByLabelText("Maximum data requests"),
@@ -5590,7 +5596,7 @@ describe("SEO workspace integration", () => {
     },
   );
 
-  it("shows a price in credits only when Audit lite includes provider-backed checks", async () => {
+  it("shows a price in credits only when a custom check includes provider-backed checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     vi.stubGlobal(
@@ -5605,7 +5611,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       within(dialog).getByRole("combobox", { name: "Check type" }),
     );
-    await user.click(screen.getByRole("option", { name: "Audit lite" }));
+    await user.click(screen.getByRole("option", { name: "Custom check" }));
     const price = /^Up to \d+ credits?$/;
     expect(within(dialog).queryByText(price)).toBeNull();
     await user.click(within(dialog).getByLabelText("Backlink overview"));
@@ -7663,7 +7669,7 @@ describe("SEO workspace integration", () => {
       expectedEffect: "A descriptive search result",
       edit: {
         target: "title",
-        before: null,
+        before: "  ",
         after: "<title>Battery Sensei</title>",
       },
       taskId: null,
@@ -7745,6 +7751,18 @@ describe("SEO workspace integration", () => {
     expect(
       within(dialog).getByText("A descriptive search result"),
     ).toBeVisible();
+    expect(
+      within(dialog).getByText("No previous value recorded"),
+    ).toHaveAttribute("lang", "en");
+    const target = within(dialog).getByText("title");
+    expect(
+      within(dialog)
+        .getByText("What to change")
+        .compareDocumentPosition(target),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(
+      target.compareDocumentPosition(within(dialog).getByText("Before")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     const write = vi.spyOn(navigator.clipboard, "writeText");
     await user.click(
       within(dialog).getByRole("button", { name: "Copy change" }),
@@ -7760,6 +7778,8 @@ describe("SEO workspace integration", () => {
         "Page: https://example.com/",
         "A descriptive search result",
         "The title is missing",
+        "What to change: title",
+        "Before:\nNo previous value recorded",
         "Suggested change:\n<title>Battery Sensei</title>",
       ].join("\n\n"),
     );
@@ -8939,7 +8959,10 @@ describe("SEO workspace integration", () => {
 
     viewer.userId = null;
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     const wrap = () => (
@@ -9010,7 +9033,10 @@ describe("SEO workspace integration", () => {
 
     viewer.userId = null;
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     clients.push(client);
     const wrap = () => (

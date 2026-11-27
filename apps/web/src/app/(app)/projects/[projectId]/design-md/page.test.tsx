@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { fetchDesignMdMarkdownMock, notFoundMock, projectServiceMock } =
@@ -50,7 +50,17 @@ vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-  ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
+  ProjectBrandCard: ({ headerAction }: { headerAction?: React.ReactNode }) => (
+    <div data-testid="brand-card">Brand card{headerAction}</div>
+  ),
+}));
+
+vi.mock("@/app/projects/components/brand-kit-download-button", () => ({
+  BrandKitDownloadButton: ({ logoUrl }: { logoUrl: string | null }) => (
+    <button type="button" data-logo={logoUrl ?? ""}>
+      Download brand kit
+    </button>
+  ),
 }));
 
 const DESIGN_MD = {
@@ -88,7 +98,9 @@ describe("ProjectDesignPage", () => {
   });
 
   it("renders the document rather than linking to a blob", async () => {
-    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.getProjectById.mockResolvedValue(
+      buildProject({ logo: "https://blob.example/logo.svg" }),
+    );
     fetchDesignMdMarkdownMock.mockResolvedValue({
       markdown: "# Brand\n\nThe voice is plain.",
     });
@@ -104,6 +116,13 @@ describe("ProjectDesignPage", () => {
     expect(screen.getByText(/The voice is plain/)).toBeInTheDocument();
     // Every action on the file stays in the one card that already owns them.
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
+    // The brand kit zips the loaded document and the project's logo, from
+    // the Brand row that owns all three.
+    expect(
+      within(screen.getByTestId("brand-card")).getByRole("button", {
+        name: "Download brand kit",
+      }),
+    ).toHaveAttribute("data-logo", "https://blob.example/logo.svg");
   });
 
   it("shows the front matter's tokens above the guidance", async () => {
@@ -159,6 +178,9 @@ describe("ProjectDesignPage", () => {
     expect(
       screen.getByText("App.DesignMd.editLoadErrorDescription"),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download brand kit" }),
+    ).toBeNull();
     expect(screen.getByTestId("project-design-document")).toBeInTheDocument();
   });
 

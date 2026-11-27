@@ -1,5 +1,8 @@
 import type { SokoBotVersion, TurnClassification } from "@sokosumi/soko-bot";
-import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
+import {
+  cmoStrategyStepTurn,
+  STRATEGY_TURN_PREFIX,
+} from "@/services/marketing-strategy.service";
 
 /**
  * Why a turn runs on the model it does. Stored on the turn beside `modelId`.
@@ -67,6 +70,8 @@ export function chooseTurnModel(input: TurnModelInput): {
 export const BACKGROUND_RUN_CLIENT_TURN_PREFIX = "background:";
 
 function strongReason(input: TurnModelInput): TurnModelReason | null {
+  // cmo-v25: Core's step writes on the strong model; the turn only calls it.
+  if (cmoStrategyStepTurn(input.clientTurnId)) return null;
   // Every strategy turn: a plan, a patch, a Brand Brain fix or a finish round
   // (owner, 2026-11-21). Sol passed all 11 strategy cases, Luna 7.
   if (input.clientTurnId.startsWith(STRATEGY_TURN_PREFIX)) return "strategy";
@@ -95,6 +100,25 @@ function strongReason(input: TurnModelInput): TurnModelReason | null {
   )
     return "complex_thread";
   return null;
+}
+
+const LIGHT_COMPLEXITY: ReadonlySet<string> = new Set(["SIMPLE", "NORMAL"]);
+
+/**
+ * Provider options for how hard the model thinks: low for a chat turn Jev
+ * reads as simple or normal on the version's own model. Every other turn
+ * keeps the provider's default (medium).
+ */
+export function turnReasoningEffortOptions(input: {
+  version: Pick<SokoBotVersion, "model">;
+  model: string;
+  complexity: string | undefined;
+}): { openai: { reasoningEffort: "low" } } | Record<string, never> {
+  return input.model === input.version.model &&
+    input.complexity !== undefined &&
+    LIGHT_COMPLEXITY.has(input.complexity)
+    ? { openai: { reasoningEffort: "low" } }
+    : {};
 }
 
 /**

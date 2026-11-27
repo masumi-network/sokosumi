@@ -34,7 +34,6 @@ import {
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
   SOKO_BOT_BUSY_ERROR_CODE,
-  SOKO_BOTS_ROUTE,
   sokoBotConsoleRoute,
 } from "@/lib/soko-bot/constants";
 import {
@@ -101,9 +100,13 @@ function mapTurnError(error: unknown): ActionError {
 
 function revalidate(botId?: string) {
   revalidatePath(sokoBotConsoleRoute(botId));
-  // The roster lists shared bots, so a change to one shows there too.
-  if (botId) revalidatePath(SOKO_BOTS_ROUTE);
+  // Agents lists every bot, a Project's Bots tab its own.
+  revalidatePath(AGENTS_ROUTE);
+  if (botId) revalidatePath(PROJECT_BOTS_PAGE, "page");
 }
+
+const AGENTS_ROUTE = "/agents";
+const PROJECT_BOTS_PAGE = "/projects/[projectId]/bots";
 
 interface CreateSokoBotParams extends AuthenticatedRequest {
   input: unknown;
@@ -134,7 +137,7 @@ export const createScopedSokoBotAction = withSession<
   if (!parsed.success) return toActionResult(err(invalidInput()));
   try {
     const bot = await sokoBotService.createScoped(parsed.data);
-    revalidatePath(SOKO_BOTS_ROUTE);
+    revalidatePath(AGENTS_ROUTE);
     return toActionResult(ok(bot));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));

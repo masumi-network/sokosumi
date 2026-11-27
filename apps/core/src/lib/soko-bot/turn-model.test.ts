@@ -2,8 +2,24 @@ import { describe, expect, it } from "vitest";
 import {
   chooseTurnModel,
   type TurnModelInput,
+  turnReasoningEffortOptions,
   turnRunModel,
 } from "./turn-model";
+
+describe("turnReasoningEffortOptions", () => {
+  const version = { model: "openai/gpt-6-luna" };
+  it.each([
+    ["SIMPLE", "openai/gpt-6-luna", { openai: { reasoningEffort: "low" } }],
+    ["NORMAL", "openai/gpt-6-luna", { openai: { reasoningEffort: "low" } }],
+    ["COMPLEX", "openai/gpt-6-luna", {}],
+    ["NORMAL", "openai/strong", {}],
+    [undefined, "openai/gpt-6-luna", {}],
+  ])("%s on %s", (complexity, model, expected) => {
+    expect(turnReasoningEffortOptions({ version, model, complexity })).toEqual(
+      expected,
+    );
+  });
+});
 
 const NOW = new Date("2026-11-21T10:00:00Z");
 const routed = { model: "openai/gpt-6-luna", strongModel: "openai/strong" };

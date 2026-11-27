@@ -26,7 +26,11 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: m.readAssetBytes,
 }));
 
-import { listCmoPictures, readCmoPicturePreview } from "./cmo-pictures.service";
+import {
+  cmoPlainPictureReasons,
+  listCmoPictures,
+  readCmoPicturePreview,
+} from "./cmo-pictures.service";
 
 const key = (piece: string, attempt: string) =>
   `cmo-media:version-1:${piece}:0:image:abc1234567:${attempt}`;
@@ -149,7 +153,7 @@ describe("listCmoPictures", () => {
       { jobId: "a3", verdict: "passed", chosen: true, model: "Muse Image" },
       { jobId: "a4", verdict: "failed", chosen: false, model: "MAI-Image 2.7" },
     ]);
-    expect(first.alternatives[0]?.why).toBe("Extra words");
+    expect(first.alternatives[0]?.why).toBe("Extra words or marks.");
     // Before cmo-v11, the one try that passed is the chosen one.
     expect(groups[2]?.alternatives[0]?.chosen).toBe(true);
   });
@@ -252,5 +256,22 @@ describe("readCmoPicturePreview", () => {
         jobId: "zz",
       }),
     ).rejects.toThrow("No such picture");
+  });
+});
+
+describe("cmoPlainPictureReasons", () => {
+  it("says the check's reasons as the owner reads them, without codes", () => {
+    // entry.fyi, 2026-11-24: one alternative's reasons as the check wrote them.
+    expect(
+      cmoPlainPictureReasons(
+        "Bright lime/yellow-green is a strong non-brand colour; the brand red #b8321f is absent; Logo reads 'entry.fyi' instead of the supplied 'entry' wordmark; No corner is plain enough for a logo",
+      ),
+    ).toBe(
+      "Colours that aren't the brand's, the logo drawn wrong and no room for the logo.",
+    );
+  });
+
+  it("falls back to one plain line", () => {
+    expect(cmoPlainPictureReasons("")).toBe("It didn't pass the brand check.");
   });
 });

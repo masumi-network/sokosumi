@@ -24,6 +24,7 @@ export const taskEventApiInclude = {
       name: true,
       avatarSeed: true,
       avatarImageUrl: true,
+      versionId: true,
       userId: true,
       user: { select: { id: true, name: true, image: true } },
     },

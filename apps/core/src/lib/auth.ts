@@ -1,4 +1,4 @@
-import { apiKey } from "@better-auth/api-key";
+import { API_KEY_ERROR_CODES, apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
@@ -18,6 +18,7 @@ import {
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthUserAdditionalFields,
+  CORE_API_ERROR_KINDS,
   getEmailLocale,
   OAUTH_PROVIDER_SCOPES,
   OAUTH_SCOPE_MCP,
@@ -25,7 +26,11 @@ import {
   resolveBetterAuthCookiePrefix,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -35,6 +40,7 @@ import {
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
+import { z } from "zod";
 import { stripeClient, stripe as stripeSdk } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import {
@@ -42,6 +48,7 @@ import {
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
+  isExplicitPreprod,
   isProductionEnvironment,
 } from "@/config/env";
 import { sendEmailInBackground } from "@/helpers/background-email";
@@ -56,6 +63,7 @@ import {
 } from "@/helpers/design-md-metadata-auth";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
+import { canUserUsePreprod } from "@/helpers/user-workspaces";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import {
@@ -114,6 +122,11 @@ import {
   betterAuthLogger,
   captureBetterAuthOAuthErrorURL,
 } from "./evlog-library-logs";
+import { isPreprodOn, NETWORKS } from "./network";
+import {
+  networkFromUserApiKeyPrefix,
+  USER_API_KEY_PREFIXES,
+} from "./user-api-key";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -123,6 +136,13 @@ const ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED =
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
+const userApiKeyPrefix = isExplicitPreprod(env)
+  ? undefined
+  : USER_API_KEY_PREFIXES.mainnet;
+const apiKeyNetwork = z.enum(NETWORKS).optional();
+const apiKeyListBody = z.looseObject({
+  apiKeys: z.array(z.looseObject({ prefix: z.string().nullable() })),
+});
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const mcpResource = mcpResourceIdentifier(betterAuthBaseUrl);
@@ -356,6 +376,9 @@ export const auth = betterAuth({
     // Its link can be neither shown nor cancelled; `auth-pending-email-change`
     // replaces it.
     "/change-email",
+    // Deletes the User row directly: none of Core's payment blockers, sweeps
+    // or Stripe clean-up (`user.deleteUser`) run. Nobody uses it by hand.
+    "/admin/remove-user",
   ],
   rateLimit: {
     storage: "secondary-storage",
@@ -390,6 +413,50 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
+      if (
+        ctx.path === "/api-key/create" &&
+        typeof ctx.body === "object" &&
+        ctx.body !== null
+      ) {
+        if (Object.hasOwn(ctx.body, "prefix")) {
+          throw new APIError("BAD_REQUEST", {
+            message: "The API key prefix is set by the server.",
+          });
+        }
+        const network = apiKeyNetwork.safeParse(ctx.body.network);
+        if (!network.success) {
+          throw new APIError("BAD_REQUEST", {
+            message: "Network must be mainnet or preprod.",
+          });
+        }
+        if (network.data === "preprod") {
+          if (!isPreprodOn()) {
+            throw new APIError("FORBIDDEN", {
+              kind: CORE_API_ERROR_KINDS.PREPROD_OFF,
+              message: "Preprod is switched off",
+            });
+          }
+          const session = await getSessionFromCtx(ctx, {
+            disableCookieCache: true,
+          });
+          if (!session?.user.id) {
+            throw APIError.from(
+              "UNAUTHORIZED",
+              API_KEY_ERROR_CODES.UNAUTHORIZED_SESSION,
+            );
+          }
+          if (!(await canUserUsePreprod(session.user.id))) {
+            throw new APIError("FORBIDDEN", {
+              kind: CORE_API_ERROR_KINDS.PREPROD_ACCESS_REQUIRED,
+              message: "You have no Preprod access",
+            });
+          }
+          return {
+            context: { body: { prefix: USER_API_KEY_PREFIXES.preprod } },
+          };
+        }
+      }
+
       if (ctx.path === "/update-user") {
         await validateUpdatedUserName(ctx);
       }
@@ -397,6 +464,19 @@ export const auth = betterAuth({
       return applyOAuthClientPolicy(ctx, mcpResource);
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/api-key/list") {
+        const list = apiKeyListBody.safeParse(ctx.context.returned);
+        if (list.success) {
+          return ctx.json({
+            ...list.data,
+            apiKeys: list.data.apiKeys.map((key) => ({
+              ...key,
+              network: networkFromUserApiKeyPrefix(key.prefix),
+            })),
+          });
+        }
+      }
+
       if (ctx.path === "/organization/leave") {
         const organizationId = ctx.body?.organizationId;
         const userId = ctx.context.session?.user.id;
@@ -616,6 +696,10 @@ export const auth = betterAuth({
     apiKey({
       configId: "default",
       references: "user",
+      defaultPrefix: userApiKeyPrefix,
+      startingCharactersConfig: {
+        charactersLength: (userApiKeyPrefix?.length ?? 0) + 6,
+      },
       rateLimit: {
         enabled: true,
         // The plugin measures timeWindow in milliseconds; TIME is a seconds

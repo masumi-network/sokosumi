@@ -82,7 +82,14 @@ function mountCard(
 ) {
   vi.stubGlobal("fetch", vi.fn(read));
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    defaultOptions: {
+      queries: {
+        retry: false,
+        staleTime: Infinity,
+        gcTime: Number.POSITIVE_INFINITY,
+      },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
   });
   render(
     <QueryClientProvider client={client}>
@@ -204,6 +211,8 @@ describe("SEO monitor card", () => {
             ],
             moveCount: 1,
             dropCount: 1,
+            lostCitations: [],
+            lostCitationCount: 0,
           },
         }),
       ),
@@ -218,6 +227,83 @@ describe("SEO monitor card", () => {
     expect(
       within(card).getByText("agent payments: position 2 → 9"),
     ).toBeVisible();
+  });
+
+  // Cast: the older response this stands for has no citation fields.
+  const lostChange = (
+    patch: Partial<NonNullable<ProjectSeoMonitor["change"]>>,
+  ) =>
+    ({
+      from: new Date("2026-11-02T08:00:00Z"),
+      to: new Date("2026-11-09T08:00:00Z"),
+      comparable: true,
+      newFailureCount: 0,
+      fixedCount: 0,
+      newFailures: [],
+      fixed: [],
+      moves: [
+        {
+          keyword: "agent payments",
+          pageUrl: "https://example.com/",
+          device: "mobile" as const,
+          from: 2,
+          to: 9,
+        },
+      ],
+      moveCount: 1,
+      dropCount: 1,
+      ...patch,
+    }) as ProjectSeoMonitor["change"];
+
+  it("shows the change of a Core build from before the lost citations", async () => {
+    const user = userEvent.setup();
+    const card = renderCard(
+      withMonitors(
+        // The older response has neither citation field.
+        monitor({ change: lostChange({}) }),
+      ),
+    );
+    await user.click(
+      within(card).getByRole("button", {
+        name: "Since the last run: 1 ranking drop",
+      }),
+    );
+    expect(
+      within(card).getByText("agent payments: position 2 → 9"),
+    ).toBeVisible();
+    expect(within(card).queryByText(t.change.lostCitationsTitle)).toBeNull();
+  });
+
+  it("names the device of each lost citation and says when the list is cut", async () => {
+    const user = userEvent.setup();
+    const card = renderCard(
+      withMonitors(
+        monitor({
+          change: lostChange({
+            lostCitations: [
+              { keyword: "x402", device: "mobile", shown: true },
+              { keyword: "x402", device: "desktop", shown: false },
+            ],
+            lostCitationCount: 12,
+          }),
+        }),
+      ),
+    );
+    await user.click(
+      within(card).getByRole("button", {
+        name: /12 lost AI Overview citations/,
+      }),
+    );
+    const rows = within(card)
+      .getAllByRole("listitem")
+      .map((row) => row.textContent);
+    expect(rows).toContain(
+      "x402: the AI Overview no longer cites your page Mobile",
+    );
+    expect(rows).toContain(
+      "x402: the AI Overview that cited your page no longer shows Desktop",
+    );
+    expect(within(card).getByText("Showing 2 of 12")).toBeVisible();
   });
 
   it("pauses an active monitor and resumes a paused one", async () => {

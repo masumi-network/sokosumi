@@ -2,12 +2,13 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { resolveFileActor } from "@/lib/files/actor";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createShortVideoJobRequestSchema,
@@ -51,7 +52,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(
     route,
     async (c) => {
-      const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+      const userContext = requireUserAuthContext(c.var.authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       const { id: projectId } = c.req.valid("param");
       const input = c.req.valid("json");
@@ -63,17 +64,18 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         format: input.format,
         script: input.script,
         hookLine: input.hookLine ?? null,
+        ...(input.launchDate ? { launchDate: input.launchDate } : {}),
         voice: input.voice,
         languageCode: input.languageCode,
         pictures: {
           assetIds: input.pictureAssetIds,
           fileIds: input.pictureFileIds,
-          actor: {
-            userId: userContext.userId,
-            organizationId: workspaceContext.organizationId,
-            kind: "interactive",
-          },
+          actor: resolveFileActor(
+            { source: "session", ...userContext },
+            { organizationId: workspaceContext.organizationId },
+          ),
         },
+        ...(input.shapes ? { shapes: input.shapes } : {}),
         idempotencyKey: input.idempotencyKey,
       });
 

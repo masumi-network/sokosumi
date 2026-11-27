@@ -18,6 +18,7 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { writeCmoMonthPieces } from "./cmo-month-writer";
+import { writeCmoStrategy } from "./cmo-strategy-step";
 import { dispatchCompetitorTools } from "./competitors";
 import { EXA_SEARCHES_PER_TURN } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
@@ -65,6 +66,13 @@ export async function dispatchOtherTools(
     case "export_contacts_to_table":
       return runtime.exportContactsToTable(input, authorized);
 
+    case "fundraising_pipeline":
+
+    case "investor_warm_paths":
+
+    case "find_investors":
+      return runtime.executeFundraisingTool(input, authorized);
+
     case "create_project":
 
     case "update_project":
@@ -94,6 +102,9 @@ export async function dispatchOtherTools(
 
     case "write_month_pieces":
       return writeCmoMonthPieces(runtime, input, authorized);
+
+    case "write_strategy":
+      return writeCmoStrategy(runtime, input, authorized);
 
     case "evaluate_with_jev": {
       const parsed = sokoBotEvaluateWithJevInputSchema.parse(input.input);

@@ -3,6 +3,7 @@ import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
   MAX_LISTED_CHAT_REACTION_REACTORS,
+  strictBody,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { CHAT_SIGNAL_TAGS } from "@/lib/chat-signals/tags";
@@ -411,7 +412,9 @@ export const chatRoomListStatusSchema = z
 
 export const createChatRoomRequestSchema = z
   .discriminatedUnion("kind", [
-    z.object({
+    // Strict: a guessed `visibility` or `external` key made a public channel
+    // (SOKD-489). The 422 names it and the keys a channel takes.
+    strictBody({
       kind: z.literal("channel").openapi({
         description:
           "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).",
@@ -441,51 +444,60 @@ export const createChatRoomRequestSchema = z
       coworkerIds: roomCoworkerIdsSchema,
       sokoBotIds: roomSokoBotIdsSchema,
     }),
-    z
-      .object({
-        kind: z.literal("direct").openapi({
-          description:
-            "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
-        }),
-        memberUserIds: roomMemberUserIdsSchema,
-        coworkerIds: roomCoworkerIdsSchema,
-        sokoBotIds: roomSokoBotIdsSchema,
-      })
-      .strict(),
+    strictBody({
+      kind: z.literal("direct").openapi({
+        description:
+          "Creates or returns a direct room: one or more humans (1:1 or multi-human group), exactly one marketplace coworker, or exactly one personal assistant (Soko Bot). Human, coworker, and Soko Bot targets cannot be mixed. Human 1:1s and groups are Personal Directs in any workspace when every target shares an Organization or an External channel with the caller. Coworker/Soko Bot DMs with an active org are org-scoped. Coworker and Soko Bot DMs may be personal with no active org. Coworker API keys may create-or-get an org-scoped coworker 1:1 with memberUserIds: [target] and no coworkerIds (the actor is the coworker). Discoverability is not allowed on directs.",
+      }),
+      memberUserIds: roomMemberUserIdsSchema,
+      coworkerIds: roomCoworkerIdsSchema,
+      sokoBotIds: roomSokoBotIdsSchema,
+    }),
   ])
   .openapi("CreateChatRoomRequest");
 
-export const updateChatRoomRequestSchema = z
-  .object({
-    name: z.string().trim().min(1).max(80).optional().openapi({
-      example: "Launch Room",
-    }),
-    slug: z.string().optional().openapi({
-      description: "Rejected. Channel slug is immutable after create.",
-      example: "launch-room",
-    }),
-    topic: z.string().trim().max(200).nullable().optional().openapi({
-      example: "Launch planning with design and AI research partners",
-    }),
-    discoverability: orgChannelDiscoverabilitySchema.optional().openapi({
-      description:
-        'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
-      example: "private",
-    }),
-    groupName: z.string().trim().max(80).nullable().optional().openapi({
-      description:
-        "Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.",
-      example: "Launch crew",
-    }),
-  })
-  .openapi("UpdateChatRoomRequest");
+export const updateChatRoomRequestSchema = strictBody({
+  name: z.string().trim().min(1).max(80).optional().openapi({
+    example: "Launch Room",
+  }),
+  slug: z.string().optional().openapi({
+    description: "Rejected. Channel slug is immutable after create.",
+    example: "launch-room",
+  }),
+  topic: z.string().trim().max(200).nullable().optional().openapi({
+    example: "Launch planning with design and AI research partners",
+  }),
+  discoverability: orgChannelDiscoverabilitySchema.optional().openapi({
+    description:
+      'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
+    example: "private",
+  }),
+  groupName: z.string().trim().max(80).nullable().optional().openapi({
+    description:
+      "Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.",
+    example: "Launch crew",
+  }),
+  // Older clients still send the roster here. It is ignored; members change
+  // through POST /chats/rooms/{id}/members.
+  memberUserIds: roomMemberUserIdsSchema.openapi({
+    deprecated: true,
+    description: "Ignored. Add members with POST /chats/rooms/{id}/members.",
+  }),
+  coworkerIds: roomCoworkerIdsSchema.openapi({
+    deprecated: true,
+    description: "Ignored. Add members with POST /chats/rooms/{id}/members.",
+  }),
+  sokoBotIds: roomSokoBotIdsSchema.openapi({
+    deprecated: true,
+    description: "Ignored. Add members with POST /chats/rooms/{id}/members.",
+  }),
+}).openapi("UpdateChatRoomRequest");
 
-export const addChatRoomMembersRequestSchema = z
-  .object({
-    userIds: roomMemberUserIdsSchema,
-    coworkerIds: roomCoworkerIdsSchema,
-    sokoBotIds: roomSokoBotIdsSchema,
-  })
+export const addChatRoomMembersRequestSchema = strictBody({
+  userIds: roomMemberUserIdsSchema,
+  coworkerIds: roomCoworkerIdsSchema,
+  sokoBotIds: roomSokoBotIdsSchema,
+})
   .refine(
     (body) =>
       (body.userIds?.length ?? 0) +

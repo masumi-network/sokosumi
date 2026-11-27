@@ -57,3 +57,16 @@ export function isListedInWorkspace(
 ): boolean {
   return room.starredAt != null || isRoomOfWorkspace(room, workspaceId);
 }
+
+/**
+ * Whether the room's own workspace is this one, never by being shown in
+ * every workspace: an External channel stays its host's, and a
+ * workspace-less room is the personal workspace's. Data copied out of a room
+ * goes only to the workspace that owns it.
+ */
+export function isOwnedByWorkspace(
+  room: Pick<RoomWorkspaceScope, "organizationId">,
+  workspaceId: string | null,
+): boolean {
+  return room.organizationId === workspaceId;
+}

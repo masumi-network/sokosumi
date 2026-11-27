@@ -147,11 +147,16 @@ const DAY_MS = 86_400_000;
 export function cmoMonthAtLevel(
   calendar: readonly VolumeEntry[],
   level: CmoVolumeLevel,
+  /**
+   * The month's first day, when it is fixed (cmo-v22: Core writes the month
+   * from it); otherwise the first piece's day.
+   */
+  monthStart?: string,
 ): CmoMonthVolume {
   const live = calendar
     .filter((entry) => entry.status !== "skipped")
     .toSorted((a, b) => a.date.localeCompare(b.date));
-  const start = Date.parse(live[0]?.date ?? "");
+  const start = Date.parse(monthStart ?? live[0]?.date ?? "");
   const rates =
     level === "all_in"
       ? null
@@ -194,6 +199,136 @@ export function cmoMonthAtLevel(
     posts += 1;
   }
   return { made, posts, pictures, videos };
+}
+
+/** A strategy's channel as the month's targets read it. */
+export interface CmoTargetChannel {
+  channel: string;
+  cadence?: string;
+  /** The owner asked for this lower cadence: it caps the plan's rate. */
+  setByOwner?: boolean;
+}
+
+/** What one network makes in a month at a plan, short videos apart. */
+export interface CmoNetworkTarget {
+  network: CmoVolumeNetwork;
+  /** Posts a day (X) or a week (the rest). */
+  rate: number;
+  per: "day" | "week";
+}
+
+/** What a month holds at a plan, from its networks alone (cmo-v22). */
+export interface CmoMonthTargets {
+  networks: CmoNetworkTarget[];
+  /** Short videos a week, each one entry posted on every `shortNetworks`. */
+  shortVideosPerWeek: number;
+  shortNetworks: CmoVolumeNetwork[];
+}
+
+const SHORT_NETWORKS: readonly CmoVolumeNetwork[] = [
+  "tiktok",
+  "instagram",
+  "youtube",
+];
+
+/**
+ * Pieces a week an owner's cadence asks for ("1 a day", "3 a week, Tue Thu
+ * Sat"); null when it names no number or no day or week.
+ */
+export function cmoCadencePerWeek(cadence: string): number | null {
+  const numbers = [...cadence.matchAll(/\d+/g)].map((match) =>
+    Number(match[0]),
+  );
+  if (numbers.length === 0) return null;
+  const total = numbers.reduce((sum, value) => sum + value, 0);
+  if (/\b(day|daily)\b/i.test(cadence)) return total * 7;
+  if (/\b(week|weekly)\b/i.test(cadence)) return total;
+  return null;
+}
+
+/**
+ * The month a plan makes of a strategy's networks, at each network's rate
+ * in `CMO_NETWORK_VOLUME`: what Core writes after payment (cmo-v22), so it is
+ * known before any calendar exists. A cadence the owner lowered caps its
+ * network; a network the strategy leaves out makes nothing.
+ */
+export function cmoMonthTargets(
+  channels: readonly CmoTargetChannel[],
+  level: CmoVolumeLevel,
+): CmoMonthTargets {
+  const rates = CMO_NETWORK_VOLUME[level] as Record<string, CmoNetworkRate>;
+  const planned = new Map<CmoVolumeNetwork, CmoTargetChannel>();
+  for (const channel of channels) {
+    const key = channel.channel.toLowerCase();
+    if (rates[key]) planned.set(key as CmoVolumeNetwork, channel);
+  }
+  const ownerCap = (channel: CmoTargetChannel) =>
+    channel.setByOwner && channel.cadence
+      ? cmoCadencePerWeek(channel.cadence)
+      : null;
+  const networks: CmoNetworkTarget[] = [];
+  for (const [network, channel] of planned) {
+    const rate = rates[network]!;
+    if (rate.posts === 0) continue;
+    const cap = ownerCap(channel);
+    const perWeek = rate.posts * (rate.per === "day" ? 7 : 1);
+    if (cap === null || cap >= perWeek) {
+      networks.push({ network, rate: rate.posts, per: rate.per });
+    } else if (cap > 0) {
+      networks.push(
+        rate.per === "day" && cap % 7 === 0
+          ? { network, rate: cap / 7, per: "day" }
+          : { network, rate: cap, per: "week" },
+      );
+    }
+  }
+  const shortNetworks = SHORT_NETWORKS.filter((network) =>
+    planned.has(network),
+  );
+  const caps = shortNetworks
+    .map((network) => ownerCap(planned.get(network)!))
+    .filter((cap): cap is number => cap !== null);
+  const shortVideosPerWeek =
+    shortNetworks.length === 0
+      ? 0
+      : Math.min(CMO_SHORT_VIDEOS_PER_WEEK[level], ...caps);
+  return { networks, shortVideosPerWeek, shortNetworks };
+}
+
+/** A network's posts in a 28-day month at its target. */
+function targetMonth(target: CmoNetworkTarget): number {
+  return target.rate * (target.per === "day" ? 28 : 4);
+}
+
+/**
+ * The posts a plan promises a month before any calendar exists (cmo-v22):
+ * each network at its rate, and each short video once on every network it
+ * goes out on. A talking video's copies on other networks come on top.
+ */
+export function cmoMonthFloor(
+  channels: readonly CmoTargetChannel[],
+  level: CmoVolumeLevel,
+): {
+  total: number;
+  byNetwork: { network: CmoVolumeNetwork; posts: number }[];
+} {
+  const targets = cmoMonthTargets(channels, level);
+  const counts = new Map<CmoVolumeNetwork, number>();
+  for (const target of targets.networks)
+    counts.set(target.network, targetMonth(target));
+  for (const network of targets.shortNetworks)
+    counts.set(
+      network,
+      (counts.get(network) ?? 0) + targets.shortVideosPerWeek * 4,
+    );
+  const byNetwork = [...counts]
+    .map(([network, posts]) => ({ network, posts }))
+    .filter(({ posts }) => posts > 0)
+    .sort((a, b) => b.posts - a.posts);
+  return {
+    total: byNetwork.reduce((sum, { posts }) => sum + posts, 0),
+    byNetwork,
+  };
 }
 
 /**

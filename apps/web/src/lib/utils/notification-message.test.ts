@@ -11,11 +11,17 @@ import {
   CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_MESSAGE_KEY,
 } from "@sokosumi/utils";
+import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
+
+import deMessages from "@/messages/de.json";
+import enMessages from "@/messages/en.json";
+import esMessages from "@/messages/es.json";
 
 import {
   getNotificationMessageTranslationKey,
   getNotificationPreview,
+  notificationMessageParams,
 } from "./notification-message";
 
 describe("getNotificationMessageTranslationKey", () => {
@@ -281,5 +287,56 @@ describe("getNotificationPreview", () => {
     expect(
       getNotificationPreview(CHAT_MENTION_MESSAGE_KEY, {}, "Everyone"),
     ).toBeNull();
+  });
+});
+
+describe("notificationMessageParams", () => {
+  const KEY = "Notifications.Task.seoMonitorWorse";
+  const render = (
+    messages: typeof enMessages,
+    locale: string,
+    params: Record<string, unknown>,
+  ) =>
+    createTranslator({ locale, messages })(
+      getNotificationMessageTranslationKey(KEY) as never,
+      notificationMessageParams(KEY, params) as never,
+    );
+
+  it("names the site and the lost citations of an SEO monitor alert", () => {
+    expect(
+      render(enMessages, "en", {
+        taskName: "Weekly check",
+        site: "shop.example",
+        newFailures: 0,
+        drops: 0,
+        lostCitations: 2,
+      }),
+    ).toBe(
+      "shop.example: the newest scheduled SEO result got worse. New failures: 0. Ranking drops: 0. Lost AI Overview citations: 2.",
+    );
+  });
+
+  it.each([
+    ["en", enMessages],
+    ["de", deMessages],
+    ["es", esMessages],
+  ] as const)(
+    "reads an alert stored before the site and the citation count with the task name and 0 (%s)",
+    (locale, messages) => {
+      const text = render(messages as typeof enMessages, locale, {
+        taskName: "Weekly check",
+        newFailures: 1,
+        drops: 2,
+      });
+      expect(text).toMatch(/^Weekly check: .*: 1\. .*: 2\. .*: 0\.$/);
+      expect(text).not.toMatch(/[{}]|undefined/);
+    },
+  );
+
+  it("leaves the params of another notification as they are", () => {
+    const params = { taskName: "Weekly check" };
+    expect(
+      notificationMessageParams("Notifications.Task.completed", params),
+    ).toBe(params);
   });
 });

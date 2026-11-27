@@ -10,6 +10,18 @@ export function strategyApproved(
 
 type CalendarEntry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 
+/**
+ * Whether the calendar holds only the strategy's example posts (cmo-v22):
+ * Core writes the month after payment, so nothing is counted from it yet.
+ */
+export function calendarIsExamples(
+  strategy: Pick<NonNullable<CmoOverview["strategy"]>, "monthWriter">,
+): boolean {
+  return (
+    strategy.monthWriter != null && strategy.monthWriter.state !== "written"
+  );
+}
+
 /** A search or social ad: the owner launches it, it is never a post. */
 export function isAd(entry: Pick<CalendarEntry, "channel">): boolean {
   return channelInfo(entry.channel)?.group === "ads";
@@ -38,14 +50,6 @@ export function monthPostCount(calendar: readonly CalendarEntry[]): number {
 export function monthAdCount(calendar: readonly CalendarEntry[]): number {
   return calendar.filter((entry) => entry.status !== "skipped" && isAd(entry))
     .length;
-}
-
-/** "171 posts", or "171 posts and 2 ads" when the month has ads. */
-export function monthLabel(calendar: readonly CalendarEntry[]): string {
-  const posts = monthPostCount(calendar);
-  const ads = monthAdCount(calendar);
-  const label = `${posts} ${posts === 1 ? "post" : "posts"}`;
-  return ads > 0 ? `${label} and ${ads} ${ads === 1 ? "ad" : "ads"}` : label;
 }
 
 /**

@@ -10,6 +10,8 @@ export interface CliCommandCatalogEntry {
   readonly operation?: `${CoreMethod} /${string}`;
   /** The operation takes no JSON body: the command refuses --input-json like a read. */
   readonly noBody?: true;
+  /** A DELETE whose operation takes a JSON body: the command needs --input-json like a write. */
+  readonly body?: true;
 }
 
 export const CLI_COMMAND_CATALOG = [
@@ -31,7 +33,16 @@ export const CLI_COMMAND_CATALOG = [
   { command: "evals list", usage: "[--limit N]" },
   { command: "evals cases", usage: "" },
   { command: "agents list", usage: "" },
-  { command: "agents hire", usage: "AGENT_ID" },
+  {
+    command: "agents input-schema",
+    usage: "AGENT_ID",
+    operation: "GET /agents/{id}/input-schema",
+  },
+  {
+    command: "agents hire",
+    usage:
+      "AGENT_ID --input-json JSON|--input-file FILE [--max-credits N] [--name NAME]",
+  },
   { command: "agents get", usage: "AGENT_ID", operation: "GET /agents/{id}" },
   {
     command: "agents jobs",
@@ -53,12 +64,24 @@ export const CLI_COMMAND_CATALOG = [
     usage: "AGENT_ID",
     operation: "GET /agents/{id}/ratings/eligibility",
   },
-  { command: "coworkers list", usage: "" },
+  {
+    command: "coworkers list",
+    usage:
+      "[--scope whitelisted|owned|all|archived|available] [--capability C] [--search TEXT] [--limit N]",
+  },
+  {
+    command: "coworkers get",
+    usage: "COWORKER_ID",
+    operation: "GET /coworkers/{id}",
+  },
   { command: "coworkers register", usage: "[--personal] [options]" },
   { command: "coworkers provision", usage: "[options]" },
   { command: "coworkers connect", usage: "COWORKER_ID [--personal] [options]" },
   { command: "coworkers update", usage: "COWORKER_ID [options]" },
-  { command: "coworkers api-key", usage: "COWORKER_ID [options]" },
+  {
+    command: "coworkers api-key",
+    usage: "COWORKER_ID [--api-key-name NAME] [--api-key-expires-at ISO_DATE]",
+  },
   {
     command: "coworkers list-api-keys",
     usage: "COWORKER_ID",
@@ -69,20 +92,9 @@ export const CLI_COMMAND_CATALOG = [
     usage: "COWORKER_ID KEY_ID",
     operation: "DELETE /coworkers/{id}/api-keys/{keyId}",
   },
-  { command: "coworkers me", usage: "" },
   { command: "vendors me", usage: "" },
   { command: "vendors create", usage: "--name NAME --slug SLUG" },
   // SOKD-372: coworkers, vendors and developer.
-  {
-    command: "coworkers events",
-    usage: "",
-    operation: "GET /coworkers/me/events",
-  },
-  {
-    command: "coworkers report-usage",
-    usage: "--input-json JSON",
-    operation: "POST /coworkers/me/usage",
-  },
   {
     command: "coworkers archive",
     usage: "COWORKER_ID",
@@ -216,6 +228,12 @@ export const CLI_COMMAND_CATALOG = [
   { command: "runtime complete", usage: "TASK_ID [options]" },
   { command: "runtime run", usage: "TASK_ID [options]" },
   { command: "runtime receipt", usage: "TASK_ID [options]" },
+  { command: "runtime me", usage: "--coworker-id ID" },
+  { command: "runtime events", usage: "--coworker-id ID" },
+  {
+    command: "runtime report-usage",
+    usage: "--coworker-id ID --input-json JSON",
+  },
   { command: "tasks list", usage: "[options]" },
   {
     command: "tasks create",
@@ -228,6 +246,11 @@ export const CLI_COMMAND_CATALOG = [
   {
     command: "tasks events",
     usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks receipt",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /tasks/{id}/receipt",
   },
   {
     command: "tasks jobs",
@@ -604,6 +627,243 @@ export const CLI_COMMAND_CATALOG = [
     usage: "WORKSPACE_ID [--organization-slug WORKSPACE_SLUG]",
     operation: "GET /workspaces/{id}/social-connections/statistics",
   },
+  // SOKD-371: users, organizations and workspaces. `/users/{id}` commands take `me`.
+  {
+    command: "users registered",
+    usage: "--query email=EMAIL",
+    operation: "GET /users/registered",
+  },
+  {
+    command: "users update",
+    usage: "me --input-json JSON",
+    operation: "PATCH /users/{id}",
+  },
+  {
+    command: "workspaces credits",
+    usage: "me [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /users/{id}/credits",
+  },
+  {
+    command: "users set-design-md",
+    usage: "me --input-json JSON",
+    operation: "PUT /users/{id}/design-md",
+  },
+  {
+    command: "users preferences",
+    usage: "me",
+    operation: "GET /users/{id}/preferences",
+  },
+  {
+    command: "users update-preferences",
+    usage: "me --input-json JSON",
+    operation: "PATCH /users/{id}/preferences",
+  },
+  {
+    command: "users files",
+    usage: "me",
+    operation: "GET /users/{id}/files",
+  },
+  {
+    command: "users file-upload",
+    usage: "me --file PATH",
+    operation: "POST /users/{id}/files",
+  },
+  {
+    command: "users coworker-access",
+    usage: "me",
+    operation: "GET /users/{id}/coworker-access",
+  },
+  {
+    command: "users deny-coworker-access",
+    usage: "me ACCESS_ID --input-json '{}'",
+    operation: "POST /users/{id}/coworker-access/{accessId}/deny",
+  },
+  {
+    command: "users revoke-coworker-access",
+    usage: "me ACCESS_ID --input-json '{}'",
+    operation: "POST /users/{id}/coworker-access/{accessId}/revoke",
+  },
+  {
+    command: "users vendor-grants",
+    usage: "me [--query status=STATUS]",
+    operation: "GET /users/{id}/vendor-grants",
+  },
+  {
+    command: "users deny-vendor-grant",
+    usage: "me GRANT_ID --input-json '{}'",
+    operation: "POST /users/{id}/vendor-grants/{grantId}/deny",
+  },
+  {
+    command: "users revoke-vendor-grant",
+    usage: "me GRANT_ID --input-json '{}'",
+    operation: "POST /users/{id}/vendor-grants/{grantId}/revoke",
+  },
+  {
+    command: "workspaces create",
+    usage: "me --input-json JSON",
+    operation: "POST /users/{id}/workspaces",
+  },
+  {
+    command: "users preferred-workspace",
+    usage: "me",
+    operation: "GET /users/{id}/workspaces/preferred",
+  },
+  {
+    command: "users set-preferred-workspace",
+    usage: "me --input-json JSON",
+    operation: "PUT /users/{id}/workspaces/preferred",
+  },
+  {
+    command: "users delete-workspace",
+    usage: "me WORKSPACE_ID",
+    operation: "DELETE /users/{id}/workspaces/{workspaceId}",
+  },
+  {
+    command: "workspaces get",
+    usage: "WORKSPACE_ID",
+    operation: "GET /workspaces/{id}",
+  },
+  {
+    command: "workspaces ad-data-consent",
+    usage: "WORKSPACE_ID",
+    operation: "GET /workspaces/{id}/ad-data-consent",
+  },
+  {
+    command: "workspaces set-ad-data-consent",
+    usage: "WORKSPACE_ID --input-json JSON",
+    operation: "PUT /workspaces/{id}/ad-data-consent",
+  },
+  {
+    command: "workspaces design-md",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /workspaces/design-md",
+  },
+  {
+    command: "workspaces calendar-labels",
+    usage:
+      "WORKSPACE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /workspaces/{id}/calendar/identity-labels",
+  },
+  {
+    command: "workspaces adhoc-design-md",
+    usage: "--input-json JSON",
+    operation: "POST /workspaces/design-md/adhoc",
+  },
+  {
+    command: "organizations list",
+    usage: "me",
+    operation: "GET /users/{id}/organizations",
+  },
+  {
+    command: "organizations memberships",
+    usage: "me",
+    operation: "GET /users/{id}/members",
+  },
+  {
+    command: "organizations credits",
+    usage: "me ORGANIZATION_ID",
+    operation: "GET /users/{id}/organizations/{organizationId}/credits",
+  },
+  {
+    command: "organizations membership",
+    usage: "me ORGANIZATION_ID",
+    operation: "GET /users/{id}/organizations/{organizationId}/member",
+  },
+  {
+    command: "organizations pending-invitations",
+    usage: "me",
+    operation: "GET /users/{id}/pending-organization-invitations",
+  },
+  {
+    command: "organizations get-by-slug",
+    usage: "SLUG",
+    operation: "GET /organizations/slug/{slug}",
+  },
+  {
+    command: "organizations get",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}",
+  },
+  {
+    command: "organizations members",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/members",
+  },
+  {
+    command: "organizations assign-seat",
+    usage: "ORGANIZATION_ID MEMBER_ID --input-json '{}'",
+    operation: "PUT /organizations/{id}/members/{memberId}/seat",
+  },
+  {
+    command: "organizations unassign-seat",
+    usage: "ORGANIZATION_ID MEMBER_ID",
+    operation: "DELETE /organizations/{id}/members/{memberId}/seat",
+  },
+  {
+    command: "organizations invitations",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/invitations",
+  },
+  {
+    command: "organizations invite-links",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/invite-links",
+  },
+  {
+    command: "organizations create-invite-link",
+    usage: "ORGANIZATION_ID --input-json JSON",
+    operation: "POST /organizations/{id}/invite-links",
+  },
+  {
+    command: "organizations revoke-invite-link",
+    usage: "ORGANIZATION_ID TOKEN",
+    operation: "DELETE /organizations/{id}/invite-links/{token}",
+  },
+  {
+    command: "organizations coworker-access",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/coworker-access",
+  },
+  {
+    command: "organizations deny-coworker-access",
+    usage: "ORGANIZATION_ID ACCESS_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/coworker-access/{accessId}/deny",
+  },
+  {
+    command: "organizations revoke-coworker-access",
+    usage: "ORGANIZATION_ID ACCESS_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/coworker-access/{accessId}/revoke",
+  },
+  {
+    command: "organizations vendor-grants",
+    usage: "ORGANIZATION_ID [--query status=STATUS]",
+    operation: "GET /organizations/{id}/vendor-grants",
+  },
+  {
+    command: "organizations deny-vendor-grant",
+    usage: "ORGANIZATION_ID GRANT_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/vendor-grants/{grantId}/deny",
+  },
+  {
+    command: "organizations revoke-vendor-grant",
+    usage: "ORGANIZATION_ID GRANT_ID --input-json '{}'",
+    operation: "POST /organizations/{id}/vendor-grants/{grantId}/revoke",
+  },
+  {
+    command: "organizations set-design-md",
+    usage: "ORGANIZATION_ID --input-json JSON",
+    operation: "PUT /organizations/{id}/design-md",
+  },
+  {
+    command: "organizations standup",
+    usage: "ORGANIZATION_ID",
+    operation: "GET /organizations/{id}/standup",
+  },
+  {
+    command: "organizations set-standup",
+    usage: "ORGANIZATION_ID --input-json JSON",
+    operation: "PUT /organizations/{id}/standup",
+  },
   {
     command: "jobs update",
     usage: "JOB_ID --input-json JSON",
@@ -673,6 +933,1922 @@ export const CLI_COMMAND_CATALOG = [
     usage: "",
     operation: "PATCH /notifications/read-all",
     noBody: true,
+  },
+  // SOKD-385: Image Studio generations spend credits; the body's
+  // idempotencyKey makes a retry return the first job.
+  {
+    command: "projects image-studio-generate",
+    usage: `PROJECT_ID --input-json '{"prompt":"...","idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/jobs",
+  },
+  {
+    command: "projects image-studio-video",
+    usage: `PROJECT_ID --input-json '{"prompt":"...","idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/video-jobs",
+  },
+  {
+    command: "projects image-studio-short-video",
+    usage: `PROJECT_ID --input-json '{"format":"voiceover","script":"...","idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/short-video-jobs",
+  },
+  {
+    command: "projects image-studio-talking-video",
+    usage: `PROJECT_ID --input-json '{"script":"...","presenter":{...},"idempotencyKey":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/talking-video-jobs",
+  },
+  {
+    command: "projects image-studio-cancel",
+    usage: "PROJECT_ID JOB_ID",
+    operation: "POST /projects/{id}/image-studio/jobs/{jobId}/cancel",
+    noBody: true,
+  },
+  // SOKD-394: edits that spend no credits and publish nothing (ADR 0077).
+  {
+    command: "projects ads-market-update",
+    usage: `PROJECT_ID --input-json '{"keywords":["..."],"countryCode":"DE","languageCode":"de"}'`,
+    operation: "PUT /projects/{id}/ads/market",
+  },
+  {
+    command: "projects image-studio-brand-kit-update",
+    usage: `PROJECT_ID --input-json '{"copy":{...},"version":"..."}'`,
+    operation: "PUT /projects/{id}/image-studio/brand-kit",
+  },
+  {
+    command: "projects image-studio-brand-look-update",
+    usage: `PROJECT_ID --input-json '{"look":{...},"lookRevision":0}'`,
+    operation: "PUT /projects/{id}/image-studio/brand-kit/look",
+  },
+  {
+    command: "projects image-studio-website-research",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/image-studio/website-draft",
+    noBody: true,
+  },
+  {
+    command: "projects image-studio-website-logo",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/image-studio/brand-kit/logo/website",
+    noBody: true,
+  },
+  {
+    command: "projects image-studio-products-update",
+    usage: `PROJECT_ID --input-json '{"products":[...],"revision":0}'`,
+    operation: "PUT /projects/{id}/image-studio/products",
+  },
+  {
+    command: "projects image-studio-products-import",
+    usage: `PROJECT_ID --input-json '{"url":"https://..."}'`,
+    operation: "POST /projects/{id}/image-studio/products/import",
+  },
+  {
+    command: "projects image-studio-product-photo",
+    usage: `PROJECT_ID --input-json '{"name":"...","imageUrl":"https://..."}'`,
+    operation: "POST /projects/{id}/image-studio/products/photo",
+  },
+  {
+    command: "projects image-studio-talking-video-scripts",
+    usage: `PROJECT_ID --input-json '{"topic":"..."}'`,
+    operation: "POST /projects/{id}/image-studio/talking-video-scripts",
+  },
+  {
+    command: "projects image-studio-asset-headline",
+    usage: `PROJECT_ID ASSET_ID --input-json '{"text":"..."}'`,
+    operation: "PUT /projects/{id}/image-studio/assets/{assetId}/headline",
+  },
+  {
+    command: "projects image-studio-asset-caption",
+    usage: "PROJECT_ID ASSET_ID",
+    operation: "POST /projects/{id}/image-studio/assets/{assetId}/caption",
+    noBody: true,
+  },
+  // SOKD-383: an agent drafts, plans and cancels Social posts and cancels newsletters (ADR 0077).
+  {
+    command: "projects social-post-create",
+    usage: "PROJECT_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts",
+  },
+  {
+    command: "projects social-post-update",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/social-posts/{postId}",
+  },
+  {
+    command: "projects social-post-schedule",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/schedule",
+  },
+  {
+    command: "projects social-post-queue",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/queue",
+  },
+  {
+    command: "projects social-post-cancel",
+    usage:
+      "PROJECT_ID POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/cancel",
+  },
+  {
+    command: "projects social-post-duplicate",
+    usage:
+      "PROJECT_ID POST_ID --input-json {} [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/duplicate",
+  },
+  {
+    command: "projects social-post-statistics-refresh",
+    usage:
+      "PROJECT_ID POST_ID --input-json {} [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/social-posts/{postId}/statistics/refresh",
+  },
+  {
+    command: "projects social-account-post-recycle",
+    usage:
+      "PROJECT_ID ACCOUNT_POST_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "POST /projects/{id}/social-account-posts/{accountPostId}/recycle",
+  },
+  {
+    command: "projects social-queue-slots-update",
+    usage: "PROJECT_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/social-queue-slots",
+  },
+  {
+    command: "projects social-connection-statistics-refresh",
+    usage:
+      "PROJECT_ID CONNECTION_ID --input-json {} [--organization-slug WORKSPACE_SLUG]",
+    operation:
+      "POST /projects/{id}/social-connections/{connectionId}/statistics/refresh",
+  },
+  {
+    command: "projects newsletter-issue-cancel",
+    usage:
+      "PROJECT_ID ISSUE_ID --input-json BODY [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/cancel",
+  },
+  // SOKD-373: projects and newsletter.
+  {
+    command: "projects list",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects",
+  },
+  {
+    command: "projects create",
+    usage: "--input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects",
+  },
+  {
+    command: "projects stats",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/stats",
+  },
+  {
+    command: "projects activity",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/activity",
+  },
+  {
+    command: "projects starred",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/starred",
+  },
+  {
+    command: "projects get",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}",
+  },
+  {
+    command: "projects update",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}",
+  },
+  {
+    command: "projects star",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/star",
+    noBody: true,
+  },
+  {
+    command: "projects unstar",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/star",
+  },
+  {
+    command: "projects hidden",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/hide",
+  },
+  {
+    command: "projects hide",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/hide",
+    noBody: true,
+  },
+  {
+    command: "projects unhide",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/hide",
+  },
+  {
+    command: "projects add-job",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/jobs",
+  },
+  {
+    command: "projects remove-job",
+    usage: "PROJECT_ID JOB_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/jobs/{jobId}",
+  },
+  {
+    command: "projects add-task",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/tasks",
+  },
+  {
+    command: "projects remove-task",
+    usage: "PROJECT_ID TASK_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/tasks/{taskId}",
+  },
+  {
+    command: "projects context",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/context-md",
+  },
+  {
+    command: "projects posting-instructions",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/posting-instructions",
+  },
+  {
+    command: "projects set-design",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/design-md",
+  },
+  {
+    command: "projects clear-design",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/design-md",
+  },
+  {
+    command: "projects needs-attention",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/needs-attention",
+  },
+  {
+    command: "projects close-status",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/close",
+  },
+  {
+    command: "projects close",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/close",
+  },
+  {
+    command: "projects retry-close",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/close/retry",
+  },
+  {
+    command: "projects cancel-owed",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/close/cancel-owed",
+  },
+  {
+    command: "projects brand-brain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/brand-brain",
+  },
+  {
+    command: "projects set-brand-brain",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/brand-brain",
+  },
+  {
+    command: "projects answer-brand-brain",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/brand-brain/answers",
+  },
+  {
+    command: "projects competitors",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/competitors",
+  },
+  {
+    command: "projects add-competitor",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors",
+  },
+  {
+    command: "projects update-competitor",
+    usage:
+      "PROJECT_ID COMPETITOR_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/competitors/{competitorId}",
+  },
+  {
+    command: "projects remove-competitor",
+    usage: "PROJECT_ID COMPETITOR_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/competitors/{competitorId}",
+  },
+  {
+    command: "projects restore-competitor",
+    usage:
+      "PROJECT_ID COMPETITOR_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors/{competitorId}/restore",
+  },
+  {
+    command: "projects competitor-checks",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/competitors/checks",
+  },
+  {
+    command: "projects check-competitors",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors/check",
+    noBody: true,
+  },
+  {
+    command: "projects suggest-competitors",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/competitors/suggestions",
+    noBody: true,
+  },
+  {
+    command: "projects strategies",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/marketing-strategies",
+  },
+  {
+    command: "projects create-strategy",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/marketing-strategies",
+  },
+  {
+    command: "projects strategy",
+    usage: "PROJECT_ID STRATEGY_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/marketing-strategies/{strategyId}",
+  },
+  {
+    command: "projects answer-strategy",
+    usage:
+      "PROJECT_ID STRATEGY_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/marketing-strategies/{strategyId}/answers",
+  },
+  {
+    command: "newsletter availability",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /newsletter/availability",
+  },
+  {
+    command: "newsletter get",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter",
+  },
+  {
+    command: "newsletter set",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/newsletter",
+  },
+  {
+    command: "newsletter analytics",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/analytics",
+  },
+  {
+    command: "newsletter issue-analytics",
+    usage: "PROJECT_ID ISSUE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}/analytics",
+  },
+  {
+    command: "newsletter issues",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/issues",
+  },
+  {
+    command: "newsletter create-issue",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues",
+  },
+  {
+    command: "newsletter draft-issue",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/draft-with-ai",
+  },
+  {
+    command: "newsletter submit-issue",
+    usage:
+      "PROJECT_ID ISSUE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/{issueId}/submit",
+  },
+  {
+    command: "newsletter preview",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/issues/preview",
+  },
+  {
+    command: "newsletter issue",
+    usage: "PROJECT_ID ISSUE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/issues/{issueId}",
+  },
+  {
+    command: "newsletter update-issue",
+    usage:
+      "PROJECT_ID ISSUE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/newsletter/issues/{issueId}",
+  },
+  {
+    command: "newsletter delete-issue",
+    usage: "PROJECT_ID ISSUE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/newsletter/issues/{issueId}",
+  },
+  {
+    command: "newsletter sending-domain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/sending-domain",
+  },
+  {
+    command: "newsletter set-sending-domain",
+    usage: "PROJECT_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PUT /projects/{id}/newsletter/sending-domain",
+  },
+  {
+    command: "newsletter remove-sending-domain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/newsletter/sending-domain",
+  },
+  {
+    command: "newsletter check-sending-domain",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /projects/{id}/newsletter/sending-domain/check",
+    noBody: true,
+  },
+  {
+    command: "newsletter domain-connect",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/sending-domain/domain-connect",
+  },
+  {
+    command: "newsletter subscribers",
+    usage: "PROJECT_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /projects/{id}/newsletter/subscribers",
+  },
+  {
+    command: "newsletter update-subscriber",
+    usage:
+      "PROJECT_ID SUBSCRIBER_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}",
+  },
+  {
+    command: "newsletter remove-subscriber",
+    usage: "PROJECT_ID SUBSCRIBER_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "DELETE /projects/{id}/newsletter/subscribers/{subscriberId}",
+  },
+  // Ad campaign writes (SOKD-384, ADR 0077): created paused; a person resumes.
+  {
+    command: "projects ads-campaign-create",
+    usage: "PROJECT_ID ACCOUNT_ID --input-json JSON",
+    operation: "POST /projects/{id}/ads/accounts/{accountId}/campaigns",
+  },
+  {
+    command: "projects ads-campaign-update",
+    usage: "PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json JSON",
+    operation:
+      "PATCH /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+  },
+  {
+    command: "projects ads-campaign-edit",
+    usage: "PROJECT_ID ACCOUNT_ID CAMPAIGN_ID --input-json JSON",
+    operation:
+      "PUT /projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}",
+  },
+  // SOKD-374: SEO audits and Project SEO, in the `seo` MCP toolset
+  { command: "seo list-audits", usage: "", operation: "GET /seo/audits" },
+  { command: "seo create-audit", usage: "", operation: "POST /seo/audits" },
+  {
+    command: "seo audit-workspace",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/workspace",
+  },
+  {
+    command: "seo audit-archive",
+    usage: "AUDIT_ID",
+    operation: "PATCH /seo/audits/{id}",
+  },
+  {
+    command: "seo audit-chat",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/chat",
+  },
+  {
+    command: "seo audit-ask",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/chat",
+  },
+  {
+    command: "seo audit-get",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}",
+  },
+  {
+    command: "seo audit-add-page",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/pages",
+  },
+  {
+    command: "seo audit-create-scope",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/scopes",
+  },
+  {
+    command: "seo audit-update-scope",
+    usage: "AUDIT_ID SCOPE_ID",
+    operation: "PUT /seo/audits/{id}/scopes/{scopeId}",
+  },
+  {
+    command: "seo audit-import-report",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/imports",
+  },
+  {
+    command: "seo audit-analyze",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/analyses",
+  },
+  {
+    command: "seo audit-save-keyword",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/keywords",
+  },
+  {
+    command: "seo audit-save-competitor",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/competitors",
+  },
+  {
+    command: "seo audit-create-task",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/actions",
+  },
+  {
+    command: "seo audit-create-monitor",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/monitors",
+  },
+  {
+    command: "seo audit-review-action",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/actions/reviews",
+  },
+  {
+    command: "seo audit-properties",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/statistics/properties",
+  },
+  {
+    command: "seo audit-sync-statistics",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/statistics/sync",
+  },
+  {
+    command: "seo audit-record-change",
+    usage: "AUDIT_ID",
+    operation: "POST /seo/audits/{id}/page-changes",
+  },
+  {
+    command: "seo audit-set-brand-terms",
+    usage: "AUDIT_ID",
+    operation: "PUT /seo/audits/{id}/brand-terms",
+  },
+  {
+    command: "seo audit-brief",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/brief",
+  },
+  {
+    command: "seo audit-save-brief",
+    usage: "AUDIT_ID",
+    operation: "PUT /seo/audits/{id}/brief",
+  },
+  {
+    command: "seo audit-suggest-brief",
+    usage: "AUDIT_ID",
+    operation: "GET /seo/audits/{id}/brief/suggestion",
+  },
+  {
+    command: "seo audit-console-exports",
+    usage: "AUDIT_ID TASK_ID",
+    operation: "GET /seo/audits/{id}/console-exports/{taskId}",
+  },
+  {
+    command: "seo audit-import-console-export",
+    usage: "AUDIT_ID TASK_ID",
+    operation: "POST /seo/audits/{id}/console-exports/{taskId}",
+  },
+  {
+    command: "seo project-get",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo",
+  },
+  {
+    command: "seo project-add-page",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/pages",
+  },
+  {
+    command: "seo project-create-scope",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/scopes",
+  },
+  {
+    command: "seo project-update-scope",
+    usage: "PROJECT_ID SCOPE_ID",
+    operation: "PUT /projects/{id}/seo/scopes/{scopeId}",
+  },
+  {
+    command: "seo project-import-report",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/imports",
+  },
+  {
+    command: "seo project-analyze",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/analyses",
+  },
+  {
+    command: "seo project-save-keyword",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/keywords",
+  },
+  {
+    command: "seo project-save-competitor",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/competitors",
+  },
+  {
+    command: "seo project-create-task",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/actions",
+  },
+  {
+    command: "seo project-create-monitor",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/monitors",
+  },
+  {
+    command: "seo project-review-action",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/actions/reviews",
+  },
+  {
+    command: "seo project-properties",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo/statistics/properties",
+  },
+  {
+    command: "seo project-sync-statistics",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/statistics/sync",
+  },
+  {
+    command: "seo project-record-change",
+    usage: "PROJECT_ID",
+    operation: "POST /projects/{id}/seo/page-changes",
+  },
+  {
+    command: "seo project-set-brand-terms",
+    usage: "PROJECT_ID",
+    operation: "PUT /projects/{id}/seo/brand-terms",
+  },
+  {
+    command: "seo project-brief",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo/brief",
+  },
+  {
+    command: "seo project-save-brief",
+    usage: "PROJECT_ID",
+    operation: "PUT /projects/{id}/seo/brief",
+  },
+  {
+    command: "seo project-suggest-brief",
+    usage: "PROJECT_ID",
+    operation: "GET /projects/{id}/seo/brief/suggestion",
+  },
+  {
+    command: "seo project-console-exports",
+    usage: "PROJECT_ID TASK_ID",
+    operation: "GET /projects/{id}/seo/console-exports/{taskId}",
+  },
+  {
+    command: "seo project-import-console-export",
+    usage: "PROJECT_ID TASK_ID",
+    operation: "POST /projects/{id}/seo/console-exports/{taskId}",
+  },
+  // SOKD-375: Drive. Most commands pick the Drive with --query scope=me, or
+  // scope=org plus organizationId; tables take --organization-slug.
+  {
+    command: "drive search",
+    usage:
+      "--query scope=me|org [--query organizationId=ORG_ID] [--query q=TEXT]",
+    operation: "GET /drive/search",
+  },
+  {
+    command: "drive files",
+    usage:
+      "--query scope=me|org [--query organizationId=ORG_ID] [--query folder=PATH]",
+    operation: "GET /drive/files",
+  },
+  {
+    command: "drive recents",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/recents",
+  },
+  {
+    command: "drive get",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/resources/{id}",
+  },
+  {
+    command: "drive related",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/resources/{id}/related",
+  },
+  {
+    command: "drive folders",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/folders",
+  },
+  {
+    command: "drive create-folder",
+    usage: "--input-json JSON",
+    operation: "POST /drive/folders",
+  },
+  {
+    command: "drive rename-folder",
+    usage: "--input-json JSON",
+    operation: "PATCH /drive/folders/rename",
+  },
+  {
+    command: "drive delete-folder",
+    usage: "--input-json JSON",
+    operation: "DELETE /drive/folders/delete",
+    body: true,
+  },
+  {
+    command: "drive move",
+    usage: "--input-json JSON",
+    operation: "PATCH /drive/files/move",
+  },
+  {
+    command: "drive rename",
+    usage: "--input-json JSON",
+    operation: "PATCH /drive/files/rename",
+  },
+  {
+    command: "drive delete",
+    usage: "--input-json JSON",
+    operation: "DELETE /drive/files/delete",
+    body: true,
+  },
+  {
+    command: "drive update-metadata",
+    usage:
+      "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID] --input-json JSON",
+    operation: "PATCH /drive/resources/{id}/metadata",
+  },
+  {
+    command: "drive decide-suggestion",
+    usage:
+      "RESOURCE_ID SUGGESTION_ID --query scope=me|org [--query organizationId=ORG_ID] --input-json JSON",
+    operation: "POST /drive/resources/{id}/suggestions/{suggestionId}/decision",
+  },
+  {
+    command: "drive select",
+    usage: "--input-json JSON",
+    operation: "POST /drive/resources/selection-token",
+  },
+  {
+    command: "drive update-metadata-batch",
+    usage: "--input-json JSON",
+    operation: "POST /drive/resources/metadata-batch",
+  },
+  {
+    command: "drive reindex",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "POST /drive/resources/{id}/reindex",
+    noBody: true,
+  },
+  {
+    command: "drive add-google-sheet",
+    usage: "--input-json JSON",
+    operation: "POST /drive/files/google-sheets",
+  },
+  {
+    command: "drive google-sheet",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/resources/{id}/google-sheet",
+  },
+  {
+    command: "drive refresh-google-sheet",
+    usage: "RESOURCE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "POST /drive/resources/{id}/google-sheet/refresh",
+    noBody: true,
+  },
+  {
+    command: "drive tasks",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/tasks",
+  },
+  {
+    command: "drive copy-task-file",
+    usage: "--input-json JSON",
+    operation: "POST /drive/tasks/copy",
+  },
+  {
+    command: "drive labels",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/labels",
+  },
+  {
+    command: "drive create-label",
+    usage: "--input-json JSON",
+    operation: "POST /drive/labels",
+  },
+  {
+    command: "drive update-label",
+    usage: "LABEL_ID --input-json JSON",
+    operation: "PATCH /drive/labels/{id}",
+  },
+  {
+    command: "drive collections",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/collections",
+  },
+  {
+    command: "drive create-collection",
+    usage: "--input-json JSON",
+    operation: "POST /drive/collections",
+  },
+  {
+    command: "drive update-collection",
+    usage: "COLLECTION_ID --input-json JSON",
+    operation: "PATCH /drive/collections/{id}",
+  },
+  {
+    command: "drive delete-collection",
+    usage: "COLLECTION_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/collections/{id}",
+  },
+  {
+    command: "drive share",
+    usage:
+      "--query scope=me|org [--query organizationId=ORG_ID] [--query resourceId=ID | --query folderPath=PATH]",
+    operation: "GET /drive/shares",
+  },
+  {
+    command: "drive unshare",
+    usage: "SHARE_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/shares/{id}",
+  },
+  {
+    command: "drive tables",
+    usage: "[--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /drive/tables",
+  },
+  {
+    command: "drive create-table",
+    usage: "--input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables",
+  },
+  {
+    command: "drive table",
+    usage: "TABLE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /drive/tables/{id}",
+  },
+  {
+    command: "drive update-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "PATCH /drive/tables/{id}",
+  },
+  {
+    command: "drive query-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/query",
+  },
+  {
+    command: "drive edit-rows",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/rows",
+  },
+  {
+    command: "drive save-view",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/views",
+  },
+  {
+    command: "drive undo-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/undo",
+  },
+  {
+    command: "drive table-history",
+    usage: "TABLE_ID [--organization-slug WORKSPACE_SLUG]",
+    operation: "GET /drive/tables/{id}/history",
+  },
+  {
+    command: "drive enrich-table",
+    usage: "TABLE_ID --input-json JSON [--organization-slug WORKSPACE_SLUG]",
+    operation: "POST /drive/tables/{id}/enrich",
+  },
+  {
+    command: "drive data-rooms",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms",
+  },
+  {
+    command: "drive create-data-room",
+    usage: "--input-json JSON",
+    operation: "POST /drive/data-rooms",
+  },
+  {
+    command: "drive open-questions",
+    usage: "--query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/questions",
+  },
+  {
+    command: "drive data-room",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/{id}",
+  },
+  {
+    command: "drive close-data-room",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/data-rooms/{id}",
+  },
+  {
+    command: "drive remove-data-room-member",
+    usage:
+      "ROOM_ID MEMBER_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "DELETE /drive/data-rooms/{id}/members/{memberId}",
+  },
+  {
+    command: "drive data-room-events",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/{id}/events",
+  },
+  {
+    command: "drive data-room-questions",
+    usage: "ROOM_ID --query scope=me|org [--query organizationId=ORG_ID]",
+    operation: "GET /drive/data-rooms/{id}/questions",
+  },
+  {
+    command: "drive order-data-room",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PUT /drive/data-rooms/{id}/order",
+  },
+  {
+    command: "drive set-data-room-colleagues",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PUT /drive/data-rooms/{id}/colleagues",
+  },
+  // SOKD-376: contacts and contact lists.
+  {
+    command: "contacts list",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts",
+  },
+  {
+    command: "contacts create",
+    usage: "--input-json JSON",
+    operation: "POST /contacts",
+  },
+  {
+    command: "contacts export",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/export.csv",
+  },
+  {
+    command: "contacts map",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/map",
+  },
+  {
+    command: "contacts merge",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/merge",
+  },
+  {
+    command: "contacts list-duplicates",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/duplicates",
+  },
+  {
+    command: "contacts dismiss-duplicates",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/duplicates/dismiss",
+  },
+  {
+    command: "contacts set-stage",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/stage",
+  },
+  {
+    command: "contacts undo-stage",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/stage/undo",
+  },
+  {
+    command: "contacts import",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/import",
+  },
+  {
+    command: "contacts import-linkedin",
+    usage: "--input-file FILE",
+    operation: "POST /contacts/linkedin-connections",
+  },
+  {
+    command: "contacts list-organizations",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/organizations",
+  },
+  {
+    command: "contacts list-companies",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/companies",
+  },
+  {
+    command: "contacts get-company",
+    usage: "COMPANY_ID",
+    operation: "GET /contacts/companies/{companyId}",
+  },
+  {
+    command: "contacts update-company",
+    usage: "COMPANY_ID --input-json JSON",
+    operation: "PATCH /contacts/companies/{companyId}",
+  },
+  {
+    command: "contacts list-company-lists",
+    usage: "",
+    operation: "GET /contacts/company-lists",
+  },
+  {
+    command: "contacts create-company-list",
+    usage: "--input-json JSON",
+    operation: "POST /contacts/company-lists",
+  },
+  {
+    command: "contacts update-company-list",
+    usage: "COMPANY_LIST_ID --input-json JSON",
+    operation: "PATCH /contacts/company-lists/{listId}",
+  },
+  {
+    command: "contacts delete-company-list",
+    usage: "COMPANY_LIST_ID",
+    operation: "DELETE /contacts/company-lists/{listId}",
+  },
+  {
+    command: "contacts update-company-list-members",
+    usage: "COMPANY_LIST_ID --input-json JSON",
+    operation: "POST /contacts/company-lists/{listId}/members",
+  },
+  {
+    command: "contacts breakdown",
+    usage: "[--query KEY=VALUE]",
+    operation: "GET /contacts/breakdown",
+  },
+  {
+    command: "contacts get",
+    usage: "CONTACT_ID",
+    operation: "GET /contacts/{id}",
+  },
+  {
+    command: "contacts update",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "PATCH /contacts/{id}",
+  },
+  {
+    command: "contacts archive",
+    usage: "CONTACT_ID",
+    operation: "POST /contacts/{id}/archive",
+    noBody: true,
+  },
+  {
+    command: "contacts unarchive",
+    usage: "CONTACT_ID",
+    operation: "POST /contacts/{id}/unarchive",
+    noBody: true,
+  },
+  {
+    command: "contacts add-channel",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "POST /contacts/{id}/channels",
+  },
+  {
+    command: "contacts remove-channel",
+    usage: "CONTACT_ID CHANNEL_ID",
+    operation: "DELETE /contacts/{id}/channels/{channelId}",
+  },
+  {
+    command: "contacts list-interactions",
+    usage: "CONTACT_ID [--query KEY=VALUE]",
+    operation: "GET /contacts/{id}/interactions",
+  },
+  {
+    command: "contacts add-interaction",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "POST /contacts/{id}/interactions",
+  },
+  {
+    command: "contacts delete-interaction",
+    usage: "CONTACT_ID INTERACTION_ID",
+    operation: "DELETE /contacts/{id}/interactions/{interactionId}",
+  },
+  {
+    command: "contacts set-importance",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "PUT /contacts/{id}/importance",
+  },
+  {
+    command: "contacts set-user",
+    usage: "CONTACT_ID --input-json JSON",
+    operation: "PUT /contacts/{id}/user",
+  },
+  {
+    command: "contacts enrich",
+    usage: "CONTACT_ID",
+    operation: "POST /contacts/{id}/enrich",
+    noBody: true,
+  },
+  {
+    command: "contacts activity",
+    usage: "CONTACT_ID [--query KEY=VALUE]",
+    operation: "GET /contacts/{id}/activity",
+  },
+  {
+    command: "contacts list-lists",
+    usage: "",
+    operation: "GET /contact-lists",
+  },
+  {
+    command: "contacts create-list",
+    usage: "--input-json JSON",
+    operation: "POST /contact-lists",
+  },
+  {
+    command: "contacts update-list",
+    usage: "LIST_ID --input-json JSON",
+    operation: "PATCH /contact-lists/{id}",
+  },
+  {
+    command: "contacts delete-list",
+    usage: "LIST_ID",
+    operation: "DELETE /contact-lists/{id}",
+  },
+  {
+    command: "contacts update-list-members",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/members",
+  },
+  {
+    command: "contacts import-list",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/import",
+  },
+  {
+    command: "contacts list-suggestions",
+    usage: "LIST_ID",
+    operation: "GET /contact-lists/{id}/suggestions",
+  },
+  {
+    command: "contacts find-people",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/find",
+  },
+  {
+    command: "contacts add-suggestions",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/suggestions/add",
+  },
+  {
+    command: "contacts dismiss-suggestions",
+    usage: "LIST_ID --input-json JSON",
+    operation: "POST /contact-lists/{id}/suggestions/dismiss",
+  },
+  // SOKD-377 chats
+  {
+    command: "chats invitations",
+    usage: "",
+    operation: "GET /chats/invitations",
+  },
+  {
+    command: "chats get-invitation",
+    usage: "INVITATION_ID",
+    operation: "GET /chats/invitations/{id}",
+  },
+  {
+    command: "chats accept-invitation",
+    usage: "INVITATION_ID",
+    operation: "POST /chats/invitations/{id}/accept",
+
+    noBody: true,
+  },
+  {
+    command: "chats decline-invitation",
+    usage: "INVITATION_ID",
+    operation: "POST /chats/invitations/{id}/decline",
+
+    noBody: true,
+  },
+  {
+    command: "chats people",
+    usage: "",
+    operation: "GET /chats/people",
+  },
+  {
+    command: "chats rooms",
+    usage: "",
+    operation: "GET /chats/rooms",
+  },
+  {
+    command: "chats create-room",
+    usage: "--input-json JSON",
+    operation: "POST /chats/rooms",
+  },
+  {
+    command: "chats discoverable",
+    usage: "",
+    operation: "GET /chats/rooms/discoverable",
+  },
+  {
+    command: "chats slug-available",
+    usage: "--query slug=SLUG",
+    operation: "GET /chats/rooms/channel-slug-availability",
+  },
+  {
+    command: "chats order-starred",
+    usage: "--input-json JSON",
+    operation: "PUT /chats/rooms/starred",
+  },
+  {
+    command: "chats pinned",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/pinned-messages",
+  },
+  {
+    command: "chats get-room",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}",
+  },
+  {
+    command: "chats update-room",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "PATCH /chats/rooms/{id}",
+  },
+  {
+    command: "chats delete-room",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}",
+  },
+  {
+    command: "chats archive-room",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/archive",
+
+    noBody: true,
+  },
+  {
+    command: "chats restore-room",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/restore",
+
+    noBody: true,
+  },
+  {
+    command: "chats room-invitations",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/invitations",
+  },
+  {
+    command: "chats invite-guest",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/invitations",
+  },
+  {
+    command: "chats revoke-invitation",
+    usage: "ROOM_ID INVITATION_ID",
+    operation: "DELETE /chats/rooms/{id}/invitations/{invitationId}",
+  },
+  {
+    command: "chats invite-links",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/invite-links",
+  },
+  {
+    command: "chats create-invite-link",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/invite-links",
+  },
+  {
+    command: "chats revoke-invite-link",
+    usage: "ROOM_ID TOKEN",
+    operation: "DELETE /chats/rooms/{id}/invite-links/{token}",
+  },
+  {
+    command: "chats join",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/members/me",
+
+    noBody: true,
+  },
+  {
+    command: "chats leave",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}/members/me",
+  },
+  {
+    command: "chats remove-member",
+    usage: "ROOM_ID USER_ID",
+    operation: "DELETE /chats/rooms/{id}/members/{userId}",
+  },
+  {
+    command: "chats add-members",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/members",
+  },
+  {
+    command: "chats remove-coworker",
+    usage: "ROOM_ID COWORKER_ID",
+    operation: "DELETE /chats/rooms/{id}/coworkers/{coworkerId}",
+  },
+  {
+    command: "chats remove-soko-bot",
+    usage: "ROOM_ID SOKO_BOT_ID",
+    operation: "DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}",
+  },
+  {
+    command: "chats mark-read",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/read",
+
+    noBody: true,
+  },
+  {
+    command: "chats mark-unread",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/unread",
+
+    noBody: true,
+  },
+  {
+    command: "chats star",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/star",
+
+    noBody: true,
+  },
+  {
+    command: "chats unstar",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}/star",
+  },
+  {
+    command: "chats mute",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/mute",
+
+    noBody: true,
+  },
+  {
+    command: "chats unmute",
+    usage: "ROOM_ID",
+    operation: "DELETE /chats/rooms/{id}/mute",
+  },
+  {
+    command: "chats threads",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/threads",
+  },
+  {
+    command: "chats thread-unread-count",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/threads/unread-count",
+  },
+  {
+    command: "chats read-threads",
+    usage: "ROOM_ID",
+    operation: "POST /chats/rooms/{id}/threads/read",
+
+    noBody: true,
+  },
+  {
+    command: "chats get-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/threads/{parentMessageId}",
+  },
+  {
+    command: "chats thread-messages",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/threads/{parentMessageId}/messages",
+  },
+  {
+    command: "chats read-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/threads/{parentMessageId}/read",
+
+    noBody: true,
+  },
+  {
+    command: "chats mute-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/threads/{parentMessageId}/mute",
+
+    noBody: true,
+  },
+  {
+    command: "chats unmute-thread",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute",
+  },
+  {
+    command: "chats unread-threads",
+    usage: "",
+    operation: "GET /chats/threads/unread",
+  },
+  {
+    command: "chats earlier-threads",
+    usage: "",
+    operation: "GET /chats/threads/earlier",
+  },
+  {
+    command: "chats messages",
+    usage: "ROOM_ID",
+    operation: "GET /chats/rooms/{id}/messages",
+  },
+  {
+    command: "chats send",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/messages",
+  },
+  {
+    command: "chats get-message",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/messages/{messageId}",
+  },
+  {
+    command: "chats edit-message",
+    usage: "ROOM_ID MESSAGE_ID --input-json JSON",
+    operation: "PATCH /chats/rooms/{id}/messages/{messageId}",
+  },
+  {
+    command: "chats delete-message",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "DELETE /chats/rooms/{id}/messages/{messageId}",
+  },
+  {
+    command: "chats get-message-results",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "GET /chats/rooms/{id}/messages/{messageId}/results",
+  },
+  {
+    command: "chats message-results",
+    usage: "ROOM_ID --query messageIds=IDS",
+    operation: "GET /chats/rooms/{id}/message-results",
+  },
+  {
+    command: "chats react",
+    usage: "ROOM_ID MESSAGE_ID EMOJI",
+    operation: "PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+
+    noBody: true,
+  },
+  {
+    command: "chats unreact",
+    usage: "ROOM_ID MESSAGE_ID EMOJI",
+    operation:
+      "DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+  },
+  {
+    command: "chats pin",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/pin",
+
+    noBody: true,
+  },
+  {
+    command: "chats unpin",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "DELETE /chats/rooms/{id}/messages/{messageId}/pin",
+  },
+  {
+    command: "chats send-to-self",
+    usage: "ROOM_ID MESSAGE_ID",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/send-to-self",
+
+    noBody: true,
+  },
+  {
+    command: "chats remove-unfurl",
+    usage: "ROOM_ID MESSAGE_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/messages/{messageId}/unfurls/remove",
+  },
+  {
+    command: "chats retry-mention",
+    usage: "ROOM_ID MESSAGE_ID MENTION_ID",
+    operation:
+      "POST /chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry",
+
+    noBody: true,
+  },
+  {
+    command: "chats upload-file",
+    usage: "ROOM_ID --input-json JSON",
+    operation: "POST /chats/rooms/{id}/files",
+  },
+  {
+    command: "chats saved",
+    usage: "",
+    operation: "GET /chats/saved-messages",
+  },
+  {
+    command: "chats save",
+    usage: "MESSAGE_ID",
+    operation: "PUT /chats/saved-messages/{messageId}",
+
+    noBody: true,
+  },
+  {
+    command: "chats unsave",
+    usage: "MESSAGE_ID",
+    operation: "DELETE /chats/saved-messages/{messageId}",
+  },
+  {
+    command: "chats decisions",
+    usage: "",
+    operation: "GET /chats/signals/decisions",
+  },
+  {
+    command: "chats important",
+    usage: "",
+    operation: "GET /chats/signals/important",
+  },
+  {
+    command: "chats summary",
+    usage: "",
+    operation: "GET /chats/signals/summary",
+  },
+  {
+    command: "chats catch-up",
+    usage: "ROOM_ID",
+    operation: "GET /chats/signals/rooms/{id}/catch-up",
+  },
+  {
+    command: "chats room-decisions",
+    usage: "ROOM_ID",
+    operation: "GET /chats/signals/rooms/{id}/decisions",
+  },
+  {
+    command: "chats correct-signal",
+    usage: "MESSAGE_ID --input-json JSON",
+    operation: "PUT /chats/signals/messages/{messageId}/corrections",
+  },
+  {
+    command: "chats set-loop",
+    usage: "MESSAGE_ID --input-json JSON",
+    operation: "PUT /chats/signals/messages/{messageId}/loop",
+  },
+  {
+    command: "chats routing",
+    usage: "MESSAGE_ID",
+    operation: "GET /chats/signals/messages/{messageId}/routing",
+  },
+  {
+    command: "chats skills",
+    usage: "",
+    operation: "GET /chats/skills",
+  },
+  {
+    command: "chats stickers",
+    usage: "",
+    operation: "GET /chats/stickers",
+  },
+  // SOKD-377 soko-bots
+  {
+    command: "soko-bots me",
+    usage: "",
+    operation: "GET /soko-bots/me",
+  },
+  {
+    command: "soko-bots create-mine",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me",
+  },
+  {
+    command: "soko-bots archive-mine",
+    usage: "",
+    operation: "DELETE /soko-bots/me",
+  },
+  {
+    command: "soko-bots delete-mine",
+    usage: "",
+    operation: "DELETE /soko-bots/me/permanent",
+  },
+  {
+    command: "soko-bots my-activity",
+    usage: "",
+    operation: "GET /soko-bots/me/activity",
+  },
+  {
+    command: "soko-bots my-usage",
+    usage: "",
+    operation: "GET /soko-bots/me/usage",
+  },
+  {
+    command: "soko-bots my-stats",
+    usage: "",
+    operation: "GET /soko-bots/me/stats",
+  },
+  {
+    command: "soko-bots my-turns",
+    usage: "",
+    operation: "GET /soko-bots/me/turns",
+  },
+  {
+    command: "soko-bots ask-mine",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/turns",
+  },
+  {
+    command: "soko-bots my-turn",
+    usage: "TURN_ID",
+    operation: "GET /soko-bots/me/turns/{turnId}",
+  },
+  {
+    command: "soko-bots my-turn-results",
+    usage: "TURN_ID",
+    operation: "GET /soko-bots/me/turns/{turnId}/results",
+  },
+  {
+    command: "soko-bots my-turn-conversation",
+    usage: "TURN_ID",
+    operation: "GET /soko-bots/me/turns/{id}/conversation",
+  },
+  {
+    command: "soko-bots cancel-my-turn",
+    usage: "TURN_ID",
+    operation: "POST /soko-bots/me/turns/{turnId}/cancel",
+    noBody: true,
+  },
+  {
+    command: "soko-bots rate-my-turn",
+    usage: "TURN_ID --input-json JSON",
+    operation: "POST /soko-bots/me/turns/{id}/feedback",
+  },
+  {
+    command: "soko-bots reset-my-memory",
+    usage: "",
+    operation: "POST /soko-bots/me/memory/reset",
+    noBody: true,
+  },
+  {
+    command: "soko-bots create-my-schedule",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/schedules",
+  },
+  {
+    command: "soko-bots update-my-schedule",
+    usage: "SCHEDULE_ID --input-json JSON",
+    operation: "PATCH /soko-bots/me/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots delete-my-schedule",
+    usage: "SCHEDULE_ID",
+    operation: "DELETE /soko-bots/me/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots introduce-mine",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/introduce",
+  },
+  {
+    command: "soko-bots rename-mine",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/name",
+  },
+  {
+    command: "soko-bots set-my-avatar",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/avatar-code",
+  },
+  {
+    command: "soko-bots set-my-version",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/version",
+  },
+  {
+    command: "soko-bots set-my-proactive",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/proactive",
+  },
+  {
+    command: "soko-bots set-my-board-following",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/board-following",
+  },
+  {
+    command: "soko-bots set-my-team-standup",
+    usage: "--input-json JSON",
+    operation: "PUT /soko-bots/me/team-standup",
+  },
+  {
+    command: "soko-bots my-skills",
+    usage: "",
+    operation: "GET /soko-bots/me/skills",
+  },
+  {
+    command: "soko-bots install-my-skill",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/skills",
+  },
+  {
+    command: "soko-bots remove-my-skill",
+    usage: "SKILL_ID",
+    operation: "DELETE /soko-bots/me/skills/{skillId}",
+  },
+  {
+    command: "soko-bots lab-ingest",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/lab/ingest",
+  },
+  {
+    command: "soko-bots lab-task-event",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/lab/task-event",
+  },
+  {
+    command: "soko-bots lab-runs",
+    usage: "",
+    operation: "GET /soko-bots/me/lab/runs",
+  },
+  {
+    command: "soko-bots lab-judge",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots/me/lab/judge",
+  },
+  {
+    command: "soko-bots versions",
+    usage: "",
+    operation: "GET /soko-bots/versions",
+  },
+  {
+    command: "soko-bots team",
+    usage: "",
+    operation: "GET /soko-bots/team",
+  },
+  {
+    command: "soko-bots search-skills",
+    usage: "--query q=TEXT",
+    operation: "GET /soko-bots/skills/search",
+  },
+  {
+    command: "soko-bots browse-skills",
+    usage: "",
+    operation: "GET /soko-bots/skills/browse",
+  },
+  {
+    command: "soko-bots create",
+    usage: "--input-json JSON",
+    operation: "POST /soko-bots",
+  },
+  {
+    command: "soko-bots get",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}",
+  },
+  {
+    command: "soko-bots reactivate",
+    usage: "SOKO_BOT_ID",
+    operation: "POST /soko-bots/{sokoBotId}",
+    noBody: true,
+  },
+  {
+    command: "soko-bots archive",
+    usage: "SOKO_BOT_ID",
+    operation: "DELETE /soko-bots/{sokoBotId}",
+  },
+  {
+    command: "soko-bots delete",
+    usage: "SOKO_BOT_ID",
+    operation: "DELETE /soko-bots/{sokoBotId}/permanent",
+  },
+  {
+    command: "soko-bots activity",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/activity",
+  },
+  {
+    command: "soko-bots usage",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/usage",
+  },
+  {
+    command: "soko-bots stats",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/stats",
+  },
+  {
+    command: "soko-bots turns",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/turns",
+  },
+  {
+    command: "soko-bots ask",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "POST /soko-bots/{sokoBotId}/turns",
+  },
+  {
+    command: "soko-bots turn",
+    usage: "SOKO_BOT_ID TURN_ID",
+    operation: "GET /soko-bots/{sokoBotId}/turns/{turnId}",
+  },
+  {
+    command: "soko-bots turn-results",
+    usage: "SOKO_BOT_ID TURN_ID",
+    operation: "GET /soko-bots/{sokoBotId}/turns/{turnId}/results",
+  },
+  {
+    command: "soko-bots cancel-turn",
+    usage: "SOKO_BOT_ID TURN_ID",
+    operation: "POST /soko-bots/{sokoBotId}/turns/{turnId}/cancel",
+    noBody: true,
+  },
+  {
+    command: "soko-bots reset-memory",
+    usage: "SOKO_BOT_ID",
+    operation: "POST /soko-bots/{sokoBotId}/memory/reset",
+    noBody: true,
+  },
+  {
+    command: "soko-bots create-schedule",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "POST /soko-bots/{sokoBotId}/schedules",
+  },
+  {
+    command: "soko-bots update-schedule",
+    usage: "SOKO_BOT_ID SCHEDULE_ID --input-json JSON",
+    operation: "PATCH /soko-bots/{sokoBotId}/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots delete-schedule",
+    usage: "SOKO_BOT_ID SCHEDULE_ID",
+    operation: "DELETE /soko-bots/{sokoBotId}/schedules/{scheduleId}",
+  },
+  {
+    command: "soko-bots rename",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/name",
+  },
+  {
+    command: "soko-bots set-avatar",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/avatar-code",
+  },
+  {
+    command: "soko-bots set-version",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/version",
+  },
+  {
+    command: "soko-bots set-proactive",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/proactive",
+  },
+  {
+    command: "soko-bots set-board-following",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/board-following",
+  },
+  {
+    command: "soko-bots set-team-standup",
+    usage: "SOKO_BOT_ID --input-json JSON",
+    operation: "PUT /soko-bots/{sokoBotId}/team-standup",
+  },
+  {
+    command: "soko-bots my-integrations",
+    usage: "",
+    operation: "GET /soko-bots/me/integrations",
+  },
+  {
+    command: "soko-bots integrations",
+    usage: "SOKO_BOT_ID",
+    operation: "GET /soko-bots/{sokoBotId}/integrations",
+  },
+  {
+    command: "soko-bots integration-catalog",
+    usage: "",
+    operation: "GET /soko-bots/integrations/catalog",
   },
 ] as const satisfies readonly CliCommandCatalogEntry[];
 

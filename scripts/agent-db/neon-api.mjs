@@ -1,5 +1,7 @@
 /** Minimal Neon API client for Cloud agent and PR preview branches. */
 
+import { parseNeonDatabaseUrl } from "../../packages/database/src/helpers/migrate-deploy-preflight.ts";
+
 /**
  * @typedef {object} NeonBranch
  * @property {string} id
@@ -242,6 +244,46 @@ export async function getBranchConnectionUrls(config, branchId) {
     getConnectionUri(config, { branchId, pooled: false }),
   ]);
   return { databaseUrl, databaseUrlUnpooled };
+}
+
+/**
+ * Verify the URLs against the branch's read-write compute and return its direct host.
+ * @param {NeonConfig} config
+ * @param {{ id: string, name: string }} branch
+ * @param {{ databaseUrl: string, databaseUrlUnpooled: string }} urls
+ */
+export async function assertBranchConnectionUrls(config, branch, urls) {
+  const body = await neonFetch(
+    config,
+    `/projects/${config.projectId}/branches/${branch.id}/endpoints`,
+  );
+  const endpoint = Array.isArray(body?.endpoints)
+    ? body.endpoints.find(
+        (compute) =>
+          compute?.branch_id === branch.id && compute.type === "read_write",
+      )
+    : undefined;
+  const host =
+    typeof endpoint?.host === "string" ? endpoint.host.toLowerCase() : "";
+  if (!host) {
+    throw new Error(
+      `Neon branch "${branch.name}" has no read-write endpoint host. Check its compute in Neon and retry provisioning.`,
+    );
+  }
+  const direct = parseNeonDatabaseUrl(urls.databaseUrlUnpooled);
+  const pooled = parseNeonDatabaseUrl(urls.databaseUrl);
+  const mismatch =
+    direct?.hostname !== host
+      ? "DATABASE_URL_UNPOOLED"
+      : pooled?.endpointHost !== host
+        ? "DATABASE_URL"
+        : null;
+  if (mismatch) {
+    throw new Error(
+      `${mismatch} does not match the read-write endpoint of Neon branch "${branch.name}". Check the branch connection settings in Neon and retry provisioning.`,
+    );
+  }
+  return host;
 }
 
 export const PREVIEW_BRANCH_PREFIX = "preview/";

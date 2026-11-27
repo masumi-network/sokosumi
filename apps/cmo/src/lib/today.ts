@@ -6,7 +6,7 @@ import {
   pieceMade,
   waitsForNetwork,
 } from "./calendar";
-import { retryWhen } from "./production";
+import { monthGivenUp, retryWhen } from "./production";
 import { isAd, strategyApproved } from "./strategy";
 import type { View } from "./views";
 
@@ -260,11 +260,18 @@ export function todayLine(overview: CmoOverview, needs: number): string {
   }
   const { state } = overview.production;
   const { ready, total } = monthMade(overview);
+  if (state === "planning") {
+    return "I'm planning your month, topic by topic. It takes a few minutes, then I make every post.";
+  }
   if (state === "running" || state === "starting") {
     return `I'm making your month: ${ready} of ${total} ready.`;
   }
   if (state === "stuck") {
+    if (monthGivenUp(overview.production))
+      return "I couldn't finish this month's posts. Our team has been told, and I won't try again on my own.";
     const when = retryWhen(overview.production.retryAt, overview.timeZone);
+    if (overview.production.writerFailed)
+      return `Something on our side stopped your month at ${ready} of ${total}. We're fixing it, and I try again ${when}.`;
     return `I stopped making your month at ${ready} of ${total}. My last try made nothing new, so I try the rest again ${when}.`;
   }
   if (state === "blocked") {

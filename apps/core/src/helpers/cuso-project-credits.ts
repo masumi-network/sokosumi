@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
+import { netTable } from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 
@@ -110,8 +111,8 @@ async function writeOffCreditBuckets(
       cb."organizationId",
       cb."userId",
       (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
-    FROM credit_bucket cb
-    LEFT JOIN credit_consumption cc ON cc."bucketId" = cb.id
+    FROM ${netTable("mainnet", "credit_bucket")} cb
+    LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
     WHERE ${where}
       AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
     GROUP BY cb.id, cb."organizationId", cb."userId", cb.amount

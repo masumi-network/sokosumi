@@ -29,6 +29,7 @@ export function contactQueryOptions(
       replyStates: query.replyState ? [query.replyState] : undefined,
       knownByUserId: query.knownByUserId,
       knownByMe: flag(query.knownByMe),
+      xFollow: query.xFollow,
       lastContactAfter: query.lastContactAfter,
       lastContactBefore: query.lastContactBefore,
       lastContactOlderThanDays: query.lastContactOlderThanDays,

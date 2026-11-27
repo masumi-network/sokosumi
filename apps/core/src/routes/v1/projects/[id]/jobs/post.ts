@@ -32,7 +32,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/jobs",
     description:
-      "Add an existing job to a project. Interactive session user only; coworker keys are rejected.",
+      "Add an existing job to a project. A person by any sign-in (browser, API key or OAuth token); Coworker and Soko Bot keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,

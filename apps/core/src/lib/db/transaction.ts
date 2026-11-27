@@ -33,14 +33,23 @@ function retryDelayMs(attempt: number): number {
   );
 }
 
+/** How long a transaction may wait for a connection, and run in all. */
+export interface TransactionTiming {
+  maxWait: number;
+  timeout: number;
+}
+
 export async function serializableTransaction<T>(
   callback: (tx: Prisma.TransactionClient) => Promise<T>,
   conflictMessage: string,
+  timing?: TransactionTiming,
 ): Promise<T> {
-  return retriedTransaction(
+  return retriedTransactionOn(
+    prisma,
     callback,
     conflictMessage,
     Prisma.TransactionIsolationLevel.Serializable,
+    timing,
   );
 }
 
@@ -55,11 +64,32 @@ export async function retriedTransaction<T>(
   conflictMessage: string,
   isolationLevel?: Prisma.TransactionIsolationLevel,
 ): Promise<T> {
+  return retriedTransactionOn(
+    prisma,
+    callback,
+    conflictMessage,
+    isolationLevel,
+  );
+}
+
+/**
+ * The one implementation of the retry and conflict rules, on the client it is
+ * given. Only for this module and the Network scope: other code opens a
+ * transaction through one of them.
+ */
+export async function retriedTransactionOn<T>(
+  client: Pick<typeof prisma, "$transaction">,
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+  conflictMessage: string,
+  isolationLevel?: Prisma.TransactionIsolationLevel,
+  timing?: TransactionTiming,
+): Promise<T> {
+  const options = { ...(isolationLevel && { isolationLevel }), ...timing };
   for (let attempt = 0; ; attempt += 1) {
     try {
-      return await prisma.$transaction(
+      return await client.$transaction(
         callback,
-        isolationLevel ? { isolationLevel } : undefined,
+        Object.keys(options).length > 0 ? options : undefined,
       );
     } catch (error) {
       if (!isPrismaTransactionConflict(error)) throw error;

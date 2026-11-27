@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Table2,
   UserPlus,
+  Users,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -51,7 +52,7 @@ export function ContactsWorkspaceHeader({
   query: ContactQuery;
   changeView: (next: string) => void;
   onLayout: (next: Layout) => void;
-  onDialog: (kind: "add" | "import" | "list") => void;
+  onDialog: (kind: "add" | "import" | "linkedin" | "list") => void;
 }) {
   const t = useTranslations("App.Contacts");
   const [exporting, setExporting] = useState(false);
@@ -202,6 +203,10 @@ export function ContactsWorkspaceHeader({
               <DropdownMenuItem onClick={() => onDialog("import")}>
                 <FileSpreadsheet aria-hidden className="size-4" />
                 {t("views.import")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDialog("linkedin")}>
+                <Users aria-hidden className="size-4" />
+                {t("linkedInImport.menu")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDialog("list")}>
                 <ListPlus aria-hidden className="size-4" />

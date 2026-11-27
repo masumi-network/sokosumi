@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -87,7 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id" FROM "chat_room"
+        SELECT "id" FROM ${sharedTable("chat_room")}
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
       `;

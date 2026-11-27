@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -194,7 +195,7 @@ export async function lockVendorMembershipMutation(
 ): Promise<void> {
   await tx.$queryRaw`
     SELECT "id"
-    FROM "vendor"
+    FROM ${sharedTable("vendor")}
     WHERE "id" = ${vendorId}::uuid
     FOR UPDATE
   `;

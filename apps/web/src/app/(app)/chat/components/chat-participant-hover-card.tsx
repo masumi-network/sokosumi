@@ -85,7 +85,12 @@ export function ChatMessageSenderName({
       <span
         className="inline-flex min-w-0 items-center gap-1 text-base font-semibold md:text-sm"
         aria-label={
-          isAgent ? t("aiAgentSender", { name: sender.name }) : undefined
+          isAgent
+            ? t(
+                sender.kind === "sokoBot" ? "sokoBotSender" : "coworkerSender",
+                { name: sender.name },
+              )
+            : undefined
         }
       >
         {isAgent ? (

@@ -21,7 +21,12 @@ function makeRow(id: string): SubtaskRow {
 
 describe("useTaskSubtasksCacheSync", () => {
   it("writes newer server rows into the cache and ignores older rows or in-flight mutations", () => {
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const key = ["task-subtasks", "parent-1"] as const;
     queryClient.setQueryData(key, [makeRow("a")], { updatedAt: 2_000 });
 
@@ -61,7 +66,12 @@ describe("useTaskSubtasksCacheSync", () => {
   });
 
   it("matches StrictMode replay and Activity hide/reveal write counts", () => {
-    const queryClient = new QueryClient();
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const setQueryDataSpy = vi.spyOn(queryClient, "setQueryData");
     const key = ["task-subtasks", "parent-1"] as const;
 

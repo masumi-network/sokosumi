@@ -61,6 +61,38 @@ describe("FilterDropdownMenu", () => {
     expect(onChange).toHaveBeenCalledWith("Europe/Prague");
   });
 
+  it("shows a person's initials as the Task cards do", async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterDropdownMenu
+        buttonLabel="Filter"
+        searchPlaceholder="Search..."
+        emptyResultsLabel="No results"
+        sections={[
+          {
+            id: "coworker",
+            label: "Coworker",
+            icon: Folder,
+            value: null,
+            onChange: vi.fn(),
+            options: [
+              {
+                value: "u-1",
+                label: "Mira Tester",
+                avatarLabel: "Mira Tester",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    await user.click(screen.getByLabelText("Filter"));
+    await user.click(screen.getByRole("button", { name: /^Coworker/ }));
+    expect(
+      screen.getByRole("option", { name: /Mira Tester/ }),
+    ).toHaveTextContent("MT");
+  });
+
   it("ends the menu and the sheet with Reset, which resets and closes", async () => {
     const user = userEvent.setup();
     const onReset = vi.fn();

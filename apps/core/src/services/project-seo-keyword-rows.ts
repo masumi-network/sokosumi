@@ -76,6 +76,8 @@ export function observedSeoKeyword(
     intent: item.intent ?? null,
     conversion: item.conversion ?? null,
     feature: item.feature ?? null,
+    intentClass: item.intentClass ?? null,
+    fit: item.fit ?? null,
   };
 }
 
@@ -99,6 +101,8 @@ export function savedSeoKeyword(
     intent: null,
     conversion: null,
     feature: null,
+    intentClass: null,
+    fit: null,
     device: null,
     position: null,
     positionStatus: "unavailable",

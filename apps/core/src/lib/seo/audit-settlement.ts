@@ -1,8 +1,10 @@
 import type { Prisma, Task, TaskStatus } from "@sokosumi/database";
+import { seoMaxCredits } from "@sokosumi/utils";
 import { z } from "zod";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import {
   seoCostPlusPriceSchema,
+  seoFullAuditCostDetailSchema,
   seoFullAuditCostSchema,
 } from "@/schemas/seo-audit-price.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
@@ -62,6 +64,28 @@ interface AuditPayment {
   credits?: number | null;
   masumiPayment?: unknown;
   fullAuditCost?: Receipt;
+  fullAuditCostDetail?: unknown;
+}
+
+function asPacket(request: Prisma.JsonValue | undefined) {
+  return request && typeof request === "object" && !Array.isArray(request)
+    ? request
+    : null;
+}
+
+/** A focused check frozen with zero provider calls is free: Core approved no spend for it. */
+function hasNoProviderBudget(packet: object | null): boolean {
+  const budget = packet && "budget" in packet ? packet.budget : null;
+  return (
+    typeof budget === "object" &&
+    budget !== null &&
+    "maxProviderCalls" in budget &&
+    typeof budget.maxProviderCalls === "number" &&
+    seoMaxCredits({
+      kind: "focused",
+      providerCalls: budget.maxProviderCalls,
+    }) === 0
+  );
 }
 
 /** Validate the worker's event against the original approval before any ledger mutation. */
@@ -91,11 +115,15 @@ export async function prepareAuditSettlement(
       ?.searchConsoleAccess
   )
     onApprovedCompletion?.();
-  const packet =
-    request && typeof request === "object" && !Array.isArray(request)
-      ? request
-      : null;
+  const packet = asPacket(request);
   const price = packet?.price;
+  if (
+    analysis &&
+    analysis.kind !== "audit_full" &&
+    (body.credits || body.masumiPayment) &&
+    hasNoProviderBudget(packet)
+  )
+    throw unprocessableEntity("A check with no provider budget cannot charge");
   if (
     analysis?.kind !== "audit_full" ||
     !price ||
@@ -104,7 +132,7 @@ export async function prepareAuditSettlement(
     price.kind !== "cost_plus"
   ) {
     if (body.fullAuditCost)
-      throw unprocessableEntity("This Task has no cost-plus audit approval");
+      throw unprocessableEntity("This Task has no approved full-audit price");
     return;
   }
   if (packet?.fullAuditCost !== undefined) {
@@ -162,30 +190,51 @@ export async function prepareAuditSettlement(
     const { pendingFullAuditCost: _pending, ...original } = packet;
     const field =
       status === "COMPLETED" ? "fullAuditCost" : "pendingFullAuditCost";
+    // Display only: the first valid detail wins, and an invalid one is dropped.
+    const detail =
+      original.fullAuditCostDetail === undefined
+        ? seoFullAuditCostDetailSchema.safeParse(body.fullAuditCostDetail).data
+        : undefined;
     return tx.projectSeoAnalysis.update({
       where: { id: analysis.id },
       data: {
-        request: { ...original, [field]: receipt } as Prisma.InputJsonObject,
+        request: {
+          ...original,
+          [field]: receipt,
+          ...(detail && { fullAuditCostDetail: detail }),
+        } as Prisma.InputJsonObject,
       },
     });
   };
 }
 
-/** A full audit already accounts for all attributable vendor costs at completion. */
+/**
+ * A full audit already accounts for all attributable vendor costs at completion,
+ * and a focused check frozen with no provider budget may not spend at all.
+ */
 export async function requireSeparateAuditPurchaseAllowed(
   tx: Prisma.TransactionClient,
   taskId: string,
 ) {
-  const audit = await tx.projectSeoAnalysis.findFirst({
-    where: {
-      taskId,
-      kind: "audit_full",
-      request: { path: ["price", "kind"], equals: "cost_plus" },
-    },
-    select: { id: true },
+  const analysis = await tx.projectSeoAnalysis.findUnique({
+    where: { taskId },
+    select: { kind: true, request: true },
   });
-  if (audit)
+  if (!analysis) return;
+  const packet = asPacket(analysis.request);
+  const price = packet?.price;
+  if (
+    analysis.kind === "audit_full" &&
+    price &&
+    typeof price === "object" &&
+    !Array.isArray(price) &&
+    price.kind === "cost_plus"
+  )
     throw unprocessableEntity(
-      "A cost-plus audit charges once at completion and cannot make a separate Task purchase",
+      "A full audit charges once at completion and cannot make a separate Task purchase",
+    );
+  if (analysis.kind !== "audit_full" && hasNoProviderBudget(packet))
+    throw unprocessableEntity(
+      "A check with no provider budget cannot make a Task purchase",
     );
 }

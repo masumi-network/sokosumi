@@ -222,3 +222,10 @@ it("says a post X paused is retrying, and never asks the owner to raise a cap", 
   );
   expect(sheet).not.toMatch(/cap/i);
 });
+
+it("counts the month once: the line under the title says only how far it is", async () => {
+  await render(drafts());
+  const line = container.querySelector(".cal-head .note")?.textContent ?? "";
+  expect(line).toMatch(/^\d+ ready/);
+  expect(line).not.toContain("this month");
+});

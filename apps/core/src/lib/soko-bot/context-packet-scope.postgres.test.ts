@@ -1,15 +1,27 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
+import {
+  createSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it } from "vitest";
+import { testSchemaNames } from "@/test/split-layout";
 
 import { contextPacketScope } from "./context-packet-scope";
+
+const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
 
 const url = process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   url?.startsWith("postgres");
-const db = enabled && url ? createPrismaClient(url) : null;
+const db =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+      })
+    : null;
 afterAll(async () => {
   await db?.$disconnect();
 });
@@ -29,9 +41,9 @@ async function withFixtures(
   await db
     .$transaction(
       async (tx) => {
-        await tx.$executeRaw`INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OWNER}, ${OWNER}, ${`${OWNER}@fixture.invalid`}, true, now(), now())`;
-        await tx.$executeRaw`INSERT INTO workspace (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
-        await tx.$executeRaw`INSERT INTO soko_bot (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("user")} (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES (${OWNER}, ${OWNER}, ${`${OWNER}@fixture.invalid`}, true, now(), now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("workspace")} (id, "userId", "updatedAt") VALUES (${WS}::uuid, ${OWNER}, now())`;
+        await tx.$executeRaw`INSERT INTO ${sharedTable("soko_bot")} (id, "userId", "workspaceId", "updatedAt") VALUES (${BOT}::uuid, ${OWNER}, ${WS}::uuid, now())`;
         await run(tx);
         throw new Rollback();
       },

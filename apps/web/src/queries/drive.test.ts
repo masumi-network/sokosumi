@@ -200,7 +200,10 @@ describe("driveQueryKeys", () => {
 describe("invalidateDrive", () => {
   it("removes deletedIds from entries with data (including error entries with prior data) and invalidates the store prefix", async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
     });
     const fileKeep = fileRow("res_keep", "drive/orgs/org_a/keep.pdf");
     const fileDropById = fileRow("res_drop_id", "drive/orgs/org_a/a.pdf");

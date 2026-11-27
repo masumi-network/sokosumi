@@ -1,8 +1,52 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+const { botFindManyMock } = vi.hoisted(() => ({
+  botFindManyMock: vi.fn().mockResolvedValue([]),
+}));
 
-import { planChecks } from "./cmo-spend.service";
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    sokoBot: { findMany: botFindManyMock },
+    evalLane: {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ workspaceId: "ws_eval", cusoProjectId: null }]),
+    },
+  },
+}));
+
+import { cmoSpend, planChecks } from "./cmo-spend.service";
+
+describe("cmoSpend", () => {
+  it.each([
+    ["exclude", { workspaceId: { notIn: ["ws_eval"] } }],
+    ["only", { workspaceId: { in: ["ws_eval"] } }],
+    ["include", {}],
+  ] as const)(
+    "with evals %s, filters eval-lane Cusos",
+    async (evals, filter) => {
+      await cmoSpend(new Date(), evals);
+
+      expect(botFindManyMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: { AND: [expect.any(Object), filter] },
+        }),
+      );
+    },
+  );
+
+  it("leaves eval-lane Cusos out by default", async () => {
+    await cmoSpend(new Date());
+
+    expect(botFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [expect.any(Object), { workspaceId: { notIn: ["ws_eval"] } }],
+        },
+      }),
+    );
+  });
+});
 
 const save = (minutesAgo: number, review?: Record<string, unknown>) => ({
   createdAt: new Date(Date.UTC(2026, 9, 26, 12, 0) - minutesAgo * 60_000),

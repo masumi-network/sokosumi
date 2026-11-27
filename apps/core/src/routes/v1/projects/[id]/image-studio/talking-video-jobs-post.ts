@@ -2,12 +2,16 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { resolveFileActor } from "@/lib/files/actor";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import {
+  requirePersonApproval,
+  requireUserAuthContext,
+} from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   createTalkingVideoJobRequestSchema,
@@ -51,10 +55,18 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(
     route,
     async (c) => {
-      const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+      const userContext = requireUserAuthContext(c.var.authContext);
       const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
       const { id: projectId } = c.req.valid("param");
       const input = c.req.valid("json");
+      // ADR 0077: an agent cannot consent for a real person's face and
+      // voice, so a photo presenter is a person's step. Stock stays open.
+      if (input.presenter.kind === "file") {
+        requirePersonApproval(
+          c.var.authContext,
+          `/studio?${new URLSearchParams({ projectId })}`,
+        );
+      }
 
       const job = await createTalkingVideoJob({
         projectId,
@@ -70,16 +82,16 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
             : {
                 kind: "file",
                 fileId: input.presenter.fileId,
-                actor: {
-                  userId: userContext.userId,
-                  organizationId: workspaceContext.organizationId,
-                  kind: "interactive",
-                },
+                actor: resolveFileActor(
+                  { source: "session", ...userContext },
+                  { organizationId: workspaceContext.organizationId },
+                ),
                 consentAt: new Date(),
               },
         siteShots: input.siteShots,
         broll: input.broll,
         music: input.music,
+        ...(input.shapes ? { shapes: input.shapes } : {}),
         idempotencyKey: input.idempotencyKey,
       });
 

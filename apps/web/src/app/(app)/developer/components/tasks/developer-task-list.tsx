@@ -83,7 +83,7 @@ export function DeveloperTaskList({ initialPage }: DeveloperTaskListProps) {
         <p className="text-muted-foreground text-sm">{t("empty")}</p>
       ) : (
         <div
-          className="overflow-hidden rounded-lg border"
+          className="bg-background overflow-hidden rounded-lg border"
           aria-busy={isPending}
         >
           <Table>

@@ -81,7 +81,12 @@ function renderConnectors(
   focusProvider: string | null = null,
   readOnly = false,
   onError?: (error: Error) => void,
-  client = new QueryClient(),
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  }),
   withPageSearch = false,
 ) {
   const connectors = (
@@ -184,7 +189,19 @@ describe("ToolConnectors", () => {
 
   it("uses one dashboard field for a linked provider and for catalog matches beyond the popular suggestions", async () => {
     const user = userEvent.setup();
-    renderConnectors([], "figma", false, undefined, new QueryClient(), true);
+    renderConnectors(
+      [],
+      "figma",
+      false,
+      undefined,
+      new QueryClient({
+        defaultOptions: {
+          queries: { gcTime: Number.POSITIVE_INFINITY },
+          mutations: { gcTime: Number.POSITIVE_INFINITY },
+        },
+      }),
+      true,
+    );
     const field = screen.getByRole("searchbox");
     expect(field).toHaveValue("figma");
     expect(
@@ -294,7 +311,12 @@ describe("ToolConnectors", () => {
 
   it("shows a failed refresh of an old search, not its old cards", async () => {
     const user = userEvent.setup();
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     renderConnectors([], null, false, undefined, client);
     const search = screen.getByRole("searchbox");
     await user.type(search, "fig");
@@ -530,8 +552,74 @@ describe("ToolConnectors", () => {
     }
   });
 
+  it("shows the full list on the same frame when search is cleared while typing still debounces", async () => {
+    vi.useFakeTimers();
+    try {
+      renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(screen.getByText("slack")).toBeTruthy();
+
+      const input = screen.getByRole("searchbox");
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(
+        screen.getByRole("button", { name: "Connect figma" }),
+      ).toBeTruthy();
+      expect(screen.queryByText("slack")).toBeNull();
+
+      // Clearing shows the full list immediately without waiting 250ms.
+      fireEvent.change(input, { target: { value: "" } });
+      expect(screen.getByText("slack")).toBeTruthy();
+      expect(screen.getAllByRole("listitem")).toHaveLength(7);
+      expect(screen.queryByText("figma")).toBeNull();
+
+      // Re-typing the cleared query still waits out the 250ms debounce.
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(screen.getByRole("status")).toHaveTextContent("“fig”");
+      expect(screen.queryByText("figma")).toBeNull();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(
+        screen.getByRole("button", { name: "Connect figma" }),
+      ).toBeTruthy();
+
+      // Clearing again, then typing a new query still debounces the search call.
+      fireEvent.change(input, { target: { value: "" } });
+      expect(screen.getByText("slack")).toBeTruthy();
+      searchCatalog.mockClear();
+      fireEvent.change(input, { target: { value: "lin" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(searchCatalog).toHaveBeenCalledTimes(1);
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "lin" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not scroll again on an identical catalog refetch with a newer dataUpdatedAt", async () => {
-    const client = new QueryClient();
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { gcTime: Number.POSITIVE_INFINITY },
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+      },
+    });
     const scrollSpy = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollSpy;
 

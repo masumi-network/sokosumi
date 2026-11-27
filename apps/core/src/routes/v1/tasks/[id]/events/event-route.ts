@@ -40,7 +40,7 @@ export function createTaskEventRoute(mode: TaskEventRouteMode) {
     "seo-settlement": {
       path: "/{id}/events/seo-settlement-v1",
       description:
-        "Settle a completed full audit once using the original cost-plus approval and verified API receipts.",
+        "Settle a completed full audit once, using its approved price and verified API receipts.",
       schema: baseSchema.and(seoSettlementFields),
     },
     "start-admission": {

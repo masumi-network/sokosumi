@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import { cmoShapedVideoTarget, cmoVideoShape } from "@sokosumi/utils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +23,14 @@ import { DraftText } from "./draft-text";
 import { withoutLabel } from "./showcases";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+
+/** "Instagram", or for a video in another shape "Instagram 4:5". */
+function alsoOnLabel(name: string): string {
+  const shaped = cmoShapedVideoTarget(name);
+  return shaped
+    ? `${channelLabel(shaped.channel)} ${cmoVideoShape(shaped.channel, shaped.format)}`
+    : channelLabel(name);
+}
 type Media = CmoOverview["media"][number];
 
 /**
@@ -110,7 +119,7 @@ export function EntrySheet({
                   ? ` · image by ${AGENT_NAME}`
                   : ""}
             {entry.alsoOn?.length
-              ? ` · also on ${entry.alsoOn.map(channelLabel).join(", ")}`
+              ? ` · also on ${entry.alsoOn.map(alsoOnLabel).join(", ")}`
               : ""}
           </span>
           {position ? (
@@ -311,6 +320,8 @@ function PostPreview({
   const [prevText, setPrevText] = useState(text);
   const [words, setWords] = useState(text);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // The words last saved here: "Saved." shows while the post holds them.
+  const [savedText, setSavedText] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
   // Stepping to another post, or a save, shows that post's own words.
   if (prevText !== text) {
@@ -373,7 +384,10 @@ function PostPreview({
                     () => "That didn't go through. Try again.",
                   );
                   setRefusal(error ?? null);
-                  if (!error) setEditing(false);
+                  if (!error) {
+                    setSavedText(words.trim());
+                    setEditing(false);
+                  }
                 })
               }
             >
@@ -393,13 +407,20 @@ function PostPreview({
             </button>
           </>
         ) : onEdit ? (
-          <button
-            type="button"
-            className="button button-secondary button-small"
-            onClick={() => setEditing(true)}
-          >
-            Edit text
-          </button>
+          <>
+            {savedText === text.trim() ? (
+              <span className="note" role="status">
+                Saved.
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="button button-secondary button-small"
+              onClick={() => setEditing(true)}
+            >
+              Edit text
+            </button>
+          </>
         ) : null}
       </div>
       {refusal ? (

@@ -6,6 +6,7 @@ import {
   CMO_SCENE_PRODUCTION_SKILL,
   CMO_V20_STRATEGY_SKILL,
   CMO_V21_STRATEGY_SKILL,
+  CMO_V22_STRATEGY_SKILL,
   CMO_VARIED_PRODUCTION_SKILL,
   type CmoCalendarEntry,
   getSokoBotVersion,
@@ -16,7 +17,9 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  cmoVideoShape,
   isCmoOwnerConfirmedChannel,
+  isCmoShapedVideoFormat,
   isCmoTalkingFormat,
   socialPostMediaKindForMime,
 } from "@sokosumi/utils";
@@ -70,12 +73,16 @@ import {
   writeOwnerDriveFile,
 } from "@/services/image-studio-drive.service";
 import {
+  CMO_MONTH_JOB_KEY_PREFIX,
   createImageJob,
   createShortVideoJob,
   createTalkingVideoJob,
   createVideoJob,
   DEFAULT_SETTINGS,
   downloadStudioFileReference,
+  NOT_A_VIDEO_SHAPE_JOB,
+  requestVideoShape,
+  videoShapeJobKey,
 } from "@/services/image-studio-jobs.service";
 import {
   type ReferenceKind,
@@ -100,7 +107,7 @@ import { recordSokoBotCheckUsage } from "@/services/soko-bot-billing.service";
  * so two callers racing start the same job, and a new visual starts over.
  */
 
-const KEY_PREFIX = "cmo-media";
+const KEY_PREFIX = CMO_MONTH_JOB_KEY_PREFIX;
 /** Tries a slot gets for one visual before the piece goes back to Cuso. */
 const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */
@@ -254,11 +261,19 @@ export function cmoPieceIsVideo(
   return Boolean(formatOf(entry)?.video);
 }
 
-/** Whether the piece is a talking video Core makes from its script. */
+/**
+ * Whether the piece is a talking video Core makes from its script. A copy
+ * in another shape (cmo-video-shapes) is its source's kind, which Core
+ * wrote on it (`videoOfTalking`).
+ */
 export function cmoPieceIsTalking(
-  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+  entry: Pick<CmoCalendarEntry, "channel" | "format" | "videoOfTalking">,
 ): boolean {
-  return isCmoTalkingFormat(entry.channel, entry.format);
+  return (
+    isCmoTalkingFormat(entry.channel, entry.format) ||
+    (isCmoShapedVideoFormat(entry.channel, entry.format) &&
+      entry.videoOfTalking === true)
+  );
 }
 
 /** Whether Core makes the piece's picture, or each slide, in a library style. */
@@ -312,7 +327,8 @@ export function cmoWritesShorts(versionId: string | null | undefined): boolean {
   const { skills } = getSokoBotVersion(versionId);
   return (
     skills.includes(CMO_V20_STRATEGY_SKILL) ||
-    skills.includes(CMO_V21_STRATEGY_SKILL)
+    skills.includes(CMO_V21_STRATEGY_SKILL) ||
+    skills.includes(CMO_V22_STRATEGY_SKILL)
   );
 }
 
@@ -1519,7 +1535,7 @@ export async function advanceCmoMedia(
       ? LIMITS.CMO_PICKED_MONTH_CONCURRENT_JOBS_PER_PROJECT
       : LIMITS.CMO_MONTH_CONCURRENT_JOBS_PER_PROJECT) -
     (await prisma.projectImageJob.count({
-      where: { projectId, status: { in: [...LIVE] } },
+      where: { projectId, status: { in: [...LIVE] }, ...NOT_A_VIDEO_SHAPE_JOB },
     }));
   let brandPictures: CmoBrandPicture[] | null = null;
   let styleBrand: StyleBrand | null = null;
@@ -2111,6 +2127,51 @@ async function attach(
   piece: CmoMediaPiece,
   job: CmoMediaJob,
   /** Set for a styled picture: it is checked, then gets the brand's logo. */
+  style: StyleBrand | null,
+): Promise<boolean> {
+  if (!job.assetId) return false;
+  const shaped = await videoInNetworkShape(context.cuso.projectId, piece, job);
+  if (!shaped) return false;
+  return await attachFile(context, drive, piece, shaped, style);
+}
+
+/**
+ * A video piece's file in the shape its network shows it (`cmoVideoShape`):
+ * the vertical video itself, or its other shape, which Core cuts from the
+ * same parts for free. Null while that shape is being cut. A shape that
+ * cannot be cut, or failed, leaves the vertical video: every network takes it.
+ */
+async function videoInNetworkShape(
+  projectId: string,
+  piece: CmoMediaPiece,
+  job: CmoMediaJob,
+): Promise<CmoMediaJob | null> {
+  if (job.step !== "talking" && job.step !== "short") return job;
+  const shape = cmoVideoShape(piece.channel, piece.format);
+  if (shape === "9:16") return job;
+  const cut = await prisma.projectImageJob.findUnique({
+    where: {
+      projectId_idempotencyKey: {
+        projectId,
+        idempotencyKey: videoShapeJobKey(job.id, shape),
+      },
+    },
+    select: { id: true, status: true, asset: { select: { id: true } } },
+  });
+  if (!cut) return (await requestVideoShape(job.id, shape)) ? null : job;
+  if (cut.status === ProjectImageJobStatus.SUCCEEDED && cut.asset)
+    return { ...job, id: cut.id, assetId: cut.asset.id };
+  return cut.status === ProjectImageJobStatus.FAILED ||
+    cut.status === ProjectImageJobStatus.CANCELED
+    ? job
+    : null;
+}
+
+async function attachFile(
+  context: MediaContext,
+  drive: CusoDrive,
+  piece: CmoMediaPiece,
+  job: CmoMediaJob,
   style: StyleBrand | null,
 ): Promise<boolean> {
   if (!job.assetId) return false;

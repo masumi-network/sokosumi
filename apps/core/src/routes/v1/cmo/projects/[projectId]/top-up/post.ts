@@ -4,7 +4,10 @@ import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
-import { cmoProjectParamsSchema } from "@/schemas/cmo.schema";
+import {
+  cmoCheckoutAnalyticsSchema,
+  cmoProjectParamsSchema,
+} from "@/schemas/cmo.schema";
 import { startCmoTopUpCheckout } from "@/services/cmo-top-up.service";
 
 const route = createRoute({
@@ -19,7 +22,10 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: z.object({ returnUrl: z.string().url() }),
+          schema: z.object({
+            returnUrl: z.string().url(),
+            analytics: cmoCheckoutAnalyticsSchema,
+          }),
         },
       },
     },
@@ -43,11 +49,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { projectId } = c.req.valid("param");
-    const { returnUrl } = c.req.valid("json");
+    const { returnUrl, analytics } = c.req.valid("json");
     const checkout = await startCmoTopUpCheckout({
       userId,
       projectId,
       returnUrl,
+      analytics,
     }).catch(rethrow);
     return ok(c, checkout);
   });

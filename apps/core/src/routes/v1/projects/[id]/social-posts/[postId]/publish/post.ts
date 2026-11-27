@@ -5,7 +5,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
+import { requirePersonApproval } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   publishSocialPostRequestSchema,
@@ -14,14 +14,17 @@ import {
 } from "@/schemas/social-post.schema";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 
-import { mapSocialPostServiceError } from "../../route-helpers.js";
+import {
+  mapSocialPostServiceError,
+  socialPostWebPath,
+} from "../../route-helpers.js";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "post",
     path: "/{id}/social-posts/{postId}/publish",
     description:
-      "Publish a Social post now through its Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED; the attempt runs inline and the returned post carries its outcome. Requires an interactive user session in the Project's Workspace.",
+      "Publish a Social post now through its Project social connection. Allowed from DRAFT, SCHEDULED, FAILED and MISSED; the attempt runs inline and the returned post carries its outcome. A person does this on a browser session in the Project's Workspace; any other credential gets 403 `person_approval_required` with the post's Web link (ADR 0077).",
     tags: ["Projects"],
     request: {
       params: socialPostParamsSchema,
@@ -50,10 +53,13 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const { id: projectId, postId } = c.req.valid("param");
+    const userContext = requirePersonApproval(
+      c.var.authContext,
+      socialPostWebPath(projectId, postId),
+    );
 
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { id: projectId, postId } = c.req.valid("param");
     const input = c.req.valid("json");
 
     try {

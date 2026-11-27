@@ -1,14 +1,20 @@
+import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { SokoBotConsole } from "@/app/personal-assistant/components/console/console.client";
 import { ReactivateSharedBotButton } from "@/app/soko-bots/components/reactivate-shared-bot-button.client";
-import { Button } from "@/components/ui/button";
+import { AgentsPageHeader } from "@/components/agents/directory/agents-page";
+import {
+  AGENTS_BACK_LINK_CLASS,
+  AGENTS_PAGE_CLASS,
+} from "@/components/agents/directory/agents-page-classes";
+import { BackLink } from "@/components/back-link";
+import { BotFace, botFaceSeed } from "@/components/soko-bot/bot-face";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
-import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { loadBotAdAccounts } from "@/lib/soko-bot/load-bot-ad-accounts";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -51,25 +57,34 @@ export default async function SharedSokoBotPage({
   // An archived bot does nothing, so it gets no console to configure.
   if (summary.archivedAt) {
     const t = await getTranslations("App.SokoBots.Shared.Archived");
+    const name = summary.name?.trim() || id;
     return (
-      <section
-        className="mx-auto w-full max-w-lg space-y-3 px-4 py-12 text-center"
-        data-testid="archived-shared-bot"
-      >
-        <h1 className="text-xl font-medium">
-          {t("title", { name: summary.name?.trim() || id })}
-        </h1>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {/* Reactivating Cuso is CMO's call (ADR 0066). */}
-          {summary.viewerCanManage && !summary.cuso ? (
-            <ReactivateSharedBotButton botId={id} />
-          ) : null}
-          <Button asChild variant="outline">
-            <Link href={SOKO_BOTS_ROUTE}>{t("back")}</Link>
-          </Button>
+      <div className={AGENTS_PAGE_CLASS} data-testid="archived-shared-bot">
+        <div className="flex flex-col gap-4">
+          <BackLink href="/agents" className={AGENTS_BACK_LINK_CLASS}>
+            <ArrowLeft aria-hidden className="size-4" />
+            {t("back")}
+          </BackLink>
+          <AgentsPageHeader
+            leading={
+              <BotFace
+                imageUrl={summary.avatarImageUrl}
+                seed={botFaceSeed(summary)}
+                alt={name}
+                className="size-12 opacity-60"
+              />
+            }
+            title={t("title", { name })}
+            subtitle={t("description")}
+            actions={
+              // Reactivating Cuso is CMO's call (ADR 0066).
+              summary.viewerCanManage && !summary.cuso ? (
+                <ReactivateSharedBotButton botId={id} />
+              ) : null
+            }
+          />
         </div>
-      </section>
+      </div>
     );
   }
 

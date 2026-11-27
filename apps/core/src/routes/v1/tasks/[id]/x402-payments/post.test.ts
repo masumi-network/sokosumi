@@ -13,9 +13,11 @@ import { forbidden, unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { Network } from "@/lib/network";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TASK_X402_MAX_SIGN_DISPATCH_DELAY_MS } from "@/services/task-x402-payment.replay";
 import { createX402DemandFingerprint } from "@/services/task-x402-payment.replay-demand";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 import mountPostTaskX402Payment, { X402_PAY_MAX_BODY_BYTES } from "./post";
 
@@ -136,6 +138,8 @@ vi.mock("@vercel/functions", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  // The request's scope is compared below; its Network client is never used.
+  networkPrisma: () => ({}),
   default: {
     $transaction: prismaTransactionMock,
     taskX402Payment: {
@@ -194,7 +198,7 @@ const SOKO_BOT_CONTEXT: AuthenticationContext = {
 };
 
 interface TxMock {
-  projectSeoAnalysis: { findFirst: ReturnType<typeof vi.fn> };
+  projectSeoAnalysis: { findUnique: ReturnType<typeof vi.fn> };
   $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -491,7 +495,7 @@ function createTxMock(): TxMock {
   return {
     // VERIFIED replay takes FOR UPDATE before returning the stored header.
     $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
-    projectSeoAnalysis: { findFirst: vi.fn().mockResolvedValue(null) },
+    projectSeoAnalysis: { findUnique: vi.fn().mockResolvedValue(null) },
     taskX402Payment: {
       findUnique: vi
         .fn()
@@ -524,7 +528,7 @@ function createTxMock(): TxMock {
   };
 }
 
-function createApp(authContext: AuthenticationContext) {
+function createApp(authContext: AuthenticationContext, network?: Network) {
   const app = new OpenAPIHonoWithAuth();
 
   // The real app serializes HTTPExceptions to the JSON error envelope in its
@@ -535,6 +539,12 @@ function createApp(authContext: AuthenticationContext) {
     c.set("requestId", "test-req-id");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    // A scope the middleware keeps: Preprod itself is off on this layout.
+    if (network)
+      c.set(
+        "networkScope",
+        Object.create(testNetworkScope(), { network: { value: network } }),
+      );
     return await next();
   });
 
@@ -643,6 +653,7 @@ describe("POST /{id}/x402-payments", () => {
           taskId: TASK_ID,
           cents: CENTS_FOR_DEMAND,
           transactionId: "txn_1",
+          network: "mainnet",
           sokoBotId: SOKO_BOT_CONTEXT.sokoBotId,
         },
       });
@@ -1735,7 +1746,10 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("rejects a separate x402 purchase on a full audit that pays only at completion", async () => {
-      tx.projectSeoAnalysis.findFirst.mockResolvedValue({ id: TASK_ID });
+      tx.projectSeoAnalysis.findUnique.mockResolvedValue({
+        kind: "audit_full",
+        request: { price: { kind: "cost_plus" } },
+      });
       const response = await postPayment(
         createApp(COWORKER_AGENT_CONTEXT),
         validBody(),
@@ -1743,6 +1757,34 @@ describe("POST /{id}/x402-payments", () => {
       expect(response.status).toBe(422);
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
+    });
+
+    it("rejects an x402 purchase on a focused check frozen with no provider budget", async () => {
+      tx.projectSeoAnalysis.findUnique.mockResolvedValue({
+        kind: "page_check",
+        request: { budget: { maxProviderCalls: 0 } },
+      });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      await expectRejectedBeforeCharge(response, 422);
+      expect((await response.json()) as { message: string }).toMatchObject({
+        message: expect.stringContaining("no provider budget"),
+      });
+    });
+
+    it("still charges a focused check that has a provider budget", async () => {
+      tx.projectSeoAnalysis.findUnique.mockResolvedValue({
+        kind: "rankings",
+        request: { budget: { maxProviderCalls: 20 } },
+      });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(createTaskEventTransactionMock).toHaveBeenCalledOnce();
     });
 
     it("charges a demand priced exactly at maxCredits", async () => {
@@ -1962,6 +2004,15 @@ describe("POST /{id}/x402-payments", () => {
       );
     });
 
+    it("tags the charge event with the Network of the request's scope", async () => {
+      const app = createApp(COWORKER_AGENT_CONTEXT, "preprod");
+
+      expect((await postPayment(app, validBody())).status).toBe(200);
+      expect(tx.taskEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ network: "preprod" }),
+      });
+    });
+
     it("charges, records, signs, verifies, and returns the header", async () => {
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
@@ -1990,6 +2041,7 @@ describe("POST /{id}/x402-payments", () => {
         organizationId: null,
         projectId: PROJECT_ID,
         cents: CENTS_FOR_DEMAND,
+        scope: expect.objectContaining({ network: "mainnet" }),
         tx,
       });
       // Credit-bearing task event, like the masumiPayment charge.
@@ -1998,6 +2050,7 @@ describe("POST /{id}/x402-payments", () => {
           taskId: TASK_ID,
           cents: CENTS_FOR_DEMAND,
           transactionId: "txn_1",
+          network: "mainnet",
           coworkerId: COWORKER_ID,
         },
       });

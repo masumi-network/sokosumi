@@ -58,12 +58,52 @@ export interface CmoPictureGroup {
 /** A cmo-v11 alternative (p1–p5) or remake (r1), judged only by its check. */
 const PICKER_ATTEMPT = /^[pr]\d/;
 
+/**
+ * The brand check's reasons, as the owner reads them: one plain phrase per
+ * kind of miss, in a fixed order. The check's own sentences ("Bright
+ * lime/yellow-green is a strong non-brand colour; the brand red #b8321f is
+ * absent") stay stored for the remake; on the Pictures page they read as
+ * developer notes.
+ */
+const PLAIN_REASONS: readonly [RegExp, string][] = [
+  [/colou?r/i, "colours that aren't the brand's"],
+  [/logo|wordmark/i, "the logo drawn wrong"],
+  [
+    /headline|cut off|truncat|covered|hidden|legib|contrast/i,
+    "words cut off or hard to read",
+  ],
+  [
+    /extra (word|mark)|not among the (allowed|given) lines|not asked for|barcode|badge|emblem/i,
+    "extra words or marks",
+  ],
+  [/garbled|misspel|gibberish|fake (text|lettering)/i, "garbled lettering"],
+  [/corner/i, "no room for the logo"],
+  [
+    /scene|screen|does not (match|show)|not shown/i,
+    "not the scene it was asked for",
+  ],
+  [/cop(y|ied)|reference/i, "too close to its example"],
+];
+
+export function cmoPlainPictureReasons(problems: string): string {
+  const found = PLAIN_REASONS.filter(([pattern]) => pattern.test(problems)).map(
+    ([, plain]) => plain,
+  );
+  if (found.length === 0) return "It didn't pass the brand check.";
+  const listed =
+    found.length === 1
+      ? found[0]!
+      : `${found.slice(0, -1).join(", ")} and ${found.at(-1)}`;
+  return `${listed.charAt(0).toUpperCase()}${listed.slice(1)}.`;
+}
+
 function verdictOf(
   job: { status: ProjectImageJobStatus; error: string | null },
   picker: boolean,
 ): Pick<CmoPictureAlternative, "verdict" | "why"> {
+  // The model's own error is for us; "Failed to make" says it to the owner.
   if (job.status === ProjectImageJobStatus.FAILED)
-    return { verdict: "failed", why: job.error };
+    return { verdict: "failed", why: null };
   if (job.status !== ProjectImageJobStatus.SUCCEEDED)
     return { verdict: "waiting", why: null };
   if (job.error?.startsWith(CMO_STYLE_PASSED))
@@ -71,7 +111,7 @@ function verdictOf(
   if (job.error?.startsWith(CMO_STYLE_REJECTED))
     return {
       verdict: "rejected",
-      why: job.error.slice(CMO_STYLE_REJECTED.length) || null,
+      why: cmoPlainPictureReasons(job.error.slice(CMO_STYLE_REJECTED.length)),
     };
   // A single try that finished and was not turned down went on the post.
   return picker

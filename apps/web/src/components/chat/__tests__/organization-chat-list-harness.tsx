@@ -128,11 +128,12 @@ vi.mock("@/app/chat/components/create-channel-dialog", () => ({
 }));
 
 vi.mock("@/app/chat/components/create-direct-dialog", () => ({
-  CreateDirectDialog: () => (
-    <button type="button" aria-label="App.Channels.Draft.title">
-      +
-    </button>
-  ),
+  CreateDirectDialog: ({ trigger }: { trigger?: ReactNode }) =>
+    trigger ?? (
+      <button type="button" aria-label="App.Channels.Draft.title">
+        +
+      </button>
+    ),
 }));
 
 // Every Direct reads "room" but the Self Direct, which keeps its real name.
@@ -393,7 +394,12 @@ vi.mock("@/components/ui/dropdown-menu", () => ({
 export const emptyRooms: ChatRoom[] = [];
 
 function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+    },
+  });
 }
 
 /** One per test, as the app has one per tab, so a test's rooms stay its own. */

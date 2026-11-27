@@ -2964,6 +2964,40 @@ describe("social posts service", () => {
       );
     });
 
+    // Codex round 4 (#8243): A took B's words while B waited for new text,
+    // then B's edit failed and kept them, so the month held them twice.
+    it("compares with a batch post's current words and only asks to wait for it", async () => {
+      const batchPost = "0190e0c9-0000-7000-8000-00000000b0b0";
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          id: batchPost,
+          text: "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token.",
+          planning: { title: "Fees" },
+        },
+      ]);
+      const { ownMessageProblem, withSocialPostBatch } = await loadService();
+      const post = {
+        postId: POST_ID,
+        workspaceId: WORKSPACE_ID,
+        text: "No monthly fee on a Studio account; each token costs 3%.",
+      };
+
+      const waiting = await withSocialPostBatch(new Set([batchPost]), () =>
+        ownMessageProblem(post, embed),
+      );
+      expect(waiting).toMatchObject({
+        waitsForBatch: true,
+        problem: expect.stringContaining("Wait for another post of this batch"),
+      });
+
+      // Once that post is settled (its edit failed), the match is a refusal.
+      const settled = await withSocialPostBatch(new Set(), () =>
+        ownMessageProblem(post, embed),
+      );
+      expect(settled.waitsForBatch).toBeUndefined();
+      expect(settled.problem).toContain("Rewrite the post: it says nearly");
+    });
+
     it("lets one talking video's posts on several networks say the same", async () => {
       socialPostFindFirstMock.mockResolvedValue({
         marketingStrategyId: "version-1",
@@ -3097,6 +3131,46 @@ describe("social posts service", () => {
           },
         }),
       );
+    });
+
+    it("asks to wait when the opening echoes a batch post that may still change", async () => {
+      const batchPost = "0190e0c9-0000-7000-8000-00000000b0b1";
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        provider: "linkedin",
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          id: batchPost,
+          text: "Deel cut its booking back-and-forth by 70% in a week.\n\nMore.",
+          planning: { title: "Deel" },
+        },
+      ]);
+      const { linkedInOpeningProblem, withSocialPostBatch } =
+        await loadService();
+      const evaluate = jev(0.9);
+      const post = {
+        postId: POST_ID,
+        workspaceId: WORKSPACE_ID,
+        text: "Deel cut its booking back-and-forth by 70% in a week.\n\nOther.",
+      };
+      const embed = async (values: readonly string[]) => ({
+        costUsd: 0,
+        embeddings: values.map(() => [1, 0, 0]),
+      });
+
+      const waiting = await withSocialPostBatch(new Set([batchPost]), () =>
+        linkedInOpeningProblem(post, evaluate as never, embed),
+      );
+      expect(waiting.waitsForBatch).toBe(true);
+
+      const settled = await linkedInOpeningProblem(
+        post,
+        evaluate as never,
+        embed,
+      );
+      expect(settled.waitsForBatch).toBeUndefined();
+      expect(settled.problem).toContain("it opens like another LinkedIn post");
     });
 
     it("lets a result through, and checks no other network", async () => {
@@ -4149,6 +4223,8 @@ describe("social posts service", () => {
   it.each([
     ["Coworker", { coworkerId: "cow_123" }],
     ["Soko Bot", { sokoBotId: "55555555-5555-4555-8555-555555555555" }],
+    // ADR 0077: a person's API key, OAuth or MCP token.
+    ["user-credential agent", { agent: true }],
   ])("holds a %s draft for approval", async (_actor, creator) => {
     const { createSocialPost } = await loadService();
     await createSocialPost({
@@ -4467,6 +4543,82 @@ describe("social posts service", () => {
         text: "Edited",
       });
       expect(writtenStatus()).toBeUndefined();
+    });
+  });
+
+  // ADR 0077: a person's API key, OAuth or MCP token is an agent.
+  describe("an agent on a person's credential", () => {
+    const scope = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      agent: true,
+    };
+    const writtenStatus = () =>
+      socialPostUpdateManyMock.mock.calls.at(-1)?.[0].data.status;
+
+    it("holds a scheduled post for approval and credits the person", async () => {
+      const { createSocialPost } = await loadService();
+      await createSocialPost({
+        ...scope,
+        text: "Hello",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: FUTURE,
+      });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: USER_ID,
+            creatorCoworkerId: null,
+            scheduledByUserId: USER_ID,
+            scheduledByCoworkerId: null,
+          }),
+        }),
+      );
+    });
+
+    it("holds a copy for approval", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...scheduledPost,
+        status: "PUBLISHED",
+        publishedAt: NOW,
+      });
+      const { duplicateSocialPost } = await loadService();
+      await duplicateSocialPost({ ...scope, postId: POST_ID });
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "NEEDS_APPROVAL",
+            creatorUserId: USER_ID,
+          }),
+        }),
+      );
+    });
+
+    it("schedules a person's draft as Needs approval", async () => {
+      const { scheduleSocialPost } = await loadService();
+      await scheduleSocialPost({
+        ...scope,
+        postId: POST_ID,
+        revision: draftPost.revision,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        scheduledAt: FUTURE,
+      });
+      expect(writtenStatus()).toBe("NEEDS_APPROVAL");
+    });
+
+    it("edits a Scheduled post into Needs approval", async () => {
+      socialPostFindFirstMock.mockResolvedValue(scheduledPost);
+      const { updateSocialPost } = await loadService();
+      await updateSocialPost({
+        ...scope,
+        postId: POST_ID,
+        revision: scheduledPost.revision,
+        text: "Edited",
+      });
+      expect(writtenStatus()).toBe("NEEDS_APPROVAL");
     });
   });
 

@@ -122,6 +122,14 @@ describe("task tag evaluation", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+  it("does not send the hidden seo_audit line of a full audit Task", async () => {
+    fetchMock.mockResolvedValue(Response.json(evaluation()));
+    const line = 'seo_audit: {"price":{"markupPercent":50}}';
+    await classifyTaskTags("Audit", `Check my shop.\n\n${line}`, signal);
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body));
+    expect(body.state.description).toBe("Check my shop.");
+    expect(JSON.stringify(body)).not.toMatch(/seo_audit|markupPercent/);
+  });
   it("returns no tags for uncertainty and does not guess a category", async () => {
     const result = evaluation();
     result.answers.research!.probability = 0.84;

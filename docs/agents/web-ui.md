@@ -50,7 +50,7 @@ Before reaching for an effect, read React's [You Might Not Need an Effect](https
 
 - **Derived values**: compute during render (or `useMemo` only when expensive) instead of syncing state.
 - **User actions**: run side effects in event handlers rather than watching a state flag.
-- **Resetting state on prop change**: pass a `key` to remount the subtree cleanly.
+- **Resetting state on prop change**: pass a `key` to remount the subtree cleanly. A remount also drops everything else below the key (focus, scroll, drafts, pending or optimistic rows), so key the smallest subtree that owns only the state to reset (#8109).
 - **Data loading**: use `@tanstack/react-query` (or Server Components / loaders) instead of `fetch` + `setState` in an effect.
 - **External store subscriptions**: use `useSyncExternalStore` for browser state (`matchMedia`, `visualViewport`, `localStorage`, hydration checks).
 - **Latest callback or prop inside an effect**: use `useEffectEvent`, and call it only from that effect or from callbacks the effect registers (its timers, listeners, subscriptions). A callback registered outside an effect (a JSX event handler, a library callback, a timer started in a handler) that needs the latest committed value uses `useLatestRef` from `src/hooks/effects/`. Render logic reads current props and state directly, never a ref.
@@ -73,7 +73,6 @@ Shared hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo
 - `use-timeout` (`useTimeout`) — one-shot timer paused on `null` delay with optional `resetKey` (CMO has `useTimeout` under `apps/cmo/src/hooks/effects/use-timeout.ts`)
 - `use-scheduled-timeout` (`useScheduledTimeout`, `useScheduledTimeoutMap`) — imperative handler-started timeout(s) with synchronous cancel and unmount cleanup
 - `use-abort-controller` (`useAbortController`, `useAbortControllers`) — imperative handler-started `AbortController`(s) aborted on unmount or `resetKey` change
-- `use-replace-route-on-media` (`useReplaceRouteOnMedia`) — one-shot `router.replace` when a CSS media query matches
 - `use-keyboard-open` (`useKeyboardOpen`) — soft keyboard open state via `visualViewport`
 - `use-clipboard` (`useClipboard`, `copyTextWithToast`) — clipboard write with toast feedback and timed reset
 - `use-load-when-visible` (`useLoadWhenVisible`) — `IntersectionObserver` pagination boundary trigger

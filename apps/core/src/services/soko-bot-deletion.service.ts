@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   failOpenChatRoomMentions,
@@ -6,16 +7,14 @@ import {
 } from "@/helpers/chat-room-mention-status";
 import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { notFound } from "@/helpers/error";
-import {
-  flagSocialPostQuotes,
-  QUOTED_POST_CANCELLED,
-} from "@/helpers/social-post-quote";
+import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
   memberSokoBot,
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -37,7 +36,8 @@ import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integratio
  * - `tombstoned`: Tasks, task events, billing usage or chat messages still
  *   reference it. Those are other people's records and must keep resolving, so
  *   an emptied, renamed row stays behind. A shared bot with a room is always
- *   tombstoned, so its room stays a read-only archive. The partial unique
+ *   tombstoned, and its room is archived: members find it under Archived,
+ *   and an org owner or admin can delete it. The partial unique
  *   index on `(userId, workspaceId) WHERE deleted_at IS NULL` is what lets it
  *   stay without blocking the owner's next bot.
  */
@@ -66,42 +66,24 @@ export interface SokoBotDeletionResult {
   };
 }
 
-/** Social posts that have not gone out; a deleted bot's must never publish. */
-const UNPUBLISHED_SOCIAL_POST_STATUSES = [
-  "DRAFT",
-  "NEEDS_APPROVAL",
-  "SCHEDULED",
-  "FAILED",
-  "MISSED",
-] as const;
-
-/** Cancels the bot's planned posts, as canceling each one by hand would. */
-async function cancelUnpublishedSocialPosts(
+/** Everything the bot exclusively owns; none of it outlives the deletion. */
+/** Archives a shared bot's room; returns who to tell, or null if it was already archived. */
+async function archiveSharedRoom(
   tx: Prisma.TransactionClient,
-  sokoBotId: string,
-): Promise<void> {
-  const posts = await tx.socialPost.findMany({
-    where: {
-      creatorSokoBotId: sokoBotId,
-      status: { in: [...UNPUBLISHED_SOCIAL_POST_STATUSES] },
-    },
-    select: { id: true },
+  roomId: string,
+): Promise<{ roomId: string; userIds: string[] } | null> {
+  const archived = await tx.chatRoom.updateMany({
+    where: { id: roomId, archivedAt: null },
+    data: { archivedAt: new Date() },
   });
-  if (posts.length === 0) return;
-  await tx.socialPost.updateMany({
-    where: { id: { in: posts.map((post) => post.id) } },
-    data: {
-      status: "CANCELED",
-      canceledAt: new Date(),
-      revision: { increment: 1 },
-    },
+  if (archived.count === 0) return null;
+  const members = await tx.chatRoomUserMember.findMany({
+    where: { roomId },
+    select: { userId: true },
   });
-  for (const post of posts) {
-    await flagSocialPostQuotes(post.id, QUOTED_POST_CANCELLED, tx);
-  }
+  return { roomId, userIds: members.map((member) => member.userId) };
 }
 
-/** Everything the bot exclusively owns; none of it outlives the deletion. */
 async function eraseOwnedRecords(
   tx: Prisma.TransactionClient,
   sokoBotId: string,
@@ -145,7 +127,7 @@ export async function deleteSokoBot(
     if (!bot) throw notFound("Soko Bot not found");
     await tx.$queryRaw`
       SELECT "id"
-      FROM "soko_bot"
+      FROM ${sharedTable("soko_bot")}
       WHERE "id" = ${bot.id}::uuid
       FOR UPDATE
     `;
@@ -174,7 +156,7 @@ export async function deleteSokoBot(
       },
     });
     await eraseOwnedRecords(tx, bot.id);
-    await cancelUnpublishedSocialPosts(tx, bot.id);
+    await cancelUnpublishedSocialPosts(tx, { creatorSokoBotId: bot.id });
     const mentionMessageIds = await failOpenChatRoomMentions(
       {
         where: { sokoBotId: bot.id },
@@ -250,8 +232,15 @@ export async function deleteSokoBot(
         },
         mentionMessageIds,
         integrations,
+        archivedRoom: null,
       };
     }
+
+    // A tombstone never comes back, so its room would stay in every member's
+    // list for good: archive it with the bot (SOKD-487).
+    const archivedRoom = bot.sharedRoomId
+      ? await archiveSharedRoom(tx, bot.sharedRoomId)
+      : null;
 
     await tx.sokoBot.update({
       where: { id: bot.id },
@@ -295,8 +284,14 @@ export async function deleteSokoBot(
       },
       mentionMessageIds,
       integrations,
+      archivedRoom,
     };
   }, "Soko Bot deletion collided with active work");
+  if (deleted.archivedRoom)
+    await publishChatRoomsChanged({
+      ...deleted.archivedRoom,
+      collections: ["active", "archived"],
+    });
   await revokeSubscriptionsLeftByEnding(live.projectId);
   const revocation = await revokeSokoBotIntegrationAccounts(
     sokoBotId,

@@ -4,9 +4,11 @@ import {
   hasReadableSeoMonitorPlan,
   parseSeoMonitorPlan,
   SEO_MONITOR_MARKER,
+  savedScheduleSummaryForUser,
   seoMonitorAuditId,
   seoMonitorDescriptionForUser,
   seoMonitorDescriptionWithRule,
+  taskScheduleDescriptionForWrite,
 } from "./monitor-plan";
 
 const AUDIT_ID = "11111111-1111-4111-8111-111111111111";
@@ -277,5 +279,37 @@ describe("SEO monitor rule edits", () => {
       false,
     );
     expect(hasReadableSeoMonitorPlan("ordinary prose")).toBe(true);
+  });
+});
+
+describe("taskScheduleDescriptionForWrite", () => {
+  it("keeps a full audit's hidden request line when an edit sends back the text people saw", () => {
+    const stored =
+      'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1}';
+    const edit = (description: string) =>
+      taskScheduleDescriptionForWrite(stored, {
+        expectedRevision: 1,
+        description,
+      });
+    expect(edit("Full SEO audit of 2 selected pages:")).toBeUndefined();
+    expect(edit("Full SEO audit of 3 selected pages:")).toBe(
+      "Full SEO audit of 3 selected pages:",
+    );
+    expect(
+      taskScheduleDescriptionForWrite("Weekly report", {
+        expectedRevision: 1,
+        description: "Weekly report",
+      }),
+    ).toBe("Weekly report");
+  });
+});
+
+describe("savedScheduleSummaryForUser", () => {
+  it("drops a full audit's request line that a saved card cut in the middle", () => {
+    expect(
+      savedScheduleSummaryForUser(
+        'Full SEO audit of 2 selected pages:\n\nseo_audit: {"version":1,"price":{"kind":"co',
+      ),
+    ).toBe("Full SEO audit of 2 selected pages:");
   });
 });

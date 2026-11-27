@@ -25,15 +25,41 @@ function shorten(value: unknown): string | null {
     : null;
 }
 
-function shortenMessage(message: ModelMessage): ModelMessage {
+/**
+ * A skill the model read is an instruction for the rest of the turn, like a
+ * section of its prompt: it stays whole.
+ */
+const KEPT_WHOLE: ReadonlySet<string> = new Set([
+  "read_skill",
+  "read_writing_skill",
+]);
+
+function shortenMessage(
+  message: ModelMessage,
+  keptCallId: string | null,
+): ModelMessage {
   if (message.role === "tool")
     return {
       ...message,
       content: message.content.map((part) => {
-        if (part.type !== "tool-result") return part;
+        if (
+          part.type !== "tool-result" ||
+          KEPT_WHOLE.has(part.toolName) ||
+          part.toolCallId === keptCallId
+        )
+          return part;
         const short = shorten(part.output);
+        // A shortened error is still an error: compacted again, a refused
+        // call must not read as one that worked.
+        const failed = part.output.type.startsWith("error");
         return short
-          ? { ...part, output: { type: "text" as const, value: short } }
+          ? {
+              ...part,
+              output: {
+                type: failed ? ("error-text" as const) : ("text" as const),
+                value: short,
+              },
+            }
           : part;
       }),
     };
@@ -61,14 +87,38 @@ function shortenMessage(message: ModelMessage): ModelMessage {
 export function compactHistory(
   messages: readonly ModelMessage[],
   budgetChars = HISTORY_BUDGET_CHARS,
+  options: {
+    /** The latest plan stays whole: Core keeps it for the request (planLoop). */
+    keepLatestPlan?: boolean;
+  } = {},
 ): ModelMessage[] | null {
-  if (JSON.stringify(messages).length <= budgetChars) return null;
+  // The first message is the turn's own (on cmo-v24 on, with its packet and
+  // preloaded skills) and is never shortened: only what the turn added
+  // since counts against the budget.
+  if (JSON.stringify(messages.slice(1)).length <= budgetChars) return null;
   const oldEnd = Math.max(
     0,
     Math.floor((messages.length - RECENT_MESSAGES) / BOUNDARY_BLOCK) *
       BOUNDARY_BLOCK,
   );
+  const plan = options.keepLatestPlan ? latestPlanCallId(messages) : null;
   return messages.map((message, index) =>
-    index < oldEnd ? shortenMessage(message) : message,
+    index < oldEnd ? shortenMessage(message, plan) : message,
   );
+}
+
+/** The latest update_plan Core accepted; a refused one is not the plan. */
+function latestPlanCallId(messages: readonly ModelMessage[]): string | null {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "tool") continue;
+    const accepted = message.content.findLast(
+      (part) =>
+        part.type === "tool-result" &&
+        part.toolName === "update_plan" &&
+        !part.output.type.startsWith("error") &&
+        part.output.type !== "execution-denied",
+    );
+    if (accepted && "toolCallId" in accepted) return accepted.toolCallId;
+  }
+  return null;
 }

@@ -1,11 +1,10 @@
 import type { NewsletterIssue } from "@sokosumi/database";
-import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import { ACTION_LABELS, SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACTION_CAPABILITIES,
   EXTERNAL_EFFECT_CAPABILITIES,
 } from "@/lib/soko-bot/action-receipts";
-import { ACTION_LABELS } from "@/lib/soko-bot/action-response";
 import {
   NEWSLETTER,
   NEWSLETTER_ISSUE,
@@ -219,11 +218,17 @@ beforeEach(() => {
   m.issueDelete.mockResolvedValue({ count: 1 });
   // The owner typed this turn in their own chat.
   m.ownerTurn.mockResolvedValue({
+    id: "turn",
+    sokoBotId: BOT_ID,
+    workspaceId: NEWSLETTER_WORKSPACE_ID,
+    versionId: null,
     source: "CHAT",
     parentTurnId: null,
     askedByUserId: null,
+    requestedByUserId: "user",
     chainDepth: 0,
     chatMentionId: "mention",
+    sokoBot: { userId: "user" },
   });
   m.receipt.mockResolvedValue(null);
   m.receiptUpdate.mockResolvedValue({});

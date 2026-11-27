@@ -23,5 +23,6 @@ export {
 } from "./types/job.js";
 export { membershipAgeOrderBy } from "./types/member.js";
 export { MemberRole } from "./types/organization.js";
+export type { SharedDb } from "./types/shared-db.js";
 export { workCreatorInclude } from "./types/work-creator.js";
 export { workspaceRelationInclude } from "./types/workspace.js";

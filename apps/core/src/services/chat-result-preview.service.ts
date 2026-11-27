@@ -24,9 +24,14 @@ import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
+import { sokoBotFace } from "@/lib/cuso-face";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import {
+  savedScheduleSummaryForUser,
+  seoMonitorDescriptionForUser,
+} from "@/lib/seo/monitor-plan";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import {
   type ChatResultAvailable,
@@ -83,6 +88,7 @@ function previewAssignee(source: {
     name: string | null;
     avatarImageUrl: string | null;
     avatarSeed: string | null;
+    versionId: string | null;
   } | null;
 }) {
   if (source.assignee)
@@ -102,7 +108,7 @@ function previewAssignee(source: {
     ? {
         id: bot.id,
         name: (bot.name ?? "Soko Bot").slice(0, 500),
-        image: bot.avatarImageUrl,
+        image: sokoBotFace(bot).avatarImageUrl,
         avatarSeed: bot.avatarSeed,
         kind: "sokoBot" as const,
       }
@@ -599,6 +605,7 @@ export async function resolveChatResultReference(
               name: true,
               avatarImageUrl: true,
               avatarSeed: true,
+              versionId: true,
             },
           },
           project: {
@@ -690,6 +697,7 @@ export async function resolveChatResultReference(
               name: true,
               avatarImageUrl: true,
               avatarSeed: true,
+              versionId: true,
             },
           },
         },
@@ -701,7 +709,9 @@ export async function resolveChatResultReference(
         actor: previewAssignee(schedule),
         projectInfo: previewProject(schedule.project),
         status: schedule.state,
-        summary: schedule.description?.slice(0, 4000) ?? null,
+        summary:
+          seoMonitorDescriptionForUser(schedule.description)?.slice(0, 4000) ??
+          null,
         sourceHref: `/schedules/${encodeURIComponent(schedule.id)}`,
         scheduledAt: schedule.nextRunAt,
         timezone: schedule.timezone,
@@ -738,6 +748,7 @@ export async function resolveChatResultReference(
               name: true,
               avatarImageUrl: true,
               avatarSeed: true,
+              versionId: true,
             },
           },
         },
@@ -1054,7 +1065,10 @@ export async function hydrateChatResultSnapshots(
           // Cards recorded before follow-ups linked to their row open it too.
           ...(snapshot.data.kind === "bot_schedule"
             ? { sourceHref: current.data.sourceHref }
-            : {}),
+            : // Cards saved before the plan sentence held the raw seo_monitor line.
+              snapshot.data.kind === "task_schedule"
+              ? { summary: savedScheduleSummaryForUser(snapshot.data.summary) }
+              : {}),
           // A report the owner reverted says so on its card.
           ...(snapshot.data.kind === "cmo_report"
             ? { status: current.data.status }

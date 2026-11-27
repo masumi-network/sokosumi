@@ -18,6 +18,7 @@ const point = (
   position,
   positionStatus,
   device: "desktop",
+  checkedResults: 20,
 });
 
 function row(device: Keyword["device"], history?: Point[]): Keyword {
@@ -28,7 +29,7 @@ function row(device: Keyword["device"], history?: Point[]): Keyword {
 }
 
 describe("seoRankHistory", () => {
-  it("keeps the newest read of a day, a not-found read as a gap, and drops a failed read", () => {
+  it("keeps the newest read of a day, a not-found read with the results it checked, and drops a failed read", () => {
     const [series] = seoRankHistory([
       row("desktop", [
         point("2026-10-01T08:00:00Z", 9),
@@ -36,16 +37,43 @@ describe("seoRankHistory", () => {
         point("2026-10-02T09:00:00Z", null),
         point("2026-10-03T09:00:00Z", null, "unavailable"),
         point("2026-10-04T09:00:00Z", 5),
+        { ...point("2026-10-06T09:00:00Z", null), checkedResults: 100 },
+        // A point of a Core that does not send the checked results yet.
+        { ...point("2026-10-05T09:00:00Z", null), checkedResults: undefined },
       ]),
     ]);
     expect(series).toEqual({
       device: "desktop",
+      cut: false,
       points: [
         { date: "2026-10-01", value: 7 },
-        { date: "2026-10-02", value: null },
+        { date: "2026-10-02", value: null, outside: { top: 20 } },
         { date: "2026-10-04", value: 5 },
+        { date: "2026-10-05", value: null, outside: { top: null } },
+        { date: "2026-10-06", value: null, outside: { top: 100 } },
       ],
     });
+  });
+
+  it("puts a read on its day in the Search Console time zone", () => {
+    const rows = [
+      row("desktop", [
+        point("2026-10-07T09:00:00Z", 9),
+        // 18:00 on 7 October in Los Angeles: the same Search Console day as the read before.
+        point("2026-10-08T01:00:00Z", 7),
+        point("2026-10-09T09:00:00Z", 5),
+      ]),
+    ];
+    expect(
+      seoRankHistory(rows, "America/Los_Angeles")[0].points.map(
+        (item) => item.date,
+      ),
+    ).toEqual(["2026-10-07", "2026-10-09"]);
+    // No time zone, and one the runtime does not know (stored data can hold it): UTC days, no throw.
+    for (const zone of [undefined, "Bad/Zone"])
+      expect(
+        seoRankHistory(rows, zone)[0].points.map((item) => item.date),
+      ).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]);
   });
 
   it("has no history with one day of reads, from a result before histories existed too", () => {
@@ -79,11 +107,40 @@ describe("seoRankHistory", () => {
     expect(series).toEqual([
       {
         device: "desktop",
+        cut: false,
         points: [
           { date: "2026-10-01", value: 9 },
           { date: "2026-10-08", value: 6 },
         ],
       },
+    ]);
+  });
+
+  it("marks only the device whose rows miss older reads", () => {
+    const history = [
+      point("2026-10-01T09:00:00Z", 9),
+      point("2026-10-02T09:00:00Z", 7),
+    ];
+    const series = seoRankHistory([
+      { ...row("mobile", history), positionHistoryCut: true },
+      { ...row("desktop", history), positionHistoryCut: false },
+    ]);
+    expect(series.map((item) => [item.device, item.cut])).toEqual([
+      ["mobile", true],
+      ["desktop", false],
+    ]);
+  });
+
+  it("keeps one day of reads when older checks exist and are not shown", () => {
+    // 90 checks of one day can push every older day out of the loaded history.
+    const series = seoRankHistory([
+      {
+        ...row("desktop", [point("2026-10-01T08:00:00Z", 9)]),
+        positionHistoryCut: true,
+      },
+    ]);
+    expect(series.map((item) => [item.cut, item.points.length])).toEqual([
+      [true, 1],
     ]);
   });
 });

@@ -2,24 +2,32 @@
 
 What Cuso does without being asked, per channel, and what the owner should see come out of it. Rough steps, not a script. With [user flows](../user-flows/README.md) they are the spec for CMO's daily flow tests.
 
-| Flow                                            | Channel                           | State (2026-11-18)                                                           |
-| ----------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------- |
-| [Making the month](making-the-month.md)         | All networks                      | Works; one point a post on cmo-v20; industry facts with sources on cmo-v21   |
-| [LinkedIn](linkedin.md)                         | LinkedIn                          | Works; Page or profile; no comment reading                                   |
-| [X](x.md)                                       | X                                 | Works; no replies or mentions                                                |
-| [Instagram](instagram.md)                       | Instagram                         | Works                                                                        |
-| [Facebook](facebook.md)                         | Facebook                          | Works                                                                        |
-| [YouTube](youtube.md)                           | YouTube                           | Shorts only                                                                  |
-| [TikTok](tiktok.md)                             | TikTok                            | Works; the owner confirms each video                                         |
-| [Google Ads](google-ads.md)                     | Google Ads                        | Proposals work; no weekly tuning                                             |
-| [Meta Ads](meta-ads.md)                         | Meta Ads                          | Not built                                                                    |
-| [Website and SEO](website-seo.md)               | The owner's site                  | Weekly report after the audit (cmo-v12); no scheduled rank checks            |
-| [Newsletter](newsletter.md)                     | Email                             | Writing only; no sending from CMO                                            |
-| [Competitors](competitors.md)                   | All                               | Works; ads need the Ad Library token                                         |
-| [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                                                         |
-| [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works. Nightly window fixed. Partial month handoff.                   |
-| [Handing work on](handing-work-on.md)           | Coworkers, Agents, SEO specialist | Works                                                                        |
-| [Asking the owner](asking-the-owner.md)         | Chat, Today                       | Partly: Needs you lists posts that didn't go out; chat-only asks have no row |
+| Flow                                            | Channel                           | State (2026-11-18)                                                                                           |
+| ----------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [Making the month](making-the-month.md)         | All networks                      | Works; one point a post on cmo-v20; industry facts on cmo-v21; Core plans the month after payment on cmo-v22 |
+| [LinkedIn](linkedin.md)                         | LinkedIn                          | Works; Page or profile; no comment reading                                                                   |
+| [X](x.md)                                       | X                                 | Works; no replies or mentions                                                                                |
+| [Instagram](instagram.md)                       | Instagram                         | Works                                                                                                        |
+| [Facebook](facebook.md)                         | Facebook                          | Works                                                                                                        |
+| [YouTube](youtube.md)                           | YouTube                           | Shorts only                                                                                                  |
+| [TikTok](tiktok.md)                             | TikTok                            | Works; the owner confirms each video                                                                         |
+| [Google Ads](google-ads.md)                     | Google Ads                        | Proposals work; no weekly tuning                                                                             |
+| [Meta Ads](meta-ads.md)                         | Meta Ads                          | Not built                                                                                                    |
+| [Website and SEO](website-seo.md)               | The owner's site                  | Weekly report after the audit (cmo-v12); no scheduled rank checks                                            |
+| [Newsletter](newsletter.md)                     | Email                             | Writing only; no sending from CMO                                                                            |
+| [Competitors](competitors.md)                   | All                               | Works; ads need the Ad Library token                                                                         |
+| [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                                                                                         |
+| [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works. Nightly window fixed. Partial month handoff.                                                   |
+| [Handing work on](handing-work-on.md)           | Coworkers, Agents, SEO specialist | Works                                                                                                        |
+| [Asking the owner](asking-the-owner.md)         | Chat, Today                       | Partly: Needs you lists posts that didn't go out; chat-only asks have no row                                 |
+
+## What Cuso sees each turn
+
+From cmo-v23 every turn starts from a short core (the business, the plan in one line each, connected networks and a map of everything stored), Core adds what that kind of turn needs, and Cuso reads the rest himself (`read_calendar`, `read_strategy`, `read_brand_brain`, `read_report`, `read_competitor_moves`). A strategy turn still sees the whole Brand Brain and strategy. When you judge a reply about a piece, a week or a report, check that he read it rather than guessed: the turn's `workspace.marketing.organizer` lists what Core picked and why ([ADR 0084](../../../docs/adr/0084-cuso-context-is-a-core-a-map-and-reads.md)).
+
+From cmo-v24 the core also names the tools that fit the turn (`toolsForThisTurn`), and on a question or an event `save_strategy` and `save_brand_brain` come in a short form: Cuso calls it, nothing is saved, and the full tool is his from the next step. A save on such a turn therefore shows two calls; that is the design, not a retry after an error.
+
+From cmo-v24 Cuso's prompt also lists his skills by one line each instead of carrying all of them. The kind of turn preloads the skills it always needs (strategy: strategy, Brand Brain and industry; production: production and month points; daily: daily watch; weekly: measurement and SEO reports; brand refresh and onboarding: Brand Brain and site pages). On a chat or event he reads the skill the work needs with `read_skill`, which also reads the writing skills. The turn's `skills.preloaded` event records what it carried. See ADR 0085.
 
 ## How to judge what Cuso makes
 

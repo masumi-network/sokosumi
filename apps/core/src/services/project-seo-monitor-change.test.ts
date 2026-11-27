@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
 
+import { seoMonitorChangeSchema } from "@/schemas/project-seo-monitor.schema";
+
 import {
   compareSeoMonitorRuns,
   isSeoMonitorChangeWorse,
@@ -59,6 +61,34 @@ const ranked = (keyword: string, position: number | null) => ({
   sourceRef: "ref",
   observedAt: AT,
 });
+const outside = (
+  keyword: string,
+  positionStatus: "not_in_range" | "unavailable",
+  checkedResults: number | null,
+) => ({ ...ranked(keyword, null), positionStatus, checkedResults });
+type Serp = NonNullable<PublicSeoPayload["serps"]>[number];
+const overview = (
+  shown: boolean,
+  pageCited: boolean | null,
+  asyncLoaded = true,
+) => ({ shown, asyncLoaded, citedDomains: [], pageCited });
+const serp = (
+  aiOverview: Serp["aiOverview"],
+  patch: Partial<Serp> = {},
+): Serp => ({
+  keyword: "x402",
+  device: "mobile",
+  sourceRef: "ref",
+  observedAt: AT,
+  itemTypes: [],
+  aiOverview,
+  featured: null,
+  paaOwned: false,
+  top: [],
+  suspect: false,
+  ...patch,
+});
+const CITED = serp(overview(true, true));
 function compare(before: PublicSeoPayload, after: PublicSeoPayload) {
   return compareSeoMonitorRuns(
     { observedAt: new Date("2026-11-01T09:00:00Z"), payload: before },
@@ -120,7 +150,7 @@ describe("compareSeoMonitorRuns", () => {
     expect(isSeoMonitorChangeWorse(change)).toBe(false);
   });
 
-  it("counts a ranked keyword that fell beyond the band, and never an unranked one as a drop", () => {
+  it("counts a ranked keyword that fell beyond the band, and never an unread one as a drop", () => {
     const change = compare(
       payload({
         keywords: [
@@ -135,7 +165,7 @@ describe("compareSeoMonitorRuns", () => {
           ranked("Agent Payments", 6),
           ranked("x402", 4),
           ranked("stablecoin api", 9),
-          ranked("gone", null),
+          outside("gone", "unavailable", null),
         ],
       }),
     );
@@ -147,12 +177,162 @@ describe("compareSeoMonitorRuns", () => {
     expect(isSeoMonitorChangeWorse(change)).toBe(true);
   });
 
+  it("names a keyword that left a deep enough read, first, and counts it as a drop", () => {
+    const change = compare(
+      payload({ keywords: [ranked("x402", 15), ranked("agent payments", 5)] }),
+      payload({
+        keywords: [
+          ranked("x402", 3),
+          outside("agent payments", "not_in_range", 20),
+        ],
+      }),
+    );
+    expect(change.moves).toEqual([
+      expect.objectContaining({
+        keyword: "agent payments",
+        from: 5,
+        to: null,
+        checkedResults: 20,
+      }),
+      expect.objectContaining({ keyword: "x402", from: 15, to: 3 }),
+    ]);
+    expect(change).toMatchObject({ moveCount: 2, dropCount: 1 });
+    expect(isSeoMonitorChangeWorse(change)).toBe(true);
+  });
+
+  it.each([
+    ["a failed or suspect read", 5, outside("kw", "unavailable", null)],
+    ["a read with no result count", 5, outside("kw", "not_in_range", null)],
+    ["a read no deeper than the band", 5, outside("kw", "not_in_range", 10)],
+    ["a start rank past the top 10", 15, outside("kw", "not_in_range", 100)],
+  ])("does not count a keyword missing from %s as a drop", (_, from, row) => {
+    const change = compare(
+      payload({ keywords: [ranked("kw", from)] }),
+      payload({ keywords: [row] }),
+    );
+    expect(change).toMatchObject({ moves: [], dropCount: 0 });
+    expect(isSeoMonitorChangeWorse(change)).toBe(false);
+  });
+
+  it.each([
+    ["latest", [], [serp(null, { keyword: "KW", suspect: true })]],
+    ["earlier", [serp(null, { keyword: "kw", suspect: true })], []],
+  ])(
+    "does not count a lost rank when the %s SERP read of the keyword is suspect",
+    (_, serpsBefore, serpsAfter) => {
+      const runs = (suspect: boolean) =>
+        compare(
+          payload({
+            keywords: [ranked("kw", 5)],
+            serps: suspect ? serpsBefore : [],
+          }),
+          payload({
+            keywords: [outside("kw", "not_in_range", 20)],
+            serps: suspect ? serpsAfter : [],
+          }),
+        );
+      // The same rows with no suspect read are a loss: only the suspect read holds it back.
+      expect(runs(false).dropCount).toBe(1);
+      expect(runs(true)).toMatchObject({ moves: [], dropCount: 0 });
+    },
+  );
+
+  it("counts a lost rank when only another device's SERP read is suspect", () => {
+    const change = compare(
+      payload({ keywords: [ranked("kw", 5)] }),
+      payload({
+        keywords: [outside("kw", "not_in_range", 20)],
+        serps: [
+          serp(null, { keyword: "kw", device: "desktop", suspect: true }),
+        ],
+      }),
+    );
+    expect(change.dropCount).toBe(1);
+  });
+
   it("is not worse when ranks only rose", () => {
     const change = compare(
       payload({ keywords: [ranked("x402", 15)] }),
       payload({ keywords: [ranked("x402", 3)] }),
     );
     expect(change.dropCount).toBe(0);
+    expect(isSeoMonitorChangeWorse(change)).toBe(false);
+  });
+
+  it.each([
+    ["names other sources", overview(true, false), true],
+    ["is gone after the read waited for it", overview(false, false), false],
+  ])("counts a lost citation when the AI Overview %s", (_, now, shown) => {
+    const change = compare(
+      payload({ serps: [CITED] }),
+      // Another letter case and a second read of the same keyword: one loss.
+      payload({ serps: [serp(now, { keyword: "X402" }), serp(now)] }),
+    );
+    expect(change.lostCitations).toEqual([
+      { keyword: "X402", device: "mobile", shown },
+    ]);
+    expect(change.lostCitationCount).toBe(1);
+    expect(isSeoMonitorChangeWorse(change)).toBe(true);
+  });
+
+  it.each([
+    ["the page is still cited", [CITED], [CITED], {}],
+    [
+      "the earlier read was suspect",
+      [serp(overview(true, true), { suspect: true })],
+      [serp(overview(true, false))],
+      {},
+    ],
+    [
+      "the earlier citation was not determined",
+      [serp(overview(true, null))],
+      [serp(overview(true, false))],
+      {},
+    ],
+    [
+      "the earlier AI Overview was not shown",
+      [serp(overview(false, true))],
+      [serp(overview(true, false))],
+      {},
+    ],
+    [
+      "the latest read is suspect",
+      [CITED],
+      [serp(overview(true, false), { suspect: true })],
+      {},
+    ],
+    ["the latest read has no AI Overview data", [CITED], [serp(null)], {}],
+    [
+      "the latest citation is not determined",
+      [CITED],
+      [serp(overview(true, null))],
+      {},
+    ],
+    [
+      "the latest read did not wait for the AI Overview",
+      [CITED],
+      [serp(overview(false, false, false))],
+      {},
+    ],
+    [
+      "the loss is on the other device",
+      [CITED],
+      [serp(overview(true, false), { device: "desktop" })],
+      {},
+    ],
+    [
+      "the latest Run checked other pages",
+      [CITED],
+      [serp(overview(true, false))],
+      { pageUrls: [PAGE, "https://example.test/docs"] },
+    ],
+    ["the latest Run has no SERP reads", [CITED], undefined, {}],
+  ])("has no lost citation when %s", (_, before, after, patch) => {
+    const change = compare(
+      payload({ serps: before }),
+      payload({ serps: after, ...patch }),
+    );
+    expect(change).toMatchObject({ lostCitations: [], lostCitationCount: 0 });
     expect(isSeoMonitorChangeWorse(change)).toBe(false);
   });
 
@@ -170,5 +350,24 @@ describe("compareSeoMonitorRuns", () => {
       expect(change).toMatchObject({ comparable: false, newFailureCount: 0 });
       expect(isSeoMonitorChangeWorse(change)).toBe(false);
     }
+  });
+
+  it("parses a change record from before the citation fields as no lost citation", () => {
+    expect(
+      seoMonitorChangeSchema.parse({
+        from: AT,
+        to: AT,
+        comparable: true,
+        newFailureCount: 0,
+        fixedCount: 0,
+        newFailures: [],
+        fixed: [],
+        moves: [
+          { keyword: "kw", pageUrl: PAGE, device: "mobile", from: 3, to: 9 },
+        ],
+        moveCount: 1,
+        dropCount: 1,
+      }),
+    ).toMatchObject({ lostCitations: [], lostCitationCount: 0 });
   });
 });

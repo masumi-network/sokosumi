@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
-import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_SEO_WRITE_CAPABILITIES,
+  SOKO_BOT_TOOL_INPUT_SCHEMAS,
+} from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 
@@ -20,6 +23,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "edit_ad_campaign",
   "delete_ad_campaign",
   // A paid provider call: never repeated after an unclear failure.
+  "find_investors",
   "generate_image",
   "generate_video",
   "generate_talking_video",
@@ -28,6 +32,24 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "send_email_draft",
   "save_email_attachment",
 ]);
+
+/**
+ * Input-aware external-effect check shared by receipt tracking and
+ * OwnerAuthority enforcement. Covers always-effectful tools plus
+ * `investor_warm_paths` when `research: true` incurs paid Exa spend and writes
+ * portfolio data.
+ */
+export function isExternalEffectToolCall(
+  capability: string,
+  rawInput: unknown,
+): boolean {
+  if (EXTERNAL_EFFECT_CAPABILITIES.has(capability)) return true;
+  return (
+    capability === "investor_warm_paths" &&
+    SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.safeParse(rawInput).data
+      ?.research === true
+  );
+}
 
 /** A Google campaign id: digits only. */
 const adCampaignIdSchema = z.string().regex(/^\d{1,20}$/);
@@ -99,6 +121,8 @@ export const ACTION_CAPABILITIES = new Set([
   "create_schedule",
   "update_schedule",
   "delete_schedule",
+  "save_task_schedule",
+  "delete_task_schedule",
   "update_memory",
   "manage_reminder",
   "create_social_post",
@@ -111,6 +135,12 @@ export const ACTION_CAPABILITIES = new Set([
   "install_skill",
   "remove_skill",
 ]);
+
+/** Warm paths have an action receipt only when the owner requests research. */
+export const ACTION_RECEIPT_CAPABILITIES = [
+  ...ACTION_CAPABILITIES,
+  "investor_warm_paths",
+];
 
 /** Object key order is not part of an operation's identity. */
 export function canonicalActionJson(value: unknown): string {
@@ -288,7 +318,7 @@ export async function commitActionReceipt(
 }
 
 /** Tools that start a Content Studio job and answer with its jobId. */
-const STUDIO_JOB_CAPABILITIES: ReadonlySet<string> = new Set([
+export const STUDIO_JOB_CAPABILITIES: ReadonlySet<string> = new Set([
   "generate_image",
   "generate_video",
   "generate_talking_video",

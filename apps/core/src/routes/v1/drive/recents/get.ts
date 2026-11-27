@@ -8,7 +8,7 @@ import {
 import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { listDataTables, resolveTableActor } from "@/helpers/data-table";
+import { listDataTables, type TableActor } from "@/helpers/data-table";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { fetchDriveRecentsPage } from "@/helpers/drive-recents";
 import {
@@ -157,8 +157,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           })
         : undefined;
     // Agents reach tables only through a task's scope, never a workspace list.
-    const tableActor = isUserAuthContext(authContext)
-      ? await resolveTableActor(authContext, workspaceContext.workspaceId)
+    // The store checks above already proved this person may read the
+    // workspace; API keys and OAuth carry no active workspace header (SOKD-484).
+    const tableActor: TableActor | null = isUserAuthContext(authContext)
+      ? {
+          workspaceId: workspaceContext.workspaceId,
+          userId: userContext.userId,
+          actorId: userContext.userId,
+          actorKind: "user",
+        }
       : null;
 
     const page = await fetchDriveRecentsPage({
@@ -180,6 +187,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           cursor: taskCursor,
           take: taskTake,
           ...(searchQuery ? { searchQuery } : {}),
+          rawReaderCoworkerId: isCoworkerAuthContext(authContext)
+            ? authContext.coworkerId
+            : null,
         }),
       ...(tableActor
         ? {

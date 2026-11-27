@@ -248,6 +248,7 @@ class TestOAuthProvider implements OAuthClientProvider {
   saved?: OAuthTokens;
   verifier = "";
   callback?: URL;
+  fetch = fetchCore;
 
   constructor(
     readonly name = "Claude Code",
@@ -310,13 +311,46 @@ class TestOAuthProvider implements OAuthClientProvider {
   }
 }
 
+/**
+ * Codex (0.162) registers and authorizes with every scope the authorization
+ * server's metadata lists, not the protected resource's or the 401's.
+ */
+class CodexOAuthProvider extends TestOAuthProvider {
+  constructor(readonly scope: string) {
+    super("Codex", "http://127.0.0.1:63732/callback/codex");
+  }
+
+  override fetch = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ): Promise<Response> => {
+    const request = new Request(input, init);
+    if (new URL(request.url).pathname !== "/auth/oauth2/register") {
+      return await fetchCore(request);
+    }
+    const body = (await request.json()) as Row;
+    return await fetchCore(request.url, {
+      method: "POST",
+      headers: request.headers,
+      body: JSON.stringify({ ...body, scope: this.scope }),
+    });
+  };
+
+  override async redirectToAuthorization(authorizationUrl: URL) {
+    const url = new URL(authorizationUrl);
+    url.searchParams.set("scope", this.scope);
+    await super.redirectToAuthorization(url);
+  }
+}
+
 /** Connects as Claude Code does: 401, sign in in the browser, connect again. */
 async function connectWithOAuth(provider = new TestOAuthProvider()) {
   const transport = {
     type: "http" as const,
-    url: MCP,
+    // `users` is off by default; users_get proves the token acts as the person.
+    url: `${MCP}?toolsets=workspaces,users`,
     authProvider: provider,
-    fetch: fetchCore,
+    fetch: provider.fetch,
   };
   await expect(createMCPClient({ transport })).rejects.toThrow(
     UnauthorizedError,
@@ -332,7 +366,7 @@ async function connectWithOAuth(provider = new TestOAuthProvider()) {
       authorizationCode: callback?.searchParams.get("code") ?? "",
       callbackState: callback?.searchParams.get("state") ?? undefined,
       callbackIssuer: callback?.searchParams.get("iss") ?? undefined,
-      fetchFn: fetchCore,
+      fetchFn: provider.fetch,
     }),
   ).resolves.toBe("AUTHORIZED");
 
@@ -413,6 +447,27 @@ describe("MCP OAuth", () => {
     },
     30_000,
   );
+
+  it("signs Codex in with the scopes the authorization server lists", async () => {
+    const metadata = (await (
+      await app.request(`${CORE}/.well-known/oauth-authorization-server/auth`)
+    ).json()) as { scopes_supported: string[] };
+
+    const { client, provider } = await connectWithOAuth(
+      new CodexOAuthProvider(metadata.scopes_supported.join(" ")),
+    );
+
+    expect(
+      store.oauthClient.find(
+        (row) => row.clientId === provider.client?.client_id,
+      ),
+    ).toMatchObject({ scopes: MCP_SCOPES });
+    const me = await client.callTool({
+      name: "users_get",
+      arguments: { id: "me" },
+    });
+    expect(me.isError).toBeFalsy();
+  }, 30_000);
 
   it("refuses the MCP token at /v1", async () => {
     const { provider } = await connectWithOAuth();

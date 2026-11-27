@@ -114,6 +114,7 @@ describe("SpreadsheetView", () => {
             name: "Sheet1",
             rows: [[cell("Item")], [cell("Sourdough")]],
             truncated: false,
+            size: { rows: 2, columns: 1 },
             images: [],
           },
         ]}

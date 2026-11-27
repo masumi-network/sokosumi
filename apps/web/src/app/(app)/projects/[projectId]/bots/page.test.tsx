@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -46,11 +46,17 @@ vi.mock("@/app/projects/components/project-workspace-shell", () => ({
     </>
   ),
 }));
-vi.mock("@/app/soko-bots/components/shared-bots-section", () => ({
-  SharedBotsSection: (props: object) => {
+vi.mock("@/app/soko-bots/components/managed-bot-sections", () => ({
+  ManagedBotSections: (props: { action: ReactNode }) => {
     sharedBotsMock(props);
-    return null;
+    return <>{props.action}</>;
   },
+}));
+vi.mock("@/app/soko-bots/managed-bots", () => ({
+  loadManagedSharedBots: async (bots: unknown[]) => bots,
+}));
+vi.mock("@/app/soko-bots/components/create-soko-bot-dialog.client", () => ({
+  CreateSokoBotDialog: () => <button type="button">create</button>,
 }));
 
 describe("ProjectBotsPage", () => {
@@ -95,6 +101,29 @@ describe("ProjectBotsPage", () => {
       );
     },
   );
+
+  it("offers no create dialog in a CMO Project", async () => {
+    getProjectMock.mockResolvedValue({
+      id: "project-1",
+      name: "Launch",
+      cmo: true,
+      projectRevision: 1,
+      closingAt: null,
+      closedAt: null,
+      scheduledSocialPostCount: 0,
+    });
+    const { default: ProjectBotsPage } = await import("./page");
+
+    render(
+      await ProjectBotsPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "create" }),
+    ).not.toBeInTheDocument();
+  });
 
   it("returns not found for a missing Project", async () => {
     getProjectMock.mockResolvedValue(null);

@@ -105,9 +105,11 @@ jobs:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
       # CMO rides this leg: a small Next.js app, too small for a job of
-      # its own.
+      # its own. So does @sokosumi/mcp-ui: its token test compares its
+      # fallback tokens with apps/web/src/app/globals.css, and the
+      # `packages` filter skips Web-only changes.
       - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=web --filter=cmo
+        run: pnpm exec turbo run test:ci --filter=web --filter=cmo --filter=@sokosumi/mcp-ui
 
   # Core's PostgreSQL suites in a job of their own, beside the unit suite in
   # `Test Core` instead of after it: the unit suite no longer waits ~100s on
@@ -293,6 +295,12 @@ jobs:
             --passWithNoTests=false --reporter=default --reporter=json \
             --outputFile.json="$report" || true
           pnpm --filter core exec tsx scripts/split-layout-pending.mts "$report"
+
+      # PREPARE resolves converted SQL against the split schemas without executing it.
+      - name: Prepare raw SQL on the split layout
+        if: ${{ !cancelled() }}
+        env: *split-layout
+        run: pnpm --filter core exec tsx scripts/prepare-raw-sql.ts
 
   # One job for the same reason as `web`: the unit suite, behind the same
   # `Setup`. Its PostgreSQL suites, migrations and drift check run beside it

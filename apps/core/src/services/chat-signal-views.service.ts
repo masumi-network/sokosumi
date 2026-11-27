@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { notFound } from "@/helpers/error";
 import {
   CHAT_CATCH_UP_BUCKETS,
@@ -58,9 +59,9 @@ function sqlUnreadForViewer(): string {
 }
 
 function sqlReadJoins(userSql: string): string {
-  return `LEFT JOIN "chat_room_read_state" room_read
+  return `LEFT JOIN ${sharedTable("chat_room_read_state").sql} room_read
       ON room_read."roomId" = m."roomId" AND room_read."userId" = ${userSql}
-    LEFT JOIN "chat_room_thread_read_state" thread_read
+    LEFT JOIN ${sharedTable("chat_room_thread_read_state").sql} thread_read
       ON thread_read."parentMessageId" = m."parentMessageId" AND thread_read."userId" = ${userSql}`;
 }
 
@@ -86,8 +87,8 @@ export async function getChatRoomNeedsYouCounts(
     Array<{ roomId: string; count: number }>
   >(
     `SELECT m."roomId" AS "roomId", COUNT(*)::int AS count
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+    FROM ${sharedTable("chat_message_signal").sql} s
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
     ${sqlReadJoins(user)}
     WHERE s."roomId" IN (${placeholders(ids.length)})
       AND s.state = 'tagged'
@@ -120,8 +121,8 @@ export async function getChatRoomCatchUp(
     Array<{ id: string; signalId: string | null }>
   >(
     `SELECT m.id, s.id AS "signalId"
-    FROM "chat_room_message" m
-    LEFT JOIN "chat_message_signal" s ON s."messageId" = m.id AND s.state = 'tagged'
+    FROM ${sharedTable("chat_room_message").sql} m
+    LEFT JOIN ${sharedTable("chat_message_signal").sql} s ON s."messageId" = m.id AND s.state = 'tagged'
     ${sqlReadJoins("$2")}
     WHERE m."roomId" = $1::uuid
       AND m."deletedAt" IS NULL
@@ -186,8 +187,8 @@ export async function listChatRoomMessagesWithTag(
     Array<{ id: string; total: number }>
   >(
     `SELECT m.id, COUNT(*) OVER ()::int AS total
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+    FROM ${sharedTable("chat_message_signal").sql} s
+    INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
     WHERE s."roomId" = $1::uuid
       AND s.state = 'tagged'
       AND m."deletedAt" IS NULL
@@ -244,8 +245,8 @@ export async function listChatDecisions(
   >(
     `WITH decisions AS (
       SELECT m.id, m."createdAt"
-      FROM "chat_message_signal" s
-      INNER JOIN "chat_room_message" m ON m.id = s."messageId"
+      FROM ${sharedTable("chat_message_signal").sql} s
+      INNER JOIN ${sharedTable("chat_room_message").sql} m ON m.id = s."messageId"
       WHERE s."roomId" IN (${placeholders(n)})
         AND s.state = 'tagged'
         AND m."deletedAt" IS NULL

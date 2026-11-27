@@ -21,7 +21,7 @@ const route = createRoute({
   method: "patch",
   path: "/",
   description:
-    "Save the user's first and last name (path `me` for the session user, or a user id the caller may access). The display name is derived from them only when the user has none; after that it is theirs to edit. Session users only.",
+    "Save the user's display name (`name`) and/or first and last name (path `me` for the signed-in user, or a user id the caller may access). First and last name go together. Without `name`, the display name is derived from them only when the user has none.",
   tags: ["Users"],
   request: {
     params,
@@ -47,7 +47,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
-    const { firstName, lastName } = c.req.valid("json");
+    const { firstName, lastName, name } = c.req.valid("json");
 
     const user = await prisma.user.findUnique({
       where: { id: resolvedUserId },
@@ -60,11 +60,16 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const updated = await prisma.user.update({
       where: { id: resolvedUserId },
       data: {
-        firstName,
-        lastName,
-        ...(user.name.trim()
-          ? {}
-          : { name: joinFirstAndLastName(firstName, lastName) }),
+        ...(firstName !== undefined && { firstName, lastName }),
+        ...(name !== undefined
+          ? { name }
+          : !user.name.trim() &&
+              firstName !== undefined &&
+              lastName !== undefined
+            ? { name: joinFirstAndLastName(firstName, lastName) }
+            : {}),
+        // The column has no @updatedAt; a change must move it.
+        updatedAt: new Date(),
       },
     });
 

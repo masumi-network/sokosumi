@@ -147,6 +147,37 @@ test("tasks list text shows short id and person assignee", async () => {
   assert.match(text, /assignee: user-1/);
 });
 
+test("tasks get shows the due date and parent in JSON and text (SOKD-468)", async () => {
+  const task = {
+    id: TASK_UUID,
+    identifier: "SOK-12",
+    status: "READY",
+    dueOn: "2026-11-25",
+    parentTaskId: PEER_UUID,
+  };
+  for (const json of [true, false]) {
+    const output: string[] = [];
+    await runTasksCommand({
+      client: recordingClient([], (call) =>
+        call.path === "/v1/tasks/SOK-12" ? { data: task } : { data: [] },
+      ),
+      stdout: { write: (value) => output.push(value) },
+      json,
+      subcommand: "get",
+      positionalId: "SOK-12",
+    });
+    const text = output.join("");
+    if (json) {
+      const parsed = JSON.parse(text);
+      assert.equal(parsed.task.dueOn, "2026-11-25");
+      assert.equal(parsed.task.parentTaskId, PEER_UUID);
+    } else {
+      assert.match(text, /due: 2026-11-25/);
+      assert.match(text, new RegExp(`parent: ${PEER_UUID}`));
+    }
+  }
+});
+
 test("tasks get requires an id", async () => {
   await assert.rejects(
     () =>

@@ -9,6 +9,7 @@ import {
   CONTACT_REPLY_STATES,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
+  CONTACT_X_FOLLOWS,
   calendarDateSchema,
   contactFilterSchema,
 } from "@sokosumi/utils";
@@ -63,6 +64,10 @@ export const contactKnownBySchema = contactPersonSchema
   .extend({
     interactionCount: z.int(),
     lastInteractionAt: dateTimeSchema.nullable(),
+    /** They follow this teammate on X. */
+    followsOnX: z.boolean(),
+    /** This teammate follows them on X. */
+    followedOnX: z.boolean(),
   })
   .openapi("ContactKnownBy");
 
@@ -122,6 +127,8 @@ export const contactSchema = z
     channels: z.array(contactChannelSchema),
     lists: z.array(contactListRefSchema),
     knownBy: z.array(contactKnownBySchema),
+    /** The workspace member this contact is, e.g. the reader themselves. */
+    user: z.union([contactPersonSchema, z.null()]),
   })
   .openapi("Contact");
 
@@ -179,7 +186,11 @@ export const contactActivitySchema = z
 
 export const contactMergeSuggestionSchema = z
   .object({
-    reason: z.enum(["shared_channel", "same_name"]),
+    // Closed for shipped Apple builds: a new value would fail their contact read.
+    reason: z.enum(["shared_channel", "same_name"]).openapi({
+      description:
+        "`same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.",
+    }),
     contactIds: z.array(z.uuid()),
   })
   .openapi("ContactMergeSuggestion");
@@ -227,6 +238,10 @@ export const contactListSchema = z
 export const contactDuplicateGroupSchema = z
   .object({
     name: z.string(),
+    reason: z.enum(["same_name", "same_company"]).openapi({
+      description:
+        "Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).",
+    }),
     contacts: z.array(contactSchema),
   })
   .openapi("ContactDuplicateGroup");
@@ -302,6 +317,10 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   }),
   knownByUserId: z.string().min(1).max(200).optional(),
   knownByMe: booleanQuery,
+  xFollow: z.enum(CONTACT_X_FOLLOWS).optional().openapi("ContactXFollowState", {
+    description:
+      "How they and the reader follow each other on X: FOLLOWS_YOU (not followed back), YOU_FOLLOW (they don't follow back) or MUTUAL.",
+  }),
   lastContactAfter: z.iso.datetime({ offset: true }).optional(),
   lastContactBefore: z.iso.datetime({ offset: true }).optional(),
   lastContactOlderThanDays: positiveDays,
@@ -480,3 +499,21 @@ export const contactCompanyDetailSchema = z
     ),
   })
   .openapi("ContactCompanyDetail");
+
+export const contactLinkedInImportInputSchema = z
+  .object({
+    /** The text of LinkedIn's Connections.csv export, at most 5 MB. */
+    csv: z.string().min(1).max(5_000_000),
+  })
+  .openapi("ContactLinkedInImportInput");
+
+export const contactLinkedInImportResultSchema = z
+  .object({
+    /** Rows that named a LinkedIn profile. */
+    connections: z.int(),
+    created: z.int(),
+    updated: z.int(),
+    /** The "LinkedIn connections" list every imported person is on. */
+    listId: z.uuid(),
+  })
+  .openapi("ContactLinkedInImportResult");

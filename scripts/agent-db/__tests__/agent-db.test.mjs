@@ -1,8 +1,19 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 
-import { upsertEnvLines } from "../apply-env.mjs";
-import { assertAgentFixtureSafety } from "../assert-agent-database.mjs";
+import {
+  applyUrlsToProcessEnv,
+  readUrlsFile,
+  upsertEnvLines,
+  writeEnvFile,
+} from "../apply-env.mjs";
+import {
+  assertAgentBranchSafety,
+  assertAgentFixtureSafety,
+} from "../assert-agent-database.mjs";
 import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "../fixtures.mjs";
 import {
   agentBranchName,
@@ -19,9 +30,12 @@ import {
   resolveParentBranch,
   waitForOperations,
 } from "../neon-api.mjs";
+import { provisionAgentBranch, runMigrations } from "../provision.mjs";
 import {
   clearUnwantedOrganizationMemberships,
   resetUnwantedPersonalWorkspace,
+  seedDatabase,
+  sharedTableFor,
   throwIfZeroWorkspaceResetFailed,
 } from "../seed-auth-fixtures.mjs";
 import { parseArgs, sameRepoPullRequestBodies } from "../teardown.mjs";
@@ -100,17 +114,84 @@ describe("upsertEnvLines", () => {
   });
 });
 
-describe("assertAgentFixtureSafety", () => {
-  const agentBranch = "cloud-agent-bc-bc5212fe-8ee2-4bfa-9e8d-85e27cb47e48";
-  const url = "postgresql://u:p@ep-agent.us-east-1.aws.neon.tech/neondb";
+const AGENT_BRANCH_NAME = "cloud-agent-bc-bc5212fe-8ee2-4bfa-9e8d-85e27cb47e48";
+const AGENT_HOST = "ep-agent.us-east-1.aws.neon.tech";
+const AGENT_URL = `postgresql://u:p@${AGENT_HOST}/neondb`;
+const AGENT_POOLED_URL = AGENT_URL.replace("ep-agent", "ep-agent-pooler");
 
-  it("allows agent branch + database url", () => {
-    assert.doesNotThrow(() => {
-      assertAgentFixtureSafety({
-        branchName: agentBranch,
-        databaseUrl: url,
+it("gives the migration child both verified URLs even when the ambient URLs target another branch", (t) => {
+  t.mock.property(process, "env", {
+    DATABASE_URL: AGENT_POOLED_URL.replace("ep-agent", "ep-other"),
+    DATABASE_URL_UNPOOLED: AGENT_URL.replace("ep-agent", "ep-other"),
+  });
+  const spawn = t.mock.fn(() => ({ status: 0 }));
+  runMigrations(
+    { databaseUrl: AGENT_POOLED_URL, databaseUrlUnpooled: AGENT_URL },
+    spawn,
+  );
+  assert.equal(spawn.mock.callCount(), 1);
+  const [command, args, { env }] = spawn.mock.calls[0].arguments;
+  assert.equal(command, "pnpm");
+  assert.deepEqual(args, ["prisma:migrate:deploy"]);
+  assert.equal(env.DATABASE_URL, AGENT_POOLED_URL);
+  assert.equal(env.DATABASE_URL_UNPOOLED, AGENT_URL);
+});
+
+describe("assertAgentFixtureSafety", () => {
+  it("allows the verified branch's direct and pooled URLs", () => {
+    for (const databaseUrl of [AGENT_URL, AGENT_POOLED_URL]) {
+      assert.doesNotThrow(() => {
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl,
+          databaseUrlUnpooledHost: AGENT_HOST,
+        });
       });
-    });
+    }
+  });
+
+  it("blocks a manual seed whose ambient direct URL selects another branch", () => {
+    const { databaseUrl } = seedDatabase(
+      undefined,
+      {
+        DATABASE_URL: AGENT_POOLED_URL,
+        DATABASE_URL_UNPOOLED: AGENT_URL.replace("ep-agent", "ep-other"),
+      },
+      null,
+    );
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl,
+          databaseUrlUnpooledHost: AGENT_HOST,
+          force: true,
+        }),
+      /selected database URL does not match the verified agent branch endpoint/,
+    );
+  });
+
+  it("blocks a URL whose host query parameter overrides the verified host", () => {
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl: `${AGENT_URL}?host=ep-other.us-east-1.aws.neon.tech`,
+          databaseUrlUnpooledHost: AGENT_HOST,
+        }),
+      /selected database URL must omit host, endpoint, database and role overrides/,
+    );
+  });
+
+  it("blocks a seed from older state without a verified endpoint", () => {
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          branchName: AGENT_BRANCH_NAME,
+          databaseUrl: AGENT_URL,
+        }),
+      /provision state has no verified endpoint.*pnpm db:up/,
+    );
   });
 
   it("blocks production/main branch names", () => {
@@ -118,7 +199,7 @@ describe("assertAgentFixtureSafety", () => {
       () =>
         assertAgentFixtureSafety({
           branchName: "main",
-          databaseUrl: url,
+          databaseUrl: AGENT_URL,
         }),
       /Auth fixtures blocked: refusing fixtures on non-agent branch "main"/,
     );
@@ -129,7 +210,7 @@ describe("assertAgentFixtureSafety", () => {
       () =>
         assertAgentFixtureSafety({
           branchName: null,
-          databaseUrl: url,
+          databaseUrl: AGENT_URL,
         }),
       /Auth fixtures blocked: missing cloud-agent branch name in provision state/,
     );
@@ -140,7 +221,7 @@ describe("assertAgentFixtureSafety", () => {
       () =>
         assertAgentFixtureSafety({
           branchName: null,
-          databaseUrl: url,
+          databaseUrl: AGENT_URL,
           force: true,
         }),
       /Auth fixtures blocked: CLOUD_AGENT_DB_FORCE fixtures require cloud-agent-\* branch state \(or localhost\)/,
@@ -155,6 +236,17 @@ describe("assertAgentFixtureSafety", () => {
         force: true,
       });
     });
+  });
+
+  it("blocks force on a local URL with a remote host override", () => {
+    assert.throws(
+      () =>
+        assertAgentFixtureSafety({
+          databaseUrl: `postgresql://u:p@localhost:5432/core?host=${AGENT_HOST}`,
+          force: true,
+        }),
+      /fixtures require cloud-agent-\* branch state/,
+    );
   });
 });
 
@@ -203,55 +295,175 @@ describe("auth fixtures", () => {
   });
 });
 
+const SPLIT_LAYOUT = {
+  DATABASE_SCHEMA_SHARED: "shared",
+  DATABASE_SCHEMA_MAINNET: "mainnet",
+  DATABASE_SCHEMA_PREPROD: "preprod",
+};
+
+/** A client that records each statement with its values. */
+function recordingClient(queries, onQuery = () => {}) {
+  return {
+    async query(sql, values) {
+      queries.push(values ? [sql, values] : sql);
+      onQuery(sql);
+      return { rowCount: 0 };
+    },
+  };
+}
+
+describe("sharedTableFor", () => {
+  it("names public when the names are blank or missing, as Core does", async () => {
+    assert.equal((await sharedTableFor({}))("user"), '"public"."user"');
+    assert.equal(
+      (
+        await sharedTableFor({
+          DATABASE_SCHEMA_SHARED: "",
+          DATABASE_SCHEMA_MAINNET: "",
+          DATABASE_SCHEMA_PREPROD: "",
+        })
+      )("user"),
+      '"public"."user"',
+    );
+  });
+
+  it("names the shared schema of a split layout", async () => {
+    assert.equal(
+      (await sharedTableFor(SPLIT_LAYOUT))("user"),
+      '"shared"."user"',
+    );
+  });
+
+  it("refuses a layout Core refuses", async () => {
+    const refused = [
+      // Only some of the three names: the rest would be public.
+      { DATABASE_SCHEMA_SHARED: "shared" },
+      {
+        DATABASE_SCHEMA_MAINNET: "mainnet",
+        DATABASE_SCHEMA_PREPROD: "preprod",
+      },
+      { ...SPLIT_LAYOUT, DATABASE_SCHEMA_SHARED: "pg_catalog" },
+      { ...SPLIT_LAYOUT, DATABASE_SCHEMA_SHARED: "information_schema" },
+      { ...SPLIT_LAYOUT, DATABASE_SCHEMA_SHARED: 'shared"; DROP TABLE x; --' },
+      { NETWORK_PREPROD_ENABLED: "true" },
+    ];
+    for (const env of refused) {
+      await assert.rejects(
+        sharedTableFor(env),
+        /^Error: Auth fixtures blocked: /,
+        JSON.stringify(env),
+      );
+    }
+  });
+});
+
+describe("seedDatabase", () => {
+  const PROVISIONED = {
+    databaseUrl: "postgresql://agent@pooled.test/db",
+    databaseUrlUnpooled: "postgresql://agent@direct.test/db",
+  };
+  const OTHER = "postgresql://user@other.test/db";
+
+  it("takes the layout from the environment the URL comes from", () => {
+    const env = { DATABASE_URL: OTHER, ...SPLIT_LAYOUT };
+
+    assert.deepEqual(seedDatabase(undefined, env, PROVISIONED), {
+      databaseUrl: OTHER,
+      layoutEnv: env,
+    });
+    assert.deepEqual(seedDatabase("  ", env, null), {
+      databaseUrl: OTHER,
+      layoutEnv: env,
+    });
+  });
+
+  it("pairs a URL the caller passes with the public layout, whatever the shell exports", () => {
+    assert.deepEqual(seedDatabase(OTHER, { ...SPLIT_LAYOUT }, null), {
+      databaseUrl: OTHER,
+      layoutEnv: {},
+    });
+  });
+
+  it("pairs the provisioned URL with the public layout when with-db.mjs launches the seed", async (t) => {
+    const repoRoot = await mkdtemp(path.join(tmpdir(), "agent-db-seed-"));
+    t.after(() => rm(repoRoot, { recursive: true, force: true }));
+    await writeEnvFile(repoRoot, PROVISIONED);
+    // What with-db.mjs does before it starts the command: the provisioned
+    // URLs replace the shell's, the shell's schema names stay.
+    const env = { DATABASE_URL: OTHER, ...SPLIT_LAYOUT };
+    const provisioned = await readUrlsFile(repoRoot);
+    applyUrlsToProcessEnv(provisioned, env);
+
+    const { databaseUrl, layoutEnv } = seedDatabase(
+      undefined,
+      env,
+      provisioned,
+    );
+
+    assert.equal(databaseUrl, PROVISIONED.databaseUrlUnpooled);
+    assert.equal((await sharedTableFor(layoutEnv))("user"), '"public"."user"');
+  });
+
+  it("a partial layout in the environment stops the seed of another database", async () => {
+    const { layoutEnv } = seedDatabase(
+      undefined,
+      { DATABASE_URL: OTHER, DATABASE_SCHEMA_SHARED: "shared" },
+      PROVISIONED,
+    );
+
+    await assert.rejects(
+      sharedTableFor(layoutEnv),
+      /^Error: Auth fixtures blocked: .*must be all public, or all different and none public/,
+    );
+  });
+});
+
 describe("resetUnwantedPersonalWorkspace", () => {
+  const DELETE_WORKSPACE = [
+    'DELETE FROM "shared"."workspace" WHERE "userId" = $1',
+    ["user-zero"],
+  ];
+
   it("deletes the personal workspace inside a savepoint", async () => {
     const queries = [];
-    const client = {
-      async query(sql) {
-        queries.push(sql);
-        return { rowCount: 1 };
-      },
-    };
 
-    const result = await resetUnwantedPersonalWorkspace(client, {
-      userId: "user-zero",
-      email: "zero@sokosumi.test",
-    });
+    const result = await resetUnwantedPersonalWorkspace(
+      recordingClient(queries),
+      { userId: "user-zero", email: "zero@sokosumi.test" },
+      await sharedTableFor(SPLIT_LAYOUT),
+    );
 
     assert.equal(result.reset, true);
-    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
-    assert.match(queries[1], /DELETE FROM workspace/);
-    assert.equal(queries[2], "RELEASE SAVEPOINT zero_workspace_reset");
+    assert.deepEqual(queries, [
+      "SAVEPOINT zero_workspace_reset",
+      DELETE_WORKSPACE,
+      "RELEASE SAVEPOINT zero_workspace_reset",
+    ]);
   });
 
   it("rolls back only the savepoint when delete hits an FK", async () => {
     const queries = [];
-    const client = {
-      async query(sql) {
-        queries.push(sql);
-        if (String(sql).includes("DELETE FROM workspace")) {
-          throw new Error(
-            'update or delete on table "workspace" violates foreign key constraint',
-          );
-        }
-        return { rowCount: 0 };
-      },
-    };
-
-    const result = await resetUnwantedPersonalWorkspace(client, {
-      userId: "user-zero",
-      email: "zero@sokosumi.test",
+    const client = recordingClient(queries, (sql) => {
+      if (sql === DELETE_WORKSPACE[0]) {
+        throw new Error(
+          'update or delete on table "workspace" violates foreign key constraint',
+        );
+      }
     });
 
-    assert.equal(result.reset, false);
-    assert.equal(queries[0], "SAVEPOINT zero_workspace_reset");
-    assert.match(queries[1], /DELETE FROM workspace/);
-    assert.equal(queries[2], "ROLLBACK TO SAVEPOINT zero_workspace_reset");
-    assert.equal(
-      queries.includes("ROLLBACK"),
-      false,
-      "must not roll back the outer fixture transaction",
+    const result = await resetUnwantedPersonalWorkspace(
+      client,
+      { userId: "user-zero", email: "zero@sokosumi.test" },
+      await sharedTableFor(SPLIT_LAYOUT),
     );
+
+    assert.equal(result.reset, false);
+    // No bare ROLLBACK: the outer fixture transaction stays open.
+    assert.deepEqual(queries, [
+      "SAVEPOINT zero_workspace_reset",
+      DELETE_WORKSPACE,
+      "ROLLBACK TO SAVEPOINT zero_workspace_reset",
+    ]);
   });
 });
 
@@ -271,18 +483,24 @@ describe("throwIfZeroWorkspaceResetFailed", () => {
 describe("clearUnwantedOrganizationMemberships", () => {
   it("deletes memberships and clears selected-organization state", async () => {
     const queries = [];
-    const client = {
-      async query(sql) {
-        queries.push(sql);
-        return { rowCount: 0 };
-      },
-    };
 
-    await clearUnwantedOrganizationMemberships(client, { userId: "user-zero" });
+    await clearUnwantedOrganizationMemberships(
+      recordingClient(queries),
+      { userId: "user-zero" },
+      await sharedTableFor(SPLIT_LAYOUT),
+    );
 
-    assert.match(queries[0], /DELETE FROM member/);
-    assert.match(queries[1], /preferredOrganizationId/);
-    assert.match(queries[2], /activeOrganizationId/);
+    assert.deepEqual(queries, [
+      ['DELETE FROM "shared"."member" WHERE "userId" = $1', ["user-zero"]],
+      [
+        'UPDATE "shared"."user" SET "preferredOrganizationId" = NULL WHERE id = $1',
+        ["user-zero"],
+      ],
+      [
+        'UPDATE "shared"."session" SET "activeOrganizationId" = NULL WHERE "userId" = $1',
+        ["user-zero"],
+      ],
+    ]);
   });
 });
 
@@ -322,6 +540,155 @@ const PREVIEW_BRANCH = {
   protected: false,
 };
 const NO_WAIT = { sleep: async () => {} };
+
+const AGENT_PARENT = {
+  id: "br-main",
+  name: "main",
+  default: true,
+  protected: true,
+};
+const AGENT_BRANCH = {
+  id: "br-agent",
+  name: AGENT_BRANCH_NAME,
+  parent_id: AGENT_PARENT.id,
+  default: false,
+  protected: false,
+};
+
+function agentProvisionReplies(branch, reused) {
+  return [
+    [200, { branches: [AGENT_PARENT] }],
+    [200, { branches: reused ? [branch] : [] }],
+    ...(reused ? [] : [[201, { branch }]]),
+    [200, { uri: AGENT_POOLED_URL }],
+    [200, { uri: AGENT_URL }],
+  ];
+}
+
+describe("provisionAgentBranch", () => {
+  for (const reused of [false, true]) {
+    it(`returns verified URLs for a ${reused ? "reused" : "new"} agent branch`, async () => {
+      const { config, calls } = queuedNeon([
+        ...agentProvisionReplies(AGENT_BRANCH, reused),
+        [
+          200,
+          {
+            endpoints: [
+              {
+                branch_id: AGENT_BRANCH.id,
+                type: "read_write",
+                host: AGENT_HOST,
+              },
+            ],
+          },
+        ],
+        ...(reused ? [[200, { branch: AGENT_BRANCH }]] : []),
+      ]);
+
+      assert.deepEqual(await provisionAgentBranch(config, AGENT_BRANCH_NAME), {
+        branchId: AGENT_BRANCH.id,
+        reused,
+        urls: { databaseUrl: AGENT_POOLED_URL, databaseUrlUnpooled: AGENT_URL },
+        databaseUrlUnpooledHost: AGENT_HOST,
+      });
+      assert.deepEqual(
+        calls.slice(reused ? 2 : 3, reused ? 4 : 5).map(({ url }) => {
+          const query = new URL(url).searchParams;
+          return [query.get("branch_id"), query.get("pooled")];
+        }),
+        [
+          [AGENT_BRANCH.id, "true"],
+          [AGENT_BRANCH.id, "false"],
+        ],
+      );
+      assert.match(
+        calls.at(reused ? -2 : -1).url,
+        /\/branches\/br-agent\/endpoints$/,
+      );
+      if (reused) assert.equal(calls.at(-1).method, "PATCH");
+    });
+  }
+
+  for (const [label, branch, reason] of [
+    ["default", { ...AGENT_BRANCH, default: true }, /default or protected/],
+    ["protected", { ...AGENT_BRANCH, protected: true }, /default or protected/],
+    [
+      "wrong parent",
+      { ...AGENT_BRANCH, parent_id: "br-other" },
+      /unexpected parent.*pnpm db:down followed by pnpm db:up/,
+    ],
+  ]) {
+    it(`refuses to reuse a branch with ${label} metadata before returning URLs for migrations`, async () => {
+      const { config, calls } = queuedNeon(agentProvisionReplies(branch, true));
+      await assert.rejects(
+        () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+        reason,
+      );
+      assert.equal(calls.length, 4);
+      assert.ok(calls.every(({ method }) => method === "GET"));
+    });
+  }
+
+  for (const protectedBranch of [false, true]) {
+    it(`preserves the URI error and ${protectedBranch ? "keeps a protected branch" : "deletes the new orphan"}`, async () => {
+      const uriError = new Error("connection URI unavailable");
+      const branch = { ...AGENT_BRANCH, protected: protectedBranch };
+      const { config, calls } = queuedNeon([
+        ...agentProvisionReplies(branch, false).slice(0, 3),
+        uriError,
+        [200, { uri: AGENT_URL }],
+        [200, {}],
+      ]);
+
+      await assert.rejects(
+        () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+        (error) => error === uriError,
+      );
+      assert.deepEqual(
+        calls
+          .filter(({ method }) => method === "DELETE")
+          .map(({ url }) => new URL(url).pathname),
+        protectedBranch ? [] : ["/api/v2/projects/proj/branches/br-agent"],
+      );
+    });
+  }
+
+  it("refuses a wrongly named branch during the reuse verification", () => {
+    // findBranchByName already filters by exact name, so exercise this at the guard.
+    assert.throws(
+      () =>
+        assertAgentBranchSafety(
+          { ...AGENT_BRANCH, name: "main" },
+          AGENT_BRANCH_NAME,
+          AGENT_PARENT.id,
+        ),
+      /not the expected cloud-agent branch/,
+    );
+  });
+
+  it("refuses URLs that agree with each other and target another branch", async () => {
+    const { config, calls } = queuedNeon([
+      ...agentProvisionReplies(AGENT_BRANCH, true),
+      [
+        200,
+        {
+          endpoints: [
+            {
+              branch_id: AGENT_BRANCH.id,
+              type: "read_write",
+              host: "ep-other.us-east-1.aws.neon.tech",
+            },
+          ],
+        },
+      ],
+    ]);
+    await assert.rejects(
+      () => provisionAgentBranch(config, AGENT_BRANCH_NAME),
+      /DATABASE_URL_UNPOOLED does not match the read-write endpoint of Neon branch "cloud-agent-/,
+    );
+    assert.ok(calls.every(({ method }) => method === "GET"));
+  });
+});
 
 describe("findBranchByName", () => {
   it("searches by name and returns only the exact match", async () => {

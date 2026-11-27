@@ -1,4 +1,5 @@
 import { type Prisma, TaskX402PaymentStatus } from "@sokosumi/database";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 
 import {
   cancelNotificationEmails,
@@ -30,7 +31,7 @@ export async function lockCalendarErasureUser(
 ): Promise<boolean> {
   const user = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id
-    FROM "user"
+    FROM ${sharedTable("user")}
     WHERE id = ${userId}
     FOR UPDATE
   `;
@@ -49,7 +50,7 @@ export async function lockWorkspaceCalendarForErasure(
 ): Promise<boolean> {
   const workspace = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id
-    FROM "workspace"
+    FROM ${sharedTable("workspace")}
     WHERE id = ${workspaceId}::UUID
     FOR UPDATE
   `;
@@ -59,28 +60,28 @@ export async function lockWorkspaceCalendarForErasure(
 
   await tx.$queryRaw`
     SELECT id
-    FROM "project"
+    FROM ${sharedTable("project")}
     WHERE "workspaceId" = ${workspaceId}::UUID
     ORDER BY id ASC
     FOR UPDATE
   `;
   await tx.$queryRaw`
     SELECT id
-    FROM "task"
+    FROM ${sharedTable("task")}
     WHERE "workspaceId" = ${workspaceId}::UUID
     ORDER BY id ASC
     FOR UPDATE
   `;
   await tx.$queryRaw`
     SELECT run.id
-    FROM "task_schedule_run" AS run
+    FROM ${sharedTable("task_schedule_run")} AS run
     WHERE run.id IN (
-      SELECT id FROM "task_schedule_run"
+      SELECT id FROM ${sharedTable("task_schedule_run")}
       WHERE "sourceWorkspaceId" = ${workspaceId}::UUID
       UNION
       SELECT released_run.id
-      FROM "task_schedule_run" AS released_run
-      JOIN "task" AS released_task ON released_task.id = released_run."releasedTaskId"
+      FROM ${sharedTable("task_schedule_run")} AS released_run
+      JOIN ${sharedTable("task")} AS released_task ON released_task.id = released_run."releasedTaskId"
       WHERE released_task."workspaceId" = ${workspaceId}::UUID
     )
     ORDER BY run.id ASC
@@ -89,23 +90,23 @@ export async function lockWorkspaceCalendarForErasure(
   // After the Runs, like the release: it claims a Run, then its schedule.
   await tx.$queryRaw`
     SELECT id
-    FROM "task_schedule"
+    FROM ${sharedTable("task_schedule")}
     WHERE "workspaceId" = ${workspaceId}::UUID
     ORDER BY id ASC
     FOR UPDATE
   `;
   await tx.$queryRaw`
     SELECT link.id
-    FROM "task_link" AS link
+    FROM ${sharedTable("task_link")} AS link
     WHERE link.id IN (
       SELECT source_link.id
-      FROM "task_link" AS source_link
-      JOIN "task" AS source_task ON source_task.id = source_link."fromTaskId"
+      FROM ${sharedTable("task_link")} AS source_link
+      JOIN ${sharedTable("task")} AS source_task ON source_task.id = source_link."fromTaskId"
       WHERE source_task."workspaceId" = ${workspaceId}::UUID
       UNION
       SELECT target_link.id
-      FROM "task_link" AS target_link
-      JOIN "task" AS target_task ON target_task.id = target_link."toTaskId"
+      FROM ${sharedTable("task_link")} AS target_link
+      JOIN ${sharedTable("task")} AS target_task ON target_task.id = target_link."toTaskId"
       WHERE target_task."workspaceId" = ${workspaceId}::UUID
     )
     ORDER BY link.id ASC
@@ -113,8 +114,8 @@ export async function lockWorkspaceCalendarForErasure(
   `;
   await tx.$queryRaw`
     SELECT payment.id
-    FROM "task_x402_payment" AS payment
-    JOIN "task" AS payment_task ON payment_task.id = payment."taskId"
+    FROM ${netTable("mainnet", "task_x402_payment")} AS payment
+    JOIN ${sharedTable("task")} AS payment_task ON payment_task.id = payment."taskId"
     WHERE payment_task."workspaceId" = ${workspaceId}::UUID
     ORDER BY payment.id ASC
     FOR UPDATE OF payment
@@ -182,8 +183,8 @@ export async function eraseWorkspaceCalendarData(
   // still allow a dispatcher to block the later organization cascade.
   await tx.$queryRaw`
     SELECT "member".id
-    FROM "member"
-    JOIN "workspace"
+    FROM ${sharedTable("member")}
+    JOIN ${sharedTable("workspace")}
       ON "workspace"."organizationId" = "member"."organizationId"
     WHERE "workspace".id = ${workspaceId}::UUID
     ORDER BY "member".id ASC

@@ -81,8 +81,12 @@ export function useScenarioLabVersion({
 
   async function chooseVersion(id: string) {
     setSwitching(true);
-    const result = await setSokoBotVersionAction({ versionId: id });
-    setSwitching(false);
+    let result: Awaited<ReturnType<typeof setSokoBotVersionAction>>;
+    try {
+      result = await setSokoBotVersionAction({ versionId: id });
+    } finally {
+      setSwitching(false);
+    }
     if (result.ok) {
       activeVersionRef.current = id;
       setActiveVersion(id);

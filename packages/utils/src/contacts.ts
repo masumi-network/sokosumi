@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { strictBody } from "./strict-body.js";
+
 /**
  * What a contact is to the team. `CONTACT` is the plain default; the sales
  * steps (prospect, lead, active, customer) apply only to people the team
@@ -34,6 +36,17 @@ export const CONTACT_REPLY_STATES = [
   "NO_REPLY",
   "IN_CONVERSATION",
   "REPLIED",
+] as const;
+
+/**
+ * How the reader and a contact follow each other on X: they follow the reader
+ * who doesn't follow back, the reader follows them who don't follow back, or
+ * both.
+ */
+export const CONTACT_X_FOLLOWS = [
+  "FOLLOWS_YOU",
+  "YOU_FOLLOW",
+  "MUTUAL",
 ] as const;
 
 export const CONTACT_REPLY_WAIT_DAYS = 7;
@@ -103,6 +116,7 @@ export const CONTACT_SORT_FIELDS = [
 ] as const;
 
 export type ContactChannelType = (typeof CONTACT_CHANNEL_TYPES)[number];
+export type ContactXFollowState = (typeof CONTACT_X_FOLLOWS)[number];
 
 function stripPrefix(value: string, pattern: RegExp): string {
   return value.replace(pattern, "");
@@ -313,21 +327,31 @@ export const contactFieldsSchema = z.object({
     .optional(),
 });
 
-export const createContactSchema = contactFieldsSchema
-  .extend({
-    name: contactFieldsSchema.shape.name.optional(),
-    channels: z.array(contactChannelInputSchema).max(20).default([]),
-    /** Attach to the contact that already owns one of these channels. */
-    upsert: z.boolean().default(false),
-  })
-  .refine(
-    (value) => Boolean(value.name) || value.channels.length > 0,
-    "A contact needs a name or a channel",
-  );
+// Strict: a guessed `email` or `company` was dropped and the call still
+// answered 200 (SOKD-491). Email goes in `channels`, a company in `organization`.
+export const createContactSchema = strictBody({
+  ...contactFieldsSchema.shape,
+  name: contactFieldsSchema.shape.name.optional(),
+  channels: z.array(contactChannelInputSchema).max(20).default([]),
+  /** Attach to the contact that already owns one of these channels. */
+  upsert: z.boolean().default(false),
+}).refine(
+  (value) => Boolean(value.name) || value.channels.length > 0,
+  "A contact needs a name or a channel",
+);
 
-export const updateContactSchema = contactFieldsSchema.partial().extend({
+const contactChangeFields = Object.keys(contactFieldsSchema.shape);
+
+export const updateContactSchema = strictBody({
+  ...contactFieldsSchema.partial().shape,
   version: z.int().positive(),
-});
+}).refine(
+  (value) =>
+    contactChangeFields.some(
+      (field) => value[field as keyof typeof value] !== undefined,
+    ),
+  `Send at least one field to change: ${contactChangeFields.join(", ")}.`,
+);
 
 export const contactInteractionInputSchema = z.object({
   occurredAt: z.iso.datetime({ offset: true }),
@@ -360,8 +384,10 @@ export const contactFilterSchema = z
     /** On any of these manual lists. */
     listIds: z.array(z.uuid()).min(1).max(20).optional(),
     knownByUserId: z.string().min(1).max(200).optional(),
-    /** Someone the reader has had an interaction with. */
+    /** Someone the reader has had an interaction with or is linked to on X. */
     knownByMe: z.boolean().optional(),
+    /** How they and the reader follow each other on X. */
+    xFollow: z.enum(CONTACT_X_FOLLOWS).optional(),
     lastContactAfter: z.iso.datetime({ offset: true }).optional(),
     lastContactBefore: z.iso.datetime({ offset: true }).optional(),
     /** Contacted before, but not in this many days. */

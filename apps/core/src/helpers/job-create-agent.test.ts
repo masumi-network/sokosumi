@@ -463,6 +463,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         expect.anything(),
       );
       expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         "org_1",
         BigInt(5),
@@ -519,6 +520,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     });
     expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "mainnet",
       null,
       "org_1",
       BigInt(5),
@@ -555,6 +557,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       expect(call).toEqual([null, "org_1", expect.anything(), scope]);
     }
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "mainnet",
       null,
       "org_1",
       BigInt(5),
@@ -706,6 +709,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         ]);
       }
       expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         "org_1",
         BigInt(5),
@@ -848,6 +852,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       [{ unit: "lovelace" }],
     );
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "mainnet",
       "user_1",
       "org_1",
       BigInt(2),
@@ -1055,6 +1060,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     expect(startPaidAgentJobMock).toHaveBeenCalled();
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "mainnet",
       "user_1",
       "org_1",
       BigInt(100),

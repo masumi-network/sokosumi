@@ -206,6 +206,8 @@ export const overview: CmoOverview = cmoOverview({
     beyondPlan: ["e18-x", "e27-linkedin"],
     withoutPicture: [],
     retryAt: null,
+    writerFailed: false,
+    floor: null,
   },
   timeZone: "Europe/Berlin",
   routines: [

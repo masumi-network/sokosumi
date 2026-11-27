@@ -5,6 +5,7 @@
  * Soko Bots and a background read of the company's website fill.
  */
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { z } from "zod";
 import { conflict, notFound } from "@/helpers/error";
@@ -119,12 +120,12 @@ async function reconcileCompanies(
   // Rows no group holds wait, their pending lookup kept for when one does.
   // Each set as one array parameter, however many companies there are.
   await prisma.$executeRaw`
-    UPDATE contact_company SET "inactiveSince" = now()
+    UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = now() AT TIME ZONE 'UTC'
     WHERE id = ANY(${orphans.map((row) => row.id)}::uuid[])
       AND "inactiveSince" IS NULL
   `;
   await prisma.$executeRaw`
-    UPDATE contact_company SET "inactiveSince" = NULL
+    UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = NULL
     WHERE "workspaceId" = ${workspaceId}::uuid
       AND key = ANY(${[...live]}::text[])
       AND "inactiveSince" IS NOT NULL
@@ -159,7 +160,7 @@ async function rememberAliases(
     .map((stat) => ({ key: stat.key, orgs: stat.orgs }));
   if (groups.length === 0) return;
   await prisma.$executeRaw`
-    UPDATE contact_company cc
+    UPDATE ${sharedTable("contact_company")} cc
     SET aliases = ARRAY(SELECT DISTINCT unnest(cc.aliases || g.orgs) ORDER BY 1)
     FROM jsonb_to_recordset(${JSON.stringify(groups)}::jsonb) AS g(key text, orgs text[])
     WHERE cc."workspaceId" = ${workspaceId}::uuid
@@ -231,7 +232,7 @@ async function ensureCompanyRows(
     const paused = [...rows.values()].filter((row) => row.inactiveSince);
     if (paused.length === 0) return rows;
     await prisma.$executeRaw`
-      UPDATE contact_company SET "inactiveSince" = NULL
+      UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = NULL
       WHERE id = ANY(${paused.map((row) => row.id)}::uuid[])
     `;
     return read();
@@ -411,8 +412,8 @@ export async function getCompany(actor: ContactActor, id: string) {
       SELECT i."userId" AS id, coalesce(u.name, 'A teammate') AS name,
         count(DISTINCT i."contactId")::int AS people,
         max(i."occurredAt") AS "lastInteractionAt"
-      FROM contact_interaction i
-      LEFT JOIN "user" u ON u.id = i."userId"
+      FROM ${sharedTable("contact_interaction")} i
+      LEFT JOIN ${sharedTable("user")} u ON u.id = i."userId"
       WHERE i."contactId" = ANY(${ids}::uuid[]) AND i."userId" IS NOT NULL
       GROUP BY i."userId", u.name
       ORDER BY people DESC, "lastInteractionAt" DESC
@@ -746,7 +747,7 @@ export async function enrichCompanies(
     // Fills only what is still empty at write time, in one statement, and
     // bumps the version when it filled something.
     const filled = await prisma.$queryRaw<{ changed: boolean }[]>`
-      UPDATE contact_company SET
+      UPDATE ${sharedTable("contact_company")} SET
         description = coalesce(description, ${facts.description ?? null}),
         industry = coalesce(industry, ${facts.industry ?? null}),
         size = coalesce(size, ${facts.size ?? null}),
@@ -759,9 +760,9 @@ export async function enrichCompanies(
           (headquarters IS NULL AND ${facts.headquarters ?? null}::text IS NOT NULL) OR
           ("linkedinUrl" IS NULL AND ${facts.linkedinUrl ?? null}::text IS NOT NULL)
           THEN 1 ELSE 0 END,
-        "enrichedAt" = now(),
+        "enrichedAt" = now() AT TIME ZONE 'UTC',
         "lookupFailures" = 0,
-        "updatedAt" = now()
+        "updatedAt" = now() AT TIME ZONE 'UTC'
       WHERE id = ${row.id}::uuid
         AND "enrichedAt" IS NULL
         AND "inactiveSince" IS NULL

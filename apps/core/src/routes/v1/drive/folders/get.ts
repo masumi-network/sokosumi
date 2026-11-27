@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   buildOrganizationDriveFilePrefix,
   buildUserDriveFilePrefix,
@@ -82,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       FROM (
         SELECT regexp_replace(fr."sourceId", ${DRIVE_OWNER_PREFIX_PATTERN}, '')
           AS rel
-        FROM file_resource fr
+        FROM ${sharedTable("file_resource")} fr
         WHERE fr."workspaceId" = ${context.workspaceId}::uuid
           AND fr."tombstonedAt" IS NULL
           AND fr."sourceId" ~ ${DRIVE_OWNER_PREFIX_PATTERN}

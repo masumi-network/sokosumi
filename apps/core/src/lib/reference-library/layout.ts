@@ -3,6 +3,10 @@ import sharp from "sharp";
 import { z } from "zod";
 
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import {
+  localChatGptPlanEnabled,
+  localChatGptPlanModel,
+} from "@/lib/local-chatgpt-plan";
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 /**
@@ -15,12 +19,19 @@ import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 /** The vision model that describes a layout and picks among pictures. */
 export const LAYOUT_MODEL = "anthropic/claude-sonnet-5.5";
+
+/** A ChatGPT plan run checks layouts on the plan's model instead of the Gateway. */
+function layoutModel() {
+  return localChatGptPlanModel(LAYOUT_MODEL) ?? gateway(LAYOUT_MODEL);
+}
 const PRICE = { input: 2 / 1e6, output: 10 / 1e6 };
 
 function costOf(result: {
   providerMetadata?: unknown;
   usage?: unknown;
 }): number {
+  // A plan run bills nothing: its tokens are not Claude's.
+  if (localChatGptPlanEnabled()) return 0;
   const usage = gatewayCallUsage(result as never);
   return (
     gatewayCostUsd(result.providerMetadata) ||
@@ -82,7 +93,8 @@ export async function describeComposition(
   bytes: Uint8Array,
 ): Promise<{ text: string; costUsd: number }> {
   const result = await generateText({
-    model: gateway(LAYOUT_MODEL),
+    telemetry: { functionId: "reference-composition" },
+    model: layoutModel(),
     maxRetries: 1,
     abortSignal: AbortSignal.timeout(60_000),
     messages: [
@@ -106,7 +118,8 @@ export async function describeBrandPictureStyle(
   designMd: string,
 ): Promise<{ text: string; costUsd: number }> {
   const result = await generateText({
-    model: gateway(LAYOUT_MODEL),
+    telemetry: { functionId: "brand-picture-style" },
+    model: layoutModel(),
     maxRetries: 1,
     abortSignal: AbortSignal.timeout(60_000),
     prompt: `${STYLE_ASK}\n\n---\n${designMd.slice(0, 12_000)}`,
@@ -139,7 +152,8 @@ export async function pickBestPicture(input: {
     [input.layout, ...input.candidates].map((bytes) => jpeg(bytes, 768)),
   );
   const result = await generateText({
-    model: gateway(LAYOUT_MODEL),
+    telemetry: { functionId: "reference-pick" },
+    model: layoutModel(),
     output: Output.object({ schema: pickSchema }),
     system: PICK_RUBRIC,
     maxRetries: 1,

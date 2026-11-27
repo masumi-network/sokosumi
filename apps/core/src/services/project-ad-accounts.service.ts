@@ -530,7 +530,8 @@ function requireBudgetPrecision(dailyBudget: number, currency: string): void {
 /**
  * Pauses, resumes and/or changes the daily budget of a campaign of an attached
  * ad account. The provider modules prove the campaign belongs to that account
- * before they write.
+ * before they write, and with `onlyWhilePaused` refuse one that is not paused
+ * (409).
  */
 export async function updateProjectAdCampaign(
   input: ProjectScope &
@@ -545,6 +546,7 @@ export async function updateProjectAdCampaign(
     campaignId: input.campaignId,
     status: input.status,
     dailyBudget: input.dailyBudget,
+    onlyWhilePaused: input.onlyWhilePaused,
   };
   if (account.provider === "google_ads") {
     await updateGoogleCampaign({
@@ -667,6 +669,7 @@ export async function editProjectAdCampaign(
     name: input.name,
     dailyBudget: input.dailyBudget,
     google: pinDisplayImagesToDrive(input, input.google),
+    onlyWhilePaused: input.onlyWhilePaused,
   });
 }
 
