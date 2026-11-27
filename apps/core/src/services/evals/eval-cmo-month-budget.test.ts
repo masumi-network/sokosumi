@@ -42,6 +42,17 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+/** Set only where a test runs on mainnet's production deploy. */
+const network = vi.hoisted(() => ({
+  NETWORK: undefined as "Mainnet" | undefined,
+}));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), ...(network.NETWORK ? network : {}) }),
+  };
+});
 vi.mock("./eval-report-email", () => ({
   sendEvalRegressionEmail: boundary.email,
 }));
@@ -102,7 +113,12 @@ beforeEach(() => {
   boundary.turns.mockResolvedValue([]);
   boundary.expire.mockResolvedValue(true);
   boundary.lane.mockResolvedValue(lane);
-  boundary.run.mockResolvedValue({ id: "run", repeats: 1, trigger: "MANUAL" });
+  boundary.run.mockResolvedValue({
+    id: "run",
+    repeats: 1,
+    trigger: "MANUAL",
+    environment: "local",
+  });
   boundary.result.mockResolvedValue(null);
   boundary.resultCount.mockResolvedValue(1);
   boundary.finish.mockResolvedValue({});
@@ -350,6 +366,7 @@ describe("monthly eval hard-budget guard", () => {
       id: "run",
       repeats: 2,
       trigger: "MANUAL",
+      environment: "local",
     });
     // A lane runs a Soko Bot turn, and its error can quote the prompt.
     boundary.lane.mockRejectedValue(
@@ -374,11 +391,20 @@ describe("monthly eval hard-budget guard", () => {
   describe("a daily run's regression email", () => {
     const EMAIL_WHY = "Sending the report email failed";
 
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      network.NETWORK = undefined;
+    });
+
     beforeEach(() => {
+      // The email is sent only where the daily run is created.
+      vi.stubEnv("VERCEL_ENV", "production");
+      network.NETWORK = "Mainnet";
       boundary.run.mockResolvedValue({
         id: "run",
         repeats: 1,
         trigger: "DAILY",
+        environment: "mainnet",
       });
       boundary.resultCount.mockResolvedValue(0);
       // A mail error can quote the report: prompts and model output.
