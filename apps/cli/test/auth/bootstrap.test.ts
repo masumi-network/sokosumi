@@ -359,6 +359,38 @@ test("requireAuthenticatedSession rejects before Core when unsigned-in", async (
   );
 });
 
+test("requireAuthenticatedSession names the client id for an unknown custom host", async () => {
+  await assert.rejects(
+    requireAuthenticatedSession({
+      authManager: {
+        getApiKeyCredentials: () => null,
+        getAuthTokenAsync: async () => null,
+        getAuthMethod: () => null,
+        getCredentials: () => null,
+      },
+      config: {
+        target: "custom",
+        apiUrl: "https://core.example.test",
+        authBaseUrl: "https://core.example.test/auth",
+        clientId: "",
+        clientSecret: "",
+      },
+      env: {},
+      targetExplicit: true,
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CliError);
+      assert.equal(error.code, "AUTH_REQUIRED");
+      assert.match(
+        error.message,
+        /sokosumi --api-url https:\/\/core\.example\.test --client-id <id> auth login/,
+      );
+      assert.match(error.message, /SOKOSUMI_OAUTH_CLIENT_ID/);
+      return true;
+    },
+  );
+});
+
 test("requireAuthenticatedSession returns the resolved auth state", async () => {
   const auth = await requireAuthenticatedSession({
     authManager: {

@@ -22,6 +22,9 @@ describe("related-page trust boundary", () => {
     expect(seoPageComparisonKey("https://example.test/caf%c3%a9")).toBe(
       seoPageComparisonKey("https://example.test/caf%C3%A9"),
     );
+    expect(seoPageComparisonKey("https://example.test/page?")).toBe(
+      seoPageComparisonKey("https://example.test/page"),
+    );
     expect(seoPageComparisonKey("https://example.test/a%2fb")).not.toBe(
       seoPageComparisonKey("https://example.test/a/b"),
     );

@@ -156,6 +156,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
 
+import type { MainnetScope } from "@/lib/db/network-scope";
 import { TALKING_VIDEO_PRESENTERS } from "@/lib/image-studio/talking-video";
 import {
   createTalkingVideoJob,
@@ -164,6 +165,9 @@ import {
   requestVideoShape,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as MainnetScope;
 
 /** 130 characters: quoted at 10 seconds. */
 const SCRIPT = `${"Stop scrolling. ".repeat(8)}ok`;
@@ -593,7 +597,7 @@ describe("the presenter model's video arriving", () => {
     jobFindUniqueMock.mockResolvedValue(waiting);
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-2" });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -627,7 +631,7 @@ describe("the presenter model's video arriving", () => {
       pendingMediaUrl: AVATAR_URL,
     });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(downloadMediaMock).not.toHaveBeenCalled();
@@ -637,7 +641,7 @@ describe("the presenter model's video arriving", () => {
     jobFindUniqueMock.mockResolvedValue(waiting);
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
   });
@@ -683,7 +687,7 @@ describe("the presenter model's video arriving with word timings", () => {
       durationSeconds: 7.2,
     });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(editTalkingVideoMock).toHaveBeenCalledWith({
@@ -707,7 +711,7 @@ describe("the presenter model's video arriving with word timings", () => {
     });
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-2" });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -749,7 +753,7 @@ describe("the presenter model's video arriving with word timings", () => {
       durationSeconds: 8.9,
     });
 
-    await settleWithMedia("job-1", COLOUR_URL, undefined, "fal-2");
+    await settleWithMedia(scope, "job-1", COLOUR_URL, undefined, "fal-2");
 
     // The clip that is edited is the presenter's, not the cut-out's colour file.
     expect(downloadMediaMock).toHaveBeenCalledWith(
@@ -800,7 +804,7 @@ describe("the presenter model's video arriving with word timings", () => {
       durationSeconds: 7.2,
     });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(editTalkingVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -843,7 +847,7 @@ describe("the presenter model's video arriving with word timings", () => {
       durationSeconds: 7.2,
     });
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(editTalkingVideoMock).toHaveBeenCalledWith(
       expect.not.objectContaining({ broll: expect.anything() }),
@@ -863,7 +867,7 @@ describe("the presenter model's video arriving with word timings", () => {
       "Delivered a talking video without its edit",
     );
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(putMock).toHaveBeenCalledWith(
       expect.any(String),
@@ -910,7 +914,7 @@ describe("the presenter model's video arriving with word timings", () => {
     editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
     const logged = expectCoreLog("warn", "Could not cut a video in its shape");
 
-    await reconcileJob("job-2");
+    await reconcileJob(scope, "job-2");
 
     expect(editTalkingVideoMock).toHaveBeenCalledTimes(1);
     expect(editTalkingVideoMock).toHaveBeenCalledWith(
@@ -941,7 +945,7 @@ describe("the presenter model's video arriving with word timings", () => {
     editTalkingVideoMock.mockRejectedValue(new Error("ffmpeg exited with 1"));
     const logged = expectCoreLog("warn", "Could not cut a video in its shape");
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(putMock).not.toHaveBeenCalled();
     expect(jobUpdateManyMock).toHaveBeenCalledWith(
@@ -962,7 +966,7 @@ describe("the presenter model's video arriving with word timings", () => {
     putMock.mockImplementation(async (pathname: string) => ({ pathname }));
     expectCoreLog("warn", "Delivered a talking video without its edit");
 
-    await settleWithMedia("job-1", AVATAR_URL, undefined, "fal-1");
+    await settleWithMedia(scope, "job-1", AVATAR_URL, undefined, "fal-1");
 
     expect(putMock).toHaveBeenCalledWith(
       expect.any(String),
@@ -1017,7 +1021,7 @@ describe("the presenter model's video arriving with word timings", () => {
     });
     putMock.mockImplementation(async (pathname: string) => ({ pathname }));
 
-    await reconcileJob("job-2");
+    await reconcileJob(scope, "job-2");
 
     expect(downloadMediaMock).toHaveBeenCalledWith(
       AVATAR_URL,
@@ -1060,7 +1064,7 @@ describe("the presenter model's video arriving with word timings", () => {
     putMock.mockImplementation(async (pathname: string) => ({ pathname }));
     expectCoreLog("warn", "Delivered a talking video without captions");
 
-    await failImageJob("job-1", "provider_error");
+    await failImageJob(scope, "job-1", "provider_error");
 
     expect(editTalkingVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({ shape: "4:5" }),
@@ -1081,6 +1085,7 @@ describe("the presenter model's video arriving with word timings", () => {
     });
 
     await settleWithMedia(
+      scope,
       "job-1",
       "https://v3b.fal.media/files/captioned.mp4",
       undefined,
@@ -1124,7 +1129,7 @@ describe("the caption step failing", () => {
       "Delivered a talking video without captions",
     );
 
-    await failImageJob("job-1", "provider_error", "runner crashed");
+    await failImageJob(scope, "job-1", "provider_error", "runner crashed");
 
     expect(downloadMediaMock).toHaveBeenCalledWith(
       pendingMediaUrl,
@@ -1170,7 +1175,7 @@ describe("the caption step being cancelled", () => {
       "Delivered a talking video without captions",
     );
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     expect(downloadMediaMock).toHaveBeenCalledWith(
       pendingMediaUrl,

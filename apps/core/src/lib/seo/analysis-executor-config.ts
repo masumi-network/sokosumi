@@ -47,3 +47,20 @@ export function isConfiguredSeoExecutor(
         executor.organizationId === context.organizationId))
   );
 }
+
+/**
+ * The configured global SEO worker on a direct call. A scoped executor serves
+ * one customer's Tasks only, so it never reads work across customers.
+ */
+export function isGlobalSeoExecutor(coworker: {
+  coworkerId: string;
+  context?: unknown;
+}) {
+  const { executor } = getSeoAnalysisExecution();
+  return (
+    !coworker.context &&
+    !!executor &&
+    "mode" in executor &&
+    executor.coworkerId === coworker.coworkerId
+  );
+}

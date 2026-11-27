@@ -74,6 +74,7 @@ vi.mock("@/services/image-studio-assets.service", async (importOriginal) => ({
   readAssetBytes: vi.fn(),
 }));
 
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
@@ -86,6 +87,9 @@ import {
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 import { pngBytes } from "@/test/image-bytes";
+
+/** The charge's Network, created by name as the entry points do. */
+const scope = createNetworkScope("mainnet");
 
 let userId: string;
 let workspaceId: string;
@@ -336,7 +340,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
       kind: "unreachable",
       message: "503",
     });
-    for (let n = 0; n < 40; n++) await reconcileJob(job.id);
+    for (let n = 0; n < 40; n++) await reconcileJob(scope, job.id);
 
     let row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -345,7 +349,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
     expect(row.status).toBe("QUEUED");
 
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
-    await reconcileJob(job.id);
+    await reconcileJob(scope, job.id);
 
     row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -362,7 +366,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
     });
 
     // The completion callback the webhook drives.
-    await settleWithMedia(job.id, "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, job.id, "https://v3b.fal.media/files/a.png");
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -383,7 +387,7 @@ describe.skipIf(!enabled)("finding 1 — uncertain jobs stay recoverable", () =>
       message: "503",
     });
 
-    await reconcileJob(job.id);
+    await reconcileJob(scope, job.id);
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -409,7 +413,11 @@ describe.skipIf(!enabled)(
       );
 
       // One settler, held inside the upload.
-      const settling = settleWithMedia(job.id, "https://v3b.fal.media/a.png");
+      const settling = settleWithMedia(
+        scope,
+        job.id,
+        "https://v3b.fal.media/a.png",
+      );
       await vi.waitFor(() => expect(putMock).toHaveBeenCalled());
 
       const held = await prisma.projectImageJob.findUniqueOrThrow({
@@ -422,7 +430,7 @@ describe.skipIf(!enabled)(
         kind: "unreachable",
         message: "503",
       });
-      await reconcileJob(job.id);
+      await reconcileJob(scope, job.id);
 
       const during = await prisma.projectImageJob.findUniqueOrThrow({
         where: { id: job.id },
@@ -433,7 +441,7 @@ describe.skipIf(!enabled)(
       expect(during.settleLeaseOwner).toBe(held.settleLeaseOwner);
 
       // A second settler is refused while the first still holds it.
-      await settleWithMedia(job.id, "https://v3b.fal.media/a.png");
+      await settleWithMedia(scope, job.id, "https://v3b.fal.media/a.png");
       expect(downloadMediaMock).toHaveBeenCalledTimes(1);
 
       releaseUpload?.();
@@ -446,7 +454,7 @@ describe.skipIf(!enabled)(
         settleLeaseOwner: "dead-worker",
       });
 
-      await settleWithMedia(job.id, "https://v3b.fal.media/a.png");
+      await settleWithMedia(scope, job.id, "https://v3b.fal.media/a.png");
 
       const row = await prisma.projectImageJob.findUniqueOrThrow({
         where: { id: job.id },
@@ -471,7 +479,7 @@ describe.skipIf(!enabled)("outage clocks are per dependency", () => {
       message: "result fetch failed",
     });
 
-    await reconcileJob(job.id);
+    await reconcileJob(scope, job.id);
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -490,7 +498,7 @@ describe.skipIf(!enabled)("outage clocks are per dependency", () => {
     const job = await makeJob({ authUnreachableSince: startedAt });
     fetchQueueStatusMock.mockResolvedValue({ kind: "in_queue" });
 
-    await reconcileJob(job.id);
+    await reconcileJob(scope, job.id);
 
     let row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -499,7 +507,7 @@ describe.skipIf(!enabled)("outage clocks are per dependency", () => {
 
     // Now the ownership lookup fails again, on its own long-running outage.
     accessMock.mockRejectedValue(new Error("P1001 cannot reach database"));
-    await settleWithMedia(job.id, "https://v3b.fal.media/a.png");
+    await settleWithMedia(scope, job.id, "https://v3b.fal.media/a.png");
 
     row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -519,7 +527,7 @@ describe.skipIf(!enabled)("outage clocks are per dependency", () => {
       message: "first provider failure",
     });
 
-    await reconcileJob(job.id);
+    await reconcileJob(scope, job.id);
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: job.id },
@@ -569,7 +577,7 @@ describe.skipIf(!enabled)("bounded recovery sweeps make progress", () => {
     const recoverable = await makeJob();
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
 
-    await reconcileProjectJobs(projectId);
+    await reconcileProjectJobs(scope, projectId);
 
     expect(fetchQueueStatusMock).toHaveBeenCalled();
     const row = await prisma.projectImageJob.findUniqueOrThrow({
@@ -594,7 +602,7 @@ describe.skipIf(!enabled)("bounded recovery sweeps make progress", () => {
     });
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
 
-    await reconcileStaleJobs({ olderThanMs: 60_000, limit: 3 });
+    await reconcileStaleJobs({ scope, olderThanMs: 60_000, limit: 3 });
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: recoverable.id },
@@ -645,7 +653,7 @@ describe.skipIf(!enabled)(
         ).status;
       try {
         // The bot's get_image / get_video read.
-        await reconcileProjectJobs(projectId);
+        await reconcileProjectJobs(scope, projectId);
         expect(await statusOf(own.id)).toBe("SUBMISSION_UNCERTAIN");
         expect(await statusOf(other.id)).toBe("SUBMITTING");
 
@@ -678,7 +686,11 @@ describe.skipIf(!enabled)(
         expect(await statusOf(other.id)).toBe("SUBMITTING");
 
         // Only the maintenance cron sweeps every Project.
-        await reconcileStaleJobs({ olderThanMs: 60 * 60 * 1000, limit: 10 });
+        await reconcileStaleJobs({
+          scope,
+          olderThanMs: 60 * 60 * 1000,
+          limit: 10,
+        });
         expect(await statusOf(other.id)).toBe("SUBMISSION_UNCERTAIN");
       } finally {
         await prisma.projectImageJob.deleteMany({
