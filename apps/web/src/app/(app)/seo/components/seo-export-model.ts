@@ -227,7 +227,13 @@ export function seoActionsExport(
       t("actions.effect"),
       t("actions.before"),
       t("actions.after"),
-      ...(hasDrafts ? [t("actions.draftBefore"), t("actions.draftAfter")] : []),
+      ...(hasDrafts
+        ? [
+            t("actions.draftBefore"),
+            t("actions.draftAfter"),
+            t("analysis.devices"),
+          ]
+        : []),
       ...(hasReviews ? [t("actions.reviewAgain")] : []),
       ...(hasDecisions
         ? [
@@ -248,7 +254,14 @@ export function seoActionsExport(
       action.edit?.before ?? null,
       action.edit?.after ?? null,
       ...(hasDrafts
-        ? [draftOf(action)?.before ?? null, draftOf(action)?.after ?? null]
+        ? [
+            draftOf(action)?.before ?? null,
+            draftOf(action)?.after ?? null,
+            // A draft for one device must not be pasted into the other device's page.
+            draftOf(action)
+              ?.devices.map((device) => t("timeline.device", { device }))
+              .join(", ") ?? null,
+          ]
         : []),
       ...(hasReviews
         ? [

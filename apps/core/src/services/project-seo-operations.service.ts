@@ -717,7 +717,7 @@ export async function createProjectSeoActionTask(
     const draft = "bodyDraft" in action ? action.bodyDraft : undefined;
     const proposedOpening =
       draft && "after" in draft
-        ? `\n\nProposed opening text draft:\n${JSON.stringify(draft, null, 2)}\n\nThe SEO bot compared the numbers and names in the draft with the page. This check can miss a false claim. Read the draft before you publish it.`
+        ? `\n\nProposed opening text draft:\n${draft.devices.length === 1 ? `This draft is only for the ${draft.devices[0]} page.\n` : ""}${JSON.stringify(draft, null, 2)}\n\nThe SEO bot compared the numbers and names in the draft with the page. This check can miss a false claim. Read the draft before you publish it.`
         : "";
     const task = await createTaskForActor(
       {

@@ -270,7 +270,7 @@ it("adds the opening draft columns only when an action has a checked draft", () 
         ...action,
         bodyDraft: {
           target: "opening",
-          devices,
+          devices: ["mobile"],
           before: "Widgets.",
           after: "Example Corp makes widgets.",
         },
@@ -280,13 +280,15 @@ it("adds the opening draft columns only when an action has a checked draft", () 
     t,
   );
   const at = drafted.header.indexOf("Current opening");
-  expect(drafted.header.slice(at, at + 2)).toEqual([
+  expect(drafted.header.slice(at, at + 3)).toEqual([
     "Current opening",
     "Suggested opening",
+    "Devices",
   ]);
-  expect(drafted.rows[0]?.slice(at, at + 2)).toEqual([
+  expect(drafted.rows[0]?.slice(at, at + 3)).toEqual([
     "Widgets.",
     "Example Corp makes widgets.",
+    "mobile",
   ]);
-  expect(drafted.rows[1]?.slice(at, at + 2)).toEqual([null, null]);
+  expect(drafted.rows[1]?.slice(at, at + 3)).toEqual([null, null, null]);
 });
