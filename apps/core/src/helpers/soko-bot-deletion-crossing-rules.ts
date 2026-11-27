@@ -73,7 +73,8 @@ export async function checkProjectDeletion(
       // Follow-up (ticket 26, decision D5): the key refused this delete with
       // its raw error; the refusal stays, readable.
       throw createError({
-        message: `PROJECT_DELETION_SOKO_BOT_HIRED_JOB: a Job hired by the Project's Soko Bot blocks deleting Project ${projectId}`,
+        code: "PROJECT_DELETION_SOKO_BOT_HIRED_JOB",
+        message: `A Job hired by the Project's Soko Bot blocks deleting Project ${projectId}`,
         why: `Job ${job.id} on ${network} names the Soko Bot as its creator`,
         fix: "Keep the Project, or remove the Job's creator link by hand first",
       });
