@@ -7,7 +7,7 @@ import {
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import prisma from "@/lib/db/prisma";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { connectionExecutorUserId } from "@/services/project-social-connections.service";

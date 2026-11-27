@@ -13,9 +13,6 @@ import prisma from "@/lib/db/prisma";
  *   check the bot did, or did not, try.
  */
 
-/** Social connections the eval world seeds: no Composio account behind them. */
-export const EVAL_CONNECTED_ACCOUNT_PREFIX = "eval:";
-
 const CACHE_MS = 60_000;
 let cache: {
   at: number;
@@ -58,6 +55,24 @@ export async function evalWorkspaceIds(): Promise<string[]> {
 
 export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
   return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
+}
+
+/**
+ * Read now, in the caller's transaction: a guard that keeps a lane from
+ * sending must see a lane another Core process registered a moment ago,
+ * which the cache above can miss for a minute.
+ */
+export async function isEvalWorkspaceNow(
+  db: Pick<typeof prisma, "evalLane">,
+  workspaceId: string,
+): Promise<boolean> {
+  if (typeof db.evalLane?.findUnique !== "function") return false;
+  return (
+    (await db.evalLane.findUnique({
+      where: { workspaceId },
+      select: { lane: true },
+    })) !== null
+  );
 }
 
 /**
