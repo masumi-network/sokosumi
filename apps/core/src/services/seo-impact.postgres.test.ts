@@ -29,6 +29,8 @@ import { updateSeoSuggestion } from "./seo-impact-record";
 
 /** Google's last crawl per page URL, or an Error for a refused inspection. */
 const lastCrawl = new Map<string, string | Error>();
+/** Google's canonical per page URL, which the site also declares. */
+const canonicals = new Map<string, string>();
 /** The Search Console properties Cuso's account can read. */
 const properties: string[] = [];
 /** Runs before each URL Inspection answers, with the inspected page. */
@@ -57,6 +59,14 @@ vi.mock("@/services/project-seo-statistics.service", async (original) => ({
             indexStatusResult: {
               verdict: "PASS",
               ...(crawl ? { lastCrawlTime: crawl } : {}),
+              ...(canonicals.has(String(args.inspection_url))
+                ? {
+                    googleCanonical: canonicals.get(
+                      String(args.inspection_url),
+                    ),
+                    userCanonical: canonicals.get(String(args.inspection_url)),
+                  }
+                : {}),
             },
           },
         },
@@ -248,6 +258,7 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
   beforeEach(async () => {
     env.SEO_IMPACT_TRACKING_ENABLED = true;
     lastCrawl.clear();
+    canonicals.clear();
     properties.splice(0, Infinity, "sc-domain:battery-sensei.app");
     beforeAnswer.mockReset();
     vi.mocked(propertyChoices).mockClear();
@@ -767,8 +778,26 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
         reason: null,
         property: "sc-domain:battery-sensei.app",
         crawledAt: new Date("2026-11-22T08:00:00Z"),
+        measuredUrl: pageUrl,
         windowStart: new Date("2026-11-27T00:00:00Z"),
         windowEnd: new Date("2026-12-24T00:00:00Z"),
+      },
+    ]);
+  });
+
+  it("measures the page under the www alias Google confirms at the crawl", async () => {
+    const pageUrl = "https://battery-sensei.app/pricing";
+    const { id } = await doneChange(pageUrl);
+    lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+    canonicals.set(pageUrl, "https://www.battery-sensei.app/pricing");
+
+    await syncSeoImpact();
+
+    expect(await rowsOf(id)).toMatchObject([
+      {
+        state: "waiting_window",
+        pageUrl,
+        measuredUrl: "https://www.battery-sensei.app/pricing",
       },
     ]);
   });

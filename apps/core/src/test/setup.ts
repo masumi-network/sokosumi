@@ -48,6 +48,7 @@ const envDefaults: Record<string, string> = {
   SHOW_AGENTS_BY_DEFAULT: "true",
   MAINTENANCE_MODE: "false",
   SEO_IMPACT_TRACKING_ENABLED: "false",
+  SEO_IMPACT_DISPATCH_ENABLED: "false",
   COMPOSIO_X_AUTH_CONFIG_ID: "test-composio-x-auth-config-id",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
   ABLY_SUBSCRIBE_ONLY_KEY: "local-test-subscribe",

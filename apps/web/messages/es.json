@@ -8000,6 +8000,9 @@
         "states": {
           "waiting_crawl": "Espera el rastreo",
           "waiting_window": "Espera la ventana",
+          "ready": "Listo para el veredicto",
+          "waiting_retry": "Espera más datos",
+          "measured": "Medido",
           "not_measurable": "No medible"
         },
         "reasons": {
@@ -8007,7 +8010,8 @@
           "not_connected": "Search Console no está conectado.",
           "no_property": "Ninguna propiedad de Search Console cubre la página.",
           "inspection_failed": "La inspección de URL falló o fue rechazada.",
-          "not_crawled_yet": "Google no ha rastreado la página desde el cambio."
+          "not_crawled_yet": "Google no ha rastreado la página desde el cambio.",
+          "worker_failed": "El worker de SEO no dio un veredicto tras tres reclamaciones."
         }
       },
       "CmoSpend": {
