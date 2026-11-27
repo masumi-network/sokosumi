@@ -2,7 +2,7 @@ import type {
   FundraisingPipeline,
   FundraisingProspect,
 } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
@@ -77,5 +77,12 @@ describe("FundraisingBoard", () => {
     expect(
       await screen.findByRole("dialog", { name: "Ivy Investor" }),
     ).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: /Ivy Investor/ }),
+      ),
+    );
   });
 });

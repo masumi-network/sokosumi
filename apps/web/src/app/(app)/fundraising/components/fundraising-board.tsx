@@ -7,7 +7,7 @@ import type {
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ContactAvatar,
   ReplyChip,
@@ -91,6 +91,13 @@ export function FundraisingBoard({
     ALL,
   );
   const [openId, setOpenId] = useState<string | null>(null);
+  // The sheet has no trigger, so closing it puts focus back on the investor it showed.
+  const lastOpenId = useRef<string | null>(null);
+  const table = useRef<HTMLDivElement>(null);
+  const openSheet = (contactId: string) => {
+    lastOpenId.current = contactId;
+    setOpenId(contactId);
+  };
 
   const pipeline = data ?? initialData;
   const counts = countByStage(pipeline.prospects);
@@ -175,7 +182,10 @@ export function FundraisingBoard({
           </Button>
         </Empty>
       ) : (
-        <div className="border-border-tertiary overflow-x-auto rounded-xl border">
+        <div
+          ref={table}
+          className="border-border-tertiary overflow-x-auto rounded-xl border"
+        >
           <Table className="min-w-[880px] table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -214,7 +224,7 @@ export function FundraisingBoard({
                       "cursor-pointer",
                       openId === contact.id && "bg-quinary",
                     )}
-                    onClick={() => setOpenId(contact.id)}
+                    onClick={() => openSheet(contact.id)}
                   >
                     <TableCell className={CELL}>
                       <div className="flex min-w-0 items-center gap-3">
@@ -228,8 +238,9 @@ export function FundraisingBoard({
                         {/* The row's click is mouse-only; this button is the keyboard's way into the sheet. */}
                         <button
                           type="button"
+                          data-investor={contact.id}
                           className="focus-visible:ring-ring min-w-0 rounded-sm text-start outline-none focus-visible:ring-2"
-                          onClick={() => setOpenId(contact.id)}
+                          onClick={() => openSheet(contact.id)}
                         >
                           <span className="block truncate font-medium">
                             {contact.name}
@@ -273,7 +284,7 @@ export function FundraisingBoard({
                         prospect={prospect}
                         pipeline={pipeline}
                         now={now}
-                        onOpenSheet={() => setOpenId(contact.id)}
+                        onOpenSheet={() => openSheet(contact.id)}
                       />
                     </TableCell>
                     <TableCell className={cn(CELL, "text-sm")}>
@@ -324,6 +335,14 @@ export function FundraisingBoard({
         members={members.data ?? []}
         now={now}
         onClose={() => setOpenId(null)}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          table.current
+            ?.querySelector<HTMLElement>(
+              `[data-investor="${CSS.escape(lastOpenId.current ?? "")}"]`,
+            )
+            ?.focus();
+        }}
       />
     </div>
   );
