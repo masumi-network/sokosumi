@@ -101,13 +101,16 @@ const STOPPED_CHECKS: SeoCrawlCheck[] = SEO_CRAWL_CHECKS.filter(
   (check) => check !== "noindexInSitemap" && check !== "orphans",
 );
 
+/** The bot's gap item for a crawl that stopped early (crawl-report.ts STOP_ITEM). */
+const STOP_ITEM = "Pages past where the crawl stopped";
+
 const GAP_CHECKS: {
   check: SeoCrawlCheck[];
   item: (item: string) => boolean;
 }[] = [
   {
     check: STOPPED_CHECKS,
-    item: (item) => item === "Pages past where the crawl stopped",
+    item: (item) => item === STOP_ITEM,
   },
   {
     // A crawl that left links unfollowed did not check each linked page.
@@ -118,7 +121,9 @@ const GAP_CHECKS: {
         item.endsWith(" the crawl did not follow")) ||
       // A linked URL the crawl may not fetch can be broken or redirect.
       item.endsWith(" the robots file blocks") ||
-      item.includes(" whose robots.txt the crawl could not read"),
+      item.includes(" whose robots.txt the crawl could not read") ||
+      // A page that gave no response hides its links, and a sitemap URL that gave none may start a chain.
+      item.endsWith(" that gave no response"),
   },
   { check: ["duplicateTitles"], item: (item) => item === "Duplicate titles" },
   { check: ["orphans"], item: (item) => item === "Orphan pages" },
@@ -131,9 +136,12 @@ const GAP_CHECKS: {
     // The shell pages the crawl did not render. The caveat about pages that are no shell is about no group:
     // it stays in otherGaps.
     check: ["javascript"],
-    item: (item) =>
-      item === "Links that only JavaScript adds" ||
-      item.startsWith("Links and text that JavaScript adds to "),
+    item: (item) => item === "Links that only JavaScript adds",
+  },
+  {
+    // A shell page the crawl did not render may hold the only link to a broken URL or to the start of a chain.
+    check: ["javascript", "brokenLinks", "redirectChains"],
+    item: (item) => item.startsWith("Links and text that JavaScript adds to "),
   },
 ];
 /** Items about the near-duplicate check, which Sokosumi does not show. */
@@ -319,6 +327,8 @@ export function seoSiteCrawlView(
   const rows = SEO_CRAWL_CHECKS.map((check): SeoCrawlRow => {
     const reading = read(crawl, check);
     const reasons = reasonsFor(crawl, check);
+    // What a stopped crawl found stays a fact; the header already says where it stopped.
+    const stopReason = crawl.gaps.find((gap) => gap.item === STOP_ITEM)?.reason;
     if ("found" in reading && reading.found > 0)
       return {
         check,
@@ -327,7 +337,7 @@ export function seoSiteCrawlView(
         total: reading.found,
         items: reading.items,
         notDetermined: reading.notDetermined,
-        reasons,
+        reasons: reasons.filter((reason) => reason !== stopReason),
         ...(check === "orphans" &&
           crawl.orphans?.state === "found" && {
             candidates: crawl.orphans.candidates,

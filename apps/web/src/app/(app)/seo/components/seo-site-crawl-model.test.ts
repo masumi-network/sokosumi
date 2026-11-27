@@ -191,16 +191,21 @@ describe("site crawl ledger", () => {
     expect(view(crawl).otherGaps).toEqual([]);
   });
 
-  it("does not pass the link checks when robots.txt kept URLs out", () => {
-    const crawl = cleanCrawl();
-    crawl.gaps = [
-      { item: "1 URL the robots file blocks", reason: "the crawl follows it" },
-    ];
-    const result = view(crawl);
-    expect(result.clear).not.toContain("brokenLinks");
-    expect(result.clear).not.toContain("redirectChains");
-    expect(result.otherGaps).toEqual([]);
-  });
+  it.each([
+    "1 URL the robots file blocks",
+    "Links and text that JavaScript adds to 1 shell page",
+    "1 URL that gave no response",
+  ])(
+    "does not pass the link checks of a complete crawl with the gap %s",
+    (item) => {
+      const crawl = cleanCrawl();
+      crawl.gaps = [{ item, reason: "the crawl could not see it" }];
+      const result = view(crawl);
+      expect(result.clear).not.toContain("brokenLinks");
+      expect(result.clear).not.toContain("redirectChains");
+      expect(result.otherGaps).toEqual([]);
+    },
+  );
 
   it("keeps the duplicate check undecided when the bot did not compare some texts", () => {
     const crawl = cleanCrawl();
@@ -221,6 +226,22 @@ describe("site crawl ledger", () => {
     const result = view(crawl);
     expect(result.clear).toContain("javascript");
     expect(result.otherGaps).toEqual([caveat]);
+  });
+
+  it("keeps the stop reason off what a stopped crawl found", () => {
+    const crawl = cleanCrawl();
+    crawl.stop = "page cap";
+    crawl.pageChecks!.missingTitle = { urls: [`${SITE}/a`], total: 1 };
+    crawl.gaps = [
+      { item: "Pages past where the crawl stopped", reason: "the page cap" },
+    ];
+    expect(row(crawl, "missingTitle")).toMatchObject({
+      state: "found",
+      reasons: [],
+    });
+    expect(row(crawl, "missingH1")).toMatchObject({
+      reasons: ["the page cap"],
+    });
   });
 
   it("keeps the bot's reasons on a check that found problems", () => {
@@ -283,11 +304,11 @@ describe("site crawl ledger", () => {
       { item: "Links that only JavaScript adds", reason: "no render" },
       { item: "Near-duplicate pages", reason: "too few pages" },
       { item: "Main text of 3 pages", reason: "too long" },
-      { item: "4 URLs that gave no response", reason: "timeouts" },
+      { item: `robots.txt of ${SITE}`, reason: "it did not load" },
     ];
     const result = view(crawl);
     expect(result.otherGaps).toEqual([
-      { item: "4 URLs that gave no response", reason: "timeouts" },
+      { item: `robots.txt of ${SITE}`, reason: "it did not load" },
     ]);
     expect(row(crawl, "javascript")).toMatchObject({ reasons: ["no render"] });
   });

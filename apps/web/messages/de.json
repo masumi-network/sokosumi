@@ -15803,9 +15803,9 @@
         "left": {
           "links": "Links not judged: {count}",
           "pages": "Pages not checked: {count}",
-          "compared": "Pages not compared: {count}",
+          "compared": "Pages undecided: {count}",
           "sitemapUrls": "Sitemap URLs not checked: {count}",
-          "canonicals": "Canonicals not judged: {count}",
+          "canonicals": "Pages not judged: {count}",
           "seen": "Pages not seen: {count}"
         },
         "noSitemapPage": "The sitemap names no page on this site.",
