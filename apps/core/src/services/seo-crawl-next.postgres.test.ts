@@ -340,7 +340,7 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     });
   });
 
-  it("offers the continuation only in a view that shows the crawl's start page and has no end date", async () => {
+  it("offers the continuation only in a view that shows the crawl's start page and has no date range", async () => {
     await storeCrawl(
       "audit_full",
       { snapshotId: AUDIT_CRAWL, stop: "page cap" },
@@ -359,7 +359,47 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       // A view that ends at a date hides the continuation's result.
       const ended = await getProjectSeoWorkspace(actor, { to: "2026-12-31" });
       expect(ended.availableActions.continueCrawlFrom).toBeNull();
+      // A view that starts at a date may leave out the crawl's full audit.
+      const started = await getProjectSeoWorkspace(actor, {
+        from: "2026-11-01",
+      });
+      expect(started.availableActions.continueCrawlFrom).toBeNull();
     } finally {
+      await prisma.projectSeoPage.delete({ where: { id: related.id } });
+    }
+  });
+
+  it("offers no continuation while a check of another page runs, as the sale would refuse it", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    const related = await addProjectSeoPage(actor, {
+      url: `${SITE}pricing`,
+      relationship: "related",
+    });
+    try {
+      await setBalance(100n);
+      const running = await requestSeoCrawlNext(actor, request());
+      // The running check is of a page the view of the start page does not show.
+      await prisma.projectSeoAnalysis.update({
+        where: { id: running.id },
+        data: { pageIds: [related.id] },
+      });
+      expect(await continueFrom()).toBeNull();
+      await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject(
+        { status: 409 },
+      );
+      await prisma.task.update({
+        where: { id: running.taskId! },
+        data: { status: "CANCELED" },
+      });
+      expect(await continueFrom()).toBe(AUDIT_CRAWL);
+    } finally {
+      await prisma.projectSeoAnalysis.deleteMany({
+        where: { auditId, pageIds: { has: related.id } },
+      });
       await prisma.projectSeoPage.delete({ where: { id: related.id } });
     }
   });

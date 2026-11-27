@@ -17,7 +17,10 @@ import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import type { RequestSeoCrawlNext } from "@/schemas/seo-audit-price.schema";
 import { seoSiteCrawlSchema } from "@/schemas/seo-site-crawl.schema";
 import { isCmoProject, requireNotCmoProject } from "./cmo-cuso.service";
-import { requireNoActiveSeoAnalysis } from "./project-seo-analysis-concurrency";
+import {
+  hasActiveSeoAnalysis,
+  requireNoActiveSeoAnalysis,
+} from "./project-seo-analysis-concurrency";
 import {
   commitSeoMutation,
   normalizeSeoUrl,
@@ -122,7 +125,7 @@ export async function seoDispatchInputs(
   actor: SeoActor,
   executor: Awaited<ReturnType<typeof findSeoAnalysisExecutor>>,
   view: {
-    query: Pick<SeoWorkspaceQuery, "to">;
+    query: Pick<SeoWorkspaceQuery, "from" | "to">;
     /** The pages the view shows. */
     scope: { pages: readonly { url: string }[] };
     /** Every page of the owner: the sale reads the crawl's ledger over all of them. */
@@ -136,12 +139,15 @@ export async function seoDispatchInputs(
   // The continuation's Task and result link only to its start page: a view without that page could not show them.
   const shown =
     tip &&
-    // A view that ends at a date would hide the continuation's result.
+    // A view with a date range may hide the crawl's full audit, and one that ends at a date the continuation's result.
+    !view.query.from &&
     !view.query.to &&
     view.scope.pages.some(
       (page) => page.url === normalizeSeoUrl(tip.startUrl),
     ) &&
     !(await crawlArriving(prisma, actor)) &&
+    // The sale refuses while any check of the owner runs, also one of a page the view does not show.
+    !(await hasActiveSeoAnalysis(prisma, actor)) &&
     (await rootInLedger(
       prisma,
       actor,
