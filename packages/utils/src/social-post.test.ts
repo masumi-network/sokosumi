@@ -12,6 +12,7 @@ import {
   SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaRef,
+  socialPostAcceptedFormats,
   socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
@@ -376,6 +377,21 @@ describe("socialPostMaxBytesForKind", () => {
     expect(socialPostMaxBytesForKind("x", "image")).toBe(rules.maxImageBytes);
     expect(socialPostMaxBytesForKind("x", "gif")).toBe(rules.maxGifBytes);
     expect(socialPostMaxBytesForKind("x", "video")).toBe(rules.maxVideoBytes);
+  });
+});
+
+describe("socialPostAcceptedFormats", () => {
+  it("names what one provider takes, from its rules", () => {
+    expect(socialPostAcceptedFormats("x")).toBe(
+      "JPEG, PNG or WebP images, GIF animations, MP4 videos",
+    );
+    expect(socialPostAcceptedFormats("tiktok")).toBe("MP4 videos");
+  });
+
+  it("names what any provider takes", () => {
+    expect(socialPostAcceptedFormats()).toBe(
+      "JPEG, PNG or WebP images, GIF animations, MP4 or MOV videos",
+    );
   });
 });
 

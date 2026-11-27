@@ -549,6 +549,7 @@ export {
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   type SocialProviderWorkspace,
+  socialPostAcceptedFormats,
   socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,

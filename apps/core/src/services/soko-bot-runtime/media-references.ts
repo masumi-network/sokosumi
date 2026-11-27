@@ -1,6 +1,7 @@
 import { FileSourceKind } from "@sokosumi/database";
 import {
   type GoogleDisplayImageRole,
+  socialPostAcceptedFormats,
   socialPostMediaKindForMime,
 } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
@@ -50,7 +51,7 @@ export async function resolveSocialMedia(
       const kind = socialPostMediaKindForMime(mimeType);
       if (!kind)
         throw new SokoBotRuntimeValidationError(
-          `"${file.displayName}" is not an image or video a Social post can carry`,
+          `"${file.displayName}" (${mimeType || "unknown type"}) is not a file a Social post can carry. Posts take ${socialPostAcceptedFormats()}.${mimeType.startsWith("image/") ? " Make a PNG copy of this image and attach that copy's fileId instead." : ""}`,
         );
       const fileUrl = await publicDriveUrl(file.sourceId);
       if (!fileUrl)
