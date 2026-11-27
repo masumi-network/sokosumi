@@ -130,13 +130,55 @@ export async function openStepsNote(turnId: string): Promise<string | null> {
 function savesSince(
   found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
   turnIds: readonly string[],
+  revision = found.plan.revision,
 ) {
   return savesSincePlan(
     found.turn.sokoBotId,
     found.requestId,
-    found.plan,
+    revision,
     turnIds,
   );
+}
+
+/**
+ * Saves of the request that did not end done and were not made good by a
+ * later done call of the same tool: refused, failed, unconfirmed, or a
+ * Studio job still running with nothing waiting on it.
+ */
+function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
+  return saves.filter(
+    (save, index) =>
+      save.outcome !== "done" &&
+      !saves
+        .slice(index + 1)
+        .some(
+          (later) =>
+            later.capability === save.capability && later.outcome === "done",
+        ) &&
+      (save.outcome !== "started" ||
+        STUDIO_JOB_CAPABILITIES.has(save.capability)),
+  );
+}
+
+/**
+ * Every step is marked done, yet Core's receipts for the request disagree:
+ * the turn goes back once to recover, or to mark the step blocked and say
+ * so, rather than answering that it all worked.
+ */
+async function receiptsDisagree(
+  found: NonNullable<Awaited<ReturnType<typeof turnPlan>>>,
+  turnIds: readonly string[],
+): Promise<string | null> {
+  if (!found.plan.steps.every((step) => step.status === "done")) return null;
+  const left = unsettled(await savesSince(found, turnIds, 1));
+  if (!left.length) return null;
+  const lines = left
+    .map(
+      (save) =>
+        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
+    )
+    .join("\n");
+  return `Your plan marks every step done, but Core's receipts for this request show:\n${lines}\nBefore you answer, put each right. A save that did not happen: do it again if you can. One Core could not confirm: read back whether it happened, and never repeat it blind. A Studio job still running: wait_for it so its result follows. One you cannot put right: call update_plan (revision ${found.plan.revision}) and mark its step blocked with the reason. Then reply, saying plainly what did not happen.`;
 }
 
 const MAX_REQUEST_DEPTH = 6;
@@ -293,12 +335,14 @@ const STUDIO_NOT_MADE = new Set(["FAILED", "CANCELED", "ORPHANED"]);
  */
 async function receiptOutcome(call: {
   capability: string;
+  status: string;
   disposition: string | null;
   targetId: string | null;
   result: unknown;
 }): Promise<ReceiptOutcome> {
   if (call.disposition === "REJECTED") return "not done";
   if (call.disposition === "UNKNOWN") return "unconfirmed";
+  if (call.status === "FAILED") return "not done";
   // A save Core is still writing (write_strategy's { writing: true }).
   if (z.object({ writing: z.literal(true) }).safeParse(call.result).success)
     return "started";
@@ -327,7 +371,7 @@ async function receiptOutcome(call: {
 async function savesSincePlan(
   sokoBotId: string,
   requestId: string,
-  plan: ChainPlan,
+  revision: number,
   turnIds: readonly string[],
 ): Promise<SaveReceipt[]> {
   const written = await prisma.sokoBotToolCall.findFirst({
@@ -337,7 +381,7 @@ async function savesSincePlan(
       status: { not: "FAILED" },
       AND: [
         { result: { path: ["requestId"], equals: requestId } },
-        { result: { path: ["revision"], equals: plan.revision } },
+        { result: { path: ["revision"], equals: revision } },
       ],
     },
     select: { createdAt: true },
@@ -346,7 +390,7 @@ async function savesSincePlan(
   const calls = await prisma.sokoBotToolCall.findMany({
     where: {
       turnId: { in: [...turnIds] },
-      status: "COMPLETED",
+      status: { in: ["COMPLETED", "FAILED"] },
       capability: {
         in: [...changeTools()],
       },
@@ -355,11 +399,12 @@ async function savesSincePlan(
     orderBy: { createdAt: "asc" },
     select: {
       capability: true,
+      status: true,
       disposition: true,
       targetId: true,
       result: true,
     },
-    take: 20,
+    take: 40,
   });
   return Promise.all(
     calls.map(async (call) => ({
@@ -441,13 +486,24 @@ export async function evaluateTurnDoneCheck(input: {
 }): Promise<string | null> {
   const found = await turnPlan(input.turnId);
   if (!found || !(await ownerRequest(input.turnId, found))) return null;
-  if (!openSteps(found.plan).length) return null;
   const turnIds = await requestTurnIds(
     found.turn.sokoBotId,
     found.requestId,
     input.turnId,
   );
+  const claim = () =>
+    new RuntimeEventLog(input.turnId, input.sessionId).appendUnless(
+      runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
+        openSteps: openSteps(found.plan).map((step) => step.id),
+      }),
+      [DONE_CHECK_BOUNCED_EVENT],
+    );
   const open = openSteps(found.plan);
+  if (!open.length) {
+    if (await waitingOnOthers(input.turnId, turnIds)) return null;
+    const disagree = await receiptsDisagree(found, turnIds);
+    return disagree && (await claim()) ? disagree : null;
+  }
   const working = open.some((step) => step.status === "in_progress");
   if (!working && (await waitingOnOthers(input.turnId, turnIds))) return null;
   const onOwner = asksOwner(input.draft) || (await ownerBlocker(input.turnId));
@@ -455,16 +511,7 @@ export async function evaluateTurnDoneCheck(input: {
   // needs, so the question goes to them now. With more, the rest may not.
   if (onOwner && open.length === 1) return null;
   const saves = await savesSince(found, turnIds);
-  const claimed = await new RuntimeEventLog(
-    input.turnId,
-    input.sessionId,
-  ).appendUnless(
-    runtimeEvent(DONE_CHECK_BOUNCED_EVENT, {
-      openSteps: open.map((step) => step.id),
-    }),
-    [DONE_CHECK_BOUNCED_EVENT],
-  );
-  if (!claimed) return null;
+  if (!(await claim())) return null;
   const known = savedNote(saves, found.plan.revision);
   if (onOwner)
     return `You are waiting on the owner, and your plan still lists open steps:\n${stepList(open, saves)}\n${known}Call update_plan (revision ${found.plan.revision}) and mark each step that needs their answer blocked, with blockedOn owner and the question as its reason. Do the steps that do not need it now. Then reply, asking your question again.`;

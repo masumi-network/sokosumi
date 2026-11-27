@@ -825,6 +825,131 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
       expect(prompt).toContain("is still open");
     });
 
+    describe("when the plan marks every step done", () => {
+      const allDone = [
+        { step: "Write the posts", status: "done" },
+        { step: "Schedule them", status: "done" },
+      ];
+      /** The request's first plan, the child's receipts, then all done. */
+      async function finished(
+        receipts: { capability: string; extra: object }[],
+      ) {
+        const chat = await turn("CHAT");
+        await updatePlan(chat, twoSteps);
+        await childReceipts(chat, receipts);
+        await updatePlan(chat, allDone, 1);
+        return chat;
+      }
+      const failedPost = {
+        capability: "schedule_social_post",
+        extra: { status: "FAILED", errorKind: "provider_error" },
+      };
+      const scheduledPost = {
+        capability: "schedule_social_post",
+        extra: {
+          disposition: "APPLIED",
+          verification: "PROVIDER_ACK",
+          targetId: randomUUID(),
+          committedAt: new Date(),
+        },
+      };
+
+      it("sends it back once when a save failed and was never made good", async () => {
+        const chat = await finished([failedPost]);
+        const prompt = await check(chat);
+        expect(prompt).toMatch(
+          /^Your plan marks every step done, but Core's receipts for this request show:\n- schedule_social_post: did not happen\n/,
+        );
+        expect(prompt).toContain("mark its step blocked with the reason");
+        expect(await check(chat)).toBeNull();
+      });
+
+      it("lets it through once a later call made the save good", async () => {
+        expect(
+          await check(await finished([failedPost, scheduledPost])),
+        ).toBeNull();
+      });
+
+      it("lets it through when every save is done", async () => {
+        expect(await check(await finished([scheduledPost]))).toBeNull();
+      });
+
+      it("asks for a read-back of a save Core could not confirm", async () => {
+        const chat = await finished([
+          {
+            capability: "publish_social_post",
+            extra: { disposition: "UNKNOWN", verification: "NONE" },
+          },
+        ]);
+        const prompt = await check(chat);
+        expect(prompt).toContain(
+          "- publish_social_post: Core could not confirm whether it happened",
+        );
+        expect(prompt).toContain("never repeat it blind");
+      });
+
+      it("asks for a wait on a Studio job still running", async () => {
+        const projectId = await withFixtureSchemas(
+          async (tx) =>
+            (
+              await tx.project.create({
+                data: { workspaceId, name: "Plan loop picture" },
+              })
+            ).id,
+        );
+        const job = await prisma.projectImageJob.create({
+          data: {
+            projectId,
+            workspaceId,
+            requestedByUserId: ownerId,
+            kind: "GENERATE",
+            model: "test-model",
+            prompt: "A picture",
+            settings: {},
+            referenceAssetIds: [],
+            idempotencyKey: randomUUID(),
+            status: "RUNNING",
+          },
+        });
+        const prompt = await check(
+          await finished([
+            {
+              capability: "generate_image",
+              extra: {
+                disposition: "APPLIED",
+                verification: "PROVIDER_ACK",
+                targetId: job.id,
+                committedAt: new Date(),
+              },
+            },
+          ]),
+        );
+        expect(prompt).toContain("- generate_image");
+        expect(prompt).toContain(": started, not finished yet");
+        expect(prompt).toContain("wait_for it");
+      });
+
+      it("leaves a plan that already marks the failure blocked alone", async () => {
+        const chat = await turn("CHAT");
+        await updatePlan(chat, twoSteps);
+        await childReceipts(chat, [failedPost]);
+        await updatePlan(
+          chat,
+          [
+            { step: "Write the posts", status: "done" },
+            {
+              step: "Schedule them",
+              status: "blocked",
+              blockedOn: "external",
+              reason: "X refused the post",
+            },
+          ],
+          1,
+        );
+        expect(await check(chat)).toBeNull();
+      });
+    });
+
     it("names which file each save made, so the bot can make the other", async () => {
       const chat = await turn("CHAT");
       await updatePlan(chat, [
