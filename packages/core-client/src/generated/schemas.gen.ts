@@ -52221,6 +52221,13 @@ export const ProjectSeoActionSchema = {
         impact: {
             $ref: '#/components/schemas/ProjectSeoActionImpact'
         },
+        lastCheckResult: {
+            type: 'string',
+            enum: [
+                'failing',
+                'fixed'
+            ]
+        },
         kind: {
             type: 'string',
             enum: [

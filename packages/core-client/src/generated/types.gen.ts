@@ -13345,6 +13345,7 @@ export type ProjectSeoAction = {
     completedAt?: Date;
     verifiedAt?: Date;
     impact?: ProjectSeoActionImpact;
+    lastCheckResult?: 'failing' | 'fixed';
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };

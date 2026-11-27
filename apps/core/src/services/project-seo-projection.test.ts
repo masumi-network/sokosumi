@@ -898,6 +898,69 @@ describe("stored SEO workspace projections", () => {
     expect(projectSeoProjection(input).actions).toHaveLength(1);
   });
 
+  it("names each fix by its issue in the newest compared check, and drops a proposal that check fixed", () => {
+    const input = fixture();
+    const base = parsePublicSeoArtifact(legacyReport());
+    const page = base.findings[0].pageUrl;
+    const fired = (rowId: string) => ({
+      rowId,
+      pageUrl: page,
+      device: "desktop" as const,
+      result: "fired" as const,
+    });
+    const finding = (rowId: string, device: "desktop" | null = "desktop") => ({
+      ...base.findings[0],
+      id: `finding:${rowId}`,
+      rowId,
+      device,
+    });
+    const fix = (id: string, rowId: string) => ({
+      ...base.actions[0],
+      id,
+      findingIds: [`finding:${rowId}`],
+    });
+    // A finding without a device: no exact later pass on its device can end its proposal.
+    const earlier = observation(
+      input,
+      {
+        ...base,
+        checks: [fired("title"), fired("h1"), fired("meta")],
+        findings: [finding("title", null), finding("h1"), finding("meta")],
+        actions: [fix("1", "title"), fix("2", "h1"), fix("3", "meta")],
+      },
+      "2026-11-01T12:00:00Z",
+    );
+    const latest = observation(
+      input,
+      {
+        ...base,
+        checks: [{ ...fired("title"), result: "pass" }, fired("h1")],
+        findings: [finding("h1")],
+        actions: [],
+      },
+      "2026-11-03T12:00:00Z",
+    );
+    input.observations = [latest, earlier];
+    const results = () =>
+      projectSeoProjection(input).actions.map(({ id, lastCheckResult }) => ({
+        id,
+        lastCheckResult,
+      }));
+    // The title passes now, the h1 still fails, and the newest check did not test the meta rule again.
+    expect(results()).toEqual([
+      { id: "2", lastCheckResult: "failing" },
+      { id: "3", lastCheckResult: undefined },
+    ]);
+    // A newest check of another Market compares nothing: every fix stays as it was.
+    latest.payload = {
+      ...(latest.payload as object),
+      countryCode: "DE",
+    } as typeof latest.payload;
+    expect(results()).toEqual(
+      ["1", "2", "3"].map((id) => ({ id, lastCheckResult: undefined })),
+    );
+  });
+
   it("replaces an unlinked recommendation when a later check proposes its own fix for the finding", () => {
     const { input, original } = actionFixture();
     const linked = input.actionTasks;

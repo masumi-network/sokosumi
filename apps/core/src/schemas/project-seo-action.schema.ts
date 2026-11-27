@@ -242,6 +242,12 @@ export const seoActionSchema = z
     verifiedAt: dateTimeSchema.optional(),
     /** Set for the human who requested the audits, once an audit read this page's daily Search Console rows alone. */
     impact: seoActionImpactSchema.optional(),
+    /**
+     * A fix's issues in the newest page check, compared with the check before it: failing where one still fails,
+     * fixed where that check fixed every one. Absent where that check did not compare them, such as an issue it did
+     * not test again.
+     */
+    lastCheckResult: z.enum(["failing", "fixed"]).optional(),
     /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
     kind: z.enum(["fix", "opportunity"]),
     evidence: z.array(z.string()),
