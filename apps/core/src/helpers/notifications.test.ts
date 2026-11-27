@@ -1743,6 +1743,30 @@ describe("chat room arrival count", () => {
   });
 });
 
+describe("publishNotificationRow network", () => {
+  beforeEach(() => {
+    publishNotificationEventMock.mockReset();
+    publishNotificationEventMock.mockResolvedValue(undefined);
+  });
+
+  it.each([null, "mainnet", "preprod"] as const)(
+    "tells the reader's tabs the row's Network (%s)",
+    async (network) => {
+      await publishNotificationRow(createNotificationRecord({ network }), {
+        inApp: true,
+        osBanner: true,
+        email: false,
+      });
+
+      expect(publishNotificationEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notification: expect.objectContaining({ network }),
+        }),
+      );
+    },
+  );
+});
+
 /**
  * How a banner and a bell learn that rows they stand for are finished with.
  *

@@ -48,6 +48,7 @@ const notification = {
   isRead: false,
   readAt: null,
   createdAt: new Date("2026-09-14T10:00:00.000Z"),
+  network: null,
   inApp: true,
   emailId: null,
   emailScheduledAt: null,

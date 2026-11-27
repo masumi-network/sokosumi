@@ -5001,6 +5001,11 @@ const projectSeoStrategySchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const projectSeoSiteSpeedSchemaResponseTransformer = (data: any) => {
+    data.observedAt = new Date(data.observedAt);
+    return data;
+};
+
 const projectSeoSerpPointSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
     return data;
@@ -5096,6 +5101,9 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     }
     if (data.strategy) {
         data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);
+    }
+    if (data.siteSpeed) {
+        data.siteSpeed = projectSeoSiteSpeedSchemaResponseTransformer(data.siteSpeed);
     }
     if (data.articleDates) {
         data.articleDates = data.articleDates.map((item: any) => {

@@ -422,6 +422,7 @@ describe("Item 38", () => {
       "seo-breakdown.tsx": "Countries and devices",
       "seo-landing-engagement.tsx":
         messages.App.Seo.traffic.landingEngagement.title,
+      "seo-site-speed.tsx": messages.App.Seo.siteSpeed.title,
     };
     expect(withoutCsv.sort()).toEqual(Object.keys(names).sort());
     const missing = SEO_CAPABILITIES.find((item) => item.id === 38)?.missing;

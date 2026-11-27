@@ -411,13 +411,13 @@ describe("auth.server", () => {
     await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 
-  it("gives the Core session read 8 seconds", async () => {
+  it("gives the Core session read 12 seconds", async () => {
     const timeoutMock = vi.spyOn(AbortSignal, "timeout");
 
     const { getSession } = await import("./auth.server");
     await getSession({ refresh: true });
 
-    expect(timeoutMock).toHaveBeenCalledWith(8000);
+    expect(timeoutMock).toHaveBeenCalledWith(12_000);
     timeoutMock.mockRestore();
   });
 
@@ -609,18 +609,19 @@ describe("auth.server", () => {
   /**
    * The literal, not the constant: reading `CORE_AUTH_REQUEST_TIMEOUT_MS`
    * here would assert the budget against itself and let any drift through.
-   * 8s is what the callers in front of this read allow - the background chat
-   * reads give the browser 20-30s - and 5s is what turned a Core stall into
-   * "no session". The Better Auth client hop keeps its own 5s on purpose.
+   * 12s covers a Core cold start (8.5-10.5s measured on idle preprod
+   * deployments, 2026-11-27); 8s turned the first request of a deploy into a
+   * failed read. It stays under the 20s the background chat reads give the
+   * browser, with room for one retry.
    */
-  it("spends the 8s Core auth budget on the session read", async () => {
+  it("spends the 12s Core auth budget on the session read", async () => {
     const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
 
     const { getSession } = await import("./auth.server");
 
     await getSession({ refresh: true });
 
-    expect(timeoutSpy).toHaveBeenCalledWith(8000);
+    expect(timeoutSpy).toHaveBeenCalledWith(12_000);
     timeoutSpy.mockRestore();
   });
 

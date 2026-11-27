@@ -1,14 +1,29 @@
 import { z } from "@hono/zod-openapi";
-import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
+import { publicExplorationUrl } from "@sokosumi/utils";
 import {
   fieldTimings,
   labTimings,
   lighthouseScores,
   type PageSpeedRows,
+  SPEED_HISTORY_STATUSES,
+  SPEED_HISTORY_WEEKS,
+  type SpeedHistory,
+  seoPageSpeedRow,
+  speedHistory,
   speedInsight,
+  speedValue,
 } from "@/schemas/seo-page-speed.schema";
 import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
+import {
+  publicSpeedInsight,
+  publicSpeedUrl,
+  SPEED_DEVICES,
+  type SpeedDevice,
+  speedFieldUrl,
+  speedLighthouseVersion,
+  speedPageUrl,
+} from "./seo-speed-guards";
 
 const fieldResult = z.object({
   level: z.enum(["url", "origin"]),
@@ -38,24 +53,27 @@ const labResult = z
     median: labTimings,
     runs: z.number().int().positive(),
     ok: z.number().int().positive(),
-    lighthouse: z
-      .string()
-      .regex(/^[\d.]+(?:[-+][a-zA-Z0-9.-]+)?$/)
-      .max(32)
-      .nullable()
-      .catch(null),
+    lighthouse: z.unknown().transform(speedLighthouseVersion).default(null),
   })
   .refine((row) => row.ok <= row.runs);
 function gap(raw: unknown, isField: boolean) {
   const row = reportObject(raw);
   const reason = typeof row?.none === "string" ? row.none.toLowerCase() : "";
+  // The worker's sentence for a template that has its lab test. It ends with a template and a page: their
+  // words are no reason.
+  if (!isField && reason.startsWith("one lab page per template"))
+    return { status: "not_checked" as const };
   if (/request budget|call budget/.test(reason))
     return { status: "budget" as const };
   if (reason.includes("could not verify a public landing page"))
     return { status: "unsafe" as const };
   if (/quota|429|rate limit/.test(reason)) return { status: "quota" as const };
-  if (/deadline|time budget|timeout|timed out/.test(reason))
+  if (/deadline|time budget|time limit|timeout|timed out/.test(reason))
     return { status: "deadline" as const };
+  // The worker's sentence for a CrUX read that it did not collect starts with "was not collected": a read that
+  // Google refused or that gave no usable answer was sent, so its suffix is the cause.
+  if (/did not accept|did not return a usable response/.test(reason))
+    return { status: "unavailable" as const };
   if (
     /not checked|was not collected|excluded|not enabled|not configured|no speed reads/.test(
       reason,
@@ -64,19 +82,24 @@ function gap(raw: unknown, isField: boolean) {
   )
     return { status: "not_checked" as const };
   if (
-    isField &&
     Array.isArray(row?.sourceRefs) &&
-    row.sourceRefs.some((ref) =>
-      ["error", "wall"].includes(
-        String(reportObject(reportObject(ref)?.outcome)?.kind),
-      ),
-    )
+    row.sourceRefs.some((ref) => {
+      // A kind that is no string is no failed source: it is compared, not converted.
+      const kind = reportObject(reportObject(ref)?.outcome)?.kind;
+      return kind === "error" || kind === "wall";
+    })
   )
     return { status: "unavailable" as const };
+  // The worker's words for a read it did not send. A read with a failed source was sent (the check above).
+  if (reason === "not read") return { status: "not_checked" as const };
   if (
     isField &&
     row?.failed !== true &&
-    (row?.noData === true || /no (?:crux |field |real.user )?data/.test(reason))
+    (row?.noData === true ||
+      // The second form is a record that holds no measured value.
+      /no (?:crux |field |real.user )?data|holds no measured value/.test(
+        reason,
+      ))
   )
     return { status: "no_data" as const };
   return { status: "unavailable" as const };
@@ -91,6 +114,8 @@ function successfulSource(raw: unknown) {
   );
 }
 
+/** The insights of one lab result that Core reads. The stored list holds no more. */
+const SPEED_INSIGHTS = 20;
 function details(raw: unknown) {
   const lab = reportObject(raw);
   const row = reportObject(lab?.pageSpeed);
@@ -108,17 +133,11 @@ function details(raw: unknown) {
   const scores = lighthouseScores.safeParse(row.scores);
   const measuredAt = z.string().datetime().safeParse(row.measuredAt);
   const insights = (
-    Array.isArray(row.insights) ? row.insights.slice(0, 20) : []
+    Array.isArray(row.insights) ? row.insights.slice(0, SPEED_INSIGHTS) : []
   ).flatMap((value) => {
     const parsed = speedInsight.safeParse(value);
-    if (
-      !parsed.success ||
-      ![parsed.data.title, parsed.data.detail, parsed.data.action].every(
-        publicExplorationText,
-      )
-    )
-      return [];
-    return [parsed.data];
+    // The guard reads the worker's insight: the parsed one has no group.
+    return parsed.success && publicSpeedInsight(value) ? [parsed.data] : [];
   });
   return {
     scores: scores.success ? scores.data : {},
@@ -127,7 +146,7 @@ function details(raw: unknown) {
   };
 }
 
-function publicLanding(start: URL, address: string) {
+export function publicLanding(start: URL, address: string) {
   if (!publicExplorationUrl(address)) return false;
   const url = new URL(address);
   return (
@@ -157,10 +176,22 @@ function boundSource(
     row.sourceRefs.every((item) => {
       const ref = reportObject(item),
         request = reportObject(ref?.request);
+      // A reduced check reads the CrUX record of all devices first: that request names no device. Such a
+      // record tells why a device has no field data. It is no source of a measured value.
+      const allDevices =
+        port === "crux" &&
+        !measured &&
+        request?.device === undefined &&
+        reportObject(request?.params)?.kind === "record" &&
+        reportObject(request?.params)?.formFactor === "all";
       if (
         ref?.port !== port ||
         request?.port !== port ||
-        request?.device !== device ||
+        // A CrUX read without a measured value reads a record: a History comes only after a record with data.
+        (port === "crux" &&
+          !measured &&
+          reportObject(request?.params)?.kind !== "record") ||
+        (request?.device !== device && !allDevices) ||
         typeof request.url !== "string"
       )
         return false;
@@ -204,18 +235,95 @@ function provenAggregate(
   );
 }
 
+const weeklyPoints = z
+  // A calendar date: 2026-02-31 is none.
+  .array(z.object({ last: z.string().date(), p75: speedValue }))
+  .min(1);
+
+/**
+ * CrUX History of a measured field. The weekly series is kept only for a comparable population whose record is
+ * a successful history read at the field's level; boundSource checked each ref's URL and device before this.
+ */
+function readHistory(
+  raw: unknown,
+  level: "url" | "origin",
+): { history?: SpeedHistory } {
+  const field = reportObject(raw),
+    history = reportObject(field?.history),
+    refs = field?.sourceRefs;
+  const status = SPEED_HISTORY_STATUSES.find(
+    (value) => value === history?.status,
+  );
+  if (!history || !status) return {};
+  if (status !== "comparable") return { history: { status } };
+  const series = reportObject(history.series);
+  // No series is the worker's answer for a read that gave none. A series that is no object is not,
+  // with or without source references.
+  if (history.series != null && !series)
+    return { history: { status: "unavailable" } };
+  if (!Array.isArray(refs)) return { history: { status: "legacy_unverified" } };
+  const record = history.sourceRecord;
+  const bound =
+    typeof record === "string" &&
+    /^[0-9a-f]{64}$/.test(record) &&
+    refs.some((item) => {
+      const ref = reportObject(item),
+        params = reportObject(reportObject(ref?.request)?.params);
+      return (
+        ref?.record === record &&
+        successfulSource(item) &&
+        params?.kind === "history" &&
+        params.level === level
+      );
+    });
+  const read: SpeedHistory = { status };
+  let given = false;
+  for (const key of ["lcp", "inp", "cls"] as const) {
+    const value = series?.[key];
+    given ||= Array.isArray(value) ? value.length > 0 : value != null;
+    const points = weeklyPoints.safeParse(
+      Array.isArray(value) ? value.slice(-SPEED_HISTORY_WEEKS) : null,
+    );
+    if (!bound || !points.success) continue;
+    const weeks = points.data.map((point) => point.last);
+    if (
+      weeks.some(
+        (day, i) =>
+          Number.isNaN(Date.parse(day)) || (i > 0 && day <= weeks[i - 1]!),
+      )
+    )
+      continue;
+    read.weeks ??= weeks;
+    // One list of weeks serves every metric: a metric with other weeks is left out.
+    if (weeks.join() === read.weeks.join())
+      read[key] = points.data.map((point) => point.p75);
+  }
+  // The worker writes no series when the history read gave none: a bound history is then still comparable.
+  return {
+    history: read.weeks || (bound && !given) ? read : { status: "unavailable" },
+  };
+}
+
 export function readPageSpeed(
   raw: unknown,
-  pageUrl: string,
+  page: string,
   finals?: { mobile?: string | null; desktop?: string | null },
+  /** Only these devices are read: a section of another device cannot cost the row. */
+  devices: readonly SpeedDevice[] = SPEED_DEVICES,
 ): PageSpeedRows {
   const speed = reportObject(raw);
-  if (!speed || !publicExplorationUrl(pageUrl)) return [];
+  const pageUrl = speedPageUrl(page);
+  if (!speed || !publicSpeedUrl(pageUrl)) return [];
   const rows: PageSpeedRows = [];
-  for (const device of ["mobile", "desktop"] as const) {
+  for (const device of devices) {
     const evidence = reportObject(speed[device]);
-    const testedUrl = finals?.[device] ?? pageUrl;
-    if (!evidence || !publicLanding(new URL(pageUrl), testedUrl)) continue;
+    const testedUrl = speedPageUrl(finals?.[device]) ?? pageUrl;
+    if (
+      !evidence ||
+      !publicSpeedUrl(testedUrl) ||
+      !publicLanding(new URL(pageUrl), testedUrl)
+    )
+      continue;
     const lab = labResult.safeParse(evidence.lab);
     const field = fieldResult.safeParse(evidence.field);
     const validLab = boundSource(
@@ -227,15 +335,17 @@ export function readPageSpeed(
     );
     const read = field.success ? field.data : null;
     const target = new URL(testedUrl);
+    // The stored URL is the form that passed the checks, not the worker's spelling of it.
+    const fieldUrl = read ? speedFieldUrl(read.url) : undefined;
     const measuredField =
       read &&
-      publicExplorationUrl(new URL(read.url).href) &&
+      fieldUrl &&
       (read.level === "origin"
-        ? new URL(read.url).origin === target.origin &&
-          new URL(read.url).pathname === "/"
-        : new URL(read.url).href === target.href ||
+        ? new URL(fieldUrl).origin === target.origin &&
+          new URL(fieldUrl).pathname === "/"
+        : fieldUrl === target.href ||
           provenAggregate(read, evidence.field, target, device));
-    rows.push({
+    const row: (typeof rows)[number] = {
       pageUrl,
       testedUrl,
       device,
@@ -264,16 +374,159 @@ export function readPageSpeed(
                 read.identity?.pageAssessment === "not_determined"
                   ? "normalized"
                   : read.level,
-              url: read.url,
+              url: fieldUrl,
               p75: read.p75,
               period: read.period,
+              ...readHistory(evidence.field, read.level),
             }
           : field.success
             ? { status: "unavailable" }
             : gap(evidence.field, true),
-    });
+    };
+    // A field Core cannot store (a URL over the length limit, for example) is no field data: the lab stays, as on
+    // a stored read.
+    rows.push(
+      seoPageSpeedRow.shape.field.safeParse(row.field).success
+        ? row
+        : { ...row, field: { status: "unavailable" } },
+    );
   }
   return rows;
+}
+
+/**
+ * A stored history as a fresh import stores it. None: it has no status Core knows. Unavailable: its weeks are
+ * no days, oldest first, as on a fresh import. A status that is not comparable stays alone, whatever else the history holds. Each
+ * metric is read alone, and stays only with one value per week.
+ */
+function storedHistory(history: unknown): SpeedHistory | undefined {
+  const raw = reportObject(history);
+  const status = SPEED_HISTORY_STATUSES.find((value) => value === raw?.status);
+  if (!raw || !status) return undefined;
+  if (status !== "comparable") return { status };
+  // No weeks reads as an empty list: the metrics are checked in both forms.
+  const weeks = speedHistory.shape.weeks.safeParse(raw.weeks ?? []).data;
+  // Weeks Core cannot read or that are out of order are no trend, as on a fresh import.
+  if (!weeks || weeks.some((day, i) => i > 0 && day <= weeks[i - 1]!))
+    return { status: "unavailable" };
+  const kept: SpeedHistory = { status, weeks };
+  let given = false,
+    any = false;
+  for (const key of ["lcp", "inp", "cls"] as const) {
+    // As a fresh import counts it: an empty list is no metric.
+    const value = raw[key];
+    given ||= Array.isArray(value) ? value.length > 0 : value != null;
+    const points = speedHistory.shape[key].safeParse(value);
+    if (!weeks.length || points.data?.length !== weeks.length) continue;
+    kept[key] = points.data;
+    any = true;
+  }
+  // A fresh import stores weeks only with a metric. A given metric that goes leaves no trend, with or
+  // without weeks: the status alone would say "comparable".
+  return any ? kept : given ? { status: "unavailable" } : { status };
+}
+
+/**
+ * One stored measurement before the schema reads it, with the guards of a fresh import. None: the page URL
+ * or the tested URL is not public. The field URL gets the form a fresh import stores. A history without a status Core knows and a lab
+ * insight with text that is not public go, a history with weeks Core cannot read is unavailable, a Lighthouse version that is not plain is null; the measurement stays.
+ */
+export function readableStoredMeasurement(value: unknown): unknown[] {
+  const row = reportObject(value);
+  const [pageUrl, testedUrl] = [row?.pageUrl, row?.testedUrl].map(speedPageUrl);
+  // The tested page is the page or a redirect on its host, as on a fresh import.
+  if (
+    !row ||
+    !publicSpeedUrl(pageUrl) ||
+    !publicSpeedUrl(testedUrl) ||
+    !publicLanding(new URL(pageUrl), testedUrl)
+  )
+    return [];
+  // The URLs get the form a fresh import stores: the table and the page list then name one page one way.
+  const read: Record<string, unknown> = { ...row, pageUrl, testedUrl };
+  const field = reportObject(row.field);
+  // A device part that is missing or no object reads as a fresh import reads it: not checked.
+  if (!field) read.field = { status: "not_checked" };
+  if (!reportObject(row.lab)) read.lab = { status: "not_checked" };
+  if (field) {
+    const { history, ...measured } = field;
+    let foreign = false;
+    if (field.url != null) {
+      const url = speedFieldUrl(field.url);
+      // A field URL that Core does not read, in a spelling or of a place, is no field data: the lab
+      // measurement stays, as on a fresh import. Field data is of the tested page's origin; origin data
+      // names the origin.
+      foreign =
+        !url ||
+        new URL(url).origin !== new URL(testedUrl).origin ||
+        (field.level === "origin" && new URL(url).pathname !== "/");
+      if (url) measured.url = url;
+    } else if (field.status === "measured") foreign = true;
+    // A comparable history with a series that is no object reads as a fresh import reads it: unavailable.
+    const series = reportObject(history)?.series;
+    const kept = storedHistory(history);
+    read.field = foreign
+      ? { status: "unavailable" }
+      : !kept
+        ? measured
+        : kept.status === "comparable" &&
+            series != null &&
+            !reportObject(series)
+          ? { ...measured, history: { status: "unavailable" } }
+          : { ...measured, history: kept };
+    // A field Core cannot read (a status, level, period or values) is no field data: the lab measurement
+    // stays, as on a fresh import.
+    if (!seoPageSpeedRow.shape.field.safeParse(read.field).success)
+      read.field = { status: "unavailable" };
+  }
+  const lab = reportObject(row.lab);
+  if (lab) {
+    const { pageSpeed, ...measured } = lab;
+    const details = reportObject(pageSpeed);
+    const scores = lighthouseScores.safeParse(details?.scores);
+    const measuredAt = z.string().datetime().safeParse(details?.measuredAt);
+    read.lab = {
+      ...measured,
+      // A measured lab without the version reads as a fresh import reads it: null.
+      ...(("lighthouse" in lab || "median" in lab) && {
+        lighthouse: speedLighthouseVersion(lab.lighthouse),
+      }),
+      // The details read as a fresh import reads them: a part Core cannot read does not cost the device.
+      ...(details && {
+        pageSpeed: {
+          scores: scores.success ? scores.data : {},
+          // The first 20 are read: a longer list does not cost the device.
+          insights: (Array.isArray(details.insights) ? details.insights : [])
+            .slice(0, SPEED_INSIGHTS)
+            .filter(
+              (item) =>
+                speedInsight.safeParse(item).success &&
+                publicSpeedInsight(item),
+            ),
+          ...(measuredAt.success && { measuredAt: measuredAt.data }),
+        },
+      }),
+    };
+    // A lab Core cannot read (a status, runs, medians) is no lab data: the field data stays, as on a fresh import.
+    if (!seoPageSpeedRow.shape.lab.safeParse(read.lab).success)
+      read.lab = { status: "unavailable" };
+  }
+  return [read];
+}
+
+const PAGE_SPEED_ROWS = 20;
+
+/**
+ * Stored page speed rows before the schema reads them. A measurement the row schema refuses goes, not the
+ * audit: so does a collection that is no array, and each readable measurement past the schema's 20.
+ */
+export function readableStoredPageSpeed(rows: unknown) {
+  return Array.isArray(rows)
+    ? rows
+        .flatMap(readableStoredMeasurement)
+        .filter((row) => seoPageSpeedRow.safeParse(row).success)
+        .slice(0, PAGE_SPEED_ROWS)
+    : undefined;
 }
 
 export function scopedPageSpeed(
@@ -281,4 +534,51 @@ export function scopedPageSpeed(
   selected: ReadonlySet<string>,
 ) {
   return rows?.filter((row) => selected.has(auditedSeoPageKey(row.pageUrl)));
+}
+
+/** Up to 100 audits reach one view: only the newest with page speed keeps its weekly series, the rest the status. */
+function withoutSeries(rows: PageSpeedRows): PageSpeedRows {
+  return rows.map((row) =>
+    "history" in row.field && row.field.history
+      ? {
+          ...row,
+          field: {
+            ...row.field,
+            history: { status: row.field.history.status },
+          },
+        }
+      : row,
+  );
+}
+
+/**
+ * An audit's page speed for the view. An audit from before Core read it names the file to recover it from.
+ * `newer` holds the view's audits so far: rows come newest first.
+ */
+export function observationPageSpeed(
+  data: { kind: string; pageSpeed?: PageSpeedRows },
+  row: {
+    source: string;
+    sourceFileId: string | null;
+    sourceTaskId: string | null;
+  },
+  selected: ReadonlySet<string>,
+  input: { marketRecoveryTaskIds?: ReadonlySet<string> },
+  newer: ReadonlyArray<{ pageSpeed?: PageSpeedRows }>,
+) {
+  if (data.kind !== "audit_full") return {};
+  if (data.pageSpeed !== undefined) {
+    const pageSpeed = scopedPageSpeed(data.pageSpeed, selected) ?? [];
+    return {
+      pageSpeed: newer.some((item) => item.pageSpeed?.length)
+        ? withoutSeries(pageSpeed)
+        : pageSpeed,
+    };
+  }
+  return row.source === "seo_coworker" &&
+    row.sourceFileId &&
+    row.sourceTaskId &&
+    input.marketRecoveryTaskIds?.has(row.sourceTaskId)
+    ? { pageSpeedRecoveryFileId: row.sourceFileId }
+    : {};
 }

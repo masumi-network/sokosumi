@@ -318,7 +318,7 @@ const route = createRoute({
       agentsListPaginationMetaSchema,
     ),
     403: jsonErrorResponse(
-      "Forbidden. Only with `X-Sokosumi-Network: preprod`. Branch on `kind`: preprod_off (Preprod is switched off) or preprod_access_required (an anonymous caller, a credential other than a browser session, or a person without Preprod access in the workspace)",
+      "Forbidden. Only for Preprod (`X-Sokosumi-Network: preprod`, or a Preprod API key) or a key the header contradicts. Branch on `kind`: preprod_off (Preprod is switched off), preprod_access_required (an anonymous caller, a Coworker or Soko Bot key, or a person without Preprod access in the workspace) or api_key_network_mismatch (an API key of the other Network than the header names)",
     ),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
