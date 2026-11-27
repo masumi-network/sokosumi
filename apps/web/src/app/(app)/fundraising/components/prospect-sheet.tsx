@@ -49,6 +49,7 @@ export function ProspectSheet({
   members,
   now,
   onClose,
+  onCloseAutoFocus,
 }: {
   prospect: FundraisingProspect | null;
   pipeline: FundraisingPipeline;
@@ -56,6 +57,8 @@ export function ProspectSheet({
   members: Member[];
   now: Date;
   onClose: () => void;
+  /** Where focus goes when the sheet closes; it has no trigger to return to. */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const t = useTranslations("App.Fundraising");
   const format = useFormatter();
@@ -65,7 +68,10 @@ export function ProspectSheet({
 
   return (
     <Sheet open={prospect !== null} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md">
+      <SheetContent
+        className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         {prospect && contact ? (
           <>
             <SheetHeader className="gap-3">

@@ -413,6 +413,50 @@ describe("ChatRoomSidebarRow leading slot", () => {
   });
 });
 
+describe("ChatRoomSidebarRow trailing link", () => {
+  it("puts its own link between the room and the room menu, at rest", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Juno"
+        subtitle={<span aria-hidden>Working now</span>}
+        trailingLink={<a href="/agents">Your team's Soko Bots</a>}
+        isActive={false}
+        leading={<span>J</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // Tab order: the room, then the team, then the room's menu.
+    const controls = [
+      ...container.querySelectorAll(
+        '[data-slot="room-row-main"] a, [data-slot="room-row-main"] button',
+      ),
+    ].map((el) => el.getAttribute("href") ?? el.getAttribute("aria-label"));
+    expect(controls).toEqual([
+      "/chat/rooms/room-1",
+      "/agents",
+      "Chat actions for Juno",
+    ]);
+    // Status under the name: a second line, not the name line's end.
+    expect(
+      container
+        .querySelector('[data-testid="sidebar-menu-button"]')
+        ?.getAttribute("data-lines"),
+    ).toBe("2");
+    // The name stops short of the link, which shows at rest.
+    const spacer = container.querySelector(
+      '[data-slot="room-trailing-spacer"]',
+    );
+    // Menu, gap and the link's own 40px box (32px from `md`).
+    expect(spacer?.className).toContain("[@media(hover:hover)]:w-20");
+    expect(spacer?.className).toContain("[@media(hover:hover)]:md:w-14");
+    expect(spacer?.className).toContain("[@media(hover:none)]:w-20");
+    expect(spacer?.className).toContain("[@media(hover:none)]:md:w-14");
+  });
+});
+
 describe("ChatRoomSidebarRow row height", () => {
   function heightTokens(props: { subtitle?: string }) {
     const { container } = render(
