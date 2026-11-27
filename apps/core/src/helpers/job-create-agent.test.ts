@@ -55,11 +55,17 @@ vi.mock("@/helpers/agent-cost", async (importOriginal) => ({
   getAgentCost: getAgentCostMock,
 }));
 
-vi.mock("@/helpers/agent", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/helpers/agent")>()),
+vi.mock("@/lib/agent-catalog/availability", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/agent-catalog/availability")
+  >()),
   buildAvailableAgentWhereClause: () => ({}),
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
+}));
+
+vi.mock("@/helpers/agent", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/agent")>()),
   toMasumiAgent: (agent: {
     id: string;
     name: string;
@@ -113,8 +119,8 @@ vi.mock("@/clients/masumi-payment.client", () => ({
   }),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     agent: {
       findFirst: agentFindFirstMock,
     },
@@ -122,8 +128,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: projectFindFirstMock,
     },
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The hire's lookup reads Mainnet's catalog through its scope.
+  return { default: client, networkPrisma: () => client };
+});
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
