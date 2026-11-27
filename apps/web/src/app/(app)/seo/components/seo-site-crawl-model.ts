@@ -405,3 +405,34 @@ export function seoSiteCrawlView(
     ),
   };
 }
+
+type Observation = { siteCrawl?: ProjectSeoSiteCrawl };
+
+/**
+ * The continuations of an audit's crawl, newest first: the chain that goes on from `audit`'s snapshot. Only a
+ * continuation names the crawl it goes on from. A parent crawl's oldest continuation is the chain's, as in Core
+ * (crawlContinuationTip). `rows` come newest first.
+ */
+export function seoCrawlContinuations<Row extends Observation>(
+  rows: readonly Row[],
+  audit: ProjectSeoSiteCrawl | undefined,
+): (Row & { siteCrawl: Crawled })[] {
+  const children = new Map<string, Row & { siteCrawl: Crawled }>();
+  for (const row of rows) {
+    const crawl = row.siteCrawl;
+    if (crawl?.state !== "crawled") continue;
+    if (crawl.continues && crawl.snapshotId)
+      children.set(crawl.continues, row as Row & { siteCrawl: Crawled });
+  }
+  const chain: (Row & { siteCrawl: Crawled })[] = [];
+  let parent = audit?.state === "crawled" ? audit.snapshotId : undefined;
+  const seen = new Set<string>();
+  while (parent && !seen.has(parent)) {
+    seen.add(parent);
+    const child = children.get(parent);
+    if (!child) break;
+    chain.push(child);
+    parent = child.siteCrawl.snapshotId;
+  }
+  return chain.reverse();
+}

@@ -1,6 +1,9 @@
 import type { ProjectSeoSiteCrawl } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { seoSiteCrawlView } from "./seo-site-crawl-model";
+import {
+  seoCrawlContinuations,
+  seoSiteCrawlView,
+} from "./seo-site-crawl-model";
 
 type Crawled = Extract<ProjectSeoSiteCrawl, { state: "crawled" }>;
 const SITE = "https://example.test";
@@ -388,5 +391,46 @@ describe("site crawl ledger", () => {
       seoSiteCrawlView({ state: "not crawled", reason: "robots.txt" }),
     ).toEqual({ state: "not crawled", reason: "robots.txt" });
     expect(seoSiteCrawlView(undefined)).toBeNull();
+  });
+});
+
+describe("crawl continuations", () => {
+  const crawl = (snapshotId: string, continues?: string): Crawled => ({
+    ...cleanCrawl(),
+    stop: "page cap",
+    snapshotId,
+    ...(continues && { continues }),
+  });
+  const row = (kind: string, siteCrawl: Crawled, id: string) => ({
+    kind,
+    siteCrawl,
+    id,
+  });
+
+  it("follows the chain from the audit's crawl, newest first, and leaves out an older audit's continuations", () => {
+    const [OLD, AUDIT, A, B, OTHER] = ["o", "a", "1", "2", "x"].map((c) =>
+      c.repeat(64),
+    );
+    // Newest first, as the workspace lists observations.
+    const rows = [
+      row("crawl_next", crawl(OTHER, OLD), "of the older audit"),
+      row("crawl_next", crawl(B, A), "second"),
+      row("crawl_next", crawl("9".repeat(64), AUDIT), "later retry"),
+      row("crawl_next", crawl(A, AUDIT), "first"),
+      row("audit_full", crawl(AUDIT), "audit"),
+      row("audit_full", crawl(OLD), "older audit"),
+    ];
+    expect(seoCrawlContinuations(rows, crawl(AUDIT)).map((r) => r.id)).toEqual([
+      "second",
+      "first",
+    ]);
+  });
+
+  it("has no continuations when the audit's crawl has no snapshot", () => {
+    const rows = [
+      row("crawl_next", crawl("1".repeat(64), "a".repeat(64)), "x"),
+    ];
+    expect(seoCrawlContinuations(rows, cleanCrawl())).toEqual([]);
+    expect(seoCrawlContinuations(rows, undefined)).toEqual([]);
   });
 });

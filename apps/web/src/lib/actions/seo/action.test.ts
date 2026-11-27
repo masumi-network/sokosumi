@@ -16,6 +16,7 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
 const setArchivedMock = vi.hoisted(() => vi.fn());
 const createAuditMock = vi.hoisted(() => vi.fn());
 const createMonitorMock = vi.hoisted(() => vi.fn());
+const continueCrawlMock = vi.hoisted(() => vi.fn());
 const authenticatedSessionId = vi.hoisted(() =>
   vi.fn<() => string | undefined>(),
 );
@@ -50,11 +51,13 @@ vi.mock("@/lib/services/seo.service", () => ({
   seoServiceNoRedirect: {
     requestAnalysis: requestAnalysisMock,
     createMonitor: createMonitorMock,
+    continueCrawl: continueCrawlMock,
     setAuditArchived: setArchivedMock,
     createAudit: createAuditMock,
   },
 }));
 
+import { seoCrawlNextPrice } from "@sokosumi/utils";
 import { seoTestWorkspace } from "@/app/seo/components/seo-test-fixture";
 import { mutateSeo } from "./action";
 import { createSeoAuditAction } from "./create-audit";
@@ -450,4 +453,26 @@ it("keys the first page check with the audit key, so a retried create starts one
     OWNER,
     expect.objectContaining({ idempotencyKey: "form-key-0001" }),
   );
+});
+
+it("asks Core for a crawl continuation on the server's price terms and keeps Core's refusal status", async () => {
+  const command = {
+    kind: "continue_crawl",
+    continues: "b".repeat(64),
+    idempotencyKey: "crawl-next-1",
+  } as const;
+  expect(await mutate(command)).toMatchObject({ ok: true });
+  expect(continueCrawlMock).toHaveBeenCalledExactlyOnceWith(OWNER, {
+    continues: command.continues,
+    price: seoCrawlNextPrice(),
+    idempotencyKey: command.idempotencyKey,
+  });
+  expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
+  continueCrawlMock.mockRejectedValueOnce(
+    new CoreApiRequestError("Not enough credits", { status: 422 }),
+  );
+  expect(await mutate(command)).toMatchObject({
+    ok: false,
+    error: { status: 422 },
+  });
 });

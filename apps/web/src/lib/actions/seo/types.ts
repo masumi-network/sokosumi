@@ -45,6 +45,8 @@ export type SeoCommand =
       rule: TaskScheduleRuleReplacement;
     }
   | { kind: "request_analysis"; body: RequestProjectSeoAnalysisRequest }
+  /** The price terms never pass through the browser: the action approves them. */
+  | { kind: "continue_crawl"; continues: string; idempotencyKey: string }
   | { kind: "save_keyword"; body: SaveProjectSeoKeywordRequest }
   | { kind: "save_competitor"; body: SaveProjectSeoCompetitorRequest }
   | { kind: "acknowledge_review"; body: AcknowledgeProjectSeoReviewRequest }

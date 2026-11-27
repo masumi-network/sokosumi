@@ -14285,6 +14285,7 @@
         "links": "Backlink-Übersicht",
         "audit_lite": "Eigene Prüfung",
         "audit_full": "Vollständiges Audit",
+        "crawl_next": "Nächste 500 Seiten",
         "keywords": "Keywords, eines pro Zeile",
         "competitors": "Mitbewerber-URLs, eine pro Zeile",
         "country": "Suchland",
@@ -15841,6 +15842,22 @@
           "duplicateTitles": "Duplicate titles",
           "orphans": "Orphan pages",
           "javascript": "Page groups that need JavaScript"
+        },
+        "next": {
+          "button": "Crawl the next 500 pages",
+          "busy": "Another check runs now. Wait until it finishes.",
+          "title": "Crawl the next 500 pages?",
+          "body": "The crawl goes on from where the last crawl stopped. It reads up to 500 pages that no crawl read yet and checks them. Then it audits up to 15 problem pages in full.",
+          "price": "Price: the provider cost plus 50%, at least 100 credits. Sokosumi charges it when the crawl finishes.",
+          "confirm": "Start the crawl",
+          "cancel": "Cancel",
+          "started": "The crawl of the next pages started.",
+          "heading": "Next pages",
+          "audited": "Pages audited in full",
+          "pickedFor": "Picked for: {reasons}",
+          "findings": "{count, plural, =0 {No issues} one {# issue} other {# issues}}",
+          "moreFindings": "{count, plural, one {# more issue} other {# more issues}}",
+          "skipped": "Picked but not audited"
         }
       }
     },
