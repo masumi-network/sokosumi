@@ -4,22 +4,26 @@ import {
   SOKO_BOT_SYSTEM_SCHEDULES,
   sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLog } from "@/test/core-log";
 
 const { scheduleFindManyMock, scheduleCreateMock } = vi.hoisted(() => ({
   scheduleFindManyMock: vi.fn(),
   scheduleCreateMock: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBot: { findUnique: vi.fn().mockResolvedValue({ versionId: "v19" }) },
     sokoBotSchedule: {
       findMany: scheduleFindManyMock,
       create: scheduleCreateMock,
     },
-  },
-}));
+    $transaction: (callback: (tx: unknown) => Promise<unknown>) =>
+      callback(client),
+  };
+  return { default: client };
+});
 vi.mock("@/helpers/cron", () => ({
   computeNextRunWithMinimumInterval: () => new Date("2026-10-02T08:00:00Z"),
 }));
@@ -124,5 +128,53 @@ describe("ensureSystemSchedules", () => {
           ?.prompt,
       );
     }
+  });
+
+  describe("when the insert deadlocks", () => {
+    const deadlock = Object.assign(new Error("deadlock detected"), {
+      code: "P2034",
+    });
+    const allButDreaming = SOKO_BOT_SYSTEM_SCHEDULES.filter(
+      (schedule) => schedule.key !== "dreaming",
+    ).map((schedule) => ({ systemKey: schedule.key }));
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      scheduleFindManyMock.mockResolvedValue(allButDreaming);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("retries it and logs nothing once it lands", async () => {
+      scheduleCreateMock.mockRejectedValueOnce(deadlock);
+      const ensured = ensureSystemSchedules(bot);
+      await vi.runAllTimersAsync();
+      await ensured;
+      expect(scheduleCreateMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("warns once its retries are used up", async () => {
+      scheduleCreateMock.mockRejectedValue(deadlock);
+      const entries = expectCoreLog(
+        "warn",
+        "A Soko Bot built-in rhythm was not created",
+      );
+      const ensured = ensureSystemSchedules(bot);
+      await vi.runAllTimersAsync();
+      await ensured;
+      expect(scheduleCreateMock.mock.calls.length).toBeGreaterThan(2);
+      expect(entries[0]?.why).toBe(
+        "Creating the schedule failed, or kept deadlocking with other writes after its retries",
+      );
+    });
+
+    it("stays quiet when another tick created the rhythm", async () => {
+      scheduleCreateMock.mockRejectedValue(
+        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      );
+      await ensureSystemSchedules(bot);
+      expect(scheduleCreateMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

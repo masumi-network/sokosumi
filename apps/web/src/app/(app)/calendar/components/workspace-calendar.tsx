@@ -766,7 +766,10 @@ function CalendarView({
         className="bg-card-background flex flex-col gap-4 rounded-xl p-3"
         data-testid="calendar-agenda"
       >
-        <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
+        {/* Panel section label, inset to match Files' day labels (24px from the panel edge). */}
+        <h2 className="text-muted-foreground px-3 text-xs font-medium">
+          {t("agenda.upcoming")}
+        </h2>
         {items.length === 0 ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
             {emptyState}

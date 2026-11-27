@@ -57,9 +57,8 @@ export async function createTaskEventTransaction(
       scope: input.scope,
       tx: input.tx,
       payer: {
-        // An empty id is no id, for the bucket choice and the debit alike: no
-        // row has one (measured on production, 2026-11-27), so only an id no
-        // row has is read differently than before the move.
+        // An empty id is no id, for the bucket choice and the debit alike;
+        // production has none (measured 2026-11-27).
         userId: input.userId || null,
         organizationId: input.organizationId || null,
         projectId: input.projectId ?? null,

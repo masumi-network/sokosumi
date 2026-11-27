@@ -15,7 +15,6 @@ const {
   getAgentImageMock,
   getAgentNameMock,
   creditCostFindManyMock,
-  getCreditCostsOrThrowMock,
   prismaTransactionMock,
   syncMetadataFindUniqueMock,
 } = vi.hoisted(() => ({
@@ -39,7 +38,6 @@ const {
   getAgentImageMock: vi.fn(),
   getAgentNameMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
 }));
@@ -66,15 +64,16 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 vi.mock("@/helpers/agent", () => ({
-  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
   getAgentImage: getAgentImageMock,
   getAgentName: getAgentNameMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
-  getCardanoV2ReadySources: () => Promise.resolve([]),
+}));
+
+vi.mock("@/lib/agent-catalog/availability", async (load) => ({
+  ...(await load<typeof import("@/lib/agent-catalog/availability")>()),
+  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
 }));
 
 vi.mock("@/helpers/agent-rating", () => ({
@@ -118,7 +117,6 @@ describe("agents routes auth gate", () => {
     );
 
     buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
     creditCostFindManyMock.mockResolvedValue([]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
     getAgentAuthorImageMock.mockReturnValue(null);
