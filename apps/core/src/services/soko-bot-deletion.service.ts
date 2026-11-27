@@ -14,6 +14,7 @@ import {
   memberSokoBot,
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
+import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -35,7 +36,8 @@ import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integratio
  * - `tombstoned`: Tasks, task events, billing usage or chat messages still
  *   reference it. Those are other people's records and must keep resolving, so
  *   an emptied, renamed row stays behind. A shared bot with a room is always
- *   tombstoned, so its room stays a read-only archive. The partial unique
+ *   tombstoned, and its room is archived: members find it under Archived,
+ *   and an org owner or admin can delete it. The partial unique
  *   index on `(userId, workspaceId) WHERE deleted_at IS NULL` is what lets it
  *   stay without blocking the owner's next bot.
  */
@@ -65,6 +67,23 @@ export interface SokoBotDeletionResult {
 }
 
 /** Everything the bot exclusively owns; none of it outlives the deletion. */
+/** Archives a shared bot's room; returns who to tell, or null if it was already archived. */
+async function archiveSharedRoom(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+): Promise<{ roomId: string; userIds: string[] } | null> {
+  const archived = await tx.chatRoom.updateMany({
+    where: { id: roomId, archivedAt: null },
+    data: { archivedAt: new Date() },
+  });
+  if (archived.count === 0) return null;
+  const members = await tx.chatRoomUserMember.findMany({
+    where: { roomId },
+    select: { userId: true },
+  });
+  return { roomId, userIds: members.map((member) => member.userId) };
+}
+
 async function eraseOwnedRecords(
   tx: Prisma.TransactionClient,
   sokoBotId: string,
@@ -213,8 +232,15 @@ export async function deleteSokoBot(
         },
         mentionMessageIds,
         integrations,
+        archivedRoom: null,
       };
     }
+
+    // A tombstone never comes back, so its room would stay in every member's
+    // list for good: archive it with the bot (SOKD-487).
+    const archivedRoom = bot.sharedRoomId
+      ? await archiveSharedRoom(tx, bot.sharedRoomId)
+      : null;
 
     await tx.sokoBot.update({
       where: { id: bot.id },
@@ -258,8 +284,14 @@ export async function deleteSokoBot(
       },
       mentionMessageIds,
       integrations,
+      archivedRoom,
     };
   }, "Soko Bot deletion collided with active work");
+  if (deleted.archivedRoom)
+    await publishChatRoomsChanged({
+      ...deleted.archivedRoom,
+      collections: ["active", "archived"],
+    });
   await revokeSubscriptionsLeftByEnding(live.projectId);
   const revocation = await revokeSokoBotIntegrationAccounts(
     sokoBotId,

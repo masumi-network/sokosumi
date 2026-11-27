@@ -133,7 +133,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         SELECT COALESCE(
                  SUM(
                    EXTRACT(EPOCH FROM (
-                     LEAST(COALESCE(s.next_at, now()), ${to})
+                     LEAST(COALESCE(s.next_at, now() AT TIME ZONE 'UTC'), ${to})
                      - GREATEST(s.started_at, ${from})
                    ))
                  ),
@@ -199,7 +199,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         -- still-open run counting up to now.
         WHERE s.status = ${TaskStatus.RUNNING}::${sharedType("TaskStatus")}
           AND s.started_at < ${to}
-          AND COALESCE(s.next_at, now()) > ${from}
+          AND COALESCE(s.next_at, now() AT TIME ZONE 'UTC') > ${from}
       `;
       return Math.max(0, Math.round(Number(rows[0]?.seconds ?? 0) / 60));
     };

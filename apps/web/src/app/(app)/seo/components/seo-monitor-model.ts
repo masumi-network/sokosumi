@@ -79,15 +79,38 @@ export type SeoMonitorChangeSummary =
       fixed: number;
       drops: number;
       rises: number;
+      lostCitations: number;
     };
 
-export function seoMonitorChangeSummary(
+/**
+ * A change as the card reads it. A Core build from before the lost citations sends neither field: it reads as no
+ * lost citation.
+ */
+export function seoMonitorChangeOf(
   change: ProjectSeoMonitorChange | null,
+): ProjectSeoMonitorChange | null {
+  return (
+    change && {
+      ...change,
+      lostCitations: change.lostCitations ?? [],
+      lostCitationCount: change.lostCitationCount ?? 0,
+    }
+  );
+}
+
+export function seoMonitorChangeSummary(
+  raw: ProjectSeoMonitorChange | null,
 ): SeoMonitorChangeSummary {
+  const change = seoMonitorChangeOf(raw);
   if (!change) return { kind: "none" };
   if (!change.comparable) return { kind: "notComparable" };
   const rises = change.moveCount - change.dropCount;
-  if (!change.newFailureCount && !change.fixedCount && !change.moveCount)
+  if (
+    !change.newFailureCount &&
+    !change.fixedCount &&
+    !change.moveCount &&
+    !change.lostCitationCount
+  )
     return { kind: "same" };
   return {
     kind: "changed",
@@ -95,6 +118,7 @@ export function seoMonitorChangeSummary(
     fixed: change.fixedCount,
     drops: change.dropCount,
     rises,
+    lostCitations: change.lostCitationCount,
   };
 }
 

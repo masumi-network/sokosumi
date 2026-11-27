@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { PageListSearchContext } from "@/components/page-list-search";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useFormatter: () => ({ dateTime: () => "Nov 16, 2026" }),
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key} ${Object.values(values).join(" ")}` : key,
+  useFormatter: () => ({
+    dateTime: () => "Nov 16, 2026",
+    relativeTime: () => "2h ago",
+  }),
 }));
 
 import { ApiKeysList } from "./api-keys-list";
@@ -86,4 +90,30 @@ it("puts a key name ahead of newer status matches on both the table and the phon
   const desktop = within(screen.getByRole("table"));
   expect(desktop.getAllByRole("row")[1]).toHaveTextContent(byName.name);
   expect(screen.queryByText("Hidden job")).not.toBeInTheDocument();
+});
+
+// Better Auth stamps `lastRequest` on each verified request. An empty one is
+// "no recorded use", never "never used": old keys may not be tracked.
+it("shows when each key was last used, or that no use is recorded", () => {
+  render(
+    <ApiKeysList
+      apiKeys={[
+        { ...apiKey, lastRequest: new Date(Date.now() - 2 * 3_600_000) },
+        { ...apiKey, id: "key_2", name: "Unused key", lastRequest: null },
+      ]}
+      isInitialLoading={false}
+      error={null}
+      onRetry={vi.fn()}
+      onToggleStatus={vi.fn()}
+      onDeleteClick={vi.fn()}
+    />,
+  );
+
+  const [used, unused] = screen.getAllByRole("listitem");
+  expect(used).toHaveTextContent("LastUsed.used 2h ago");
+  expect(unused).toHaveTextContent("LastUsed.none");
+  const table = within(screen.getByRole("table"));
+  expect(table.getByText("Table.lastUsed")).toBeInTheDocument();
+  expect(table.getByText("2h ago")).toBeInTheDocument();
+  expect(table.getByText("LastUsed.none")).toBeInTheDocument();
 });

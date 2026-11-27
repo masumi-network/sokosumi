@@ -32,14 +32,15 @@ import {
   privateLandingSourceSchema,
 } from "@/schemas/seo-landing-outcomes.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { withSeoActionImpact } from "./project-seo-action-impact";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
 import {
-  SEO_RANK_HISTORY_KINDS,
-  SEO_RANK_HISTORY_OBSERVATIONS,
-  withSeoRankings,
-} from "./project-seo-rankings";
+  loadSeoRankPoints,
+  loadSeoRankSources,
+} from "./project-seo-rank-sources";
+import { seoRankKeys, withSeoRankings } from "./project-seo-rankings";
 import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
   canConfirmSeoCompetitor,
@@ -499,6 +500,8 @@ export async function getProjectSeoWorkspace(
     includePrivateIndexing?: boolean;
     includePrivateReviews?: boolean;
     includeAuditPerformance?: boolean;
+    /** The caller's window length. The audit performance read brings the default one. */
+    actionImpact?: { days?: number; ownerId?: string };
   } = {},
 ) {
   await requireSeoOwner(actor);
@@ -552,17 +555,7 @@ export async function getProjectSeoWorkspace(
     }),
     listProjectSeoMonitors(actor),
     // Rank history has its own bound: metric syncs share the load above.
-    prisma.projectSeoObservation.findMany({
-      where: {
-        ...seoOwnerWhere(actor),
-        pageIds: { hasSome: scope.pageIds },
-        ownerId: null,
-        kind: { in: SEO_RANK_HISTORY_KINDS },
-      },
-      select: { id: true, observedAt: true, payload: true },
-      orderBy: { observedAt: "desc" },
-      take: SEO_RANK_HISTORY_OBSERVATIONS,
-    }),
+    loadSeoRankSources(actor, scope.pageIds, query),
     loadSeoBrandTerms(actor),
   ]);
   const taskIds = [
@@ -685,11 +678,18 @@ export async function getProjectSeoWorkspace(
     canSchedule: executor?.canSchedule === true,
     monitors,
   });
-  const actions = await pendingSeoActionReviews(
+  const reviewedActions = await pendingSeoActionReviews(
     actor,
     workspace,
     privateReviews,
   );
+  const impact =
+    options.actionImpact ??
+    (options.includeAuditPerformance && !actor.sokoBotId ? {} : null);
+  const actions =
+    impact && privateMetricsAllowed
+      ? await withSeoActionImpact(actor, reviewedActions, impact)
+      : reviewedActions;
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),
   );
@@ -706,9 +706,8 @@ export async function getProjectSeoWorkspace(
         actor,
         analyses.flatMap((a) =>
           a.kind === "audit_full" &&
-          a.requestedBy === actor.userId &&
           a.taskId &&
-          visibleTasks.has(a.taskId)
+          taskRows.some((task) => task.id === a.taskId && !task.archivedAt)
             ? [a.taskId]
             : [],
         ),
@@ -716,8 +715,11 @@ export async function getProjectSeoWorkspace(
           a.kind === "audit_full" &&
           a.requestedBy === actor.userId &&
           a.taskId &&
-          tasks.some(
-            (task) => task.id === a.taskId && task.status === "COMPLETED",
+          taskRows.some(
+            (task) =>
+              task.id === a.taskId &&
+              task.status === "COMPLETED" &&
+              !task.archivedAt,
           ) &&
           storedSeoAuditSearchConsoleSchema.safeParse(a.request).data
             ?.searchConsoleAccess
@@ -734,6 +736,10 @@ export async function getProjectSeoWorkspace(
         monitorOfTask.get(sourceTask.get(run.observationId) ?? "") ?? null,
     })),
   };
-  const ranked = withSeoRankings(monitored, rankSources);
+  const ranked = withSeoRankings(
+    monitored,
+    rankSources,
+    await loadSeoRankPoints(actor, seoRankKeys(monitored), query),
+  );
   return brandTerms ? { ...ranked, brandTerms } : ranked;
 }

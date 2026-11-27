@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { projectPageMetadata } from "@/app/projects/[projectId]/project-page-metadata";
 import { BrandKitDownloadButton } from "@/app/projects/components/brand-kit-download-button";
 import { DesignMdDocument } from "@/app/projects/components/design-md-document";
 import {
@@ -21,6 +23,19 @@ export const instant = false;
 
 interface ProjectDesignPageProps {
   params: Promise<{ projectId: string }>;
+}
+
+/** The section's name, then the project's, as the tab title. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}): Promise<Metadata> {
+  const [{ projectId }, t] = await Promise.all([
+    params,
+    getTranslations("App.Projects.Detail"),
+  ]);
+  return projectPageMetadata(projectId, t("tabs.design"));
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import type { TaskTagSuggestion } from "@sokosumi/core-client";
+import { hideSeoAuditRequest } from "@sokosumi/utils";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTaskTagCatalog } from "@/app/tasks/components/task-tag-catalog";
 
@@ -41,7 +42,10 @@ export function useTaskTagSuggestions({
 }: DraftInput) {
   const catalog = useTaskTagCatalog();
   const normalizedName = name.trim().replace(/\s+/g, " ");
-  const normalizedDescription = description.trim().replace(/\s+/g, " ");
+  // Redact first: the request line is found by its line start, which the flattening removes.
+  const normalizedDescription = (hideSeoAuditRequest(description) ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
   const input = { name: normalizedName, description: normalizedDescription };
   const inputKey = JSON.stringify([
     workspaceKey,

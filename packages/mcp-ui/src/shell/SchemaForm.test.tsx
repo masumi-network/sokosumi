@@ -104,6 +104,33 @@ describe("SchemaForm", () => {
     ).toHaveLength(3);
   });
 
+  it("humanises a field the agent named only by its key (SOKD-497)", () => {
+    renderForm(
+      InputSchema.parse({
+        input_data: [
+          {
+            id: "mediaType",
+            type: "option",
+            name: "mediaType",
+            data: { values: ["image", "video"] },
+          },
+          { id: "file", type: "file", name: "file", data: {} },
+          { id: "target_url", type: "string", name: "target_url" },
+          { id: "seo-score", type: "boolean", name: "seo-score" },
+          { id: "apiKey", type: "string", name: "API key name" },
+        ],
+      }),
+    );
+
+    expect(screen.getByText("Media type")).toBeTruthy();
+    expect(screen.getByText("File")).toBeTruthy();
+    expect(field("Target url")).toBeTruthy();
+    expect(field("Seo score")).toBeTruthy();
+    // A name the agent wrote stays as written.
+    expect(field("API key name")).toBeTruthy();
+    expect(screen.queryByText("mediaType")).toBeNull();
+  });
+
   it("shows inline errors, focuses the first and does not submit", () => {
     const onSubmit = renderForm(
       InputSchema.parse({ input_data: FIELDS.slice(0, 6) }),

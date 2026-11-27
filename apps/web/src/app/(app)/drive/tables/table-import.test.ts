@@ -1,8 +1,9 @@
 import { tableInsertRowSchema } from "@sokosumi/utils";
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   isNumericCsvColumn,
   planCsvAppend,
+  sheetTableRows,
   tableImportBatches,
 } from "./table-import";
 
@@ -170,4 +171,24 @@ it("refuses a header that could fill two columns, or a column two headers fill",
   );
   expect(twice.ambiguous).toEqual(["Name", "name "]);
   expect(twice.newRows).toEqual([]);
+});
+
+describe("sheetTableRows", () => {
+  const cell = (text: string) => ({ text, numeric: false, bold: false });
+  it("drops empty rows, names blank headers and keeps every column", () => {
+    expect(
+      sheetTableRows(
+        [
+          [],
+          [cell("Name"), cell(""), cell("City")],
+          [cell(""), cell(""), cell("")],
+          [cell("Ada"), cell("x")],
+        ],
+        (number) => `Column ${number}`,
+      ),
+    ).toEqual([
+      ["Name", "Column 2", "City"],
+      ["Ada", "x", ""],
+    ]);
+  });
 });

@@ -1,9 +1,9 @@
-import type { OrganizationWorkspace } from "../../api/models/organization-workspace.js";
+import type { UserWorkspace } from "../../api/models/user-workspace.js";
+import { fetchOrganizationCallerSeat } from "../../api/services/organization-workspace-service.js";
 import {
-  fetchOrganizationCallerSeat,
-  fetchOrganizationWorkspaces,
-} from "../../api/services/organization-workspace-service.js";
-import { fetchPersonalWorkspaceAccess } from "../../api/services/personal-workspace-service.js";
+  fetchPersonalWorkspaceAccess,
+  fetchUserWorkspaces,
+} from "../../api/services/personal-workspace-service.js";
 import {
   type CommandContext,
   type CommandOptions,
@@ -20,17 +20,20 @@ interface WorkspacesCommandContext extends CommandContext {
 
 function printWorkspaces(
   stdout: CommandContext["stdout"],
-  workspaces: readonly OrganizationWorkspace[],
+  workspaces: readonly UserWorkspace[],
 ): void {
   if (!workspaces.length) {
-    writeText(stdout, ["No organization workspaces found."]);
+    writeText(stdout, ["No workspaces found."]);
     return;
   }
-  const lines = ["Organization workspaces"];
+  const lines = ["Workspaces"];
   for (const workspace of workspaces) {
     lines.push(
-      `${workspace.name || "Unnamed Organization Workspace"} [organization: ${workspace.organizationId}]`,
+      `${workspace.name || "Unnamed Workspace"} [workspace: ${workspace.workspaceId || "unknown"}]${workspace.preferred ? " (preferred)" : ""}`,
     );
+    if (workspace.kind) lines.push(`  kind: ${workspace.kind}`);
+    if (workspace.organizationId)
+      lines.push(`  organization: ${workspace.organizationId}`);
     if (workspace.slug) lines.push(`  slug: ${workspace.slug}`);
     if (workspace.role) lines.push(`  role: ${workspace.role}`);
   }
@@ -89,10 +92,7 @@ export async function runWorkspacesCommand({
     throw new Error(
       "Usage: sokosumi workspaces list | workspaces check ORGANIZATION_ID",
     );
-  const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
-    client,
-    signal,
-  );
-  if (json) writeJson(stdout, { workspaces: organizationWorkspaces });
-  else printWorkspaces(stdout, organizationWorkspaces);
+  const workspaces = await fetchUserWorkspaces(client, signal);
+  if (json) writeJson(stdout, { workspaces });
+  else printWorkspaces(stdout, workspaces);
 }

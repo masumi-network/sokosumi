@@ -71,6 +71,7 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
     ).id;
     scheduleId = (
       await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: "Hourly check",
@@ -134,6 +135,7 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
   const oneTime = async (name: string, runAt: string) =>
     (
       await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name,
@@ -355,6 +357,7 @@ describe.skipIf(!enabled)("Soko Bot schedule run changes", () => {
     // The hourly schedule and eight more are active; A and B are skipped.
     for (let i = 0; i < MAX_ACTIVE_SOKO_BOT_SCHEDULES - 2; i++) {
       await createSokoBotSchedule({
+        network: "mainnet",
         userId,
         workspaceId,
         name: `Filler ${i}`,

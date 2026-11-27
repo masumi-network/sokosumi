@@ -5,6 +5,7 @@ import {
   GATEWAY_INTERNAL_SERVER_ERROR,
 } from "@/lib/ai-gateway-budget-error";
 import prisma from "@/lib/db/prisma";
+import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import type { CaseOutcome } from "./eval-case-runner";
 
 const MAX_INFRASTRUCTURE_DETAIL_CHARS = 2_000;
@@ -25,7 +26,8 @@ export interface EvalInfrastructureFailure {
     | "provider_failure"
     | "runner_exited"
     | "chat_delivery_failed"
-    | "case_unsettled";
+    | "case_unsettled"
+    | "context_organizer_failed";
   stopsRun: boolean;
   message: string;
   detail: string;
@@ -76,6 +78,144 @@ export function infrastructureCaseOutcome(
         turnIds: [turnId],
       }
     : null;
+}
+
+/** The organizer's Jev log in a stored packet; undefined when no organizer ran. */
+function organizerJev(
+  packet: unknown,
+): { failed?: unknown } | null | undefined {
+  const organizer = (
+    packet as {
+      workspace?: { marketing?: { organizer?: { jev?: unknown } } | null };
+    } | null
+  )?.workspace?.marketing?.organizer;
+  if (!organizer || typeof organizer !== "object") return undefined;
+  const jev = organizer.jev;
+  return jev && typeof jev === "object" ? jev : null;
+}
+
+/** Turns whose context organizer lost its Jev read ran on fallback context. */
+export function organizerFailure(
+  packets: readonly unknown[],
+): EvalInfrastructureFailure | null {
+  const jevs = packets.map(organizerJev).filter((jev) => jev !== undefined);
+  const failed = jevs.filter((jev) => jev?.failed).length;
+  if (failed === 0) return null;
+  return {
+    code: "context_organizer_failed",
+    stopsRun: false,
+    message: "The context organizer's plan stand-in was unavailable",
+    detail: `${failed} of ${jevs.length} organized turn(s) lost the context pick and ran on fallback context, so the case measures that, not the bot`,
+  };
+}
+
+/**
+ * The turns woken by these turns' own waits: each wait_for receipt's watch,
+ * once fired. A wake runs beside the turn that waited (both under the chat
+ * turn that started them), so the parent chain alone never reaches it.
+ */
+export async function wokenTurnIds(
+  turnIds: readonly string[],
+): Promise<string[]> {
+  if (turnIds.length === 0) return [];
+  const waits = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: { in: [...turnIds] }, capability: "wait_for" },
+    select: { result: true },
+  });
+  const watchIds = waits.flatMap(({ result }) => {
+    const id = (result as { watchId?: unknown } | null)?.watchId;
+    return typeof id === "string" ? [id] : [];
+  });
+  if (watchIds.length === 0) return [];
+  const watches = await prisma.sokoBotWatch.findMany({
+    where: { id: { in: watchIds }, firedTurnId: { not: null } },
+    select: { firedTurnId: true },
+  });
+  return watches.flatMap(({ firedTurnId }) =>
+    firedTurnId ? [firedTurnId] : [],
+  );
+}
+
+/**
+ * A case's turns: these, every run under them and every wake they set, at any
+ * depth. A watch some other turn set (another case's) is never reached.
+ */
+export async function caseTurnIds(
+  turnIds: readonly string[],
+): Promise<string[]> {
+  const seen = new Set(turnIds);
+  let frontier = [...turnIds];
+  while (frontier.length) {
+    const [children, woken] = await Promise.all([
+      prisma.sokoBotTurn.findMany({
+        where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
+        select: { id: true },
+      }),
+      wokenTurnIds(frontier),
+    ]);
+    frontier = [
+      ...new Set([...children.map((child) => child.id), ...woken]),
+    ].filter((id) => !seen.has(id));
+    for (const id of frontier) seen.add(id);
+  }
+  return [...seen];
+}
+
+/**
+ * On a plan run, a case whose turns (or their background runs) lost the
+ * organizer's read is an infrastructure ERROR. On the gateway it stays scored:
+ * there a timeout is the product's own.
+ */
+export async function organizerCaseOutcome(
+  turnIds: readonly string[],
+  output: Record<string, unknown>,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CaseOutcome | null> {
+  if (!localChatGptPlanEnabled(env)) return null;
+  const snapshots = await prisma.sokoBotContextSnapshot.findMany({
+    where: { turnId: { in: await caseTurnIds(turnIds) } },
+    select: { packet: true },
+  });
+  const failure = organizerFailure(snapshots.map(({ packet }) => packet));
+  return failure
+    ? {
+        status: "ERROR",
+        checks: [],
+        output: { ...output, infrastructure: failure, notExecuted: false },
+        error: `${failure.message}: ${failure.detail}`,
+        turnIds: [...turnIds],
+      }
+    : null;
+}
+
+/**
+ * Asks the judge only when no turn of the case is excluded: the judge stores
+ * its grade on the turn, and an excluded turn must not carry one.
+ */
+export async function judgeUnlessExcluded<T>(
+  turnIds: readonly string[],
+  output: Record<string, unknown>,
+  judge: () => Promise<T>,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ excluded: CaseOutcome } | { judged: T }> {
+  const excluded = await organizerCaseOutcome(turnIds, output, env);
+  return excluded ? { excluded } : { judged: await judge() };
+}
+
+/**
+ * Every scored case passes here before it is stored, so all of its turns are
+ * checked: follow-ups, finish turns, chain and month turns alike.
+ */
+export async function guardOrganizer(
+  outcome: CaseOutcome,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CaseOutcome> {
+  if (outcome.status !== "PASSED" && outcome.status !== "FAILED")
+    return outcome;
+  return (
+    (await organizerCaseOutcome(outcome.turnIds, outcome.output, env)) ??
+    outcome
+  );
 }
 
 /** A hard cap stops each lane before its next start. Other lanes may be starting. */

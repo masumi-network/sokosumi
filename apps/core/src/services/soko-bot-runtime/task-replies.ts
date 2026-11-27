@@ -15,6 +15,7 @@ import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { buildSokoBotReaderTaskWhere } from "@/helpers/task-visibility";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
@@ -136,6 +137,7 @@ export async function updateAssignedTask(
     });
     await tx.sokoBotDelegation.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -325,6 +327,7 @@ export async function replyToTask(
     const status = nextStatus ?? task.status;
     await tx.sokoBotDelegation.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",

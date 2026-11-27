@@ -339,6 +339,7 @@ describe("SokoBotSchedulesSyncService", () => {
       deferred: 1,
     });
     expect(startTurnMock).toHaveBeenCalledWith({
+      network: "mainnet",
       userId: dueSchedule.requestedByUserId,
       workspaceId: dueSchedule.workspaceId,
       sokoBotId: dueSchedule.sokoBotId,
@@ -1531,5 +1532,84 @@ describe("SokoBotSchedulesSyncService", () => {
       data: { enabled: false },
     });
     expect(scheduleUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("intersects persisted OwnerAuthority on fired schedule routes for draft_only, schedule_posts, expired, and malformed grants", async () => {
+    const storedCaps = [
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+      "cancel_social_post",
+    ];
+    const baseAuth = {
+      version: 1,
+      grantId: "grant-sync-1",
+      origin: "owner_chat",
+      sokoBotId: dueSchedule.sokoBotId,
+      workspaceId: dueSchedule.workspaceId,
+      ownerUserId: dueSchedule.requestedByUserId,
+      rootTurnId: "turn-root-1",
+      targetScope: { kind: "workspace" },
+      scheduleId: dueSchedule.id,
+      scope: "owner_writes",
+      socialMode: "draft_only",
+      stopRule: { mode: "never" },
+    };
+
+    const fireWithAuthority = async (authority: unknown) => {
+      startTurnMock.mockClear();
+      runFindFirstMock.mockResolvedValue(null);
+      dueScheduleFindFirstMock.mockResolvedValue({
+        ...dueSchedule,
+        capabilityNames: storedCaps,
+        authority,
+        sokoBot: {
+          userId: dueSchedule.requestedByUserId,
+          projectId: null,
+          versionId: "v36",
+        },
+      });
+      await new SokoBotSchedulesSyncService().syncDueSchedules({
+        shouldContinue: continueFor(1),
+      });
+      return startTurnMock.mock.calls[0]?.[0]?.presetRoute as {
+        capabilities?: string[];
+        sandbox?: boolean;
+      };
+    };
+
+    const draftOnlyRoute = await fireWithAuthority(baseAuth);
+    expect(draftOnlyRoute.capabilities).toEqual([
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+    ]);
+
+    const schedulePostsRoute = await fireWithAuthority({
+      ...baseAuth,
+      socialMode: "schedule_posts",
+    });
+    expect(schedulePostsRoute.capabilities).toEqual([
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+    ]);
+
+    const expiredRoute = await fireWithAuthority({
+      ...baseAuth,
+      socialMode: "schedule_posts",
+      expiresAt: "2020-01-01T00:00:00.000Z",
+    });
+    expect(expiredRoute.capabilities).toEqual(["list_social_posts"]);
+    expect(expiredRoute.sandbox).toBe(false);
+
+    const malformedRoute = await fireWithAuthority({ invalid: true });
+    expect(malformedRoute.capabilities).toEqual(["list_social_posts"]);
+    expect(malformedRoute.sandbox).toBe(false);
   });
 });

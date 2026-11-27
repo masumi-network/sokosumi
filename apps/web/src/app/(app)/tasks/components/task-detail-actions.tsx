@@ -108,9 +108,10 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     chatRooms,
     setChatRooms,
     isChatRoomsLoading,
-    newTaskWizard,
     handleDuplicate,
     handleRepeat,
+    canRepeat,
+    canDuplicate,
     handleSendToChat,
     canMutateTask,
     statusActions,
@@ -134,6 +135,13 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     handleRemoveRelated,
   } = model;
   const actionsDisabled = model.actionsDisabled || subtaskActions.isPending;
+  // A separator follows a group only when that group shows an action.
+  const hasFirstGroup =
+    canEdit ||
+    canRepeat ||
+    canDuplicate ||
+    sendToChat !== undefined ||
+    statusActions.length > 0;
   const returnFocusToMenu = (event: Event) => {
     event.preventDefault();
     menuTriggerRef.current?.focus();
@@ -196,7 +204,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
               </DropdownMenuItem>
             ) : null}
 
-            {taskBlueprint ? (
+            {canRepeat ? (
               <DropdownMenuItem
                 disabled={actionsDisabled || isRepeatLoading}
                 onSelect={handleRepeat}
@@ -213,7 +221,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
               </DropdownMenuItem>
             ) : null}
 
-            {taskBlueprint && newTaskWizard ? (
+            {canDuplicate ? (
               <DropdownMenuItem
                 disabled={actionsDisabled}
                 onSelect={handleDuplicate}
@@ -265,8 +273,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
               );
             })}
 
-            {(canEdit || taskBlueprint || statusActions.length > 0) &&
-            (canManageRelations || canMove) ? (
+            {hasFirstGroup && (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
 
@@ -536,11 +543,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
             ) : null}
 
             {canArchiveTask &&
-            (statusActions.length > 0 ||
-              canEdit ||
-              taskBlueprint ||
-              canManageRelations ||
-              canMove) ? (
+            (hasFirstGroup || canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
 

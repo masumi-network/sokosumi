@@ -2,7 +2,7 @@
 
 A Soko Bot's face is a **feature code** (`v1.<animal>.<bg>.<body>.<mark>.<l|r>.<S|M|L>.<eyes>.<mouth>.<cheeks>.<hat>`) over 16 traced animals, drawn as SVG by `@sokosumi/soko-bot`. `SokoBot.avatarCode` holds it and is unique, so no two bots look alike. `avatarImageUrl` stays and holds a 512 px WebP still of the code (Blob `soko-bots/avatars/code/<code>.webp`), so every API field and client that shows the bot as a plain image keeps working.
 
-Supersedes the pool part of [0064](0064-soko-bot-avatars-are-original-style-again.md): new bots get a random free code instead of claiming a generated picture. `avatarId` keeps working until the pool is deleted.
+Supersedes the pool part of [0064](0064-soko-bot-avatars-are-original-style-again.md): new bots get a random free code instead of claiming a generated picture.
 
 **Why:** the pool costs a paid image per avatar and a top-up wait, and its pictures cannot move or react. A code is free, instant, unique by construction, and renders live in Web.
 

@@ -132,6 +132,28 @@ const boardResult = (data: unknown[], total: number) => ({
   _meta: sokosumi,
 });
 
+const TEAM_STATUSES = [
+  "DRAFT",
+  "READY",
+  "RUNNING",
+  "INPUT_REQUIRED",
+  "COMPLETED",
+];
+const TEAM = [ada, grace, analyst, bot, null];
+/**
+ * A team board as tasks_show_board returns it: the 100 newest of 1,586
+ * Tasks, descriptions null (`includeDescription: "false"`, SOKD-496).
+ */
+const TEAM_TASKS = Array.from({ length: 100 }, (_, index) => ({
+  ...task(
+    1586 - index,
+    `Team Task ${1586 - index}`,
+    TEAM_STATUSES[index % 5] ?? "READY",
+    TEAM[index % TEAM.length] ?? null,
+  ),
+  description: null,
+}));
+
 /** `tasks_show_board` results: `tasks_list`'s, with Core's `_meta`. */
 export const BOARD = {
   input: { workspace: "acme", limit: 20 },
@@ -145,6 +167,13 @@ export const BOARD = {
     })),
     4,
   ),
+  team: boardResult(TEAM_TASKS, 1586),
+  /** One canceled Task, from a call that filters by status (SOKD-497). */
+  canceled: boardResult(
+    BOARD_TASKS.filter(({ status }) => status === "CANCELED"),
+    1,
+  ),
+  canceledInput: { workspace: "acme", status: ["CANCELED"] },
   empty: boardResult([], 0),
 };
 
@@ -219,6 +248,33 @@ export const HIRE = {
 };
 
 const hireSchema = data(HIRE.schema, { _meta: sokosumi });
+/** An agent that names its fields only by their keys (Deepfake Detector). */
+const unlabelledSchema = data(
+  {
+    input_data: [
+      {
+        id: "file",
+        type: "file",
+        name: "file",
+        data: { description: "Image or Video only (max 5MB)" },
+      },
+      {
+        id: "mediaType",
+        type: "option",
+        name: "mediaType",
+        data: {
+          values: ["image", "video"],
+          description: "Select either Image or Video",
+        },
+        validations: [
+          { validation: "min", value: 1 },
+          { validation: "max", value: 1 },
+        ],
+      },
+    ],
+  },
+  { _meta: sokosumi },
+);
 const hireCalls = {
   agents_get: data(HIRE.agent),
   workspaces_credits: data(HIRE.balance),
@@ -440,10 +496,15 @@ const toolResult = (structuredContent: Record<string, unknown>) => ({
   structuredContent,
 });
 
-const DESCRIPTION = `Compare our plans with the three closest competitors in Germany, Austria and Switzerland.
+const DESCRIPTION = `Compare our plans with the **three closest competitors** in Germany, Austria and Switzerland.
+
+## What to collect
 
 - List each plan's monthly price and what it includes.
 - Note any free tier.
+
+Start from the [pricing brief](https://app.sokosumi.com/tasks/0196a000-0000-7000-8000-000000000012), not [the competitor's site](https://example.com/pricing).
+
 <b>Markup stays text.</b>`;
 
 const LONG_DESCRIPTION = `${DESCRIPTION}
@@ -810,6 +871,16 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
       result: BOARD.result,
     },
     personal: { input: {}, result: BOARD.personal },
+    team: {
+      input: { workspace: "acme", scope: "workspace", limit: 100 },
+      result: BOARD.team,
+      allWidths: true,
+    },
+    filtered: {
+      input: BOARD.canceledInput,
+      result: BOARD.canceled,
+      allWidths: true,
+    },
     loading: { input: BOARD.input },
     empty: { input: BOARD.input, result: BOARD.empty },
     error: {
@@ -822,6 +893,12 @@ export const FIXTURES: Record<string, Record<string, Fixture>> = {
   },
   "agents-hire": {
     default: { input: HIRE.input, result: hireSchema, calls: hireCalls },
+    unlabelled: {
+      input: HIRE.input,
+      result: unlabelledSchema,
+      calls: hireCalls,
+      allWidths: true,
+    },
     invalid: {
       step: "form",
       input: HIRE.input,

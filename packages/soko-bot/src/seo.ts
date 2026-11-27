@@ -1,6 +1,8 @@
 import {
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_SECONDS,
+  SEO_IMPACT_MAX_WINDOW_DAYS,
+  SEO_IMPACT_MIN_WINDOW_DAYS,
   SEO_MIN_AUDIT_USD,
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
@@ -127,6 +129,12 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
       to: date.optional(),
       channel: z.enum(SEO_TRAFFIC_CHANNELS).optional(),
       searchType: z.enum(SEO_SEARCH_TYPES).optional(),
+      impactDays: z
+        .number()
+        .int()
+        .min(SEO_IMPACT_MIN_WINDOW_DAYS)
+        .max(SEO_IMPACT_MAX_WINDOW_DAYS)
+        .optional(),
     })
     .strict()
     .refine(
@@ -286,7 +294,7 @@ export const SOKO_BOT_SEO_INPUT_SCHEMAS = {
 
 export const SOKO_BOT_SEO_DESCRIPTIONS = {
   get_seo_workspace:
-    "Read SEO pages, page groups, keywords, competitors, evidence, recommendations and timeline for the selected Sokosumi project. Filter Analytics by channel, including ai_assistant, and Search Console by searchType. Call related-page collections page groups, and analysis runs or reports audits. Source dates and coverage remain explicit. Private Google statistics appear only in the owner's private personal Soko Bot context. This does not refresh any data or spend provider usage.",
+    "Read SEO pages, page groups, keywords, competitors, evidence, recommendations and timeline for the selected Sokosumi project. Filter Analytics by channel, including ai_assistant, and Search Console by searchType. Call related-page collections page groups, and analysis runs or reports audits. Source dates and coverage remain explicit. Private Google statistics appear only in the owner's private personal Soko Bot context. There, a done action carries impact: Search Console clicks, impressions and average position of its page alone, for impactDays days before and after the day it was done (28 by default, 7 to 91; choose a short window for a recent action and a long one for a slow page). State too_early means the after-window is not final yet, not_measured means no audit read that page for those days, and low_counts means under 30 impressions in a window, so give no percent. The comparison does not rule out the season, other changes on the page or a Google update: say so when you report it. This does not refresh any data or spend provider usage.",
   list_seo_statistics_properties:
     "List Analytics or Search Console properties available through this owner's personal Soko Bot native connection. This does not create a connection. Use the returned property ID; never guess it.",
   add_seo_page:

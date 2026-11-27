@@ -307,6 +307,9 @@ export async function searchFiles(
        */
       catalogIncomplete: false,
       hasMore: page.hasMore,
+      // Selecting "all in this window" needs a cursor even when the window
+      // fits on one page and nextCursor is null (SOKD-486).
+      windowCursor: encodeSearchCursor({ v: 1, w: windowId, p: 0 }, secret),
       nextCursor: page.hasMore
         ? encodeSearchCursor(
             { v: 1, w: windowId, p: page.nextPosition },

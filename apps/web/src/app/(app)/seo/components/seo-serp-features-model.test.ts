@@ -81,6 +81,126 @@ describe("seoSerpMarkers", () => {
     expect(mark([0], true, null)).toEqual(["cited_checked"]);
   });
 
+  it("names a citation of the page's site apart from a citation of the page", () => {
+    const mark = (pageCited: boolean | null, siteCited?: boolean | null) =>
+      seoSerpMarkers(
+        [
+          series({}, [
+            point("01", {
+              aiOverview: {
+                ...ai(true, pageCited),
+                ...(siteCited === undefined ? {} : { siteCited }),
+              },
+            }),
+          ]),
+        ],
+        [seoTestKeyword()],
+      ).map((item) => (item.suspect ? "suspect" : item.aiOverview));
+    expect(mark(false, true)).toEqual(["site_cited"]);
+    expect(mark(null, true)).toEqual(["site_cited"]);
+    // The page's own citation says more than the site's.
+    expect(mark(true, true)).toEqual(["cited"]);
+    expect(mark(false, false)).toEqual(["shown"]);
+    expect(mark(null, null)).toEqual(["undetermined"]);
+    // A read stored before the bot sent siteCited keeps its old mark.
+    expect(mark(false)).toEqual(["shown"]);
+    expect(mark(null)).toEqual(["undetermined"]);
+  });
+
+  it("does not name the row's site when a check of two sites cites only the other", () => {
+    const mark = (
+      pageUrl: string | null,
+      citedDomains: string[],
+      first = "https://a.test/page",
+      second = "https://b.test/page",
+    ) =>
+      seoSerpMarkers(
+        [
+          series({ pageUrls: [first, second] }, [
+            point("01", {
+              pages: [0, 1],
+              aiOverview: { ...ai(true, false), siteCited: true, citedDomains },
+            }),
+          ]),
+        ],
+        [seoTestKeyword({ pageUrl })],
+      ).map((item) => (item.suspect ? "suspect" : item.aiOverview));
+    expect(mark("https://a.test/page", ["b.test"])).toEqual([
+      "site_cited_checked",
+    ]);
+    expect(mark("https://a.test/page", ["www.a.test"])).toEqual(["site_cited"]);
+    // A row without a page has no site of its own.
+    expect(mark(null, ["b.test"])).toEqual(["site_cited_checked"]);
+    // A trailing dot on the checked host names the same site.
+    const dotted = "https://a.test./page";
+    expect(mark(dotted, ["a.test"], dotted)).toEqual(["site_cited"]);
+    // Two checked pages of one site, one written with the dot: one site.
+    expect(mark(dotted, [], dotted, "https://a.test/other")).toEqual([
+      "site_cited",
+    ]);
+  });
+
+  it("lists no source for a stored value that names no host", () => {
+    const [mark] = seoSerpMarkers(
+      [
+        series({}, [
+          point("01", {
+            aiOverview: {
+              ...ai(true),
+              citedDomains: [
+                "https://www.rival.test/x",
+                "Reddit",
+                "",
+                "2026",
+                "editor@example.com",
+                "Rival.test.",
+                "bücher.test",
+                "aא.test",
+                "https://192.0.2.1/x",
+                "उदाहरण.भारत",
+              ],
+            },
+          }),
+        ]),
+      ],
+      [seoTestKeyword()],
+    );
+    expect(mark).toMatchObject({
+      aiSources: [
+        { domain: "rival.test", own: false },
+        { domain: "xn--bcher-kva.test", own: false },
+        { domain: "xn--p1b6ci4b4b3a.xn--h2brj9c", own: false },
+      ],
+    });
+  });
+
+  it("lists each cited site once, a checked page's site first", () => {
+    const [mark] = seoSerpMarkers(
+      [
+        series({ pageUrls: ["https://www.example.com/"] }, [
+          point("01", {
+            aiOverview: {
+              ...ai(true),
+              citedDomains: [
+                "rival.test",
+                "www.rival.test",
+                "www.example.com",
+                "example.com",
+              ],
+            },
+          }),
+        ]),
+      ],
+      [seoTestKeyword({ pageUrl: "https://www.example.com/" })],
+    );
+    expect(mark).toMatchObject({
+      aiSources: [
+        { domain: "example.com", own: true },
+        { domain: "rival.test", own: false },
+      ],
+    });
+  });
+
   it("reads the featured snippet, People also ask and other features of a check", () => {
     const [mark] = seoSerpMarkers(
       [

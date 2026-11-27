@@ -14,6 +14,7 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
+import { historyDescriptionMatch } from "@/helpers/seo-audit-search-hits";
 import type prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
@@ -50,7 +51,10 @@ export interface BuildHistoryWhereParams {
   workspaceContext: WorkspaceContext;
 }
 
-type HistoryPrismaClient = Pick<typeof prisma, "$queryRaw" | "job" | "task">;
+type HistoryPrismaClient = Pick<
+  typeof prisma,
+  "$queryRaw" | "history" | "job" | "task"
+>;
 
 const ARCHIVED_STATUS = "archived";
 const ACTIVE_STATUS = "active";
@@ -416,22 +420,6 @@ export async function buildHistoryWhere(
     );
   }
 
-  if (params.q) {
-    const resultJobIds = params.types.includes(HistoryKind.JOB)
-      ? await findJobIdsWithResultMatching(params, prismaClient)
-      : [];
-
-    andClauses.push({
-      OR: [
-        { title: { contains: params.q, mode: "insensitive" } },
-        { description: { contains: params.q, mode: "insensitive" } },
-        ...(resultJobIds.length > 0
-          ? [{ kind: HistoryKind.JOB, entityId: { in: resultJobIds } }]
-          : []),
-      ],
-    });
-  }
-
   if (params.scope === "workspace") {
     andClauses.push(
       await buildHumanHistoryVisibilityWhere(
@@ -440,6 +428,28 @@ export async function buildHistoryWhere(
         prismaClient,
       ),
     );
+  }
+
+  if (params.q) {
+    const resultJobIds = params.types.includes(HistoryKind.JOB)
+      ? await findJobIdsWithResultMatching(params, prismaClient)
+      : [];
+
+    // A hit inside a full audit's hidden `seo_audit` line is no hit.
+    const descriptionMatch = await historyDescriptionMatch(
+      params.q,
+      { AND: [...andClauses] },
+      prismaClient,
+    );
+    andClauses.push({
+      OR: [
+        { title: { contains: params.q, mode: "insensitive" } },
+        descriptionMatch,
+        ...(resultJobIds.length > 0
+          ? [{ kind: HistoryKind.JOB, entityId: { in: resultJobIds } }]
+          : []),
+      ],
+    });
   }
 
   return { AND: andClauses };

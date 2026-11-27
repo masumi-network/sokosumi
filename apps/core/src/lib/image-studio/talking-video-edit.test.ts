@@ -459,6 +459,39 @@ describe("planShortVideo", () => {
     expect(plan.hookSeconds).toBeCloseTo(plan.lines[0]!.start);
   });
 
+  it("keeps a launch's date card for the sentence that says when", () => {
+    const plan = planShortVideo(FIVE, 5, { ...options, format: "launch" })!;
+    const second = plan.cuts.findIndex(
+      (_, index) => plan.cutSentence[index] === 1,
+    );
+    const at = plan.cuts
+      .slice(0, second)
+      .reduce((sum, cut) => sum + cut.end - cut.start, 0);
+
+    expect(plan.cardSpan).toEqual({
+      start: expect.closeTo(at),
+      end: expect.closeTo(
+        at + plan.cuts[second]!.end - plan.cuts[second]!.start,
+      ),
+      text: "One.",
+    });
+    // Its captions stay until the edit has drawn the card.
+    expect(plan.captions.length).toBeGreaterThan(0);
+    expect(
+      planShortVideo(FIVE, 5, { ...options, format: "voiceover" })!.cardSpan,
+    ).toBeUndefined();
+    // Told in one sentence, the date shows over that sentence.
+    const one = planShortVideo(FIVE.slice(0, 1), 1, {
+      ...options,
+      format: "launch",
+    })!;
+    expect(one.cardSpan).toEqual({
+      start: 0,
+      end: expect.closeTo(one.speechSeconds),
+      text: "Stop.",
+    });
+  });
+
   it("puts a slideshow's words on its pictures instead of captions", () => {
     const plan = planShortVideo(FIVE, 5, { ...options, format: "slideshow" })!;
 

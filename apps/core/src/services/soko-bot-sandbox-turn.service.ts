@@ -50,6 +50,7 @@ import {
 } from "@/lib/soko-bot/stream-model-call";
 import {
   announceTurn,
+  changeTools,
   closeTurn,
   failTurn,
   finishTurn,
@@ -176,7 +177,10 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 }
 
 export interface SandboxTurnStart
-  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep" | "granted"> {
+  extends Omit<
+    PreparedTurn,
+    "inferenceRegion" | "meetingPrep" | "granted" | "requestPlan"
+  > {
   message: string;
   deadlineAt: string;
   budgetMs: number;
@@ -185,6 +189,8 @@ export interface SandboxTurnStart
   background: boolean;
   /** The owner's setup commands and allowed keys, when this turn has a shell. */
   shell?: SokoBotSandboxShell;
+  /** Tools whose completed call Core records as a change (planLoop). */
+  changeTools?: string[];
 }
 
 /** What the runner needs to run the loop; records the turn as started once. */
@@ -222,6 +228,8 @@ export async function startSandboxTurn(
   const {
     inferenceRegion: _region,
     meetingPrep: _meetingPrep,
+    // Already in the message below; the runner needs only planInherited.
+    requestPlan: _requestPlan,
     granted,
     ...turn
   } = prepared;
@@ -236,6 +244,7 @@ export async function startSandboxTurn(
     ...turn,
     message: shellNote ? `${message}\n\n${shellNote}` : message,
     ...(shell ? { shell } : {}),
+    ...(turn.planLoop ? { changeTools: [...changeTools()] } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
     budgetMs: Math.max(
       30_000,
@@ -274,9 +283,10 @@ export async function runSandboxTool(
       toolInput: input.toolInput,
     });
   }
+  // A planLoop version's plan is Core's; Core refuses it on any other.
   if (
     !isSokoBotCapability(capability) ||
-    isSokoBotSandboxCapability(capability)
+    (isSokoBotSandboxCapability(capability) && capability !== "update_plan")
   )
     throw badRequest("Unknown Sokosumi tool");
   return runTurnTool({
@@ -286,6 +296,27 @@ export async function runSandboxTool(
     toolInput: input.toolInput,
     cite: input.toolCallId !== undefined,
   });
+}
+
+/**
+ * The runner asks about the turn's plan (planLoop): with a draft answer, the
+ * done check; without one, the open steps for a nudge or the time-up report.
+ */
+export async function sandboxPlanNote(
+  claims: TurnTokenClaims,
+  input: { draft?: string },
+): Promise<string | null> {
+  await authorizeTurn(claims);
+  const { evaluateTurnDoneCheck, openStepsNote } = await import(
+    "@/lib/soko-bot/done-check"
+  );
+  return input.draft === undefined
+    ? openStepsNote(claims.turnId)
+    : evaluateTurnDoneCheck({
+        turnId: claims.turnId,
+        sessionId: claims.sessionId,
+        draft: input.draft,
+      });
 }
 
 const MAX_UPLOADS_PER_TURN = 20;

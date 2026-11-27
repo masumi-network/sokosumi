@@ -116,7 +116,8 @@ function SeoTrafficContent({
       model.data.searchQueries ||
       model.data.landingEngagementChange ||
       model.data.searchBreakdown ||
-      model.data.landingPages,
+      model.data.landingPages ||
+      model.data.aiAssistantPages,
   );
   const saved = (
     <>
@@ -138,7 +139,12 @@ function SeoTrafficContent({
             onApply={applyPages}
           />
           {hasReport ? (
-            <SeoSiteTrafficReportView key={scope + live.site} report={live} />
+            <SeoSiteTrafficReportView
+              key={scope + live.site}
+              report={live}
+              model={model}
+              brandLoading={query.isPlaceholderData}
+            />
           ) : live ? (
             <p role="status" className="text-muted-foreground text-sm">
               {t("siteTraffic.noRows")}
@@ -203,9 +209,11 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
   const source = model.data.searchQueries;
   const rows = source ? topPages(source.rows) : [];
   const keyEvents = seoKeyEvents(model.data.landingPages);
-  const keyEventsLabel = keyEvents?.label ?? "traffic.keyEvents";
   // One page's totals are on the Performance card; its listed-query sums would only disagree with them.
   if (!source || rows.length < MIN_PAGES_FOR_SELECTIONS) return null;
+  const keyEventsText = (
+    value: ReturnType<NonNullable<typeof keyEvents>["cell"]>,
+  ) => (typeof value === "number" ? format.number(value) : t(value));
   const rate = (value: number | null, percent = false) =>
     value === null
       ? t("none")
@@ -234,7 +242,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
           {keyEvents ? (
             <>
               {" · "}
-              {t(keyEventsLabel)} <SeoPeriod {...keyEvents.period} />
+              {t("traffic.keyEvents")} <SeoPeriod {...keyEvents.period} />
             </>
           ) : null}
           {keyEvents?.none ? ` · ${t("traffic.noKeyEvents")}` : null}
@@ -261,7 +269,7 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
               </TableHead>
               {keyEvents ? (
                 <TableHead className="text-right">
-                  {t(keyEventsLabel)}
+                  {t("traffic.keyEvents")}
                 </TableHead>
               ) : null}
               <TableHead>{t("pages.topQuery")}</TableHead>
@@ -306,11 +314,9 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
                 {keyEvents ? (
                   <TableCell
                     className="text-right tabular-nums"
-                    data-label={t(keyEventsLabel)}
+                    data-label={t("traffic.keyEvents")}
                   >
-                    {keyEvents.skipped.has(row.pageUrl)
-                      ? t("traffic.keyEventsNotRead")
-                      : rate(keyEvents.byPage.get(row.pageUrl) ?? null)}
+                    {keyEventsText(keyEvents.cell(row.pageUrl))}
                   </TableCell>
                 ) : null}
                 <TableCell

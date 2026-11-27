@@ -62,6 +62,7 @@ async function handle(
   const workspace = requireWorkspaceContext(c.var.workspaceContext);
   try {
     const result = await sokoBotControlPlane.startTurn({
+      network: c.var.networkScope.network,
       userId: auth.userId,
       workspaceId: workspace.workspaceId,
       ...(sokoBotId ? { sokoBotId } : {}),

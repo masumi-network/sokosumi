@@ -15,7 +15,7 @@ const DIRECTORIES = [
 // A file that must mention it goes here, with its reason.
 const ALLOWED: Record<string, string> = {
   "apps/core/src/test/split-layout.ts":
-    "test fixtures only: `withFixtureSchemas` sets a transaction-local path so trigger bodies that name a table without its schema resolve on the split layout (ticket 19)",
+    "test fixtures only: `withFixtureSchemas` sets a transaction-local path for a fixture's writes",
 };
 
 function mentionsSearchPath(text: string): boolean {

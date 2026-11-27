@@ -218,11 +218,17 @@ beforeEach(() => {
   m.issueDelete.mockResolvedValue({ count: 1 });
   // The owner typed this turn in their own chat.
   m.ownerTurn.mockResolvedValue({
+    id: "turn",
+    sokoBotId: BOT_ID,
+    workspaceId: NEWSLETTER_WORKSPACE_ID,
+    versionId: null,
     source: "CHAT",
     parentTurnId: null,
     askedByUserId: null,
+    requestedByUserId: "user",
     chainDepth: 0,
     chatMentionId: "mention",
+    sokoBot: { userId: "user" },
   });
   m.receipt.mockResolvedValue(null);
   m.receiptUpdate.mockResolvedValue({});

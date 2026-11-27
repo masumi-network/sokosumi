@@ -13,6 +13,7 @@ const { db, startTurnMock } = vi.hoisted(() => ({
     chatRoomMention: { findMany: vi.fn() },
     chatRoomSokoBotMember: { findUnique: vi.fn() },
     sokoBotIntegration: { findUnique: vi.fn() },
+    sokoBotSchedule: { findMany: vi.fn(), findFirst: vi.fn() },
     sokoBotWatch: {
       findFirst: vi.fn(),
       count: vi.fn(),
@@ -703,6 +704,255 @@ describe("syncSokoBotWatches", () => {
       db.sokoBotTurn.findMany.mockResolvedValue([]);
       await followUpConnectedApp("bot-1", "hubspot");
       expect(db.sokoBotWatch.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("OwnerAuthority persistence and legacy resume", () => {
+    it("persists OwnerAuthority on registerWatch without clamping to watch.expiresAt", async () => {
+      db.projectImageJob.findUnique.mockResolvedValue({
+        status: "QUEUED",
+        kind: "GENERATE",
+      });
+      await registerWatch(authorized(), {
+        kind: "studio_job",
+        id: "job-1",
+        projectId: "project-1",
+        then: "post it in #Sokosumi",
+      });
+      const createdData = db.sokoBotWatch.create.mock.calls[0][0].data;
+      expect(createdData.authority).toMatchObject({
+        version: 1,
+        grantId: "turn-1",
+        origin: "owner_chat",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        ownerUserId: "user-1",
+        targetScope: { kind: "project", projectId: "project-1" },
+        scope: "owner_writes",
+      });
+      expect(createdData.authority.expiresAt).toBeUndefined();
+    });
+
+    it("resumes legacy authority=null watches and clamps expired persisted watch authority to read-only", async () => {
+      db.projectImageJob.findUnique.mockResolvedValue({
+        status: "SUCCEEDED",
+        kind: "GENERATE",
+      });
+      // Legacy pre-migration row (`authority: null`) resumes with its owner chat tools.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        waiting({ authority: null }),
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[0][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
+
+      // Persisted expired OwnerAuthority degrades to read-only (drops post_chat).
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        waiting({
+          authority: {
+            version: 1,
+            grantId: "turn-1",
+            origin: "owner_chat",
+            sokoBotId: "bot-1",
+            workspaceId: "ws-1",
+            ownerUserId: "user-1",
+            rootTurnId: "turn-1",
+            targetScope: { kind: "project", projectId: "project-1" },
+            scope: "owner_writes",
+            socialMode: "full",
+            stopRule: { mode: "never" },
+            expiresAt: "2026-10-01T00:00:00.000Z",
+          },
+        }),
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[1][0].presetRoute.capabilities).toEqual([
+        "get_image",
+      ]);
+    });
+
+    it("preserves capabilities on Project Cuso watches even when watch.projectId is null and rejects mismatched projectId", async () => {
+      db.sokoBotTurn.findUnique.mockResolvedValue({
+        status: "COMPLETED",
+        finalAnswer: "Draft ready.",
+        backgroundTitle: "Research",
+      });
+      const cusoWatchAuthority = {
+        version: 1,
+        grantId: "turn-cmo",
+        origin: "owner_chat",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        ownerUserId: "user-1",
+        rootTurnId: "turn-cmo",
+        targetScope: { kind: "project", projectId: "project-cmo" },
+        scope: "owner_writes",
+        socialMode: "full",
+        stopRule: { mode: "never" },
+      };
+      const baseWait = waiting({
+        kind: "background_run",
+        targetId: "run-1",
+        projectId: null,
+        authority: cusoWatchAuthority,
+      });
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        {
+          ...baseWait,
+          turn: {
+            ...baseWait.turn,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "project-cmo" },
+          },
+        },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[0][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
+
+      // Mismatched explicit watch.projectId fails closed with zero tools.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        {
+          ...baseWait,
+          id: "watch-mismatch",
+          projectId: "project-other",
+          turn: {
+            ...baseWait.turn,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "project-cmo" },
+          },
+        },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[1][0].presetRoute.capabilities).toEqual(
+        [],
+      );
+    });
+
+    it("degrades watch wake capabilities to read-only when its bound schedule is disabled/deleted or rootTurnId is cancelled while keeping spent one-time schedules live", async () => {
+      const SCHED_ID = "01960000-0000-7000-8000-000000000701";
+      const ROOT_ID = "01960000-0000-7000-8000-000000000702";
+      db.projectImageJob.findUnique.mockResolvedValue({
+        status: "COMPLETED",
+        outputUrl: "https://example.com/out.png",
+        prompt: "Hero image",
+      });
+      const schedWatchAuthority = {
+        version: 1,
+        grantId: "sched-watch-grant",
+        origin: "owner_chat",
+        sokoBotId: "bot-1",
+        workspaceId: "ws-1",
+        ownerUserId: "user-1",
+        rootTurnId: ROOT_ID,
+        scheduleId: SCHED_ID,
+        targetScope: { kind: "project", projectId: "project-1" },
+        scope: "owner_writes",
+        socialMode: "schedule_posts",
+        stopRule: { mode: "never" },
+      };
+      const makeScheduleWatch = (id: string) => ({
+        ...waiting({ id, authority: schedWatchAuthority }),
+        turn: {
+          ...waiting().turn,
+          source: "SCHEDULE",
+        },
+      });
+
+      // 1. Enabled schedule + live root -> retains post_chat and get_image.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        makeScheduleWatch("watch-live"),
+      ]);
+      db.sokoBotSchedule.findMany.mockResolvedValueOnce([
+        {
+          id: SCHED_ID,
+          sokoBotId: "bot-1",
+          enabled: true,
+          runOnce: false,
+          lastRunAt: null,
+        },
+      ]);
+      db.sokoBotTurn.findMany.mockResolvedValueOnce([]);
+      await sync();
+      expect(startTurnMock.mock.calls[0][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
+
+      // 2. Disabled recurring schedule -> degrades to read-only (drops post_chat).
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        makeScheduleWatch("watch-paused"),
+      ]);
+      db.sokoBotSchedule.findMany.mockResolvedValueOnce([
+        {
+          id: SCHED_ID,
+          sokoBotId: "bot-1",
+          enabled: false,
+          runOnce: false,
+          lastRunAt: NOW,
+        },
+      ]);
+      db.sokoBotTurn.findMany.mockResolvedValueOnce([]);
+      await sync();
+      expect(startTurnMock.mock.calls[1][0].presetRoute.capabilities).toEqual([
+        "get_image",
+      ]);
+
+      // 3. Deleted schedule (empty rows) -> degrades to read-only.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        makeScheduleWatch("watch-deleted"),
+      ]);
+      db.sokoBotSchedule.findMany.mockResolvedValueOnce([]);
+      db.sokoBotTurn.findMany.mockResolvedValueOnce([]);
+      await sync();
+      expect(startTurnMock.mock.calls[2][0].presetRoute.capabilities).toEqual([
+        "get_image",
+      ]);
+
+      // 4. Cancelled rootTurnId -> degrades to read-only even when schedule is enabled.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        makeScheduleWatch("watch-cancelled-root"),
+      ]);
+      db.sokoBotSchedule.findMany.mockResolvedValueOnce([
+        {
+          id: SCHED_ID,
+          sokoBotId: "bot-1",
+          enabled: true,
+          runOnce: false,
+          lastRunAt: null,
+        },
+      ]);
+      db.sokoBotTurn.findMany.mockResolvedValueOnce([
+        { id: ROOT_ID, sokoBotId: "bot-1" },
+      ]);
+      await sync();
+      expect(startTurnMock.mock.calls[3][0].presetRoute.capabilities).toEqual([
+        "get_image",
+      ]);
+
+      // 5. Spent one-time schedule (`runOnce: true, lastRunAt: NOW`) stays live.
+      db.sokoBotWatch.findMany.mockResolvedValueOnce([
+        makeScheduleWatch("watch-spent-once"),
+      ]);
+      db.sokoBotSchedule.findMany.mockResolvedValueOnce([
+        {
+          id: SCHED_ID,
+          sokoBotId: "bot-1",
+          enabled: false,
+          runOnce: true,
+          lastRunAt: NOW,
+        },
+      ]);
+      db.sokoBotTurn.findMany.mockResolvedValueOnce([]);
+      await sync();
+      expect(startTurnMock.mock.calls[4][0].presetRoute.capabilities).toEqual([
+        "post_chat",
+        "get_image",
+      ]);
     });
   });
 });

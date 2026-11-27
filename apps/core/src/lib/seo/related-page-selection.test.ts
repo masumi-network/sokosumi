@@ -169,6 +169,17 @@ describe("related-page trust boundary", () => {
     };
     expect(originalSeoAuditPacket(request)).toEqual(original);
     expect(originalSeoAuditPacket(original)).toEqual(original);
+    expect(
+      originalSeoAuditPacket({
+        ...request,
+        fullAuditCostDetail: {
+          version: 1,
+          models: [],
+          dataForSeo: [],
+          steps: [],
+        },
+      }),
+    ).toEqual(original);
     expect(() =>
       originalSeoAuditPacket({ ...request, pageUrls: selected }),
     ).toThrow("invalid");

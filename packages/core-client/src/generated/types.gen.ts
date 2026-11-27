@@ -69,6 +69,7 @@ export type AdminSeoAlerts = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         } | null;
+        costDetail?: SeoFullAuditCostDetail | null;
     }>;
     connectionTotal: number;
     reconnect: number;
@@ -95,6 +96,99 @@ export type AdminSeoAlerts = {
         reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'speedPagesFailed' | 'editorialGemini' | 'editorialCodex' | 'editorialValidation' | 'webRiskNotRun' | 'webRiskFailed' | 'lighthouseFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
+    }>;
+};
+
+export type SeoFullAuditCostDetail = {
+    version: 1;
+    models: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        model: string;
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        provider: string | null;
+        calls: number;
+        microUsd: number | null;
+    }>;
+    dataForSeo: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        endpoint: string;
+        reads: number;
+        microUsd: number;
+    }>;
+    steps: Array<{
+        /**
+         * 1 to 200 characters, with no NUL character and no unpaired UTF-16 surrogate.
+         */
+        step: string;
+        modelMicroUsd: number;
+        dataForSeoMicroUsd: number;
+        otherApiMicroUsd: number;
+    }>;
+};
+
+export type AdminSeoActionImpact = {
+    hasNext: boolean;
+    pageSize: number;
+    items: Array<{
+        auditId: string | null;
+        projectId: string | null;
+        workspaceId: string;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        userId: string;
+        actions: Array<{
+            id: string;
+            pageUrl: string;
+            title: string;
+            impact: ProjectSeoActionImpact;
+        }>;
+    }>;
+};
+
+export type ProjectSeoActionImpact = {
+    anchor: string;
+    anchorKind: 'completed' | 'verified';
+    days: number;
+    state: 'measured' | 'too_early' | 'not_measured' | 'low_counts';
+    before: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+    after: {
+        from: string;
+        to: string;
+        clicks: number;
+        impressions: number;
+        position: number | null;
+    } | null;
+};
+
+export type AdminSeoImpactVerdicts = {
+    total: number;
+    rows: Array<{
+        id: string;
+        organizationSlug: string | null;
+        projectId: string;
+        projectName: string;
+        pageUrl: string;
+        suggestionTitle: string | null;
+        changeSource: 'cuso_done' | 'audit_recheck';
+        changedAt: Date;
+        crawledAt: Date | null;
+        windowStart: string | null;
+        windowEnd: string | null;
+        windowReadyOn: string | null;
+        state: 'waiting_crawl' | 'waiting_window' | 'not_measurable';
+        reason: 'no_cuso' | 'not_connected' | 'no_property' | 'inspection_failed' | 'not_crawled_yet' | null;
     }>;
 };
 
@@ -3691,6 +3785,24 @@ export type UpdateChatRoomRequest = {
      * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
      */
     groupName?: string | null;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    memberUserIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    coworkerIds?: Array<string>;
+    /**
+     * Ignored. Add members with POST /chats/rooms/{id}/members.
+     *
+     * @deprecated
+     */
+    sokoBotIds?: Array<string>;
 };
 
 /**
@@ -4698,6 +4810,9 @@ export type ContactUpsertResult = {
 };
 
 export type ContactMergeSuggestion = {
+    /**
+     * `same_name` is any duplicate group: the same name, or the same surname, first initial and company email domain. `GET /contacts/duplicates?contactId=` says which.
+     */
     reason: 'shared_channel' | 'same_name';
     contactIds: Array<string>;
 };
@@ -4732,6 +4847,10 @@ export type ContactMapContact = {
 
 export type ContactDuplicateGroup = {
     name: string;
+    /**
+     * Why they were grouped: `same_name` (the same name, case and spacing ignored) or `same_company` (the same surname and first initial, with emails at the same company domain).
+     */
+    reason: 'same_name' | 'same_company';
     contacts: Array<Contact>;
 };
 
@@ -5391,6 +5510,10 @@ export type LinkDriveGoogleSheetRequest = {
      * Folder to put the copy in; the Drive root when omitted
      */
     folder?: string;
+    /**
+     * The same as `folder`, as other Drive writes name it.
+     */
+    folderPath?: string;
 };
 
 export type DriveItems = Array<DriveItem>;
@@ -5717,19 +5840,6 @@ export type FileMetadataBatchResponse = {
     revisedCount: number | null;
 };
 
-export type FileMetadataBatchRequest = {
-    resourceIds?: Array<string>;
-    selectionToken?: string;
-    idempotencyKey: string;
-    addTagLabelIds?: Array<string>;
-    removeTagLabelIds?: Array<string>;
-    categoryLabelId?: string | null;
-    expectedRevisions?: Array<{
-        resourceId: string;
-        metadataRevision: number;
-    }>;
-};
-
 export type FileResource = {
     id: string;
     displayName: string;
@@ -5887,6 +5997,10 @@ export type FileSearchMeta = {
      */
     hasMore: boolean;
     nextCursor: string | null;
+    /**
+     * This result window, for `POST /drive/resources/selection-token` (`windowCursor`). Set on every page, also when the window fits on one page and `nextCursor` is null.
+     */
+    windowCursor: string;
     /**
      * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
      */
@@ -6995,7 +7109,7 @@ export type ProjectTalkingVideo = {
     siteShots: boolean;
     broll: boolean;
     music: boolean;
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | null;
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch' | null;
     shape: '9:16' | '4:5' | '1:1' | '16:9';
     sourceJobId: string | null;
 };
@@ -7106,9 +7220,9 @@ export type DesignMdWrite = {
      */
     content: string | null;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type MemberWithOrganization = {
@@ -7616,8 +7730,12 @@ export type User = {
 };
 
 export type UpdateUserName = {
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
+    /**
+     * The display name other members see. Omitted, it stays as it is.
+     */
+    name?: string;
 };
 
 export type OrganizationDeletionEvaluation = {
@@ -9659,6 +9777,34 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             costUsd?: number;
             floorAlertAt?: string;
         };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
+        };
         patched?: Array<{
             id: string;
             was: {
@@ -10010,6 +10156,34 @@ export type MarketingStrategyRequest = {
             error?: string;
             costUsd?: number;
             floorAlertAt?: string;
+        };
+        applyLog?: {
+            baseVersionId: string;
+            baseUpdatedAt: string;
+            state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+            startedAt: string;
+            updatedAt: string;
+            endedAt?: string;
+            ops?: Array<{
+                opId: string;
+                entryId: string;
+                kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+                postId: string | null;
+                prior: {
+                    status: string;
+                    scheduledAt: string | null;
+                    text: string;
+                    planning: string | null;
+                    socialConnectionId: string | null;
+                    revision: number;
+                } | null;
+                state: 'intent' | 'done' | 'refused';
+                reason?: string;
+                after?: {
+                    revision: number | null;
+                    postId: string | null;
+                };
+            }>;
         };
         patched?: Array<{
             id: string;
@@ -11786,6 +11960,8 @@ export type SocialPost = {
         videoOfTalking?: boolean;
         story?: string;
         claim?: string;
+        applyOpId?: string;
+        applyCreateOpId?: string;
     } | null;
     createdAt: Date;
     updatedAt: Date;
@@ -12197,7 +12373,12 @@ export type StudioBrandLook = {
 };
 
 export type SaveStudioBrandCopy = {
-    copy: StudioBrandCopy;
+    copy: StudioBrandCopy & {
+        /**
+         * The voice tone. Empty or omitted, the stored tone stays. A Project with no tone yet needs one.
+         */
+        tone?: string;
+    };
     version: Date | null;
 };
 
@@ -12265,6 +12446,9 @@ export type CreateProjectTalkingVideoJobRequest = {
     script: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
+    /**
+     * A stock presenter, `{"kind": "stock", "id": "<presenter id from the catalog>"}`, or the caller's own photo in Files, `{"kind": "file", "fileId": "<Drive file id>", "consent": true}`. Only a person can start a video of their own photo: an agent gets 403 `person_approval_required` with the Studio link to send the person to.
+     */
     presenter: {
         kind: 'stock';
         id: string;
@@ -12281,13 +12465,14 @@ export type CreateProjectTalkingVideoJobRequest = {
 };
 
 export type CreateProjectShortVideoJobRequest = {
-    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     script: string;
     hookLine?: string;
     voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
     languageCode?: string;
     pictureAssetIds?: Array<string>;
     pictureFileIds?: Array<string>;
+    launchDate?: string;
     shapes?: Array<'9:16' | '4:5' | '1:1' | '16:9'>;
     idempotencyKey: string;
 };
@@ -12302,7 +12487,7 @@ export type ProjectTalkingVideoScripts = {
 
 export type WriteProjectTalkingVideoScriptsRequest = {
     topic?: string;
-    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow';
+    format?: 'voiceover' | 'site_tour' | 'top_three' | 'slideshow' | 'launch';
     languageCode?: string;
 };
 
@@ -12434,6 +12619,7 @@ export type ProjectSeoWorkspace = {
     searchBreakdown?: ProjectSeoWorkspaceSearchBreakdown | null;
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
+    aiAssistantPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     siteEvidence?: ProjectSeoSiteEvidence | null;
@@ -12619,6 +12805,7 @@ export type ProjectSeoWorkspace = {
             from: Date;
             to: Date;
         } | null;
+        requester?: true;
         propertyDataExpired?: true;
         propertyTotals?: {
             clicks: number | null;
@@ -12976,6 +13163,8 @@ export type ProjectSeoKeyword = {
     intent: string | null;
     conversion: 'high' | 'medium' | 'low' | null;
     feature: string | null;
+    intentClass?: 'product' | 'comparison' | 'problem' | 'learn' | null;
+    fit?: 'direct' | 'partial' | null;
     device: 'mobile' | 'desktop' | null;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
@@ -12985,6 +13174,7 @@ export type ProjectSeoKeyword = {
     priority: 'low' | 'medium' | 'high';
     version: number;
     positionHistory?: Array<ProjectSeoPositionPoint>;
+    positionHistoryCut?: boolean;
 };
 
 export type ProjectSeoPositionPoint = {
@@ -12992,6 +13182,7 @@ export type ProjectSeoPositionPoint = {
     observationId: string;
     position: number | null;
     positionStatus: 'ranked' | 'not_in_range' | 'unavailable';
+    checkedResults?: number | null;
     device: 'mobile' | 'desktop' | null;
 };
 
@@ -13080,6 +13271,7 @@ export type ProjectSeoAction = {
     status: 'recommended' | 'needs_review' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
+    impact?: ProjectSeoActionImpact;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };
@@ -13142,6 +13334,7 @@ export type ProjectSeoKeywordSeries = {
     keywords: Array<{
         keyword: string;
         countryCode?: string;
+        from?: string;
         points: Array<{
             date: string;
             clicks: number;
@@ -13192,6 +13385,7 @@ export type ProjectSeoLandingPages = {
     }>;
     truncated?: boolean;
     skippedUrls?: Array<string>;
+    pageUrls: Array<string>;
     observationId: string;
     propertyId: string;
     from: string;
@@ -13421,6 +13615,7 @@ export type ProjectSeoSerpPoint = {
         asyncLoaded: boolean;
         citedDomains: Array<string>;
         pageCited: boolean | null;
+        siteCited?: boolean | null;
     } | null;
     featured: {
         domain: string | null;
@@ -13549,9 +13744,22 @@ export type ProjectSeoMonitorChange = {
         device: 'mobile' | 'desktop' | null;
         from: number;
         to: number;
+    } | {
+        keyword: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        from: number;
+        to: null;
+        checkedResults: number;
     }>;
     moveCount: number;
     dropCount: number;
+    lostCitations: Array<{
+        keyword: string;
+        device: 'mobile' | 'desktop';
+        shown: boolean;
+    }>;
+    lostCitationCount: number;
 };
 
 export type AddProjectSeoPageRequest = {
@@ -13590,6 +13798,9 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    /**
+     * Required for `kind: "audit_full"`: `{kind: "cost_plus", version: 1, minimumCredits: 750, markupPercent: 50}`. The audit costs its provider cost plus 50%, at least 750 credits. It has no credit cap: `fullAuditLimits.usd` bounds the provider cost. Leave out `maxCredits`. Confirm the price with the person first.
+     */
     fullAuditPrice?: {
         kind: 'cost_plus';
         version: 1;
@@ -13705,6 +13916,21 @@ export type SeoSiteTrafficReport = {
         date: string;
     }>;
     limited: boolean;
+    brand?: {
+        daily: Array<{
+            date: string;
+            branded: {
+                clicks: number;
+                impressions: number;
+            };
+            nonBranded: {
+                clicks: number;
+                impressions: number;
+            };
+        }>;
+        limited: boolean;
+        terms: Array<string>;
+    };
     pages: Array<{
         clicks: number;
         impressions: number;
@@ -13895,6 +14121,10 @@ export type CreateSeoAuditRequest = {
         relationship?: 'primary' | 'related';
     };
     projectId?: string;
+    /**
+     * Send the same key to retry a create: the first Audit comes back and no second one is made
+     */
+    idempotencyKey?: string;
 };
 
 export type SeoAuditWorkspaceMapping = {
@@ -15560,6 +15790,34 @@ export type CmoPlan = {
         costUsd?: number;
         floorAlertAt?: string;
     };
+    applyLog?: {
+        baseVersionId: string;
+        baseUpdatedAt: string;
+        state: 'applying' | 'applied' | 'undoing' | 'undone' | 'left';
+        startedAt: string;
+        updatedAt: string;
+        endedAt?: string;
+        ops?: Array<{
+            opId: string;
+            entryId: string;
+            kind: 'move' | 'update' | 'cancel' | 'create' | 'swap';
+            postId: string | null;
+            prior: {
+                status: string;
+                scheduledAt: string | null;
+                text: string;
+                planning: string | null;
+                socialConnectionId: string | null;
+                revision: number;
+            } | null;
+            state: 'intent' | 'done' | 'refused';
+            reason?: string;
+            after?: {
+                revision: number | null;
+                postId: string | null;
+            };
+        }>;
+    };
     patched?: Array<{
         id: string;
         was: {
@@ -16591,7 +16849,10 @@ export type SokoBotVersion = {
     }>;
     capabilities: Array<string> | null;
     inferenceRegion?: 'eu' | 'us' | null;
-    systemPrompt: string;
+    /**
+     * The composed system prompt. Sent to platform admins only, for the behaviour lab.
+     */
+    systemPrompt?: string;
 };
 
 export type UpdateSokoBotProactiveRequest = {
@@ -18430,6 +18691,80 @@ export type AblyTokenRequest = {
     mac: string;
 };
 
+export type RegistryAgent = {
+    /**
+     * Registry entry id. Use it as the pagination cursor.
+     */
+    id: string;
+    agentIdentifier: string;
+    name: string;
+    description: string | null;
+    status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
+    statusUpdatedAt: Date;
+    type: 'Standard' | 'OpenApi' | 'X402' | 'A2A';
+    paymentType: 'Web3CardanoV1' | 'Web3CardanoV2' | 'None';
+    apiBaseUrl: string | null;
+    openApiSpecUrl: string | null;
+    x402ResourcesUrl: string | null;
+    image: string | null;
+    tags: Array<string>;
+    capability: {
+        name: string | null;
+        version: string | null;
+    } | null;
+    author: {
+        name: string | null;
+        organization: string | null;
+        contactEmail: string | null;
+        contactOther: string | null;
+    };
+    legal: {
+        privacyPolicy: string | null;
+        terms: string | null;
+        other: string | null;
+    };
+    pricing: RegistryAgentPricing;
+    uptime: {
+        count: number;
+        checkCount: number;
+        lastCheckedAt: Date;
+    };
+    policyId: string | null;
+    supersedesAgentIdentifier: string | null;
+    supersededByAgentIdentifier: string | null;
+    createdAt: Date;
+};
+
+/**
+ * Null when the registry sends a pricing shape Core does not know.
+ */
+export type RegistryAgentPricing = {
+    pricingType: 'Fixed';
+    amounts: Array<{
+        amount: string;
+        unit: string;
+    }>;
+} | {
+    pricingType: 'Free';
+} | {
+    pricingType: 'Dynamic';
+} | null;
+
+export type RegistryAgentsPaginationMetadata = {
+    /**
+     * Cursor for the current page
+     */
+    cursor: string | null;
+    /**
+     * Number of items returned
+     */
+    limit: number;
+    /**
+     * Cursor for the next page
+     */
+    nextCursor: string | null;
+};
+
 export type VendorList = Array<Vendor>;
 
 export type VendorMembership = Vendor & {
@@ -18610,9 +18945,9 @@ export type AdHocDesignMdWrite = {
      */
     content: string;
     /**
-     * Extraction id of the generated DESIGN.md, when known
+     * Extraction id of the generated DESIGN.md, when known. Leave it out (or send null) for a DESIGN.md you wrote.
      */
-    extractionId: string | null;
+    extractionId?: string | null;
 };
 
 export type EffectiveDesignMd = {
@@ -19001,6 +19336,127 @@ export type ListAdminSeoAlertsResponses = {
 };
 
 export type ListAdminSeoAlertsResponse = ListAdminSeoAlertsResponses[keyof ListAdminSeoAlertsResponses];
+
+export type ListAdminSeoActionImpactData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: number;
+        page?: number;
+    };
+    url: '/admin/seo-action-impact';
+};
+
+export type ListAdminSeoActionImpactErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactError = ListAdminSeoActionImpactErrors[keyof ListAdminSeoActionImpactErrors];
+
+export type ListAdminSeoActionImpactResponses = {
+    /**
+     * Impact of done SEO actions
+     */
+    200: {
+        data: AdminSeoActionImpact;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoActionImpactResponse = ListAdminSeoActionImpactResponses[keyof ListAdminSeoActionImpactResponses];
+
+export type ListAdminSeoImpactVerdictsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        period?: '90' | '365' | 'all';
+    };
+    url: '/admin/seo-impact';
+};
+
+export type ListAdminSeoImpactVerdictsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsError = ListAdminSeoImpactVerdictsErrors[keyof ListAdminSeoImpactVerdictsErrors];
+
+export type ListAdminSeoImpactVerdictsResponses = {
+    /**
+     * Tracked SEO page changes
+     */
+    200: {
+        data: AdminSeoImpactVerdicts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoImpactVerdictsResponse = ListAdminSeoImpactVerdictsResponses[keyof ListAdminSeoImpactVerdictsResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -48040,6 +48496,9 @@ export type PostDriveResourcesSelectionTokenData = {
          */
         scope: 'me' | 'org';
         organizationId?: string;
+        /**
+         * The search response's `search.windowCursor` (any of its cursors names the same window).
+         */
         windowCursor: string;
     };
     headers?: {
@@ -48128,7 +48587,17 @@ export type PostDriveResourcesSelectionTokenResponses = {
 export type PostDriveResourcesSelectionTokenResponse = PostDriveResourcesSelectionTokenResponses[keyof PostDriveResourcesSelectionTokenResponses];
 
 export type PostDriveResourcesMetadataBatchData = {
-    body: FileMetadataBatchRequest & {
+    body: {
+        resourceIds?: Array<string>;
+        selectionToken?: string;
+        idempotencyKey: string;
+        addTagLabelIds?: Array<string>;
+        removeTagLabelIds?: Array<string>;
+        categoryLabelId?: string | null;
+        expectedRevisions?: Array<{
+            resourceId: string;
+            metadataRevision: number;
+        }>;
         /**
          * Drive file owner scope: 'me' for personal, 'org' for organization
          */
@@ -95767,6 +96236,21 @@ export type SetCmoSeoSuggestionStatusForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * The suggestion changed while it was saved
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type SetCmoSeoSuggestionStatusForProjectError = SetCmoSeoSuggestionStatusForProjectErrors[keyof SetCmoSeoSuggestionStatusForProjectErrors];
@@ -106538,6 +107022,10 @@ export type GetTasksData = {
          */
         includeSubtasks?: 'true' | 'false';
         /**
+         * false sends each Task's `description` as null, for a list of many Tasks such as a board. A description can be long; read one with GET /tasks/{id}. Defaults to true.
+         */
+        includeDescription?: 'true' | 'false';
+        /**
          * true lists only Tasks where a comment mentions the caller and the caller has not commented since. It narrows the Tasks that `scope` selects, so send scope=workspace to include a teammate's Tasks. It also lists sub-tasks. People only; coworkers and Soko Bots get 400.
          */
         unansweredMention?: 'true' | 'false';
@@ -112130,6 +112618,10 @@ export type PostTasksByIdEventsSeoSettlementV1Data = {
             dataForSeoMicroUsd: number;
             otherApiMicroUsd: number;
         };
+        /**
+         * Optional display-only cost breakdown (SeoFullAuditCostDetail). An invalid detail is not stored and does not change the charge.
+         */
+        fullAuditCostDetail?: unknown;
     };
     path: {
         id: string;
@@ -114898,6 +115390,151 @@ export type PostRealtimeAblyTokenResponses = {
 };
 
 export type PostRealtimeAblyTokenResponse = PostRealtimeAblyTokenResponses[keyof PostRealtimeAblyTokenResponses];
+
+export type ListRegistryAgentsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * `nextCursor` from the previous page.
+         */
+        cursor?: string;
+        /**
+         * Number of agents to return (max 48).
+         */
+        limit?: number;
+        /**
+         * Filter by registry status. Supports repeated values and comma-separated lists. Omit to return every status.
+         */
+        status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
+    };
+    url: '/registry/agents';
+};
+
+export type ListRegistryAgentsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * API key required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid query
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Registry read budget used up
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Masumi registry unavailable
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListRegistryAgentsError = ListRegistryAgentsErrors[keyof ListRegistryAgentsErrors];
+
+export type ListRegistryAgentsResponses = {
+    /**
+     * One page of registry agents, newest first
+     */
+    200: {
+        data: Array<RegistryAgent>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: RegistryAgentsPaginationMetadata;
+        };
+    };
+};
+
+export type ListRegistryAgentsResponse = ListRegistryAgentsResponses[keyof ListRegistryAgentsResponses];
 
 export type ListVendorsData = {
     body?: never;

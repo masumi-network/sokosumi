@@ -9,7 +9,7 @@
       "mcp": "agents_get"
     },
     "GET /agents/{id}/input-schema": {
-      "cli": "agents hire",
+      "cli": "agents input-schema",
       "mcp": "agents_input_schema"
     },
     "GET /agents/{id}/jobs": {

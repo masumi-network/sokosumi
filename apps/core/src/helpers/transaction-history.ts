@@ -454,7 +454,7 @@ export async function findTransactionDailySpend(
     Array<{ day: string; spent: bigint }>
   >`
     SELECT
-      TO_CHAR(ledger."consumedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "day",
+      TO_CHAR(ledger."consumedAt", 'YYYY-MM-DD') AS "day",
       SUM(-ledger."amount")::BIGINT AS "spent"
     FROM (${buildLedgerSql(params)}) AS ledger
     ${buildWhereSql([...buildFilterSql(params), PrismaRaw.sql`ledger."amount" < 0`])}

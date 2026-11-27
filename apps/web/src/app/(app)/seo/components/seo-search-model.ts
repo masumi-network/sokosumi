@@ -124,14 +124,23 @@ export type SeoKeywordTrend =
   | { state: "absent" }
   /** The last sync did not ask for this keyword (tracked later, or over the limit). */
   | { state: "not_requested" }
-  /** Asked for, but Google listed no impressions for it in the period. */
-  | { state: "empty" }
-  | { state: "measured"; points: { date: string; value: number | null }[] };
+  /**
+   * Asked for, but the read has no rows for it in the period. `truncated`: the read stopped at its row limit,
+   * so the rows can be missing and not the impressions.
+   */
+  | { state: "empty"; truncated: boolean }
+  | {
+      state: "measured";
+      points: { date: string; value: number | null }[];
+      /** The read stopped at its row limit, so a day without a value can be a day Google did not return. */
+      truncated: boolean;
+    };
 
 /**
- * One tracked keyword's daily average position from the last Search Console sync.
- * Days run from the read's first day to the last day Google reported for any
- * tracked keyword; a day without impressions is a gap, never a zero.
+ * One tracked keyword's daily average position from the last Search Console sync,
+ * with the older days Core added from earlier syncs. Days run from the first day
+ * read to the last day Google reported for any tracked keyword; a day without
+ * impressions is a gap, never a zero.
  */
 export function keywordTrend(
   queries: ProjectSeoWorkspace["searchQueries"],
@@ -148,7 +157,8 @@ export function keywordTrend(
       (!item.countryCode || item.countryCode === countryCode),
   );
   if (!entry) return { state: "not_requested" };
-  if (!entry.points.length) return { state: "empty" };
+  if (!entry.points.length)
+    return { state: "empty", truncated: series.truncated };
   const last = series.keywords
     .flatMap((item) => item.points.map((point) => point.date))
     .reduce((latest, date) => (date > latest ? date : latest));
@@ -157,14 +167,14 @@ export function keywordTrend(
   );
   const points: { date: string; value: number | null }[] = [];
   for (
-    let day = Date.parse(`${queries.from}T00:00:00Z`);
+    let day = Date.parse(`${entry.from ?? queries.from}T00:00:00Z`);
     day <= Date.parse(`${last}T00:00:00Z`);
     day += DAY_MS
   ) {
     const date = new Date(day).toISOString().slice(0, 10);
     points.push({ date, value: byDate.get(date) ?? null });
   }
-  return { state: "measured", points };
+  return { state: "measured", points, truncated: series.truncated };
 }
 
 /**

@@ -192,6 +192,7 @@ model Workspace {
   sokoBotTurns             SokoBotTurn[]
   sokoBotPendingDecisions  SokoBotPendingDecision[]
   sokoBotSchedules         SokoBotSchedule[]
+  sokoBotAuthoritySpends   SokoBotAuthoritySpend[]
 
   sokoBots SokoBot[]
 
@@ -417,8 +418,16 @@ model History {
   sokoBotId      String?     @db.Uuid
   bucketSlug     String?
   archivedAt     DateTime?
+  /// "mainnet" or "preprod": the Network of the Job this row points
+  /// at. Null when it points at none, or on a row written before the column
+  /// or by a release that does not know it. The check
+  /// `history_network_check` holds the two values; it lives in SQL only,
+  /// because Prisma cannot express CHECKs.
+  network        String?
 
   @@unique([kind, entityId])
+  @@unique([network, kind, entityId], map: "history_network_kind_entityId_key")
+  @@unique([kind, entityId], map: "history_untagged_kind_entityId_key", where: { network: null })
   @@index([userId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([workspaceId, sortAt(sort: Desc), id(sort: Desc)])
   @@index([sokoBotId])
@@ -509,6 +518,7 @@ model Project {
   seoAnalyses             ProjectSeoAnalysis[]
   seoActionTasks          ProjectSeoActionTask[]
   seoSuggestions          ProjectSeoSuggestion[]
+  seoImpactVerdicts       ProjectSeoImpactVerdict[]
   seoResearch             ProjectSeoResearch[]
   cmoPicturePicks         CmoPicturePick[]
   /// What the website runs on when it is a shop system Cuso can measure
@@ -2492,6 +2502,10 @@ model SokoBotWatch {
   outcome     String?
   firedAt     DateTime?
   firedTurnId String?   @db.Uuid
+  /// Core-owned OwnerAuthority envelope attenuated for this watch's follow-up
+  /// wake (ADR: neon-arch-owner-authority). Null for legacy rows created before
+  /// OwnerAuthority persistence.
+  authority   Json?
 
   @@index([status, createdAt])
   @@index([sokoBotId, status])
@@ -2739,6 +2753,7 @@ model SokoBot {
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
+  authoritySpends      SokoBotAuthoritySpend[]
   cmoUpgradesSeen      CmoUpgradeSeen[]
 
   // One LIVE bot per user and workspace. Partial, because a plain unique would
@@ -2786,6 +2801,10 @@ model SokoBotTurn {
   id               String                   @id @default(uuid(7)) @db.Uuid
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
+
+  /// Network that started the turn. Null on legacy writes during rollout.
+  /// SQL-only CHECK `soko_bot_turn_network_check`.
+  network String?
 
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
@@ -2898,6 +2917,7 @@ model SokoBotTurn {
   modelCalls          SokoBotModelCall[]
   delegations         SokoBotDelegation[]
   watches             SokoBotWatch[]
+  authoritySpends     SokoBotAuthoritySpend[]
   pendingDecisions    SokoBotPendingDecision[]
   memoryRevisions     SokoBotMemoryRevision[]
   scheduleRun         SokoBotScheduleRun?
@@ -3222,6 +3242,10 @@ model SokoBotDelegation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Network that delegated the work. Null on legacy rows with no Job or written during rollout.
+  /// SQL-only CHECK `soko_bot_delegation_network_check`.
+  network String?
+
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
@@ -3250,11 +3274,45 @@ model SokoBotDelegation {
   /// The owner's own limits for `followUp` ({ images?, maxCredits? }):
   /// the turn that carries it out may make no more images or spend no more.
   followUpAllows Json?
+  /// Core-owned OwnerAuthority envelope attenuated for this delegation's
+  /// follow-up wake (ADR: neon-arch-owner-authority). Null for legacy rows
+  /// created before OwnerAuthority persistence.
+  authority      Json?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])
   @@index([jobId])
   @@map("soko_bot_delegation")
+}
+
+/// Durable spend reservation and settlement ledger keyed by OwnerAuthority
+/// `grantId` (ADR: neon-arch-owner-authority). Parallel children, retries, and
+/// mixed wakes reserve atomically under one shared balance per `grantId` and
+/// settle once per `operationKey`; `UNKNOWN` provider outcomes stay held so
+/// crashes cannot double-spend.
+model SokoBotAuthoritySpend {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  sokoBotId    String      @db.Uuid
+  sokoBot      SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  workspaceId  String      @db.Uuid
+  workspace    Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  grantId      String
+  operationKey String?     @unique
+  turnId       String      @db.Uuid
+  turn         SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  toolCallId   String
+  capability   String
+  images       Int         @default(0)
+  videos       Int         @default(0)
+  credits      Float       @default(0)
+  /// RESERVED | SETTLED | UNKNOWN | RELEASED
+  status       String      @default("RESERVED")
+
+  @@unique([turnId, toolCallId])
+  @@index([sokoBotId, grantId, status])
+  @@map("soko_bot_authority_spend")
 }
 
 model SokoBotIntent {
@@ -3344,6 +3402,10 @@ model SokoBotSchedule {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// Network that created the schedule. Null on legacy rows with no Job or written during rollout.
+  /// SQL-only CHECK `soko_bot_schedule_network_check`.
+  network String?
 
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
@@ -4020,6 +4082,13 @@ model TaskEvent {
 
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
+  /// "mainnet" or "preprod": the Network of this event's charge. It stays
+  /// when the Transaction is deleted and `transactionId` is cleared. Null on
+  /// an uncharged event, and on a row written before the column or by a
+  /// release that does not know it. The check `taskEvent_network_check`
+  /// holds the two values; it lives in SQL only, because Prisma cannot
+  /// express CHECKs.
+  network       String?
 
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?

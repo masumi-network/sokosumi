@@ -684,6 +684,36 @@ describe("ably-push-sw display", () => {
     expect(worker.shown[0]?.options.body).toBe("Ada completed Weekly report");
   });
 
+  it.each([
+    [
+      "names the site and the lost citations of an SEO monitor alert",
+      {
+        taskName: "Weekly check",
+        site: "shop.example",
+        newFailures: 0,
+        drops: 0,
+        lostCitations: 2,
+      },
+      "shop.example: the newest scheduled SEO result got worse. New failures: 0. Ranking drops: 0. Lost AI Overview citations: 2.",
+    ],
+    [
+      "reads an SEO monitor alert stored before the site and the citation count with the task name and 0",
+      { taskName: "Weekly check", newFailures: 1, drops: 2 },
+      "Weekly check: the newest scheduled SEO result got worse. New failures: 1. Ranking drops: 2. Lost AI Overview citations: 0.",
+    ],
+  ])("%s", async (_, params, body) => {
+    const worker = loadServiceWorker({ isChromium: true });
+
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      kind: "TASK",
+      messageKey: "Notifications.Task.seoMonitorWorse",
+      messageParams: JSON.stringify(params),
+    });
+
+    expect(worker.shown[0]?.options.body).toBe(body);
+  });
+
   /**
    * Chat's own params on a kind that is not chat. Core writes neither on a
    * task, so this says the key decides the title, not the params beside it.

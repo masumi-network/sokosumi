@@ -120,7 +120,7 @@ async function reconcileCompanies(
   // Rows no group holds wait, their pending lookup kept for when one does.
   // Each set as one array parameter, however many companies there are.
   await prisma.$executeRaw`
-    UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = now()
+    UPDATE ${sharedTable("contact_company")} SET "inactiveSince" = now() AT TIME ZONE 'UTC'
     WHERE id = ANY(${orphans.map((row) => row.id)}::uuid[])
       AND "inactiveSince" IS NULL
   `;
@@ -760,9 +760,9 @@ export async function enrichCompanies(
           (headquarters IS NULL AND ${facts.headquarters ?? null}::text IS NOT NULL) OR
           ("linkedinUrl" IS NULL AND ${facts.linkedinUrl ?? null}::text IS NOT NULL)
           THEN 1 ELSE 0 END,
-        "enrichedAt" = now(),
+        "enrichedAt" = now() AT TIME ZONE 'UTC',
         "lookupFailures" = 0,
-        "updatedAt" = now()
+        "updatedAt" = now() AT TIME ZONE 'UTC'
       WHERE id = ${row.id}::uuid
         AND "enrichedAt" IS NULL
         AND "inactiveSince" IS NULL

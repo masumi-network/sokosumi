@@ -14,6 +14,7 @@ import {
   driveActorProjectPageParams,
   driveActorTaskWhere,
 } from "@/helpers/drive-task-actor-visibility";
+import { buildDriveTaskFileWhere } from "@/helpers/drive-task-output-catalog";
 import { fetchProjectTasksPage } from "@/helpers/drive-tasks-project-list";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { badRequest, forbidden, unprocessableEntity } from "@/helpers/error";
@@ -276,33 +277,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (searchQuery) {
-      const taskFileWhere: Prisma.TaskFileWhereInput = {
-        ...DRIVE_TASK_FILE_WHERE,
-        OR: [
-          {
-            name: { contains: searchQuery, mode: "insensitive" },
-            task: baseTaskWhere,
-          },
-          {
-            task: {
-              AND: [
-                baseTaskWhere,
-                {
-                  OR: [
-                    { name: { contains: searchQuery, mode: "insensitive" } },
-                    {
-                      description: {
-                        contains: searchQuery,
-                        mode: "insensitive",
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        ],
-      };
+      const taskFileWhere = await buildDriveTaskFileWhere({
+        baseTaskWhere,
+        searchQuery,
+        rawReaderCoworkerId: isCoworkerAuthContext(authContext)
+          ? authContext.coworkerId
+          : null,
+      });
 
       if (cursor) {
         const cursorFile = await prisma.taskFile.findFirst({

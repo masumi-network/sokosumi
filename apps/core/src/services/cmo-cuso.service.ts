@@ -13,6 +13,7 @@ import { conflict } from "@/helpers/error";
 import { postsAsPerson } from "@/helpers/linkedin-person";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccessForUser } from "@/lib/image-studio/access";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import type { SettledTurnStatus } from "@/services/soko-bot-turn-progress.service";
 
@@ -470,6 +471,7 @@ export async function startCmoTurn(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId,
     workspaceId: cuso.workspaceId,
     // Cuso, never the member's personal assistant in the same workspace.

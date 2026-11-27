@@ -434,3 +434,20 @@ it("starts the free page check of a new audit, and keeps the audit when that che
   // A failed response can still follow a saved Task.
   expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
 });
+
+it("keys the first page check with the audit key, so a retried create starts one check", async () => {
+  const audit = { ...seoTestWorkspace(), auditId: OWNER.id };
+  createAuditMock.mockResolvedValue(audit);
+  requestAnalysisMock.mockResolvedValue(audit);
+  await createSeoAuditAction({
+    body: {
+      name: "Example",
+      firstPage: { url: "https://example.com/" },
+      idempotencyKey: "form-key-0001",
+    },
+  });
+  expect(requestAnalysisMock).toHaveBeenCalledWith(
+    OWNER,
+    expect.objectContaining({ idempotencyKey: "form-key-0001" }),
+  );
+});

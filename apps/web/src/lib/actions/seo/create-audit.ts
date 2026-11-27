@@ -25,8 +25,9 @@ export const createSeoAuditAction = withSession<
 >(async ({ body }) => {
   try {
     const audit = await seoServiceNoRedirect.createAudit(body);
+    // The audit key also keys the first check: a retried create replays both as one request.
     const check = audit.auditId
-      ? seoFirstPageCheckBody(audit, crypto.randomUUID())
+      ? seoFirstPageCheckBody(audit, body.idempotencyKey ?? crypto.randomUUID())
       : null;
     if (audit.auditId && check) {
       try {

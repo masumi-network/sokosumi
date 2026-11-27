@@ -160,6 +160,9 @@ export async function runAuthLogin({
     return result;
   }
 
+  // Read the vault before the browser exchange, so a failed read cannot
+  // report failure after the OAuth credentials were saved.
+  const apiKeyAvailable = Boolean(manager.getApiKeyCredentials?.());
   const loginRequest: BrowserLoginOptions = {
     authBaseUrl: resolvedConfig.authBaseUrl,
     clientId: clientId || resolvedConfig.clientId,
@@ -180,7 +183,7 @@ export async function runAuthLogin({
   const result: AuthLoginResult = {
     authenticated: true,
     authMethod: "oauth",
-    apiKeyAvailable: Boolean(manager.getApiKeyCredentials?.()),
+    apiKeyAvailable,
     target: resolvedConfig.target,
     apiUrl: sanitizeApiUrl(resolvedConfig.apiUrl),
     expiresAt: credentials.expiresAt || null,

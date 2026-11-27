@@ -579,6 +579,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "newsletter-client",
@@ -624,6 +625,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "competitor-client",
@@ -672,6 +674,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "announcement-client",
@@ -723,6 +726,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "cuso-client",
@@ -1230,6 +1234,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         builder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "scope-client",
@@ -1275,6 +1280,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       new JevTurnClassifier(),
     );
     await plane.startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "personal",
@@ -1286,6 +1292,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
     botFindFirstMock.mockClear();
     await plane.startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       sokoBotId: BOT_ID,
@@ -1322,6 +1329,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "cmo-client",
@@ -1358,6 +1366,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       build: vi.fn().mockResolvedValue(builtContext()),
     } as ContextPacketBuilder;
     await new SokoBotControlPlane(runtime, builder).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "meeting",
@@ -1402,6 +1411,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "pref-client",
@@ -1462,6 +1472,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "archive-all-client",
@@ -1512,6 +1523,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "yes-client",
@@ -1569,6 +1581,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       { build } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "teammate-yes-client",
@@ -1636,6 +1649,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "member_1",
       sokoBotId: BOT_ID,
       workspaceId: "workspace_1",
@@ -1678,6 +1692,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         { build: vi.fn() } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "member_1",
         sokoBotId: BOT_ID,
         workspaceId: "workspace_1",
@@ -1717,6 +1732,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "stale-yes",
@@ -1772,6 +1788,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         builder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "scope-client",
@@ -1801,6 +1818,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     } as ContextPacketBuilder;
     await expect(
       new SokoBotControlPlane(runtime, builder, classifier).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "unsupported-pin",
@@ -2257,6 +2275,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await expect(
       new SokoBotControlPlane().startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "turn-request-1",
@@ -2289,6 +2308,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
 
     const result = await new SokoBotControlPlane().startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-1",
@@ -2334,6 +2354,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       },
     });
     const result = await new SokoBotControlPlane().startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: retry.workspaceId,
       source: "ADMIN_RETRY",
@@ -2376,6 +2397,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await expect(
       new SokoBotControlPlane().startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "client-turn-1",
@@ -2429,6 +2451,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     runtime.createSession = createSession;
 
     const result = await new SokoBotControlPlane(runtime).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-1",
@@ -2489,6 +2512,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
 
     await new SokoBotControlPlane(runtime).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-1",
@@ -2553,6 +2577,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       contextBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-1",
@@ -2630,6 +2655,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-1",
@@ -2671,6 +2697,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await expect(
       new SokoBotControlPlane().startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "client-turn-off",
@@ -2707,6 +2734,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       contextBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-teammate",
@@ -2757,6 +2785,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "preset-client",
@@ -2798,6 +2827,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "follow-client",
@@ -2843,6 +2873,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "cmo:onboarding:research",
@@ -2879,6 +2910,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       builder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "background:parent:key",
@@ -2927,6 +2959,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         builder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "background:parent:other",
@@ -2971,6 +3004,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-first-standup",
@@ -3006,6 +3040,7 @@ describe("SokoBotControlPlane lifecycle", () => {
           } as ContextPacketBuilder,
           new JevTurnClassifier(),
         ).startTurn({
+          network: "mainnet",
           userId: "user_1",
           workspaceId: "workspace_1",
           clientTurnId: `client-turn-out-of-credits-${source}`,
@@ -3036,6 +3071,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "client-turn-archived",
@@ -3075,6 +3111,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       contextBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-scheduled",
@@ -3122,6 +3159,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         } as ContextPacketBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "client-turn-bot-asked",
@@ -3169,6 +3207,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       } as ContextPacketBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-bot-asked-2",
@@ -3215,6 +3254,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       contextBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "client-turn-owner",
@@ -3261,6 +3301,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       contextBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "schedule:schedule_1:2026-08-18T12:00:00.000Z",
@@ -3319,6 +3360,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         contextBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "schedule:schedule_1:2026-08-18T12:00:00.000Z",
@@ -3361,6 +3403,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       contextBuilder,
       new JevTurnClassifier(),
     ).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "admin-schedule-retry:run_1:operation_1",
@@ -3424,6 +3467,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         contextBuilder,
         new JevTurnClassifier(),
       ).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "admin-schedule-retry:run_1:loser",
@@ -3474,6 +3518,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
 
     const result = await new SokoBotControlPlane(runtime).startTurn({
+      network: "mainnet",
       userId: "user_1",
       workspaceId: "workspace_1",
       clientTurnId: "admin-schedule-retry:run_1:operation_1",
@@ -3717,6 +3762,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     await expect(
       new SokoBotControlPlane(runtime).startTurn({
+        network: "mainnet",
         userId: "user_1",
         workspaceId: "workspace_1",
         clientTurnId: "client-turn-1",
@@ -5336,6 +5382,115 @@ describe("SokoBotControlPlane lifecycle", () => {
       }),
     );
     expect(scheduleRunUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("intersects persisted schedule OwnerAuthority on RETRY_SCHEDULE_RUN for schedule_posts and expired grants", async () => {
+    const scheduleId = "01960000-0000-7000-8000-000000000701";
+    const projectA = "01960000-0000-7000-8000-000000000702";
+    const storedCaps = [
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+      "cancel_social_post",
+    ];
+    const baseAuthority = {
+      version: 1,
+      grantId: "grant-retry-1",
+      origin: "owner_chat",
+      sokoBotId: BOT_ID,
+      workspaceId: "workspace_1",
+      ownerUserId: "user_1",
+      rootTurnId: "turn-root-retry",
+      targetScope: { kind: "project", projectId: projectA },
+      scheduleId,
+      scope: "owner_writes",
+      socialMode: "schedule_posts",
+      stopRule: { mode: "never" },
+    };
+
+    const runRetryWithAuthority = async (
+      operationId: string,
+      authority: unknown,
+    ) => {
+      const controlPlane = new SokoBotControlPlane();
+      const startTurn = vi.spyOn(controlPlane, "startTurn").mockResolvedValue({
+        turnId: `turn_${operationId}`,
+        sokoBotId: BOT_ID,
+        sessionId: `session_${operationId}`,
+        status: "COMPLETED",
+        route: "DELEGATE_TASK",
+        capabilities: [],
+        duplicate: false,
+      });
+      botFindUniqueMock.mockResolvedValue({
+        ...adminBot(),
+        userId: "user_1",
+        projectId: null,
+        versionId: "v36",
+      });
+      adminActionFindUniqueMock.mockResolvedValue(null);
+      adminActionFindFirstMock.mockResolvedValue(null);
+      turnFindUniqueMock.mockResolvedValue(null);
+      scheduleRunFindFirstMock.mockResolvedValue({
+        id: "run_auth_1",
+        status: "FAILED",
+        attempt: 1,
+        turnId: "turn_failed_1",
+        prompt: "Schedule the daily Project A post.",
+        schedule: {
+          id: scheduleId,
+          sokoBotId: BOT_ID,
+          requestedByUserId: "user_1",
+          workspaceId: "workspace_1",
+          systemKey: null,
+          prompt: "Schedule the daily Project A post.",
+          capabilityNames: storedCaps,
+          authority,
+        },
+        turn: {
+          id: "turn_failed_1",
+          source: "SCHEDULE",
+          clientTurnId: `schedule:${scheduleId}:2026-11-26T12:00:00.000Z`,
+          status: "FAILED",
+        },
+      });
+      await controlPlane.performAdminAction({
+        sokoBotId: BOT_ID,
+        operatorId: "admin_1",
+        action: "RETRY_SCHEDULE_RUN",
+        targetId: "run_auth_1",
+        reason: "Retry scheduled posting run",
+        operationId,
+      });
+      return startTurn.mock.calls[0]?.[0]?.presetRoute as {
+        capabilities?: string[];
+        sandbox?: boolean;
+      };
+    };
+
+    const allowedRoute = await runRetryWithAuthority(
+      "op_sched_ok",
+      baseAuthority,
+    );
+    expect(allowedRoute.capabilities).toEqual([
+      "list_social_posts",
+      "create_task",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+    ]);
+    expect(allowedRoute.capabilities).not.toContain("publish_social_post");
+    expect(allowedRoute.capabilities).not.toContain("cancel_social_post");
+
+    const expiredRoute = await runRetryWithAuthority("op_sched_expired", {
+      ...baseAuthority,
+      expiresAt: "2020-01-01T00:00:00.000Z",
+    });
+    expect(expiredRoute.capabilities).toEqual(["list_social_posts"]);
+    expect(expiredRoute.sandbox).toBe(false);
   });
 
   it("resumes the same admin operation after its retry turn was atomically bound", async () => {

@@ -25,7 +25,10 @@ const bodySchema = z.object({
   scope: driveFileScopeSchema,
   organizationId: z.string().optional(),
   /** A cursor from the search response identifies the window to select. */
-  windowCursor: z.string(),
+  windowCursor: z.string().openapi({
+    description:
+      "The search response's `search.windowCursor` (any of its cursors names the same window).",
+  }),
 });
 
 const route = withCoworkerContextHeaderParameters(

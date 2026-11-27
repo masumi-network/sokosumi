@@ -48,6 +48,10 @@ export const createSeoAuditSchema = z
     name: z.string().trim().min(1).max(100),
     firstPage: addSeoPageSchema.omit({ relatedToPageId: true }),
     projectId: seoIdSchema.optional(),
+    idempotencyKey: z.string().trim().min(8).max(128).optional().openapi({
+      description:
+        "Send the same key to retry a create: the first Audit comes back and no second one is made",
+    }),
   })
   .strict()
   .openapi("CreateSeoAuditRequest");

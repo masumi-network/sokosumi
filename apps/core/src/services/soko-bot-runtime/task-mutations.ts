@@ -6,13 +6,15 @@ import {
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
 } from "@sokosumi/soko-bot";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
-import { seoAuditTextUnchanged } from "@/helpers/seo-task-execution";
+import { jsonInput } from "@/helpers/prisma-json";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   actionInputHash,
   actionOperationKey,
   commitActionReceipt,
 } from "@/lib/soko-bot/action-receipts";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
 import { updateTaskForActor } from "@/services/task-domain.service";
@@ -26,6 +28,7 @@ import {
 import { actionPrincipalId } from "./acting-scope";
 import { type RuntimeOperations } from "./operations";
 import { refuseCusoPersonTask, toolAssigneeFields } from "./task-policy";
+import { isNoopTaskUpdate } from "./task-update-noop";
 
 export async function mutateTask(
   runtime: RuntimeOperations,
@@ -180,6 +183,7 @@ export async function applyTaskMutation(
       };
       await tx.sokoBotDelegation.create({
         data: {
+          network: DETACHED_SOKO_BOT_NETWORK,
           turnId: authorized.turn.id,
           toolCallId,
           kind: "TASK",
@@ -202,17 +206,7 @@ export async function applyTaskMutation(
       });
       return result;
     }
-    if (
-      before &&
-      !input.archive &&
-      (input.name === undefined || input.name === before.name) &&
-      (input.description === undefined ||
-        input.description === before.description ||
-        seoAuditTextUnchanged(before.description, input.description)) &&
-      (input.status === undefined || input.status === before.status) &&
-      (input.projectId === undefined || input.projectId === before.projectId) &&
-      !unassign
-    ) {
+    if (before && isNoopTaskUpdate(before, input, unassign)) {
       if (
         input.expectedUpdatedAt &&
         before.updatedAt.toISOString() !== input.expectedUpdatedAt
@@ -279,6 +273,7 @@ export async function applyTaskMutation(
     };
     await tx.sokoBotDelegation.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -386,8 +381,29 @@ export async function assignTask(
       status: task.status,
       assigneeId: task.assigneeId,
     };
+    const delegationAuthority =
+      input.followUp !== undefined || input.followUpAllows
+        ? await deriveDelegationAuthority(
+            {
+              id: authorized.turn.id,
+              sokoBotId: authorized.turn.sokoBotId,
+              workspaceId: authorized.turn.workspaceId,
+              versionId: authorized.turn.versionId,
+              source: authorized.turn.source,
+              parentTurnId: authorized.turn.parentTurnId ?? null,
+              askedByUserId: authorized.turn.askedByUserId ?? null,
+              requestedByUserId: authorized.turn.requestedByUserId,
+              actingUserId: authorized.turn.actingUserId,
+              chainDepth: authorized.turn.chainDepth,
+              botProjectId: authorized.turn.botProjectId ?? null,
+            },
+            { followUpAllows: input.followUpAllows },
+            tx,
+          )
+        : undefined;
     await tx.sokoBotDelegation.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -398,6 +414,9 @@ export async function assignTask(
         ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
         ...(input.followUpAllows
           ? { followUpAllows: input.followUpAllows }
+          : {}),
+        ...(delegationAuthority
+          ? { authority: jsonInput(delegationAuthority) }
           : {}),
       },
     });

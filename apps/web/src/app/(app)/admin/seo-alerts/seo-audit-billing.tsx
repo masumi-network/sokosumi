@@ -7,6 +7,7 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
+import { SeoAuditCostDetail } from "./seo-audit-cost-detail";
 
 const categories = [
   "gatewayMicroUsd",
@@ -147,6 +148,15 @@ export function SeoAuditBilling({
                   </>
                 )}
               </dl>
+              {row.cost && row.costDetail && (
+                <SeoAuditCostDetail
+                  detail={row.costDetail}
+                  cost={row.cost}
+                  dollars={dollars}
+                  t={t}
+                  format={format}
+                />
+              )}
             </li>
           ))}
         </ul>

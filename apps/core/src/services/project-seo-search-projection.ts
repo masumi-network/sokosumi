@@ -2,6 +2,7 @@ import type {
   ProjectSeoActionTask,
   ProjectSeoObservation,
 } from "@sokosumi/database";
+import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
@@ -25,6 +26,102 @@ function splitOf(data: NativeSeoMetrics) {
   const countries = data.countries ?? data.feedCountries;
   const devices = data.devices ?? data.feedDevices;
   return countries || devices ? { countries, devices } : null;
+}
+
+const DAY_MS = 86_400_000;
+function shiftDay(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Search Console can report the last days of a period later. A sync's last 3
+ * days count as read only where a later sync reads them again.
+ */
+const SEARCH_CONSOLE_OPEN_DAYS = 3;
+
+/** The pages a sync measured. Days of syncs with different pages are different measurements. */
+function pageFilter(source: SearchEvidenceSource): string {
+  const aliases = source.data.trafficPageAliases ?? {};
+  return JSON.stringify(
+    source.data.pageUrls.map((url) => aliases[url] ?? url).sort(),
+  );
+}
+
+function collectedAt(source: SearchEvidenceSource): string {
+  return source.data.collectedAt ?? source.row.observedAt.toISOString();
+}
+
+/** The last day a sync can have read: its period can end after the day it was collected. */
+function readEnd(source: SearchEvidenceSource): string {
+  const collected = collectedAt(source).slice(0, 10);
+  return source.data.to < collected ? source.data.to : collected;
+}
+
+/**
+ * The daily positions of one sync, with older days from earlier syncs of the
+ * same property. Per keyword and country, an earlier sync adds days only when
+ * the days already read cover its last 3 days again, so no day from `from` on
+ * is unread. It must have measured the same pages and end no later than this sync. The sync itself supplies each of its days. An older day comes
+ * from the sync with the latest last day. At most 366 days are kept.
+ */
+export function mergedKeywordSeries(
+  current: SearchEvidenceSource,
+  sources: SearchEvidenceSource[],
+): NativeSeoMetrics["keywordSeries"] {
+  const series = current.data.keywordSeries;
+  if (!series) return undefined;
+  const floor = shiftDay(current.data.to, 1 - SEO_STATS_MAX_DAYS);
+  const older = sources
+    .filter(
+      (source) =>
+        source !== current &&
+        source.data.keywordSeries &&
+        source.data.propertyId === current.data.propertyId &&
+        pageFilter(source) === pageFilter(current) &&
+        // The days already read never cover the last days of a sync that ends later.
+        source.data.to <= current.data.to,
+    )
+    // Of two syncs with one last day, the one collected later holds the fresher values.
+    .sort(
+      (a, b) =>
+        readEnd(b).localeCompare(readEnd(a)) ||
+        collectedAt(b).localeCompare(collectedAt(a)),
+    );
+  let truncated = series.truncated;
+  const keywords = series.keywords.map((entry) => {
+    let from = current.data.from;
+    const points = [...entry.points];
+    for (const source of older) {
+      // Sources come latest last day first: once one ends before the read days, all later ones do.
+      if (
+        from <= floor ||
+        readEnd(source) < shiftDay(from, SEARCH_CONSOLE_OPEN_DAYS - 1)
+      )
+        break;
+      const match = source.data.keywordSeries?.keywords.find(
+        (item) =>
+          item.keyword === entry.keyword &&
+          item.countryCode === entry.countryCode,
+      );
+      if (!match || source.data.from >= from) continue;
+      const first = source.data.from < floor ? floor : source.data.from;
+      points.push(
+        ...match.points.filter(
+          (point) => point.date >= first && point.date < from,
+        ),
+      );
+      from = first;
+      truncated ||= source.data.keywordSeries?.truncated === true;
+    }
+    return {
+      ...entry,
+      ...(from < current.data.from && { from }),
+      points: points.sort((a, b) => a.date.localeCompare(b.date)),
+    };
+  });
+  return { ...series, truncated, keywords };
 }
 
 /**
@@ -118,7 +215,7 @@ export function projectSearchEvidence(
         ...row,
         id: `${current.row.id}:query:${index}`,
       })),
-      keywordSeries: current.data.keywordSeries,
+      keywordSeries: mergedKeywordSeries(current, sources),
       ...(current.data.searchType && { searchType: current.data.searchType }),
     },
     searchBreakdown,
