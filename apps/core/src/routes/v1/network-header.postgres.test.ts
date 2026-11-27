@@ -1106,8 +1106,11 @@ describe.runIf(enabled && onSplitLayout)(
     const oauthClientIds: string[] = [];
     const vendorIds: string[] = [];
 
-    async function oauthToken(userId: string) {
-      const { token, clientId } = await loaded.fixture.createOAuthToken(userId);
+    async function oauthToken(userId: string, firstParty = true) {
+      const { token, clientId } = await loaded.fixture.createOAuthToken(
+        userId,
+        firstParty,
+      );
       oauthClientIds.push(clientId);
       return token;
     }
@@ -1168,6 +1171,18 @@ describe.runIf(enabled && onSplitLayout)(
       kind: "preprod_access_required",
       names: undefined,
     };
+    const mismatch = {
+      status: 403,
+      kind: "api_key_network_mismatch",
+      names: undefined,
+    };
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
+    const slug = (organization: { slug: string }) => ({
+      "X-Organization-Slug": organization.slug,
+    });
+    /** A key of the person, its row and text with this prefix (null: none). */
+    const key = async (who: Person, prefix: string | null) =>
+      bearer(await loaded.fixture.createApiKey(who.id, prefix));
 
     it("lists each Network's own row for the same Agent id", async () => {
       expect(await listed({})).toEqual(allowed("mainnet"));
@@ -1178,9 +1193,6 @@ describe.runIf(enabled && onSplitLayout)(
     });
 
     it("opens the Preprod catalog to the callers that have access, and only to them", async () => {
-      const slug = (organization: { slug: string }) => ({
-        "X-Organization-Slug": organization.slug,
-      });
       const cases: [string, Record<string, string>, unknown][] = [
         ["anonymous", {}, refused],
         ["an admin's session", { cookie: admin.cookie }, allowed("preprod")],
@@ -1234,24 +1246,52 @@ describe.runIf(enabled && onSplitLayout)(
           },
           refused,
         ],
+        // A key without a prefix, or with Mainnet's, is Mainnet only.
+        ["an admin's old key", await key(admin, null), mismatch],
+        ["an opted-in person's old key", await key(optedIn, null), mismatch],
         [
-          "an admin's API key",
-          {
-            authorization: `Bearer ${await loaded.fixture.createApiKey(admin.id)}`,
-          },
-          refused,
+          "an opted-in person's soko_mainnet_ key",
+          await key(optedIn, "soko_mainnet_"),
+          mismatch,
         ],
         [
-          "an opted-in person's API key",
-          {
-            authorization: `Bearer ${await loaded.fixture.createApiKey(optedIn.id)}`,
-          },
-          refused,
+          "an admin's OAuth token",
+          bearer(await oauthToken(admin.id)),
+          allowed("preprod"),
         ],
         [
           "an opted-in person's OAuth token",
+          bearer(await oauthToken(optedIn.id)),
+          allowed("preprod"),
+        ],
+        [
+          "an opted-in person's third-party OAuth token",
+          bearer(await oauthToken(optedIn.id, false)),
+          allowed("preprod"),
+        ],
+        [
+          "the OAuth token of a person not opted in",
+          bearer(await oauthToken(notOptedIn.id)),
+          refused,
+        ],
+        [
+          "a member's OAuth token, in the opted-in Organization",
           {
-            authorization: `Bearer ${await oauthToken(optedIn.id)}`,
+            ...bearer(await oauthToken(memberOfOptedIn.id)),
+            ...slug(optedInOrganization),
+          },
+          allowed("preprod"),
+        ],
+        [
+          "a member's OAuth token, personal, the Organization opted in",
+          bearer(await oauthToken(memberOfOptedIn.id)),
+          refused,
+        ],
+        [
+          "a member's OAuth token, in an Organization not opted in",
+          {
+            ...bearer(await oauthToken(memberOfNotOptedIn.id)),
+            ...slug(notOptedInOrganization),
           },
           refused,
         ],
@@ -1279,6 +1319,86 @@ describe.runIf(enabled && onSplitLayout)(
         expect([caller, (await listed(headers)).names]).toEqual([
           caller,
           [names.mainnet],
+        ]);
+      }
+    });
+
+    it("lists a Preprod key's own Network, and refuses it where the header names Mainnet", async () => {
+      const cases: [string, Record<string, string>, unknown][] = [
+        ["an admin's", await key(admin, "soko_preprod_"), allowed("preprod")],
+        [
+          "an opted-in person's",
+          await key(optedIn, "soko_preprod_"),
+          allowed("preprod"),
+        ],
+        [
+          "a member's, in the opted-in Organization",
+          {
+            ...(await key(memberOfOptedIn, "soko_preprod_")),
+            ...slug(optedInOrganization),
+          },
+          allowed("preprod"),
+        ],
+        [
+          "a member's, personal, the Organization opted in",
+          await key(memberOfOptedIn, "soko_preprod_"),
+          refused,
+        ],
+        [
+          "the key of a person not opted in",
+          await key(notOptedIn, "soko_preprod_"),
+          refused,
+        ],
+      ];
+      for (const [caller, headers, expected] of cases) {
+        expect([caller, await listed(headers)]).toEqual([caller, expected]);
+        expect([
+          caller,
+          await listed({ ...headers, [HEADER]: "preprod" }),
+        ]).toEqual([caller, expected]);
+        expect([
+          caller,
+          await listed({ ...headers, [HEADER]: "mainnet" }),
+        ]).toEqual([caller, mismatch]);
+      }
+    });
+
+    it("refuses an MCP caller that names Preprod", async () => {
+      // The context `verifyMcpAccessToken` gives an opted-in person's MCP
+      // token, on a request Core builds itself, as a tool call would (whose
+      // own requests never carry the header).
+      const { preAuthenticatedRequests, DEFAULT_USER_ROLE } = await import(
+        "@/middleware/auth"
+      );
+      const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+      const { errorHandler } = await import("@/helpers/error-handler");
+      const probe = new OpenAPIHonoWithAuth();
+      probe.onError(errorHandler);
+      probe.get("/", (c) => c.text(c.var.networkScope.network));
+      // The catalog, and a route on an authenticated router that names its
+      // scope's Network.
+      for (const [name, app, path] of [
+        ["the catalog", loaded.app, "/v1/agents"],
+        ["an authenticated router", probe, "/"],
+      ] as const) {
+        const request = new Request(`${ORIGIN}${path}`, {
+          headers: { origin: ORIGIN, [HEADER]: "preprod" },
+        });
+        preAuthenticatedRequests.set(request, {
+          isAuthenticated: true,
+          authContext: {
+            actor: "user",
+            userId: optedIn.id,
+            organizationId: null,
+            role: DEFAULT_USER_ROLE,
+            authenticationMethod: "oauth",
+          },
+        });
+        const response = await app.request(request);
+        expect([name, response.status, (await response.json()).kind]).toEqual([
+          name,
+          403,
+          "preprod_access_required",
         ]);
       }
     });
@@ -1371,6 +1491,85 @@ describe.runIf(enabled && onSplitLayout)(
       ]);
     });
 
+    it("gives an authenticated router the scope of a key or token", async () => {
+      const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+      const { errorHandler } = await import("@/helpers/error-handler");
+      const probe = new OpenAPIHonoWithAuth();
+      probe.onError(errorHandler);
+      probe.get("/", (c) => c.text(c.var.networkScope.network));
+      const network = async (headers: Record<string, string>) => {
+        const response = await probe.request(`${ORIGIN}/`, {
+          headers: { origin: ORIGIN, ...headers },
+        });
+        const text = await response.text();
+        return [response.status, response.ok ? text : JSON.parse(text).kind];
+      };
+      const preprodKey = await key(optedIn, "soko_preprod_");
+      const oldKey = await key(optedIn, null);
+      const token = {
+        ...bearer(await oauthToken(memberOfOptedIn.id)),
+        ...slug(optedInOrganization),
+      };
+      const cases: [string, Record<string, string>, unknown[]][] = [
+        ["a Preprod key", preprodKey, [200, "preprod"]],
+        [
+          "a Preprod key, preprod",
+          { ...preprodKey, [HEADER]: "preprod" },
+          [200, "preprod"],
+        ],
+        [
+          "a Preprod key, mainnet",
+          { ...preprodKey, [HEADER]: "mainnet" },
+          [403, "api_key_network_mismatch"],
+        ],
+        [
+          "a Preprod key without access",
+          await key(notOptedIn, "soko_preprod_"),
+          [403, "preprod_access_required"],
+        ],
+        ["an old key", oldKey, [200, "mainnet"]],
+        [
+          "an old key, preprod",
+          { ...oldKey, [HEADER]: "preprod" },
+          [403, "api_key_network_mismatch"],
+        ],
+        ["a member's token", token, [200, "mainnet"]],
+        [
+          "a member's token, preprod",
+          { ...token, [HEADER]: "preprod" },
+          [200, "preprod"],
+        ],
+      ];
+      for (const [caller, headers, expected] of cases) {
+        expect([caller, await network(headers)]).toEqual([caller, expected]);
+      }
+    });
+
+    it("serves shared data to a key the header contradicts as without the header", async () => {
+      for (const [caller, headers, header] of [
+        ["an old key", await key(optedIn, null), "preprod"],
+        ["a Preprod key", await key(optedIn, "soko_preprod_"), "mainnet"],
+      ] as const) {
+        for (const path of [
+          "/v1/users/me",
+          `/v1/users/${optedIn.id}/workspaces`,
+        ]) {
+          const none = await call(loaded, path, headers);
+          const named = await call(loaded, path, {
+            ...headers,
+            [HEADER]: header,
+          });
+          expect([caller, path, none.status]).toEqual([caller, path, 200]);
+          expect([caller, path, named.status, named.body]).toEqual([
+            caller,
+            path,
+            none.status,
+            none.body,
+          ]);
+        }
+      }
+    });
+
     it("gives an authenticated router the Preprod scope of a caller with access", async () => {
       const answer = await call(loaded, "/v1/credit-costs", {
         cookie: admin.cookie,
@@ -1433,6 +1632,19 @@ describe.runIf(enabled && onSplitLayout)(
       ).toEqual([0, 1]);
       // An admin's role is in the session: no read.
       expect(await reads({ cookie: admin.cookie })).toEqual([0, 0]);
+      // The same for a token: its role is read with the token.
+      expect(await reads(bearer(await oauthToken(optedIn.id)))).toEqual([0, 1]);
+      expect(
+        await reads({
+          ...bearer(await oauthToken(memberOfOptedIn.id)),
+          ...slug(optedInOrganization),
+        }),
+      ).toEqual([0, 1]);
+      expect(await reads(bearer(await oauthToken(admin.id)))).toEqual([0, 0]);
+      // A Preprod key is for Preprod without the header (one read); with
+      // `mainnet` it is refused before any read.
+      expect(await reads(await key(optedIn, "soko_preprod_"))).toEqual([-1, 0]);
+      expect(await reads(await key(admin, "soko_preprod_"))).toEqual([0, 0]);
     });
 
     it("answers canUsePreprod per workspace", async () => {
