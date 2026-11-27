@@ -23,6 +23,7 @@ import {
   type FixturePicturePost,
   type FixtureTask,
   INVESTOR_FIXTURE,
+  investorLine,
   type JourneyCoworker,
   type JourneyFixtures,
   type JourneyPrepare,
@@ -535,20 +536,14 @@ async function seedFridayAndLinkedInPosts(
 
 /** The owner's research notes: every fitting investor, then the two misfits. */
 export function investorNotes(): string {
-  const months = ["March", "May", "July", "September"];
-  const fits = INVESTOR_FIXTURE.fits.map(
-    (fit, index) =>
-      `- **${fit.fund}** (Europe, seed). Partner: ${fit.partner}. Recent deal: led the seed round of ${fit.startup}, an AI-agent startup, in ${months[index % months.length]} 2026. Source: ${fit.source}`,
-  );
-  const [bayline, ironforge] = INVESTOR_FIXTURE.misfits;
   return [
     "# Seed investor notes",
     "",
     "Collected for our seed round. All rounds below are from the last 12 months.",
     "",
-    ...fits,
-    `- **${bayline?.fund}** (San Francisco, Series B only). Partner: ${bayline?.partner}. Recent deal: Series B of ${bayline?.startup}. Source: ${bayline?.source}`,
-    `- **${ironforge?.fund}** (Munich, growth stage, no seed). Partner: ${ironforge?.partner}. Recent deal: growth round of ${ironforge?.startup}. Source: ${ironforge?.source}`,
+    ...[...INVESTOR_FIXTURE.fits, ...INVESTOR_FIXTURE.misfits].map(
+      (investor) => `- ${investorLine(investor)}`,
+    ),
     "",
   ].join("\n");
 }

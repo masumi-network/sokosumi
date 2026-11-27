@@ -17,6 +17,7 @@ import {
   snapshotChatRoomUnfurlImage,
 } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
+import { isEvalOrganization } from "@/lib/evals/eval-guard";
 import { emitCoreWarning } from "@/lib/evlog";
 import type { ChatRoomMessageUnfurlCard } from "@/lib/open-graph-html";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -66,12 +67,17 @@ export async function scheduleChatRoomMessageUnfurls(
         deletedAt: true,
         editedAt: true,
         metadata: true,
+        room: { select: { organizationId: true } },
       },
     });
 
     if (!message || message.deletedAt != null) {
       return empty;
     }
+    // An eval lane's links are never fetched: its runs stay off the live web.
+    const organizationId = message.room?.organizationId;
+    if (organizationId && (await isEvalOrganization(organizationId)))
+      return empty;
     roomId = message.roomId;
 
     const contentSnapshot = message.content;
