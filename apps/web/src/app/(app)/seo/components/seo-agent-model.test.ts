@@ -288,5 +288,11 @@ describe("seoActionHeadline", () => {
       parts: [{ severity: "major", count: 3 }],
       suggestions: 2,
     });
+    // No fix row: nothing to call a thing to fix.
+    expect(seoActionHeadline(ideas, () => null)).toEqual({
+      fixes: 0,
+      parts: [],
+      suggestions: 2,
+    });
   });
 });
