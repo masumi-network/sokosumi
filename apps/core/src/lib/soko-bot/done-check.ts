@@ -2,7 +2,11 @@ import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
-import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
+import {
+  parseActionNarrativeText,
+  type RecoverableCall,
+  recoveredBy,
+} from "@/lib/soko-bot/action-response";
 import { isOwnerRequest } from "@/lib/soko-bot/owner-request";
 import {
   type ChainPlan,
@@ -141,20 +145,20 @@ function savesSince(
 }
 
 /**
- * Saves of the request that did not end done and were not made good by a
- * later done call of the same tool: refused, failed, unconfirmed, or a
- * Studio job still running with nothing waiting on it.
+ * Saves of the request that did not end done and that no later done call
+ * made good (the same effect: target, covering input or message retry, as
+ * the answer's receipts judge it): refused, failed, unconfirmed, or a
+ * Studio job still running with nothing waiting on it. All of them count,
+ * however many the request made.
  */
 function unsettled(saves: readonly SaveReceipt[]): SaveReceipt[] {
   return saves.filter(
-    (save, index) =>
+    (save) =>
       save.outcome !== "done" &&
-      !saves
-        .slice(index + 1)
-        .some(
-          (later) =>
-            later.capability === save.capability && later.outcome === "done",
-        ) &&
+      !saves.some(
+        (later) =>
+          later.outcome === "done" && recoveredBy(save.call, later.call),
+      ) &&
       (save.outcome !== "started" ||
         STUDIO_JOB_CAPABILITIES.has(save.capability)),
   );
@@ -172,12 +176,7 @@ async function receiptsDisagree(
   if (!found.plan.steps.every((step) => step.status === "done")) return null;
   const left = unsettled(await savesSince(found, turnIds, 1));
   if (!left.length) return null;
-  const lines = left
-    .map(
-      (save) =>
-        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
-    )
-    .join("\n");
+  const lines = receiptLines(left);
   return `Your plan marks every step done, but Core's receipts for this request show:\n${lines}\nBefore you answer, put each right. A save that did not happen: do it again if you can. One Core could not confirm: read back whether it happened, and never repeat it blind. A Studio job still running: wait_for it so its result follows. One you cannot put right: call update_plan (revision ${found.plan.revision}) and mark its step blocked with the reason. Then reply, saying plainly what did not happen.`;
 }
 
@@ -276,6 +275,23 @@ interface SaveReceipt {
   /** The artifact's name as a step might say it, lower case. */
   names: string[];
   outcome: ReceiptOutcome;
+  /** The call itself, to match a recovery to the effect it was for. */
+  call: RecoverableCall;
+}
+
+const SHOWN_RECEIPTS = 20;
+
+/** One line per receipt, the newest last, cut to a readable number. */
+function receiptLines(saves: readonly SaveReceipt[]): string {
+  const shown = saves.slice(-SHOWN_RECEIPTS);
+  const hidden = saves.length - shown.length;
+  return [
+    ...(hidden ? [`- (${hidden} earlier not shown)`] : []),
+    ...shown.map(
+      (save) =>
+        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
+    ),
+  ].join("\n");
 }
 
 const nameSchema = z.object({
@@ -403,8 +419,9 @@ async function savesSincePlan(
       disposition: true,
       targetId: true,
       result: true,
+      input: true,
+      createdAt: true,
     },
-    take: 40,
   });
   return Promise.all(
     calls.map(async (call) => ({
@@ -412,6 +429,7 @@ async function savesSincePlan(
       label: receiptLabel(call.targetId, call.result),
       names: receiptNames(call.result),
       outcome: await receiptOutcome(call),
+      call,
     })),
   );
 }
@@ -426,12 +444,7 @@ const OUTCOME_WORDS: Record<ReceiptOutcome, string> = {
 /** The saves the plan does not show yet, and what to do about them. */
 function savedNote(saves: readonly SaveReceipt[], revision: number): string {
   if (!saves.length) return "";
-  const lines = saves
-    .map(
-      (save) =>
-        `- ${save.capability}${save.label ? ` (${save.label})` : ""}: ${OUTCOME_WORDS[save.outcome]}`,
-    )
-    .join("\n");
+  const lines = receiptLines(saves);
   return `Since your plan's revision ${revision}, Core's receipts show:\n${lines}\nA step these saves finished is done: mark it done with update_plan (revision ${revision}), do not do it again, and never call it still to do. A saved file proves only that it was saved: a step that also needs it attached, sent or used is done only once that is done too. A step whose save did not happen is still open: do it again if you can, or mark it blocked with the reason. One whose work only started is under way: do not start it again; wait for it (follow what its tool said) and keep its step in progress until it finishes. One Core could not confirm may have happened: read back whether it did before anything else, never repeat it blind, and if you cannot tell, mark it blocked with the reason and say so.\n`;
 }
 

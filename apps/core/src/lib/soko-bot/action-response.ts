@@ -401,6 +401,31 @@ function sameMessageRetry(
   return false;
 }
 
+export interface RecoverableCall {
+  capability: string;
+  createdAt: Date;
+  targetId: string | null;
+  input: unknown;
+}
+
+/**
+ * Whether `later` made `earlier`'s effect happen: the same tool, afterwards,
+ * on the same target, with input that covers the earlier call's, or a retry
+ * of the same message. Another call of the same tool is not enough.
+ */
+export function recoveredBy(
+  earlier: RecoverableCall,
+  later: RecoverableCall,
+): boolean {
+  return (
+    later.capability === earlier.capability &&
+    later.createdAt > earlier.createdAt &&
+    ((earlier.targetId !== null && later.targetId === earlier.targetId) ||
+      inputCovers(later.input, earlier.input, earlier.capability) ||
+      sameMessageRetry(later.input, earlier.input, earlier.capability))
+  );
+}
+
 function inputCovers(
   later: unknown,
   earlier: unknown,
@@ -550,13 +575,7 @@ export async function buildActionResponse(
   const madeGood = (call: (typeof calls)[number]) =>
     call.disposition !== "UNKNOWN" &&
     unique.some(
-      (applied) =>
-        applied.turnId === turnId &&
-        applied.capability === call.capability &&
-        applied.createdAt > call.createdAt &&
-        ((call.targetId !== null && applied.targetId === call.targetId) ||
-          inputCovers(applied.input, call.input, call.capability) ||
-          sameMessageRetry(applied.input, call.input, call.capability)),
+      (applied) => applied.turnId === turnId && recoveredBy(call, applied),
     );
   const unfulfilledActions = calls
     .filter(

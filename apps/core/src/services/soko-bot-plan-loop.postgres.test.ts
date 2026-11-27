@@ -864,9 +864,58 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         expect(await check(chat)).toBeNull();
       });
 
-      it("lets it through once a later call made the save good", async () => {
+      /** The same tool call aimed at one post: failed, or scheduled. */
+      const forPost = (
+        receipt: { capability: string; extra: object },
+        post: string,
+      ) => ({
+        ...receipt,
+        extra: { ...receipt.extra, targetId: post, input: { postId: post } },
+      });
+
+      it("lets it through once a later call made that save good", async () => {
+        const post = randomUUID();
         expect(
-          await check(await finished([failedPost, scheduledPost])),
+          await check(
+            await finished([
+              forPost(failedPost, post),
+              forPost(scheduledPost, post),
+            ]),
+          ),
+        ).toBeNull();
+      });
+
+      it("keeps the failure for one post after another post was scheduled", async () => {
+        const failed = randomUUID();
+        const prompt = await check(
+          await finished([
+            forPost(failedPost, failed),
+            forPost(scheduledPost, randomUUID()),
+          ]),
+        );
+        expect(prompt).toContain(
+          `- schedule_social_post (id ${failed}): did not happen`,
+        );
+      });
+
+      const files = (count: number) =>
+        Array.from({ length: count }, (_, n) => savedFile(`asset-${n}.txt`));
+
+      it("checks a failure that comes after forty completed changes", async () => {
+        const prompt = await check(await finished([...files(40), failedPost]));
+        expect(prompt).toContain("- schedule_social_post: did not happen");
+      });
+
+      it("sees a recovery that comes after forty receipts", async () => {
+        const post = randomUUID();
+        expect(
+          await check(
+            await finished([
+              forPost(failedPost, post),
+              ...files(39),
+              forPost(scheduledPost, post),
+            ]),
+          ),
         ).toBeNull();
       });
 
