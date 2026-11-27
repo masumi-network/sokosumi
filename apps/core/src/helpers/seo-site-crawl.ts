@@ -288,8 +288,12 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
     pageChecks: pageChecks
       ? {
           pages: pageChecks.pages,
-          // Web counts the pages past `checked` as undecided: more checked than there are would cancel other undecided pages.
-          checked: Math.min(pageChecks.checked, pageChecks.pages),
+          // Web counts the pages past `checked` as undecided: more checked than there are would cancel other undecided
+          // pages, and a page whose head the bot could not read is in no check.
+          checked: Math.min(
+            pageChecks.checked,
+            pageChecks.pages - (pageChecks.notDetermined ?? 0),
+          ),
           missingTitle: urls(pageChecks.missingTitle),
           missingH1: urls(pageChecks.missingH1),
           duplicateTitles: {

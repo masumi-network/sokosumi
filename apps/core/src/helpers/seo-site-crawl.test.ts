@@ -393,8 +393,9 @@ describe("imported site crawl", () => {
     raw.pageChecks.sitemap.checked = raw.pageChecks.sitemap.urls + 3;
     const crawl = stored(siteReport({ crawl: raw }));
     if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    // A page whose head the bot could not read is in no check either.
     expect(crawl.pageChecks).toMatchObject({
-      checked: raw.pageChecks.pages,
+      checked: raw.pageChecks.pages - raw.pageChecks.notDetermined,
       noindexInSitemap: { checked: raw.pageChecks.sitemap.urls },
     });
   });
