@@ -96,7 +96,8 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("button", { name: "Register" }).click();
       await page.getByRole("button", { name: "Continue" }).click();
       await page.getByRole("link", { name: "Later" }).click();
-      await page.waitForURL(`${BASE_URL}/`);
+      // Home, which a phone can redirect on to /chat before "/" finishes loading.
+      await page.waitForURL(/\/(chat)?$/);
 
       await page.goto(`${BASE_URL}/drive?view=workspace`);
       await page
