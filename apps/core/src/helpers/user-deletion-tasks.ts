@@ -106,8 +106,9 @@ async function pausePublicTaskSchedules(
  *
  * - The private Tasks, Task Schedules and Jobs this user owns are deleted,
  *   and so is the work in their personal workspace.
- * - Public work stays with its workspace (ADR 0057); the database empties
- *   this user's Owner and Creator columns on it. Public Task Schedules this
+ * - Public work stays with its workspace (ADR 0057); this user's Owner and
+ *   Creator columns on it are emptied: on Tasks and Task Schedules by the
+ *   database, on a Network's Jobs by `applyUserRules`. Public Task Schedules this
  *   user owned are paused, so nothing keeps running with nobody behind it;
  *   the member who resumes one becomes its Owner.
  * - Payment-claim blockers are previewed by `evaluateUserDeletion` and

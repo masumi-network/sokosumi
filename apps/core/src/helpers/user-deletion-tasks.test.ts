@@ -410,7 +410,7 @@ describe("prepareTasksForUserDeletion", () => {
     expect(deleteTaskFileIfOwnedMock).not.toHaveBeenCalled();
   });
 
-  it("deletes only private work and leaves public work to the database, which empties the Owner and Creator", async () => {
+  it("deletes only private work and leaves public work in place", async () => {
     taskDeleteManyMock.mockResolvedValue({ count: 1 });
 
     await prepareTasksForUserDeletion("user_delete", {
