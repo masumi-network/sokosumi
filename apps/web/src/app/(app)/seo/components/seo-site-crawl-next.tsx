@@ -39,7 +39,8 @@ export function SeoCrawlNextButton({ model }: { model: SeoWorkspaceModel }) {
         <Button
           size="sm"
           variant="outline"
-          disabled={model.pending || busy}
+          // While other dates load, the offer on screen is the old read's: those dates may hide the crawl it buys.
+          disabled={model.pending || model.updating || busy}
           title={busy ? t("busy") : undefined}
         >
           {t("button")}

@@ -26,31 +26,43 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const next = messages.App.Seo.siteCrawl.next;
+const TO = "2026-10-01";
 const clients: QueryClient[] = [];
 
-function Harness({ workspace }: { workspace: ProjectSeoWorkspace }) {
-  return <SeoCrawlNextButton model={useSeoWorkspace(workspace)} />;
-}
-
-function show() {
+function data() {
   const base = seoTestWorkspace();
-  const data = {
+  return {
     ...base,
     availableActions: {
       ...base.availableActions,
       continueCrawlFrom: "b".repeat(64),
     },
   };
+}
+
+function Harness({ workspace }: { workspace: ProjectSeoWorkspace }) {
+  const model = useSeoWorkspace(workspace);
+  return (
+    <>
+      <SeoCrawlNextButton model={model} />
+      <button type="button" onClick={() => void model.setFilters({ to: TO })}>
+        pick an end date
+      </button>
+    </>
+  );
+}
+
+function show(
+  read: (input: RequestInfo | URL) => Promise<Response> = async () =>
+    Response.json(data()),
+) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: Number.POSITIVE_INFINITY },
     },
   });
   clients.push(client);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => Response.json(data)),
-  );
+  vi.stubGlobal("fetch", vi.fn(read));
   render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
@@ -60,7 +72,7 @@ function show() {
         messages={messages}
       >
         <NuqsTestingAdapter hasMemory>
-          <Harness workspace={data} />
+          <Harness workspace={data()} />
         </NuqsTestingAdapter>
       </NextIntlClientProvider>
     </QueryClientProvider>,
@@ -74,6 +86,22 @@ beforeEach(() => {
 afterEach(() => {
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
+});
+
+describe("crawl of the next pages while other dates load", () => {
+  it("offers no purchase from the old read", async () => {
+    const user = userEvent.setup();
+    // The read of the picked dates does not arrive.
+    const read = async (input: RequestInfo | URL) =>
+      String(input).includes(`to=${TO}`)
+        ? new Promise<Response>(() => {})
+        : Response.json(data());
+    show(read);
+    const button = screen.getByRole("button", { name: next.button });
+    expect(button).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "pick an end date" }));
+    await waitFor(() => expect(button).toBeDisabled());
+  });
 });
 
 describe("uncertain crawl of the next pages", () => {
