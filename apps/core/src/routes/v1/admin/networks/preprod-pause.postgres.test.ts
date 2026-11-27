@@ -12,6 +12,7 @@ import { Hono } from "hono";
 import { Client } from "pg";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -880,6 +881,21 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
       }
     }
 
+    const CRON_LOCK_KEY = "task-x402-payment-headers-purge-sync";
+    let cronLockExisted = false;
+
+    beforeEach(async () => {
+      cronLockExisted =
+        (await prisma.lock.count({ where: { key: CRON_LOCK_KEY } })) > 0;
+    });
+
+    // The tick leaves its released lock row; one the tick created goes too.
+    afterEach(async () => {
+      if (!cronLockExisted) {
+        await prisma.lock.deleteMany({ where: { key: CRON_LOCK_KEY } });
+      }
+    });
+
     it("reads nothing of sync_metadata on a Mainnet request or a Mainnet cron tick, its background work included", async () => {
       await writePause("open");
       const sync = new Hono();
@@ -911,7 +927,7 @@ describe.skipIf(!enabled)("Preprod pause and generation", () => {
             (event) =>
               event.operation === "cron_sync" &&
               (event.sync as { lockKey?: string; outcome?: string })
-                ?.lockKey === "task-x402-payment-headers-purge-sync",
+                ?.lockKey === CRON_LOCK_KEY,
           ),
         ).toEqual([
           expect.objectContaining({

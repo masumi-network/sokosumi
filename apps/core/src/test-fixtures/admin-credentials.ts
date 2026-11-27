@@ -183,6 +183,11 @@ export async function createAdminCredentials(
       await prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
+      // `createPersonalWorkspace` grants the free plan: its subscription
+      // names the user by id, with no relation to cascade from.
+      await prisma.subscription.deleteMany({
+        where: { referenceId: { in: userIds } },
+      });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     },
   };
