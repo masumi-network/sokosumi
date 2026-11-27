@@ -16,6 +16,11 @@ import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { digestJob } from "@/helpers/job-digest";
 import { buildSokoBotReaderJobWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import {
+  EVAL_AGENT_INPUT_SCHEMA,
+  isEvalAgentBaseUrl,
+} from "@/lib/evals/fake-agent";
 import { parseHireAgentInput } from "@/lib/soko-bot/decision-proposal";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
@@ -162,6 +167,11 @@ export async function dispatchTasksTools(
           `This Agent is not available to hire right now (${agent.status.toLowerCase()}). Pick another from find_agents.`,
         );
       }
+      if (
+        isEvalAgentBaseUrl(getAgentApiBaseUrl(agent)) &&
+        (await isEvalWorkspace(authorized.turn.workspaceId))
+      )
+        return inputSchemaSchema.parse(EVAL_AGENT_INPUT_SCHEMA);
       const result = await createAgentClient().fetchAgentInputSchema(
         toMasumiAgent(agent),
       );

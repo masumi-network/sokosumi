@@ -6,7 +6,22 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { coworker: { count: coworkerCount } },
 }));
 
-import { evalCoworkerRefusal, simulatedEvalTool } from "./eval-guard";
+import {
+  evalCoworkerRefusal,
+  evalPaidMediaRefusal,
+  simulatedEvalTool,
+} from "./eval-guard";
+
+describe("evalPaidMediaRefusal", () => {
+  it("refuses paid media that has no stub, and nothing else", () => {
+    for (const tool of ["generate_talking_video", "generate_voiceover"]) {
+      expect(evalPaidMediaRefusal(tool), tool).toMatch(/benchmark lane/);
+      expect(simulatedEvalTool(tool, {}), tool).toBeNull();
+    }
+    for (const tool of ["generate_image", "generate_video", "create_task"])
+      expect(evalPaidMediaRefusal(tool), tool).toBeNull();
+  });
+});
 
 describe("evalCoworkerRefusal", () => {
   it("refuses a Task Schedule for a Coworker the lane was never granted", async () => {

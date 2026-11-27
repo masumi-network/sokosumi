@@ -10,15 +10,16 @@ import {
   type ShortVideoFormat,
   type VideoShape,
 } from "@sokosumi/utils";
-import { get } from "@vercel/blob";
-
 import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   requireProjectAccess,
   requireWorkspaceAccess,
 } from "@/lib/image-studio/access";
-import { requireStudioBlobToken } from "@/lib/image-studio/blob-store";
+import {
+  requireStudioBlobToken,
+  studioGet,
+} from "@/lib/image-studio/blob-store";
 import {
   type ImageJobFailureReason,
   readImageJobFailureReason,
@@ -493,7 +494,7 @@ export async function openAssetStream(options: {
   // on the studio's own store is what stops everyone who never comes through
   // this route at all: a private object is not served without the token, and
   // the token is server-side only.
-  const result = await get(asset.blobPathname, {
+  const result = await studioGet(asset.blobPathname, {
     access: "private",
     token: requireStudioBlobToken(),
     // Uncompressed, so `result.blob.size` is the real length (see driveRead).
@@ -522,7 +523,7 @@ export async function openAssetStream(options: {
 export async function readAssetBytes(
   blobPathname: string,
 ): Promise<Uint8Array> {
-  const result = await get(blobPathname, {
+  const result = await studioGet(blobPathname, {
     access: "private",
     token: requireStudioBlobToken(),
   });

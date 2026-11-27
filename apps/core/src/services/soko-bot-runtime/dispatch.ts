@@ -1,12 +1,14 @@
 import { isSokoBotSeoCapability } from "@sokosumi/soko-bot";
 import {
   evalCoworkerRefusal,
+  evalPaidMediaRefusal,
   isEvalWorkspace,
   simulatedEvalTool,
 } from "@/lib/evals/eval-guard";
 import { withModelCallTurn } from "@/lib/soko-bot/model-calls";
 import {
   type ExecuteSokoBotToolInput,
+  SokoBotRefusedUnsentError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { executeCmoRead } from "./cmo-reads";
@@ -54,6 +56,8 @@ async function executeTool(
       input.input,
     );
     if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+    const unstubbed = evalPaidMediaRefusal(input.capability);
+    if (unstubbed) throw new SokoBotRefusedUnsentError(unstubbed);
     const simulated = simulatedEvalTool(input.capability, input.input);
     if (simulated) return simulated;
   }

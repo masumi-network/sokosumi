@@ -7,9 +7,30 @@
  */
 
 /** The slice of one run's report this reads (`sokosumi evals show RUN_ID --json`). */
+/** A run's label when the run itself was found invalid (e.g. a refused external call). */
+export const INVALID_RUN_PREFIX = "INVALID:";
+
+/**
+ * Why a stored run must not be compared or re-judged, or null. A run that
+ * never completed, or one marked invalid (an outbound call the eval world
+ * refused), measured something other than the bot.
+ */
+export function invalidRunReason(report: ParityReport): string | null {
+  const run = report.run;
+  if (!run) return null;
+  if (run.label?.startsWith(INVALID_RUN_PREFIX)) return run.label;
+  if (run.status && run.status !== "COMPLETED")
+    return `run status ${run.status}`;
+  return null;
+}
+
 export interface ParityReport {
-  /** The run's environment (getEvalRunReport); older reports may lack it. */
-  run?: { environment?: string | null };
+  /** The run (getEvalRunReport); older reports may lack fields. */
+  run?: {
+    environment?: string | null;
+    status?: string | null;
+    label?: string | null;
+  };
   cases: {
     caseId: string;
     results: {

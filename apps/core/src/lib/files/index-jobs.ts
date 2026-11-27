@@ -417,6 +417,8 @@ export async function backfillMissingSuggestionJobs(input?: {
 
 export async function leaseNextFileIndexJob(input: {
   pipeline?: FileIndexJobPipeline;
+  /** Only this file's job: a fixture's setup leaves everyone else's queue alone. */
+  resourceId?: string;
   now?: Date;
 }): Promise<LeasedFileIndexJob | null> {
   const now = input.now ?? new Date();
@@ -424,6 +426,7 @@ export async function leaseNextFileIndexJob(input: {
 
   const runnable = {
     ...(input.pipeline !== undefined && { pipeline: input.pipeline }),
+    ...(input.resourceId !== undefined && { resourceId: input.resourceId }),
     runAfter: { lte: now },
     OR: [
       { state: FileIndexJobState.QUEUED },

@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { computeNextRun } from "@/helpers/cron";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
@@ -9,6 +10,39 @@ const ZONE = "Europe/Berlin";
 const DOW_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 /** The weekdays (0 = Sunday) a five-field cron's day-of-week field allows. */
+/**
+ * Whether a cron runs on exactly these weekdays, every week, as Core's own
+ * scheduler reads it (`computeNextRun`): over four weeks, a run on every
+ * asked weekday and none on another. Any form Core schedules daily (every
+ * day of the month, a day-of-month step of one, weekdays 0-6) passes; a
+ * schedule on the 1st of the month does not.
+ */
+export function runsOnDays(cron: string, days: readonly number[]): boolean {
+  const start = new Date(Date.UTC(2026, 0, 5)); // a Monday
+  const end = start.getTime() + 28 * 86_400_000;
+  const ran = new Set<number>();
+  let from = new Date(start.getTime() - 1);
+  for (let guard = 0; guard < 5_000; guard += 1) {
+    const next = computeNextRun({ cron, timezone: "UTC", from });
+    if (!next || next.getTime() >= end) break;
+    ran.add(Math.floor((next.getTime() - start.getTime()) / 86_400_000));
+    // The next calendar day: several runs a day count once.
+    from = new Date(
+      Date.UTC(
+        next.getUTCFullYear(),
+        next.getUTCMonth(),
+        next.getUTCDate() + 1,
+      ) - 1,
+    );
+  }
+  const asked = new Set(days);
+  for (let day = 0; day < 28; day += 1) {
+    const weekday = (1 + day) % 7; // day 0 is a Monday
+    if (asked.has(weekday) !== ran.has(day)) return false;
+  }
+  return true;
+}
+
 export function cronDays(cron: string): number[] {
   const field = cron.trim().split(/\s+/)[4] ?? "*";
   if (field === "*" || field === "?") return [0, 1, 2, 3, 4, 5, 6];
@@ -130,8 +164,9 @@ async function scheduleCheck(
     ];
   const problems: string[] = [];
   if (!latest.enabled) problems.push("disabled");
-  // Neither a run nor "move it to 7:30" changes the owner's time zone.
-  if (compared && latest.timezone !== rememberedZone)
+  // Neither a run nor "move it to 7:30" changes the owner's time zone; a
+  // step that asks for a new zone says which (outcome.timezone, below).
+  if (compared && !outcome.timezone && latest.timezone !== rememberedZone)
     problems.push(`time zone ${rememberedZone} → ${latest.timezone}`);
   if (outcome.count !== undefined && schedules.length !== outcome.count)
     problems.push(`${schedules.length} schedules`);
@@ -144,7 +179,8 @@ async function scheduleCheck(
   if (
     outcome.identity === "edited" &&
     latest.cronExpression === rememberedCron &&
-    latest.prompt === rememberedPrompt
+    latest.prompt === rememberedPrompt &&
+    latest.timezone === rememberedZone
   )
     problems.push("not changed");
   const avoided = (outcome.promptAvoids ?? []).filter((pattern) =>
@@ -152,11 +188,8 @@ async function scheduleCheck(
   );
   if (avoided.length)
     problems.push(`prompt still says /${avoided.join("/, /")}/`);
-  if (outcome.days) {
-    const days = cronDays(latest.cronExpression);
-    if (days.join() !== [...outcome.days].sort().join())
-      problems.push(`days ${days.join(",")}`);
-  }
+  if (outcome.days && !runsOnDays(latest.cronExpression, outcome.days))
+    problems.push(`recurrence "${latest.cronExpression}"`);
   const time = cronTime(latest.cronExpression);
   if (outcome.hour !== undefined && time?.hour !== outcome.hour)
     problems.push(`hour ${time?.hour ?? "?"}`);
@@ -166,7 +199,37 @@ async function scheduleCheck(
     problems.push(latest.timezone);
   if (outcome.runOnce !== undefined && latest.runOnce !== outcome.runOnce)
     problems.push(latest.runOnce ? "one-time" : "recurring");
-  const prompt = matchesAll(latest.prompt, outcome.promptMatches);
+  const coworkerParts = outcome.withTaskSchedules
+    ? await prisma.taskSchedule.findMany({
+        where: {
+          workspaceId: context.lane.workspaceId,
+          creatorSokoBotId: context.botId,
+          createdAt: { gte: context.journeyStartedAt },
+          state: "ACTIVE",
+          assigneeId: { not: null },
+        },
+        select: {
+          name: true,
+          description: true,
+          expr: true,
+          assignee: { select: { name: true } },
+        },
+      })
+    : [];
+  // A Coworker's part counts only when it runs on the days the owner asked
+  // for: a weekly delivery is not the daily hand-off.
+  const onTheDays = coworkerParts.filter(
+    (part) => !outcome.days || runsOnDays(part.expr, outcome.days),
+  );
+  const prompt = matchesAll(
+    [
+      latest.prompt,
+      ...onTheDays.map((part) =>
+        [part.assignee?.name, part.name, part.description].join("\n"),
+      ),
+    ].join("\n"),
+    outcome.promptMatches,
+  );
   if (!prompt.pass)
     problems.push(`prompt lacks /${prompt.missing.join("/, /")}/`);
   return {

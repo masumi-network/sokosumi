@@ -21,7 +21,6 @@ import {
   videoRecipeFor,
   videoShapesFor,
 } from "@sokosumi/utils";
-import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
@@ -39,10 +38,21 @@ import {
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
 import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
-import type { MainnetScope } from "@/lib/db/network-scope";
+import { createNetworkScope, type MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
+import { isEvalWorkspace } from "@/lib/evals/eval-guard";
+import {
+  BENCHMARK_PAID_MEDIA_REFUSAL,
+  EVAL_STUB_REQUEST_PREFIX,
+  EVAL_STUB_SOURCE,
+  isEvalStubRequest,
+  isEvalStubSource,
+  stubImage,
+  stubVector,
+  stubVideo,
+} from "@/lib/evals/media-stub";
 import {
   emitCoreWarning,
   recordCoreError,
@@ -58,6 +68,7 @@ import {
 import {
   readStudioBlobToken,
   requireStudioBlobToken,
+  studioPut,
 } from "@/lib/image-studio/blob-store";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
 import { RECRAFT_VECTOR_ENDPOINT } from "@/lib/image-studio/catalog-overrides";
@@ -427,6 +438,8 @@ async function requireBalanceForQuote(options: {
 }
 
 async function reserveJobTransaction(input: ReserveImageJobInput) {
+  // Read before the reservation: inside it, only `tx` may touch the database.
+  const benchmarkLane = await isEvalWorkspace(input.workspaceId);
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageJob.findUnique({
       where: {
@@ -592,21 +605,28 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     }
 
     // A Cuso's month makes its pictures under the owner's name: they never
-    // count against the picture the owner asks for in chat.
-    const recent = input.forCmoMonth
-      ? 0
-      : await tx.projectImageJob.count({
-          where: {
-            requestedByUserId: input.userId,
-            createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
-            NOT: [
-              {
-                idempotencyKey: { startsWith: `${CMO_MONTH_JOB_KEY_PREFIX}:` },
-              },
-              { idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` } },
-            ],
-          },
-        });
+    // count against the picture the owner asks for in chat. A benchmark
+    // lane's pictures are the media stub's, which spend nothing, and its one
+    // owner makes every journey's pictures back to back.
+    const recent =
+      input.forCmoMonth || benchmarkLane
+        ? 0
+        : await tx.projectImageJob.count({
+            where: {
+              requestedByUserId: input.userId,
+              createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
+              NOT: [
+                {
+                  idempotencyKey: {
+                    startsWith: `${CMO_MONTH_JOB_KEY_PREFIX}:`,
+                  },
+                },
+                {
+                  idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` },
+                },
+              ],
+            },
+          });
     if (recent >= LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR) {
       throw tooManyRequests(
         `You can start at most ${LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR} image generations per hour.`,
@@ -1788,7 +1808,7 @@ async function speakScript(
   );
   if (spokenSeconds > quotedSeconds * VOICE_OVERRUN_LIMIT)
     throw new Error("The voice ran far longer than the script was quoted at.");
-  const stored = await put(
+  const stored = await studioPut(
     `projects/${job.projectId}/image-studio/${job.id}-voice.mp3`,
     voice.bytes as unknown as Buffer,
     {
@@ -1863,7 +1883,7 @@ async function storeShortVideoPictures(
   return await Promise.all(
     sources.map(async (source, index) => {
       const framed = await keepVideoPicture(await source);
-      const stored = await put(
+      const stored = await studioPut(
         `projects/${job.projectId}/image-studio/${job.id}-picture-${index}.jpg`,
         framed as unknown as Buffer,
         {
@@ -2045,7 +2065,7 @@ async function storeTalkingVideoSitePage(
     if (!project?.websiteUrl) return null;
     const page = await captureTalkingVideoSitePage(project.websiteUrl, device);
     if (!page) return null;
-    const stored = await put(
+    const stored = await studioPut(
       `projects/${job.projectId}/image-studio/${job.id}-site${device === "desktop" ? "-desktop" : ""}.jpg`,
       page as unknown as Buffer,
       {
@@ -2123,11 +2143,47 @@ async function reserveAndSend(input: ReserveImageJobInput) {
   return await sendClaimedJob(job.id, input.organizationId);
 }
 
+/**
+ * A benchmark lane's job, "sent" to the in-process stub: queued with a stub
+ * request id, then settled with deterministic media at once, as fal's webhook
+ * would settle it. A talking video (voice, lip-sync, a second provider step)
+ * has no stub and fails closed, unsent and uncharged.
+ */
+async function sendToEvalStub(job: { id: string; kind: ProjectImageJobKind }) {
+  if (job.kind === ProjectImageJobKind.TALKING_VIDEO)
+    return await failBeforeSend(
+      job.id,
+      "request_not_supported",
+      new Error(BENCHMARK_PAID_MEDIA_REFUSAL),
+    );
+  await prisma.projectImageJob.update({
+    where: { id: job.id },
+    data: {
+      status: ProjectImageJobStatus.QUEUED,
+      falRequestId: `${EVAL_STUB_REQUEST_PREFIX}${job.id}`,
+      submittedAt: new Date(),
+      submitLeaseAt: null,
+    },
+  });
+  // Image Studio is Mainnet only.
+  await settleWithMedia(
+    createNetworkScope("mainnet"),
+    job.id,
+    EVAL_STUB_SOURCE,
+  );
+  return await prisma.projectImageJob.findUniqueOrThrow({
+    where: { id: job.id },
+  });
+}
+
 /** Sends a job whose lease this caller already holds. */
 async function sendClaimedJob(jobId: string, organizationId: string | null) {
   const job = await prisma.projectImageJob.findUniqueOrThrow({
     where: { id: jobId },
   });
+  // A benchmark lane buys no media: the job goes to the in-process stub
+  // before anything below could prepare or send a paid request.
+  if (await isEvalWorkspace(job.workspaceId)) return await sendToEvalStub(job);
 
   // Everything that has to happen before the paid call, in one try, because
   // everything that can fail in here is provably unsent: `submitToQueue` has not
@@ -2488,6 +2544,11 @@ export async function reconcileJob(
   // still tell us it succeeded. Refusing to look was what made paid images
   // behind an outage permanently unreachable.
   if (!(LIVE_STATUSES as readonly string[]).includes(job.status)) {
+    return;
+  }
+  // A benchmark lane's stub job: fal never saw it, so it's never asked.
+  if (isEvalStubRequest(job.falRequestId)) {
+    await settleWithMedia(scope, job.id, EVAL_STUB_SOURCE);
     return;
   }
 
@@ -3272,15 +3333,21 @@ async function storeMedia(
 
   let downloaded: Awaited<ReturnType<typeof downloadMedia>>;
   try {
-    downloaded = video
-      ? await downloadMedia(
-          clipUrl,
-          job.kind === ProjectImageJobKind.TALKING_VIDEO
-            ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
-            : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
-          short ? "audio/wav" : "video/mp4",
-        )
-      : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
+    downloaded = isEvalStubSource(sourceUrl)
+      ? video
+        ? await stubVideo()
+        : job.model === RECRAFT_VECTOR_ENDPOINT
+          ? stubVector(job.id)
+          : await stubImage(job.id)
+      : video
+        ? await downloadMedia(
+            clipUrl,
+            job.kind === ProjectImageJobKind.TALKING_VIDEO
+              ? LIMITS.IMAGE_STUDIO_MAX_TALKING_VIDEO_BYTES
+              : LIMITS.IMAGE_STUDIO_MAX_VIDEO_BYTES,
+            short ? "audio/wav" : "video/mp4",
+          )
+        : await downloadMedia(sourceUrl, LIMITS.IMAGE_STUDIO_MAX_ASSET_BYTES);
     // A CDN that calls an mp4 `application/octet-stream` would make it
     // unplayable in the gallery and unattachable in Social.
     if (video && !short && !downloaded.contentType.startsWith("video/"))
@@ -3548,7 +3615,7 @@ async function storeMedia(
   // objects were left behind with nothing referencing them. The finished image
   // and any separate backdrop use stable keys, overwritten idempotently. The
   // keys are not secrets, and nothing about access control rests on them.
-  let blob: Awaited<ReturnType<typeof put>>;
+  let blob: Awaited<ReturnType<typeof studioPut>>;
   let backdropBlobPathname: string | undefined;
   try {
     const storageOptions = {
@@ -3559,7 +3626,7 @@ async function storeMedia(
     };
     const objectPath = `projects/${job.projectId}/image-studio/${job.id}`;
     if (vectorSource) {
-      await put(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
+      await studioPut(`${objectPath}-source.svg`, Buffer.from(vectorSource), {
         ...storageOptions,
         contentType: "image/svg+xml",
         abortSignal: AbortSignal.timeout(60_000),
@@ -3570,7 +3637,7 @@ async function storeMedia(
         .createHash("sha256")
         .update(backdrop.bytes)
         .digest("hex");
-      const backdropBlob = await put(
+      const backdropBlob = await studioPut(
         `${objectPath}-backdrop-${backdropHash.slice(0, 16)}`,
         backdrop.bytes as unknown as Buffer,
         {
@@ -3581,7 +3648,7 @@ async function storeMedia(
       );
       backdropBlobPathname = backdropBlob.pathname;
     }
-    blob = await put(
+    blob = await studioPut(
       `${objectPath}-${checksum.slice(0, 16)}`,
       downloaded.bytes as unknown as Buffer,
       {

@@ -15,6 +15,7 @@ import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
 import {
   clearEarlierCaseArtifacts,
+  closeLaneImageJobs,
   type DeleteBlobs,
   type EvalLaneRecord,
   PENDING_BLOB_PREFIX,
@@ -29,13 +30,17 @@ import {
   claimedRunState,
   earlierCaseFilesCheck,
   earlierCaseTasksCheck,
+  failedCallsByRecovery,
   foregroundTurnId,
   freshConversationCheck,
   isolationFailed,
   journeyTokens,
+  journeyTurns,
+  journeyWorkToStop,
   organizerFailures,
   packetTaskIds,
   routingFailures,
+  stepSettled,
   withDescendants,
 } from "./journey-runner";
 import {
@@ -226,6 +231,147 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     }
   });
 
+  it("closes a stub image job but keeps a provider-backed one until it settles", async () => {
+    const job = (falRequestId: string) =>
+      prisma.projectImageJob.create({
+        data: {
+          workspaceId,
+          projectId,
+          requestedByUserId: userId,
+          kind: "GENERATE",
+          model: "fixture",
+          prompt: "fixture",
+          settings: {},
+          status: "RUNNING",
+          falRequestId,
+          idempotencyKey: randomUUID(),
+        },
+        select: { id: true },
+      });
+    const stub = await job(`eval-stub:${randomUUID()}`);
+    const live = await job(randomUUID());
+    try {
+      const { unresolved } = await closeLaneImageJobs(workspaceId);
+      const status = async (id: string) =>
+        (await prisma.projectImageJob.findUniqueOrThrow({ where: { id } }))
+          .status;
+      expect(await status(stub.id)).toBe("CANCELED");
+      expect(await status(live.id)).toBe("RUNNING");
+      expect(unresolved).toEqual([live.id]);
+    } finally {
+      await prisma.projectImageJob.deleteMany({
+        where: { id: { in: [stub.id, live.id] } },
+      });
+    }
+  });
+
+  it("starts a journey with no earlier case's unfinished image job filling the project's limit", async () => {
+    const job = (status: "QUEUED" | "RUNNING" | "SUCCEEDED") =>
+      prisma.projectImageJob.create({
+        data: {
+          projectId,
+          workspaceId,
+          requestedByUserId: userId,
+          kind: "GENERATE",
+          model: "fixture",
+          prompt: "an earlier case's banner",
+          settings: {},
+          status,
+          idempotencyKey: randomUUID(),
+        },
+        select: { id: true },
+      });
+    const stuck = [await job("QUEUED"), await job("RUNNING")];
+    const done = await job("SUCCEEDED");
+    // Another workspace's job in flight: the lane's clean start never
+    // touches it.
+    const otherUser = randomUUID();
+    await prisma.user.create({
+      data: {
+        id: otherUser,
+        name: "Other workspace",
+        email: `${otherUser}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const otherWorkspace = (
+      await prisma.workspace.create({ data: { userId: otherUser } })
+    ).id;
+    const otherProject = await prisma.project.create({
+      data: { workspaceId: otherWorkspace, name: "Someone else's" },
+      select: { id: true },
+    });
+    const foreign = await prisma.projectImageJob.create({
+      data: {
+        projectId: otherProject.id,
+        workspaceId: otherWorkspace,
+        requestedByUserId: otherUser,
+        kind: "GENERATE",
+        model: "fixture",
+        prompt: "another workspace's banner",
+        settings: {},
+        status: "QUEUED",
+        idempotencyKey: randomUUID(),
+      },
+      select: { id: true },
+    });
+    expect(
+      (await closeLaneImageJobs(workspaceId)).closed,
+    ).toBeGreaterThanOrEqual(2);
+    const after = await prisma.projectImageJob.findMany({
+      where: { id: { in: [...stuck, done].map((row) => row.id) } },
+      select: { id: true, status: true },
+    });
+    expect(
+      after.filter((row) => row.status === "CANCELED").map((row) => row.id),
+    ).toEqual(expect.arrayContaining(stuck.map((row) => row.id)));
+    expect(after.find((row) => row.id === done.id)?.status).toBe("SUCCEEDED");
+    expect(
+      (
+        await prisma.projectImageJob.findUniqueOrThrow({
+          where: { id: foreign.id },
+          select: { status: true },
+        })
+      ).status,
+    ).toBe("QUEUED");
+    // A benchmark read of a missing job leaves other workspaces' jobs alone.
+    await prisma.projectImageJob.update({
+      where: { id: foreign.id },
+      data: { status: "SUBMITTING", submitLeaseAt: new Date(0) },
+    });
+    const guard = await import("@/lib/evals/eval-guard");
+    const evalWorkspace = vi
+      .spyOn(guard, "isEvalWorkspace")
+      .mockImplementation(async (id) => id === workspaceId);
+    try {
+      const { getStudioJob } = await import(
+        "@/services/soko-bot-runtime/media-generation"
+      );
+      await getStudioJob(
+        { requireImageProject: vi.fn() } as never,
+        { turn: { workspaceId, actingUserId: userId } } as never,
+        { projectId, jobId: randomUUID() },
+      );
+      expect(
+        (
+          await prisma.projectImageJob.findUniqueOrThrow({
+            where: { id: foreign.id },
+          })
+        ).status,
+      ).toBe("SUBMITTING");
+    } finally {
+      evalWorkspace.mockRestore();
+    }
+    await prisma.projectImageJob.deleteMany({
+      where: { id: { in: [...stuck, done, foreign].map((row) => row.id) } },
+    });
+    await prisma.project.deleteMany({ where: { id: otherProject.id } });
+    await prisma.workspace.deleteMany({ where: { id: otherWorkspace } });
+    await prisma.user.deleteMany({ where: { id: otherUser } });
+  });
+
   it("counts made images from Files and studio jobs, failed ones aside", async () => {
     const check = await outcomeCheck(
       { kind: "images", label: "images", min: 3, max: 3 },
@@ -313,6 +459,75 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect((await check("edited")).pass).toBe(true);
     });
 
+    it("passes an edit that moves the same schedule to the zone the owner asked for", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      const original = await create("Report finished and waiting work.");
+      await check("remember");
+      const asked = { timezone: "America/New_York" };
+      expect((await check("edited", asked)).pass).toBe(false);
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { timezone: "America/New_York" },
+      });
+      expect((await check("edited", asked)).pass).toBe(true);
+      expect((await check("edited", { timezone: "Asia/Tokyo" })).pass).toBe(
+        false,
+      );
+    });
+
+    it("reads a brief split across the bot's schedule and a Coworker Task Schedule", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      await create("Make 2-3 images from the note and draft the post.");
+      const brief = {
+        promptMatches: ["codepat", "architect", "image"],
+      };
+      expect(
+        (await check("remember", { ...brief, withTaskSchedules: true })).pass,
+      ).toBe(false);
+      const vendor = await prisma.vendor.upsert({
+        where: { slug: "journey-checks-fixture" },
+        create: { slug: "journey-checks-fixture", name: "Fixture" },
+        update: {},
+        select: { id: true },
+      });
+      const codepat = await prisma.coworker.create({
+        data: {
+          slug: `fixture-${randomUUID()}`,
+          name: "CodePat",
+          baseURL: "https://coworker.evals.invalid",
+          capabilities: ["tasks"],
+          vendorId: vendor.id,
+        },
+        select: { id: true },
+      });
+      const now = new Date();
+      const taskSchedule = await prisma.taskSchedule.create({
+        data: {
+          workspaceId,
+          creatorSokoBotId: botId,
+          assigneeId: codepat.id,
+          name: "Daily architecture note",
+          description: "Review the source and write one architecture note.",
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          anchorAt: now,
+          ruleEffectiveFrom: now,
+          epochId: randomUUID(),
+        },
+        select: { id: true },
+      });
+      try {
+        expect(
+          (await check("remember", { ...brief, withTaskSchedules: true })).pass,
+        ).toBe(true);
+        // Without the opt-in the bot's schedule alone is read, as before.
+        expect((await check("remember", brief)).pass).toBe(false);
+      } finally {
+        await prisma.taskSchedule.delete({ where: { id: taskSchedule.id } });
+        await prisma.coworker.delete({ where: { id: codepat.id } });
+      }
+    });
+
     it("fails an edit that keeps the dropped clause, passes the same id without it", async () => {
       await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
       const original = await create("Report finished, stuck and waiting work.");
@@ -332,6 +547,66 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         true,
       );
     });
+  });
+
+  it("counts a refusal recovered only when a later call in the same turn on the same thing works", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = () =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `chat:${randomUUID()}`,
+          userMessage: "Every Monday at 8:00 send me a short report.",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+        select: { id: true },
+      });
+    const [first, second] = [await turn(), await turn()];
+    let at = Date.now();
+    const call = (turnId: string, capability: string, status: string) =>
+      prisma.sokoBotToolCall.create({
+        data: {
+          turnId,
+          toolCallId: randomUUID(),
+          capability,
+          inputHash: randomUUID(),
+          status: status as "FAILED" | "COMPLETED",
+          createdAt: new Date((at += 1_000)),
+        },
+      });
+    try {
+      // Refused with a hint, then the right call on the same thing.
+      await call(first.id, "update_schedule", "FAILED");
+      await call(first.id, "create_schedule", "COMPLETED");
+      // Refused, and nothing on posts works later in this turn.
+      await call(first.id, "create_social_post", "FAILED");
+      // A working call in another turn does not make it good.
+      await call(second.id, "create_social_post", "COMPLETED");
+      expect(await failedCallsByRecovery([first.id, second.id], {})).toEqual({
+        unrecovered: ["create_social_post"],
+        recovered: ["update_schedule"],
+      });
+      expect(
+        await failedCallsByRecovery([first.id], {
+          allowFailedTools: ["create_social_post"],
+        }),
+      ).toEqual({ unrecovered: [], recovered: ["update_schedule"] });
+    } finally {
+      await prisma.sokoBotTurn.deleteMany({
+        where: { id: { in: [first.id, second.id] } },
+      });
+      await prisma.sokoBot.deleteMany({ where: { id: botId } });
+    }
   });
 
   it("follows the claimed scheduled run: a failed or dead-lettered one ends and fails the step", async () => {
@@ -900,6 +1175,167 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
       await prisma.agentFixedPricing.deleteMany({ where: { id: fixedId } });
     }
+  });
+
+  it("counts only this journey's work: an earlier run's watch firing mid-step is not the step's", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId, versionId: "cmo-v27" },
+        select: { id: true },
+      })
+    ).id;
+    const turn = (
+      versionId: string,
+      kind: string,
+      parentTurnId?: string,
+      createdAt?: Date,
+    ) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          versionId,
+          clientTurnId: `${kind}:${randomUUID()}`,
+          userMessage: "fixture",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          ...(parentTurnId ? { parentTurnId } : {}),
+          ...(createdAt ? { createdAt } : {}),
+        },
+        select: { id: true },
+      });
+    // A previous run (another version) left a watch behind.
+    const previousRun = await turn(
+      "cmo-v23",
+      "chat",
+      undefined,
+      new Date(Date.now() - 13 * 3_600_000),
+    );
+    const journeyStartedAt = new Date(Date.now() - 1_000);
+    const stepStartedAt = new Date(Date.now() - 500);
+    const owner = await turn("cmo-v27", "chat");
+    const oldWatch = await turn("cmo-v23", "watch", previousRun.id);
+    const oldWatchSameVersion = await turn("cmo-v27", "watch", previousRun.id);
+    const ownWatch = await turn("cmo-v27", "watch", owner.id);
+    // Delegation wakes are parentless EVENT turns linked by followUpTurnId:
+    // one answers the previous run's hand-over, one this journey's. Both are
+    // still running when the step times out.
+    const oldDelegationWake = await turn("cmo-v27", "foreign-event");
+    const ownDelegationWake = await turn("cmo-v27", "current-event");
+    await prisma.sokoBotTurn.updateMany({
+      where: { id: { in: [oldDelegationWake.id, ownDelegationWake.id] } },
+      data: { source: "EVENT", status: "RUNNING" },
+    });
+    await prisma.sokoBotDelegation.createMany({
+      data: [
+        {
+          turnId: previousRun.id,
+          toolCallId: `earlier-${randomUUID()}`,
+          kind: "TASK",
+          action: "create_task",
+          followUpTurnId: oldDelegationWake.id,
+        },
+        {
+          turnId: owner.id,
+          toolCallId: `current-${randomUUID()}`,
+          kind: "TASK",
+          action: "create_task",
+          followUpTurnId: ownDelegationWake.id,
+        },
+      ],
+    });
+    const watch = (turnId: string) =>
+      prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          then: "fixture",
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+        select: { id: true },
+      });
+    const foreignWatch = await watch(previousRun.id);
+    const ownWaiting = await watch(owner.id);
+    const own = await journeyTurns(botId, stepStartedAt, journeyStartedAt);
+    expect(own.map((entry) => entry.id)).toEqual([
+      owner.id,
+      ownWatch.id,
+      ownDelegationWake.id,
+    ]);
+    expect(own.map((entry) => entry.id)).not.toContain(oldWatch.id);
+    expect(own.map((entry) => entry.id)).not.toContain(oldWatchSameVersion.id);
+    expect(own.map((entry) => entry.id)).not.toContain(oldDelegationWake.id);
+    // A timeout stops only this journey's work: the foreign wake is neither
+    // cancelled nor its watch expired.
+    expect(
+      await journeyWorkToStop(botId, stepStartedAt, journeyStartedAt),
+    ).toEqual({ turnIds: [ownDelegationWake.id], watchIds: [ownWaiting.id] });
+    expect(foreignWatch.id).not.toBe(ownWaiting.id);
+    // With this journey's work done, a foreign watch still waiting doesn't
+    // hold the step open; this journey's own waiting watch does.
+    await prisma.sokoBotTurn.update({
+      where: { id: ownDelegationWake.id },
+      data: { status: "COMPLETED" },
+    });
+    expect(
+      await stepSettled(
+        botId,
+        stepStartedAt,
+        journeyStartedAt,
+        new Date(),
+        null,
+        {},
+      ),
+    ).toBe(false);
+    await prisma.sokoBotWatch.delete({ where: { id: ownWaiting.id } });
+    expect(
+      await stepSettled(
+        botId,
+        stepStartedAt,
+        journeyStartedAt,
+        new Date(),
+        null,
+        {},
+      ),
+    ).toBe(true);
+    // Once the foreign watch is due, the step still settles and nothing
+    // dispatches it: the sync only reads this journey's own waits.
+    await prisma.sokoBotWatch.update({
+      where: { id: foreignWatch.id },
+      data: { expiresAt: new Date(0) },
+    });
+    const { sokoBotControlPlane, SokoBotBusyError } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    const start = vi
+      .spyOn(sokoBotControlPlane, "startTurn")
+      .mockRejectedValue(new SokoBotBusyError("fixture"));
+    try {
+      expect(
+        await stepSettled(
+          botId,
+          stepStartedAt,
+          journeyStartedAt,
+          new Date(),
+          null,
+          {},
+        ),
+      ).toBe(true);
+      expect(start).not.toHaveBeenCalled();
+    } finally {
+      start.mockRestore();
+    }
+    await prisma.sokoBotWatch.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBotDelegation.deleteMany({
+      where: { turnId: { in: [previousRun.id, owner.id] } },
+    });
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });
 
   it("seats the journey's own bot in the teammate room", async () => {

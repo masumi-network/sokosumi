@@ -539,6 +539,12 @@ const baseEnvSchema = z.object({
    */
   IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Local eval runs only (ignored on Vercel and when the token above is set):
+   * a directory that stands in for the studio's private store, so the owner
+   * benchmark can make and read images on a laptop.
+   */
+  EVAL_LOCAL_STUDIO_STORE_DIR: z.string().min(1).optional(),
+  /**
    * Read-write token for the **private-access** Blob store data rooms keep
    * their files in, for the same reason the image studio has its own: the
    * shared Drive store is public, and only a private store makes taking

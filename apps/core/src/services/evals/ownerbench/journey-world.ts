@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { FileIndexJobPipeline } from "@sokosumi/database";
 import {
   buildOrganizationDriveFilePathname,
   convertCreditsToCents,
@@ -11,8 +12,11 @@ import prisma from "@/lib/db/prisma";
 import { evalEnvironment } from "@/lib/evals/eval-environment";
 import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
+import { EVAL_AGENT_BASE_URL } from "@/lib/evals/fake-agent";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
+import { leaseNextFileIndexJob } from "@/lib/files/index-jobs";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
+import { runExtractionJob } from "@/services/file-index.service";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
@@ -409,31 +413,96 @@ const CUSTOMER_STORY = {
 async function seedPdf(
   lane: EvalLaneRecord,
   file: { name: string; title: string; lines: string[] },
+  marker: string,
 ): Promise<string> {
-  return seedFile(lane, {
-    name: file.name,
-    bytes: await pdf(file.title, file.lines),
-    contentType: "application/pdf",
-  });
+  return seedFile(
+    lane,
+    {
+      name: file.name,
+      bytes: await pdf(file.title, file.lines),
+      contentType: "application/pdf",
+    },
+    marker,
+  );
 }
 
 /** A file in the owner's Files, as an upload puts it there. */
 async function seedFile(
   lane: EvalLaneRecord,
   file: { name: string; bytes: Uint8Array; contentType: string },
+  /** For a file the bot must read: text its extraction must contain. */
+  readableText?: string,
 ): Promise<string> {
   const written = await writeOwnerDriveFile({
     workspaceId: lane.workspaceId,
     organizationId: lane.organizationId,
     userId: lane.userId,
+    // A fresh object each journey: the reset deleted the last one at the
+    // same name, and the store answers a just-rewritten pathname with 404
+    // for a few seconds, which sent extraction into its retry backoff.
     pathname: buildOrganizationDriveFilePathname(
       lane.organizationId,
-      file.name,
+      file.name.replace(/(\.[^.]+)?$/, `-${randomUUID().slice(0, 8)}$1`),
     ),
     ...file,
+    // Its extraction runs below, on its own; the general nudge would also
+    // drain other files' queued work.
+    ...(readableText ? { nudgeIndexing: false as const } : {}),
   });
   if (!written) throw new Error(`Could not seed ${file.name} in Files`);
+  if (readableText) await untilReadable(written.id, file.name, readableText);
   return written.id;
+}
+
+/**
+ * A file the owner uploaded before the journey has been read by the time
+ * they ask about it: its current version's extracted text holds `text`.
+ * Only this file's extraction job runs (local, no model call). A failed,
+ * unreadable or late extraction stops the setup with its reason, so the
+ * journey is unscored rather than measuring a world the bot cannot read.
+ */
+export async function untilReadable(
+  resourceId: string,
+  name: string,
+  text: string,
+  timeoutMs = 60_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const leased = await leaseNextFileIndexJob({
+      pipeline: FileIndexJobPipeline.EXTRACT,
+      resourceId,
+    });
+    if (leased) await runExtractionJob(leased);
+    const resource = await prisma.fileResource.findUniqueOrThrow({
+      where: { id: resourceId },
+      select: { contentRevision: true },
+    });
+    const version = await prisma.fileVersion.findFirst({
+      where: { resourceId, revision: resource.contentRevision },
+      select: { extractionState: true },
+    });
+    const state = version?.extractionState ?? "PENDING";
+    if (state === "INDEXED" || state === "PARTIAL") {
+      const chunks = await prisma.fileChunk.findMany({
+        where: {
+          version: { resourceId, revision: resource.contentRevision },
+        },
+        select: { text: true },
+      });
+      if (chunks.some((chunk) => chunk.text.includes(text))) return;
+      throw new Error(
+        `Seeded file "${name}" was extracted (${state}) without its text "${text}"`,
+      );
+    }
+    if (state !== "PENDING" && state !== "RUNNING")
+      throw new Error(`Seeded file "${name}" is unreadable (${state})`);
+    if (Date.now() > deadline)
+      throw new Error(
+        `Seeded file "${name}" was not extracted in time (${state})`,
+      );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 }
 
 /**
@@ -785,7 +854,7 @@ export async function seedAgent(
     name: agent.name,
     description: agent.description,
     summary: agent.description,
-    apiBaseUrl: "https://agent.evals.invalid",
+    apiBaseUrl: EVAL_AGENT_BASE_URL,
     isShown: true,
     status: "ONLINE" as const,
   };
@@ -866,22 +935,34 @@ export async function prepareJourneyWorld(
     },
   };
   if (prepare.includes("launch-one-pager-pdf")) {
-    world.seededFileId = await seedPdf(lane, LAUNCH_ONE_PAGER);
     world.seededFileMarker = "Nightly dreaming";
+    world.seededFileId = await seedPdf(
+      lane,
+      LAUNCH_ONE_PAGER,
+      world.seededFileMarker,
+    );
   }
   if (prepare.includes("customer-story-pdf")) {
-    world.seededFileId = await seedPdf(lane, CUSTOMER_STORY);
     world.seededFileMarker = "43% fewer no-shows";
+    world.seededFileId = await seedPdf(
+      lane,
+      CUSTOMER_STORY,
+      world.seededFileMarker,
+    );
   }
   if (prepare.includes("outdated-price-post"))
     world.seededPostId = await seedOutdatedPricePost(lane);
   if (prepare.includes("investor-notes")) {
-    world.seededFileId = await seedFile(lane, {
-      name: "Seed investor notes.md",
-      bytes: new TextEncoder().encode(investorNotes()),
-      contentType: "text/markdown",
-    });
     world.seededFileMarker = INVESTOR_FIXTURE.fits[0]?.startup;
+    world.seededFileId = await seedFile(
+      lane,
+      {
+        name: "Seed investor notes.md",
+        bytes: new TextEncoder().encode(investorNotes()),
+        contentType: "text/markdown",
+      },
+      world.seededFileMarker,
+    );
   }
   if (prepare.includes("weekly-reports")) await seedCmoReports(lane);
   if (prepare.includes("friday-and-linkedin-posts"))

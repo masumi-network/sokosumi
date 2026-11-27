@@ -132,6 +132,19 @@ if (values.rejudge) {
     "@/services/evals/ownerbench/run-output"
   );
   const report = await getEvalRunReport(values.rejudge);
+  // A run the outbound guard invalidated (or one that never completed)
+  // measured the world, not the bot: re-judging it would launder it.
+  const { invalidRunReason } = await import(
+    "@/services/evals/ownerbench/parity"
+  );
+  const invalid = invalidRunReason(report);
+  if (invalid) {
+    console.error(
+      `Run ${values.rejudge} is not valid (${invalid}); not re-judged.`,
+    );
+    await prisma.$disconnect();
+    process.exit(2);
+  }
   const rescored = await rejudgeEvalRunReport({
     report,
     journeys: [...OWNER_JOURNEYS, ...holdoutJourneys()],
@@ -158,6 +171,15 @@ const plan = ["1", "true"].includes(
 // `getEnv()` never caches `"sandbox"` ahead of ordinary local runs.
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 
+// EVAL_OUTBOUND_GUARD=record|enforce: before any Core module, so no client
+// keeps the unguarded fetch. Every non-allowed host goes to EVAL_OUTBOUND_LOG.
+const guardMode = process.env.EVAL_OUTBOUND_GUARD;
+if (guardMode === "record" || guardMode === "enforce") {
+  const { installEvalOutboundGuard } = await import(
+    "@/lib/evals/outbound-guard"
+  );
+  installEvalOutboundGuard(guardMode, process.env.EVAL_OUTBOUND_LOG);
+}
 const { ownerbenchJudgeMode } = await import(
   "@/services/evals/ownerbench/per-item-judge"
 );
@@ -274,6 +296,31 @@ console.log(
     ? "\nThe run holds held-out journeys: share only ownerbench-compare's totals, never `sokosumi evals show` output."
     : `\nDetails: sokosumi evals show ${run.id} --markdown --api-url <this Core>`,
 );
+// A caller may swallow the refused request (best-effort notifications do),
+// so the run itself carries it: under enforce, any attempt marks the stored
+// run invalid before its report is written, so no later export, comparison
+// or re-judge can use it, and the process fails.
+let refused = false;
+if (guardMode === "record" || guardMode === "enforce") {
+  const { outboundAttempts } = await import("@/lib/evals/outbound-guard");
+  const hosts = [...new Set(outboundAttempts().map((attempt) => attempt.host))];
+  console.log(
+    `\nOutbound guard (${guardMode}): ${outboundAttempts().length} call(s) to non-allowed hosts${hosts.length ? `: ${hosts.join(", ")}` : ""}`,
+  );
+  if (guardMode === "enforce" && hosts.length) {
+    refused = true;
+    const { INVALID_RUN_PREFIX } = await import(
+      "@/services/evals/ownerbench/parity"
+    );
+    await prisma.evalRun.update({
+      where: { id: run.id },
+      data: {
+        status: "CANCELLED",
+        label: `${INVALID_RUN_PREFIX} the outbound guard refused ${outboundAttempts().length} call(s) to ${hosts.join(", ")}`,
+      },
+    });
+  }
+}
 if (values["json-out"]) await writeReport(run.id, values["json-out"]);
 await prisma.$disconnect();
-process.exit(0);
+process.exit(refused ? 3 : 0);

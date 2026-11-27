@@ -111,6 +111,8 @@ export async function writeOwnerDriveFile(input: {
   name: string;
   bytes: Uint8Array;
   contentType: string;
+  /** False: the caller indexes this file itself (a benchmark fixture). */
+  nudgeIndexing?: false;
 }): Promise<(StudioAssetDriveFile & { url: string }) | null> {
   const { pathname, name, bytes, contentType } = input;
   const key = {
@@ -136,7 +138,7 @@ export async function writeOwnerDriveFile(input: {
     mimeType: contentType,
   });
   if (!activated) return null;
-  nudgeFileIndexing();
+  if (input.nudgeIndexing !== false) nudgeFileIndexing();
   return {
     id: activated.resourceId,
     name,

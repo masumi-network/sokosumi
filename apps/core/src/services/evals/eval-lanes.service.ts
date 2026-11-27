@@ -9,6 +9,7 @@ import { driveDel } from "@/lib/drive-blob";
 import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import { seedEvalMcpServer } from "@/lib/evals/eval-mcp-server";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
+import { EVAL_STUB_REQUEST_PREFIX } from "@/lib/evals/media-stub";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
@@ -473,6 +474,47 @@ export async function seedEvalXDms(
     },
     update: { status: "ACTIVE", cursor },
   });
+}
+
+/** Image job states that still count toward a project's concurrent-job limit. */
+const UNFINISHED_IMAGE_JOBS = [
+  "PENDING",
+  "SUBMITTING",
+  "QUEUED",
+  "RUNNING",
+  "SUBMISSION_UNCERTAIN",
+] as const;
+
+/**
+ * Ends the lane's unfinished image jobs that never reached a provider: a
+ * media-stub job, or one never sent. An earlier case's job nobody collected
+ * counts toward a project's limit of concurrent jobs, so the next case's
+ * generate_image is refused before it starts. A job a provider may be
+ * working on (or billing) is left for reconciliation and returned in
+ * `unresolved`: until it settles, the lane is not clean.
+ */
+export async function closeLaneImageJobs(
+  workspaceId: string,
+): Promise<{ closed: number; unresolved: string[] }> {
+  const { count } = await prisma.projectImageJob.updateMany({
+    where: {
+      workspaceId,
+      status: { in: [...UNFINISHED_IMAGE_JOBS] },
+      OR: [
+        { falRequestId: { startsWith: EVAL_STUB_REQUEST_PREFIX } },
+        {
+          falRequestId: null,
+          status: { in: ["PENDING", "QUEUED", "RUNNING"] },
+        },
+      ],
+    },
+    data: { status: "CANCELED" },
+  });
+  const unresolved = await prisma.projectImageJob.findMany({
+    where: { workspaceId, status: { in: [...UNFINISHED_IMAGE_JOBS] } },
+    select: { id: true },
+  });
+  return { closed: count, unresolved: unresolved.map((job) => job.id) };
 }
 
 /**

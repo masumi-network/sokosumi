@@ -11,6 +11,7 @@ import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
+import { resolveRequestId } from "@/lib/soko-bot/request-chain";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
@@ -29,6 +30,7 @@ import type {
 import { prepareCmoChatCase } from "../eval-cmo-runner";
 import {
   clearEarlierCaseArtifacts,
+  closeLaneImageJobs,
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
@@ -42,6 +44,7 @@ import {
   type JourneyStep,
   journeyJudgeScenario,
   type OwnerJourney,
+  type StepExpect,
 } from "./journeys";
 import {
   type JourneyJudgeOutcome,
@@ -74,6 +77,8 @@ export interface StepRecord {
   tools?: string[];
   toolCalls?: number;
   toolErrors?: string[];
+  /** Refusals the bot recovered from in the same turn: noted, not failed. */
+  warnings?: string[];
   retries?: number;
   costUsd?: number;
   durationMs?: number;
@@ -365,23 +370,114 @@ async function deliverCoworkerAnswer(
 }
 
 /** The events cron's scan, for this bot only; a busy bot is woken on a later poll. */
-async function wakeOnDelegatedWork(botId: string): Promise<void> {
+async function wakeOnDelegatedWork(
+  botId: string,
+  turnIds: readonly string[],
+): Promise<void> {
   await whileUnpaused(botId, () =>
     sokoBotEventsSyncService.syncDelegatedWork({
       abortSignal: new AbortController().signal,
       shouldContinue: () => true,
       sokoBotId: botId,
+      turnIds,
     }),
   );
 }
 
-async function stepTurnIds(botId: string, since: Date): Promise<string[]> {
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: { sokoBotId: botId, createdAt: { gte: since } },
-    orderBy: { createdAt: "asc" },
+/**
+ * The step's own turns: this bot's turns since the step began that ran the
+ * journey's version and whose request chain started in this journey. A watch
+ * or follow-up that an earlier run left on the same bot can fire mid-step;
+ * it is not this journey's work, so it is neither scored nor waited for.
+ */
+export async function journeyTurns(
+  botId: string,
+  since: Date,
+  journeyStartedAt: Date,
+) {
+  const [bot, turns] = await Promise.all([
+    prisma.sokoBot.findUnique({
+      where: { id: botId },
+      select: { versionId: true },
+    }),
+    prisma.sokoBotTurn.findMany({
+      where: { sokoBotId: botId, createdAt: { gte: since } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        versionId: true,
+        parentTurnId: true,
+        source: true,
+        status: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+  const own: typeof turns = [];
+  for (const turn of turns) {
+    if (bot?.versionId && turn.versionId && turn.versionId !== bot.versionId)
+      continue;
+    if (await requestStartedBefore(turn.id, journeyStartedAt)) continue;
+    own.push(turn);
+  }
+  return own;
+}
+
+/**
+ * Whether the owner request a turn belongs to started before `start`, by
+ * Core's own request ancestry: a background run or watch wake belongs to the
+ * turn that started it, a Coworker or Agent follow-up wake to the turn that
+ * handed the work over (a parentless EVENT turn linked by followUpTurnId).
+ */
+async function requestStartedBefore(
+  turnId: string,
+  start: Date,
+): Promise<boolean> {
+  const root = await resolveRequestId(turnId);
+  if (root === turnId) return false;
+  const request = await prisma.sokoBotTurn.findUnique({
+    where: { id: root },
+    select: { createdAt: true },
+  });
+  return !!request && request.createdAt < start;
+}
+
+/**
+ * What a timed-out step stops: this journey's turns still running in the
+ * step, and the watches its turns still wait on. Another request's turn or
+ * watch on the same bot is left alone.
+ */
+export async function journeyWorkToStop(
+  botId: string,
+  since: Date,
+  journeyStartedAt: Date,
+): Promise<{ turnIds: string[]; watchIds: string[] }> {
+  const step = await journeyTurns(botId, since, journeyStartedAt);
+  const journey = await journeyTurns(botId, journeyStartedAt, journeyStartedAt);
+  const watches = await prisma.sokoBotWatch.findMany({
+    where: {
+      sokoBotId: botId,
+      status: "WAITING",
+      turnId: { in: journey.map((turn) => turn.id) },
+    },
     select: { id: true },
   });
-  return turns.map((turn) => turn.id);
+  return {
+    turnIds: step
+      .filter((turn) => ACTIVE.includes(turn.status))
+      .map((turn) => turn.id),
+    watchIds: watches.map((watch) => watch.id),
+  };
+}
+
+async function stepTurnIds(
+  botId: string,
+  since: Date,
+  journeyStartedAt: Date,
+): Promise<string[]> {
+  return (await journeyTurns(botId, since, journeyStartedAt)).map(
+    (turn) => turn.id,
+  );
 }
 
 /**
@@ -389,19 +485,24 @@ async function stepTurnIds(botId: string, since: Date): Promise<string[]> {
  * that waits on a wake runs the events scan each poll and settles only after
  * the bot was woken (or the step times out).
  */
-async function stepSettled(
+export async function stepSettled(
   botId: string,
   since: Date,
+  journeyStartedAt: Date,
   now: Date,
   awaits: "wake" | "schedule" | null,
   memo: JourneyState["memo"],
 ): Promise<boolean> {
+  // Only this journey's own work is synced: another request's watch or
+  // hand-over is never claimed or dispatched inside it.
+  const journeyTurnIds = async () =>
+    (await journeyTurns(botId, journeyStartedAt, journeyStartedAt)).map(
+      (turn) => turn.id,
+    );
   if (awaits === "wake") {
-    await wakeOnDelegatedWork(botId);
-    const woken = await prisma.sokoBotTurn.count({
-      where: { sokoBotId: botId, source: "EVENT", createdAt: { gte: since } },
-    });
-    if (woken === 0) return false;
+    await wakeOnDelegatedWork(botId, await journeyTurnIds());
+    const own = await journeyTurns(botId, since, journeyStartedAt);
+    if (!own.some((turn) => turn.source === "EVENT")) return false;
   }
   if (awaits === "schedule") {
     const run = await claimedRunState(memo, botId);
@@ -409,25 +510,20 @@ async function stepSettled(
     if (run === "failed") return true;
     if (run === "waiting") return false;
   }
-  const active = await prisma.sokoBotTurn.count({
-    where: {
-      sokoBotId: botId,
-      createdAt: { gte: since },
-      status: { in: ACTIVE },
-    },
-  });
-  if (active > 0) return false;
-  const last = await prisma.sokoBotTurn.findFirst({
-    where: { sokoBotId: botId, createdAt: { gte: since } },
-    orderBy: { updatedAt: "desc" },
-    select: { updatedAt: true },
-  });
+  const own = await journeyTurns(botId, since, journeyStartedAt);
+  if (own.some((turn) => ACTIVE.includes(turn.status))) return false;
+  const last = own.reduce<{ updatedAt: Date } | null>(
+    (latest, turn) =>
+      !latest || turn.updatedAt > latest.updatedAt ? turn : latest,
+    null,
+  );
   // Nobody answers a chat question or connects an app in an eval lane.
   if (last && now.getTime() - last.updatedAt.getTime() > QUIET_MS)
     await prisma.sokoBotWatch.updateMany({
       where: {
         sokoBotId: botId,
         status: "WAITING",
+        turnId: { in: own.map((turn) => turn.id) },
         kind: { in: ["chat_reply", "app_connected"] },
         expiresAt: { gt: now },
       },
@@ -436,10 +532,18 @@ async function stepSettled(
   const sync = await syncSokoBotWatches({
     shouldContinue: () => true,
     sokoBotId: botId,
+    turnIds: await journeyTurnIds(),
   });
   if (sync.fired > 0 || sync.deferred > 0) return false;
+  // Only a watch this journey's own turns wait on holds the step open,
+  // counted after dispatch.
   const waiting = await prisma.sokoBotWatch.count({
-    where: { sokoBotId: botId, status: "WAITING", createdAt: { gte: since } },
+    where: {
+      sokoBotId: botId,
+      status: "WAITING",
+      createdAt: { gte: since },
+      turnId: { in: await journeyTurnIds() },
+    },
   });
   return waiting === 0;
 }
@@ -633,6 +737,187 @@ export function packetTurnIds(packet: unknown): string[] {
     : [];
 }
 
+/** Reads change nothing, so a working read never makes a failed call good. */
+const READ_VERB = /^(list|get|read|search|find|count|preview|refresh)_/;
+
+/** What a call acts on, from the ids or names its input addresses. */
+function callTarget(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const fields = input as Record<string, unknown>;
+  return [
+    "scheduleId",
+    "scheduleName",
+    "postId",
+    "taskId",
+    "jobId",
+    "issueId",
+    "contactId",
+    "tableId",
+    "fileId",
+    "id",
+    "filename",
+    "name",
+    "title",
+    "key",
+  ]
+    .map((key) => (fields[key] == null ? "" : `${key}=${String(fields[key])}`))
+    .filter(Boolean)
+    .join("|");
+}
+
+/**
+ * Whether `later` makes the failed `call` good: a write, in the same turn,
+ * that repeats the same call on the same identified item (a refusal's hint
+ * followed). Credit needs that positive evidence: another item, another
+ * kind of call, any read, or a call whose item can't be told apart does not
+ * make it good.
+ */
+function makesGood(
+  call: { turnId: string; capability: string; input: unknown },
+  later: {
+    turnId: string;
+    capability: string;
+    status: string;
+    input: unknown;
+  },
+): boolean {
+  if (later.turnId !== call.turnId || later.status !== "COMPLETED")
+    return false;
+  if (READ_VERB.test(later.capability)) return false;
+  if (later.capability !== call.capability) return false;
+  const target = callTarget(call.input);
+  return (
+    target !== "" &&
+    callTarget(later.input) === target &&
+    carriesRequestedChange(call.input, later.input)
+  );
+}
+
+/** Fields that name the item, not the change asked of it. */
+const TARGET_KEYS = new Set([
+  "scheduleId",
+  "scheduleName",
+  "postId",
+  "taskId",
+  "jobId",
+  "issueId",
+  "contactId",
+  "tableId",
+  "fileId",
+  "id",
+  "projectId",
+]);
+
+/** Free text a retry may reword (a shorter post, a fixed brief): present, not equal. */
+const REWORDABLE_KEYS = new Set([
+  "text",
+  "content",
+  "prompt",
+  "description",
+  "comment",
+  "body",
+  "message",
+  "brief",
+  "note",
+]);
+
+/**
+ * Whether the later call asks for the change the refused call asked for:
+ * every field the refused call set is set again, with the same value unless
+ * it is free text. A rename, a disable or another time after a refused move
+ * to 16:00 is different work.
+ */
+function carriesRequestedChange(asked: unknown, done: unknown): boolean {
+  const before = (asked ?? {}) as Record<string, unknown>;
+  const after = (done ?? {}) as Record<string, unknown>;
+  return Object.entries(before).every(([key, value]) => {
+    if (TARGET_KEYS.has(key) || value === undefined) return true;
+    if (!(key in after)) return false;
+    if (REWORDABLE_KEYS.has(key)) return sameRequest(value, after[key]);
+    return JSON.stringify(after[key]) === JSON.stringify(value);
+  });
+}
+
+/** The content words of a text: lowercase, four letters or more. */
+function contentWords(value: unknown): Set<string> {
+  return new Set(
+    String(value ?? "")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]{4,}/gu) ?? [],
+  );
+}
+
+/**
+ * Whether a reworded text still serves the refused one's request: most of
+ * the refused text's content words come back (a shorter post, a tightened
+ * brief). A brief to summarise invoices replaced by a birthday greeting is
+ * other work, and an empty replacement is no evidence.
+ */
+function sameRequest(asked: unknown, done: unknown): boolean {
+  const before = contentWords(asked);
+  const after = contentWords(done);
+  if (!before.size) return after.size === 0;
+  let kept = 0;
+  for (const word of before) if (after.has(word)) kept += 1;
+  return kept / before.size >= 0.5;
+}
+
+/**
+ * The failed calls of these turns that no later call in the same turn made
+ * good, and the ones it did (see `makesGood`). Failures a step allows are
+ * left out.
+ */
+export async function failedCallsByRecovery(
+  turnIds: readonly string[],
+  expect: Pick<StepExpect, "allowFailedTools">,
+): Promise<{ unrecovered: string[]; recovered: string[] }> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: { in: [...turnIds] } },
+    orderBy: { createdAt: "asc" },
+    select: { turnId: true, capability: true, status: true, input: true },
+  });
+  const unrecovered: string[] = [];
+  const recovered: string[] = [];
+  calls.forEach((call, index) => {
+    if (call.status !== "FAILED") return;
+    if (expect.allowFailedTools?.includes(call.capability)) return;
+    const madeGood = calls
+      .slice(index + 1)
+      .some((later) => makesGood(call, later));
+    (madeGood ? recovered : unrecovered).push(call.capability);
+  });
+  return { unrecovered, recovered };
+}
+
+/**
+ * Coordinator decision (2026-11-27): a refusal the bot recovers from in the
+ * same turn no longer fails "No failed tool calls" on its own; it is kept as
+ * a warning. Rewrites that check in place and returns the warnings.
+ */
+async function recoveredRefusalsCheck(
+  turnIds: readonly string[],
+  checks: ScenarioCheck[],
+  expect: JourneyStep["expect"],
+): Promise<string[] | null> {
+  const index = checks.findIndex(
+    (check) => check.label === "No failed tool calls",
+  );
+  if (index < 0 || checks[index]!.pass) return null;
+  const { unrecovered, recovered } = await failedCallsByRecovery(
+    turnIds,
+    expect ?? {},
+  );
+  if (!recovered.length) return null;
+  checks[index] = {
+    label: "No failed tool calls",
+    pass: unrecovered.length === 0,
+    actual: unrecovered.length
+      ? `${unrecovered.join(", ")} failed`
+      : `clean (recovered: ${recovered.join(", ")})`,
+  };
+  return recovered.map((capability) => `${capability} refused, then recovered`);
+}
+
 /** Scores a settled step: its tools and answer, then the world it left. */
 async function finishStep(
   journey: OwnerJourney,
@@ -645,6 +930,7 @@ async function finishStep(
   const turnIds = await stepTurnIds(
     botOf(journey, lane),
     new Date(record.startedAt),
+    new Date(state.journeyStartedAt),
   );
   const checks: ScenarioCheck[] = [];
   let merged: Awaited<ReturnType<typeof loadA2aChain>>["merged"] | null = null;
@@ -661,6 +947,8 @@ async function finishStep(
       ...result.checks.filter((check) => !check.label.startsWith("Route ")),
     );
   } else checks.push({ label: "Completed", pass: false, actual: "no turn" });
+  const recovered = await recoveredRefusalsCheck(turnIds, checks, step.expect);
+  if (recovered) record.warnings = recovered;
   if (record.index === 0 && turnIds[0])
     checks.push(
       await freshConversationCheck(
@@ -806,13 +1094,37 @@ export function isolationFailed(
   journey: OwnerJourney,
   blobsPending: readonly string[],
 ): CaseStart {
+  return unscored(
+    journey,
+    { blobsPending },
+    `The lane was not cleaned: ${blobsPending.length} earlier upload blob(s) could not be deleted (${blobsPending.slice(0, 3).join(", ")}), so an earlier case's file may still be found; unscored until a reset deletes them`,
+  );
+}
+
+/** An earlier real image job a provider may still finish: the lane is not clean. */
+export function imageJobsUnresolved(
+  journey: OwnerJourney,
+  unresolvedImageJobs: readonly string[],
+): CaseStart {
+  return unscored(
+    journey,
+    { unresolvedImageJobs },
+    `The lane was not cleaned: ${unresolvedImageJobs.length} earlier image job(s) sent to a provider are unresolved (${unresolvedImageJobs.slice(0, 3).join(", ")}); unscored until reconciliation settles them`,
+  );
+}
+
+function unscored(
+  journey: OwnerJourney,
+  setup: Record<string, readonly string[]>,
+  error: string,
+): CaseStart {
   return {
     kind: "done",
     outcome: {
       status: "ERROR",
       checks: [],
-      output: { journey: journey.id, setup: { blobsPending } },
-      error: `The lane was not cleaned: ${blobsPending.length} earlier upload blob(s) could not be deleted (${blobsPending.slice(0, 3).join(", ")}), so an earlier case's file may still be found; unscored until a reset deletes them`,
+      output: { journey: journey.id, setup },
+      error,
       turnIds: [],
     },
   };
@@ -845,6 +1157,18 @@ export async function startJourney(
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
   await forgetEarlierJourneys(lane, botId);
+  // A watch an earlier run left waiting would fire into this journey.
+  await prisma.sokoBotWatch.deleteMany({
+    where: { sokoBotId: botId, status: "WAITING" },
+  });
+  // An account question an earlier journey opened (or answered) would let
+  // this journey's post skip the owner's choice.
+  await prisma.sokoBotAccountQuestion.deleteMany({
+    where: { sokoBotId: { in: [lane.sokoBotId, lane.cusoBotId] } },
+  });
+  // An earlier case's uncollected image job would fill the project's limit.
+  const { unresolved } = await closeLaneImageJobs(lane.workspaceId);
+  if (unresolved.length) return imageJobsUnresolved(journey, unresolved);
   // A journey's schedule runs and Coworker wakes are turns nobody started:
   // the owner's daily cap (20) would defer them once earlier journeys used
   // it up, as prepareEvalLane already avoids for Cuso.
@@ -926,6 +1250,14 @@ async function coworkerCanAnswer(
     select: { status: true },
   });
   if (!turn || ACTIVE.includes(turn.status)) return false;
+  // The step is scored once every turn it started has settled, not only the
+  // chat turn: a background run it handed work to may still be writing.
+  const own = await journeyTurns(
+    botOf(journey, lane),
+    new Date(current.startedAt),
+    new Date(state.journeyStartedAt),
+  );
+  if (own.some((each) => ACTIVE.includes(each.status))) return false;
   const tasks = await coworkerTasks(
     {
       lane,
@@ -961,28 +1293,32 @@ export async function pollJourney(
           : null;
     if (
       !timedOut &&
-      !(await stepSettled(botId, since, now, awaits, state.memo)) &&
+      !(await stepSettled(
+        botId,
+        since,
+        new Date(state.journeyStartedAt),
+        now,
+        awaits,
+        state.memo,
+      )) &&
       !(await coworkerCanAnswer(journey, current, lane, state))
     )
       return { kind: "waiting" };
     if (timedOut) {
-      const open = await prisma.sokoBotTurn.findMany({
-        where: {
-          sokoBotId: botId,
-          createdAt: { gte: since },
-          status: { in: ACTIVE },
-        },
-        select: { id: true },
-      });
+      const work = await journeyWorkToStop(
+        botId,
+        since,
+        new Date(state.journeyStartedAt),
+      );
       await Promise.all(
-        open.map((turn) =>
+        work.turnIds.map((turnId) =>
           sokoBotControlPlane
-            .cancelTurn(lane.userId, turn.id)
+            .cancelTurn(lane.userId, turnId)
             .catch(() => undefined),
         ),
       );
       await prisma.sokoBotWatch.updateMany({
-        where: { sokoBotId: botId, status: "WAITING" },
+        where: { id: { in: work.watchIds } },
         data: { expiresAt: now },
       });
     }
