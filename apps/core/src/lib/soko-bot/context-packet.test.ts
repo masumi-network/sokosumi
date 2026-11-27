@@ -1083,6 +1083,53 @@ describe("ContextPacketBuilder", () => {
     expect(result.omissions).not.toHaveProperty("memory");
   });
 
+  it("frames an authenticated CMO project owner as OWNER with their name while keeping a second member as TEAMMATE and preserving shared-project task scope", async () => {
+    const base = buildInput();
+    const sharedScope = {
+      sokoBotId: "bot-cuso",
+      workspaceId: base.workspaceId,
+      projectId: "proj-cuso",
+    };
+
+    const ownerPacket = await new ContextPacketBuilder().build({
+      ...base,
+      sokoBotId: "bot-cuso",
+      userId: "user-1",
+      askedByKind: "OWNER",
+      askedByUserId: "user-1",
+      sharedScope,
+      cmoProjectOwner: true,
+    });
+    expect(ownerPacket.packet.trigger.askedBy).toEqual({
+      kind: "OWNER",
+      name: "Ada",
+      trust: "untrusted-data",
+    });
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          visibility: "PUBLIC",
+          projectId: "proj-cuso",
+        }),
+      }),
+    );
+
+    const teammatePacket = await new ContextPacketBuilder().build({
+      ...base,
+      sokoBotId: "bot-cuso",
+      userId: "user-2",
+      askedByKind: "OWNER",
+      askedByUserId: "user-2",
+      sharedScope,
+      cmoProjectOwner: false,
+    });
+    expect(teammatePacket.packet.trigger.askedBy).toEqual({
+      kind: "TEAMMATE",
+      name: "Patrick Tobler",
+      trust: "untrusted-data",
+    });
+  });
+
   it("counts the stored memory a long memory's packet leaves out", async () => {
     const entries = (word: string) =>
       Array.from(
