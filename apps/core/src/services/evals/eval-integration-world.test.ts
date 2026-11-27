@@ -15,11 +15,25 @@ describe("eval integration world", () => {
     expect(isEvalIntegrationAccount("ca_live_123")).toBe(false);
   });
 
-  it("lists the fixed inbox, filtered by words but not by Gmail operators", () => {
-    const all = runEvalIntegrationTool("gmail", "GMAIL_FETCH_EMAILS", {
-      query: "after:1700000000 is:unread",
-    }).messages as unknown[];
-    expect(all).toHaveLength(3);
+  it("lists the fixed inbox, filtered by words, unread and the date bounds", () => {
+    const subjects = (query: string) =>
+      (
+        runEvalIntegrationTool("gmail", "GMAIL_FETCH_EMAILS", { query })
+          .messages as { subject: string }[]
+      ).map((mail) => mail.subject);
+    expect(subjects("after:1700000000")).toHaveLength(3);
+    // Codex: an unread-only query must not include the read invoice.
+    expect(subjects("after:1700000000 is:unread")).toEqual([
+      "Question about your team plan",
+      "Intro call next week?",
+    ]);
+    // Codex: a date after every message finds none.
+    expect(
+      subjects(`after:${Date.parse("2026-12-01T00:00:00Z") / 1000}`),
+    ).toEqual([]);
+    expect(
+      subjects(`before:${Date.parse("2026-11-23T00:00:00Z") / 1000}`),
+    ).toEqual(["Your November invoice: EUR 49.00"]);
     const invoice = runEvalIntegrationTool("gmail", "GMAIL_FETCH_EMAILS", {
       query: "invoice after:1700000000",
     }).messages as { subject: string }[];
@@ -75,6 +89,22 @@ describe("eval integration world", () => {
       "2026-12-08T13:00:00.000Z",
       "2026-12-09T09:00:00.000Z",
     ]);
+  });
+
+  it("returns only the events that overlap a short window (Codex)", () => {
+    const events = (timeMin: string, timeMax: string) =>
+      (
+        runEvalIntegrationTool("googlecalendar", "GOOGLECALENDAR_EVENTS_LIST", {
+          timeMin,
+          timeMax,
+        }).items as { summary: string }[]
+      ).map((event) => event.summary);
+    expect(
+      events("2026-12-07T12:00:00.000Z", "2026-12-07T13:00:00.000Z"),
+    ).toEqual([]);
+    expect(
+      events("2026-12-07T08:30:00.000Z", "2026-12-07T08:45:00.000Z"),
+    ).toEqual(["Team stand-up"]);
   });
 
   it("refuses a tool the world does not have instead of passing it on", () => {
