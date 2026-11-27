@@ -125,7 +125,8 @@ const botCrawl = z.object({
 });
 type BotCanonicals = z.infer<typeof botCrawl>["pageChecks"] & {};
 
-const gapEntry = z.object({ item: z.string(), reason: z.string() });
+// A gap with no name cannot be placed under any check.
+const gapEntry = z.object({ item: z.string().regex(/\S/), reason: z.string() });
 
 /**
  * A Report's gaps, read one by one. An entry Sokosumi cannot read may be about any check, so it stands as a gap

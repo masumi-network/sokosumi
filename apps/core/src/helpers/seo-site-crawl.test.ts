@@ -267,6 +267,7 @@ describe("imported site crawl", () => {
         couldNotSee: [
           { item: "Site crawl: Some sitemap URLs", reason: "not read" },
           { item: 7 },
+          { item: " ", reason: "some link targets could not be read" },
         ],
       }),
     );
@@ -276,7 +277,7 @@ describe("imported site crawl", () => {
       {
         item: "More gaps",
         reason:
-          "the Report holds 1 gap Sokosumi cannot read, so no check can be clear",
+          "the Report holds 2 gaps Sokosumi cannot read, so no check can be clear",
       },
     ]);
   });
