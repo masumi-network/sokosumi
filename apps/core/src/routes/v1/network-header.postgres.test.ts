@@ -20,7 +20,25 @@ import { onSplitLayout } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
 /** Statements Core's pool sent: the database client decides what a read is. */
-const sent = vi.hoisted(() => ({ statements: 0 }));
+const sent = vi.hoisted(() => ({ statements: 0, detailReads: [] as number[] }));
+// Count statements during the real catalog call. Authentication may also read
+// a vendor grant on the first request for a workspace.
+vi.mock("@/lib/agent-catalog/detail", async (load) => {
+  const actual = await load<typeof import("@/lib/agent-catalog/detail")>();
+  return {
+    ...actual,
+    async getAvailableAgent(
+      ...args: Parameters<typeof actual.getAvailableAgent>
+    ) {
+      const before = sent.statements;
+      try {
+        return await actual.getAvailableAgent(...args);
+      } finally {
+        sent.detailReads.push(sent.statements - before);
+      }
+    },
+  };
+});
 /** Work a request hands to `waitUntil`, awaited as part of that request. */
 const background = vi.hoisted(() => [] as Promise<unknown>[]);
 vi.mock("@vercel/functions", async (importOriginal) => {
@@ -131,9 +149,13 @@ async function call(
   headers: Record<string, string>,
 ): Promise<Answer> {
   const before = sent.statements;
+  const detailCalls = sent.detailReads.length;
   const response = await loaded.app.request(`${ORIGIN}${path}`, {
     headers: { origin: ORIGIN, ...headers },
   });
+  if (response.status === 403 && path.startsWith("/v1/agents/")) {
+    expect(sent.detailReads.slice(detailCalls)).toEqual([0]);
+  }
   const text = await response.text();
   while (background.length > 0) {
     await Promise.allSettled(background.splice(0));
@@ -594,9 +616,10 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         ...sharedPaths(userId),
         "/v1/agents",
         "/v1/credit-costs",
-        // Still on the default client, so their tables are not there on the
-        // split layout until their tickets move them.
-        ...(onSplitLayout ? [] : [`/v1/agents/${catalog.agentId}`, "/v1/jobs"]),
+        `/v1/agents/${catalog.agentId}`,
+        // Jobs are still on the default client, so their tables are not there
+        // on the split layout until the Jobs ticket moves them.
+        ...(onSplitLayout ? [] : ["/v1/jobs"]),
       ];
     }
 
@@ -954,6 +977,7 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       for (const [who, path] of [
         [admin, "/v1/agents"],
         [admin, "/v1/credit-costs"],
+        [admin, `/v1/agents/${catalog.agentId}`],
         [optedIn, "/v1/agents"],
       ] as const) {
         {
@@ -969,7 +993,11 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         }
       }
       for (const [name, credential] of bearers) {
-        for (const path of ["/v1/agents", "/v1/credit-costs"]) {
+        for (const path of [
+          "/v1/agents",
+          "/v1/credit-costs",
+          `/v1/agents/${catalog.agentId}`,
+        ]) {
           const answer = await call(loaded, path, {
             ...credential,
             [HEADER]: "preprod",
@@ -1204,6 +1232,16 @@ describe.runIf(enabled && onSplitLayout)(
       };
     }
 
+    async function detail(headers: Record<string, string>) {
+      const answer = await call(loaded, `/v1/agents/${agentId}`, headers);
+      const body = answer.body as { data?: { name: string }; kind?: string };
+      return {
+        status: answer.status,
+        kind: body.kind,
+        names: body.data ? [body.data.name] : undefined,
+      };
+    }
+
     const allowed = (network: "mainnet" | "preprod") => ({
       status: 200,
       kind: undefined,
@@ -1360,6 +1398,13 @@ describe.runIf(enabled && onSplitLayout)(
           caller,
           await listed({ ...headers, [HEADER]: "preprod" }),
         ]).toEqual([caller, expected]);
+        // Detail uses the authenticated router. Anonymous callers stop at auth.
+        if (caller !== "anonymous") {
+          expect([
+            caller,
+            await detail({ ...headers, [HEADER]: "preprod" }),
+          ]).toEqual([caller, expected]);
+        }
         // Without the header every one of them reads Mainnet.
         expect([caller, (await listed(headers)).names]).toEqual([
           caller,
@@ -1399,6 +1444,11 @@ describe.runIf(enabled && onSplitLayout)(
       ];
       for (const [caller, headers, expected] of cases) {
         expect([caller, await listed(headers)]).toEqual([caller, expected]);
+        expect([caller, await detail(headers)]).toEqual([caller, expected]);
+        expect([
+          caller,
+          await detail({ ...headers, [HEADER]: "mainnet" }),
+        ]).toEqual([caller, mismatch]);
         expect([
           caller,
           await listed({ ...headers, [HEADER]: "preprod" }),
@@ -1426,6 +1476,7 @@ describe.runIf(enabled && onSplitLayout)(
       // scope's Network.
       for (const [name, app, path] of [
         ["the catalog", loaded.app, "/v1/agents"],
+        ["the authenticated detail", loaded.app, `/v1/agents/${agentId}`],
         ["an authenticated router", probe, "/"],
       ] as const) {
         const request = new Request(`${ORIGIN}${path}`, {

@@ -26,6 +26,7 @@ import {
   PROJECT_LINE_DATE,
   WORKSPACE_COLUMN_ROWS,
 } from "@/app/projects/constants";
+import { organizationBrandName } from "@/app/projects/organization-brand-name";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { notificationService } from "@/lib/services/notification.service";
 import { projectService } from "@/lib/services/project.service";
@@ -70,10 +71,11 @@ export default async function ProjectDetailPage({
     projectService.listRecentActivity(WORKSPACE_COLUMN_ROWS, project.id),
   );
 
-  const [t, formatter, workspaceLabels] = await Promise.all([
+  const [t, formatter, workspaceLabels, organizationName] = await Promise.all([
     getTranslations("App.Projects.Detail"),
     getFormatter(),
     getProjectWorkspaceLabelsFor(showBots),
+    organizationBrandName(project),
   ]);
 
   return (
@@ -174,6 +176,7 @@ export default async function ProjectDetailPage({
             readOnly={project.cmo}
             projectId={project.id}
             websiteUrl={project.websiteUrl}
+            organizationName={organizationName}
           />
         </div>
       </ProjectBrandProvider>

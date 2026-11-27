@@ -1,10 +1,12 @@
 import { MemberRole } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { tooManyRequests } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { dispatchReclaimedChatRoomMentions } from "@/services/chat-room-coworker-dispatch.service";
 
 import mountGetChatRoomMessages from "./get";
 
@@ -63,7 +65,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
-  dispatchChatRoomMention: vi.fn(),
+  dispatchReclaimedChatRoomMentions: vi.fn().mockReturnValue([]),
 }));
 vi.mock("@/services/chat-room-mention-state", () => ({
   listStaleSentChatRoomMentionIds: (...args: unknown[]) =>
@@ -1031,9 +1033,10 @@ describe("GET /chats/rooms/{id}/messages", () => {
   });
 
   it("reclaims stale mentions on the timeline path without q", async () => {
-    listStaleSentChatRoomMentionIdsMock.mockResolvedValue([
-      "550e8400-e29b-41d4-a716-446655440099",
-    ]);
+    const mentionIds = ["550e8400-e29b-41d4-a716-446655440099"];
+    const work = Promise.resolve();
+    listStaleSentChatRoomMentionIdsMock.mockResolvedValue(mentionIds);
+    vi.mocked(dispatchReclaimedChatRoomMentions).mockReturnValueOnce([work]);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/messages`,
@@ -1041,5 +1044,7 @@ describe("GET /chats/rooms/{id}/messages", () => {
 
     expect(response.status).toBe(200);
     expect(listStaleSentChatRoomMentionIdsMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(dispatchReclaimedChatRoomMentions).toHaveBeenCalledWith(mentionIds);
+    expect(waitUntil).toHaveBeenCalledWith(work);
   });
 });

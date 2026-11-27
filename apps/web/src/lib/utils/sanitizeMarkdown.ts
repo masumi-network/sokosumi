@@ -205,3 +205,13 @@ export function sanitizeMarkdown(markdown: string): string {
   // before restoring fences so a fenced `&gt;` stays literal.
   return restoreFencedCodeBlocks(sanitized.replaceAll("&gt;", ">"), codeBlocks);
 }
+
+/** Markdown rendered to sanitized HTML, without the export's page styles. */
+export async function markdownToSafeHtml(markdown: string): Promise<string> {
+  const { marked } = await import("marked");
+  // The first pass reads the markdown, and `marked` can read a fence
+  // differently than it did. The second reads what `marked` wrote.
+  return sanitizeRenderedMarkdown(
+    marked.parse(sanitizeMarkdown(markdown), { async: false }),
+  );
+}

@@ -26,6 +26,7 @@ import {
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
 import { resolveChatResultReference } from "@/services/chat-result-preview.service";
+import type { NewChatRoomMention } from "@/services/chat-room-mention-state";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import {
@@ -308,7 +309,7 @@ export async function postChat(
               chainDepth,
               status: "staged",
             })),
-          ],
+          ] satisfies NewChatRoomMention[],
           skipDuplicates: true,
         });
       }

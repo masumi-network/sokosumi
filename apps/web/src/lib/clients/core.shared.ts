@@ -516,6 +516,7 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdDesignMdFromOrganization as corePostProjectsByIdDesignMdFromOrganization,
   postProjectsByIdHide as corePostProjectsByIdHide,
   postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
@@ -5102,6 +5103,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdDesignMdFromOrganization(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdDesignMdFromOrganization({
+          client,
+          path: { id },
+        }),
+      "Failed to copy the organization DESIGN.md",
+    );
+  }
+
   async function deleteProjectsByIdDesignMd(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7718,6 +7731,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchJob,
     provideJobInput,
     patchProjectsById,
+    postProjectsByIdDesignMdFromOrganization,
     putProjectsByIdDesignMd,
     putProjectsByIdSocialQueueSlots,
     postProjects,

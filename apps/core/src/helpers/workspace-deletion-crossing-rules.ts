@@ -5,11 +5,12 @@ import { APIError } from "better-auth/api";
 
 import { conflict } from "@/helpers/error";
 import {
+  botsOfWorkspace,
   type DeletionCandidates,
   eventsOf,
-  findJobHiredByBots,
+  findJobHiredByBotsWhere,
   findJobInWorkspaces,
-  findPaymentOnTasks,
+  findPaymentOnSubtasksOutside,
   type RuleCounts,
   workspaceBotIds,
   workspaceProjectIds,
@@ -91,17 +92,31 @@ export async function checkWorkspaceDeletion(
 ): Promise<DeletionCandidates> {
   const projectIds = await workspaceProjectIds(tx, workspaceId);
   const sokoBotIds = await workspaceBotIds(tx, projectIds, [workspaceId]);
-  // Calendar erasure sweeps payments on Tasks in this workspace. A payment
-  // on a cascading subtask outside the workspace still restricts its delete.
-  const outsideTaskIds = tasks
-    .filter(({ inWorkspace }) => !inWorkspace)
-    .map(({ id }) => id);
+  // Each refusal reads its blocker and its tie to this Workspace in one
+  // statement: a subtask or bot that moved away in between never refuses.
   for (const network of networksThatAreOn()) {
-    const payment = await findPaymentOnTasks(tx, network, outsideTaskIds);
-    if (payment) {
-      refuse("subtaskPayment", { blockerId: payment.id, network, workspaceId });
+    // Calendar erasure sweeps payments on Tasks in this workspace. A payment
+    // on a cascading subtask outside the workspace still restricts its
+    // delete. Only a flow that erases the Tasks passes them.
+    if (tasks.length > 0) {
+      const payment = await findPaymentOnSubtasksOutside(
+        tx,
+        network,
+        workspaceId,
+      );
+      if (payment) {
+        refuse("subtaskPayment", {
+          blockerId: payment.id,
+          network,
+          workspaceId,
+        });
+      }
     }
-    const job = await findJobHiredByBots(tx, network, sokoBotIds);
+    const job = await findJobHiredByBotsWhere(
+      tx,
+      network,
+      botsOfWorkspace(workspaceId, true),
+    );
     if (job) {
       refuse("hiredJob", { blockerId: job.id, network, workspaceId });
     }

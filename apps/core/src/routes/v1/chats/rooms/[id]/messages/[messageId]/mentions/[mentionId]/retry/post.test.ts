@@ -23,7 +23,7 @@ const {
   memberFindUniqueMock,
   messageFindFirstMock,
   messageFindUniqueOrThrowMock,
-  mentionUpdateManyMock,
+  mentionResetMock,
   mentionFindFirstMock,
   prismaTransactionMock,
   waitUntilMock,
@@ -37,7 +37,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   messageFindFirstMock: vi.fn(),
   messageFindUniqueOrThrowMock: vi.fn(),
-  mentionUpdateManyMock: vi.fn(),
+  mentionResetMock: vi.fn(),
   mentionFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   waitUntilMock: vi.fn(),
@@ -85,7 +85,7 @@ const tx = {
     findUniqueOrThrow: messageFindUniqueOrThrowMock,
   },
   chatRoomMention: {
-    updateMany: mentionUpdateManyMock,
+    updateManyAndReturn: mentionResetMock,
     findFirst: mentionFindFirstMock,
   },
   sokoBotTurn: {
@@ -200,7 +200,9 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
       senderUserId: USER_ID,
       metadata: null,
     });
-    mentionUpdateManyMock.mockResolvedValue({ count: 1 });
+    mentionResetMock.mockResolvedValue([
+      { network: null, preprodGeneration: null },
+    ]);
     mentionFindFirstMock.mockResolvedValue(null);
     messageFindUniqueOrThrowMock.mockResolvedValue(mappedMessage);
     waitUntilMock.mockImplementation(() => {});
@@ -269,7 +271,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     const response = await retryMention();
 
     expect(response.status).toBe(200);
-    expect(mentionUpdateManyMock).toHaveBeenCalledWith({
+    expect(mentionResetMock).toHaveBeenCalledWith({
       where: {
         id: MENTION_ID,
         messageId: MESSAGE_ID,
@@ -279,6 +281,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
         status: "pending",
         error: null,
       },
+      select: { network: true, preprodGeneration: true },
     });
     expect(waitUntilMock).toHaveBeenCalled();
     expect(dispatchChatRoomMention).toHaveBeenCalledWith(MENTION_ID);
@@ -303,7 +306,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     const response = await retryMention(otherUserAuthContext);
 
     expect(response.status).toBe(403);
-    expect(mentionUpdateManyMock).not.toHaveBeenCalled();
+    expect(mentionResetMock).not.toHaveBeenCalled();
     expect(dispatchChatRoomMention).not.toHaveBeenCalled();
   });
 
@@ -311,11 +314,11 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     const response = await retryMention(coworkerAuthContext);
 
     expect(response.status).toBe(403);
-    expect(mentionUpdateManyMock).not.toHaveBeenCalled();
+    expect(mentionResetMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the mention is missing", async () => {
-    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+    mentionResetMock.mockResolvedValue([]);
     mentionFindFirstMock.mockResolvedValue(null);
 
     const response = await retryMention();
@@ -325,7 +328,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
   });
 
   it("returns 409 when the mention is not failed", async () => {
-    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+    mentionResetMock.mockResolvedValue([]);
     mentionFindFirstMock.mockResolvedValue({
       id: MENTION_ID,
       status: "sent",
@@ -348,7 +351,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     const response = await retryMention();
 
     expect(response.status).toBe(400);
-    expect(mentionUpdateManyMock).not.toHaveBeenCalled();
+    expect(mentionResetMock).not.toHaveBeenCalled();
     expect(dispatchChatRoomMention).not.toHaveBeenCalled();
   });
 
@@ -368,7 +371,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     const response = await retryMention();
 
     expect(response.status).toBe(400);
-    expect(mentionUpdateManyMock).not.toHaveBeenCalled();
+    expect(mentionResetMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the message is missing", async () => {
@@ -377,6 +380,6 @@ describe("POST /chats/rooms/:id/messages/:messageId/mentions/:mentionId/retry", 
     const response = await retryMention();
 
     expect(response.status).toBe(404);
-    expect(mentionUpdateManyMock).not.toHaveBeenCalled();
+    expect(mentionResetMock).not.toHaveBeenCalled();
   });
 });

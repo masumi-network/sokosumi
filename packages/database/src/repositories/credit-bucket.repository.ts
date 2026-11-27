@@ -385,8 +385,10 @@ export const creditBucketRepository = {
    * Records a spend on `network`: the credit transaction and one consumption
    * per bucket `prepareConsumption` chose. Raw SQL, so it also runs on a
    * transaction of the shared side. It sets `id` (UUID v7) and the timestamps
-   * itself, as Prisma did: one instant of this process for every row. The
-   * user and the Organization are written as ids. Returns the transaction's id.
+   * itself, as Prisma did: one instant of this process for every row, or
+   * `createdAt` when the caller gives one. The consumptions' ids sort in the
+   * order `prepareConsumption` chose the buckets, as Prisma's did. The user
+   * and the Organization are written as ids. Returns the transaction's id.
    */
   async recordSpend(
     network: TableNetwork,
@@ -395,17 +397,23 @@ export const creditBucketRepository = {
       organizationId: string | null;
       cents: bigint;
       consumptions: readonly Consumption[];
+      /** The time of every row; this process's clock when absent. */
+      createdAt?: Date;
     },
     tx: SharedDb,
   ): Promise<string> {
     const id = randomUUIDv7();
-    const now = new Date();
+    const now = spend.createdAt ?? new Date();
     await tx.$executeRaw`
       INSERT INTO ${netTable(network, "Transaction")}
         (id, "createdAt", "updatedAt", amount, "userId", "organizationId")
       VALUES (${id}, ${now}, ${now}, ${-spend.cents}, ${spend.userId}, ${spend.organizationId})
     `;
-    const ids = spend.consumptions.map(() => randomUUIDv7());
+    // UUIDv7s of one millisecond are random among themselves: sorted, they
+    // follow the allocation, and the history reader, which names a spend's
+    // Project by its first consumption (lowest createdAt, id), sees the
+    // bucket that paid first.
+    const ids = spend.consumptions.map(() => randomUUIDv7()).sort();
     const amounts = spend.consumptions.map(({ amount }) => amount);
     const bucketIds = spend.consumptions.map(({ bucketId }) => bucketId);
     await tx.$executeRaw`

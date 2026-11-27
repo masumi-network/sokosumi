@@ -147,6 +147,25 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
       AGENTS_ROUTE,
     );
   });
+
+  // Under Direct messages the chat list's own group already pads the rows;
+  // a second group put this row 8px in from the Direct rows above it.
+  it("adds no group padding of its own when nested in the chat list", () => {
+    const { container } = renderNav({ bot, nested: true });
+
+    expect(container.querySelector('[data-slot="sidebar-group"]')).toBeNull();
+    expect(container.querySelector('[data-slot="sidebar-row-slot"]')).not.toBe(
+      null,
+    );
+  });
+
+  it("keeps its group where it stands alone", () => {
+    const { container } = renderNav({ bot });
+
+    expect(
+      container.querySelector('[data-slot="sidebar-group"]'),
+    ).not.toBeNull();
+  });
 });
 
 describe("PersonalAssistantNav static entry current destination", () => {

@@ -475,6 +475,10 @@ export async function seedEvalXDms(
   });
 }
 
+function botMadeInWorkspace(workspaceId: string) {
+  return { workspaceId, creatorSokoBotId: { not: null } };
+}
+
 /**
  * What earlier benchmark cases made in the lane, known by who made it, not
  * by its title: Tasks and Task Schedules (with their Runs) a bot created, the
@@ -488,10 +492,7 @@ export async function clearEarlierCaseArtifacts(
   lane: Pick<EvalLaneRecord, "workspaceId" | "cusoProjectId">,
   deleteBlobs?: DeleteBlobs,
 ): Promise<{ blobsPending: string[] }> {
-  const botMade = {
-    workspaceId: lane.workspaceId,
-    creatorSokoBotId: { not: null },
-  };
+  const botMade = botMadeInWorkspace(lane.workspaceId);
   await prisma.task.updateMany({
     where: {
       archivedAt: null,
@@ -596,6 +597,10 @@ export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<{ blobsPending: string[] }> {
   const { workspaceId, sokoBotId } = lane;
+  // A release that commits before deletion must still go through the archive.
+  await prisma.taskSchedule.deleteMany({
+    where: botMadeInWorkspace(workspaceId),
+  });
   await prisma.task.updateMany({
     where: { workspaceId, archivedAt: null },
     data: { archivedAt: new Date() },

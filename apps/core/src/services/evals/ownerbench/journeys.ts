@@ -381,6 +381,21 @@ export const INVESTOR_FIXTURE: {
   ],
 };
 
+const DEAL_MONTHS = ["March", "May", "July", "September"];
+
+/**
+ * What the owner's notes say about one investor, and what its source page
+ * says too, so a bot that checks the source finds the same facts.
+ */
+export function investorLine(investor: FixtureInvestor): string {
+  const fit = INVESTOR_FIXTURE.fits.indexOf(investor);
+  if (fit >= 0)
+    return `**${investor.fund}** (Europe, seed). Partner: ${investor.partner}. Recent deal: led the seed round of ${investor.startup}, an AI-agent startup, in ${DEAL_MONTHS[fit % DEAL_MONTHS.length]} 2026. Source: ${investor.source}`;
+  return INVESTOR_FIXTURE.misfits.indexOf(investor) === 0
+    ? `**${investor.fund}** (San Francisco, Series B only). Partner: ${investor.partner}. Recent deal: Series B of ${investor.startup}. Source: ${investor.source}`
+    : `**${investor.fund}** (Munich, growth stage, no seed). Partner: ${investor.partner}. Recent deal: growth round of ${investor.startup}. Source: ${investor.source}`;
+}
+
 export interface OwnerJourney {
   id: string;
   bot: "soko-bot" | "cuso";

@@ -125,8 +125,11 @@ export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
   label: string;
-  /** Optional secondary line (e.g. host org name on External guest rows). */
-  subtitle?: string;
+  /**
+   * Optional secondary line (e.g. host org name on External guest rows, your
+   * Soko Bot's status on its Direct).
+   */
+  subtitle?: ReactNode;
   /**
    * Shown at the end of the name's line, e.g. your Soko Bot's status on its
    * Direct. Hidden from assistive technology: the leading mark announces it.
@@ -171,6 +174,11 @@ export interface ChatRoomSidebarRowProps {
    * tooltip and accessible name. Given, the row carries its Workspace tile.
    */
   workspaceName?: string | null | undefined;
+  /**
+   * A link of its own just before the room menu, shown at rest: the team's
+   * Soko Bots on your bot's Direct.
+   */
+  trailingLink?: ReactNode;
 }
 
 /**
@@ -323,6 +331,7 @@ export function ChatRoomSidebarRow({
   canManageSettings = false,
   elsewhere = false,
   workspaceName,
+  trailingLink,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const pendingPathname = usePendingPathname();
@@ -533,6 +542,14 @@ export function ChatRoomSidebarRow({
           // hole holds two boxes. They are the same 32px box, and a muted room
           // carries no badge, so one width serves both.
           (isMuted || hasRowCount) && "[@media(hover:none)]:w-16",
+          // A trailing link is its own 40px box (32px from `md`) and a gap
+          // clear of the menu's hit area, beside the menu, at rest too. From
+          // `md` the hole is 56px: the row's 8px gap still clears the link's
+          // box, and "Active just now" keeps its whole line in a 207px row.
+          trailingLink &&
+            (isMuted || hasRowCount
+              ? "[@media(hover:none)]:w-28 [@media(hover:none)]:md:w-24"
+              : "[@media(hover:none)]:w-20 [@media(hover:none)]:md:w-14"),
           // The Workspace tile stands in flow to the left of all that. These
           // carry `md:` too, or the `md:size-7` above would win at that width.
           hasTile &&
@@ -559,18 +576,26 @@ export function ChatRoomSidebarRow({
           // A Workspace tile rests in the menu's column as the bell does. Beside
           // a count or a handle it stands just left of that column, so the hole
           // grows by the tile. With both, `w-16` already clears all three.
-          hasRowCount && reorderHandle
-            ? "[@media(hover:hover)]:w-16"
-            : tileBesideColumn
-              ? "[@media(hover:hover)]:w-8"
-              : isMuted || isCurrent || reorderHandle || hasRowCount || hasTile
-                ? "[@media(hover:hover)]:size-4"
-                : [
-                    "[@media(hover:hover)]:size-0",
-                    "[@media(hover:hover)]:group-hover/room-row:size-4",
-                    "[@media(hover:hover)]:group-focus-within/room-row:size-4",
-                    "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
-                  ],
+          // A trailing link shows at rest, left of the menu's column, and the
+          // name stops short of its whole box: menu, gap and link.
+          trailingLink
+            ? "[@media(hover:hover)]:w-20 [@media(hover:hover)]:md:w-14"
+            : hasRowCount && reorderHandle
+              ? "[@media(hover:hover)]:w-16"
+              : tileBesideColumn
+                ? "[@media(hover:hover)]:w-8"
+                : isMuted ||
+                    isCurrent ||
+                    reorderHandle ||
+                    hasRowCount ||
+                    hasTile
+                  ? "[@media(hover:hover)]:size-4"
+                  : [
+                      "[@media(hover:hover)]:size-0",
+                      "[@media(hover:hover)]:group-hover/room-row:size-4",
+                      "[@media(hover:hover)]:group-focus-within/room-row:size-4",
+                      "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
+                    ],
         )}
         aria-hidden
       />
@@ -640,6 +665,7 @@ export function ChatRoomSidebarRow({
                     <BellOff className="size-4 md:size-3.5" />
                   </span>
                 ) : null}
+                {trailingLink}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

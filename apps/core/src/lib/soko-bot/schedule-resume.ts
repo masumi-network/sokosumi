@@ -1,11 +1,16 @@
-import type { SokoBotSchedule, SokoBotScheduleRun } from "@sokosumi/database";
+import type {
+  Prisma,
+  SokoBotSchedule,
+  SokoBotScheduleRun,
+} from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { HTTPException } from "hono/http-exception";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { emitCoreWarning } from "@/lib/evlog";
 import {
   DetachedNetworkRefusal,
   detachedNetworkScope,
+  isTemporaryDetachedRefusal,
 } from "@/lib/soko-bot/detached-network";
 import type { StartSokoBotTurnInput } from "@/lib/soko-bot/turn-start";
 
@@ -46,30 +51,14 @@ function staleScheduleNetwork() {
   );
 }
 
-export function requireScheduledTurnProvenance(
-  expected: ScheduledTurnProvenance,
-  stored: { network: string | null; preprodGeneration?: number | null },
-): void {
-  if (
-    expected.expectedPreprodGeneration !== undefined &&
-    (expected.network !== stored.network ||
-      expected.expectedPreprodGeneration !== stored.preprodGeneration)
-  ) {
-    throw staleScheduleNetwork();
-  }
-}
-
 /** The writer's existing pause fence can refuse a turn after pickup. */
 export function isTemporaryScheduleRefusal(
   schedule: Pick<ScheduleSource, "jobId" | "network">,
   error: unknown,
 ): boolean {
-  if (error instanceof DetachedNetworkRefusal) return !error.final;
   return (
     schedule.jobId != null &&
-    schedule.network === "preprod" &&
-    error instanceof HTTPException &&
-    error.status === 503
+    isTemporaryDetachedRefusal(schedule.network, error)
   );
 }
 
@@ -101,30 +90,41 @@ export async function finishStaleSchedule(
     preprodGeneration: schedule.preprodGeneration,
     jobId: schedule.jobId,
   };
-  if (!run) {
-    const disabled = await prisma.sokoBotSchedule.updateMany({
-      where,
+  const disable = (db: Prisma.TransactionClient) =>
+    db.sokoBotSchedule.updateMany({
+      where: { ...where, enabled: true },
       data: { enabled: false },
     });
-    return disabled.count === 1;
-  }
-  return prisma.$transaction(async (tx) => {
-    const { id, status, attempt, leaseToken, leaseExpiresAt, turnId } = run;
-    // Settlement takes the run before updating its schedule.
-    const finished = await tx.sokoBotScheduleRun.updateMany({
-      where: {
-        id,
-        status,
-        attempt,
-        leaseToken,
-        leaseExpiresAt,
-        turnId,
-        schedule: where,
-      },
-      data: staleScheduleRunData(),
+  const finishRun = async (run: ScheduleRunClaim) =>
+    prisma.$transaction(async (tx) => {
+      const { id, status, attempt, leaseToken, leaseExpiresAt, turnId } = run;
+      // Settlement takes the run before updating its schedule.
+      const finished = await tx.sokoBotScheduleRun.updateMany({
+        where: {
+          id,
+          status,
+          attempt,
+          leaseToken,
+          leaseExpiresAt,
+          turnId,
+          schedule: where,
+        },
+        data: staleScheduleRunData(),
+      });
+      return { finished, disabled: await disable(tx) };
     });
-    if (finished.count !== 1) return false;
-    await tx.sokoBotSchedule.updateMany({ where, data: { enabled: false } });
-    return true;
-  });
+  const { finished, disabled } = run
+    ? await finishRun(run)
+    : { finished: null, disabled: await disable(prisma) };
+  if (disabled.count === 1) {
+    emitCoreWarning(
+      { operation: "soko_bot_schedule_stale", schedule: { id: schedule.id } },
+      {
+        message: "Disabled a stale Soko Bot schedule",
+        why: "Its stored Network, generation or Job link could not be resumed",
+      },
+      { errorKind: CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE },
+    );
+  }
+  return (finished ?? disabled).count === 1;
 }
