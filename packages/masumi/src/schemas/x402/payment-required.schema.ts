@@ -89,10 +89,8 @@ const x402AmountSchema = z
 /**
  * One v2-shaped payment requirement, exactly as `POST /x402/pay` wants it.
  *
- * Deliberately LOOSE — unknown keys pass through untouched — but NOT for the
- * reason this comment used to give. It claimed the chosen entry survives
- * "byte-for-byte" into the signed payload's `accepted` echo. It does not, on
- * two counts:
+ * Deliberately LOOSE — unknown keys pass through untouched. The chosen entry
+ * is not preserved byte-for-byte into the signed payload's `accepted` echo:
  *
  * - Normalization itself breaks byte-identity: it rewrites `network` (v1
  *   name → CAIP-2, shouty → lowercase), canonicalizes `asset`/`payTo`, and
@@ -112,9 +110,7 @@ const x402AmountSchema = z
  * Soko, never reach a signing input, and the node validates its own shape, so
  * the safe direction is to pass them on.
  *
- * Loose is NOT unbounded, and the previous comment's "the extra surface is
- * bounded" was wishful: nothing capped the entry at all until
- * `boundedMapCheck` was applied here. It is the same free-form
+ * Loose is NOT unbounded. It is the same free-form
  * attacker-controlled map as `extensions`/`extra`, so it gets the same entry
  * count, key length and serialized size ceiling. Keys that collide
  * case-insensitively with a validated field are dropped while the entry is

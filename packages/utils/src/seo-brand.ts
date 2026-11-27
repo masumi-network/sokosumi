@@ -132,7 +132,3 @@ export function seoBrandMatcher(terms: string[]): (query: string) => boolean {
     );
   };
 }
-
-export function seoIsBrandedQuery(query: string, terms: string[]): boolean {
-  return seoBrandMatcher(terms)(query);
-}
