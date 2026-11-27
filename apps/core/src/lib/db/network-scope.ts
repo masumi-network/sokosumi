@@ -97,3 +97,30 @@ export function createNetworkScope(network: Network): NetworkScope {
       retriedTransaction(callback, conflictMessage, isolationLevel),
   };
 }
+
+/**
+ * A scope for a request that names a Network it may not use: its Network side
+ * (`network`, `networkDb`, `networkTable`, `netTransaction`) throws `refusal`
+ * on first use, its shared side works. So only work on Network data is
+ * refused.
+ */
+export function createRefusedNetworkScope(refusal: Error): NetworkScope {
+  const refuse = (): never => {
+    throw refusal;
+  };
+  return {
+    get network() {
+      return refuse();
+    },
+    get networkDb() {
+      return refuse();
+    },
+    get sharedDb() {
+      return prisma;
+    },
+    networkTable: refuse,
+    netTransaction: async () => refuse(),
+    sharedTransaction: (callback, conflictMessage, isolationLevel) =>
+      retriedTransaction(callback, conflictMessage, isolationLevel),
+  };
+}

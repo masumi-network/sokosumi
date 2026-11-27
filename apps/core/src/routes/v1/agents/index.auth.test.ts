@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import prisma from "@/lib/db/prisma";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -85,8 +86,8 @@ vi.mock("@/helpers/agent-cost", () => ({
   getAgentCost: getAgentCostMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
@@ -100,8 +101,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: syncMetadataFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The list reads its Network's rows through its scope's client.
+  return { default: client, networkPrisma: () => client };
+});
 
 const { default: agentsRouter } = await import("./index");
 
@@ -110,9 +113,10 @@ describe("agents routes auth gate", () => {
     vi.clearAllMocks();
     authContextState.current = null;
 
-    // Batch form: the list route reads its page in one snapshot.
-    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
-      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    // The list reads its page in one transaction on its scope's client: the
+    // callback gets the client, whose mocks stand for the transaction.
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma),
     );
 
     buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
