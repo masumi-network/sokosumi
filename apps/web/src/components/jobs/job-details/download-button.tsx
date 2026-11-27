@@ -17,6 +17,10 @@ import { useEventListener } from "@/hooks/effects/use-event-listener";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 import {
+  EXPORT_MAX_BYTES,
+  ExportLimitError,
+} from "@/lib/utils/export-operation";
+import {
   sanitizeMarkdown,
   sanitizeRenderedMarkdown,
 } from "@/lib/utils/sanitizeMarkdown";
@@ -93,12 +97,17 @@ function triggerFileDownload(url: string, fileName: string) {
   anchor.click();
 }
 
-/** Saves markdown as a PDF or Word file named `fileName`; resolves false when the export fails. */
+/**
+ * Saves markdown as a PDF or Word file named `fileName`; resolves false when
+ * the export fails and throws `ExportLimitError` when it is too large to send.
+ */
 async function exportMarkdownFile(
   format: "pdf" | "docx",
   markdown: string,
   fileName: string,
 ): Promise<boolean> {
+  // The route would refuse it; say why instead of a generic failure.
+  const tooLarge = (body: string) => new Blob([body]).size > EXPORT_MAX_BYTES;
   try {
     const body =
       format === "pdf"
@@ -117,17 +126,20 @@ async function exportMarkdownFile(
               40,
             ),
           };
+    const json = JSON.stringify(body);
+    if (tooLarge(json)) throw new ExportLimitError("Export body exceeds limit");
     const res = await fetch(`/api/export/${format}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: json,
     });
     if (!res.ok) return false;
     const url = URL.createObjectURL(await res.blob());
     triggerFileDownload(url, `${fileName}.${format}`);
     URL.revokeObjectURL(url);
     return true;
-  } catch {
+  } catch (error) {
+    if (error instanceof ExportLimitError) throw error;
     return false;
   }
 }
@@ -148,12 +160,17 @@ export function useExportMarkdownFile(
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   return async (format: "pdf" | "docx") => {
     const id = toast.loading(t(EXPORT_TOASTS[format].pending));
-    const text =
-      typeof markdown === "string"
-        ? markdown
-        : await markdown().catch(() => null);
-    if (text === null || !(await exportMarkdownFile(format, text, fileName)))
-      toast.error(t(EXPORT_TOASTS[format].failed));
+    try {
+      const text = typeof markdown === "string" ? markdown : await markdown();
+      if (!(await exportMarkdownFile(format, text, fileName)))
+        toast.error(t(EXPORT_TOASTS[format].failed));
+    } catch (error) {
+      toast.error(
+        error instanceof ExportLimitError
+          ? t("exportTooLarge", { limit: EXPORT_MAX_BYTES / 1_000_000 })
+          : t(EXPORT_TOASTS[format].failed),
+      );
+    }
     toast.dismiss(id);
   };
 }

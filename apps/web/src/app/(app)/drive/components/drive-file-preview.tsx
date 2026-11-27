@@ -190,6 +190,7 @@ export function DriveFilePreview({
           url={source}
           downloadUrl={downloadUrl}
           fileName={displayName}
+          sizeBytes={sizeBytes}
         />
       ) : (
         <Button asChild variant="outline" size="sm">

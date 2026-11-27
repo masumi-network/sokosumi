@@ -153,6 +153,7 @@ export function DriveFileViewer({
               url={url}
               downloadUrl={media.downloadUrl}
               fileName={file.displayName}
+              sizeBytes={file.sizeBytes ?? null}
               className="size-10 gap-1.5 px-0 sm:w-auto sm:px-3 md:h-8"
               labelClassName="hidden sm:inline"
             />

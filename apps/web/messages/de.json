@@ -448,6 +448,7 @@
           "exportDocxError": "Word-Dokument-Export fehlgeschlagen",
           "exportAsPdf": "Als PDF exportieren",
           "exportAsDocx": "Als Word-Dokument exportieren",
+          "exportTooLarge": "Diese Datei ist zu groß für den Export. Die Grenze liegt bei {limit, number} MB.",
           "exportAsMarkdown": "Als Markdown exportieren",
           "Refund": {
             "error": "Rückerstattung konnte nicht beantragt werden",
@@ -11024,6 +11025,7 @@
         "previewOpen": "Öffnen",
         "previewDownload": "Herunterladen",
         "previewDownloadOriginal": "Originaldatei",
+        "previewExportTooLarge": "Zu groß für den Export als PDF oder Word. Die Grenze liegt bei {limit, number} MB; die Originaldatei lässt sich weiter herunterladen.",
         "previewLoading": "Vorschau wird geladen",
         "previewUnavailable": "Diese Vorschau konnte nicht geladen werden. Der Download funktioniert weiterhin.",
         "previewNotRenderable": "Keine Inline-Vorschau für diesen Dateityp. Öffne sie in einem Tab oder lade sie herunter.",

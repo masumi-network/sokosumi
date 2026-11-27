@@ -1,3 +1,9 @@
+/**
+ * Most a PDF or Word export request may carry, in bytes. The routes refuse a
+ * larger body; the client checks it first so the reader is told why.
+ */
+export const EXPORT_MAX_BYTES = 1_500_000;
+
 /** Expected rejection at an export resource boundary. */
 export class ExportLimitError extends Error {
   constructor(
