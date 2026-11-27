@@ -14,16 +14,20 @@ import {
 } from "@/helpers/calendar-erasure";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import {
-  evaluateOrganizationDeletion,
+  evaluateLockedOrganizationDeletion,
   throwIfOrganizationDeletionBlocked,
 } from "@/helpers/deletion-evaluate";
 
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
-import { applyRulesAfterDelete } from "@/helpers/user-deletion-crossing-rules";
+import {
+  applyRulesAfterDelete,
+  workspaceTasksWithDescendants,
+} from "@/helpers/user-deletion-crossing-rules";
 import {
   applyOrganizationRules,
   checkWorkspaceDeletion,
   refuseJobsInWorkspace,
+  refuseOrganizationWorkspaceDeletion,
 } from "@/helpers/workspace-deletion-crossing-rules";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
@@ -69,11 +73,10 @@ export async function prepareOrganizationForDeletion(
           });
         }
 
-        const evaluation = await evaluateOrganizationDeletion(
+        const evaluation = await evaluateLockedOrganizationDeletion(
           organizationId,
           actorUserId,
           tx,
-          { inTransaction: true },
         );
         throwIfOrganizationDeletionBlocked(evaluation);
 
@@ -81,6 +84,10 @@ export async function prepareOrganizationForDeletion(
           scheduledEmails: [],
           taskFiles: [],
         };
+        const refuse = refuseOrganizationWorkspaceDeletion.bind(
+          null,
+          organizationId,
+        );
         try {
           let candidates:
             | Awaited<ReturnType<typeof checkWorkspaceDeletion>>
@@ -125,12 +132,13 @@ export async function prepareOrganizationForDeletion(
             candidates = await checkWorkspaceDeletion(
               tx,
               workspace.id,
-              "organization",
+              refuse,
+              await workspaceTasksWithDescendants(tx, workspace.id),
             );
             cleanup = await eraseWorkspaceCalendarData(tx, workspace.id);
           }
           if (workspace) {
-            await refuseJobsInWorkspace(tx, workspace.id, "organization");
+            await refuseJobsInWorkspace(tx, workspace.id, refuse);
           }
           await tx.organization.deleteMany({ where: { id: organizationId } });
           if (candidates) await applyRulesAfterDelete(tx, candidates);

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
@@ -12,9 +13,8 @@ import {
   type RuleCounts,
   workspaceBotIds,
   workspaceProjectIds,
-  workspaceTasksWithDescendants,
 } from "@/helpers/user-deletion-crossing-rules";
-import { networksThatAreOn } from "@/lib/network";
+import { type Network, networksThatAreOn } from "@/lib/network";
 
 type Tx = Parameters<typeof workspaceProjectIds>[0];
 
@@ -37,7 +37,14 @@ const ORGANIZATION_REFUSALS = {
 };
 
 type Refusal = keyof typeof ORGANIZATION_REFUSALS;
-type Flow = "organization" | "personal workspace";
+
+interface RefusalDetails {
+  blockerId: string;
+  network: Network;
+  workspaceId: string;
+}
+
+type Refuse = (reason: Refusal, details: RefusalDetails) => never;
 
 export function workspaceHasDependents() {
   return conflict(
@@ -48,19 +55,29 @@ export function workspaceHasDependents() {
   );
 }
 
-function refuse(flow: Flow, refusal: Refusal): never {
-  if (flow === "personal workspace") throw workspaceHasDependents();
-  throw new APIError("BAD_REQUEST", ORGANIZATION_REFUSALS[refusal]);
+export function refuseOrganizationWorkspaceDeletion(
+  organizationId: string,
+  reason: Refusal,
+  details: RefusalDetails,
+): never {
+  const refusal = ORGANIZATION_REFUSALS[reason];
+  Sentry.captureMessage("Organization deletion refused by a Network row", {
+    level: "error",
+    tags: { error_type: "organization_deletion_refused_by_network_row" },
+    extra: { organizationId, code: refusal.code, ...details },
+  });
+  throw new APIError("BAD_REQUEST", refusal);
 }
 
 export async function refuseJobsInWorkspace(
   tx: Tx,
   workspaceId: string,
-  flow: Flow,
+  refuse: Refuse,
 ) {
   for (const network of networksThatAreOn()) {
-    if (await findJobInWorkspaces(tx, network, [workspaceId])) {
-      refuse(flow, "workspaceJob");
+    const job = await findJobInWorkspaces(tx, network, [workspaceId]);
+    if (job) {
+      refuse("workspaceJob", { blockerId: job.id, network, workspaceId });
     }
   }
 }
@@ -69,25 +86,24 @@ export async function refuseJobsInWorkspace(
 export async function checkWorkspaceDeletion(
   tx: Tx,
   workspaceId: string,
-  flow: Flow,
+  refuse: Refuse,
+  tasks: { id: string; inWorkspace: boolean }[] = [],
 ): Promise<DeletionCandidates> {
   const projectIds = await workspaceProjectIds(tx, workspaceId);
   const sokoBotIds = await workspaceBotIds(tx, projectIds, [workspaceId]);
-  const tasks =
-    flow === "organization"
-      ? await workspaceTasksWithDescendants(tx, workspaceId)
-      : [];
   // Calendar erasure sweeps payments on Tasks in this workspace. A payment
   // on a cascading subtask outside the workspace still restricts its delete.
   const outsideTaskIds = tasks
     .filter(({ inWorkspace }) => !inWorkspace)
     .map(({ id }) => id);
   for (const network of networksThatAreOn()) {
-    if (await findPaymentOnTasks(tx, network, outsideTaskIds)) {
-      refuse(flow, "subtaskPayment");
+    const payment = await findPaymentOnTasks(tx, network, outsideTaskIds);
+    if (payment) {
+      refuse("subtaskPayment", { blockerId: payment.id, network, workspaceId });
     }
-    if (await findJobHiredByBots(tx, network, sokoBotIds)) {
-      refuse(flow, "hiredJob");
+    const job = await findJobHiredByBots(tx, network, sokoBotIds);
+    if (job) {
+      refuse("hiredJob", { blockerId: job.id, network, workspaceId });
     }
   }
   const taskIds = tasks.map(({ id }) => id);

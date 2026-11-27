@@ -22,7 +22,6 @@ const {
   memberFindFirstMock,
   vendorMemberFindFirstMock,
   jobFindFirstMock,
-  organizationJobQueryMock,
   taskFindFirstMock,
   getMembersByOrganizationIdMock,
   isLastWorkspaceMock,
@@ -37,7 +36,6 @@ const {
   memberFindFirstMock: vi.fn(),
   vendorMemberFindFirstMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
-  organizationJobQueryMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   getMembersByOrganizationIdMock: vi.fn(),
   isLastWorkspaceMock: vi.fn(),
@@ -66,7 +64,7 @@ vi.mock("@/helpers/workspace-access", () => ({
 
 vi.mock("@/lib/db/network-scope", () => ({
   createNetworkScope: () => ({
-    networkDb: { $queryRaw: organizationJobQueryMock },
+    networkDb: { job: { findFirst: jobFindFirstMock } },
   }),
 }));
 
@@ -790,7 +788,7 @@ describe("evaluateOrganizationDeletion", () => {
     vi.clearAllMocks();
     getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
     isLastWorkspaceMock.mockResolvedValue(false);
-    organizationJobQueryMock.mockReset().mockResolvedValue([]);
+    jobFindFirstMock.mockReset().mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue(null);
     subscriptionFindFirstMock.mockResolvedValue(null);
     enterpriseContractFindFirstMock.mockResolvedValue(null);
@@ -910,7 +908,7 @@ describe("evaluateOrganizationDeletion", () => {
   });
 
   it("returns IN_FLIGHT_JOB when the Organization has a Job with no terminal agent event", async () => {
-    organizationJobQueryMock.mockResolvedValueOnce([{ id: "job_running" }]);
+    mockJobLookups({ inFlight: { id: "job_running" } });
 
     await expect(
       evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
@@ -920,9 +918,7 @@ describe("evaluateOrganizationDeletion", () => {
   });
 
   it("returns UNSETTLED_ON_CHAIN_JOB when the Organization has a Job with a non-finalized purchase", async () => {
-    organizationJobQueryMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: "job_locked" }]);
+    mockJobLookups({ unsettled: { id: "job_locked" } });
 
     await expect(
       evaluateOrganizationDeletion("org-1", "user-1", createPrisma() as never),
@@ -962,9 +958,10 @@ describe("evaluateOrganizationDeletion", () => {
       { userId: "user-2" },
     ]);
     isLastWorkspaceMock.mockResolvedValue(true);
-    organizationJobQueryMock
-      .mockResolvedValueOnce([{ id: "job_running" }])
-      .mockResolvedValueOnce([{ id: "job_locked" }]);
+    mockJobLookups({
+      inFlight: { id: "job_running" },
+      unsettled: { id: "job_locked" },
+    });
     taskFindFirstMock.mockResolvedValue({ id: "task_running" });
 
     await expect(

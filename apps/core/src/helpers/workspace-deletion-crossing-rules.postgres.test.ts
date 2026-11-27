@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -45,6 +46,8 @@ vi.mock("./workspace-deletion-crossing-rules", async (importOriginal) => {
       core,
     ),
     workspaceHasDependents: actual.workspaceHasDependents,
+    refuseOrganizationWorkspaceDeletion:
+      actual.refuseOrganizationWorkspaceDeletion,
   };
 });
 vi.mock("./user-deletion-crossing-rules", async (importOriginal) => {
@@ -179,7 +182,8 @@ async function expectSurvivors(
             AND "organizationId" = ${id("otherOrg")}) AS charge,
         EXISTS (SELECT 1 FROM ${netTable(network, "Job")}
           WHERE id = ${id("job.other")} AND "workspaceId" = ${id("otherOrg.workspace")}::uuid
-            AND "projectId" = ${id("otherProject")}::uuid AND "taskId" = ${id("otherTask")}) AS job,
+            AND "projectId" = ${id("otherProject")}::uuid AND "taskId" = ${id("otherTask")}
+            AND "creatorSokoBotId" = ${id("bot.other")}::uuid) AS job,
         (SELECT "organizationId" FROM ${netTable(network, "Job")}
           WHERE id = ${id("job.twin")}) AS "twinOrg"
     `;
@@ -380,6 +384,14 @@ describe.runIf(ON_POSTGRES)("workspace deletion and crossing keys", () => {
             const { id } = world;
             const seed = async () => {
               if (blocker === "subtaskPayment") {
+                for (const local of networks) {
+                  if (local !== network) {
+                    await tx.$executeRaw`
+                      DELETE FROM ${netTable(local, "task_x402_payment")}
+                      WHERE id = ${id("payment.other")}
+                    `;
+                  }
+                }
                 // Retain all FK constraints for the oracle. Bypass the current
                 // placement trigger to reproduce the legacy cross-workspace tree.
                 await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
@@ -420,12 +432,28 @@ describe.runIf(ON_POSTGRES)("workspace deletion and crossing keys", () => {
             ).toBe(flow === "organization" ? "foreign key" : expected);
             await tx.$executeRaw`ROLLBACK TO SAVEPOINT before_deletion`;
             await seed();
+            vi.mocked(Sentry.captureMessage).mockClear();
             expect(
               await remove(tx, world, flow, true).then(
                 () => "deleted",
                 refusal,
               ),
             ).toBe(expected);
+            if (flow === "organization") {
+              expect(Sentry.captureMessage).toHaveBeenCalledWith(
+                "Organization deletion refused by a Network row",
+                expect.objectContaining({
+                  level: "error",
+                  extra: expect.objectContaining({
+                    code,
+                    network,
+                    workspaceId: world.workspaceId,
+                    organizationId: world.organizationId,
+                    blockerId: expect.any(String),
+                  }),
+                }),
+              );
+            }
             await tx.$executeRaw`ROLLBACK TO SAVEPOINT before_deletion`;
             await dropOwnedCrossingKeys(tx, flow);
             await seed();

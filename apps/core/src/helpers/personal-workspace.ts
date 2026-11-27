@@ -15,7 +15,6 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
-import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import {
   isPrismaForeignKeyViolation,
@@ -206,15 +205,13 @@ export async function deletePersonalWorkspace(
       }
     }
 
-    // The Workspace delete already locks this row. Take that lock before
-    // checking its Network dependents, after the existing preference update.
-    const locked = await lockCalendarScope(tx, existing.id, []);
-    const candidates = locked
-      ? await checkWorkspaceDeletion(tx, existing.id, "personal workspace")
-      : undefined;
-    if (locked) {
-      await refuseJobsInWorkspace(tx, existing.id, "personal workspace");
-    }
+    // The runtime locks its Bot before inserting into the Workspace. An
+    // early Workspace lock would deadlock against the Bot cascade.
+    const refuse = () => {
+      throw workspaceHasDependents();
+    };
+    const candidates = await checkWorkspaceDeletion(tx, existing.id, refuse);
+    await refuseJobsInWorkspace(tx, existing.id, refuse);
     try {
       await tx.workspace.delete({
         where: { id: existing.id },
@@ -226,7 +223,7 @@ export async function deletePersonalWorkspace(
       throw error;
     }
 
-    if (candidates) await applyRulesAfterDelete(tx, candidates);
+    await applyRulesAfterDelete(tx, candidates);
     return existing;
   });
 }

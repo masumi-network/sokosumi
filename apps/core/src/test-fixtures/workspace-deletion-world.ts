@@ -227,6 +227,7 @@ export async function seedWorkspaceDeletionWorld(
         id: id(name),
         agentId: id("agent"),
         ownerId: id("bob"),
+        creatorSokoBotId: name === "job.other" ? id("bot.other") : null,
         workspaceId: id("otherOrg.workspace"),
         organizationId: org,
         projectId: project,

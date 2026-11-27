@@ -217,7 +217,9 @@ describe.runIf(ON_POSTGRES)(
       );
     }
 
-    function beforePersonalLock(run: () => Promise<void>): DeleteHook {
+    function beforePersonalPreferenceRead(
+      run: () => Promise<void>,
+    ): DeleteHook {
       return (tx) =>
         new Proxy(tx, {
           get(target, property, receiver) {
@@ -236,8 +238,9 @@ describe.runIf(ON_POSTGRES)(
         });
     }
 
-    async function waitForLock(pid: number) {
+    async function waitForLock(pid: number, finished?: () => boolean) {
       for (let attempts = 0; attempts < 200; attempts++) {
+        if (finished?.()) return;
         const [{ waiting }] = await db.$queryRaw<{ waiting: boolean }[]>`
         SELECT cardinality(pg_blocking_pids(${pid}::int)) > 0 AS waiting
       `;
@@ -344,7 +347,7 @@ describe.runIf(ON_POSTGRES)(
         const hook =
           flow === "organization"
             ? aroundDelete("task", "deleteMany", "before", move)
-            : beforePersonalLock(move);
+            : beforePersonalPreferenceRead(move);
         expect(await remove(flow, world, hook)).toBe("deleted");
         expect(await exists(world)).toBe(false);
         expect(
@@ -399,6 +402,151 @@ describe.runIf(ON_POSTGRES)(
         });
         expect(await exists(world)).toBe(false);
       }, 60_000);
+    });
+
+    describe("personal Workspace deletion beside a Soko Bot runtime write", () => {
+      async function worldWithTurn() {
+        const world = await worldFor("personal workspace");
+        const { id } = world;
+        await insertRow(db, sharedTable("soko_bot_turn"), {
+          id: id("turn"),
+          sokoBotId: id("bot.workspace"),
+          workspaceId: world.workspaceId,
+          source: "CHAT",
+          userMessage: "Test turn",
+          clientTurnId: id("turn"),
+          capabilityNames: [],
+          deadlineAt: "2030-01-01T00:00:00",
+          updatedAt: DELETION_FIXTURE_TIME,
+        });
+        return world;
+      }
+
+      async function lockRuntimeAuthority(
+        tx: Tx,
+        { id }: WorkspaceDeletionWorld,
+      ) {
+        // requireMutationAuthority locks the Turn, then the Soko Bot, before the insert.
+        const turns = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM ${sharedTable("soko_bot_turn")}
+          WHERE id = ${id("turn")}::uuid FOR UPDATE
+        `;
+        const bots = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM ${sharedTable("soko_bot")}
+          WHERE id = ${id("bot.workspace")}::uuid FOR UPDATE
+        `;
+        return turns.length === 1 && bots.length === 1;
+      }
+
+      describe.each(["Task", "Job"] as const)("%s insert", (kind) => {
+        async function write(
+          tx: Tx,
+          { id, workspaceId }: WorkspaceDeletionWorld,
+        ) {
+          if (kind === "Task") {
+            await tx.task.create({
+              data: {
+                id: id("runtime.row"),
+                name: "Runtime task",
+                workspaceId,
+                creatorSokoBotId: id("bot.workspace"),
+              },
+            });
+          } else {
+            await seedJob(tx, network, {
+              id: id("runtime.row"),
+              agentId: id("agent"),
+              creatorSokoBotId: id("bot.workspace"),
+              workspaceId,
+            });
+          }
+        }
+
+        async function writtenRows({ id }: WorkspaceDeletionWorld) {
+          return kind === "Task"
+            ? db.$queryRaw`SELECT "workspaceId" FROM ${sharedTable("task")} WHERE id = ${id("runtime.row")}`
+            : db.$queryRaw`SELECT "workspaceId" FROM ${netTable(network, "Job")} WHERE id = ${id("runtime.row")}`;
+        }
+
+        it("keeps the Workspace and write when the runtime locks its Bot first", async () => {
+          const world = await worldWithTurn();
+          const locked = Promise.withResolvers<number>();
+          const insert = Promise.withResolvers<void>();
+          const commit = Promise.withResolvers<void>();
+          let inserted = false;
+          const writing = db
+            .$transaction(
+              async (tx) => {
+                const [{ pid }] = await tx.$queryRaw<
+                  { pid: number }[]
+                >`SELECT pg_backend_pid() AS pid`;
+                expect(await lockRuntimeAuthority(tx, world)).toBe(true);
+                locked.resolve(pid);
+                await insert.promise;
+                await write(tx, world);
+                inserted = true;
+                await commit.promise;
+              },
+              { timeout: 10_000 },
+            )
+            .then(() => "written", outcome);
+          const writerPid = await Promise.race([locked.promise, writing]);
+          expect(writerPid).toBeTypeOf("number");
+          if (typeof writerPid !== "number") throw new Error(String(writerPid));
+
+          const deletionPid = Promise.withResolvers<number>();
+          const beforeDelete = aroundDelete(
+            "workspace",
+            "delete",
+            "before",
+            async () => {
+              insert.resolve();
+              // The insert either acquires the Workspace key-share lock or waits on deletion.
+              await waitForLock(writerPid, () => inserted);
+            },
+          );
+          const deleting = remove("personal workspace", world, async (tx) => {
+            const [{ pid }] = await tx.$queryRaw<
+              { pid: number }[]
+            >`SELECT pg_backend_pid() AS pid`;
+            deletionPid.resolve(pid);
+            return beforeDelete(tx);
+          });
+          try {
+            await waitForLock(await deletionPid.promise);
+          } finally {
+            insert.resolve();
+            commit.resolve();
+          }
+
+          expect(await Promise.all([deleting, writing])).toEqual([
+            "workspace_has_dependents",
+            "written",
+          ]);
+          expect(await exists(world)).toBe(true);
+          expect(
+            await db.sokoBot.findUnique({
+              where: { id: world.id("bot.workspace") },
+            }),
+          ).not.toBeNull();
+          expect(await writtenRows(world)).toEqual([
+            { workspaceId: world.workspaceId },
+          ]);
+        }, 60_000);
+
+        it("loses runtime authority when the Workspace deletion commits first", async () => {
+          const world = await worldWithTurn();
+          expect(
+            await deletionFirst("personal workspace", world, async (tx) => {
+              if (!(await lockRuntimeAuthority(tx, world)))
+                return "authority lost";
+              await write(tx, world);
+            }),
+          ).toEqual({ deleted: "deleted", writer: "authority lost" });
+          expect(await exists(world)).toBe(false);
+          expect(await writtenRows(world)).toEqual([]);
+        }, 60_000);
+      });
     });
 
     it("keeps the moved Project's credit when it leaves after the candidate read", async () => {

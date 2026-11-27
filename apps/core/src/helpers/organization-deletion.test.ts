@@ -10,7 +10,7 @@ const {
   deleteTaskFileIfOwnedMock,
   captureMessageMock,
   eraseWorkspaceCalendarDataMock,
-  evaluateOrganizationDeletionMock,
+  evaluateLockedOrganizationDeletionMock,
   findForeignWorkspaceX402ChargeMock,
   lockCalendarErasureUserMock,
   lockWorkspaceCalendarForErasureMock,
@@ -21,7 +21,7 @@ const {
   deleteTaskFileIfOwnedMock: vi.fn(),
   captureMessageMock: vi.fn(),
   eraseWorkspaceCalendarDataMock: vi.fn(),
-  evaluateOrganizationDeletionMock: vi.fn(),
+  evaluateLockedOrganizationDeletionMock: vi.fn(),
   findForeignWorkspaceX402ChargeMock: vi.fn(),
   lockCalendarErasureUserMock: vi.fn(),
   lockWorkspaceCalendarForErasureMock: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock("@/helpers/calendar-locks", () => ({
 }));
 
 vi.mock("@/helpers/deletion-evaluate", () => ({
-  evaluateOrganizationDeletion: evaluateOrganizationDeletionMock,
+  evaluateLockedOrganizationDeletion: evaluateLockedOrganizationDeletionMock,
   throwIfOrganizationDeletionBlocked: throwIfOrganizationDeletionBlockedMock,
 }));
 
@@ -62,6 +62,7 @@ vi.mock("@/helpers/workspace-deletion-crossing-rules", () => ({
   applyOrganizationRules: vi.fn(),
   checkWorkspaceDeletion: vi.fn(),
   refuseJobsInWorkspace: vi.fn(),
+  refuseOrganizationWorkspaceDeletion: vi.fn(),
 }));
 
 function createPrisma() {
@@ -93,7 +94,7 @@ describe("prepareOrganizationForDeletion", () => {
     vi.clearAllMocks();
     lockCalendarErasureUserMock.mockResolvedValue(true);
     lockCalendarScopeMock.mockResolvedValue(true);
-    evaluateOrganizationDeletionMock.mockResolvedValue({ blockers: [] });
+    evaluateLockedOrganizationDeletionMock.mockResolvedValue({ blockers: [] });
     findForeignWorkspaceX402ChargeMock.mockResolvedValue(undefined);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
       taskFiles: [],
@@ -132,11 +133,10 @@ describe("prepareOrganizationForDeletion", () => {
       "workspace-1",
       [],
     );
-    expect(evaluateOrganizationDeletionMock).toHaveBeenCalledWith(
+    expect(evaluateLockedOrganizationDeletionMock).toHaveBeenCalledWith(
       "org-1",
       "user-1",
       expect.any(Object),
-      { inTransaction: true },
     );
     expect(eraseWorkspaceCalendarDataMock).toHaveBeenCalledWith(
       expect.any(Object),
@@ -151,7 +151,7 @@ describe("prepareOrganizationForDeletion", () => {
       queryRaw,
       workspaceFindUnique,
       lockCalendarScopeMock,
-      evaluateOrganizationDeletionMock,
+      evaluateLockedOrganizationDeletionMock,
       throwIfOrganizationDeletionBlockedMock,
       lockWorkspaceCalendarForErasureMock,
       eraseWorkspaceCalendarDataMock,
