@@ -457,6 +457,48 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         1,
       ),
     ).resolves.toMatchObject({ requestId: chat, revision: 2 });
+    // The wake carries the owner's request on, so its answer is checked too.
+    const prompt = await evaluateTurnDoneCheck({
+      turnId: wake.id,
+      sessionId: `session-${wake.id}`,
+      draft: "Here is the research.",
+    });
+    expect(prompt).toContain("- s2 [in_progress] Write the brief from it");
+  });
+
+  /** A Core wake on the request `chat` started, as a watch wake is. */
+  async function wakeOn(ownerStarted: boolean) {
+    const chat = await turn("CHAT");
+    await updatePlan(chat, [
+      { step: "Have the research done", status: "done" },
+      { step: "Write the brief from it", status: "pending" },
+    ]);
+    // Not the owner's request: another bot asked for it.
+    if (!ownerStarted)
+      await prisma.sokoBotTurn.update({
+        where: { id: chat },
+        data: { chainDepth: 1 },
+      });
+    const wake = await turn("CHAT", chat);
+    await prisma.sokoBotTurn.update({
+      where: { id: wake },
+      data: { source: "EVENT", eveSessionId: `session-${wake}` },
+    });
+    return evaluateTurnDoneCheck({
+      turnId: wake,
+      sessionId: `session-${wake}`,
+      draft: "Here is the research.",
+    });
+  }
+
+  it("checks a Core wake on the owner's request", async () => {
+    expect(await wakeOn(true)).toContain(
+      "- s2 [pending] Write the brief from it",
+    );
+  });
+
+  it("does not check a Core wake on a request the owner did not start", async () => {
+    expect(await wakeOn(false)).toBeNull();
   });
 
   describe("the done check", () => {

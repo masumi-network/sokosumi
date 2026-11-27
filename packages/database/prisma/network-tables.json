@@ -259,6 +259,7 @@
     "SokoBotModelCall": "soko_bot_model_call",
     "SokoBotModelEvaluation": "soko_bot_model_evaluation",
     "SokoBotNudge": "soko_bot_nudge",
+    "SokoBotAccountQuestion": "soko_bot_account_question",
     "SokoBotPendingDecision": "soko_bot_pending_decision",
     "SokoBotRuntimeEvent": "soko_bot_runtime_event",
     "SokoBotSchedule": "soko_bot_schedule",

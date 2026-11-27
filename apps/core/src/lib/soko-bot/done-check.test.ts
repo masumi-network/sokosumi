@@ -138,6 +138,68 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
     expect(mocks.evaluateWithJev).not.toHaveBeenCalled();
   });
 
+  it("preserves #8423 planLoop-only EVENT wake owner ancestry and cross-bot isolation", async () => {
+    mocks.resolveVersion.mockResolvedValue({ planLoop: true });
+    mocks.readRequestPlan.mockResolvedValue({
+      requestId: "chat-root",
+      revision: 1,
+      steps: [{ id: "s1", step: "Finish visual", status: "pending" }],
+    });
+    mocks.resolveRequestId.mockResolvedValue("chat-root");
+
+    // Same-bot owner-rooted EVENT wake runs deterministic #8340 check with zero Jev calls.
+    mocks.findTurn
+      .mockResolvedValueOnce(
+        baseTurn({
+          id: "wake-1",
+          sokoBotId: "bot-1",
+          source: "EVENT",
+          askedByUserId: null,
+          requestedByUserId: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        baseTurn({
+          id: "chat-root",
+          sokoBotId: "bot-1",
+          source: "CHAT",
+        }),
+      );
+    const sameBotPrompt = await evaluateTurnDoneCheck({
+      turnId: "wake-1",
+      sessionId: "sess-1",
+      draft: "Coworker finished.",
+    });
+    expect(sameBotPrompt).toContain("- s1 [pending] Finish visual");
+
+    // Cross-bot EVENT wake stays excluded.
+    mocks.findTurn
+      .mockResolvedValueOnce(
+        baseTurn({
+          id: "wake-2",
+          sokoBotId: "bot-1",
+          source: "EVENT",
+          askedByUserId: null,
+          requestedByUserId: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        baseTurn({
+          id: "chat-root",
+          sokoBotId: "bot-2",
+          source: "CHAT",
+        }),
+      );
+    await expect(
+      evaluateTurnDoneCheck({
+        turnId: "wake-2",
+        sessionId: "sess-2",
+        draft: "Coworker finished.",
+      }),
+    ).resolves.toBeNull();
+    expect(mocks.evaluateWithJev).not.toHaveBeenCalled();
+  });
+
   it("catches an early stop without a plan in standalone completionDecider mode and records a receipt", async () => {
     mocks.findTurn.mockResolvedValue(baseTurn());
     mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
