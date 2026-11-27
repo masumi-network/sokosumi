@@ -108,12 +108,19 @@ export async function deleteFailedHireProject(
       DELETE FROM ${netTable(network, "soko_bot_usage")} AS x
       WHERE x."sokoBotId" IN (SELECT "id" FROM bots) RETURNING 1)`,
   ]);
-  const counted = networks.flatMap((_, index) =>
-    ["bucket", "job", "usage"].map((name) =>
-      PrismaRaw.raw(
-        `(SELECT count(*)::int FROM ${name}_${index}) AS ${name}_${index}`,
-      ),
+  // Each sub-statement runs when the list below first reads it, so this order
+  // is the order of the row locks: origin/main's cascade order (Mainnet's Job
+  // links, the bots, Mainnet's buckets, each other Network's Job links and
+  // buckets, then usage).
+  const counted = [
+    "job_0",
+    "bots",
+    ...networks.flatMap((_, index) =>
+      index === 0 ? ["bucket_0"] : [`job_${index}`, `bucket_${index}`],
     ),
+    ...networks.map((_, index) => `usage_${index}`),
+  ].map((name) =>
+    PrismaRaw.raw(`(SELECT count(*)::int FROM ${name}) AS ${name}`),
   );
   const [result] = await client.$queryRaw<FailedHireCleanupRow[]>`
     WITH blocker AS (
@@ -135,7 +142,6 @@ export async function deleteFailedHireProject(
       (SELECT network FROM blocker) AS "blockerNetwork",
       (SELECT "id" FROM blocker) AS "blockerJobId",
       (SELECT count(*)::int FROM gone) AS projects,
-      (SELECT count(*)::int FROM bots) AS bots,
       ${PrismaRaw.join(counted, ",\n")}
   `;
   if (result.blockerJobId) {

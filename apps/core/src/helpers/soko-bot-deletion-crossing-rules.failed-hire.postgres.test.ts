@@ -552,6 +552,82 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
     );
 
     /**
+     * The rows the clean-up locks, in the order it locks them: a holder locks
+     * one row, and once the clean-up waits there, every other row is tried
+     * with NOWAIT; the ones it holds already come before.
+     */
+    async function lockOrder(mode: Mode) {
+      const lockable = (w: SokoBotDeletionWorld) => {
+        const list: [string, Prisma.Sql, string][] = [
+          ["project", sharedTable("project"), w.projectId],
+          ["bot", sharedTable("soko_bot"), w.id("bot.project")],
+          ["turn", sharedTable("soko_bot_turn"), w.id("turn")],
+        ];
+        for (const network of networks) {
+          list.push(
+            [
+              `${network} Job link`,
+              netTable(network, "Job"),
+              w.id("job.project"),
+            ],
+            [
+              `${network} bucket`,
+              netTable(network, "credit_bucket"),
+              w.id("bucket.project"),
+            ],
+            [
+              `${network} usage`,
+              netTable(network, "soko_bot_usage"),
+              w.id("usage.project"),
+            ],
+          );
+        }
+        return list;
+      };
+      const before: Record<string, number> = {};
+      for (const [name] of lockable(newSokoBotDeletionWorld())) {
+        const w = await world();
+        const rows = lockable(w);
+        const [, table, id] = rows.find(([row]) => row === name) ?? [];
+        const holder = await session();
+        await holder.run("BEGIN");
+        await holder.run(
+          `SELECT 1 FROM ${t(table as Prisma.Sql)} WHERE id::text = $1 FOR UPDATE`,
+          [id],
+        );
+        const pending = removeProject(mode, db, w.projectId);
+        await blockedBy(holder.pid);
+        const probe = await session();
+        let held = 0;
+        for (const [other, otherTable, otherId] of rows) {
+          if (other === name) continue;
+          await probe.run("BEGIN");
+          const result = await probe.run(
+            `SELECT 1 FROM ${t(otherTable)} WHERE id::text = $1 FOR UPDATE NOWAIT`,
+            [otherId],
+          );
+          await probe.run("ROLLBACK");
+          if (result === "55P03") held++;
+        }
+        await holder.run("COMMIT");
+        expect(await pending).toBe("deleted");
+        before[name] = held;
+      }
+      return Object.keys(before).sort((a, b) => before[a] - before[b]);
+    }
+
+    it("takes its row locks in origin/main's order", async () => {
+      const base = await lockOrder("base");
+      const head = await lockOrder("head");
+      // With Preprod on, origin/main's cascade reaches the turn between the
+      // two Networks' usage rows; the statement reaches it after both.
+      const settled = (order: string[]) =>
+        onSplitLayout ? order.filter((row) => row !== "turn") : order;
+      expect(settled(head)).toEqual(settled(base));
+      expect(head.at(-1)).toBe(onSplitLayout ? "turn" : base.at(-1));
+    }, 120_000);
+
+    /**
      * The lock orders of section 3d of the design note. Project close
      * (`project-close-lifecycle.service.ts`): Workspace, Project, then its
      * bots, `FOR UPDATE`. A Soko Bot turn (`authorization.ts`): the turn, then
@@ -765,12 +841,17 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
           "%s ends as origin/main does",
           async (mode) => {
             const w = await world();
-            expect(await schedules[name](w, mode)).toEqual(onMain[name]);
-            expect(
-              Boolean(
-                await db.project.findUnique({ where: { id: w.projectId } }),
-              ),
-            ).toBe(onMain[name].cleanUp !== "deleted");
+            const ended = await schedules[name](w, mode);
+            const kept = Boolean(
+              await db.project.findUnique({ where: { id: w.projectId } }),
+            );
+            expect(kept).toBe(ended.cleanUp !== "deleted");
+            // PostgreSQL picks the victim of a deadlock by timing; what must
+            // match is whether the schedule deadlocks at all.
+            const deadlocks = (result: Record<string, unknown>) =>
+              Object.values(result).includes("deadlock");
+            if (deadlocks(onMain[name])) expect(deadlocks(ended)).toBe(true);
+            else expect(ended).toEqual(onMain[name]);
           },
           60_000,
         );
