@@ -387,6 +387,18 @@ describe("imported site crawl", () => {
     expect(crawl.orphans).toMatchObject({ total: 1 });
   });
 
+  it("counts no more pages checked than there are, so a count too high clears no check", () => {
+    const raw = botCrawl();
+    raw.pageChecks.checked = raw.pageChecks.pages + 3;
+    raw.pageChecks.sitemap.checked = raw.pageChecks.sitemap.urls + 3;
+    const crawl = stored(siteReport({ crawl: raw }));
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.pageChecks).toMatchObject({
+      checked: raw.pageChecks.pages,
+      noindexInSitemap: { checked: raw.pageChecks.sitemap.urls },
+    });
+  });
+
   it("keeps only text PostgreSQL can store", () => {
     // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
     const crawl = stored(

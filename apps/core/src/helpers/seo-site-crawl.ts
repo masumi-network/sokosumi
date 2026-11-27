@@ -288,7 +288,8 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
     pageChecks: pageChecks
       ? {
           pages: pageChecks.pages,
-          checked: pageChecks.checked,
+          // Web counts the pages past `checked` as undecided: more checked than there are would cancel other undecided pages.
+          checked: Math.min(pageChecks.checked, pageChecks.pages),
           missingTitle: urls(pageChecks.missingTitle),
           missingH1: urls(pageChecks.missingH1),
           duplicateTitles: {
@@ -304,7 +305,10 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
             ? {
                 ...urls(pageChecks.sitemap.noindex),
                 sitemapUrls: pageChecks.sitemap.urls,
-                checked: pageChecks.sitemap.checked,
+                checked: Math.min(
+                  pageChecks.sitemap.checked,
+                  pageChecks.sitemap.urls,
+                ),
               }
             : null,
           badCanonicals: badCanonicals(
