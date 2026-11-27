@@ -55,6 +55,9 @@ function excerptOf(text: string): string | null {
     );
   if (fences.length % 2 === 1) end = fences.at(-1) ?? end;
 
+  // Nor on a heading whose section is cut away.
+  while (end > 1 && /^(\s*$|#{1,6}\s)/.test(lines[end - 1] ?? "")) end -= 1;
+
   return lines.slice(0, end).join("\n").trimEnd();
 }
 

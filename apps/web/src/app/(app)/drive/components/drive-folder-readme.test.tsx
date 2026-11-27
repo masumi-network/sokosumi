@@ -137,6 +137,25 @@ describe("DriveFolderReadme", () => {
     expect(card).not.toHaveTextContent("line 0");
   });
 
+  it("never ends the excerpt on a heading whose section is cut away", async () => {
+    renderCard(
+      [
+        "# Client work",
+        "",
+        "Everything lives here.",
+        "",
+        "## Naming",
+        "",
+        ...Array.from({ length: 20 }, (_, i) => `Rule ${i} for names.`),
+      ].join("\n"),
+    );
+    await screen.findByRole("button", { name: "readmeShowMore" });
+    expect(screen.queryByRole("heading", { name: "Naming" })).toBeNull();
+    expect(
+      screen.getByRole("region", { name: "readmeLabel" }),
+    ).toHaveTextContent("Everything lives here.");
+  });
+
   it("turns images and media into links instead of loading them", async () => {
     renderCard(
       [
