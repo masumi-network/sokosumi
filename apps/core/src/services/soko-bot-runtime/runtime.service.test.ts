@@ -13574,9 +13574,11 @@ describe("Drive file tools", () => {
           extractionState: "SUCCEEDED",
         },
       ],
+      search: { hasMore: true, nextCursor: "page-3" },
     });
     const result = await service["listFiles"](authorized as never, {
       query: "launch",
+      cursor: "page-2",
     });
     expect(files.search).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -13589,9 +13591,12 @@ describe("Drive file tools", () => {
         },
         query: "launch",
         sortBy: "relevance",
+        cursor: "page-2",
       }),
     );
     expect(result).toEqual({
+      hasMore: true,
+      nextCursor: "page-3",
       files: [
         {
           id: "file-1",
@@ -13689,7 +13694,10 @@ describe("Drive file tools", () => {
       id: SCOPE.workspaceId,
       organizationId: "org-1",
     });
-    files.search.mockResolvedValue({ items: [] });
+    files.search.mockResolvedValue({
+      items: [],
+      search: { hasMore: false, nextCursor: null },
+    });
     files.loadLive.mockResolvedValueOnce([]);
     await service["listFiles"](shared as never, {});
     await expect(
