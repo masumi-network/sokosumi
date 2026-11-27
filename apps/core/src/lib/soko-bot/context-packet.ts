@@ -114,6 +114,8 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   referencedTaskIds?: readonly string[];
   /** A person typed this turn: it holds every tool, and the route is a guess. */
   personAsked?: boolean;
+  /** State Core holds for this turn, such as an open account question. */
+  extraHints?: readonly string[];
   /** The lasting preference saved from this message before the turn. */
   capturedPreference?: string | null;
   /** The message as the classifier read it: Cuso's organizer picks from it. */
@@ -927,7 +929,7 @@ export class ContextPacketBuilder {
       storedMemory,
       TEXT_LIMITS.memoryBytes,
     );
-    const hints = triggerHints(input);
+    const hints = [...triggerHints(input), ...(input.extraHints ?? [])];
     const packetWithoutHash: ContextPacketWithoutHash = {
       schemaVersion: 1,
       generatedAt,

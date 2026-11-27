@@ -74,6 +74,67 @@ export interface TurnLoopInput {
    * round offers the full tool (cmo-v24).
    */
   shortForms?: readonly CmoShortFormTool[];
+  /** Core's plan for the request (planLoop); none on other versions. */
+  plan?: TurnLoopPlan;
+}
+
+export interface TurnLoopPlan {
+  /**
+   * The turn started with a plan from earlier in its request. Without one,
+   * Core is asked nothing until the turn calls update_plan itself, so a
+   * simple turn pays no extra call.
+   */
+  inherited: boolean;
+  /**
+   * Asked once when a foreground turn is about to answer: a prompt sends it
+   * back for one more round, null lets the answer through.
+   */
+  doneCheck: (draft: string) => Promise<string | null>;
+  /** The plan's open steps, for the keep-going nudge and the time-up report. */
+  openSteps: () => Promise<string | null>;
+  /** Tools whose completed call Core records as a change (a receipt). */
+  changeTools: ReadonlySet<string>;
+}
+
+const PLAN_ANSWER_TIMEOUT_MS = 10_000;
+/** The time-up report waits at most this long for the open steps. */
+const REPORT_PLAN_WAIT_MS = 2_000;
+
+/** A nudge or time-up prompt that names the plan's open steps, when there are any. */
+async function withOpenSteps(
+  prompt: string,
+  plan: TurnLoopPlan | undefined,
+  withinMs: number,
+): Promise<string> {
+  const steps = plan ? await planAnswer(plan.openSteps, withinMs) : null;
+  return steps ? `${prompt}\n\n${steps}` : prompt;
+}
+
+/**
+ * Core's answer on the plan, or null when it does not come within the time
+ * the turn can spare: an optional read never takes the answer's time.
+ */
+async function planAnswer(
+  ask: () => Promise<string | null>,
+  withinMs: number,
+): Promise<string | null> {
+  if (withinMs <= 0) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ask(),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(
+          () => resolve(null),
+          Math.min(PLAN_ANSWER_TIMEOUT_MS, withinMs),
+        );
+      }),
+    ]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export interface TurnLoopResult {
@@ -136,6 +197,51 @@ export async function runTurnLoop(
   let finishReason = "";
   let idleRounds = 0;
   let short = shortFormsIn(input.tools, input.shortForms ?? []);
+  // A tool that ran in the done check's extra round counts as work even when
+  // the model call around it then fails.
+  const tools: ToolSet = input.plan
+    ? Object.fromEntries(
+        Object.entries(input.tools).map(([name, each]) => {
+          const execute = each.execute;
+          if (!execute) return [name, each];
+          return [
+            name,
+            {
+              ...each,
+              execute: async (...args: Parameters<typeof execute>) => {
+                const output = await execute(...args);
+                if (draft) {
+                  workedAfterCheck = true;
+                  if (input.plan?.changeTools.has(name))
+                    changedAfterCheck = true;
+                }
+                return output;
+              },
+            },
+          ];
+        }),
+      )
+    : input.tools;
+  const historyOptions = { keepLatestPlan: input.plan !== undefined };
+  const compact = (history: readonly ModelMessage[]) =>
+    compactHistory(history, undefined, historyOptions);
+  let doneChecked = false;
+  // Core is asked about the plan only once there is one: inherited, or
+  // written in this turn.
+  let activePlan = input.plan?.inherited ? input.plan : undefined;
+  /** The reply the done check sent back, kept in case the extra round fails. */
+  let draft: TurnLoopResult | undefined;
+  /** The extra round called tools: the reply sent back no longer tells it all. */
+  let workedAfterCheck = false;
+  let changedAfterCheck = false;
+  const roomForAnotherRound = () =>
+    !refused &&
+    stepsLeft > 1 &&
+    reportAt - now() > minRoundMs &&
+    // The extra round's step, and the wrap-up it may still need.
+    (!input.budget ||
+      input.budget.limit - input.budget.used - input.budget.reserved >=
+        2 * input.budget.perStep);
   const fullKey = input.fullCacheKey ?? input.cacheKey;
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
@@ -143,8 +249,8 @@ export async function runTurnLoop(
     const result = await callModel({
       model: input.model,
       system: input.system,
-      messages: compactHistory(messages) ?? messages,
-      tools: short.length ? withShortForms(input.tools, short) : input.tools,
+      messages: compact(messages) ?? messages,
+      tools: short.length ? withShortForms(tools, short) : tools,
       // The budget is checked last, so it reserves room only for a step
       // that will run.
       stopWhen: [
@@ -155,7 +261,7 @@ export async function runTurnLoop(
         budgetSpent,
       ],
       prepareStep: ({ messages: current }) => {
-        const compacted = compactHistory(current);
+        const compacted = compact(current);
         return compacted ? { messages: compacted } : {};
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
@@ -173,8 +279,35 @@ export async function runTurnLoop(
       },
       abortSignal: signal(),
       maxRetries: 1,
-    }).finally(() => admission.release());
+    })
+      .finally(() => admission.release())
+      // The done check's extra round is optional: if it fails, the answer
+      // the check sent back stands.
+      .catch((error: unknown) => {
+        if (draft) return null;
+        throw error;
+      });
+    if (!result) {
+      // Failed before doing anything: the reply the check sent back stands.
+      // After a tool ran, it no longer tells the whole story: the wrap-up
+      // below writes the answer from what Core recorded.
+      if (!workedAfterCheck) return draft as TurnLoopResult;
+      text = "";
+      finishReason = "error";
+      break;
+    }
     bookUnreported(result.steps);
+    if (draft && result.steps.some((step) => step.toolCalls.length > 0))
+      workedAfterCheck = true;
+    if (
+      input.plan &&
+      !activePlan &&
+      // Only a plan Core accepted: a refused write is a tool error.
+      result.steps.some((step) =>
+        step.toolResults.some((call) => call.toolName === "update_plan"),
+      )
+    )
+      activePlan = input.plan;
     stepsLeft -= result.steps.length;
     // A model can answer in one step and end on an empty one; `text` is
     // only the last step's.
@@ -218,12 +351,50 @@ export async function runTurnLoop(
       stepsLeft > 0 &&
       !refused &&
       reportAt - now() > minRoundMs;
-    if (!keepGoing) break;
-    messages.push({ role: "user", content: KEEP_GOING_PROMPT });
+    if (!keepGoing) {
+      // The done check: a foreground answer with open plan steps goes back
+      // once, only while steps, time and tokens leave room for that round
+      // and a wrap-up after it, checked again once Core has answered.
+      const plan = activePlan;
+      if (
+        plan &&
+        !doneChecked &&
+        !input.background &&
+        !input.part &&
+        finishReason !== "tool-calls" &&
+        text.trim() &&
+        roomForAnotherRound()
+      ) {
+        doneChecked = true;
+        const prompt = await planAnswer(
+          () => plan.doneCheck(text),
+          reportAt - now() - minRoundMs,
+        );
+        if (prompt && roomForAnotherRound()) {
+          draft = { text, finishReason };
+          messages.push({ role: "user", content: prompt });
+          continue;
+        }
+      }
+      break;
+    }
+    messages.push({
+      role: "user",
+      content: await withOpenSteps(
+        KEEP_GOING_PROMPT,
+        activePlan,
+        reportAt - now() - minRoundMs,
+      ),
+    });
   }
   // A turn that ran out of steps, time or tokens while still calling tools
   // has no answer yet: one call without tools writes it.
   const cutOff = stepsLeft <= 0 || timeUp() || refused;
+  // The latest complete answer wins. The one the done check sent back stands
+  // only when the extra round did nothing and wrote nothing new; once it
+  // worked, that reply is stale and the wrap-up below writes a new one.
+  const noNewAnswer = finishReason === "tool-calls" || !text.trim();
+  if (draft && !workedAfterCheck && noNewAnswer) return draft;
   // A part never makes a wrap-up call, whatever stopped it: the turn's own
   // loop makes the one, from what the parts handed back.
   if (cutOff && input.part)
@@ -236,18 +407,20 @@ export async function runTurnLoop(
     };
   const needsReport = input.background
     ? !isFinalReport(text) && idleRounds < MAX_IDLE_ROUNDS
-    : cutOff && (finishReason === "tool-calls" || !text.trim());
+    : (cutOff || workedAfterCheck) && noNewAnswer;
   if (needsReport) {
     const result = await callModel({
       model: input.model,
       system: input.system,
       messages: [
-        ...(compactHistory(messages) ?? messages),
+        ...(compact(messages) ?? messages),
         {
           role: "user",
-          content: input.background
-            ? TIME_UP_PROMPT
-            : FOREGROUND_TIME_UP_PROMPT,
+          content: await withOpenSteps(
+            input.background ? TIME_UP_PROMPT : FOREGROUND_TIME_UP_PROMPT,
+            activePlan,
+            Math.min(REPORT_PLAN_WAIT_MS, (input.deadline - now()) / 10),
+          ),
         },
       ],
       tools: input.tools,
@@ -255,7 +428,17 @@ export async function runTurnLoop(
       providerOptions: withPromptCache({}, fullKey, modelIdOf(input.model)),
       abortSignal: signal(),
       maxRetries: 1,
+    }).catch((error: unknown) => {
+      // Past the done check, the reply it sent back is still an answer.
+      if (draft) return null;
+      throw error;
     });
+    // After a change, the reply the check sent back is stale: an empty answer
+    // lets Core's receipts say what was done.
+    if (!result)
+      return changedAfterCheck
+        ? { text: "", finishReason: "error" }
+        : (draft as TurnLoopResult);
     // The one wrap-up call: never refused, always booked.
     for (const step of result.steps) admission.settle(step.usage.inputTokens);
     text = result.text || text;

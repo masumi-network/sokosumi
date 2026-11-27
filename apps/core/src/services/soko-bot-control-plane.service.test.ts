@@ -288,6 +288,8 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotPendingDecision: {
       count: vi.fn().mockResolvedValue(4),
     },
+    // No account question is open on these turns.
+    sokoBotAccountQuestion: { findFirst: vi.fn().mockResolvedValue(null) },
     sokoBotTurn: {
       count: turnCountMock,
       findFirst: turnFindFirstMock,
