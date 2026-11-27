@@ -73,8 +73,23 @@ export interface NetworkScope {
   ): Promise<T>;
 }
 
-/** A scope the type checker knows is Mainnet's: for a Mainnet-only feature. */
+/**
+ * A scope the type checker knows is Mainnet's: for a Mainnet-only feature. It
+ * guards against mistakes, not against a fabricated object such as a spread
+ * whose `network` is set to `"mainnet"`.
+ */
 export type MainnetScope = NetworkScope & { readonly network: "mainnet" };
+
+/** Throws unless the scope is Mainnet's. For a Mainnet-only feature that is handed a scope it did not create. */
+export function assertMainnetScope(
+  scope: NetworkScope,
+): asserts scope is MainnetScope {
+  // A refusing scope throws on this read by itself.
+  const { network } = scope;
+  if (network !== "mainnet") {
+    throw new Error(`Expected the Mainnet scope, got ${network}'s`);
+  }
+}
 
 /**
  * The only way to a Network's client. Throws for an unknown Network and for

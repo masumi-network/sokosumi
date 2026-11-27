@@ -118,8 +118,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!enabled || !mainnet) return;
-  // A setup that failed early leaves these unset: an undefined filter would
-  // match every row.
+  // Lets teardown work when setup stopped before the project or user existed
+  // (the client rejects an undefined filter: `strictUndefinedChecks`).
   if (projectId) {
     await prisma.projectImageAsset.deleteMany({ where: { projectId } });
     await prisma.projectImageJob.deleteMany({ where: { projectId } });

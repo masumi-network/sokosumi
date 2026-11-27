@@ -6,7 +6,7 @@ import { createError } from "evlog";
 import type { Context } from "hono";
 
 import { getEnv } from "@/config/env";
-import type { MainnetScope, NetworkScope } from "@/lib/db/network-scope";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   createCoreLogger,
   emitCoreError,
@@ -53,16 +53,9 @@ export interface SyncRunContext extends SyncExecutionContext {
  * Network's scope. The work may keep the scope after the response; it opens a
  * transaction itself when it needs one, and the transaction ends with it.
  */
-export interface NetworkSyncRunContext<
-  Scope extends NetworkScope = NetworkScope,
-> extends SyncRunContext {
-  scope: Scope;
+export interface NetworkSyncRunContext extends SyncRunContext {
+  scope: NetworkScope;
 }
-
-/** A cron that declares Mainnet gets a scope the type checker knows is Mainnet's. */
-type ScopeOf<N extends Network> = N extends "mainnet"
-  ? MainnetScope
-  : NetworkScope;
 
 type SyncOperation<Context = SyncRunContext> = (
   context: Context,
@@ -90,9 +83,9 @@ export interface SyncRequestOptions {
 }
 
 /** The Network a cron works on, declared where it is registered. */
-export interface NetworkSyncRequestOptions<N extends Network = Network>
+export interface NetworkSyncRequestOptions
   extends Omit<SyncRequestOptions, "network"> {
-  network: N;
+  network: Network;
 }
 const MIN_SYNC_TIMEOUT_MS = 1000;
 
@@ -299,11 +292,11 @@ function runBackgroundSync(
  * that Network's scope as `context.scope`. Without the option the handler
  * hands it no scope.
  */
-export async function handleSyncRequest<N extends Network>(
+export async function handleSyncRequest(
   c: Context,
   lockKey: string,
-  syncOperation: SyncOperation<NetworkSyncRunContext<ScopeOf<N>>>,
-  options: NetworkSyncRequestOptions<N>,
+  syncOperation: SyncOperation<NetworkSyncRunContext>,
+  options: NetworkSyncRequestOptions,
 ): Promise<Response>;
 export async function handleSyncRequest(
   c: Context,
