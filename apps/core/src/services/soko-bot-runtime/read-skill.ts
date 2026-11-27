@@ -1,8 +1,10 @@
 import {
+  applyE1WritingSkill,
   getSokoBotSkillForVersion,
   renderWritingSkill,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  type SokoBotVersion,
   sokoBotReadsPlaybooks,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
@@ -13,9 +15,13 @@ import {
 } from "../soko-bot-runtime.service";
 
 /** One writing skill in full: how to write a network or kind of piece. */
-export function readWritingSkill(id: string) {
-  const skill = WRITING_SKILLS.find((candidate) => candidate.id === id);
-  if (!skill) return null;
+export function readWritingSkill(
+  id: string,
+  version?: Pick<SokoBotVersion, "e1Prompts">,
+) {
+  const raw = WRITING_SKILLS.find((candidate) => candidate.id === id);
+  if (!raw) return null;
+  const skill = version ? applyE1WritingSkill(raw, version) : raw;
   return {
     skill: skill.id,
     name: skill.name,
@@ -72,7 +78,7 @@ export async function readSkill(
       WRITING_SKILLS.some(
         (skill) => skill.id === id && skill.group === "playbooks",
       ))
-      ? readWritingSkill(id)
+      ? readWritingSkill(id, version)
       : null;
   if (writing) return writing;
   const writingIds =

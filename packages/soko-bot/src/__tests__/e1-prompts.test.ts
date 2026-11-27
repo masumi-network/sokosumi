@@ -3,6 +3,7 @@ import { SOKO_BOT_CAPABILITIES } from "../policy.js";
 import {
   applyE1Skill,
   applyE1SystemPrompt,
+  applyE1WritingSkill,
   E1_CUSO_CHANGE_SCOPE_SECTION,
   E1_FINISHING_SECTION,
 } from "../versions/e1-prompts.js";
@@ -14,6 +15,7 @@ import {
   getSokoBotVersion,
 } from "../versions/index.js";
 import { versionIntegrityProblems } from "../versions/integrity.js";
+import { WRITING_SKILLS } from "../writing-skills/index.js";
 
 describe("e1Prompts version flag", () => {
   it("leaves flag-off Soko Bot and Cuso versions byte-identical", () => {
@@ -66,7 +68,13 @@ describe("e1Prompts version flag", () => {
     expect(prompt).toContain(
       "Delete a recurring schedule only when the owner explicitly asks to stop or remove it",
     );
-    expect(prompt).toContain("keepCapabilities: true");
+    expect(prompt).not.toContain("keepCapabilities: true");
+    expect(prompt).toContain(
+      "set status READY only when the Task is in a resumable state and has an assignee",
+    );
+    expect(prompt).toContain(
+      "accepts only the five standard `##` headings (`## Goals`, `## Decisions`, `## Preferences`, `## Follow-ups`, `## Blockers`)",
+    );
     expect(prompt).toContain(
       "still create the requested draft attributed to that report and state plainly what was not independently verified",
     );
@@ -191,7 +199,11 @@ describe("e1Prompts version flag", () => {
     expect(promptA).toContain(
       "Delete a recurring schedule only when the owner explicitly asks to stop or remove it.",
     );
-    expect(promptA).toContain("keepCapabilities: true");
+    expect(promptA).not.toContain("keepCapabilities: true");
+    expect(promptA).not.toContain("with read_writing_skill");
+    expect(promptA).toContain(
+      "read its writing skill and brand-voice with read_skill",
+    );
     expect(promptA).toContain(
       "Never answer `Nothing to add.` to a human's chat message.",
     );
@@ -291,5 +303,102 @@ Change the strategy only as far as the owner has said what to change.
     expect(cardsOn.content).toContain(
       "Only when two or more unrelated projects genuinely fit",
     );
+  });
+
+  it("fixes real-use Cuso prompt/writing-skill contradictions (LinkedIn line 1, media uniqueness, connected integrations, read_skill, cmo-seo) only behind e1Prompts", () => {
+    const cmoV27 = getSokoBotVersion("cmo-v27");
+    const cmoV27E1 = getSokoBotVersion("cmo-v27-e1");
+
+    // System prompt: cmo-v27 keeps legacy wording; cmo-v27-e1 uses read_skill + compact brief wording.
+    const legacyPrompt = composeSystemPrompt(cmoV27);
+    const e1Prompt = composeSystemPrompt(cmoV27E1);
+    expect(legacyPrompt).toContain("with read_writing_skill");
+    expect(legacyPrompt).toContain(
+      "A production run's brief already holds them.",
+    );
+    expect(e1Prompt).not.toContain("with read_writing_skill");
+    expect(e1Prompt).not.toContain(
+      "A production run's brief already holds them.",
+    );
+    expect(e1Prompt).toContain(
+      "In a compact production run, the brief lists their ids — read each needed skill with read_skill",
+    );
+
+    // cmo-production-picked: qualifies LinkedIn opening, adds media uniqueness, updates read_skill & update_social_posts.
+    const legacyProd = getSokoBotSkillForVersion(
+      "cmo-production-picked",
+      cmoV27,
+    );
+    const e1Prod = getSokoBotSkillForVersion("cmo-production-picked", cmoV27E1);
+    expect(legacyProd.content).toContain("read_writing_skill");
+    expect(e1Prod.content).not.toContain("read_writing_skill");
+    expect(e1Prod.content).toContain(
+      "On LinkedIn, line 1 (before the first newline)",
+    );
+    expect(e1Prod.content).toContain("never advice or a question");
+    expect(e1Prod.content).toContain(
+      "each post gets its own unique image or video",
+    );
+    expect(e1Prod.content).toContain("update_social_posts");
+
+    // cmo-measurement: check connected integrations first + rewrite dangling cmo-seo to readable SEO skill.
+    const legacyMeas = getSokoBotSkillForVersion("cmo-measurement", cmoV27);
+    const e1Meas = getSokoBotSkillForVersion("cmo-measurement", cmoV27E1);
+    expect(legacyMeas.content).toContain("(see the cmo-seo skill)");
+    expect(e1Meas.content).not.toContain("(see the cmo-seo skill)");
+    expect(e1Meas.content).toContain("(see the cmo-seo-reports-plain skill)");
+    expect(e1Meas.content).toContain(
+      "do not call list_integration_tools or read_integration_tool for a provider that is not connected",
+    );
+    expect(
+      getSokoBotSkillForVersion("cmo-measurement", {
+        e1Prompts: true,
+        skills: ["cmo-measurement", "cmo-seo-reports"],
+      }).content,
+    ).toContain("(see the cmo-seo-reports skill)");
+    expect(
+      getSokoBotSkillForVersion("cmo-measurement", {
+        e1Prompts: true,
+        skills: ["cmo-measurement"],
+      }).content,
+    ).toContain("(see the cmo-seo skill)");
+
+    // cmo-competitor-ads and cmo-newsletter: read_skill instead of read_writing_skill on skillsOnDemand.
+    expect(
+      getSokoBotSkillForVersion("cmo-competitor-ads", cmoV27E1).content,
+    ).not.toContain("read_writing_skill");
+    expect(
+      getSokoBotSkillForVersion("cmo-newsletter", cmoV27E1).content,
+    ).not.toContain("read_writing_skill");
+
+    // Writing skills: hooks-and-endings + linkedin align with Core's line-1 LINKEDIN_HOOK_RULE only under e1Prompts.
+    const hooksRaw = WRITING_SKILLS.find((s) => s.id === "hooks-and-endings")!;
+    const linkedinRaw = WRITING_SKILLS.find((s) => s.id === "linkedin")!;
+    expect(applyE1WritingSkill(hooksRaw, cmoV27)).toBe(hooksRaw);
+    expect(applyE1WritingSkill(linkedinRaw, cmoV27)).toBe(linkedinRaw);
+
+    const hooksE1 = applyE1WritingSkill(hooksRaw, cmoV27E1);
+    expect(hooksE1.content).toContain(
+      "on LinkedIn, never open with a question or advice",
+    );
+    expect(hooksE1.checklist[0]?.rule).toContain("outside LinkedIn");
+
+    const linkedinE1 = applyE1WritingSkill(linkedinRaw, cmoV27E1);
+    expect(linkedinE1.content).not.toContain(
+      "The first two lines are the hook.",
+    );
+    expect(linkedinE1.content).toContain(
+      "The very first line (before the first newline) is the hook.",
+    );
+    expect(linkedinE1.content).toContain(
+      "never put a flat warm-up on line 1 and the proof on line 2",
+    );
+
+    expect(
+      versionIntegrityProblems(
+        cmoV27E1,
+        applyVersionCapabilities(cmoV27E1, SOKO_BOT_CAPABILITIES),
+      ),
+    ).toEqual([]);
   });
 });

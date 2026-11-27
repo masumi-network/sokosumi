@@ -118,6 +118,46 @@ describe("read_skill", () => {
     });
     expect(social.content).toContain("unscheduled proposals");
   });
+
+  it("returns E1-aligned LinkedIn and hooks-and-endings writing skills only when e1Prompts is enabled", async () => {
+    const cmoV27 = getSokoBotVersion("cmo-v27");
+    const cmoV27E1 = getSokoBotVersion("cmo-v27-e1");
+
+    resolveSokoBotVersion.mockResolvedValueOnce(cmoV27);
+    const legacyHooks = await readSkill(authorized("cmo-v27"), {
+      skill: "hooks-and-endings",
+    });
+    expect(legacyHooks.content).not.toContain(
+      "on LinkedIn, never open with a question or advice",
+    );
+
+    resolveSokoBotVersion.mockResolvedValueOnce(cmoV27E1);
+    const e1Hooks = await readSkill(authorized("cmo-v27-e1"), {
+      skill: "hooks-and-endings",
+    });
+    expect(e1Hooks.content).toContain(
+      "on LinkedIn, never open with a question or advice",
+    );
+
+    resolveSokoBotVersion.mockResolvedValueOnce(cmoV27);
+    const legacyLinkedin = await readSkill(authorized("cmo-v27"), {
+      skill: "linkedin",
+    });
+    expect(legacyLinkedin.content).toContain(
+      "The first two lines are the hook.",
+    );
+
+    resolveSokoBotVersion.mockResolvedValueOnce(cmoV27E1);
+    const e1Linkedin = await readSkill(authorized("cmo-v27-e1"), {
+      skill: "linkedin",
+    });
+    expect(e1Linkedin.content).not.toContain(
+      "The first two lines are the hook.",
+    );
+    expect(e1Linkedin.content).toContain(
+      "The very first line (before the first newline) is the hook.",
+    );
+  });
 });
 
 describe("skillOccasions", () => {

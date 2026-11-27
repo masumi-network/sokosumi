@@ -387,6 +387,7 @@ export {
 export {
   applyE1Skill,
   applyE1SystemPrompt,
+  applyE1WritingSkill,
   E1_CUSO_CHANGE_SCOPE_SECTION,
   E1_FINISHING_SECTION,
   E1_SKILL_USE_WHEN_OVERRIDES,
