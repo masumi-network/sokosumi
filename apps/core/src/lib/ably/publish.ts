@@ -8,8 +8,8 @@ import {
   type ChatMembershipRevokeReason,
   type ChatRoomCollection,
   type ChatRoomMessageEventType,
-  makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeJobStatusChannelName,
   makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
@@ -17,8 +17,13 @@ import {
   makeWorkspaceCalendarChannelName,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
-import { recordCoreError } from "@/lib/evlog";
-import type { Network } from "@/lib/network";
+import prisma from "@/lib/db/prisma";
+import { emitCoreWarning, recordCoreError } from "@/lib/evlog";
+import {
+  canUsePreprodInWorkspace,
+  isPreprodOn,
+  type Network,
+} from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
@@ -32,12 +37,16 @@ import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 interface JobStatusData {
   jobId: string;
+  /** Lets an Agent's job list tell its own Jobs on the Workspace's channel. */
+  agentId: string;
   jobStatus: SokosumiJobStatus;
   jobStatusSettled: boolean;
 }
 
 interface PublishJobStatusDataInput extends JobStatusData {
-  agentId: string;
+  /** The Job's Network. */
+  network: Network;
+  workspaceId: string;
   userId: string;
 }
 
@@ -254,19 +263,77 @@ export async function publishTaskEventData({
   });
 }
 
+/**
+ * Whether a Job's Owner may use Preprod in the Job's Workspace now: the token
+ * that granted the channel is a snapshot up to five minutes old. One read.
+ */
+async function ownerHasPreprodAccess(
+  userId: string,
+  workspaceId: string,
+): Promise<boolean> {
+  const owner = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      preprodEnabled: true,
+      workspace: { select: { id: true } },
+      members: {
+        where: { organization: { workspace: { id: workspaceId } } },
+        select: { organization: { select: { preprodEnabled: true } } },
+      },
+    },
+  });
+  if (!owner) return false;
+  const membership = owner.members[0];
+  // The rule is for a Workspace the user is in: neither a flag nor the admin
+  // role opens another one, such as an Organization's they have left.
+  if (!membership && owner.workspace?.id !== workspaceId) return false;
+  return canUsePreprodInWorkspace(owner, owner.role, {
+    organization: membership?.organization ?? null,
+  });
+}
+
+/**
+ * Publishes a Job's new status on its Owner's channel of the Job's Network
+ * and Workspace. A Mainnet event reads nothing. A Preprod event is published
+ * only while Preprod is on and the Owner still has access; otherwise it is
+ * dropped, and the saved status shows on the next reload.
+ */
 export async function publishJobStatusData({
-  agentId,
+  network,
+  workspaceId,
   userId,
   jobId,
+  agentId,
   jobStatus,
   jobStatusSettled,
 }: PublishJobStatusDataInput) {
+  if (network !== "mainnet") {
+    if (!isPreprodOn()) return;
+    if (!(await ownerHasPreprodAccess(userId, workspaceId))) {
+      emitCoreWarning(
+        { operation: "job_status_publish", job: { id: jobId } },
+        {
+          message: "Dropped a Preprod job status event",
+          why: "The job's owner has no Preprod access in the job's workspace any more",
+          fix: "Nothing to do: the status is saved and shows on the next reload.",
+        },
+      );
+      return;
+    }
+  }
   const client = getRestClient();
   const channel = client.channels.get(
-    makeAgentJobsChannelName(agentId, userId, getRealtimeChannelEnvironment()),
+    makeJobStatusChannelName(
+      network,
+      workspaceId,
+      userId,
+      getRealtimeChannelEnvironment(),
+    ),
   );
   await channel.publish("job_status_data", {
     jobId,
+    agentId,
     jobStatus,
     jobStatusSettled,
   });

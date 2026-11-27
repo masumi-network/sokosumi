@@ -14,10 +14,12 @@ import { cn } from "@/lib/utils";
 import { SeoReportFiles } from "./seo-report-files";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
+import { seoRunDiffOf, seoStopCheckId } from "./seo-run-diff-model";
 import {
   seoNextScheduledCheck,
   seoRunCountDays,
   seoRunDays,
+  seoStopRuleCheck,
 } from "./seo-runs-model";
 import { seoRunProgress } from "./seo-setup-model";
 import { seoStops } from "./seo-timeline-model";
@@ -60,7 +62,10 @@ export function SeoRuns({
   const report = useSeoResultTranslations("App.Seo");
   const reportFormat = useSeoResultFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
-  const { days, picked, checkDays } = seoRunDays(model.data, model.filters);
+  const { days, picked, checkDays, rangeCheck } = seoRunDays(
+    model.data,
+    model.filters,
+  );
   // The stop whose details are open: what happened there, in a dialog over the page.
   // The day stays when the dialog closes, so its content does not empty while it fades.
   const [detailsDay, setDetailsDay] = useState<string | null>(null);
@@ -140,7 +145,24 @@ export function SeoRuns({
   // The stop whose details the footer opens: the day in view, or every event of a range.
   const detailsStop =
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
-  const hasDetails = detailsStop ? stopOf(detailsStop).nodes.length > 0 : false;
+  // The check a stop compares: the newest page check of its day or range, else of its days, else any check.
+  const checkOf = (stop: string) => {
+    if (stop === WHOLE)
+      return rangeCheck ?? seoStopCheckId(stopOf(WHOLE).nodes);
+    const entry = days.find((item) => item.day === stop);
+    const { after, newest } = stopOf(stop);
+    return (
+      entry?.check ??
+      seoStopRuleCheck(model.data, after, newest ? null : stop) ??
+      entry?.latest
+    );
+  };
+  // A stop with no events can still hold a check that was stored after it: its comparison is worth opening.
+  const comparesAt = (stop: string) =>
+    Boolean(seoRunDiffOf(model.data, checkOf(stop) ?? undefined));
+  const hasDetails = detailsStop
+    ? stopOf(detailsStop).nodes.length > 0 || comparesAt(detailsStop)
+    : false;
   // An invalid date in the address names no range: the line gives the way back alone.
   const rangeOf = (label = t, formatter = format) =>
     !ranged || model.invalidDates
@@ -240,6 +262,7 @@ export function SeoRuns({
                     day={dayOf(entry.at, reportFormat)}
                     nodes={stopOf(entry.day).nodes}
                     issues={entry.issues}
+                    hasComparison={comparesAt(entry.day)}
                     pinned={previewDay === entry.day}
                     allowHover={!previewDay && !detailsOpen}
                     previewLabel={t("runs.previewOf", { day: dayOf(entry.at) })}
@@ -390,6 +413,7 @@ export function SeoRuns({
                     pinned={previewDay === WHOLE}
                     allowHover={!previewDay && !detailsOpen}
                     onPinnedChange={(open) => changePreview(WHOLE, open)}
+                    hasComparison={hasDetails}
                     onDetails={() => {
                       returnTo.current = rangeTrigger.current;
                       openDetails(WHOLE);
@@ -454,6 +478,7 @@ export function SeoRuns({
                 : report("runs.sinceStart")
         }
         nodes={details?.nodes ?? []}
+        checkId={detailsDay ? checkOf(detailsDay) : undefined}
         onClose={() => setDetailsOpen(false)}
         onCloseAutoFocus={(event) => {
           // The dialog has no trigger: without a button to go back to, focus goes to the newest stop.

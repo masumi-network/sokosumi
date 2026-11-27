@@ -25,9 +25,20 @@ vi.mock("./task-jobs-realtime-provider.client", () => ({
   TaskJobsRealtimeProvider: ({ children }: { children: ReactNode }) => (
     <>{children}</>
   ),
-  TaskJobStatusChannelProvider: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
+  TaskJobStatusChannelProvider: ({
+    channelName,
+    children,
+  }: {
+    channelName: string;
+    children: ReactNode;
+  }) => <div data-channel={channelName}>{children}</div>,
+}));
+
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
+  getRealtimeChannelEnvironment: () => ({
+    network: "Mainnet",
+    vercelEnv: "production",
+  }),
 }));
 
 vi.mock("@/components/time-ago", () => ({
@@ -80,6 +91,28 @@ const baseProps = {
 };
 
 describe("TaskJobsSection", () => {
+  it("attaches each Job's Workspace channel on Mainnet, whatever its Agent", () => {
+    render(
+      <TaskJobs
+        {...baseProps}
+        jobs={[
+          createJobSummary({ id: "job-a", agentId: "agent-1" }),
+          createJobSummary({ id: "job-b", agentId: "agent-2" }),
+        ]}
+      />,
+    );
+
+    const channel =
+      "agent_jobs:mainnet:workspace_11111111-1111-7111-8111-111111111111:user_user-1";
+    for (const jobId of ["job-a", "job-b"]) {
+      expect(
+        screen
+          .getByText(`realtime:${jobId}:processing`)
+          .closest("[data-channel]"),
+      ).toHaveAttribute("data-channel", channel);
+    }
+  });
+
   it("renders empty state when there are no jobs", () => {
     render(<TaskJobs {...baseProps} jobs={[]} />);
 

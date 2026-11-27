@@ -72,6 +72,17 @@ export function useSeoActionInstructions(
       ? `${t("actions.before")}:\n${action.edit.before?.trim() ? action.edit.before : t("actions.noBefore")}`
       : null,
     action.edit ? `${t("actions.after")}:\n${action.edit.after}` : null,
+    // Only a checked draft goes to the agent; a held-back one has no text to use.
+    action.bodyDraft && "after" in action.bodyDraft
+      ? [
+          action.bodyDraft.devices.length === 1
+            ? t("actions.draftDevice", { device: action.bodyDraft.devices[0] })
+            : null,
+          `${t("actions.draftBefore")}:\n${action.bodyDraft.before}\n\n${t("actions.draftAfter")}:\n${action.bodyDraft.after}\n\n${t("actions.draftNote")}`,
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      : null,
   ]
     .filter(Boolean)
     .join("\n\n");

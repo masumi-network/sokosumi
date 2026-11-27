@@ -39,12 +39,14 @@ import { seoTaskResultHint } from "@/helpers/seo-task-notification";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { recordCoreError, runAsBackgroundWork } from "@/lib/evlog";
+import { isPreprodOn, type Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 export interface CreateNotificationInput {
   userId: string;
   workspaceId?: string;
   kind: NotificationKind;
+  network?: Network;
   referenceId: string;
   eventId: string;
   messageKey: string;
@@ -312,6 +314,10 @@ export async function publishNotificationRow(
   /** Reused across retries of one stored notification revision. */
   messageId?: string,
 ): Promise<boolean> {
+  if (notification.network === "preprod" && !isPreprodOn()) {
+    return false;
+  }
+
   try {
     // Read the same way the count reads them, rather than with a bare
     // `JSON.parse`. A damaged column threw out of here into the catch below,
@@ -512,6 +518,7 @@ export async function publishClearedNotifications(
  *
  * Duplicate emits for the same
  * (userId, kind, referenceId, eventId, messageKey) are idempotent no-ops.
+ * The Network must also match before an existing row can be returned.
  * Existing content, metadata, read state, and feed position must not change
  * after insert.
  *
@@ -581,6 +588,7 @@ export async function createNotification(
     const notification = await client.notification.create({
       data: {
         ...uniqueKey,
+        ...(input.network && { network: input.network }),
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         messageParams: JSON.stringify(messageParams),
         metadata:
@@ -610,10 +618,8 @@ export async function createNotification(
       throw error;
     }
 
-    const notification = await client.notification.findUnique({
-      where: {
-        userId_kind_referenceId_eventId_messageKey: uniqueKey,
-      },
+    const notification = await client.notification.findFirst({
+      where: { ...uniqueKey, network: input.network ?? null },
     });
 
     if (!notification) {

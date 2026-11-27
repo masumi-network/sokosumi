@@ -4,9 +4,10 @@ import {
   CALENDAR_ACCESS_REVOKED_EVENT_NAME,
   CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsCapabilityResourceName,
-  makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
+  makeJobStatusChannelName,
+  makeMainnetJobsCapabilityResourceName,
   makeOrgPresenceChannelName,
   makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
@@ -38,8 +39,12 @@ const PREVIEW_SCOPE = "preview:mainnet:branch_fix%2Fsoko-bot-inbox-paging";
 describe("production channel names", () => {
   it.each([
     [
-      makeAgentJobsChannelName("a1", "u1", PRODUCTION),
-      "agent_jobs:agent_a1:user_u1",
+      makeJobStatusChannelName("mainnet", "w1", "u1", PRODUCTION),
+      "agent_jobs:mainnet:workspace_w1:user_u1",
+    ],
+    [
+      makeJobStatusChannelName("preprod", "w1", "u1", PRODUCTION),
+      "agent_jobs:preprod:workspace_w1:user_u1",
     ],
     [makeUserTasksChannelName("u1", PRODUCTION), "tasks:all:user_u1"],
     [
@@ -66,8 +71,8 @@ describe("production channel names", () => {
 describe("preview channel names", () => {
   it.each([
     [
-      makeAgentJobsChannelName("a1", "u1", PREVIEW),
-      `agent_jobs:${PREVIEW_SCOPE}:agent_a1:user_u1`,
+      makeJobStatusChannelName("preprod", "w1", "u1", PREVIEW),
+      `agent_jobs:${PREVIEW_SCOPE}:preprod:workspace_w1:user_u1`,
     ],
     [
       makeUserTasksChannelName("u1", PREVIEW),
@@ -145,6 +150,18 @@ describe("agent jobs capability resource", () => {
       `agent_jobs:${PREVIEW_SCOPE}:*:user_u1`,
     );
   });
+
+  it("covers Mainnet's Job channel of every Workspace", () => {
+    expect(makeMainnetJobsCapabilityResourceName("u1", PRODUCTION)).toBe(
+      "agent_jobs:mainnet:*:user_u1",
+    );
+    expect(makeMainnetJobsCapabilityResourceName("u1", PREVIEW)).toBe(
+      `agent_jobs:${PREVIEW_SCOPE}:mainnet:*:user_u1`,
+    );
+    expect(makeMainnetJobsCapabilityResourceName("u1", DEVELOPMENT)).toBe(
+      "agent_jobs:development:preprod:mainnet:*:user_u1",
+    );
+  });
 });
 
 describe("development channel names", () => {
@@ -154,6 +171,12 @@ describe("development channel names", () => {
     );
     expect(makeUserNotificationsChannelName("u1", DEVELOPMENT)).toBe(
       "notifications:development:preprod:user_u1",
+    );
+  });
+
+  it("puts the Job's Network after the deployment's scope", () => {
+    expect(makeJobStatusChannelName("mainnet", "w1", "u1", DEVELOPMENT)).toBe(
+      "agent_jobs:development:preprod:mainnet:workspace_w1:user_u1",
     );
   });
 

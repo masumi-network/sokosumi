@@ -6,11 +6,9 @@ import { jsonInput } from "@/helpers/prisma-json";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import { driveDel } from "@/lib/drive-blob";
-import {
-  EVAL_CONNECTED_ACCOUNT_PREFIX,
-  forgetEvalWorkspaces,
-} from "@/lib/evals/eval-guard";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import { seedEvalMcpServer } from "@/lib/evals/eval-mcp-server";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";

@@ -52123,6 +52123,9 @@ export const ProjectSeoActionSchema = {
                 }
             ]
         },
+        bodyDraft: {
+            $ref: '#/components/schemas/ProjectSeoBodyDraft'
+        },
         decision: {
             type: 'object',
             properties: {
@@ -52343,6 +52346,18 @@ export const ProjectSeoActionSchema = {
         impact: {
             $ref: '#/components/schemas/ProjectSeoActionImpact'
         },
+        lastCheckResult: {
+            type: 'string',
+            enum: [
+                'failing',
+                'fixed'
+            ]
+        },
+        lastCheckAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         kind: {
             type: 'string',
             enum: [
@@ -52371,6 +52386,85 @@ export const ProjectSeoActionSchema = {
         'status',
         'kind',
         'evidence'
+    ]
+} as const;
+
+export const ProjectSeoBodyDraftSchema = {
+    anyOf: [
+        {
+            type: 'object',
+            properties: {
+                target: {
+                    type: 'string',
+                    enum: [
+                        'opening'
+                    ]
+                },
+                devices: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    minItems: 1
+                },
+                heldBack: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000,
+                    pattern: '\\S'
+                }
+            },
+            required: [
+                'target',
+                'devices',
+                'heldBack'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                target: {
+                    type: 'string',
+                    enum: [
+                        'opening'
+                    ]
+                },
+                devices: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'mobile',
+                            'desktop'
+                        ]
+                    },
+                    minItems: 1
+                },
+                before: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000,
+                    pattern: '\\S'
+                },
+                after: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 20000,
+                    pattern: '\\S'
+                }
+            },
+            required: [
+                'target',
+                'devices',
+                'before',
+                'after'
+            ],
+            additionalProperties: false
+        }
     ]
 } as const;
 
@@ -55076,6 +55170,9 @@ export const ProjectSeoRunSchema = {
                     type: 'null'
                 }
             ]
+        },
+        runDiff: {
+            $ref: '#/components/schemas/ProjectSeoRunDiff'
         }
     },
     required: [
@@ -55084,6 +55181,312 @@ export const ProjectSeoRunSchema = {
         'observedAt',
         'issues',
         'seconds'
+    ]
+} as const;
+
+export const ProjectSeoRunDiffSchema = {
+    type: 'object',
+    properties: {
+        from: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        to: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        comparable: {
+            type: 'boolean'
+        },
+        reason: {
+            type: 'string',
+            enum: [
+                'market',
+                'rulebook',
+                'pages'
+            ]
+        },
+        rulebookChange: {
+            type: 'object',
+            properties: {
+                compared: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                other: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'compared',
+                'other'
+            ]
+        },
+        new: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device',
+                    'severity'
+                ]
+            },
+            maxItems: 5
+        },
+        newCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        fixed: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device',
+                    'severity'
+                ]
+            },
+            maxItems: 5
+        },
+        fixedCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        stillOpen: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    rowId: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    },
+                    device: {
+                        anyOf: [
+                            {
+                                type: 'string',
+                                enum: [
+                                    'mobile',
+                                    'desktop'
+                                ]
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'major',
+                            'minor'
+                        ]
+                    }
+                },
+                required: [
+                    'rowId',
+                    'title',
+                    'pageUrl',
+                    'device',
+                    'severity'
+                ]
+            },
+            maxItems: 5
+        },
+        stillOpenCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        notCheckedAgain: {
+            type: 'integer',
+            minimum: 0
+        },
+        notCheckedBefore: {
+            type: 'integer',
+            minimum: 0
+        },
+        numbers: {
+            type: 'object',
+            properties: {
+                issues: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            anyOf: [
+                                {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                {
+                                    type: 'null'
+                                }
+                            ]
+                        },
+                        to: {
+                            anyOf: [
+                                {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                {
+                                    type: 'null'
+                                }
+                            ]
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to'
+                    ]
+                },
+                moves: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            keyword: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            device: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile',
+                                            'desktop'
+                                        ]
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            },
+                            from: {
+                                type: 'number'
+                            },
+                            to: {
+                                type: 'number'
+                            }
+                        },
+                        required: [
+                            'keyword',
+                            'pageUrl',
+                            'device',
+                            'from',
+                            'to'
+                        ]
+                    },
+                    maxItems: 5
+                },
+                moveCount: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'issues',
+                'moves',
+                'moveCount'
+            ]
+        }
+    },
+    required: [
+        'from',
+        'to',
+        'comparable',
+        'new',
+        'newCount',
+        'fixed',
+        'fixedCount',
+        'stillOpen',
+        'stillOpenCount',
+        'notCheckedAgain',
+        'notCheckedBefore',
+        'numbers'
     ]
 } as const;
 

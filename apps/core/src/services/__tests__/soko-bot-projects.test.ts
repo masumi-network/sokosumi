@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { conflict } from "@/helpers/error";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import type { AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 
 const mocks = vi.hoisted(() => ({
@@ -34,6 +35,7 @@ const projectId = randomUUID();
 
 function authorizedAs(actingUserId: string | null): AuthorizedSokoBotRuntime {
   return {
+    scope: testNetworkScope(),
     toolCallLimit: 64,
     turn: {
       id: turnId,

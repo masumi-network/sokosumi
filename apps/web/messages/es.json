@@ -4761,6 +4761,9 @@
         "error": "No se pudieron preparar sugerencias del sitio web del proyecto. Inténtalo de nuevo."
       },
       "BrandKit": {
+        "logo": "Logotipo",
+        "look": "Colores y fuentes",
+        "copy": "Textos de marca",
         "assets": "Imágenes de marca",
         "assetHint": "Añade mascotas, ilustraciones u otras imágenes que Content Studio pueda usar como referencias visuales.",
         "addAsset": "Añadir imagen",
@@ -4771,7 +4774,7 @@
         "websiteLookDraft": "Colores y fuentes sugeridos a partir de tu web. Puedes editarlos antes de guardar el estilo.",
         "discardWebsiteLook": "Descartar estilo sugerido",
         "cancelLook": "Descartar cambios de estilo",
-        "editLook": "Editar colores y fuentes",
+        "editLook": "Editar",
         "resetLook": "Usar el diseño del proyecto",
         "colorsHelp": "Introduce hasta ocho colores hexadecimales, uno por línea, como #23453C.",
         "fonts": "Fuentes",
@@ -4787,7 +4790,7 @@
         "websiteProfileAdded": "Se añadieron sugerencias del sitio web. Revisa la voz de marca y el público antes de guardar.",
         "websiteCopyEmpty": "No hay texto nuevo del sitio web para añadir.",
         "websiteCopyError": "No se pudo leer el texto del sitio web del proyecto. Inténtalo de nuevo.",
-        "extractWebsiteStyle": "Extraer colores y tipografías",
+        "extractWebsiteStyle": "Del sitio web",
         "websiteStyleHelp": "Extraer el estilo del sitio web sustituye la guía de diseño del proyecto.",
         "websiteStyleSaved": "Se guardó el estilo del sitio web en la guía de diseño del proyecto.",
         "logoFile": "Archivo del logotipo del proyecto",
@@ -13890,6 +13893,13 @@
         "before": "Antes",
         "after": "Cambio sugerido",
         "noBefore": "No se registró un valor anterior",
+        "draft": "Borrador del texto inicial",
+        "draftBefore": "Inicio actual",
+        "draftAfter": "Inicio sugerido",
+        "copyDraft": "Copiar borrador",
+        "draftNote": "El bot SEO comparó los números y los nombres del borrador con la página. Esta comprobación puede pasar por alto una afirmación falsa. Lee el borrador antes de publicarlo.",
+        "draftDevice": "Este borrador es solo para la página en {device, select, mobile {móvil} desktop {ordenador} other {{device}}}.",
+        "draftHeldBack": "El bot SEO retuvo su borrador: {reason}",
         "recommended": "Recomendada",
         "unavailable": "Tarea no disponible",
         "task_created": "Borrador de tarea creado",
@@ -14792,8 +14802,10 @@
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {
-          "issues": "{count, plural, one {# problema por corregir} other {# problemas por corregir}}",
+          "actions": "{count, plural, one {# cosa por corregir} other {# cosas por corregir}}",
+          "issuesFound": "{count, plural, one {# problema encontrado en la última comprobación} other {# problemas encontrados en la última comprobación}}",
           "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
+          "andSuggestions": "{lead}. {count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
           "clear": "Sin problemas en la última comprobación",
           "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
           "noCheckOff": "Aún no hay comprobación",
@@ -14815,7 +14827,11 @@
         },
         "openAction": "Abrir acción",
         "changeProperty": "Cambiar propiedad",
-        "chooseProperty": "Elegir propiedad"
+        "chooseProperty": "Elegir propiedad",
+        "fixState": {
+          "failing": "Siguió fallando en la comprobación del {day}",
+          "notTested": "No se ha vuelto a comprobar desde el {day}"
+        }
       },
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
@@ -14846,6 +14862,36 @@
         "shownUntil": "Mostrando hasta {day}.",
         "scheduled": "Programada",
         "next": "Próxima comprobación"
+      },
+      "runDiff": {
+        "title": "Desde la comprobación del {day}",
+        "cardTitle": "Resultados de las pruebas desde la comprobación del {day}",
+        "open": "Qué cambió desde la comprobación anterior",
+        "issues": "Pruebas de página fallidas: {from, number} antes, {to, number} ahora",
+        "issuesNow": "Pruebas de página fallidas ahora: {to, number}",
+        "new": "Nuevos ({count, number})",
+        "fixed": "Corregidos ({count, number})",
+        "stillOpen": "Siguen fallando ({count, number})",
+        "none": "Ninguno",
+        "more": "y {count, number} más",
+        "notCheckedAgain": "{count, plural, one {# problema anterior no tiene un resultado claro en esta comprobación. No cuenta como corregido ni como aún fallido.} other {# problemas anteriores no tienen un resultado claro en esta comprobación. No cuentan como corregidos ni como aún fallidos.}}",
+        "notCheckedBefore": "{count, plural, one {# problema abierto no tiene un resultado claro en la comprobación anterior. No cuenta como nuevo.} other {# problemas abiertos no tienen un resultado claro en la comprobación anterior. No cuentan como nuevos.}}",
+        "moves": "Cambios de posición ({count, number})",
+        "noMoves": "No hay cambios de posición que mostrar.",
+        "notComparable": {
+          "title": "Sin comparación con la comprobación anterior",
+          "market": "Las dos comprobaciones usaron mercados distintos, así que sus problemas no se comparan.",
+          "rulebook": "Las pruebas cambiaron entre las dos comprobaciones, así que sus problemas no se comparan.",
+          "pages": "Una de las dos comprobaciones no leyó todas las páginas seleccionadas, así que sus problemas no se comparan."
+        },
+        "all": "Detalles de la comparación",
+        "count": {
+          "new": "Nuevos",
+          "fixed": "Corregidos",
+          "stillOpen": "Siguen fallando"
+        },
+        "rulebookChange": "Las pruebas cambiaron entre las dos comprobaciones. Se {compared, plural, one {compara # prueba que ejecutaron ambas} other {comparan # pruebas que ejecutaron ambas}}; {other, plural, one {# queda fuera} other {# quedan fuera}}.",
+        "firstNew": "Primeras pruebas fallidas nuevas"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",

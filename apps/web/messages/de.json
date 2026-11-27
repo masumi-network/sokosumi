@@ -4761,6 +4761,9 @@
         "error": "Die Vorschläge von der Projekt-Website konnten nicht erstellt werden. Versuche es erneut."
       },
       "BrandKit": {
+        "logo": "Logo",
+        "look": "Farben und Schriften",
+        "copy": "Markentexte",
         "assets": "Markenbilder",
         "assetHint": "Füge Maskottchen, Illustrationen oder andere Bilder hinzu, die Content Studio als visuelle Vorlagen verwenden kann.",
         "addAsset": "Bild hinzufügen",
@@ -4771,7 +4774,7 @@
         "websiteLookDraft": "Farben und Schriften von deiner Website. Du kannst sie vor dem Speichern bearbeiten.",
         "discardWebsiteLook": "Vorgeschlagenes Design verwerfen",
         "cancelLook": "Änderungen am Design verwerfen",
-        "editLook": "Farben und Schriften bearbeiten",
+        "editLook": "Bearbeiten",
         "resetLook": "Projektdesign verwenden",
         "colorsHelp": "Gib bis zu acht Hex-Farbwerte ein, je einen pro Zeile, zum Beispiel #23453C.",
         "fonts": "Schriften",
@@ -4787,7 +4790,7 @@
         "websiteProfileAdded": "Website-Vorschläge hinzugefügt. Prüfe Tonalität und Zielgruppe vor dem Speichern.",
         "websiteCopyEmpty": "Es gibt keine neuen Website-Texte zum Hinzufügen.",
         "websiteCopyError": "Die Texte konnten nicht von der Projekt-Website gelesen werden. Versuche es erneut.",
-        "extractWebsiteStyle": "Farben und Schriftarten extrahieren",
+        "extractWebsiteStyle": "Von Website",
         "websiteStyleHelp": "Beim Extrahieren des Website-Stils wird der Designleitfaden des Projekts ersetzt.",
         "websiteStyleSaved": "Der Website-Stil wurde im Designleitfaden des Projekts gespeichert.",
         "logoFile": "Datei für das Projektlogo",
@@ -13890,6 +13893,13 @@
         "before": "Vorher",
         "after": "Vorgeschlagene Änderung",
         "noBefore": "Kein vorheriger Wert erfasst",
+        "draft": "Entwurf für den Einstiegstext",
+        "draftBefore": "Aktueller Einstieg",
+        "draftAfter": "Vorgeschlagener Einstieg",
+        "copyDraft": "Entwurf kopieren",
+        "draftNote": "Der SEO-Bot hat die Zahlen und Namen im Entwurf mit der Seite verglichen. Diese Prüfung kann eine falsche Aussage übersehen. Lies den Entwurf, bevor du ihn veröffentlichst.",
+        "draftDevice": "Dieser Entwurf gilt nur für die Seite auf {device, select, mobile {Mobilgeräten} desktop {dem Desktop} other {{device}}}.",
+        "draftHeldBack": "Der SEO-Bot hat seinen Entwurf zurückgehalten: {reason}",
         "recommended": "Empfohlen",
         "unavailable": "Aufgabe nicht verfügbar",
         "task_created": "Entwurfsaufgabe erstellt",
@@ -14792,8 +14802,10 @@
         },
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
-          "issues": "{count, plural, one {# Problem zu beheben} other {# Probleme zu beheben}}",
+          "actions": "{count, plural, one {# Punkt zu beheben} other {# Punkte zu beheben}}",
+          "issuesFound": "{count, plural, one {# Problem in der letzten Prüfung gefunden} other {# Probleme in der letzten Prüfung gefunden}}",
           "waiting": "{count, plural, one {# Vorschlag zu prüfen} other {# Vorschläge zu prüfen}}",
+          "andSuggestions": "{lead}. {count, plural, one {# Vorschlag zu prüfen} other {# Vorschläge zu prüfen}}",
           "clear": "Keine Probleme in der letzten Prüfung",
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
           "noCheckOff": "Noch keine Prüfung",
@@ -14815,7 +14827,11 @@
         },
         "openAction": "Aktion öffnen",
         "changeProperty": "Property ändern",
-        "chooseProperty": "Property wählen"
+        "chooseProperty": "Property wählen",
+        "fixState": {
+          "failing": "In der Prüfung vom {day} weiterhin fehlgeschlagen",
+          "notTested": "Seit dem {day} nicht erneut geprüft"
+        }
       },
       "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",
@@ -14846,6 +14862,36 @@
         "shownUntil": "Zeitraum bis {day}.",
         "scheduled": "Geplant",
         "next": "Nächste Prüfung"
+      },
+      "runDiff": {
+        "title": "Seit der Prüfung vom {day}",
+        "cardTitle": "Testergebnisse seit der Prüfung vom {day}",
+        "open": "Was sich seit der Prüfung davor geändert hat",
+        "issues": "Fehlgeschlagene Seitentests: vorher {from, number}, jetzt {to, number}",
+        "issuesNow": "Fehlgeschlagene Seitentests jetzt: {to, number}",
+        "new": "Neu ({count, number})",
+        "fixed": "Behoben ({count, number})",
+        "stillOpen": "Weiter fehlgeschlagen ({count, number})",
+        "none": "Keine",
+        "more": "und {count, number} weitere",
+        "notCheckedAgain": "{count, plural, one {# früheres Problem hat in dieser Prüfung kein klares Ergebnis. Es zählt weder als behoben noch als weiterhin fehlgeschlagen.} other {# frühere Probleme haben in dieser Prüfung kein klares Ergebnis. Sie zählen weder als behoben noch als weiterhin fehlgeschlagen.}}",
+        "notCheckedBefore": "{count, plural, one {# offenes Problem hat in der früheren Prüfung kein klares Ergebnis. Es zählt nicht als neu.} other {# offene Probleme haben in der früheren Prüfung kein klares Ergebnis. Sie zählen nicht als neu.}}",
+        "moves": "Ranking-Bewegungen ({count, number})",
+        "noMoves": "Keine Ranking-Bewegungen zu zeigen.",
+        "notComparable": {
+          "title": "Nicht mit der Prüfung davor verglichen",
+          "market": "Die zwei Prüfungen nutzten verschiedene Märkte. Ihre Probleme werden nicht verglichen.",
+          "rulebook": "Die Tests haben sich zwischen den zwei Prüfungen geändert. Ihre Probleme werden nicht verglichen.",
+          "pages": "Eine der zwei Prüfungen hat nicht jede ausgewählte Seite gelesen. Ihre Probleme werden nicht verglichen."
+        },
+        "all": "Details zum Vergleich",
+        "count": {
+          "new": "Neu",
+          "fixed": "Behoben",
+          "stillOpen": "Weiter fehlgeschlagen"
+        },
+        "rulebookChange": "Die Tests haben sich zwischen den beiden Prüfungen geändert. {compared, plural, one {# Test, den beide Prüfungen ausgeführt haben, wird} other {# Tests, die beide Prüfungen ausgeführt haben, werden}} verglichen, {other, number} nicht.",
+        "firstNew": "Erste neu fehlgeschlagene Tests"
       },
       "filterDates": "Nach Datum filtern",
       "syncNow": "Jetzt synchronisieren",

@@ -1,3 +1,5 @@
+import type { Prisma } from "@sokosumi/database";
+
 import { getEnv } from "@/config/env";
 import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
@@ -25,6 +27,7 @@ import {
   type SeoImpactDailyRow,
   type SeoImpactInput,
   seoImpactInputSchema,
+  seoImpactResultSchema,
 } from "@/schemas/seo-impact-worker.schema";
 import type { ComposioIntegrationAccount } from "@/services/composio-integration-tools.service";
 import { readNativeSeoTool } from "@/services/project-seo-statistics.service";
@@ -52,6 +55,9 @@ export interface SeoImpactPrepareResult {
 interface FinalRow {
   id: string;
   projectId: string;
+  state: string;
+  input: Prisma.JsonValue;
+  verdict: Prisma.JsonValue;
   pageUrl: string;
   property: string | null;
   changedAt: Date;
@@ -199,6 +205,23 @@ function unconfirmedInput(row: PreparedRow, now: Date): SeoImpactInput {
   });
 }
 
+/**
+ * The comparison page of a waiting result, kept for its next read so the
+ * retry tests against the same control. Only a candidate of the input that
+ * result answers counts, and none once that page has a tracked change of
+ * its own.
+ */
+function pinnedPage(row: PreparedRow, tracked: Set<string>) {
+  if (row.state !== "waiting_retry") return null;
+  const pin = seoImpactResultSchema.safeParse(row.verdict).data?.comparison
+    ?.pageUrl;
+  const offered = seoImpactInputSchema
+    .safeParse(row.input)
+    .data?.candidates.some((candidate) => candidate.pageUrl === pin);
+  if (!pin || !offered || tracked.has(seoPageComparisonKey(pin))) return null;
+  return pin;
+}
+
 /** The worker's input for one verified change, read now from Search Console. */
 async function buildInput(
   row: PreparedRow,
@@ -223,7 +246,8 @@ async function buildInput(
   };
   const beforeChange = addDays(searchConsoleDay(row.changedAt), -1);
   const tracked = await trackedPages(row.projectId);
-  const [pageByDate, siteByDate, pool] = await Promise.all([
+  const pin = pinnedPage(row, tracked);
+  const [pageByDate, siteByDate, ranked] = await Promise.all([
     readDaily(
       read,
       gscSearchAnalyticsArguments(
@@ -238,6 +262,17 @@ async function buildInput(
       ? []
       : readCandidates(read, { ...range, to: beforeChange }, page, tracked),
   ]);
+  // The pin stays a candidate, also where other pages now outrank it.
+  const pool = pin
+    ? [
+        { pageUrl: pin },
+        ...ranked.filter(
+          (candidate) =>
+            seoPageComparisonKey(candidate.pageUrl) !==
+            seoPageComparisonKey(pin),
+        ),
+      ].slice(0, SEO_IMPACT_MAX_CANDIDATES)
+    : ranked;
   const candidates = await Promise.all(
     pool.map(async (candidate) => ({
       pageUrl: candidate.pageUrl,
@@ -258,6 +293,7 @@ async function buildInput(
     pageByDate,
     siteByDate,
     candidates,
+    pin: pin ? { comparisonPage: pin } : null,
   });
 }
 
@@ -329,8 +365,9 @@ function warnPrepareFailed(projectId: string, error: unknown) {
 
 /**
  * Stores the worker's input for each change whose window Search Console has
- * settled, so the SEO worker can claim it. A failed read leaves the change
- * waiting, and a later tick reads it again.
+ * settled, or whose waiting result named a day that has come, so the SEO
+ * worker can claim it. A failed read leaves the change waiting, and a later
+ * tick reads it again.
  */
 export async function prepareSeoImpactInputs(
   tick: SeoImpactTick,
@@ -348,13 +385,25 @@ export async function prepareSeoImpactInputs(
   const lastFinalEnd = addDays(searchConsoleDay(now), -IMPACT_FINAL_LAG_DAYS);
   const rows: FinalRow[] = await prisma.projectSeoImpactVerdict.findMany({
     where: {
-      state: "waiting_window",
       changeSource: "cuso_done",
-      windowEnd: { lte: new Date(`${lastFinalEnd}T00:00:00Z`) },
+      OR: [
+        {
+          state: "waiting_window",
+          windowEnd: { lte: new Date(`${lastFinalEnd}T00:00:00Z`) },
+        },
+        // The worker's retryAfter is a Search Console day: ISO dates sort as text.
+        {
+          state: "waiting_retry",
+          verdict: { path: ["retryAfter"], lte: searchConsoleDay(now) },
+        },
+      ],
     },
     select: {
       id: true,
       projectId: true,
+      state: true,
+      input: true,
+      verdict: true,
       pageUrl: true,
       property: true,
       changedAt: true,
@@ -397,7 +446,7 @@ export async function prepareSeoImpactInputs(
       const { count } = await prisma.projectSeoImpactVerdict.updateMany({
         where: {
           id: row.id,
-          state: "waiting_window",
+          state: row.state,
           ...(row.suggestion && {
             suggestion: {
               is: {
@@ -407,7 +456,15 @@ export async function prepareSeoImpactInputs(
             },
           }),
         },
-        data: { state: "ready", input: jsonInput(input), measuredUrl },
+        data: {
+          state: "ready",
+          input: jsonInput(input),
+          measuredUrl,
+          // A new input: the claims of a waiting one count nothing against it.
+          claimId: null,
+          claimedUntil: null,
+          attempts: 0,
+        },
       });
       result.prepared += count;
     } catch (error) {
@@ -415,7 +472,7 @@ export async function prepareSeoImpactInputs(
       warnPrepareFailed(row.projectId, error);
       // Moves the change behind the others for the next tick.
       await prisma.projectSeoImpactVerdict.updateMany({
-        where: { id: row.id, state: "waiting_window" },
+        where: { id: row.id, state: row.state },
         data: { updatedAt: now },
       });
     }

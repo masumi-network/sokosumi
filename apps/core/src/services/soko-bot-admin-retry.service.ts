@@ -52,7 +52,15 @@ export function loadAdminScheduleRun(sokoBotId: string, runId: string) {
     where: { id: runId, schedule: { sokoBotId } },
     include: {
       schedule: true,
-      turn: { select: { ...ORIGIN_TURN, userMessage: true, status: true } },
+      turn: {
+        select: {
+          ...ORIGIN_TURN,
+          userMessage: true,
+          status: true,
+          network: true,
+          preprodGeneration: true,
+        },
+      },
     },
   });
 }

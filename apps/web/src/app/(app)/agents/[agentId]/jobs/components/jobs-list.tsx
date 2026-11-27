@@ -2,7 +2,6 @@
 
 import type { JobSummary } from "@sokosumi/core-client";
 import { SokosumiJobStatus } from "@sokosumi/core-client";
-import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -19,7 +18,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useAnimationFrameBatch } from "@/hooks/effects/use-animation-frame-batch";
-import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { jobStatusChannelName } from "@/lib/ably/job-status-channel";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -35,6 +34,7 @@ const JOB_STATUS_EVENT_NAME = "job_status_data";
 
 interface JobStatusUpdateData {
   jobId: string;
+  agentId?: string;
   jobStatus: SokosumiJobStatus;
   jobStatusSettled: boolean;
 }
@@ -50,6 +50,8 @@ interface JobsListProps {
   jobsNextCursor: string | null;
   userId: string;
   agentId: string;
+  /** The active Workspace, whose Jobs the list shows; null without one. */
+  workspaceId: string | null;
   selectedJobId?: string;
   /** Rendered above the search field. */
   header?: ReactNode;
@@ -78,6 +80,7 @@ function JobsStatusRealtimeListener({
 
     enqueueStatusUpdate({
       jobId: parsedResult.data.jobId,
+      agentId: parsedResult.data.agentId,
       jobStatus: parsedResult.data.jobStatus,
       jobStatusSettled: parsedResult.data.jobStatusSettled,
     });
@@ -91,6 +94,7 @@ export function JobsList({
   jobsNextCursor,
   userId,
   agentId,
+  workspaceId,
   selectedJobId,
   header,
 }: JobsListProps) {
@@ -152,15 +156,23 @@ export function JobsList({
     [filteredJobs, locale],
   );
 
-  const channelName = makeAgentJobsChannelName(
-    agentId,
-    userId,
-    getRealtimeChannelEnvironment(),
-  );
+  const channelName = workspaceId
+    ? jobStatusChannelName(workspaceId, userId)
+    : null;
 
-  function handleStatusUpdate(updates: JobStatusUpdateData[]) {
+  function handleStatusUpdate(received: JobStatusUpdateData[]) {
+    // The channel carries every Job of the Workspace, other Agents' too.
+    const listedJobIds = new Set(localJobs.map((job) => job.id));
+    const updates = received.filter(
+      (update) => listedJobIds.has(update.jobId) || update.agentId === agentId,
+    );
     if (updates.length === 0) {
       return;
+    }
+    // A Job of this Agent the list does not hold yet: its status is kept for
+    // the row, and the list is read again so the row comes from Core.
+    if (updates.some((update) => !listedJobIds.has(update.jobId))) {
+      router.refresh();
     }
 
     const completedAtFallback = new Date();
@@ -217,14 +229,16 @@ export function JobsList({
 
   return (
     <>
-      <LazyAblyProvider>
-        <ChannelProvider channelName={channelName}>
-          <JobsStatusRealtimeListener
-            channelName={channelName}
-            onStatusUpdate={handleStatusUpdate}
-          />
-        </ChannelProvider>
-      </LazyAblyProvider>
+      {channelName ? (
+        <LazyAblyProvider>
+          <ChannelProvider channelName={channelName}>
+            <JobsStatusRealtimeListener
+              channelName={channelName}
+              onStatusUpdate={handleStatusUpdate}
+            />
+          </ChannelProvider>
+        </LazyAblyProvider>
+      ) : null}
       <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
         {header}
         <JobsSearch

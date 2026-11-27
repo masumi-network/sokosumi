@@ -64,8 +64,10 @@ import {
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import { canUserUsePreprod } from "@/helpers/user-workspaces";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
+import { networksThatAreOn } from "@/lib/network";
 import {
   mcpOAuthResource,
   mcpResourceIdentifier,
@@ -596,7 +598,11 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
       beforeDelete: async (user) => {
-        const evaluation = await evaluateUserDeletion(user.id, prisma);
+        const evaluation = await evaluateUserDeletion(
+          user.id,
+          prisma,
+          networksThatAreOn().map(createNetworkScope),
+        );
         throwIfUserDeletionBlocked(user.id, evaluation);
         // Snapshot before the helper: it deletes the User row in the same
         // transaction as the payment/task sweep. afterDelete still best-effort

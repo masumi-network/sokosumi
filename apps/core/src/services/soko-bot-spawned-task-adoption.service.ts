@@ -1,4 +1,5 @@
 import { getEnv } from "@/config/env";
+import { networkStamp } from "@/helpers/preprod-control";
 import prisma from "@/lib/db/prisma";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
@@ -83,9 +84,14 @@ export async function adoptCoworkerSpawnedTasks(
     );
     const byBot = new Map(running.map((p) => [p.turn.sokoBotId, p.turnId]));
     if (!byBot.size) continue;
+    // Mainnet by name today: the stamp reads and locks nothing.
+    // shortcut: no transaction here, so a Preprod lock would end with its
+    // own statement; when slice 5 passes the turn's Network, open one
+    // transaction for the stamp and this createMany.
+    const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK, prisma);
     const created = await prisma.sokoBotDelegation.createMany({
       data: Array.from(byBot.values(), (turnId) => ({
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...stamp,
         turnId,
         // Stored keys from before sub-tasks existed: rows already use them.
         toolCallId: `subtask:${spawned.id}`,

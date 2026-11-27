@@ -6,6 +6,10 @@ import {
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import { getZernioAccountId, zernioRequest } from "@/clients/zernio.client";
+import {
+  evalExternalId,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
 
 /**
  * Networks whose comments Cuso reads and answers. Instagram, Facebook and
@@ -38,7 +42,8 @@ export function commentsReadable(
 ): boolean {
   return (
     !ZERNIO_ONLY.includes(provider) ||
-    getZernioAccountId(connectedAccountId) !== null
+    getZernioAccountId(connectedAccountId) !== null ||
+    isEvalSocialAccount(connectedAccountId)
   );
 }
 
@@ -200,6 +205,7 @@ export async function listPostComments(
   context: SocialCommentContext,
   externalPostId: string,
 ): Promise<ProviderComment[]> {
+  if (isEvalSocialAccount(context.connectedAccountId)) return [];
   if (getZernioAccountId(context.connectedAccountId)) {
     const query = new URLSearchParams({
       accountId: zernioAccount(context),
@@ -262,6 +268,7 @@ export async function listXReplies(
   context: SocialCommentContext,
   input: { startTime: Date; sinceId?: string | null },
 ): Promise<ProviderXReply[]> {
+  if (isEvalSocialAccount(context.connectedAccountId)) return [];
   const payload = record(
     await withSession(
       context,
@@ -323,6 +330,8 @@ export async function replyToComment(
   },
   message: string,
 ): Promise<string | null> {
+  if (isEvalSocialAccount(context.connectedAccountId))
+    return evalExternalId("reply", comment.idempotencyKey);
   if (getZernioAccountId(context.connectedAccountId)) {
     const result = record(
       await zernioRequest(

@@ -1,4 +1,4 @@
-import { CORE_API_ERROR_KINDS, hasAdminRole } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
@@ -8,9 +8,16 @@ import {
   createNetworkScope,
   createRefusedNetworkScope,
   type NetworkScope,
+  type SharedDb,
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
-import { isPreprodOn, NETWORKS, type Network } from "@/lib/network";
+import type { EnvVariables } from "@/lib/hono";
+import {
+  canUsePreprodInWorkspace,
+  isPreprodOn,
+  NETWORKS,
+  type Network,
+} from "@/lib/network";
 import { USER_API_KEY_PREFIXES } from "@/lib/user-api-key";
 
 import {
@@ -83,10 +90,10 @@ export const requestNetworkMiddleware = createMiddleware(async (c, next) => {
  * and role, so it gets their access.
  *
  * Still refused: an MCP token (its context has no `oauthClientId`, and its
- * tool calls send no header; ticket 36), a Coworker key (its payments are
- * ticket 21's third slice) and a Soko Bot key (ticket 30).
+ * tool calls send no header; ticket 36), a Coworker key (its payments ask
+ * `paymentScope`) and a Soko Bot key (ticket 30).
  */
-async function hasPreprodAccess(
+export async function hasPreprodAccess(
   authContext: AuthenticationContext | undefined,
 ): Promise<boolean> {
   if (authContext?.actor !== "user") return false;
@@ -98,20 +105,23 @@ async function hasPreprodAccess(
   ) {
     return false;
   }
-  if (hasAdminRole(authContext.role)) return true;
-  const { userId, organizationId } = authContext;
+  const { userId, organizationId, role } = authContext;
+  // An admin's role decides, so no flag is read.
+  if (canUsePreprodInWorkspace({}, role, { organization: null })) return true;
   if (organizationId) {
     const member = await prisma.member.findFirst({
       where: { organizationId, userId, organization: { preprodEnabled: true } },
       select: { id: true },
     });
-    return member !== null;
+    return canUsePreprodInWorkspace({}, role, {
+      organization: { preprodEnabled: member !== null },
+    });
   }
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { preprodEnabled: true },
   });
-  return user?.preprodEnabled === true;
+  return canUsePreprodInWorkspace(user ?? {}, role, { organization: null });
 }
 
 /**
@@ -168,6 +178,81 @@ async function callerScope(
   return (sent ? network : (keyNetwork ?? network)) === "mainnet"
     ? createNetworkScope("mainnet")
     : preprodScopeFor(async () => access);
+}
+
+/** Whom a Coworker's payment is billed to: a Task's Owner and Organization, or a usage call's. */
+export interface BilledParty {
+  userId: string | null;
+  organizationId: string | null;
+}
+
+/**
+ * The scope for a Coworker's payment (a Task event's charge, an x402 payment,
+ * usage). The billed party is known only in the route, so the route asks
+ * here, before the charge, with the open transaction for the access read.
+ *
+ * While Preprod is off this is the request's own scope, and a payload names no
+ * Network. While it is on: the Network the payload names, else the header's,
+ * else Mainnet, and a payload and a header that disagree are 400
+ * `network_mismatch`. Preprod needs the billed party's flag: the
+ * Organization's when the payment is billed to one, else the user's; no admin
+ * shortcut, and only for a Coworker (a Soko Bot is ticket 30). A Mainnet
+ * payment reads nothing.
+ */
+export async function paymentScope(
+  // An authenticated router's context: a public one has neither variable.
+  c: Context<EnvVariables>,
+  payment: {
+    /** The Network the payload names, if it names one. */
+    payloadNetwork?: Network;
+    billed: BilledParty;
+    db: SharedDb;
+  },
+): Promise<NetworkScope> {
+  const { networkScope, authContext } = c.var;
+  if (!isPreprodOn()) return networkScope;
+  const header = namedNetwork(c);
+  const { payloadNetwork, billed, db } = payment;
+  if (payloadNetwork && header.sent && payloadNetwork !== header.network) {
+    throw badRequest(
+      `This payment is for ${payloadNetwork}, and ${NETWORK_HEADER} names ${header.network}`,
+      { kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH },
+    );
+  }
+  if ((payloadNetwork ?? header.network) === "mainnet") {
+    return createNetworkScope("mainnet");
+  }
+  if (
+    authContext?.actor !== "coworker" ||
+    !(await billedPartyHasPreprod(billed, db))
+  ) {
+    throw forbidden("The billed workspace has no Preprod access", {
+      kind: CORE_API_ERROR_KINDS.PREPROD_ACCESS_REQUIRED,
+    });
+  }
+  return createNetworkScope("preprod");
+}
+
+/** Ticket 31's rule with no role: a payment has no admin shortcut. */
+async function billedPartyHasPreprod(
+  { userId, organizationId }: BilledParty,
+  db: SharedDb,
+): Promise<boolean> {
+  if (organizationId) {
+    const organization = await db.organization.findUnique({
+      where: { id: organizationId },
+      select: { preprodEnabled: true },
+    });
+    return canUsePreprodInWorkspace({}, null, {
+      organization: organization ?? {},
+    });
+  }
+  if (!userId) return false;
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { preprodEnabled: true },
+  });
+  return canUsePreprodInWorkspace(user ?? {}, null, { organization: null });
 }
 
 /**

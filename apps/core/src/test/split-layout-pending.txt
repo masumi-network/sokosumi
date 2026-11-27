@@ -28,10 +28,8 @@
 # <file from apps/core> <ticket>  # reason
 src/helpers/__tests__/task-parent-links-to-subtasks.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare task_link
 src/helpers/__tests__/task-subtask-reparent-migration.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare task (from the server log; the test reports AssertionError: expected PrismaClientKnownRequestError{ …(7))
-src/helpers/calendar-erasure.postgres.test.ts 26  # erasure: the shared client reaches the Network table task_x402_payment
 src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare soko_bot
 src/helpers/task-visibility.postgres.test.ts 17  # SQL outside a trigger names bare task
-src/helpers/user-deletion-tasks.postgres.test.ts 26  # user deletion: the shared client reaches the Network table task_x402_payment
 src/lib/files/evidence-scope.postgres.test.ts 17  # SQL outside a trigger names bare task
 src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare chat_room
 src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client reaches the Network table Transaction
@@ -76,13 +74,13 @@ src/services/project-seo.postgres.test.ts 27  # the shared client reaches the Ne
 src/services/seo-analysis-concurrency.postgres.test.ts 17  # SQL outside a trigger names bare seo_audit
 src/services/seo-analysis-executor.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/seo-chat-billing.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/seo-chat-spend.postgres.test.ts 27  # the shared client reaches the Network table Transaction (the reservation reads the turn's debit, before any charge; origin/main stops at the same statement)
 src/services/seo-chat-quota.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/seo-chat.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-credit-gate.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/seo-shared-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-task-execution.postgres.test.ts 25  # the shared client reaches the Network table Job
 src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reaches the Network table Transaction
-src/services/soko-bot-integrations.service.postgres.test.ts 30  # the shared client reaches the Network table soko_bot_usage (from the server log; the test reports AssertionError: expected 1 to be +0 // Object.is equality)
 src/services/soko-bot-lease-clock.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/soko-bot-plan-loop.postgres.test.ts 17  # runtime authorize locks bare soko_bot
 src/services/soko-bot-reconcile-writers.postgres.test.ts 27  # the shared client reaches the Network table Transaction
