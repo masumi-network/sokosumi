@@ -249,6 +249,19 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
     } satisfies FileSearchPage);
   });
 
+  it("offers the page's create actions in an empty catalog, not in an empty search", async () => {
+    const user = userEvent.setup();
+    renderPanel({ emptyActions: <button type="button">emptyUpload</button> });
+
+    expect(await screen.findByText("emptyTitle")).toBeVisible();
+    expect(screen.getByRole("button", { name: "emptyUpload" })).toBeVisible();
+
+    await user.type(screen.getByLabelText("searchLabel"), "nothing{Enter}");
+
+    expect(await screen.findByText("noMatchesTitle")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "emptyUpload" })).toBeNull();
+  });
+
   it("removes deleted files from catalog and mounted DriveFilePicker on mixed-success bulk delete while GETs are held", async () => {
     const user = userEvent.setup();
     const fileKeep = makeFile("res_keep", "keep.pdf");

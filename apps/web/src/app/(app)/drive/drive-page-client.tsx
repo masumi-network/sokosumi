@@ -2158,6 +2158,32 @@ function DrivePageWorkspace({
           dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}
+          // The header's Upload and New folder, again where an empty folder
+          // leaves the eye. Same handlers, so they land in the folder shown.
+          emptyActions={
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                disabled={uploading}
+                onClick={openFilePicker}
+              >
+                <Upload className="size-4" aria-hidden />
+                {t("uploadButton")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={openCreateFolderDialog}
+              >
+                <FolderPlus className="size-4" aria-hidden />
+                {t("emptyNewFolder")}
+              </Button>
+            </>
+          }
         />
       ) : null}
 
