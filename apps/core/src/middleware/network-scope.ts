@@ -22,6 +22,9 @@ import { organizationContextMiddleware } from "./organization";
 /** The request header that names a request's Network, on `/v1` and `/auth`. */
 export const NETWORK_HEADER = "X-Sokosumi-Network";
 
+/** The context key of the Network the request names, once parsed. */
+const PARSED_NETWORK = "requestNetwork";
+
 export interface NetworkScopeVariables {
   networkScope: NetworkScope;
 }
@@ -32,15 +35,21 @@ export interface NetworkScopeVariables {
  * fallback to Mainnet.
  */
 export function requestNetwork(c: Context): Network {
+  // Parsed once per request, by the first caller (`requestNetworkMiddleware`).
+  const parsed: Network | undefined = c.get(PARSED_NETWORK);
+  if (parsed) return parsed;
   const value = c.req.header(NETWORK_HEADER);
-  if (value === undefined) return "mainnet";
-  const network = NETWORKS.find((candidate) => candidate === value);
+  const network =
+    value === undefined
+      ? "mainnet"
+      : NETWORKS.find((candidate) => candidate === value);
   if (!network) {
     throw badRequest(
       `${NETWORK_HEADER} must be one of ${NETWORKS.join(", ")}`,
       { kind: CORE_API_ERROR_KINDS.NETWORK_UNKNOWN },
     );
   }
+  c.set(PARSED_NETWORK, network);
   return network;
 }
 
@@ -149,9 +158,15 @@ export async function publicRequestNetworkScope(
     let caller: AuthenticationContext | undefined;
     try {
       await authMiddleware(c, async () => {
-        await organizationContextMiddleware(c, async () => {
-          caller = c.var.authContext;
-        });
+        try {
+          await organizationContextMiddleware(c, async () => {
+            caller = c.var.authContext;
+          });
+        } catch (error) {
+          // A non-member naming an Organization: no access in it.
+          if (error instanceof HTTPException && error.status === 403) return;
+          throw error;
+        }
       });
     } catch (error) {
       if (error instanceof HTTPException && error.status === 401) {

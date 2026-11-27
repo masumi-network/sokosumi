@@ -792,6 +792,8 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         "/v1/agents":
           "Content-Type,Authorization,X-Request-Id,X-Organization-Slug,X-Context-User-Id,X-Context-Organization-Id,x-sokosumi-web-build-version",
         "/auth/get-session": "Content-Type,Authorization,x-captcha-response",
+        // The newsletter sign-up has a CORS config of its own.
+        "/v1/public/newsletters/fixture/subscribe": "Content-Type",
       };
       for (const [path, headers] of Object.entries(before)) {
         const asked = await preflight(path, "x-sokosumi-network");
@@ -1068,7 +1070,56 @@ describe.runIf(enabled && onSplitLayout)(
         "X-Organization-Slug": optedInOrganization.slug,
         [HEADER]: "preprod",
       });
-      expect(answer.status).toBe(403);
+      expect(answer).toMatchObject({
+        status: 403,
+        body: { kind: "preprod_access_required" },
+      });
+    });
+
+    it("refuses a member whose membership ends between the two checks", async () => {
+      const where = {
+        userId_organizationId: {
+          userId: memberOfOptedIn.id,
+          organizationId: optedInOrganization.id,
+        },
+      };
+      const member = await loaded.prisma.member.findUniqueOrThrow({ where });
+      // Another member stays, so only a check of this person's membership
+      // refuses.
+      const other = await loaded.prisma.member.create({
+        data: {
+          userId: admin.id,
+          organizationId: optedInOrganization.id,
+          role: "member",
+        },
+      });
+      const find = loaded.prisma.member.findFirst.bind(loaded.prisma.member);
+      // The Organization middleware's membership read, then the removal.
+      const spy = vi
+        .spyOn(loaded.prisma.member, "findFirst")
+        .mockImplementationOnce(((args: Parameters<typeof find>[0]) =>
+          find(args).then(async (found) => {
+            await loaded.prisma.member.delete({ where });
+            return found;
+          })) as typeof find);
+      try {
+        expect(
+          await listed({
+            cookie: memberOfOptedIn.cookie,
+            "X-Organization-Slug": optedInOrganization.slug,
+            [HEADER]: "preprod",
+          }),
+        ).toEqual(refused);
+        expect(spy).toHaveBeenCalledTimes(2);
+      } finally {
+        spy.mockRestore();
+        await loaded.prisma.member.delete({ where: { id: other.id } });
+        await loaded.prisma.member.upsert({
+          where,
+          create: member,
+          update: {},
+        });
+      }
     });
 
     it("gives an authenticated router the scope of the workspace the request is in", async () => {

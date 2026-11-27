@@ -144,7 +144,7 @@ const apiCors = cors({
 });
 const newsletterSignupCors = cors({
   origin: "*",
-  allowHeaders: ["Content-Type"],
+  allowHeaders: ["Content-Type", NETWORK_HEADER],
   allowMethods: ["POST", "OPTIONS"],
   maxAge: TIME.CORS_MAX_AGE,
 });

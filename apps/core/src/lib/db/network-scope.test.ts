@@ -140,6 +140,22 @@ describe("createRefusedNetworkScope", () => {
     expect(scope.sharedDb).toBe(clients.shared);
     expect(networkPrisma).not.toHaveBeenCalled();
   });
+
+  it("opens a shared transaction on the shared client", async () => {
+    const { createRefusedNetworkScope } = await import("./network-scope");
+    const $transaction = vi.fn((run: (tx: unknown) => unknown) => run("tx"));
+    Object.assign(clients.shared, { $transaction });
+    onTestFinished(() => {
+      Reflect.deleteProperty(clients.shared, "$transaction");
+    });
+
+    const result = await createRefusedNetworkScope(
+      new Error("refused"),
+    ).sharedTransaction(async (tx) => `ran on ${String(tx)}`, "conflict");
+
+    expect(result).toBe("ran on tx");
+    expect($transaction).toHaveBeenCalledOnce();
+  });
 });
 
 /**
