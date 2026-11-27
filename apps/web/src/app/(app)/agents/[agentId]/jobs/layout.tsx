@@ -122,12 +122,16 @@ async function JobLayoutInner({
         : Promise.resolve(null),
       coreAgent ? Promise.resolve(null) : getLastKnownAgentName(agentId),
     ]);
-  // The Workspace whose Jobs `getCachedMyJobs` lists.
+  // The Workspace of the rows Core returned. Only an empty list asks the
+  // session, which can name an Organization the user has left until it
+  // refreshes: then the channel is wrong or missing until a row arrives.
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const workspaceId =
+    agentJobsPage.jobs[0]?.workspace.id ??
     workspaces?.workspaces.find(
       (workspace) => workspace.organizationId === activeOrganizationId,
-    )?.id ?? null;
+    )?.id ??
+    null;
   const agent =
     coreAgent ??
     createUnavailableCoreAgent(agentId, lastKnownName ?? t("unavailableAgent"));

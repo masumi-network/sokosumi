@@ -67,8 +67,9 @@ export default function mount(
       throw badRequest("Invalid clientInstanceId");
     }
 
-    // Preprod Job channels go to a browser session only, as Preprod itself
-    // does (`hasPreprodAccess`), and the flags are read only while it is on.
+    // Preprod Job channels go to a browser session only, on purpose: Preprod
+    // itself is open to keys and tokens too (`hasPreprodAccess`), and only
+    // Web subscribes to Job channels. The flags are read only while it is on.
     const { authContext } = c.var;
     const sessionRole =
       authContext.actor === "user" &&
