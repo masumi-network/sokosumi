@@ -1,11 +1,10 @@
 import type { Prisma } from "@sokosumi/database";
-import {
-  creditBucketRepository,
-  InsufficientBalanceError,
-} from "@sokosumi/database/repositories";
+import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { serviceUnavailable, unprocessableEntity } from "@/helpers/error";
+import { spend } from "@/lib/credits/spend";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotUsageCents } from "@/services/soko-bot-billing.service";
 
@@ -65,29 +64,14 @@ export async function chargeSeoChatReply(
   const micros = Math.round(costUsd * USD_MICROS_PER_USD);
   if (!Number.isSafeInteger(micros) || micros < 0)
     throw serviceUnavailable("SEO chat usage price is unavailable");
-  const cents = sokoBotUsageCents(BigInt(micros), true);
-  let consumptions;
-  try {
-    consumptions = await creditBucketRepository.prepareConsumption(
-      "mainnet",
-      payer.userId,
-      payer.organizationId,
-      cents,
-      tx,
-      { projectId: payer.projectId },
-    );
-  } catch (error) {
-    if (error instanceof InsufficientBalanceError) throw insufficientCredits();
-    throw error;
-  }
-  const transaction = await tx.transaction.create({
-    data: {
-      amount: -cents,
-      userId: payer.userId,
-      organizationId: payer.organizationId,
-      creditConsumptions: { createMany: { data: consumptions } },
-    },
-    select: { id: true },
+  const spent = await spend({
+    // A Mainnet-only feature names its Network.
+    scope: createNetworkScope("mainnet"),
+    tx,
+    payer,
+    quotedCents: sokoBotUsageCents(BigInt(micros), true),
+    mode: "in_full",
   });
-  return transaction.id;
+  if (spent.shortfall) throw insufficientCredits();
+  return spent.transactionId;
 }

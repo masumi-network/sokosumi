@@ -51,6 +51,16 @@ it.each([
   },
 );
 
+it("opens TikTok to an eval lane's stand-in account without a Zernio key", () => {
+  vi.stubEnv("ZERNIO_API_KEY", "");
+  expect(socialProviderWorkspace("sokosumi-evals-3", "w").tiktokEnabled).toBe(
+    true,
+  );
+  expect(
+    socialProviderWorkspace("sokosumi-evals-3-copy", "w").tiktokEnabled,
+  ).toBe(false);
+});
+
 it.each([
   ["Mainnet", "utxo", utxoWorkspace, true],
   ["Mainnet", "utxo", "other-workspace", false],

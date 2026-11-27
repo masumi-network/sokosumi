@@ -12,6 +12,10 @@ import {
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import { getZernioAccountId, zernioRequest } from "@/clients/zernio.client";
+import {
+  EVAL_POST_METRICS,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
 import type { SocialPostMetrics } from "@/schemas/social-post-statistics.schema";
 
 export interface SocialPostStatisticsContext {
@@ -111,6 +115,8 @@ export function zernioPostMetrics(
 export async function fetchSocialPostStatistics(
   context: SocialPostStatisticsContext,
 ): Promise<SocialPostMetrics> {
+  if (isEvalSocialAccount(context.connectedAccountId))
+    return { ...EVAL_POST_METRICS };
   const label = socialPostProviderLabel(context.provider);
   const zernioAccountId =
     (context.provider === "tiktok" || context.provider === "linkedin") &&
