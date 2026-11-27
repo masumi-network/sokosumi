@@ -280,6 +280,10 @@ export async function failStaleMention(
       mentionId: mention.id,
       onlyWhenFailed: true,
     });
+    await publishChatRoomMessageRealtimeById(
+      mention.messageId,
+      "mention_status",
+    );
   }
 }
 

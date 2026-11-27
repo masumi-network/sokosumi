@@ -1,4 +1,3 @@
-import { HTTPException } from "hono/http-exception";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
@@ -7,6 +6,7 @@ import { emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   DetachedNetworkRefusal,
+  isTemporaryDetachedRefusal,
   requireDetachedTurnProvenance,
 } from "@/lib/soko-bot/detached-network";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
@@ -466,11 +466,7 @@ export async function runSokoBotMentionDispatch(params: {
 
     const result = await acceptOnceIdle(accept, bot.id).catch(
       (error: unknown) => {
-        if (
-          provenance.network === "preprod" &&
-          ((error instanceof HTTPException && error.status === 503) ||
-            (error instanceof DetachedNetworkRefusal && !error.final))
-        ) {
+        if (isTemporaryDetachedRefusal(provenance.network, error)) {
           // The existing turn writer fence can refuse after dispatch admitted us.
           return null;
         }

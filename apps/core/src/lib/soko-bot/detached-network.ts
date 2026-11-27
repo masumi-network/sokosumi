@@ -29,6 +29,24 @@ export class DetachedNetworkRefusal extends HTTPException {
   }
 }
 
+/** A writer can refuse a Preprod turn after pickup. */
+export function isTemporaryDetachedRefusal(
+  network: string | null,
+  error: unknown,
+): boolean {
+  if (network !== "preprod") return false;
+  if (error instanceof DetachedNetworkRefusal) return !error.final;
+  if (!(error instanceof HTTPException) || error.status !== 503) return false;
+  const { cause } = error;
+  if (typeof cause !== "object" || cause === null || !("kind" in cause)) {
+    return false;
+  }
+  return (
+    cause.kind === CORE_API_ERROR_KINDS.PREPROD_PAUSED ||
+    cause.kind === CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE
+  );
+}
+
 export function requireDetachedTurnProvenance(
   expected: { network: Network; expectedPreprodGeneration?: number | null },
   stored: { network: string | null; preprodGeneration?: number | null },

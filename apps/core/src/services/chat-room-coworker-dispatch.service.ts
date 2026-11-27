@@ -13,6 +13,7 @@ import {
   reasoningPartsToMetadata,
   thoughtMetadataFields,
 } from "@/helpers/persist-assistant-to-chat-room";
+import { reportPreprodControlUnavailableOnce } from "@/helpers/preprod-control";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotMessageMemberId } from "@/helpers/soko-bot-message-member";
 import { getCoworkerAuthorizationHeader } from "@/lib/coworker-request-auth";
@@ -24,7 +25,11 @@ import {
   scriptedReplyModel,
   takeEvalCoworkerReply,
 } from "@/lib/evals/fake-coworker";
-import { createCoreLogger, emitCoreError } from "@/lib/evlog";
+import {
+  createCoreLogger,
+  emitCoreError,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
@@ -63,6 +68,17 @@ import {
 
 /** Cap Ably thought updates; first beat always publishes. */
 const MENTION_THOUGHT_PUBLISH_MIN_INTERVAL_MS = 250;
+
+export function dispatchReclaimedChatRoomMentions(
+  mentionIds: string[],
+): Promise<void>[] {
+  return reportPreprodControlUnavailableOnce(() =>
+    mentionIds.map((mentionId) =>
+      // Background work: its events never land on this request's event.
+      runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)),
+    ),
+  );
+}
 
 /**
  * Clients poll a mention until it reaches a terminal state, so any escape from

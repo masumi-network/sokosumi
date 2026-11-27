@@ -4,13 +4,13 @@ import type {
   SokoBotScheduleRun,
 } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { HTTPException } from "hono/http-exception";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { emitCoreWarning } from "@/lib/evlog";
 import {
   DetachedNetworkRefusal,
   detachedNetworkScope,
+  isTemporaryDetachedRefusal,
 } from "@/lib/soko-bot/detached-network";
 import type { StartSokoBotTurnInput } from "@/lib/soko-bot/turn-start";
 
@@ -56,16 +56,9 @@ export function isTemporaryScheduleRefusal(
   schedule: Pick<ScheduleSource, "jobId" | "network">,
   error: unknown,
 ): boolean {
-  if (schedule.jobId == null || schedule.network !== "preprod") return false;
-  if (error instanceof DetachedNetworkRefusal) return !error.final;
-  if (!(error instanceof HTTPException) || error.status !== 503) return false;
-  const { cause } = error;
-  if (typeof cause !== "object" || cause === null || !("kind" in cause)) {
-    return false;
-  }
   return (
-    cause.kind === CORE_API_ERROR_KINDS.PREPROD_PAUSED ||
-    cause.kind === CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE
+    schedule.jobId != null &&
+    isTemporaryDetachedRefusal(schedule.network, error)
   );
 }
 

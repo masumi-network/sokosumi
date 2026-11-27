@@ -3,7 +3,7 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
-import type { Network } from "@/lib/network";
+import { isPreprodOn, type Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   detachedNetworkScope,
@@ -115,6 +115,24 @@ export async function listStaleSentChatRoomMentionIds(
 ): Promise<string[]> {
   const now = options?.now ?? new Date();
   const staleBefore = new Date(now.getTime() - ROOM_SENT_STALE_MS);
+  const limit = options?.limit ?? STALE_SENT_RECLAIM_LIMIT;
+  if (isPreprodOn()) {
+    // Preserve age order among both tagged and legacy Mainnet rows without
+    // reading control on a Mainnet poll. Preprod can use the remaining slots.
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT mention."id"
+      FROM ${sharedTable("chat_room_mention")} mention
+      WHERE mention."status" IN ('pending', 'sent')
+        AND mention."updatedAt" < ${staleBefore}
+        AND EXISTS (
+          SELECT 1 FROM ${sharedTable("chat_room_message")} message
+          WHERE message."id" = mention."messageId"
+            AND message."roomId" = ${roomId}::uuid
+        )
+      ORDER BY (mention."network" = 'preprod') IS TRUE, mention."updatedAt"
+      LIMIT ${limit}`;
+    return rows.map((row) => row.id);
+  }
   const rows = await prisma.chatRoomMention.findMany({
     where: {
       // `pending` too: a mention is written in one transaction and handed to
@@ -124,10 +142,11 @@ export async function listStaleSentChatRoomMentionIds(
       status: { in: ["pending", "sent"] },
       updatedAt: { lt: staleBefore },
       message: { roomId },
+      OR: [{ network: null }, { network: { not: "preprod" } }],
     },
     select: { id: true },
     orderBy: { updatedAt: "asc" },
-    take: options?.limit ?? STALE_SENT_RECLAIM_LIMIT,
+    take: limit,
   });
   return rows.map((row) => row.id);
 }
