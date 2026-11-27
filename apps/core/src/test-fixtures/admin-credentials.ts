@@ -1,24 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { MemberRole } from "@sokosumi/database";
-import { expect } from "vitest";
 
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
-import { auth } from "@/lib/auth";
-import {
-  hashStoredOAuthToken,
-  OAUTH_ACCESS_TOKEN_PREFIX,
-} from "@/lib/auth-oauth-token-prefixes";
-import {
-  generateCoworkerApiKeyToken,
-  generateSokoBotApiKeyToken,
-  hashApiKey,
-} from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import {
+  createApiKey,
   type createCoreApp,
+  createCoworkerKey,
+  createOAuthToken,
   createPasswordUser,
-  ORIGIN,
-  sessionTokenCookie,
+  createSokoBotKey,
+  impersonate,
   signIn,
 } from "@/test-fixtures/core-session";
 
@@ -47,21 +39,6 @@ export async function createAdminCredentials(
   const adminCookie = await signIn(app, admin.email);
   const refused: Record<string, Credential> = {};
 
-  /** Starts an impersonation of `userId` from a session of the admin's own. */
-  const impersonate = async (userId: string) => {
-    const started = await app.request(`${ORIGIN}/v1/admin/impersonation`, {
-      method: "POST",
-      headers: {
-        origin: ORIGIN,
-        cookie: await signIn(app, admin.email),
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ userId, reason: "SOK-1: test" }),
-    });
-    expect(started.status).toBe(201);
-    return sessionTokenCookie(started);
-  };
-
   const user = await account("Plain user");
   refused["a user's session"] = { cookie: await signIn(app, user.email) };
 
@@ -82,81 +59,32 @@ export async function createAdminCredentials(
     cookie: await signIn(app, owner.email),
   };
 
-  const { key } = await auth.api.createApiKey({
-    body: { userId: admin.id, configId: "default", name: label },
-  });
-  refused["an admin's API key"] = { bearer: key };
+  refused["an admin's API key"] = { bearer: await createApiKey(admin.id) };
 
-  const oauthClientId = randomUUID();
-  const scopes = ["sokosumi:api"];
-  await prisma.oauthClient.create({
-    // First-party, so a guard that lets only first-party OAuth through fails.
-    data: { clientId: oauthClientId, scopes, skipConsent: true },
-  });
-  await prisma.oauthConsent.create({
-    data: { clientId: oauthClientId, userId: admin.id, scopes },
-  });
-  const oauthToken = OAUTH_ACCESS_TOKEN_PREFIX + randomUUID();
-  await prisma.oauthAccessToken.create({
-    data: {
-      clientId: oauthClientId,
-      userId: admin.id,
-      scopes,
-      expiresAt: new Date(Date.now() + 60 * 60_000),
-      token: hashStoredOAuthToken(oauthToken, OAUTH_ACCESS_TOKEN_PREFIX),
-    },
-  });
-  refused["an admin's OAuth token"] = { bearer: oauthToken };
+  // First-party, so a guard that lets only first-party OAuth through fails.
+  const oauth = await createOAuthToken(admin.id);
+  refused["an admin's OAuth token"] = { bearer: oauth.token };
 
-  const vendor = await prisma.vendor.create({
-    data: { name: label, slug: `${label}-${randomUUID()}` },
-  });
-  const coworker = await prisma.coworker.create({
-    data: {
-      name: label,
-      slug: `${label}-${randomUUID()}`,
-      vendorId: vendor.id,
-    },
-  });
-  const coworkerToken = generateCoworkerApiKeyToken();
-  await prisma.coworkerApiKey.create({
-    data: {
-      coworkerId: coworker.id,
-      keyHash: await hashApiKey(coworkerToken),
-      keyStart: coworkerToken.slice(0, 12),
-    },
-  });
-  refused["a Coworker key"] = { bearer: coworkerToken };
+  const coworker = await createCoworkerKey();
+  refused["a Coworker key"] = { bearer: coworker.token };
 
   // The admin's own Soko Bot: it acts as its owner, and still is no person.
-  const workspace =
-    (await prisma.workspace.findFirst({
-      where: { userId: admin.id, organizationId: null },
-    })) ??
-    // The product's creation path, so the workspace has its Files vocabulary.
-    (await createPersonalWorkspace(admin.id));
-  const sokoBot = await prisma.sokoBot.create({
-    data: { userId: admin.id, workspaceId: workspace.id },
-  });
-  const sokoBotToken = generateSokoBotApiKeyToken();
-  await prisma.coworkerApiKey.create({
-    data: {
-      sokoBotId: sokoBot.id,
-      keyHash: await hashApiKey(sokoBotToken),
-      keyStart: sokoBotToken.slice(0, 12),
-    },
-  });
-  refused["a Soko Bot key of an admin"] = { bearer: sokoBotToken };
+  // Its personal workspace through the product's creation path, so the
+  // workspace has its Files vocabulary.
+  await createPersonalWorkspace(admin.id);
+  refused["a Soko Bot key of an admin"] = {
+    bearer: await createSokoBotKey(admin.id),
+  };
 
   const impersonated = await account("Impersonated user");
   refused["an impersonated session"] = {
-    cookie: await impersonate(impersonated.id),
+    cookie: await impersonate(app, admin.email, impersonated.id),
   };
 
   // Core starts no impersonation of an admin, so the target is promoted
   // after the start: the only way such a session can hold the admin role.
   const promoted = await account("Promoted while impersonated");
-  const promotedCookie = await impersonate(promoted.id);
+  const promotedCookie = await impersonate(app, admin.email, promoted.id);
   await prisma.user.update({
     where: { id: promoted.id },
     data: { role: "admin" },
@@ -176,10 +104,12 @@ export async function createAdminCredentials(
         where: { referenceId: { in: userIds } },
       });
       await prisma.oauthClient.deleteMany({
-        where: { clientId: oauthClientId },
+        where: { clientId: oauth.clientId },
       });
-      await prisma.coworker.deleteMany({ where: { vendorId: vendor.id } });
-      await prisma.vendor.deleteMany({ where: { id: vendor.id } });
+      await prisma.coworker.deleteMany({
+        where: { vendorId: coworker.vendorId },
+      });
+      await prisma.vendor.deleteMany({ where: { id: coworker.vendorId } });
       await prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
