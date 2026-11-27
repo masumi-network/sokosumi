@@ -46,14 +46,44 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function copy() {
+function renderRow() {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <TaskResultDownload markdown={RESULT} fileName="Find leads" />
     </NextIntlClientProvider>,
   );
+}
+
+async function copy() {
+  renderRow();
   await userEvent.click(screen.getByRole("button", { name: "Copy" }));
 }
+
+it("shows Copy and Download as named icon buttons without visible text", () => {
+  renderRow();
+
+  for (const name of ["Copy", "Download"]) {
+    const button = screen.getByRole("button", { name });
+    expect(button).toHaveAttribute("aria-label", name);
+    expect(button.textContent).toBe("");
+  }
+});
+
+it("opens the download menu from the keyboard with its PDF and Word items", async () => {
+  renderRow();
+
+  await userEvent.tab();
+  await userEvent.tab();
+  expect(screen.getByRole("button", { name: "Download" })).toHaveFocus();
+  await userEvent.keyboard("{Enter}");
+
+  expect(
+    await screen.findByRole("menuitem", { name: "Export as PDF" }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("menuitem", { name: "Export as Word document" }),
+  ).toBeVisible();
+});
 
 it("copies the result as formatted HTML with the Markdown as plain text", async () => {
   const clipboard = stubClipboard(true);

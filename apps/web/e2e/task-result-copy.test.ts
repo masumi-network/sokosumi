@@ -157,6 +157,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
       assert.match(clipboard.html, /<table>[\s\S]*<td>3 March<\/td>/);
       assert.equal(clipboard.plain, RESULT);
 
+      // Download is an icon button too: its menu still offers PDF and Word.
+      await page
+        .getByRole("button", { name: "Download", exact: true })
+        .filter({ visible: true })
+        .click();
+      await page.getByRole("menuitem", { name: "Export as PDF" }).waitFor();
+      await page
+        .getByRole("menuitem", { name: "Export as Word document" })
+        .waitFor();
+      await page.keyboard.press("Escape");
+
       assert.deepEqual(errors, [], "page errors");
       await context.close();
     });

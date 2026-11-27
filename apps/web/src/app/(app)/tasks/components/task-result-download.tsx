@@ -12,6 +12,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { markdownToSafeHtml } from "@/lib/utils/sanitizeMarkdown";
 
 /**
@@ -58,17 +63,38 @@ export function TaskResultDownload({
   };
   return (
     <div className="flex justify-end gap-1">
-      <Button type="button" variant="ghost" size="sm" onClick={copy}>
-        <Copy aria-hidden className="size-4" />
-        {t("copy")}
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" variant="ghost" size="sm">
-            <Download aria-hidden className="size-4" />
-            {t("download")}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-10 md:size-8"
+            aria-label={t("copy")}
+            onClick={copy}
+          >
+            <Copy className="size-4" />
           </Button>
-        </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t("copy")}</TooltipContent>
+      </Tooltip>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-10 md:size-8"
+                aria-label={t("download")}
+              >
+                <Download className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>{t("download")}</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => void exportAs("pdf")}>
             {t("exportAsPdf")}
