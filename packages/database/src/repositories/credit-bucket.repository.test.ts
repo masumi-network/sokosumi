@@ -23,25 +23,29 @@ vi.mock("../helpers/credit-bucket-scope.js", async () => {
     typeof import("../helpers/credit-bucket-scope.js")
   >("../helpers/credit-bucket-scope.js");
 
+  const resolve = vi.fn(
+    async (userId: string, organizationId: string | null) => {
+      if (organizationId == null) {
+        return {
+          workspace: "personal" as const,
+          userId,
+        };
+      }
+
+      return {
+        workspace: "organization" as const,
+        userId,
+        organizationId,
+        poolAccess: "shared" as const,
+      };
+    },
+  );
   return {
     ...actual,
-    resolveCreditBucketScopeContext: vi.fn(
-      async (userId: string, organizationId: string | null) => {
-        if (organizationId == null) {
-          return {
-            workspace: "personal" as const,
-            userId,
-          };
-        }
-
-        return {
-          workspace: "organization" as const,
-          userId,
-          organizationId,
-          poolAccess: "shared" as const,
-        };
-      },
-    ),
+    resolveCreditBucketScopeContext: resolve,
+    // The spend's reads reach the context through the function that picks
+    // the reading for the transaction's side.
+    resolveCreditBucketScopeContextOn: resolve,
   };
 });
 
