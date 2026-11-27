@@ -19090,12 +19090,12 @@ export type ContextOrganizationId = string;
 export type SokosumiClient = string;
 
 /**
- * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. A Preprod API key (`soko_preprod_`) is for Preprod without the header; an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data. Operations on shared data are never refused because of the Network.
  */
 export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
 
 /**
- * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. A Preprod API key (`soko_preprod_`) is for Preprod without the header; an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data. Operations on shared data are never refused because of the Network.
  */
 export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
 
@@ -26614,7 +26614,7 @@ export type GetAgentsData = {
 
 export type GetAgentsErrors = {
     /**
-     * Forbidden. Only with `X-Sokosumi-Network: preprod`. Branch on `kind`: preprod_off (Preprod is switched off) or preprod_access_required (an anonymous caller, a credential other than a browser session, or a person without Preprod access in the workspace)
+     * Forbidden. Only for Preprod (`X-Sokosumi-Network: preprod`, or a Preprod API key) or a key the header contradicts. Branch on `kind`: preprod_off (Preprod is switched off), preprod_access_required (an anonymous caller, a Coworker or Soko Bot key, or a person without Preprod access in the workspace) or api_key_network_mismatch (an API key of the other Network than the header names)
      */
     403: {
         error: string;
