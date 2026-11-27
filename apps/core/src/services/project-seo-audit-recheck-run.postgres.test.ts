@@ -11,6 +11,7 @@ import { getEnv } from "@/config/env";
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 
+import { listAdminSeoImpactVerdicts } from "./admin-seo-impact";
 import { recheckSeoAudit } from "./project-seo-audit-recheck-run";
 
 const enabled =
@@ -137,6 +138,24 @@ describe.skipIf(!enabled)("SEO audit recheck against PostgreSQL", () => {
     env.SEO_IMPACT_TRACKING_ENABLED = previous;
     await prisma.project.deleteMany({ where: { workspaceId } });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
+  });
+
+  it("shows the audit observation dates for the rule that closed", async () => {
+    await audit(BEFORE, "fired");
+    const next = await audit(AFTER, "pass");
+    await recheckSeoAudit(next.id);
+
+    const { rows } = await listAdminSeoImpactVerdicts({ period: "all" });
+    expect(
+      rows.find((row) => row.projectId === projectId)?.closingEvidence,
+    ).toEqual([
+      {
+        rowId: "title",
+        device: "mobile",
+        baselineObservedAt: BEFORE.toISOString(),
+        checkedObservedAt: AFTER.toISOString(),
+      },
+    ]);
   });
 
   it("marks the action done and tracks the page once", async () => {

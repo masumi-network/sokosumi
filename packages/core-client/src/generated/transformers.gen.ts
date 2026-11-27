@@ -42,6 +42,13 @@ export const listAdminSeoActionImpactResponseTransformer = async (data: any): Pr
 const adminSeoImpactVerdictsSchemaResponseTransformer = (data: any) => {
     data.rows = data.rows.map((item: any) => {
         item.changedAt = new Date(item.changedAt);
+        if (item.closingEvidence) {
+            item.closingEvidence = item.closingEvidence.map((item: any) => {
+                item.baselineObservedAt = new Date(item.baselineObservedAt);
+                item.checkedObservedAt = new Date(item.checkedObservedAt);
+                return item;
+            });
+        }
         if (item.crawledAt) {
             item.crawledAt = new Date(item.crawledAt);
         }

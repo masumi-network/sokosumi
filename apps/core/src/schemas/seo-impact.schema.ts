@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { seoDeviceSchema } from "./seo-audit-coverage.schema";
 
 export const SEO_IMPACT_STATES = [
   "waiting_crawl",
@@ -36,6 +37,20 @@ export const searchConsoleDate = z
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .openapi({ example: "2026-11-27" });
 
+export const seoImpactClosingCheck = z.object({
+  rowId: z.string(),
+  device: seoDeviceSchema,
+  baselineObservationId: z.uuid(),
+  checkedObservationId: z.uuid(),
+});
+
+const adminSeoImpactClosingCheck = seoImpactClosingCheck
+  .pick({ rowId: true, device: true })
+  .extend({
+    baselineObservedAt: z.iso.datetime(),
+    checkedObservedAt: z.iso.datetime(),
+  });
+
 export const adminSeoImpactRow = z.object({
   id: z.uuid(),
   organizationSlug: z.string().nullable(),
@@ -46,6 +61,7 @@ export const adminSeoImpactRow = z.object({
   suggestionTitle: z.string().nullable(),
   changeSource: z.enum(["cuso_done", "audit_recheck"]),
   changedAt: z.iso.datetime(),
+  closingEvidence: z.array(adminSeoImpactClosingCheck).nullable(),
   crawledAt: z.iso.datetime().nullable(),
   windowStart: searchConsoleDate.nullable(),
   windowEnd: searchConsoleDate.nullable(),

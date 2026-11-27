@@ -876,6 +876,41 @@ export const AdminSeoImpactVerdictsSchema = {
                         type: 'string',
                         format: 'date-time'
                     },
+                    closingEvidence: {
+                        type: [
+                            'array',
+                            'null'
+                        ],
+                        items: {
+                            type: 'object',
+                            properties: {
+                                rowId: {
+                                    type: 'string'
+                                },
+                                device: {
+                                    type: 'string',
+                                    enum: [
+                                        'mobile',
+                                        'desktop'
+                                    ]
+                                },
+                                baselineObservedAt: {
+                                    type: 'string',
+                                    format: 'date-time'
+                                },
+                                checkedObservedAt: {
+                                    type: 'string',
+                                    format: 'date-time'
+                                }
+                            },
+                            required: [
+                                'rowId',
+                                'device',
+                                'baselineObservedAt',
+                                'checkedObservedAt'
+                            ]
+                        }
+                    },
                     crawledAt: {
                         type: [
                             'string',
@@ -943,6 +978,7 @@ export const AdminSeoImpactVerdictsSchema = {
                     'suggestionTitle',
                     'changeSource',
                     'changedAt',
+                    'closingEvidence',
                     'crawledAt',
                     'windowStart',
                     'windowEnd',
