@@ -111,9 +111,8 @@ const tableNames = [
 // PostgreSQL folds a bare name to lowercase, so a bare name in any case can
 // only be a table whose name is all lowercase (`lock` is never `"Lock"`).
 const exact = tableNames.join("|");
-// Each letter becomes a class (`[wW]`) instead of using `(?i:…)`: the modifier
-// matched nothing on the CI runner in #8468, while the same regex passed on
-// the same Node version elsewhere (#8522).
+// V8 14.6 (Node 26.13) can drop the scoped case folding of `(?i:…)` once its
+// regexp code budget is exceeded, so each letter is a class (`[wW]`): #8522.
 const anyCase = tableNames
   .filter((name) => name === name.toLowerCase())
   .map((name) => name.replace(/[a-z]/g, (c) => `[${c}${c.toUpperCase()}]`))
