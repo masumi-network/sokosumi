@@ -33,6 +33,17 @@ const PORTFOLIO_SHOWN = 5;
 export const pathsKey = (contactId: string) =>
   ["fundraising-paths", contactId] as const;
 
+/** One investor's warm paths and portfolio; the sheet and Outreach share it. */
+export function useWarmPaths(contactId: string) {
+  const organizationId = useFundraisingOrganization();
+  return useScopedQuery({
+    scope: organizationId,
+    queryKey: pathsKey(contactId),
+    queryFn: () => fundraisingService.paths(contactId),
+    enabled: organizationId !== null,
+  });
+}
+
 function StrengthBar({ value }: { value: number }) {
   return (
     <span
@@ -73,12 +84,7 @@ export function WarmPaths({
   const organizationId = useFundraisingOrganization();
   const update = useProspectUpdate();
   const contactId = prospect.contact.id;
-  const query = useScopedQuery({
-    scope: organizationId,
-    queryKey: pathsKey(contactId),
-    queryFn: () => fundraisingService.paths(contactId),
-    enabled: organizationId !== null,
-  });
+  const query = useWarmPaths(contactId);
   const [researching, setResearching] = useState(false);
   const [allPaths, setAllPaths] = useState(false);
   const [allPortfolio, setAllPortfolio] = useState(false);
