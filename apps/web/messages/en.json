@@ -14781,6 +14781,7 @@
           "actions": "{count, plural, one {# thing to fix} other {# things to fix}}",
           "issuesFound": "{count, plural, one {# issue found in the last check} other {# issues found in the last check}}",
           "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
+          "andSuggestions": "{lead}. {count, plural, one {# suggestion to review} other {# suggestions to review}}",
           "clear": "No issues found in the last check",
           "noCheck": "No check yet. Run one to find issues.",
           "noCheckOff": "No check yet",

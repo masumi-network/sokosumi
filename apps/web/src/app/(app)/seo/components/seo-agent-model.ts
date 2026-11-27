@@ -118,8 +118,9 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
 export type SeoAgentBrief = ReturnType<typeof seoAgentBrief>;
 
 /**
- * The count the Agent tab leads with: the action rows of its list, split by the impact of the worst issue each fixes.
- * A split that leaves an action out would not add up to the count, so the count then stands alone.
+ * The counts the Agent tab leads with: the fix rows of its list, split by the impact of the worst issue each fixes,
+ * and the suggestion rows apart, since a suggestion fixes no error. A split that leaves a fix out would not add up
+ * to the count, so the count then stands alone.
  */
 export function seoActionHeadline(
   steps: SeoAgentStep[],
@@ -128,15 +129,15 @@ export function seoActionHeadline(
   const actions = steps.flatMap((step) =>
     step.kind === "action" ? [step.action] : [],
   );
+  const fixes = actions.filter((action) => action.kind !== "opportunity");
   const parts = SEO_ISSUE_SEVERITY_NAMES.map((name) => ({
     severity: name,
-    count: actions.filter((action) => severity(action) === name).length,
+    count: fixes.filter((action) => severity(action) === name).length,
   })).filter((part) => part.count > 0);
   const named = parts.reduce((sum, part) => sum + part.count, 0);
   return {
-    count: actions.length,
-    parts: named === actions.length ? parts : [],
-    // A list of ideas only has nothing to fix: it reads as suggestions.
-    suggestions: actions.every((action) => action.kind === "opportunity"),
+    fixes: fixes.length,
+    parts: named === fixes.length ? parts : [],
+    suggestions: actions.length - fixes.length,
   };
 }

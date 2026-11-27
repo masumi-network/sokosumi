@@ -964,6 +964,72 @@ describe("SEO workspace integration", () => {
     ).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["recommended", "1 thing to fix: 1 high impact. 2 suggestions to review"],
+    // The fix has a Task, so no row fixes the issue: the headline says what the check found.
+    [
+      "task_created",
+      "1 issue found in the last check: 1 high impact. 2 suggestions to review",
+    ],
+  ] as const)(
+    "names the suggestions of the Agent tab list apart from its fixes: fix %s",
+    async (status, text) => {
+      const workspace = seoTestCheckedAudit();
+      workspace.observations[0].issues = 1;
+      const observationId = workspace.observations[0].id;
+      const pageUrl = workspace.pages[0].url;
+      workspace.findings.push({
+        id: "one",
+        observationId,
+        pageUrl,
+        device: "mobile",
+        rowId: "R-one",
+        title: "Check one",
+        severity: "major",
+        evidence: ["found"],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      });
+      const action = {
+        observationId,
+        pageUrl,
+        why: "Why",
+        effort: "low",
+        expectedEffect: "Effect",
+        edit: null,
+        taskId: null,
+        evidence: [] as string[],
+      } as const;
+      workspace.actions.push(
+        {
+          ...action,
+          id: "fix-one",
+          findingIds: ["one"],
+          title: "Fix one",
+          status,
+          taskId: status === "task_created" ? "task-one" : null,
+          kind: "fix",
+        },
+        ...["Idea one", "Idea two"].map((title) => ({
+          ...action,
+          id: title,
+          findingIds: [],
+          title,
+          status: "recommended" as const,
+          kind: "opportunity" as const,
+        })),
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json(workspace)),
+      );
+      renderWorkspace(workspace);
+      expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
+        text,
+      );
+    },
+  );
+
   it("filters the Actions worklist by impact, with suggestions apart", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

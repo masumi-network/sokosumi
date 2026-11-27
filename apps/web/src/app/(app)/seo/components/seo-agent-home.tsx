@@ -224,6 +224,20 @@ function SeoAgentPanel({
         ),
       )}`
     : "";
+  // With no fix row, the issues the check found lead: no row under the headline fixes them.
+  const headlineLead = headline.fixes
+    ? `${report("agent.verdict.actions", { count: headline.fixes })}${headlineSplit}`
+    : brief.issues
+      ? `${report("agent.verdict.issuesFound", { count: brief.issues })}${severitySplit}`
+      : null;
+  const headlineText = headline.suggestions
+    ? headlineLead
+      ? report("agent.verdict.andSuggestions", {
+          lead: headlineLead,
+          count: headline.suggestions,
+        })
+      : report("agent.verdict.waiting", { count: headline.suggestions })
+    : headlineLead;
   const evidence = seoWorklistEvidence(
     model.data,
     currentDiscoveryResult(
@@ -394,39 +408,34 @@ function SeoAgentPanel({
             // The search numbers alone name no period; the line under them does.
             aria-describedby={trafficLead ? periodId : undefined}
           >
-            {headline.count
-              ? headline.suggestions
-                ? report("agent.verdict.waiting", { count: headline.count })
-                : `${report("agent.verdict.actions", { count: headline.count })}${headlineSplit}`
-              : // No row to fix them under the headline: it says what the check found, not what to do.
-                brief.issues
-                ? `${report("agent.verdict.issuesFound", { count: brief.issues })}${severitySplit}`
-                : brief.fixes
-                  ? report("agent.verdict.fixes", { count: brief.fixes })
-                  : brief.opportunities
-                    ? report("agent.verdict.waiting", {
-                        count: brief.opportunities,
+            {headlineText
+              ? headlineText
+              : brief.fixes
+                ? report("agent.verdict.fixes", { count: brief.fixes })
+                : brief.opportunities
+                  ? report("agent.verdict.waiting", {
+                      count: brief.opportunities,
+                    })
+                  : brief.earlierIssues
+                    ? report("overview.earlierFindings", {
+                        count: brief.earlierIssues,
                       })
-                    : brief.earlierIssues
-                      ? report("overview.earlierFindings", {
-                          count: brief.earlierIssues,
-                        })
-                      : brief.checkClear && lastCheckMeasured
-                        ? rarelyShown
-                          ? report("agent.verdict.clearRarelyShown", {
-                              pages: brief.lastCheck?.pages ?? 1,
-                            })
-                          : report("agent.verdict.clear")
-                        : brief.lastCheck
-                          ? report("actions.checksIncomplete")
-                          : brief.ruleCheckOutsideSelection
-                            ? report("agent.verdict.noPageCheckInView")
-                            : // No call to run a check where no check can run: lead with what is known.
-                              canRequestAnalysis
-                              ? report("agent.verdict.noCheck")
-                              : trafficLead
-                                ? trafficLine
-                                : report("agent.verdict.noCheckOff")}
+                    : brief.checkClear && lastCheckMeasured
+                      ? rarelyShown
+                        ? report("agent.verdict.clearRarelyShown", {
+                            pages: brief.lastCheck?.pages ?? 1,
+                          })
+                        : report("agent.verdict.clear")
+                      : brief.lastCheck
+                        ? report("actions.checksIncomplete")
+                        : brief.ruleCheckOutsideSelection
+                          ? report("agent.verdict.noPageCheckInView")
+                          : // No call to run a check where no check can run: lead with what is known.
+                            canRequestAnalysis
+                            ? report("agent.verdict.noCheck")
+                            : trafficLead
+                              ? trafficLine
+                              : report("agent.verdict.noCheckOff")}
           </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (
@@ -505,7 +514,7 @@ function SeoAgentPanel({
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
           {/* The verdict names the issues its steps fix. A written plan has no verdict, so the list has its title. */}
-          {(headline.count || brief.issues) && !message ? null : (
+          {headlineText && !message ? null : (
             <h3 lang="en" className="px-2 text-sm font-semibold">
               {report("agent.nextTitle")}
             </h3>

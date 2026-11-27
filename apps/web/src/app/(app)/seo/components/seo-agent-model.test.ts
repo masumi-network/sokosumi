@@ -254,34 +254,39 @@ describe("seoActionHeadline", () => {
     { kind: "action", action: action("c") },
   ];
 
-  it("counts the action rows of the list, not its other steps, split by impact worst first", () => {
+  it("counts the fix rows of the list, not its other steps, split by impact worst first", () => {
     const severity = { a: "minor", b: "major", c: "major" } as const;
     expect(
       seoActionHeadline(steps, (row) => severity[row.id as "a" | "b" | "c"]),
     ).toEqual({
-      count: 3,
+      fixes: 3,
       parts: [
         { severity: "major", count: 2 },
         { severity: "minor", count: 1 },
       ],
-      suggestions: false,
+      suggestions: 0,
     });
   });
 
-  it("names no split when an action has no issue, so the split never adds up to less than the count", () => {
+  it("names no split when a fix has no issue, so the split never adds up to less than the count", () => {
     expect(
       seoActionHeadline(steps, (row) => (row.id === "a" ? null : "major")),
-    ).toEqual({ count: 3, parts: [], suggestions: false });
+    ).toEqual({ fixes: 3, parts: [], suggestions: 0 });
   });
 
-  it("reads a list of ideas only as suggestions, and a list with one fix as things to fix", () => {
-    const ideas: SeoAgentStep[] = ["a", "b"].map((id) => ({
+  it("counts suggestions apart from fixes, so a suggestion with no issue keeps the split of the fixes", () => {
+    const ideas: SeoAgentStep[] = ["d", "e"].map((id) => ({
       kind: "action",
       action: action(id, "opportunity"),
     }));
-    expect(seoActionHeadline(ideas, () => null).suggestions).toBe(true);
     expect(
-      seoActionHeadline([...ideas, ...steps], () => null).suggestions,
-    ).toBe(false);
+      seoActionHeadline([...ideas, ...steps], (row) =>
+        row.kind === "opportunity" ? null : "major",
+      ),
+    ).toEqual({
+      fixes: 3,
+      parts: [{ severity: "major", count: 3 }],
+      suggestions: 2,
+    });
   });
 });
