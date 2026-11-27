@@ -7,6 +7,10 @@ import { HTTPException } from "hono/http-exception";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import prisma from "@/lib/db/prisma";
 import {
+  checkTaskScheduleIdNotBotSchedule,
+  resolveProjectTargetForWrite,
+} from "@/lib/soko-bot/target-resolver";
+import {
   createTaskScheduleRequestSchema,
   updateTaskScheduleRequestSchema,
 } from "@/schemas/task-schedule.schema";
@@ -163,6 +167,19 @@ export async function saveTaskSchedule(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<unknown> {
   const parsed = sokoBotSaveTaskScheduleInputSchema.parse(input.input);
+  if (parsed.scheduleId) {
+    await checkTaskScheduleIdNotBotSchedule(
+      authorized,
+      parsed.scheduleId,
+      "save_task_schedule",
+    );
+  }
+  const projectTarget = await resolveProjectTargetForWrite(authorized, {
+    projectId: parsed.projectId,
+    mode: "optional",
+    capability: "save_task_schedule",
+  });
+  const effectiveProjectId = projectTarget.projectId;
   const actor = await botScheduleActor(authorized);
   const assignee = {
     ...(parsed.assigneeCoworkerId !== undefined && {
@@ -201,7 +218,7 @@ export async function saveTaskSchedule(
         operationId: toolCallOperationId(authorized.turn.id, input.toolCallId),
         name: parsed.name,
         description: parsed.brief ?? null,
-        projectId: parsed.projectId ?? null,
+        projectId: effectiveProjectId ?? null,
         ...assignee,
         rule: {
           expr: parsed.cron,
@@ -236,7 +253,9 @@ export async function saveTaskSchedule(
     const fields = {
       ...(parsed.name !== undefined && { name: parsed.name }),
       ...(parsed.brief !== undefined && { description: parsed.brief }),
-      ...(parsed.projectId !== undefined && { projectId: parsed.projectId }),
+      ...(effectiveProjectId !== undefined && {
+        projectId: effectiveProjectId,
+      }),
       ...assignee,
       ...(changesRule && {
         rule: {
@@ -276,7 +295,13 @@ export async function saveTaskSchedule(
       );
     return schedule;
   });
-  const result = { taskSchedule: brief(saved), created: !parsed.scheduleId };
+  const result = {
+    taskSchedule: brief(saved),
+    created: !parsed.scheduleId,
+    ...(projectTarget.resolvedTarget
+      ? { resolvedTarget: projectTarget.resolvedTarget }
+      : {}),
+  };
   return runtime.commitReceipt(authorized, input.toolCallId, saved.id, result);
 }
 
@@ -290,6 +315,11 @@ export async function removeTaskSchedule(
   );
   if (authorized.turn.source === "SCHEDULE")
     throw new SokoBotRefusedUnsentError(SCHEDULED_RUN_REFUSAL);
+  await checkTaskScheduleIdNotBotSchedule(
+    authorized,
+    scheduleId,
+    "delete_task_schedule",
+  );
   const actor = await botScheduleActor(authorized);
   const current = await refusingHttp(async () => {
     const schedule = await requireChangeable(actor, authorized, scheduleId);

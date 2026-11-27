@@ -17,6 +17,7 @@ import { digestJob } from "@/helpers/job-digest";
 import { buildSokoBotReaderJobWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { parseHireAgentInput } from "@/lib/soko-bot/decision-proposal";
+import { resolveProjectTargetForWrite } from "@/lib/soko-bot/target-resolver";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
 import {
@@ -37,10 +38,18 @@ export async function dispatchTasksTools(
   switch (input.capability) {
     case "create_task": {
       const { fileIds, ...task } = taskCreateInputSchema.parse(input.input);
+      const target = await resolveProjectTargetForWrite(authorized, {
+        projectId: task.projectId,
+        mode: "optional",
+        capability: "create_task",
+      });
       const created = await runtime.createTask(
         authorized,
         {
           ...task,
+          ...(target.projectId !== undefined
+            ? { projectId: target.projectId }
+            : {}),
           description: await runtime.withInlineFiles(
             authorized,
             task.description ?? "",
@@ -49,7 +58,7 @@ export async function dispatchTasksTools(
         },
         input.toolCallId,
       );
-      return fileIds?.length
+      const base = fileIds?.length
         ? {
             ...created,
             attachedFiles: await runtime.attachDriveFiles(
@@ -59,6 +68,9 @@ export async function dispatchTasksTools(
             ),
           }
         : created;
+      return target.resolvedTarget
+        ? { ...base, resolvedTarget: target.resolvedTarget }
+        : base;
     }
 
     case "update_task":
@@ -171,6 +183,11 @@ export async function dispatchTasksTools(
 
     case "hire_agent": {
       const hire = parseHireAgentInput(input.input);
+      const target = await resolveProjectTargetForWrite(authorized, {
+        projectId: hire.projectId,
+        mode: "optional",
+        capability: "hire_agent",
+      });
       const refusal = await unattendedHireRefusal({
         turn: authorized.turn,
         shared: !!authorized.reader.sharedScope,
@@ -179,12 +196,25 @@ export async function dispatchTasksTools(
         toolCallId: input.toolCallId,
       });
       if (refusal) throw new SokoBotRuntimeValidationError(refusal);
-      return runtime.executeAsAccepted(
+      const proposal =
+        target.projectId !== undefined &&
+        target.projectId !== hire.projectId &&
+        input.input &&
+        typeof input.input === "object"
+          ? {
+              ...(input.input as Record<string, unknown>),
+              projectId: target.projectId,
+            }
+          : input.input;
+      const executed = await runtime.executeAsAccepted(
         authorized,
         input.capability,
-        input.input,
+        proposal,
         input.toolCallId,
       );
+      return target.resolvedTarget
+        ? { ...executed, resolvedTarget: target.resolvedTarget }
+        : executed;
     }
 
     case "get_job_status": {

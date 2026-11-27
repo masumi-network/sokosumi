@@ -51,6 +51,13 @@ export interface SokoBotVersion {
    */
   askPolicy?: true;
   /**
+   * E10 unified Core target resolver: resolves and checks write targets
+   * (accounts, projects, posts, and schedules) against live records and
+   * annotates list results with single/multi/missing target summaries.
+   * Omitted on all live, control, loop-only, and earlier experiment versions.
+   */
+  targetResolver?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

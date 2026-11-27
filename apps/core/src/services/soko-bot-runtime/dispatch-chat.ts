@@ -76,7 +76,10 @@ export async function dispatchChatTools(
         reference.kind === "project_selection" &&
         authorized.turn.source === "CHAT" &&
         authorized.turn.chainDepth === 0 &&
-        getSokoBotVersion(authorized.turn.versionId).askPolicy
+        (() => {
+          const version = getSokoBotVersion(authorized.turn.versionId);
+          return Boolean(version.askPolicy || version.targetResolver);
+        })()
       ) {
         const refusal = await validateAskPolicyProjectSelection({
           workspaceId: authorized.turn.workspaceId,

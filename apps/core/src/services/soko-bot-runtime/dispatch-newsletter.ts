@@ -12,6 +12,7 @@ import {
   updateNewsletterSettings,
 } from "@/lib/soko-bot/newsletter-tools";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import { resolveNewsletterTargetForWrite } from "@/lib/soko-bot/target-resolver";
 import { newsletterIssueSchema } from "@/schemas/newsletter.schema";
 import { generateNewsletterDraft } from "@/services/newsletter-draft.service";
 import {
@@ -37,6 +38,10 @@ export async function dispatchNewsletterTools(
     case "newsletter_draft_issue": {
       const { projectId, ...params } =
         SOKO_BOT_TOOL_INPUT_SCHEMAS.newsletter_draft_issue.parse(input.input);
+      const target = await resolveNewsletterTargetForWrite(authorized, {
+        projectId,
+        capability: input.capability,
+      });
       const scope = await runtime.requireNewsletterScope(
         authorized,
         input.capability,
@@ -57,7 +62,7 @@ export async function dispatchNewsletterTools(
           { client: tx, creatorSokoBotId: authorized.turn.sokoBotId },
         );
         // Keep the review target intact even when the content exceeds the receipt size limit.
-        const result = newsletterIssueSchema
+        const parsedIssue = newsletterIssueSchema
           .pick({
             id: true,
             projectId: true,
@@ -66,6 +71,9 @@ export async function dispatchNewsletterTools(
             revision: true,
           })
           .parse(issue);
+        const result = target.resolvedTarget
+          ? { ...parsedIssue, resolvedTarget: target.resolvedTarget }
+          : parsedIssue;
         await commitActionReceipt(tx, {
           turnId: authorized.turn.id,
           toolCallId: input.toolCallId,
@@ -128,6 +136,10 @@ export async function dispatchNewsletterTools(
       const { capability } = input;
       const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS[capability].parse(input.input);
       const { projectId } = parsed;
+      const target = await resolveNewsletterTargetForWrite(authorized, {
+        projectId,
+        capability,
+      });
       const scope = await runtime.requireNewsletterScope(
         authorized,
         capability,
@@ -161,7 +173,7 @@ export async function dispatchNewsletterTools(
             capability,
             { projectIds: [projectId] },
           );
-          const result = await runNewsletterWriteTool(
+          const written = await runNewsletterWriteTool(
             capability,
             resolved,
             { projectId, workspaceId: scope.workspaceId },
@@ -182,12 +194,15 @@ export async function dispatchNewsletterTools(
               },
             },
           );
+          const result = target.resolvedTarget
+            ? { ...written, resolvedTarget: target.resolvedTarget }
+            : written;
           await commitActionReceipt(tx, {
             turnId: authorized.turn.id,
             toolCallId: input.toolCallId,
             actorBotId: authorized.turn.sokoBotId,
-            targetId: result.id,
-            observedVersion: String(result.revision),
+            targetId: written.id,
+            observedVersion: String(written.revision),
             result: persistedToolResult(result),
           });
           return result;

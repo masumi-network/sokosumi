@@ -100,6 +100,199 @@ export function namedProjectsIn<T extends NamedProjectCandidate>(
   });
 }
 
+/**
+ * Generic English words that appear in project names ("Company marketing",
+ * "Founder notes", "Eval brand") and must never resolve a target on their own.
+ */
+const GENERIC_TARGET_WORDS: ReadonlySet<string> = new Set([
+  "account",
+  "accounts",
+  "agency",
+  "app",
+  "blog",
+  "brand",
+  "brands",
+  "campaign",
+  "campaigns",
+  "channel",
+  "channels",
+  "client",
+  "clients",
+  "company",
+  "content",
+  "daily",
+  "default",
+  "draft",
+  "drafts",
+  "eval",
+  "feed",
+  "founder",
+  "general",
+  "growth",
+  "internal",
+  "launch",
+  "main",
+  "marketing",
+  "media",
+  "monthly",
+  "news",
+  "newsletter",
+  "notes",
+  "official",
+  "outreach",
+  "page",
+  "personal",
+  "post",
+  "posts",
+  "product",
+  "profile",
+  "project",
+  "projects",
+  "report",
+  "reports",
+  "sales",
+  "schedule",
+  "social",
+  "strategy",
+  "studio",
+  "team",
+  "test",
+  "weekly",
+  "work",
+  "workspace",
+]);
+
+const TOPIC_BEFORE_POSSESSIVE =
+  /\b(?:about|regarding|covering|mentioning|referencing|discussing|analy[sz](?:e|ing)|stud(?:y|ying)|review(?:ing)?|on\s+how)\s+(?:the\s+|our\s+|my\s+)?$/i;
+
+const SEARCH_BEFORE_FOR =
+  /\b(?:search(?:ing)?|look(?:ing)?|wait(?:ing)?|check(?:ing)?|ask(?:ing)?)\s+$/i;
+
+const DESTINATION_POSSESSIVE_NOUN =
+  "(?:x|twitter|linked\\s*in|instagram|ig|facebook|fb|tik\\s*tok|you\\s*tube|account|page|channel|feed|profile|project|newsletter|social|studio|calendar)";
+
+/**
+ * Leading distinctive aliases of a Project name (e.g. "Acme" or "Acme AG"
+ * from "Acme AG Outreach"), excluding short tokens (< 4 chars) and generic
+ * English words. Full project names are handled separately by exact matching.
+ */
+function distinctiveProjectAliases(projectName: string): string[] {
+  const tokens = projectName.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return [];
+  const aliases: string[] = [];
+  for (let len = tokens.length - 1; len >= 1; len -= 1) {
+    const slice = tokens.slice(0, len);
+    const joined = slice.join(" ");
+    if (joined.length < 4) continue;
+    const hasDistinctiveWord = slice.some(
+      (word) =>
+        word.length >= 4 && !GENERIC_TARGET_WORDS.has(word.toLowerCase()),
+    );
+    if (!hasDistinctiveWord) continue;
+    aliases.push(joined);
+  }
+  return aliases;
+}
+
+/**
+ * True when `alias` appears in an explicit destination/ownership phrase
+ * outside quoted copy and URLs (never bare topic mentions like "about Acme's
+ * feature" or "search for Acme").
+ */
+function containsDestinationAlias(cleanedText: string, alias: string): boolean {
+  const escaped = escapeRegExp(alias);
+  const forToUnderInto = new RegExp(
+    `(?:^|[^\\p{L}\\p{N}_@])(?:for|to|under|into)\\s+(?:the\\s+|our\\s+|my\\s+)?${escaped}(?![\\p{L}\\p{N}_])`,
+    "giu",
+  );
+  for (const match of cleanedText.matchAll(forToUnderInto)) {
+    const start = match.index ?? 0;
+    const prefix = cleanedText.slice(Math.max(0, start - 20), start + 1);
+    if (!SEARCH_BEFORE_FOR.test(prefix)) return true;
+  }
+
+  const onDestination = new RegExp(
+    `(?:^|[^\\p{L}\\p{N}_@])on\\s+(?:the\\s+|our\\s+|my\\s+)?${escaped}(?:(?:'s|’s)\\s+${DESTINATION_POSSESSIVE_NOUN}\\b|(?![\\p{L}\\p{N}_'’])(?:\\s+${DESTINATION_POSSESSIVE_NOUN}\\b|$|[.,!?;:]))`,
+    "iu",
+  );
+  if (onDestination.test(cleanedText)) return true;
+
+  const inProject = new RegExp(
+    `(?:^|[^\\p{L}\\p{N}_@])in\\s+(?:the\\s+|our\\s+|my\\s+)?${escaped}(?:\\s+project\\b|(?![\\p{L}\\p{N}_'’])(?=$|[.,!?;:]))`,
+    "iu",
+  );
+  if (inProject.test(cleanedText)) return true;
+
+  const possessive = new RegExp(
+    `(?:^|[^\\p{L}\\p{N}_@])${escaped}(?:'s|’s)\\s+${DESTINATION_POSSESSIVE_NOUN}\\b`,
+    "giu",
+  );
+  for (const match of cleanedText.matchAll(possessive)) {
+    const start = match.index ?? 0;
+    const before = cleanedText.slice(Math.max(0, start - 32), start + 1);
+    if (!TOPIC_BEFORE_POSSESSIVE.test(before)) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Target-resolver project matching (E10):
+ * 1. Exact project UUID or exact full project name (`namedProjectsIn`).
+ * 2. If 0 exact matches, destination-bound distinctive project alias — accepted
+ *    ONLY when exactly 1 project in `projects` matches (never guesses on ties).
+ */
+export function namedProjectsByTargetResolver<T extends NamedProjectCandidate>(
+  message: string,
+  projects: readonly T[],
+): T[] {
+  const exact = namedProjectsIn(message, projects);
+  if (exact.length > 0) return exact;
+  const cleaned = withoutUrls(withoutQuotedCopy(message));
+  const matched = projects.filter((project) =>
+    distinctiveProjectAliases(project.name).some((alias) =>
+      containsDestinationAlias(cleaned, alias),
+    ),
+  );
+  return matched.length === 1 ? matched : [];
+}
+
+/**
+ * Target-resolver social destination matching (E10):
+ * 1. Exact `@handle`, connection UUID, or full project name holding 1 candidate
+ *    (`namedSocialDestinations`).
+ * 2. If 0 exact matches, destination-bound bare handle (>= 4 chars, non-generic)
+ *    or distinctive project alias (when that project holds 1 candidate for the
+ *    provider) — accepted ONLY when exactly 1 candidate matches across the whole
+ *    pool (never guesses on ties or topic mentions).
+ */
+export function namedSocialDestinationsByTargetResolver<
+  T extends SocialDestinationCandidate,
+>(message: string, candidates: readonly T[]): T[] {
+  const exact = namedSocialDestinations(message, candidates);
+  if (exact.length > 0) return exact;
+  const cleaned = withoutUrls(withoutQuotedCopy(message));
+  const matched = candidates.filter((candidate) => {
+    const handle = socialHandleOf(candidate);
+    if (
+      handle &&
+      handle.length >= 4 &&
+      !GENERIC_TARGET_WORDS.has(handle.toLowerCase()) &&
+      containsDestinationAlias(cleaned, handle)
+    ) {
+      return true;
+    }
+    const sameProject = candidates.filter(
+      (other) => other.project.id === candidate.project.id,
+    );
+    if (sameProject.length !== 1) return false;
+    return distinctiveProjectAliases(candidate.project.name).some((alias) =>
+      containsDestinationAlias(cleaned, alias),
+    );
+  });
+  return matched.length === 1 ? matched : [];
+}
+
 /** Verbs that publish/schedule/upload directly to a social network (not generic "draft a memo"). */
 const DIRECT_SOCIAL_VERBS =
   "(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|upload(?:ing)?|queue(?:ing)?|queuing|repost(?:ing)?|tweets?|tweeting)";

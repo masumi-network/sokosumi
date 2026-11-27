@@ -6,8 +6,10 @@ import {
   mentionedSocialProviders,
   mentionsNewsletter,
   type NamedProjectCandidate,
+  namedProjectsByTargetResolver,
   namedProjectsIn,
   namedSocialDestinations,
+  namedSocialDestinationsByTargetResolver,
   type SocialDestinationCandidate,
   socialDestinationLabel,
   withoutQuotedCopy,
@@ -23,6 +25,12 @@ export interface AskPolicyHintsInput {
   message: string;
   /** True when an open SokoBotAccountQuestion already carries the pending choice. */
   hasOpenAccountQuestion?: boolean;
+  /**
+   * E10 `targetResolver`: use destination-bound unique matching (e.g.
+   * "for <Brand>" matching one unique handle/project) and cover media/drafts
+   * alongside posts. False/omitted keeps `#8454` `askPolicy` byte-identical.
+   */
+  useTargetResolverMatching?: boolean;
 }
 
 export interface AskPolicyProjectSelectionInput {
@@ -159,10 +167,18 @@ export async function prepareAskPolicyHints(
       : Promise.resolve([]),
   ]);
 
+  const matchProjects = input.useTargetResolverMatching
+    ? namedProjectsByTargetResolver
+    : namedProjectsIn;
+  const matchSocial = input.useTargetResolverMatching
+    ? namedSocialDestinationsByTargetResolver
+    : namedSocialDestinations;
+  const socialUsePhrase = input.useTargetResolverMatching
+    ? "creates posts, media, or drafts for"
+    : "posts or schedules on";
+
   const namedProjects =
-    input.projectId === null
-      ? namedProjectsIn(input.message, openProjects)
-      : [];
+    input.projectId === null ? matchProjects(input.message, openProjects) : [];
   const namedProjectIds = new Set(namedProjects.map((project) => project.id));
 
   const hints: string[] = [];
@@ -201,7 +217,7 @@ export async function prepareAskPolicyHints(
         explicitAccounts.length > 0 ? explicitAccounts : inNamedProjects;
       if (narrowed.length === 1) {
         hints.push(
-          `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(narrowed[0])}. If this request posts or schedules on ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
+          `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(narrowed[0])}. If this request ${socialUsePhrase} ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
         );
       } else if (explicitAccounts.length >= 2) {
         hints.push(
@@ -221,10 +237,10 @@ export async function prepareAskPolicyHints(
       );
       continue;
     }
-    const named = namedSocialDestinations(input.message, forProvider);
+    const named = matchSocial(input.message, forProvider);
     if (named.length === 1) {
       hints.push(
-        `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(named[0])}. If this request posts or schedules on ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
+        `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(named[0])}. If this request ${socialUsePhrase} ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
       );
     } else if (named.length >= 2) {
       hints.push(
@@ -232,7 +248,7 @@ export async function prepareAskPolicyHints(
       );
     } else if (forProvider.length === 1) {
       hints.push(
-        `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(forProvider[0])}. If this request posts or schedules on ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
+        `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(forProvider[0])}. If this request ${socialUsePhrase} ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
       );
     } else if (!input.hasOpenAccountQuestion) {
       hints.push(

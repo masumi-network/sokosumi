@@ -2761,7 +2761,7 @@ export class SokoBotControlPlane {
         : null;
     const sharedScope = sokoBotSharedScopeOf(bot);
     const askPolicyHints =
-      version.askPolicy &&
+      (version.askPolicy || version.targetResolver) &&
       (input.source ?? "CHAT") === "CHAT" &&
       personAsked &&
       !input.background &&
@@ -2773,6 +2773,9 @@ export class SokoBotControlPlane {
             projectId: sharedScope?.projectId ?? null,
             message: input.chat?.said ?? input.chat?.classifyMessage ?? message,
             hasOpenAccountQuestion: Boolean(accountQuestion),
+            ...(version.targetResolver
+              ? { useTargetResolverMatching: true }
+              : {}),
           })
         : [];
     const context = await this.contextBuilder.build({

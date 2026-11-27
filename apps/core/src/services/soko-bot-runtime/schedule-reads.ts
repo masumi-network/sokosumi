@@ -6,6 +6,10 @@ import {
 import { visibleSokoBotWhere } from "@/helpers/visible-soko-bots";
 import prisma from "@/lib/db/prisma";
 import {
+  buildSchedulesTargetResolution,
+  isTargetResolverEnabled,
+} from "@/lib/soko-bot/target-resolver";
+import {
   canWriteTaskSchedule,
   SCHEDULE_ASSIGNEE_VENDOR,
   taskScheduleVisibilityWhere,
@@ -212,7 +216,18 @@ export async function listSchedules(
     );
   const { scope = "mine", query } = parsed.data;
   const { sokoBotId, workspaceId, actingUserId } = authorized.turn;
-  if (scope === "mine") return botSchedules(authorized, { sokoBotId }, query);
+  const targetResolver = isTargetResolverEnabled(authorized.turn.versionId);
+  if (scope === "mine") {
+    const mine = await botSchedules(authorized, { sokoBotId }, query);
+    return targetResolver
+      ? {
+          ...mine,
+          targetResolution: buildSchedulesTargetResolution({
+            botSchedules: mine.schedules,
+          }),
+        }
+      : mine;
+  }
   // The workspace is the member's view: only for the member's own turn.
   if (!actingUserId || (authorized.askedByKind ?? "OWNER") !== "OWNER")
     throw new SokoBotRuntimeValidationError(
@@ -244,6 +259,14 @@ export async function listSchedules(
     taskSchedules: tasks.schedules,
     ...(bots.more || tasks.more
       ? { more: "Only the first 40 of a kind: narrow with query." }
+      : {}),
+    ...(targetResolver
+      ? {
+          targetResolution: buildSchedulesTargetResolution({
+            botSchedules: bots.schedules,
+            taskSchedules: tasks.schedules,
+          }),
+        }
       : {}),
   };
 }
