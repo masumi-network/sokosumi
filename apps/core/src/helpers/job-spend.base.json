@@ -4356,14 +4356,62 @@
     "result": {
       "threw": {
         "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "message": "P2021 on Job"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startFreeAgentJob",
+        "with": {
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\" FROM \"public\".\"workspace\" WHERE (\"public\".\"workspace\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<free hire person's workspace>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<free hire person>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<free hire person>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<free Agent>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4401,14 +4449,101 @@
     "result": {
       "threw": {
         "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "message": "P2021 on Job"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 1>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<paying person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<paying person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": ["<paying person>", "<time>", "<time>", "30000000000"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<paying person>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>", "<id 3>"],
+              ["10000000000", "20000000000"],
+              [
+                "<bucket expiring first of paying person>",
+                "<bucket expiring later of paying person>"
+              ]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4452,17 +4587,238 @@
     "result": {
       "threw": {
         "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "message": "P2021 on Job"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 2>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<paying Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<paying Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<paying Organization's member>",
+              "<paying Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<paying Organization>",
+              "<paying Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<paying Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<paying Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<paying Organization's member>",
+              "<paying Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<paying Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<paying Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<paying Organization's member>",
+              "<paying Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<paying Organization>",
+              "<paying Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<paying Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<paying Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<paying Organization's member>",
+              "<paying Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $9 ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<paying Organization>",
+              "<paying Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<paying Organization's member>",
+              "<paying Organization>"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>", "<id 3>", "<id 4>"],
+              ["10000000000", "5000000000", "15000000000"],
+              [
+                "<bucket Project credits of paying Organization>",
+                "<bucket pool soon of paying Organization>",
+                "<bucket pool later of paying Organization>"
+              ]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
         "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
         "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4": 1,
         "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4": 1,
-        "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8": 1
+        "SELECT \"public\".\"project\".\"id\" FROM \"public\".\"project\" WHERE (\"public\".\"project\".\"id\" = $1 AND \"public\".\"project\".\"workspaceId\" = $2) LIMIT $3 OFFSET $4": 1,
+        "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4511,15 +4867,43 @@
   "split: too few credits at the preflight": {
     "result": {
       "threw": {
-        "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "name": "Error",
+        "message": "Insufficient balance",
+        "status": 400
       }
     },
     "outside": [],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<short person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4556,15 +4940,71 @@
   "split: too few credits at commit": {
     "result": {
       "threw": {
-        "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "name": "Error",
+        "message": "Insufficient balance",
+        "status": 400
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 3>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<drained person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<drained person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4573,11 +5013,33 @@
           "id": "<bucket only bucket of drained person>",
           "amount": "30000000000",
           "projectId": null,
-          "consumptions": []
+          "consumptions": [
+            {
+              "amount": "10000000000",
+              "transactionId": "<spend elsewhere>"
+            }
+          ]
         }
       ],
-      "transactions": [],
-      "consumptions": [],
+      "transactions": [
+        {
+          "id": "<spend elsewhere>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "-10000000000",
+          "userId": "<drained person>",
+          "organizationId": null
+        }
+      ],
+      "consumptions": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "amount": "10000000000",
+          "bucketId": "<bucket only bucket of drained person>",
+          "transactionId": "<spend elsewhere>"
+        }
+      ],
       "jobs": [],
       "agents": [
         {
@@ -4592,24 +5054,75 @@
       "sokoBots": []
     },
     "debit": {
-      "uuidVersions": [],
-      "timesWithinTheCall": [],
-      "bucketsInIdOrder": []
+      "uuidVersions": ["4", "4"],
+      "timesWithinTheCall": [true, true, true],
+      "bucketsInIdOrder": [["<bucket only bucket of drained person>"]]
     },
     "receiptTimesAfterTheDebit": []
   },
   "split: the bucket read short after the balance read": {
     "result": {
       "threw": {
-        "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "name": "InsufficientBalanceError",
+        "message": "Insufficient balance: tried to consume 30000000000 but only 10000000000 available"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 4>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": ["<overstated person>", "<time>", "<time>", "30000000000"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4648,21 +5161,189 @@
       {
         "threw": {
           "name": "PrismaClientKnownRequestError",
-          "message": "P2021 on CreditCost"
+          "message": "P2021 on Job"
         }
       },
       {
         "threw": {
           "name": "PrismaClientKnownRequestError",
-          "message": "P2021 on CreditCost"
+          "message": "P2021 on Job"
         }
       }
     ],
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 5>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      },
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 6>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<first holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<first holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<first holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<first holds person>",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<first holds person>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>"],
+              ["30000000000"],
+              ["<bucket only bucket of first holds person>"]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<first holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<first holds person>",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 3>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<first holds person>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 3>",
+              ["<id 4>"],
+              ["30000000000"],
+              ["<bucket only bucket of first holds person>"]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 3>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 2
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 2,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 2,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 2,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 2,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 2
       }
     },
     "rows": {
@@ -4701,21 +5382,189 @@
       {
         "threw": {
           "name": "PrismaClientKnownRequestError",
-          "message": "P2021 on CreditCost"
+          "message": "P2021 on Job"
         }
       },
       {
         "threw": {
           "name": "PrismaClientKnownRequestError",
-          "message": "P2021 on CreditCost"
+          "message": "P2021 on Job"
         }
       }
     ],
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 7>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      },
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 8>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<second holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<second holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<second holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<second holds person>",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<second holds person>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>"],
+              ["30000000000"],
+              ["<bucket only bucket of second holds person>"]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<second holds person>", "<time>", "<time>"]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<second holds person>",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 3>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<second holds person>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 3>",
+              ["<id 4>"],
+              ["30000000000"],
+              ["<bucket only bucket of second holds person>"]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 3>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 2
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 2,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 2,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 2,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 2,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 2,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 2
       }
     },
     "rows": {
@@ -4753,14 +5602,98 @@
     "result": {
       "threw": {
         "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "message": "P2021 on Job"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 9>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<Task owner>", "<time>", "<time>"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": ["<Task owner>", "<time>", "<time>"]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"userId\" = $1 AND cb.\"organizationId\" IS NULL AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $3) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $4 ORDER BY \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": ["<Task owner>", "<time>", "<time>", "30000000000"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<Task owner>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>"],
+              ["30000000000"],
+              ["<bucket only bucket of Task owner>"]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
-        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4803,17 +5736,237 @@
     "result": {
       "threw": {
         "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "message": "P2021 on Job"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 10>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<deciding Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<deciding Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<deciding Organization's member>",
+              "<deciding Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<deciding Organization>",
+              "<deciding Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<deciding Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<deciding Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<deciding Organization's member>",
+              "<deciding Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<deciding Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<deciding Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<deciding Organization's member>",
+              "<deciding Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<deciding Organization>",
+              "<deciding Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<deciding Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<deciding Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<deciding Organization's member>",
+              "<deciding Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $9 ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<deciding Organization>",
+              "<deciding Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<deciding Organization's member>",
+              "<deciding Organization>"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>", "<id 3>", "<id 4>"],
+              ["10000000000", "5000000000", "15000000000"],
+              [
+                "<bucket Project credits of deciding Organization>",
+                "<bucket pool soon of deciding Organization>",
+                "<bucket pool later of deciding Organization>"
+              ]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
         "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
         "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4": 1,
         "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4": 1,
-        "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8": 1
+        "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {
@@ -4868,17 +6021,237 @@
     "result": {
       "threw": {
         "name": "PrismaClientKnownRequestError",
-        "message": "P2021 on CreditCost"
+        "message": "P2021 on Job"
       }
     },
-    "outside": [],
+    "outside": [
+      {
+        "call": "startPaidAgentJob",
+        "with": {
+          "identifierFromPurchaser": "<purchaser identifier 11>",
+          "inputData": {
+            "prompt": "hello"
+          }
+        }
+      }
+    ],
     "statements": {
-      "transactions": [],
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<failed attachment Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<failed attachment Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<failed attachment Organization's member>",
+              "<failed attachment Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<failed attachment Organization>",
+              "<failed attachment Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ],
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<failed attachment Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<failed attachment Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<failed attachment Organization's member>",
+              "<failed attachment Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<failed attachment Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<failed attachment Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<failed attachment Organization's member>",
+              "<failed attachment Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<failed attachment Organization>",
+              "<failed attachment Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<failed attachment Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<failed attachment Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<failed attachment Organization's member>",
+              "<failed attachment Organization>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $9 ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<failed attachment Organization>",
+              "<failed attachment Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>",
+              "30000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ($1, $2, $3, $4, $5, $6)",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-30000000000",
+              "<failed attachment Organization's member>",
+              "<failed attachment Organization>"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") SELECT c.id, $1::timestamp(3), c.amount, c.\"bucketId\", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, \"bucketId\")",
+            "values": [
+              "<time>",
+              "<id 1>",
+              ["<id 2>", "<id 3>", "<id 4>"],
+              ["10000000000", "5000000000", "15000000000"],
+              [
+                "<bucket Project credits of failed attachment Organization>",
+                "<bucket pool soon of failed attachment Organization>",
+                "<bucket pool later of failed attachment Organization>"
+              ]
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE (\"public\".\"Transaction\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
       "outsideTransactions": {
+        "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17": 1,
+        "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1,
+        "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5": 1,
+        "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1": 1,
+        "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2": 1,
         "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1": 1,
+        "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2": 1,
         "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4": 1,
         "SELECT \"public\".\"member\".\"id\", \"public\".\"member\".\"userId\", \"public\".\"member\".\"organizationId\", \"public\".\"member\".\"role\", \"public\".\"member\".\"seatAssignedAt\", \"public\".\"member\".\"createdAt\" FROM \"public\".\"member\" WHERE ((\"public\".\"member\".\"userId\" = $1 AND \"public\".\"member\".\"organizationId\" = $2) AND 1=1) LIMIT $3 OFFSET $4": 1,
-        "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8": 1
+        "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8": 1,
+        "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
       }
     },
     "rows": {

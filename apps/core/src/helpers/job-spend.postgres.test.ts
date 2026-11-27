@@ -19,9 +19,19 @@
  * transaction on the same database can make the hire retry, and a retry is
  * a second transaction in the statements.
  *
- * On the split layout a hire stops at its credit cost read, which goes
- * through the shared client (ticket 25), before any charge. `origin/main`
- * stops at the same statement, with the same rows.
+ * The `split:` keys are not a comparison with `origin/main`. There
+ * `origin/main` stopped at its credit cost read, on the shared client,
+ * before the seller. Since the hire's Agent lookup reads through the
+ * catalog's Mainnet scope, they record what head does on a layout that is
+ * not deployed, re-recorded on head with the same command and the split
+ * layout's schema names.
+ *
+ * Hazard, until ticket 25 moves the Job write: on the split layout a hire
+ * now reaches the seller (`startFreeAgentJob` / `startPaidAgentJob`), then
+ * fails at the Job write in the shared transaction, which rolls back. The
+ * seller's job is left running and untracked. "reaches the seller, then
+ * fails at the Job write" below pins exactly that, so ticket 25 changes it
+ * on purpose.
  */
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -994,6 +1004,29 @@ describe.skipIf(!enabled)(
       CASE_TIMEOUT,
     );
 
+    // The hazard named at the top of this file, until ticket 25.
+    it.runIf(onSplitLayout)(
+      "reaches the seller, then fails at the Job write, on the split layout",
+      async () => {
+        const payer = await person("split hazard person", [
+          { name: "only bucket", cents: 5n * CREDIT, expiresInDays: 20 },
+        ]);
+        outside.calls = [];
+        await expect(hire(payer, "paid")).rejects.toThrow("P2021 on Job");
+        expect(outside.calls.map(({ call }) => call)).toEqual([
+          "startPaidAgentJob",
+        ]);
+        const left = await rows(payer);
+        expect(left.jobs).toEqual([]);
+        expect(left.transactions).toEqual([]);
+        expect(left.consumptions).toEqual([]);
+        expect(left.buckets.map((bucket) => bucket.amount)).toEqual([
+          5n * CREDIT,
+        ]);
+      },
+      CASE_TIMEOUT,
+    );
+
     it(
       "charges a seated member's paid hire to the Job's Project, then the pool",
       async () => {
@@ -1181,7 +1214,7 @@ describe.skipIf(!enabled)(
       CASE_TIMEOUT,
     );
 
-    // Not recorded: on the split layout a hire stops before its charge.
+    // Not recorded: on the split layout a hire fails at its Job write.
     it.skipIf(onSplitLayout)(
       "keeps a hire paid by the bot's Project and the pool in that Project's history, for a Job with no Project",
       async () => {
