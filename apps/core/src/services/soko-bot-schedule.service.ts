@@ -439,7 +439,7 @@ export async function createSokoBotSchedule(
     }
     return tx.sokoBotSchedule.create({
       data: {
-        ...(await networkStamp(input.network)),
+        ...(await networkStamp(input.network, tx)),
         ...(scheduleId ? { id: scheduleId } : {}),
         sokoBotId: bot.id,
         requestedByUserId: input.userId,

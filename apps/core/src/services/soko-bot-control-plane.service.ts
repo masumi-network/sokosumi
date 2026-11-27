@@ -2918,7 +2918,7 @@ export class SokoBotControlPlane {
         });
         const created = await tx.sokoBotTurn.create({
           data: {
-            ...(await networkStamp(input.network)),
+            ...(await networkStamp(input.network, tx)),
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,

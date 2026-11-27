@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { v7 as uuidv7 } from "uuid";
 
@@ -44,12 +45,22 @@ export type PreprodControl =
 
 type KnownPreprodControl = Exclude<PreprodControl, { state: "unavailable" }>;
 
+/** A stored value the reader does not accept. */
+class InvalidPreprodControlError extends Error {}
+
 /** One statement for both rows. Throws on a failed read or an invalid value. */
 async function readControl(db: DbClient): Promise<KnownPreprodControl> {
-  const rows = await db.syncMetadata.findMany({
-    where: { key: { in: [PREPROD_PAUSE_KEY, PREPROD_GENERATION_KEY] } },
-    select: { key: true, cursorId: true },
-  });
+  return controlOf(
+    await db.syncMetadata.findMany({
+      where: { key: { in: [PREPROD_PAUSE_KEY, PREPROD_GENERATION_KEY] } },
+      select: { key: true, cursorId: true },
+    }),
+  );
+}
+
+function controlOf(
+  rows: { key: string; cursorId: string | null }[],
+): KnownPreprodControl {
   const row = (key: string) => rows.find((candidate) => candidate.key === key);
   const stored = row(PREPROD_GENERATION_KEY);
   // 0 only for a missing row: a row with no or other text is not a count.
@@ -61,7 +72,7 @@ async function readControl(db: DbClient): Promise<KnownPreprodControl> {
       Number.isSafeInteger(generation)
     )
   ) {
-    throw new Error(
+    throw new InvalidPreprodControlError(
       `Preprod generation is not a count: ${JSON.stringify(stored.cursorId)}`,
     );
   }
@@ -78,16 +89,17 @@ export async function readPreprodControl(): Promise<PreprodControl> {
   } catch (error) {
     recordCoreError(
       { operation: "read_preprod_control" },
-      {
-        message: "Could not read the Preprod pause and generation",
-        why: "The database read failed, or a stored value is not valid",
-        fix: `Preprod work waits until the read works. Read error.cause; check the ${PREPROD_PAUSE_KEY} and ${PREPROD_GENERATION_KEY} rows in sync_metadata.`,
-        cause: error,
-      },
+      { ...UNREADABLE, cause: error },
     );
     return { state: "unavailable" };
   }
 }
+
+const UNREADABLE = {
+  message: "Could not read the Preprod pause and generation",
+  why: "The database read failed, or a stored value is not valid",
+  fix: `Preprod work waits until the read works. Read error.cause; check the ${PREPROD_PAUSE_KEY} and ${PREPROD_GENERATION_KEY} rows in sync_metadata.`,
+};
 
 /**
  * The `network` of a new row that work resumes from later (a Soko Bot turn,
@@ -95,18 +107,43 @@ export async function readPreprodControl(): Promise<PreprodControl> {
  * starts under. A Mainnet row gets no generation and reads nothing. A Preprod
  * row is written only while Preprod is open: paused or unavailable throws a
  * retryable 503, so no Preprod row exists without its generation.
+ *
+ * `tx` is the transaction that writes the row. The read locks both control
+ * rows `FOR SHARE` in it until that write commits, and a pause or a raise
+ * locks the pause row `FOR UPDATE`, so they run in a defined order: the row
+ * commits before the pause or raise, or its write sees them. A database
+ * error is not caught: the transaction's own retry and error rules apply.
  */
 export async function networkStamp(
   network: Network,
+  tx: Prisma.TransactionClient,
 ): Promise<{ network: Network; preprodGeneration?: number }> {
   if (network === "mainnet") return { network };
-  const control = await readPreprodControl();
-  if (control.state !== "open") {
-    throw serviceUnavailable(
-      control.state === "paused"
-        ? "Preprod is paused; try again later"
-        : "Preprod's state could not be read; try again later",
+  let control: KnownPreprodControl;
+  try {
+    control = controlOf(
+      await tx.$queryRaw<{ key: string; cursorId: string | null }[]>`
+        SELECT "key", "cursorId" FROM ${sharedTable("sync_metadata")}
+        WHERE "key" IN (${PREPROD_PAUSE_KEY}, ${PREPROD_GENERATION_KEY})
+        FOR SHARE`,
     );
+  } catch (error) {
+    if (!(error instanceof InvalidPreprodControlError)) throw error;
+    recordCoreError(
+      { operation: "read_preprod_control" },
+      { ...UNREADABLE, cause: error },
+    );
+    // Recorded above; a planned refusal is no Sentry Issue.
+    throw serviceUnavailable(
+      "Preprod's state could not be read; try again later",
+      { reportToSentry: false },
+    );
+  }
+  if (control.state !== "open") {
+    // An operator's pause: planned, so no Sentry Issue.
+    throw serviceUnavailable("Preprod is paused; try again later", {
+      reportToSentry: false,
+    });
   }
   return { network, preprodGeneration: control.generation };
 }
@@ -182,11 +219,18 @@ export function setPreprodPaused(input: {
  * gives 1. One statement under the row's lock, so two raises at once give two
  * numbers. A stored value the reader would not accept (not canonical decimal
  * text, or at the safe-integer limit) is left as it is, and the raise throws.
+ * The pause row is locked first, as a pause locks it, so a Preprod row being
+ * written (`networkStamp`) commits before the raise or sees the new number.
  * Called by the wipe (ticket 41), by no route.
  */
 export async function raisePreprodGeneration(): Promise<number> {
-  // The CASE keeps the cast from running on text that is not a count.
-  const [row] = await prisma.$queryRaw<{ generation: string }[]>`
+  const [row] = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT 1 FROM ${sharedTable("sync_metadata")}
+      WHERE "key" = ${PREPROD_PAUSE_KEY}
+      FOR UPDATE`;
+    // The CASE keeps the cast from running on text that is not a count.
+    return tx.$queryRaw<{ generation: string }[]>`
     INSERT INTO ${sharedTable("sync_metadata")} AS m ("id", "key", "cursorId", "lastSyncedAt", "updatedAt")
     VALUES (
       ${uuidv7()},
@@ -205,6 +249,7 @@ export async function raisePreprodGeneration(): Promise<number> {
       ELSE false
     END
     RETURNING m."cursorId" AS generation`;
+  });
   if (!row) {
     throw new Error(
       "The stored Preprod generation is not a count; it was not raised",

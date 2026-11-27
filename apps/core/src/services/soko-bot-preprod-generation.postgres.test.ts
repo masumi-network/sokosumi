@@ -12,7 +12,10 @@
 import "@hono/zod-openapi";
 
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
+import { HTTPException } from "hono/http-exception";
 import {
   afterAll,
   afterEach,
@@ -23,7 +26,7 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
-
+import { shouldReportHttpException } from "@/helpers/error";
 import { expectCoreLog } from "@/test/core-log";
 import { recordStatements } from "@/test/record-statements";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
@@ -106,6 +109,7 @@ describe.skipIf(!enabled)(
     let createSchedule: typeof import("./soko-bot-schedule.service").createSokoBotSchedule;
     let runtime: typeof import("./soko-bot-runtime.service").sokoBotRuntimeService;
     let transactions: typeof import("@/lib/db/transaction");
+    let createPersonalWorkspace: typeof import("@/helpers/personal-workspace").createPersonalWorkspace;
     let app: InstanceType<typeof import("@/lib/hono").OpenAPIHonoWithAuth>;
     /** Both control rows before this file ran, restored after each case. */
     let savedControl: { key: string; cursorId: string | null }[] = [];
@@ -121,6 +125,9 @@ describe.skipIf(!enabled)(
       runtime = (await import("./soko-bot-runtime.service"))
         .sokoBotRuntimeService;
       transactions = await import("@/lib/db/transaction");
+      ({ createPersonalWorkspace } = await import(
+        "@/helpers/personal-workspace"
+      ));
       const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
       const mountPost = (
         await import("@/routes/v1/chats/rooms/[id]/messages/post")
@@ -183,9 +190,9 @@ describe.skipIf(!enabled)(
           updatedAt: new Date(),
         },
       });
-      const { id: workspaceId } = await prisma.workspace.create({
-        data: { userId },
-      });
+      // The product's own creation path, so the workspace has its Files
+      // vocabulary (`workspace-creation-chokepoint.test.ts`).
+      const { id: workspaceId } = await createPersonalWorkspace(userId);
       const bot = await prisma.sokoBot.create({
         data: { userId, workspaceId },
       });
@@ -211,6 +218,9 @@ describe.skipIf(!enabled)(
           }
           await tx.chatRoom.delete({ where: { id: room.id } });
           await tx.task.deleteMany({ where: { workspaceId } });
+          // The free plan `createPersonalWorkspace` grants is not tied to
+          // the user.
+          await tx.subscription.deleteMany({ where: { referenceId: userId } });
           await tx.user.delete({ where: { id: userId } });
         });
       });
@@ -416,7 +426,7 @@ describe.skipIf(!enabled)(
     // flag. On the split layout the classifier and the context packet still
     // read Agent, Job and Project-to-Job through the shared client (ticket 30).
     it.skipIf(onSplitLayout)(
-      "stamps the current generation on a Preprod turn",
+      "stamps the current generation on a Preprod turn (on the split layout this waits for ticket 30: startTurn reads Agent through the shared client)",
       async () => {
         const fixture = await seed();
         await writeControl("open", "3");
@@ -494,9 +504,15 @@ describe.skipIf(!enabled)(
           await expect(
             prisma.chatRoomMessage.count({ where: { roomId: fixture.roomId } }),
           ).resolves.toBe(0);
-          await expect(schedule(fixture, "preprod")).rejects.toMatchObject({
-            status: 503,
-          });
+          const refusal = await schedule(fixture, "preprod").catch(
+            (error: unknown) => error,
+          );
+          expect(refusal).toBeInstanceOf(HTTPException);
+          expect((refusal as HTTPException).status).toBe(503);
+          // Planned: the error handler sends no Sentry Issue for it.
+          expect(shouldReportHttpException(refusal as HTTPException)).toBe(
+            false,
+          );
           await expect(
             prisma.sokoBotSchedule.count({
               where: { sokoBotId: fixture.bot.id, systemKey: null },
@@ -506,6 +522,121 @@ describe.skipIf(!enabled)(
           expect((await postMention(fixture)).status).toBe(201);
         },
       );
+
+      /** Sessions of this database waiting on a lock. */
+      async function untilWaiting(count: number) {
+        for (let attempt = 0; attempt < 500; attempt += 1) {
+          const [row] = await prisma.$queryRaw<{ waiting: number }[]>`
+            SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND cardinality(pg_blocking_pids(pid)) > 0`;
+          if ((row?.waiting ?? 0) >= count) return;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        throw new Error(`Fewer than ${count} sessions waited on a lock`);
+      }
+
+      /**
+       * A second session holding `lock` until `release`: the first session's
+       * write waits behind it.
+       */
+      async function holdOpen(
+        lock: (tx: Prisma.TransactionClient) => Promise<unknown>,
+      ) {
+        let locked!: () => void;
+        const isLocked = new Promise<void>((resolve) => {
+          locked = resolve;
+        });
+        let release!: () => void;
+        const released = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const holder = prisma.$transaction(
+          async (tx) => {
+            await lock(tx);
+            locked();
+            await released;
+          },
+          { timeout: 30_000 },
+        );
+        await Promise.race([isLocked, holder]);
+        return async () => {
+          release();
+          await holder;
+        };
+      }
+
+      /** Holds back the schedule INSERT, after its stamp read the control. */
+      const holdScheduleInserts = () =>
+        holdOpen(
+          (tx) =>
+            tx.$executeRaw`LOCK TABLE ${sharedTable("soko_bot_schedule")} IN SHARE MODE`,
+        );
+
+      it("lets a pause wait for a Preprod row being written, which keeps the generation it read", async () => {
+        const fixture = await seed();
+        await writeControl("open", "3");
+        const release = await holdScheduleInserts();
+        const creating = schedule(fixture, "preprod");
+        void creating.catch(() => {});
+        await untilWaiting(1);
+        const pausing = control.setPreprodPaused({
+          paused: true,
+          operatorId: fixture.userId,
+          reason: "Pause during a write",
+        });
+        void pausing.catch(() => {});
+        // The pause waits for the row's lock on the control.
+        await untilWaiting(2);
+        await release();
+        await expect(creating).resolves.toMatchObject({
+          network: "preprod",
+          preprodGeneration: 3,
+        });
+        await expect(pausing).resolves.toMatchObject({ paused: true });
+      });
+
+      it("refuses a Preprod row once a pause in flight commits", async () => {
+        const fixture = await seed();
+        await writeControl("open", "3");
+        // The pause's own statements, held before their commit.
+        const release = await holdOpen(async (tx) => {
+          await tx.$queryRaw`
+            SELECT 1 FROM ${sharedTable("sync_metadata")}
+            WHERE "key" = ${control.PREPROD_PAUSE_KEY} FOR UPDATE`;
+          await tx.syncMetadata.update({
+            where: { key: control.PREPROD_PAUSE_KEY },
+            data: { cursorId: "paused" },
+          });
+        });
+        const creating = schedule(fixture, "preprod");
+        void creating.catch(() => {});
+        await untilWaiting(1);
+        await release();
+        await expect(creating).rejects.toMatchObject({ status: 503 });
+        await expect(
+          prisma.sokoBotSchedule.count({
+            where: { sokoBotId: fixture.bot.id, systemKey: null },
+          }),
+        ).resolves.toBe(0);
+      });
+
+      it("lets a raise wait for a Preprod row being written", async () => {
+        const fixture = await seed();
+        await writeControl("open", "3");
+        const release = await holdScheduleInserts();
+        const creating = schedule(fixture, "preprod");
+        void creating.catch(() => {});
+        await untilWaiting(1);
+        const raising = control.raisePreprodGeneration();
+        void raising.catch(() => {});
+        await untilWaiting(2);
+        await release();
+        await expect(creating).resolves.toMatchObject({
+          preprodGeneration: 3,
+        });
+        await expect(raising).resolves.toBe(4);
+      });
     });
   },
 );

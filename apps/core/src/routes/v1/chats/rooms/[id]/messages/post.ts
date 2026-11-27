@@ -395,7 +395,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // without mentions writes no Network row.
         const mentionStamp =
           mentionedCoworkerIds.length + mentionedSokoBotIds.length > 0
-            ? await networkStamp(c.var.networkScope.network)
+            ? await networkStamp(c.var.networkScope.network, tx)
             : undefined;
         const message = await tx.chatRoomMessage.create({
           data: {

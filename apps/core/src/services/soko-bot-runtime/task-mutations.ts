@@ -184,7 +184,7 @@ export async function applyTaskMutation(
       };
       await tx.sokoBotDelegation.create({
         data: {
-          ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+          ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
           turnId: authorized.turn.id,
           toolCallId,
           kind: "TASK",
@@ -274,7 +274,7 @@ export async function applyTaskMutation(
     };
     await tx.sokoBotDelegation.create({
       data: {
-        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -404,7 +404,7 @@ export async function assignTask(
         : undefined;
     await tx.sokoBotDelegation.create({
       data: {
-        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",

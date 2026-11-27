@@ -289,7 +289,7 @@ export async function postChat(
         select: { id: true, createdAt: true },
       });
       if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
-        const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK);
+        const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx);
         await tx.chatRoomMention.createMany({
           data: [
             ...mentionedCoworkerIds.map((coworkerId) => ({

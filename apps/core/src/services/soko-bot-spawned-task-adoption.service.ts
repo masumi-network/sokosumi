@@ -84,7 +84,11 @@ export async function adoptCoworkerSpawnedTasks(
     );
     const byBot = new Map(running.map((p) => [p.turn.sokoBotId, p.turnId]));
     if (!byBot.size) continue;
-    const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK);
+    // Mainnet by name today: the stamp reads and locks nothing.
+    // shortcut: no transaction here, so a Preprod lock would end with its
+    // own statement; when slice 5 passes the turn's Network, open one
+    // transaction for the stamp and this createMany.
+    const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK, prisma);
     const created = await prisma.sokoBotDelegation.createMany({
       data: Array.from(byBot.values(), (turnId) => ({
         ...stamp,

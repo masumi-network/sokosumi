@@ -242,7 +242,7 @@ export async function applyDecision(
             } else {
               await tx.sokoBotDelegation.create({
                 data: {
-                  ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+                  ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
                   turnId: decision.turnId,
                   toolCallId: decisionToolCallId,
                   kind: "JOB",
@@ -415,7 +415,7 @@ export async function applyDecision(
           } else {
             await tx.sokoBotDelegation.create({
               data: {
-                ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+                ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
                 turnId: decision.turnId,
                 toolCallId: decisionToolCallId,
                 kind: "JOB",

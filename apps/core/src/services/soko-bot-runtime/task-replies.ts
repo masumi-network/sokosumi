@@ -138,7 +138,7 @@ export async function updateAssignedTask(
     });
     await tx.sokoBotDelegation.create({
       data: {
-        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -328,7 +328,7 @@ export async function replyToTask(
     const status = nextStatus ?? task.status;
     await tx.sokoBotDelegation.create({
       data: {
-        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",

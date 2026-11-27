@@ -4,8 +4,10 @@ import {
   createSqlTables,
   sqlTableLayoutFromEnv,
 } from "@sokosumi/database/sql-tables";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 
+import { createPersonalWorkspace } from "@/helpers/personal-workspace";
+import prisma from "@/lib/db/prisma";
 import { withFixtureSchemas } from "@/test/split-layout";
 
 const enabled =
@@ -32,6 +34,26 @@ class Rollback extends Error {}
 
 describe.skipIf(!enabled)("Preprod generation migration", () => {
   it("adds nullable columns without a default, rewrites no row, checks the mention's Network, and runs twice", async () => {
+    // The owner and its personal workspace through the product's creation
+    // path, committed before the disposable transaction and removed after.
+    const userId = randomUUID();
+    await prisma.user.create({
+      data: {
+        id: userId,
+        name: "Old mention owner",
+        email: `${userId}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      select: { id: true },
+    });
+    onTestFinished(async () => {
+      // The free plan `createPersonalWorkspace` grants is not tied to the user.
+      await prisma.subscription.deleteMany({ where: { referenceId: userId } });
+      await prisma.user.delete({ where: { id: userId } });
+    });
+    const { id: workspaceId } = await createPersonalWorkspace(userId);
     await withFixtureSchemas(async (tx) => {
       // The old layout on the disposable worker database; the rollback puts
       // the columns, rows and catalog back after the test.
@@ -42,22 +64,6 @@ describe.skipIf(!enabled)("Preprod generation migration", () => {
         ALTER TABLE ${sharedTable("chat_room_mention")}
           DROP COLUMN "network", DROP COLUMN "preprodGeneration"`;
 
-      const userId = randomUUID();
-      await tx.user.create({
-        data: {
-          id: userId,
-          name: "Old mention owner",
-          email: `${userId}@example.test`,
-          emailVerified: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        select: { id: true },
-      });
-      const { id: workspaceId } = await tx.workspace.create({
-        data: { userId },
-        select: { id: true },
-      });
       const { id: sokoBotId } = await tx.sokoBot.create({
         data: { userId, workspaceId },
         select: { id: true },
