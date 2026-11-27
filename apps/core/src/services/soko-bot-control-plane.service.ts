@@ -115,11 +115,13 @@ import {
   adminRetryOperationKey,
   redactAdminPresentation,
 } from "@/lib/soko-bot/admin-action-record";
+import { SOKO_BOT_HIREABLE_AGENT_WHERE } from "@/lib/soko-bot/agent-search";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
 import {
   type ClassificationResult,
   JevTurnClassifier,
   presetClassificationResult,
+  runnableRoutesForMenu,
   storedWriteScope,
   type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
@@ -2521,6 +2523,18 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
+    // Keel menu rule (E1, gated by version.routeSteering): filter Jev's route
+    // options to what this bot and workspace can actually run before asking
+    // Jev, then re-check the pick against live availability before acting.
+    const menuCapabilities = input.chat?.askedByBot
+      ? SOKO_BOT_BOT_TO_BOT_CAPABILITIES
+      : applyVersionCapabilities(version, SOKO_BOT_CAPABILITIES);
+    const availableRoutes = version.routeSteering
+      ? runnableRoutesForMenu({
+          capabilities: menuCapabilities,
+          hasAgents: classifierContext.agentIds.length > 0,
+        })
+      : undefined;
     const classification: ClassificationResult = input.presetRoute
       ? presetClassificationResult(message, input.presetRoute)
       : await withEvaluationActor(
@@ -2528,6 +2542,7 @@ export class SokoBotControlPlane {
           () =>
             this.classifier.classify(input.chat?.classifyMessage ?? message, {
               ...classifierContext,
+              ...(availableRoutes ? { availableRoutes } : {}),
               previousReply:
                 previousTurn?.status === "COMPLETED"
                   ? previousTurn.finalAnswer
@@ -2551,6 +2566,50 @@ export class SokoBotControlPlane {
               })),
             }),
         );
+    if (availableRoutes && !input.presetRoute) {
+      const selectedIntent = classification.classification.selectedIntentId
+        ? pendingIntents.find(
+            (intent) =>
+              intent.id === classification.classification.selectedIntentId,
+          )
+        : undefined;
+      const selectedRoute =
+        selectedIntent?.originatingTurn.route ??
+        classification.classification.route;
+      const liveRoutes =
+        selectedRoute === "HIRE_AGENT"
+          ? runnableRoutesForMenu({
+              capabilities: menuCapabilities,
+              hasAgents:
+                (
+                  await prisma.agent.findMany({
+                    where: SOKO_BOT_HIREABLE_AGENT_WHERE,
+                    select: { id: true },
+                    take: 1,
+                  })
+                ).length > 0,
+            })
+          : availableRoutes;
+      if (!liveRoutes.includes(selectedRoute)) {
+        const {
+          selectedIntentId: _selectedIntentId,
+          continuation: _continuation,
+          writeScope: _writeScope,
+          candidateTaskIds: _candidateTaskIds,
+          ...rest
+        } = classification.classification;
+        classification.classification = {
+          ...rest,
+          route: "CLARIFY",
+          confidence: 0,
+          requiresClarification: true,
+          requiresApproval: false,
+          abstained: true,
+          menuRoutes: liveRoutes,
+          rationaleSummary: `Host re-check rejected unavailable route (${selectedRoute}); reads only.`,
+        };
+      }
+    }
     // Every Task the name matches is a candidate. Several matches used to
     // force CLARIFY, which turned "archive all my [TEST] tasks" into a
     // question; the bot sees the candidates and asks only when the owner
@@ -2771,6 +2830,7 @@ export class SokoBotControlPlane {
       classification: classification.classification,
       personAsked,
       extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
+      routeSteering: version.routeSteering === true,
       capturedPreference,
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:

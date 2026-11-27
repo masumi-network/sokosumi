@@ -44,6 +44,19 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * E1 route steering (Option D + keel menu rule):
+   * - Filters Jev's route menu to routes the workspace and version can
+   *   actually run before asking Jev, re-checks Jev's pick against that menu,
+   *   and falls back cleanly on abstain, invalid, or stale picks.
+   * - Omits trigger.route, trigger.confidence, trigger.unsureRoute, and
+   *   version.skillOccasions from model-facing context (opening prompt and
+   *   refresh_context) on foreground human chat turns, replacing the legacy
+   *   route table with one Act-vs-Ask rule while Core gates remain the source
+   *   of truth.
+   * Autonomous turns and versions without this flag stay unchanged.
+   */
+  routeSteering?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

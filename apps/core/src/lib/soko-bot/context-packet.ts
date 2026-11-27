@@ -41,6 +41,10 @@ import {
   contextPacketScope,
 } from "./context-packet-scope";
 import { SOKO_BOT_JOB_STATUS_SELECT, sokoBotJobStatus } from "./job-status";
+import {
+  classificationForPacketSizing,
+  WORK_PRELOAD_ROUTES,
+} from "./route-preload";
 import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
@@ -129,6 +133,8 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   personAsked?: boolean;
   /** State Core holds for this turn, such as an open account question. */
   extraHints?: readonly string[];
+  /** E1 route steering: carry work preload signal into packet sizing without changing trigger.route. */
+  routeSteering?: boolean;
   /** The lasting preference saved from this message before the turn. */
   capturedPreference?: string | null;
   /** The message as the classifier read it: Cuso's organizer picks from it. */
@@ -694,21 +700,23 @@ export class ContextPacketBuilder {
       projectId: input.sharedScope?.projectId,
       tx: prisma,
     });
+    const sizing = classificationForPacketSizing(input);
     // A small packet (v38) shows what the turn's kind needs; the map counts
-    // the rest.
+    // the rest. Under E1 routeSteering, `sizing` carries the work preload
+    // signal into the compact board without altering stored `trigger.route`.
     const plan = input.onDemand
       ? sokoBotPacketPlan(
           sokoBotPacketKind({
             source: input.source,
             scheduleKey: await scheduleKeyOf(input),
           }),
-          input.classification,
+          sizing,
         )
       : null;
     // Only routes that can hire carry the marketplace; the count still goes in.
     const hiring = plan
       ? plan.agents > 0
-      : MARKETPLACE_ROUTES.has(input.classification.route);
+      : MARKETPLACE_ROUTES.has(sizing.route);
     const agentsPromise = listHireableAgents(
       hiring ? (plan?.agents ?? LIMITS.agents) : 0,
     );
@@ -716,10 +724,16 @@ export class ContextPacketBuilder {
     const scope = contextPacketScope(input);
     const { askedByKind } = scope;
     // The bot can list Tasks itself; a message about something else leaves
-    // their room to the conversation.
+    // their room to the conversation. Under E1 routeSteering, a split work
+    // vote keeps the full board allowance instead of shrinking as off-topic.
+    const preloadWorkBoard =
+      input.routeSteering === true &&
+      input.personAsked === true &&
+      WORK_PRELOAD_ROUTES.has(sizing.route);
     const taskLimit = plan
       ? plan.waitingTasks + plan.tasks + LIMITS.tasks
       : input.personAsked &&
+          !preloadWorkBoard &&
           (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
         ? OFF_TOPIC_TASKS
         : LIMITS.tasks;

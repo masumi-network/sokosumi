@@ -3084,6 +3084,74 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(openOwnerRoomMock).not.toHaveBeenCalled();
   });
 
+  it("rechecks live agent availability with the marketplace predicate when the last agent goes offline during classification", async () => {
+    const versions = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const { SOKO_BOT_HIREABLE_AGENT_WHERE } = await import(
+      "@/lib/soko-bot/agent-search"
+    );
+    const pin = vi
+      .spyOn(versions, "resolveRunnableSokoBotVersion")
+      .mockResolvedValue({
+        ...getSokoBotVersion("v36"),
+        routeSteering: true,
+      });
+    onTestFinished(() => pin.mockRestore());
+    agentFindManyMock.mockResolvedValue([
+      { id: "agent-review", name: "Reviewer" },
+    ]);
+    jevEvaluate.mockImplementation(async (request) => {
+      expect(request.questions.route.criteria).toHaveProperty("HIRE_AGENT");
+      // Last hireable agent goes offline while Jev is deciding.
+      agentFindManyMock.mockResolvedValue([]);
+      return jevRoute("HIRE_AGENT");
+    });
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "turn_scheduled",
+      leaseToken: "turn_lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_scheduled",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    const contextBuilder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+
+    await new SokoBotControlPlane(
+      runtime,
+      contextBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      network: "mainnet",
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-scheduled",
+      message: "Hire a marketplace agent to produce the competitor teardown.",
+      source: "SCHEDULE",
+    });
+
+    expect(jevEvaluate).toHaveBeenCalledTimes(1);
+    expect(agentFindManyMock).toHaveBeenCalledTimes(2);
+    expect(agentFindManyMock.mock.calls[0]?.[0]?.where).toEqual(
+      SOKO_BOT_HIREABLE_AGENT_WHERE,
+    );
+    expect(agentFindManyMock.mock.calls[1]?.[0]?.where).toEqual(
+      SOKO_BOT_HIREABLE_AGENT_WHERE,
+    );
+    const written = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(written.route).toBe("CLARIFY");
+    expect(written.classification.abstained).toBe(true);
+    expect(written.classification.menuRoutes).not.toContain("HIRE_AGENT");
+    expect(written.capabilityNames).not.toContain("hire_agent");
+  });
+
   it("grants a self-started turn the same spend it grants the owner", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("HIRE_AGENT"));
     // Withholding only `hire_agent` from scheduled turns read as a spend limit

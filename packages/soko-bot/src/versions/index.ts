@@ -43,6 +43,10 @@ import { cmoV26 } from "./cmo-v26.js";
 import { cmoV27 } from "./cmo-v27.js";
 import { readsContextOnDemand } from "./context-on-demand-skills.js";
 import {
+  applyRouteSteeringPrompt,
+  ROUTE_STEERING_ACT_OR_ASK_SECTION,
+} from "./route-steering.js";
+import {
   skillIndexSection,
   splitSkillsForTurn,
   turnSkillsSection,
@@ -209,7 +213,12 @@ export function cmoWhatsNew(
 }
 
 export type { SokoBotSkill, SokoBotVersion };
-export { getSokoBotSkill, SOKO_BOT_SKILLS };
+export {
+  applyRouteSteeringPrompt,
+  getSokoBotSkill,
+  ROUTE_STEERING_ACT_OR_ASK_SECTION,
+  SOKO_BOT_SKILLS,
+};
 
 export function getSokoBotVersion(
   id: string | null | undefined,
@@ -295,9 +304,12 @@ export function composeSystemPrompt(
   turn?: SokoBotPromptTurn,
 ): string {
   const perBot = version.skillsOnDemand ? [] : personaPrompt(version, persona);
+  const basePrompt = version.routeSteering
+    ? applyRouteSteeringPrompt(version.systemPrompt)
+    : version.systemPrompt.trim();
   return [
     ...perBot.slice(0, 1),
-    version.systemPrompt.trim(),
+    basePrompt,
     ...systemSkillsPrompt(version, turn),
     ...perBot.slice(1),
   ].join("\n\n");

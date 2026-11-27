@@ -1080,6 +1080,53 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.trigger.unsureRoute).toBe("MANAGE_WORK");
   });
 
+  it("keeps full taskboard allowance on split work votes under routeSteering while preserving diagnostic CLARIFY and shrinking low-work/control turns", async () => {
+    const splitWork = {
+      ...CLASSIFICATION,
+      route: "CLARIFY" as const,
+      confidence: 0.12,
+      workConfidence: 0.78,
+      abstained: true as const,
+      signals: {
+        refersToEarlier: 0,
+        statesPreference: 0,
+        aboutMail: 0,
+        aboutTasks: 0.05,
+      },
+    };
+    taskFindManyMock.mockClear();
+    const steered = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: splitWork,
+      personAsked: true,
+      routeSteering: true,
+    });
+    expect(steered.packet.trigger.route).toBe("CLARIFY");
+    expect(taskFindManyMock.mock.calls[0]?.[0]?.take).toBe(18);
+
+    taskFindManyMock.mockClear();
+    await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: {
+        ...splitWork,
+        workConfidence: 0.04,
+        abstained: undefined,
+      },
+      personAsked: true,
+      routeSteering: true,
+    });
+    expect(taskFindManyMock.mock.calls[0]?.[0]?.take).toBe(2);
+
+    taskFindManyMock.mockClear();
+    await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: splitWork,
+      personAsked: true,
+      routeSteering: false,
+    });
+    expect(taskFindManyMock.mock.calls[0]?.[0]?.take).toBe(2);
+  });
+
   it("names the colleague who asked, not the owner the turn runs as", async () => {
     // `actor` is the owner on every turn, so without this the packet asserts
     // the owner is the one speaking and the bot greets them by name at
@@ -1379,5 +1426,138 @@ describe("ContextPacketBuilder on demand (v38)", () => {
       onDemand("DIRECT_RESPONSE"),
     );
     expect(small.byteSize).toBeLessThan(full.byteSize / 2);
+  });
+});
+
+describe("classificationForPacketSizing (E1 work-signal board preload)", () => {
+  it("carries a split work vote into packet sizing on routeSteering human chat turns while keeping low-work and control turns unchanged", async () => {
+    const { classificationForPacketSizing } = await import("./route-preload");
+    const splitWork = {
+      ...CLASSIFICATION,
+      route: "CLARIFY" as const,
+      confidence: 0.12,
+      workConfidence: 0.78,
+      abstained: true as const,
+      signals: {
+        refersToEarlier: 0,
+        statesPreference: 0,
+        aboutMail: 0,
+        aboutTasks: 0.05,
+      },
+    };
+    const lowWork = {
+      ...splitWork,
+      workConfidence: 0.04,
+      abstained: undefined,
+    };
+
+    expect(
+      classificationForPacketSizing({
+        classification: splitWork,
+        personAsked: true,
+        routeSteering: true,
+      }).route,
+    ).toBe("MANAGE_WORK");
+
+    expect(
+      classificationForPacketSizing({
+        classification: lowWork,
+        personAsked: true,
+        routeSteering: true,
+      }).route,
+    ).toBe("CLARIFY");
+
+    expect(
+      classificationForPacketSizing({
+        classification: splitWork,
+        personAsked: true,
+        routeSteering: false,
+      }).route,
+    ).toBe("CLARIFY");
+
+    expect(
+      classificationForPacketSizing({
+        classification: splitWork,
+        personAsked: false,
+        routeSteering: true,
+      }).route,
+    ).toBe("CLARIFY");
+  });
+
+  it("shows 16 ordinary board rows in the v39/v40 compact packet on a 0.78 split work vote under routeSteering, 0 on the 0.04 and flag-off controls, and keeps stored trigger.route as CLARIFY", async () => {
+    const activeBoard = Array.from({ length: 20 }, (_, i) => task(`open-${i}`));
+    const finishedBoard = Array.from({ length: 10 }, (_, i) => ({
+      ...task(`done-${i}`),
+      status: "COMPLETED",
+    }));
+    const mockBoardReads = () => {
+      taskFindManyMock.mockReset();
+      taskFindManyMock.mockImplementation(
+        async ({
+          where,
+          take,
+        }: {
+          where?: { status?: { in?: string[]; notIn?: string[] } };
+          take?: number;
+        }) => {
+          if (where?.status?.in?.includes("INPUT_REQUIRED")) return [];
+          if (where?.status?.in?.includes("COMPLETED"))
+            return finishedBoard.slice(0, take ?? finishedBoard.length);
+          return activeBoard.slice(0, take ?? activeBoard.length);
+        },
+      );
+    };
+
+    const splitWork = {
+      ...CLASSIFICATION,
+      route: "CLARIFY" as const,
+      confidence: 0.12,
+      workConfidence: 0.78,
+      abstained: true as const,
+      signals: {
+        refersToEarlier: 0,
+        statesPreference: 0,
+        aboutMail: 0,
+        aboutTasks: 0.05,
+      },
+    };
+    const lowWork = {
+      ...splitWork,
+      workConfidence: 0.04,
+      abstained: undefined,
+    };
+
+    mockBoardReads();
+    const steeredSplit = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      onDemand: true,
+      personAsked: true,
+      routeSteering: true,
+      classification: splitWork,
+    });
+    expect(steeredSplit.packet.tasks).toHaveLength(16);
+    expect(steeredSplit.packet.trigger.route).toBe("CLARIFY");
+
+    mockBoardReads();
+    const steeredLow = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      onDemand: true,
+      personAsked: true,
+      routeSteering: true,
+      classification: lowWork,
+    });
+    expect(steeredLow.packet.tasks).toHaveLength(0);
+    expect(steeredLow.packet.trigger.route).toBe("CLARIFY");
+
+    mockBoardReads();
+    const controlSplit = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      onDemand: true,
+      personAsked: true,
+      routeSteering: false,
+      classification: splitWork,
+    });
+    expect(controlSplit.packet.tasks).toHaveLength(0);
+    expect(controlSplit.packet.trigger.route).toBe("CLARIFY");
   });
 });

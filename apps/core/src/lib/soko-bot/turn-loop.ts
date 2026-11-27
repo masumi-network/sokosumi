@@ -538,7 +538,10 @@ export async function prepareTurn(
     (authorized.askedByKind !== "OWNER" || authorized.turn.chainDepth !== 0)
   )
     throw new Error("Evaluation requires an owner turn");
-  const context = await service.getContext({ sessionId, turnId });
+  const context = await service.getContext(
+    { sessionId, turnId },
+    { includeDiagnostics: true },
+  );
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
@@ -566,13 +569,17 @@ export async function prepareTurn(
     ? await mcpServersGuidance(authorized.turn.sokoBotId)
     : [];
   const meetingPrep = authorized.meetingPrep === true;
+  const hideRoute = context.diagnostics?.hideRoute === true;
   const contextParts = stable
     ? await modelContextParts(
         compactProduction ? productionPacket(context.packet) : context.packet,
         meetingPrep,
+        { hideRoute },
       )
     : {
-        fixed: await modelContextBlock(context.packet, meetingPrep),
+        fixed: await modelContextBlock(context.packet, meetingPrep, {
+          hideRoute,
+        }),
         perTurn: [],
       };
   const system = [
@@ -630,7 +637,10 @@ export async function prepareTurn(
   if (context.version.preloadedSkills)
     await new RuntimeEventLog(turnId, sessionId).append(
       runtimeEvent(SKILLS_PRELOADED_EVENT, {
-        occasions: context.version.skillOccasions ?? [],
+        occasions:
+          context.diagnostics?.skillOccasions ??
+          context.version.skillOccasions ??
+          [],
         preloaded: context.version.preloadedSkills,
         cacheKey,
       }),
