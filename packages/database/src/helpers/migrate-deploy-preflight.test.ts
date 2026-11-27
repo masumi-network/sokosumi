@@ -25,6 +25,16 @@ describe("isDbMutatingPrismaCommand", () => {
   });
 });
 
+const pooledUrl =
+  "postgresql://role:secret@ep-preview-pooler.c-5.us-east-2.aws.neon.tech/db?sslmode=require";
+const directUrl = pooledUrl.replace("-pooler", "");
+const preview = {
+  VERCEL: "1",
+  VERCEL_ENV: "preview",
+  DATABASE_URL: pooledUrl,
+  DATABASE_URL_UNPOOLED: directUrl,
+};
+
 describe("checkMigrateDeployEnv", () => {
   it("is a no-op outside Vercel", () => {
     expect(
@@ -34,23 +44,75 @@ describe("checkMigrateDeployEnv", () => {
     ).toEqual({ ok: true, messages: [] });
   });
 
-  it("allows Vercel when DATABASE_URL_UNPOOLED is set", () => {
+  it("allows a matching pooled and direct Neon URL on Preview", () => {
+    expect(checkMigrateDeployEnv(preview)).toEqual({ ok: true, messages: [] });
+  });
+
+  it.each([
+    { VERCEL: undefined, VERCEL_ENV: "preview", label: "local" },
+    { VERCEL: "1", VERCEL_ENV: "production", label: "production" },
+    { VERCEL: "1", VERCEL_ENV: "development", label: "Vercel development" },
+    { VERCEL: "1", VERCEL_ENV: undefined, label: "Vercel without a label" },
+  ])("keeps the legacy result for $label", ({ VERCEL, VERCEL_ENV }) => {
     expect(
       checkMigrateDeployEnv({
-        VERCEL: "1",
-        VERCEL_ENV: "preview",
-        DATABASE_URL_UNPOOLED: "postgresql://unpooled.example/db",
+        ...preview,
+        VERCEL,
+        VERCEL_ENV,
+        DATABASE_URL_UNPOOLED: directUrl.replace("ep-preview", "ep-other"),
       }),
     ).toEqual({ ok: true, messages: [] });
-
     expect(
       checkMigrateDeployEnv({
-        VERCEL: "1",
-        VERCEL_ENV: "production",
-        DATABASE_URL_UNPOOLED: "  postgresql://unpooled.example/db  ",
+        ...preview,
+        VERCEL,
+        VERCEL_ENV,
+        DATABASE_URL_UNPOOLED: "  invalid URL  ",
       }),
     ).toEqual({ ok: true, messages: [] });
   });
+
+  it.each([
+    [
+      "another endpoint",
+      directUrl.replace("ep-preview", "ep-other"),
+      /same Neon endpoint/,
+    ],
+    [
+      "a pooler in the direct URL",
+      pooledUrl,
+      /direct host in DATABASE_URL_UNPOOLED/,
+    ],
+    ["another database", directUrl.replace("/db?", "/other?"), /same database/],
+    ["another role", directUrl.replace("role:", "other:"), /same role/],
+    ["an invalid URL", "invalid URL", /DATABASE_URL_UNPOOLED must be a valid/],
+  ])("refuses %s on Preview", (_label, url, reason) => {
+    const result = checkMigrateDeployEnv({
+      ...preview,
+      DATABASE_URL_UNPOOLED: url,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.messages[0]?.text).toMatch(reason);
+    expect(result.messages[0]?.text).toMatch(/Regenerate both URLs/);
+  });
+
+  it("keeps the rest of the host when normalizing the endpoint label", () => {
+    const result = checkMigrateDeployEnv({
+      ...preview,
+      DATABASE_URL: directUrl.replace(".c-5.", ".c-5-pooler."),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.messages[0]?.text).toMatch(/same Neon endpoint/);
+  });
+
+  it.each([undefined, "invalid URL"])(
+    "refuses pooled URL %s on Preview",
+    (DATABASE_URL) => {
+      const result = checkMigrateDeployEnv({ ...preview, DATABASE_URL });
+      expect(result.ok).toBe(false);
+      expect(result.messages[0]?.text).toMatch(/DATABASE_URL must be a valid/);
+    },
+  );
 
   it("fails closed on Preview when DATABASE_URL_UNPOOLED is missing", () => {
     const result = checkMigrateDeployEnv({
