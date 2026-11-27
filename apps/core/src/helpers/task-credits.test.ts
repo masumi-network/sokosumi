@@ -6,7 +6,11 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
+import {
+  createRefusedNetworkScope,
+  type NetworkScope,
+  type SharedDb,
+} from "@/lib/db/network-scope";
 
 import {
   createTaskEventTransaction,
@@ -209,11 +213,9 @@ describe("createTaskEventTransaction", () => {
   });
 
   it("answers a scope that refuses its Network with a plain 422", async () => {
-    const refusing = {
-      get network(): never {
-        throw new HTTPException(403, { message: "Preprod is switched off" });
-      },
-    } as unknown as NetworkScope;
+    const refusing = createRefusedNetworkScope(
+      new HTTPException(403, { message: "Preprod is switched off" }),
+    );
 
     await expect(
       createTaskEventTransaction({
