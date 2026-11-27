@@ -117,3 +117,16 @@ export async function runClaudeCodeJudge(options: {
     if (systemPromptFile) await unlink(systemPromptFile).catch(() => undefined);
   }
 }
+
+/** Fails closed when the local `claude` CLI is missing or unusable. */
+export async function assertClaudeCodeJudgeAvailable(
+  timeoutMs = 10_000,
+): Promise<void> {
+  try {
+    await runClaude(["--version"], "", timeoutMs);
+  } catch (error) {
+    throw new Error(
+      `Local Claude Code judge is unavailable: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}

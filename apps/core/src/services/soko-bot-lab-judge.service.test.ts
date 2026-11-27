@@ -372,6 +372,16 @@ describe("soko-bot judge on a ChatGPT plan run", () => {
       "chatgpt-plan:gpt-6.2-sol",
     );
   });
+
+  it("respects process.env.SOKO_BOT_JUDGE_RUNNER even after getEnv() cached gateway", () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...getEnv(),
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "claude-code");
+    expect(sokoBotJudgeRunner()).toBe("claude-code");
+  });
 });
 
 describe("per-item 3-vote chain judge", () => {
@@ -607,5 +617,30 @@ describe("per-item 3-vote chain judge", () => {
       qualityModel: "anthropic/claude-sonnet-5",
       qualityVerdict: expect.objectContaining({ verdict: "pass" }),
     });
+  });
+
+  it("fails closed and never calls Gateway when requireClaudeCode is true", async () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...realEnv,
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "");
+    try {
+      await expect(
+        judgeEvalChainPerItem({
+          turnIds: ["turn-1"],
+          scenario,
+          roomLog: [],
+          items: sampleItems,
+          storeOnTurn: false,
+          requireClaudeCode: true,
+        }),
+      ).rejects.toThrow("refuses the paid AI Gateway");
+      expect(generateText).not.toHaveBeenCalled();
+      expect(runClaudeCodeJudge).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

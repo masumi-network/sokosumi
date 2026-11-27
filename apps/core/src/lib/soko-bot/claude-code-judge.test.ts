@@ -3,7 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("node:child_process", () => ({ execFile: vi.fn() }));
 
-import { runClaudeCodeJudge } from "./claude-code-judge";
+import {
+  assertClaudeCodeJudgeAvailable,
+  runClaudeCodeJudge,
+} from "./claude-code-judge";
 
 const VERDICT = {
   scores: { delegation: 4, followThrough: 4, judgment: 4, honesty: 5 },
@@ -15,7 +18,7 @@ const VERDICT = {
 const stdinEnd = vi.fn();
 
 type ExecCallback = (
-  error: (Error & { killed?: boolean; code?: number }) | null,
+  error: (Error & { killed?: boolean; code?: number | string }) | null,
   stdout: string,
   stderr: string,
 ) => void;
@@ -176,5 +179,20 @@ describe("runClaudeCodeJudge", () => {
     expect(capturedPath).toBeTruthy();
     expect(capturedContent).toBe(bigPrompt);
     expect(capturedPath && existsSync(capturedPath)).toBe(false);
+  });
+
+  it("checks CLI availability and fails closed when claude is missing", async () => {
+    cliAnswers(null, "claude 2.0.0\n");
+    await expect(assertClaudeCodeJudgeAvailable()).resolves.toBeUndefined();
+    const [, args] = vi.mocked(execFile).mock.calls[0] ?? [];
+    expect(args).toEqual(["--version"]);
+
+    cliAnswers(
+      Object.assign(new Error("spawn claude ENOENT"), { code: "ENOENT" }),
+      "",
+    );
+    await expect(assertClaudeCodeJudgeAvailable()).rejects.toThrow(
+      "Local Claude Code judge is unavailable",
+    );
   });
 });

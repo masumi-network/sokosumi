@@ -12,9 +12,19 @@
 import type { SokoBotJudgeVerdict } from "@sokosumi/soko-bot";
 import pLimit from "p-limit";
 import {
+  caseWeightedPassRate,
+  countOutcomes,
+  type EvalOutcome,
+  type EvalOutcomeCounts,
+  type EvalResultState,
+  evalOutcome,
+  passRate,
+} from "@/lib/evals/eval-compare";
+import {
   judgeEvalChain,
   judgeEvalChainPerItem,
   type PerItemJudgeItemResult,
+  sokoBotJudgeRunner,
 } from "@/services/soko-bot-lab-judge.service";
 import { HOLDOUT_PREFIX } from "./holdout";
 import type { StepRecord } from "./journey-runner";
@@ -132,16 +142,44 @@ export interface StoredEvalCaseReportLike<
   R extends StoredEvalResultLike = StoredEvalResultLike,
 > {
   caseId: string;
+  outcome?: EvalOutcome;
+  history?: (number | null)[];
   states: string[];
   passRate: number | null;
   results: R[];
 }
 
+export interface StoredEvalRunSummaryLike {
+  counts?: EvalOutcomeCounts;
+  passRate?: number | null;
+  passed?: number;
+  scored?: number;
+  open?: number;
+}
+
 export interface StoredEvalRunReportLike<
   C extends StoredEvalCaseReportLike = StoredEvalCaseReportLike,
 > {
-  run: object;
+  run: { results?: StoredEvalResultLike[] } & object;
+  summary?: StoredEvalRunSummaryLike;
   cases: C[];
+}
+
+const OUTCOME_BASELINE_WINDOW = 5;
+
+const VALID_RESULT_STATES = new Set<EvalResultState>([
+  "PENDING",
+  "RUNNING",
+  "PASSED",
+  "FAILED",
+  "ERROR",
+  "SKIPPED",
+]);
+
+function asResultStates(states: readonly string[]): EvalResultState[] {
+  return states.filter((state): state is EvalResultState =>
+    VALID_RESULT_STATES.has(state as EvalResultState),
+  );
 }
 
 export type PerItemJudgeFn = (input: {
@@ -226,6 +264,12 @@ export async function rejudgeEvalRunReport<
     input.privateSplitsPath,
   );
 
+  if (!input.judgeFn && sokoBotJudgeRunner() !== "claude-code") {
+    throw new Error(
+      "Local --rejudge requires SOKO_BOT_JUDGE_RUNNER=claude-code and refuses the paid AI Gateway.",
+    );
+  }
+
   const judgeFn: PerItemJudgeFn =
     input.judgeFn ??
     (({ journey, split, turnIds, roomLog }) =>
@@ -235,6 +279,7 @@ export async function rejudgeEvalRunReport<
         roomLog,
         items: split.items,
         storeOnTurn: false,
+        requireClaudeCode: true,
       }));
 
   const tasks: Array<{
@@ -332,21 +377,73 @@ export async function rejudgeEvalRunReport<
     ),
   );
 
+  const updatedById = new Map<string, StoredEvalResultLike>();
+  const updatedByCaseRepeat = new Map<string, StoredEvalResultLike>();
+
   for (const evalCase of nextCases) {
     if (!journeyById.has(evalCase.caseId)) continue;
-    evalCase.states = evalCase.results.map((result) => result.status);
-    const scored = evalCase.results.filter(
-      (result) => result.status === "PASSED" || result.status === "FAILED",
-    );
-    evalCase.passRate =
-      scored.length > 0
-        ? scored.filter((result) => result.status === "PASSED").length /
-          scored.length
-        : null;
+    const states = evalCase.results.map((result) => result.status);
+    const typedStates = asResultStates(states);
+    evalCase.states = states;
+    evalCase.passRate = passRate(typedStates);
+    if ("outcome" in evalCase) {
+      const scoredHistory = (evalCase.history ?? [])
+        .slice(0, OUTCOME_BASELINE_WINDOW)
+        .filter((rate): rate is number => typeof rate === "number");
+      evalCase.outcome = evalOutcome(typedStates, scoredHistory);
+    }
+    for (const result of evalCase.results) {
+      updatedById.set(result.id, result);
+      updatedByCaseRepeat.set(`${result.caseId}:${result.repeat}`, result);
+    }
   }
+
+  const nextRun =
+    "results" in input.report.run && Array.isArray(input.report.run.results)
+      ? {
+          ...input.report.run,
+          results: input.report.run.results.map(
+            (result) =>
+              updatedById.get(result.id) ??
+              updatedByCaseRepeat.get(`${result.caseId}:${result.repeat}`) ??
+              result,
+          ),
+        }
+      : input.report.run;
+
+  const allResults = nextCases.flatMap((evalCase) => evalCase.results);
+  const allStates = allResults.map((result) => result.status);
+  const nextSummary = input.report.summary
+    ? {
+        ...input.report.summary,
+        passed: allStates.filter((state) => state === "PASSED").length,
+        scored: allStates.filter((state) =>
+          ["PASSED", "FAILED", "ERROR"].includes(state),
+        ).length,
+        open: allStates.filter(
+          (state) => state === "PENDING" || state === "RUNNING",
+        ).length,
+        passRate: caseWeightedPassRate(
+          nextCases.map((evalCase) => evalCase.passRate),
+        ),
+        ...("counts" in input.report.summary
+          ? {
+              counts: countOutcomes(
+                nextCases
+                  .map((evalCase) => evalCase.outcome)
+                  .filter(
+                    (outcome): outcome is EvalOutcome => outcome !== undefined,
+                  ),
+              ),
+            }
+          : {}),
+      }
+    : undefined;
 
   return {
     ...input.report,
+    run: nextRun,
+    ...(nextSummary ? { summary: nextSummary } : {}),
     cases: nextCases,
   };
 }

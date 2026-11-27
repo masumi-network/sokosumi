@@ -6,11 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/services/soko-bot-lab-judge.service", () => ({
   judgeEvalChain: vi.fn(),
   judgeEvalChainPerItem: vi.fn(),
+  sokoBotJudgeRunner: vi.fn(() => "claude-code"),
 }));
 
 import {
   judgeEvalChain,
   judgeEvalChainPerItem,
+  sokoBotJudgeRunner,
 } from "@/services/soko-bot-lab-judge.service";
 import { OWNER_JOURNEYS, type OwnerJourney } from "./journeys";
 import {
@@ -351,5 +353,128 @@ describe("rejudgeEvalRunReport", () => {
       }),
     });
     expect(rescored.cases[0]?.results[0]?.status).toBe("FAILED");
+  });
+
+  it("exports one consistent answer across cases, outcome, run.results, and summary when a pass becomes a fail", async () => {
+    const result = {
+      id: "r-flip",
+      caseId: devJourney.id,
+      repeat: 1,
+      status: "PASSED",
+      turnId: "t",
+      checks: [{ pass: true }],
+      judge: PASS_VERDICT,
+      judgeModel: "old",
+      output: { steps: [{ kind: "owner", label: "do work", turnIds: ["t"] }] },
+      error: null,
+      durationMs: 50,
+    };
+    const report = {
+      run: { id: "run-flip", results: [result] },
+      summary: {
+        passed: 1,
+        scored: 1,
+        open: 0,
+        passRate: 1,
+        counts: {
+          regressed: 0,
+          error: 0,
+          failing: 0,
+          flaky: 0,
+          fixed: 0,
+          passing: 1,
+          pending: 0,
+          skipped: 0,
+        },
+      },
+      cases: [
+        {
+          caseId: devJourney.id,
+          outcome: "passing" as const,
+          history: [] as (number | null)[],
+          passRate: 1,
+          states: ["PASSED"],
+          results: [result],
+        },
+      ],
+    };
+    const output = await rejudgeEvalRunReport({
+      report,
+      journeys: [devJourney],
+      judgeFn: async () => ({
+        verdict: FAIL_VERDICT,
+        model: "claude-code:claude-opus-5-5",
+        items: [],
+      }),
+    });
+    expect(output.cases[0]?.results[0]?.status).toBe("FAILED");
+    expect(output.cases[0]?.states).toEqual(["FAILED"]);
+    expect(output.cases[0]?.passRate).toBe(0);
+    expect(output.cases[0]?.outcome).toBe("failing");
+    expect(output.run.results?.[0]?.status).toBe("FAILED");
+    expect(output.run.results?.[0]?.judge).toEqual(FAIL_VERDICT);
+    expect(output.summary).toMatchObject({
+      passed: 0,
+      scored: 1,
+      open: 0,
+      passRate: 0,
+      counts: { passing: 0, failing: 1 },
+    });
+  });
+
+  it("refuses default re-judging when the active judge runner is gateway, and enforces requireClaudeCode on claude-code", async () => {
+    const baseReport = {
+      run: { id: "run-gw" },
+      cases: [
+        {
+          caseId: devJourney.id,
+          states: ["PASSED"],
+          passRate: 1,
+          results: [
+            {
+              id: "r1",
+              caseId: devJourney.id,
+              repeat: 1,
+              status: "PASSED",
+              turnId: "t1",
+              checks: [{ pass: true }],
+              judge: PASS_VERDICT,
+              judgeModel: "old",
+              output: {
+                steps: [{ kind: "owner", label: "ask", turnIds: ["t1"] }],
+              },
+              error: null,
+              durationMs: 100,
+            },
+          ],
+        },
+      ],
+    };
+
+    vi.mocked(sokoBotJudgeRunner).mockReturnValueOnce("gateway");
+    await expect(
+      rejudgeEvalRunReport({
+        report: baseReport,
+        journeys: [devJourney],
+      }),
+    ).rejects.toThrow("refuses the paid AI Gateway");
+    expect(judgeEvalChainPerItem).not.toHaveBeenCalled();
+
+    vi.mocked(sokoBotJudgeRunner).mockReturnValueOnce("claude-code");
+    vi.mocked(judgeEvalChainPerItem).mockResolvedValueOnce({
+      verdict: PASS_VERDICT,
+      model: "claude-code:claude-opus-5-5",
+      items: [],
+    });
+    await rejudgeEvalRunReport({
+      report: baseReport,
+      journeys: [devJourney],
+    });
+    expect(judgeEvalChainPerItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storeOnTurn: false,
+        requireClaudeCode: true,
+      }),
+    );
   });
 });

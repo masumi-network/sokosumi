@@ -58,10 +58,32 @@ const { values } = parseArgs({
   },
 });
 
-// Read where the eval cases and judge options are built, on the first import below.
+// Configure all env flags BEFORE importing any `@/` service or Prisma module so
+// `getEnv()` never caches the paid Gateway default ahead of local CLI setup.
 if (values.holdout) process.env.OWNERBENCH_HOLDOUT_FILE = values.holdout;
 if (values.splits) process.env.OWNERBENCH_SPLITS_FILE = values.splits;
 if (values.judge) process.env.OWNERBENCH_JUDGE_MODE = values.judge;
+if (values.plan) {
+  process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
+  // Production routes with real Jev; the stand-in routes differently. Plan runs
+  // ask real Jev through the .env key unless SOKO_BOT_PLAN_REAL_JEV=0.
+  process.env.SOKO_BOT_PLAN_REAL_JEV ??= "1";
+}
+
+if (values.rejudge) {
+  if (!values["json-out"]) throw new Error("--rejudge needs --json-out");
+  const requestedJudge = values.judge ?? "per-item";
+  if (requestedJudge !== "per-item")
+    throw new Error("--rejudge currently supports only --judge per-item");
+  const explicitRunner = process.env.SOKO_BOT_JUDGE_RUNNER?.trim();
+  if (explicitRunner && explicitRunner !== "claude-code") {
+    throw new Error(
+      `--rejudge runs only on the local plan judge (claude-code), never "${explicitRunner}". Unset SOKO_BOT_JUDGE_RUNNER or set it to "claude-code".`,
+    );
+  }
+  process.env.SOKO_BOT_JUDGE_RUNNER = "claude-code";
+  process.env.OWNERBENCH_JUDGE_MODE = "per-item";
+}
 
 async function writeReportJson(report: unknown, path: string) {
   const { writeFile } = await import("node:fs/promises");
@@ -87,20 +109,12 @@ if (values.report) {
   process.exit(0);
 }
 
-const { ownerbenchJudgeMode } = await import(
-  "@/services/evals/ownerbench/per-item-judge"
-);
-const judgeMode = ownerbenchJudgeMode(
-  values.rejudge && !values.judge ? "per-item" : undefined,
-);
-
 if (values.rejudge) {
-  if (!values["json-out"]) throw new Error("--rejudge needs --json-out");
-  if (judgeMode !== "per-item")
-    throw new Error("--rejudge currently supports only --judge per-item");
-  // Local re-judging uses Claude Code subscription by default unless explicitly overridden.
-  if (!process.env.SOKO_BOT_JUDGE_RUNNER)
-    process.env.SOKO_BOT_JUDGE_RUNNER = "claude-code";
+  // Fail closed before touching DB or splits if the local Claude Code CLI is unavailable.
+  const { assertClaudeCodeJudgeAvailable } = await import(
+    "@/lib/soko-bot/claude-code-judge"
+  );
+  await assertClaudeCodeJudgeAvailable();
   const { default: prisma } = await import("@/lib/db/prisma");
   const { getEvalRunReport } = await import(
     "@/services/evals/eval-runs.service"
@@ -131,15 +145,16 @@ if (values.rejudge) {
     console.log(
       "\nThe run holds held-out journeys: share only ownerbench-compare's totals, never per-case held-out output.",
     );
-  await writeReportJson(rescored, values["json-out"]);
+  await writeReportJson(rescored, values["json-out"]!);
   await prisma.$disconnect();
   process.exit(0);
 }
 
-if (values.plan) process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "1";
-// Production routes with real Jev; the stand-in routes differently. Plan runs
-// ask real Jev through the .env key unless SOKO_BOT_PLAN_REAL_JEV=0.
-if (values.plan) process.env.SOKO_BOT_PLAN_REAL_JEV ??= "1";
+const { ownerbenchJudgeMode } = await import(
+  "@/services/evals/ownerbench/per-item-judge"
+);
+const judgeMode = ownerbenchJudgeMode();
+
 // `--plan` or the env flag alone: either way this is a plan run.
 const plan = ["1", "true"].includes(
   process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN ?? "",

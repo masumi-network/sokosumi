@@ -65,10 +65,13 @@ export class SokoBotLabJudgeError extends Error {}
 /**
  * Where the judge runs. A ChatGPT plan run defaults to Claude Code, which
  * bills the subscription, not the Gateway; an explicit runner still wins.
+ * Reads `process.env.SOKO_BOT_JUDGE_RUNNER` before cached `getEnv()` so local
+ * CLI scripts that set the runner before judging never fall back to Gateway.
  */
 export function sokoBotJudgeRunner(): "gateway" | "claude-code" {
-  if (localChatGptPlanEnabled() && !process.env.SOKO_BOT_JUDGE_RUNNER)
-    return "claude-code";
+  const explicit = process.env.SOKO_BOT_JUDGE_RUNNER;
+  if (explicit === "claude-code" || explicit === "gateway") return explicit;
+  if (localChatGptPlanEnabled()) return "claude-code";
   return getEnv().SOKO_BOT_JUDGE_RUNNER;
 }
 
@@ -337,6 +340,8 @@ async function askStructuredJudge<T>(options: {
   jsonSchema?: string;
   modelOverride?: string;
   recordUsage?: boolean;
+  /** Fail closed instead of calling the paid AI Gateway (used by local `--rejudge`). */
+  requireClaudeCode?: boolean;
 }): Promise<{ output: T; usage: JudgeCall["usage"] }> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
@@ -348,6 +353,12 @@ async function askStructuredJudge<T>(options: {
   };
   const env = getEnv();
   const onClaudeCode = sokoBotJudgeRunner() === "claude-code";
+  if (options.requireClaudeCode && !onClaudeCode) {
+    throw new SokoBotJudgeFailure(
+      "Local re-judging requires SOKO_BOT_JUDGE_RUNNER=claude-code and refuses the paid AI Gateway.",
+      usage,
+    );
+  }
   if (onClaudeCode && env.VERCEL_ENV) {
     throw new SokoBotJudgeFailure(
       "SOKO_BOT_JUDGE_RUNNER=claude-code needs the local claude CLI and does not run on Vercel. Use the gateway judge here.",
@@ -635,6 +646,8 @@ export async function judgeEvalChainPerItem(input: {
   concurrency?: number;
   /** Default true; set false when re-scoring a finished run read-only. */
   storeOnTurn?: boolean;
+  /** Refuse the paid AI Gateway and fail closed unless `claude-code` is active. */
+  requireClaudeCode?: boolean;
 }): Promise<{
   verdict: SokoBotJudgeVerdict;
   model: string;
@@ -642,6 +655,12 @@ export async function judgeEvalChainPerItem(input: {
 }> {
   if (input.items.length === 0)
     throw new SokoBotLabJudgeError("At least one rubric item is required");
+  if (input.requireClaudeCode && sokoBotJudgeRunner() !== "claude-code") {
+    throw new SokoBotJudgeFailure(
+      "Local re-judging requires SOKO_BOT_JUDGE_RUNNER=claude-code and refuses the paid AI Gateway.",
+      { inputTokens: 0, outputTokens: 0, costUsd: 0, inference: [] },
+    );
+  }
   const votes = input.votes ?? PER_ITEM_JUDGE_VOTES;
   if (!Number.isInteger(votes) || votes < 1 || votes % 2 === 0)
     throw new SokoBotLabJudgeError(
@@ -683,6 +702,7 @@ export async function judgeEvalChainPerItem(input: {
       jsonSchema: PER_ITEM_VOTE_JSON_SCHEMA,
       modelOverride: input.model,
       recordUsage: input.storeOnTurn !== false,
+      requireClaudeCode: input.requireClaudeCode,
     });
     votesMatrix[job.itemIndex]![job.voteIndex] = call.output;
     totalUsage.inputTokens += call.usage.inputTokens;
