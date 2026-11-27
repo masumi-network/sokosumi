@@ -260,7 +260,9 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       where: { userId, amount: { lt: 0 } },
       select: { amount: true },
     });
-    const expectedStatements = onSplitLayout ? 10 : 35;
+    // The debit is the credits module's: `recordSpend`'s two inserts, where
+    // Prisma's nested create sent three (soko-bot-usage-spend.postgres.test.ts).
+    const expectedStatements = onSplitLayout ? 10 : 34;
     expect(recorder.statements.length).toBe(expectedStatements);
     expect(await loadTurn(turn.id)).toMatchObject(
       onSplitLayout
