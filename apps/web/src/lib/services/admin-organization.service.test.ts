@@ -2,17 +2,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+const { getPreprodAccessMock } = vi.hoisted(() => ({
+  getPreprodAccessMock: vi.fn(),
+}));
+
 const { searchAdminOrganizationsMock } = vi.hoisted(() => ({
   searchAdminOrganizationsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
+    getAdminOrganizationPreprodAccess: (...args: unknown[]) =>
+      getPreprodAccessMock(...args),
     searchAdminOrganizations: (...args: unknown[]) =>
       searchAdminOrganizationsMock(...args),
   },
-  CoreApiRequestError: class extends Error {},
+  CoreApiRequestError: class extends Error {
+    constructor(
+      message: string,
+      readonly options?: { status?: number },
+    ) {
+      super(message);
+    }
+    get status() {
+      return this.options?.status;
+    }
+  },
 }));
+
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 import { adminOrganizationService } from "./admin-organization.service";
 
@@ -67,6 +85,38 @@ describe("adminOrganizationService", () => {
       await expect(
         adminOrganizationService.getOrganizationOptionBySlug("acme"),
       ).rejects.toThrow("Boom");
+    });
+  });
+
+  describe("getPreprodAccess", () => {
+    it("answers Core's flag and history", async () => {
+      const access = { enabled: true, changes: [] };
+      getPreprodAccessMock.mockResolvedValue({ data: access });
+
+      await expect(
+        adminOrganizationService.getPreprodAccess("acme"),
+      ).resolves.toEqual(access);
+      expect(getPreprodAccessMock).toHaveBeenCalledWith("acme");
+    });
+
+    it("answers null when Core has no such target", async () => {
+      getPreprodAccessMock.mockRejectedValue(
+        new CoreApiRequestError("Not found", { status: 404 }),
+      );
+
+      await expect(
+        adminOrganizationService.getPreprodAccess("acme"),
+      ).resolves.toBeNull();
+    });
+
+    it("rethrows any other failure", async () => {
+      getPreprodAccessMock.mockRejectedValue(
+        new CoreApiRequestError("Forbidden", { status: 403 }),
+      );
+
+      await expect(
+        adminOrganizationService.getPreprodAccess("acme"),
+      ).rejects.toThrow("Forbidden");
     });
   });
 });

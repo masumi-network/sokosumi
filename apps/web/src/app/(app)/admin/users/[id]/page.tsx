@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { PreprodAccessSection } from "@/components/admin/preprod-access-section";
 import { UserSignUpSection } from "@/components/admin/users/user-sign-up-section";
 import { Button } from "@/components/ui/button";
 import { coreClient } from "@/lib/clients/core.client";
+import { adminUserService } from "@/lib/services/admin-user.service";
 
 export const instant = false;
 
@@ -23,13 +25,14 @@ export default async function AdminUserDetailPage({
 }: AdminUserDetailPageProps) {
   const { id } = await params;
   const userId = decodeURIComponent(id);
-  const [t, user, signUp] = await Promise.all([
+  const [t, user, signUp, preprodAccess] = await Promise.all([
     getTranslations("App.Admin.Users.UserDetail"),
     coreClient.getUserById(userId),
     coreClient.getUserSignUp(userId),
+    adminUserService.getPreprodAccess(userId),
   ]);
 
-  if (!user) {
+  if (!user || !preprodAccess) {
     notFound();
   }
 
@@ -51,6 +54,12 @@ export default async function AdminUserDetailPage({
         </div>
 
         <UserSignUpSection signUp={signUp} />
+
+        <PreprodAccessSection
+          target={{ type: "user", id: user.id }}
+          targetName={user.name}
+          access={preprodAccess}
+        />
       </div>
     </div>
   );

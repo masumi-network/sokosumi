@@ -27,8 +27,14 @@ export default async function AdminOrganizationDetailPage({
     notFound();
   }
 
-  const initialMembersPage =
-    await adminOrganizationService.listOrganizationMembers(decodedSlug);
+  const [initialMembersPage, preprodAccess] = await Promise.all([
+    adminOrganizationService.listOrganizationMembers(decodedSlug),
+    adminOrganizationService.getPreprodAccess(decodedSlug),
+  ]);
+
+  if (!preprodAccess) {
+    notFound();
+  }
 
   return (
     <div className="min-h-full w-full">
@@ -36,6 +42,7 @@ export default async function AdminOrganizationDetailPage({
         <OrganizationDetailPanel
           detail={detail}
           initialMembersPage={initialMembersPage}
+          preprodAccess={preprodAccess}
         />
       </div>
     </div>
