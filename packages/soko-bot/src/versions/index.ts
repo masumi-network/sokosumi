@@ -13,6 +13,7 @@ import {
   type SokoBotCapability,
 } from "../policy.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { ASK_POLICY_SECTION } from "./ask-policy.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
 import { cmoWritesMonthAtOnce } from "./cmo-skills.js";
 import { cmoV1 } from "./cmo-v1.js";
@@ -39,6 +40,26 @@ import { cmoReadsOnDemand } from "./cmo-v23-skills.js";
 import { cmoV24 } from "./cmo-v24.js";
 import { cmoV25 } from "./cmo-v25.js";
 import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
+import { cmoV26 } from "./cmo-v26.js";
+import { cmoV27 } from "./cmo-v27.js";
+import { readsContextOnDemand } from "./context-on-demand-skills.js";
+import {
+  applyE1Skill,
+  applyE1SystemPrompt,
+  E1_SKILL_USE_WHEN_OVERRIDES,
+} from "./e1-prompts.js";
+import {
+  cmoV27E1,
+  cmoV27E1Route,
+  cmoV27E1V4,
+  v40E1,
+  v40E1Route,
+  v40E1V4,
+} from "./e1-test-versions.js";
+import {
+  applyRouteSteeringPrompt,
+  ROUTE_STEERING_ACT_OR_ASK_SECTION,
+} from "./route-steering.js";
 import {
   skillIndexSection,
   splitSkillsForTurn,
@@ -87,6 +108,9 @@ import { v34 } from "./v34.js";
 import { v35 } from "./v35.js";
 import { v36 } from "./v36.js";
 import { v37 } from "./v37.js";
+import { v38 } from "./v38.js";
+import { v39 } from "./v39.js";
+import { v40 } from "./v40.js";
 
 /** Newest last. To iterate, add `vN.ts` and append it here. */
 export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
@@ -127,6 +151,12 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v35,
   v36,
   v37,
+  v38,
+  v39,
+  v40,
+  v40E1Route,
+  v40E1V4,
+  v40E1,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
@@ -157,6 +187,11 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV23,
   cmoV24,
   cmoV25,
+  cmoV26,
+  cmoV27,
+  cmoV27E1Route,
+  cmoV27E1V4,
+  cmoV27E1,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
@@ -198,7 +233,12 @@ export function cmoWhatsNew(
 }
 
 export type { SokoBotSkill, SokoBotVersion };
-export { getSokoBotSkill, SOKO_BOT_SKILLS };
+export {
+  applyRouteSteeringPrompt,
+  getSokoBotSkill,
+  ROUTE_STEERING_ACT_OR_ASK_SECTION,
+  SOKO_BOT_SKILLS,
+};
 
 export function getSokoBotVersion(
   id: string | null | undefined,
@@ -242,6 +282,14 @@ export function sokoBotIdentity(
     : "You are Soko Bot, the owner's autonomous Sokosumi project manager. Your operating instructions arrive each turn as the versioned OPERATING INSTRUCTIONS block; follow them exactly.";
 }
 
+/** Resolves a skill by id with any version-flagged text transforms applied. */
+export function getSokoBotSkillForVersion(
+  id: string,
+  version: Pick<SokoBotVersion, "e1Prompts">,
+): SokoBotSkill {
+  return applyE1Skill(getSokoBotSkill(id), version);
+}
+
 /**
  * The skills in the system prompt: every one in full, or for a version that
  * loads skills on demand, the every-turn ones and the index. That prompt is
@@ -253,15 +301,18 @@ function systemSkillsPrompt(
 ): string[] {
   if (!version.skillsOnDemand)
     return cmoTurnSkills(version.skills, turn?.clientTurnId).map((id) =>
-      getSokoBotSkill(id).content.trim(),
+      getSokoBotSkillForVersion(id, version).content.trim(),
     );
   const { always, indexed } = splitSkillsForTurn(version, []);
   const index = skillIndexSection(
-    indexed.map(getSokoBotSkill),
+    indexed.map((id) => getSokoBotSkillForVersion(id, version)),
     version.profile === "cmo",
+    version.e1Prompts ? E1_SKILL_USE_WHEN_OVERRIDES : undefined,
   );
   return [
-    ...always.map((id) => getSokoBotSkill(id).content.trim()),
+    ...always.map((id) =>
+      getSokoBotSkillForVersion(id, version).content.trim(),
+    ),
     ...(index ? [index] : []),
   ];
 }
@@ -284,9 +335,16 @@ export function composeSystemPrompt(
   turn?: SokoBotPromptTurn,
 ): string {
   const perBot = version.skillsOnDemand ? [] : personaPrompt(version, persona);
+  const basePrompt = applyE1SystemPrompt(
+    version.routeSteering
+      ? applyRouteSteeringPrompt(version.systemPrompt)
+      : version.systemPrompt,
+    version,
+  );
   return [
     ...perBot.slice(0, 1),
-    version.systemPrompt.trim(),
+    basePrompt,
+    ...(version.askPolicy ? [ASK_POLICY_SECTION] : []),
     ...systemSkillsPrompt(version, turn),
     ...perBot.slice(1),
   ].join("\n\n");
@@ -319,14 +377,20 @@ export function composeTurnPreamble(
   if (!version.skillsOnDemand) return "";
   const { forTurn } = splitSkillsForTurn(version, turn?.occasions ?? []);
   return [
-    turnSkillsSection(forTurn.map(getSokoBotSkill)),
+    turnSkillsSection(
+      forTurn.map((id) => getSokoBotSkillForVersion(id, version)),
+    ),
     ...personaPrompt(version, persona),
   ]
     .filter(Boolean)
     .join("\n\n");
 }
 
-const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+const RESULT_CARD_SKILLS = new Set([
+  "chat-result-previews",
+  "result-cards",
+  "result-cards-send-message",
+]);
 
 /** Whether the version teaches the bot to attach result cards. */
 export function versionShowsResultCards(
@@ -355,7 +419,10 @@ export function applyVersionCapabilities(
       capability !== "read_skill" &&
       !isSokoBotCmoCapability(capability) &&
       !(cmo && isSokoBotCompetitorCapability(capability)) &&
-      !messagingTools.includes(capability),
+      !messagingTools.includes(capability) &&
+      // Only a small packet (v38) has a map for read_context to read from.
+      (capability !== "read_context" ||
+        (!cmo && readsContextOnDemand(version.skills))),
   );
   const allowed = version.capabilities
     ? routed.filter((capability) =>

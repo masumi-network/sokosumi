@@ -1,5 +1,6 @@
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import { isAuthenticatedCmoProjectOwner } from "@/helpers/cmo-project-owner";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
@@ -216,7 +217,10 @@ export async function runSokoBotMentionDispatch(params: {
     sokoBot: {
       id: string;
       userId: string | null;
+      projectId?: string | null;
       workspaceId: string;
+      versionId?: string | null;
+      createdByUserId?: string | null;
       archivedAt: Date | null;
     } | null;
     sokoBotId: string | null;
@@ -236,10 +240,10 @@ export async function runSokoBotMentionDispatch(params: {
   // Teammates may talk to the bot in organization rooms, direct chats
   // included; the turn runs as the owner (their bot, their credits, their
   // tools), and the console shows who asked. Personal rooms stay owner-only.
-  // A shared bot has no owner: its turn runs as the member who asked.
-  const isOwner =
+  // A shared bot has no personal room and always requires an organization room.
+  const isPersonalOwner =
     isPersonalSokoBot(bot) && bot.userId === userId && !askedByBot;
-  if (!isOwner && !mention.message.room.organizationId) {
+  if (!isPersonalOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");
     return;
   }
@@ -398,6 +402,16 @@ export async function runSokoBotMentionDispatch(params: {
             contextMessages,
           });
 
+    const isCmoOwner =
+      !isPersonalOwner &&
+      (await isAuthenticatedCmoProjectOwner({
+        bot,
+        userId,
+        askedByBot,
+        chainDepth,
+      }));
+    const isOwnerSpeaker = isPersonalOwner || isCmoOwner;
+
     const accept = async () => {
       const accepted = sokoBotControlPlane.startTurn({
         network: DETACHED_SOKO_BOT_NETWORK,
@@ -408,7 +422,7 @@ export async function runSokoBotMentionDispatch(params: {
         // (their personal one) and put its Tasks there.
         workspaceId: bot.workspaceId,
         clientTurnId,
-        message: isOwner
+        message: isOwnerSpeaker
           ? message
           : `${mention.message.senderUser?.name ?? "A teammate"} (${isPersonalSokoBot(bot) ? "a teammate, not your owner" : "a member of the team"}) asked:\n${message}`,
         source: "CHAT",
@@ -417,7 +431,7 @@ export async function runSokoBotMentionDispatch(params: {
           responseMessageId,
           classifyMessage: message,
           said,
-          askedByUserId: isOwner && !askedByBot ? null : userId,
+          askedByUserId: isPersonalOwner && !askedByBot ? null : userId,
           askedByBot,
           chainDepth,
         },

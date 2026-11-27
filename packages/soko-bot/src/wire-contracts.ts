@@ -50,6 +50,7 @@ export const sokoBotContextPacketSchema = z.object({
   }),
   counts: z.record(z.string(), z.number().int().nonnegative()),
   omissions: z.record(z.string(), z.number().int().nonnegative()),
+  map: jsonObjectSchema.optional(),
   sourceCoverage: z
     .record(
       z.string(),

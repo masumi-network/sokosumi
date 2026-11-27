@@ -18,6 +18,7 @@ export type SokoBotRoute = (typeof SOKO_BOT_ROUTES)[number];
 export const SOKO_BOT_CAPABILITIES = [
   ...SOKO_BOT_SEO_CAPABILITIES,
   "refresh_context",
+  "read_context",
   "find_coworkers",
   "create_task",
   "update_task",
@@ -356,6 +357,8 @@ export * from "./policy-taint.js";
 export const SOKO_BOT_DIRECT_READ_CAPABILITIES = [
   ...SOKO_BOT_SEO_READ_CAPABILITIES,
   "refresh_context",
+  // What a small packet (v38) lists in its map but does not show.
+  "read_context",
   "get_task_status",
   "preview_result",
   "list_tasks",
@@ -772,6 +775,18 @@ export interface TurnClassification {
   proposedTaskBrief?: string;
   /** The write route Jev leaned toward but was not sure of; reads only. */
   unsureRoute?: SokoBotRoute;
+  /** Sum of Jev's probabilities across actionable routes (work + hire). */
+  workConfidence?: number;
+  /** True when the classifier call failed or returned an unparseable answer. */
+  classifierFailed?: true;
+  /** Raw Jev route choice recorded before Core's thresholds and fallbacks. */
+  rawRoute?: string;
+  /** Probability Jev assigned to `rawRoute`, when present. */
+  rawConfidence?: number;
+  /** Host-filtered route menu offered to Jev under the keel menu rule. */
+  menuRoutes?: SokoBotRoute[];
+  /** True when Jev abstained, picked an unavailable route, or fell below bar. */
+  abstained?: true;
   /** Jev's soft reads of a typed message: hints for context, never gates. */
   signals?: SokoBotTurnSignals;
   /** How much work Jev reads in a typed message; picks the turn's model. */

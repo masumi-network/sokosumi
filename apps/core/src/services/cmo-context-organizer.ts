@@ -882,6 +882,8 @@ export async function organizeCmoContext(input: {
   scheduleKey?: string | null;
   /** cmo-v24: name the kind's tools and read a change request. */
   highlights?: boolean;
+  /** cmo-v25's strategy step: write_strategy writes and changes the plan. */
+  strategyStep?: boolean;
 }): Promise<MarketingContext> {
   const { sources, turn, now } = input;
   const scheduleKey =
@@ -896,7 +898,15 @@ export async function organizeCmoContext(input: {
   const core = {
     ...cmoContextCore({ sources, kind, items, now, planLevel }),
     ...(input.highlights
-      ? { toolsForThisTurn: CMO_KIND_TOOLS[kind].join(", ") }
+      ? {
+          toolsForThisTurn: [
+            // cmo-v25's step writes and changes the plan in Core.
+            ...(input.strategyStep && (kind === "strategy" || kind === "chat")
+              ? ["write_strategy"]
+              : []),
+            ...CMO_KIND_TOOLS[kind],
+          ].join(", "),
+        }
       : {}),
   };
   if (kind === "strategy") {

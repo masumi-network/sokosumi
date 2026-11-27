@@ -250,6 +250,12 @@ vi.mock("@/services/soko-bot-availability.service", () => ({
 vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
+const { socialConnectionFindManyMock, newsletterFindManyMock } = vi.hoisted(
+  () => ({
+    socialConnectionFindManyMock: vi.fn().mockResolvedValue([]),
+    newsletterFindManyMock: vi.fn().mockResolvedValue([]),
+  }),
+);
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
@@ -276,6 +282,8 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: { findMany: coworkerFindManyMock },
     job: { findMany: jobFindManyMock },
     project: { findMany: projectFindManyMock },
+    projectSocialConnection: { findMany: socialConnectionFindManyMock },
+    newsletter: { findMany: newsletterFindManyMock },
     sokoBot: {
       count: botCountMock,
       findFirst: botFindFirstMock,
@@ -2764,6 +2772,171 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("passes cmoProjectOwner only for an authenticated CMO project owner on a flagged CMO version, keeping teammates and flag-off controls as TEAMMATE", async () => {
+    const versionService = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const flaggedVersion = {
+      ...getSokoBotVersion("cmo-v25"),
+      id: "cmo-v25-owner-flag",
+      cmoOwnerAudience: true as const,
+    };
+    const resolveSpy = vi
+      .spyOn(versionService, "resolveRunnableSokoBotVersion")
+      .mockImplementation(async (versionId) =>
+        versionId === "cmo-v25-owner-flag"
+          ? flaggedVersion
+          : getSokoBotVersion(versionId),
+      );
+    try {
+      const sharedCmoBot = (versionId: string) => ({
+        ...adminBot({ versionId }),
+        id: "bot_cuso",
+        userId: null,
+        projectId: "proj_cuso",
+        createdByUserId: "user_founder",
+        workspace: { organizationId: "org_1" },
+      });
+      const runTurn = async (params: {
+        versionId: string;
+        speakerId: string;
+        memberRole: string | null;
+        source?: "CHAT" | "SCHEDULE";
+      }) => {
+        const bot = sharedCmoBot(params.versionId);
+        botFindFirstMock.mockResolvedValue(bot);
+        botFindUniqueMock.mockResolvedValue(bot);
+        turnFindUniqueMock.mockResolvedValue(null);
+        turnFindFirstMock.mockResolvedValue(null);
+        workspaceFindFirstMock.mockResolvedValue({ id: "workspace_1" });
+        memberFindFirstMock.mockReset();
+        memberFindFirstMock.mockResolvedValue(
+          params.memberRole ? { role: params.memberRole } : null,
+        );
+        capturePreferenceMock.mockClear();
+        jevEvaluate.mockResolvedValue(
+          jevRoute("MANAGE_WORK", {
+            writeScope: "WORK",
+            signals: { statesPreference: 0.95 },
+          }),
+        );
+        turnCreateMock.mockResolvedValue({
+          id: `turn_${params.speakerId}_${params.versionId}`,
+          leaseToken: "turn_lease",
+        });
+        const runtime = runtimeWithReset(vi.fn());
+        runtime.createSession = vi.fn().mockResolvedValue({
+          sessionId: "session_cmo",
+          runtimeVersion: "eve-test",
+          acceptedAt: "2026-08-18T12:00:00.000Z",
+        });
+        const contextBuilder = {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder;
+        await new SokoBotControlPlane(
+          runtime,
+          contextBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          network: "mainnet",
+          sokoBotId: "bot_cuso",
+          userId: params.speakerId,
+          workspaceId: "workspace_1",
+          clientTurnId: `client-${params.speakerId}-${params.versionId}-${params.source ?? "CHAT"}`,
+          message: "From now on no posts on Fridays",
+          source: params.source ?? "CHAT",
+          ...(params.source === "SCHEDULE"
+            ? {
+                scheduleReservation: {
+                  runId: "run_1",
+                  attempt: 1,
+                  leaseToken: "lease_1",
+                },
+              }
+            : {
+                chat: {
+                  mentionId: "mention_1",
+                  responseMessageId: "message_1",
+                  askedByUserId: params.speakerId,
+                },
+              }),
+        });
+        return {
+          buildArg: (contextBuilder.build as ReturnType<typeof vi.fn>).mock
+            .calls[0]?.[0],
+        };
+      };
+
+      // 1. Authenticated CMO project owner on flagged version -> cmoProjectOwner: true & captures preference.
+      const ownerRes = await runTurn({
+        versionId: "cmo-v25-owner-flag",
+        speakerId: "user_founder",
+        memberRole: "owner",
+      });
+      expect(ownerRes.buildArg).toMatchObject({
+        cmoProjectOwner: true,
+        askedByKind: "OWNER",
+        askedByUserId: "user_founder",
+      });
+      expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+
+      // 2. An active org admin who did not hire Cuso keeps standing brand preference capture
+      // on both control and owner-framed versions (ADR 0061) while speaker framing stays TEAMMATE.
+      for (const versionId of ["cmo-v25", "cmo-v25-owner-flag"]) {
+        const adminRes = await runTurn({
+          versionId,
+          speakerId: "user_admin",
+          memberRole: "admin",
+        });
+        expect(adminRes.buildArg.cmoProjectOwner).toBeUndefined();
+        expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+      }
+
+      // 3. Second workspace member (ordinary MEMBER, not hirer) on same flagged version ->
+      // speaker framing stays TEAMMATE while shared brand preference capture remains intact.
+      const teammateRes = await runTurn({
+        versionId: "cmo-v25-owner-flag",
+        speakerId: "user_hannah",
+        memberRole: "member",
+      });
+      expect(teammateRes.buildArg.cmoProjectOwner).toBeUndefined();
+      expect(capturePreferenceMock).toHaveBeenCalledTimes(1);
+
+      // 3. Flag-off control CMO version -> cmoProjectOwner absent, zero member query.
+      const controlRes = await runTurn({
+        versionId: "cmo-v25",
+        speakerId: "user_founder",
+        memberRole: "owner",
+      });
+      expect(controlRes.buildArg.cmoProjectOwner).toBeUndefined();
+      expect(memberFindFirstMock).not.toHaveBeenCalled();
+
+      // 4. Self-started SCHEDULE turn on flagged version -> cmoProjectOwner absent.
+      const db = (await import("@/lib/db/prisma")).default as unknown as Record<
+        string,
+        unknown
+      >;
+      const priorRoomMember = db.chatRoomUserMember;
+      db.chatRoomUserMember = {
+        findUnique: vi.fn().mockResolvedValue({ userId: "user_founder" }),
+      };
+      try {
+        chatRoomFindFirstMock.mockResolvedValue({ id: "room-cuso" });
+        const scheduleRes = await runTurn({
+          versionId: "cmo-v25-owner-flag",
+          speakerId: "user_founder",
+          memberRole: "owner",
+          source: "SCHEDULE",
+        });
+        expect(scheduleRes.buildArg.cmoProjectOwner).toBeUndefined();
+      } finally {
+        if (priorRoomMember === undefined) delete db.chatRoomUserMember;
+        else db.chatRoomUserMember = priorRoomMember;
+      }
+    } finally {
+      resolveSpy.mockRestore();
+    }
+  });
+
   it("runs a Core-written turn on its preset route without asking Jev", async () => {
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());
@@ -3084,6 +3257,165 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(openOwnerRoomMock).not.toHaveBeenCalled();
   });
 
+  it("rechecks live agent availability with the marketplace predicate when the last agent goes offline during classification", async () => {
+    const versions = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const { SOKO_BOT_HIREABLE_AGENT_WHERE } = await import(
+      "@/lib/soko-bot/agent-search"
+    );
+    const pin = vi
+      .spyOn(versions, "resolveRunnableSokoBotVersion")
+      .mockResolvedValue({
+        ...getSokoBotVersion("v36"),
+        routeSteering: true,
+      });
+    onTestFinished(() => pin.mockRestore());
+    agentFindManyMock.mockResolvedValue([
+      { id: "agent-review", name: "Reviewer" },
+    ]);
+    jevEvaluate.mockImplementation(async (request) => {
+      expect(request.questions.route.criteria).toHaveProperty("HIRE_AGENT");
+      // Last hireable agent goes offline while Jev is deciding.
+      agentFindManyMock.mockResolvedValue([]);
+      return jevRoute("HIRE_AGENT");
+    });
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "turn_scheduled",
+      leaseToken: "turn_lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_scheduled",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+    const contextBuilder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+
+    await new SokoBotControlPlane(
+      runtime,
+      contextBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      network: "mainnet",
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-scheduled",
+      message: "Hire a marketplace agent to produce the competitor teardown.",
+      source: "SCHEDULE",
+    });
+
+    expect(jevEvaluate).toHaveBeenCalledTimes(1);
+    expect(agentFindManyMock).toHaveBeenCalledTimes(2);
+    expect(agentFindManyMock.mock.calls[0]?.[0]?.where).toEqual(
+      SOKO_BOT_HIREABLE_AGENT_WHERE,
+    );
+    expect(agentFindManyMock.mock.calls[1]?.[0]?.where).toEqual(
+      SOKO_BOT_HIREABLE_AGENT_WHERE,
+    );
+    const written = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(written.route).toBe("CLARIFY");
+    expect(written.classification.abstained).toBe(true);
+    expect(written.classification.menuRoutes).not.toContain("HIRE_AGENT");
+    expect(written.capabilityNames).not.toContain("hire_agent");
+  });
+
+  it("keeps legacy v3 questions, thresholds and grants on a flag-off autonomous turn while opting into v4 only when classifierPolicy is v4", async () => {
+    const versions = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const { CLASSIFIER_VERSION_V3, CLASSIFIER_VERSION_V4, routeQuestions } =
+      await import("@/lib/soko-bot/classifier");
+    const base = getSokoBotVersion("v36");
+    const fixedEvaluation = jevRoute("MANAGE_WORK", { writeScope: "CHAT" });
+    const fixedAnswer = {
+      ...fixedEvaluation,
+      answers: {
+        ...(fixedEvaluation.answers as object),
+        route: {
+          choice: "MANAGE_WORK",
+          probabilities: {
+            MANAGE_WORK: 0.42,
+            DELEGATE_TASK: 0.26,
+            DIRECT_RESPONSE: 0.29,
+            CLARIFY: 0.03,
+          },
+        },
+        writeScope: {
+          choice: "CHAT",
+          probabilities: { CHAT: 0.93, INTEGRATION: 0.05 },
+        },
+      },
+    };
+
+    const runScheduled = async (policy?: "v4") => {
+      jevEvaluate.mockReset();
+      jevEvaluate.mockResolvedValue(fixedAnswer);
+      turnCreateMock.mockClear();
+      const pin = vi
+        .spyOn(versions, "resolveRunnableSokoBotVersion")
+        .mockResolvedValue(
+          policy ? { ...base, classifierPolicy: policy } : base,
+        );
+      try {
+        botFindFirstMock.mockResolvedValue(adminBot({ versionId: "v36" }));
+        botFindUniqueMock.mockResolvedValue(adminBot({ versionId: "v36" }));
+        turnFindUniqueMock.mockResolvedValue(null);
+        turnFindFirstMock.mockResolvedValue(null);
+        turnCreateMock.mockResolvedValue({
+          id: policy ? "turn_sched_v4" : "turn_sched_v3",
+          leaseToken: "turn_lease",
+        });
+        const runtime = runtimeWithReset(vi.fn());
+        runtime.createSession = vi.fn().mockResolvedValue({
+          sessionId: "session_scheduled",
+          runtimeVersion: "eve-test",
+          acceptedAt: "2026-08-18T12:00:00.000Z",
+        });
+        const contextBuilder = {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder;
+        await new SokoBotControlPlane(
+          runtime,
+          contextBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          network: "mainnet",
+          userId: "user_1",
+          workspaceId: "workspace_1",
+          clientTurnId: policy
+            ? "client-turn-scheduled-v4"
+            : "client-turn-scheduled-v3",
+          message: "Ask the other assistant for an update.",
+          source: "SCHEDULE",
+        });
+        return {
+          questions: jevEvaluate.mock.calls[0]?.[0]?.questions,
+          written: turnCreateMock.mock.calls[0]?.[0]?.data,
+        };
+      } finally {
+        pin.mockRestore();
+      }
+    };
+
+    const flagOff = await runScheduled();
+    expect(flagOff.questions).toEqual(routeQuestions(false, undefined, "v3"));
+    expect(flagOff.written.classifierVersion).toBe(CLASSIFIER_VERSION_V3);
+    expect(flagOff.written.route).toBe("DIRECT_RESPONSE");
+    expect(flagOff.written.capabilityNames).not.toContain("send_message");
+
+    const flagOn = await runScheduled("v4");
+    expect(flagOn.questions).toEqual(routeQuestions(false, undefined, "v4"));
+    expect(flagOn.written.classifierVersion).toBe(CLASSIFIER_VERSION_V4);
+    expect(flagOn.written.route).toBe("MANAGE_WORK");
+    expect(flagOn.written.classification.writeScope).toBe("CHAT");
+    expect(flagOn.written.capabilityNames).toContain("send_message");
+  });
+
   it("grants a self-started turn the same spend it grants the owner", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("HIRE_AGENT"));
     // Withholding only `hire_agent` from scheduled turns read as a spend limit
@@ -3134,7 +3466,9 @@ describe("SokoBotControlPlane lifecycle", () => {
           !isSokoBotAnnouncementCapability(capability) &&
           // v35's messaging tools; this bot runs an earlier version.
           capability !== "send_message" &&
-          capability !== "list_recipients",
+          capability !== "list_recipients" &&
+          // Only a version that reads context on demand (v38) gets it.
+          capability !== "read_context",
       ),
     );
   });
@@ -6698,5 +7032,129 @@ describe("safeEventProjection", () => {
       message: "Hiltl\u0000 since 1898",
     });
     expect(nul.summary).toBe("Hiltl since 1898");
+  });
+});
+
+describe("askPolicy candidate preparation in startTurn", () => {
+  it("keeps flag-off turns query-free and delivers Core candidates only on flag-on foreground turns", async () => {
+    const versionService = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const baseVersion = getSokoBotVersion("v36");
+    const flaggedVersion = { ...baseVersion, askPolicy: true as const };
+
+    const p1 = {
+      id: "01960001-0001-7001-8001-000000000001",
+      name: "Acme Brand",
+    };
+    const p2 = {
+      id: "01960001-0001-7001-8001-000000000002",
+      name: "Founder Desk",
+    };
+    const x1 = {
+      id: "01960001-0001-7001-8001-0000000000a1",
+      provider: "x",
+      externalHandle: "acme_hq",
+      project: p1,
+    };
+
+    const runWith = async (
+      version: typeof baseVersion,
+      overrides: {
+        source?: "CHAT" | "SCHEDULE";
+        chat?: { askedByUserId?: string };
+        botOverrides?: Record<string, unknown>;
+      } = {},
+    ) => {
+      vi.clearAllMocks();
+      projectFindManyMock.mockResolvedValue([p1, p2]);
+      socialConnectionFindManyMock.mockResolvedValue([x1]);
+      newsletterFindManyMock.mockResolvedValue([]);
+      const spy = vi
+        .spyOn(versionService, "resolveRunnableSokoBotVersion")
+        .mockResolvedValue(version);
+      try {
+        const bot = adminBot({
+          versionId: version.id,
+          ...overrides.botOverrides,
+        });
+        botFindFirstMock.mockResolvedValue(bot);
+        botFindUniqueMock.mockResolvedValue(bot);
+        turnFindUniqueMock.mockResolvedValue(null);
+        turnFindFirstMock.mockResolvedValue(null);
+        turnCreateMock.mockResolvedValue({
+          id: "ask-policy-turn",
+          leaseToken: "lease",
+        });
+        const runtime = runtimeWithReset(vi.fn());
+        runtime.createSession = vi.fn().mockResolvedValue({
+          sessionId: "ask-policy-session",
+          runtimeVersion: "test",
+          acceptedAt: new Date().toISOString(),
+        });
+        const builder = {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder;
+        await new SokoBotControlPlane(
+          runtime,
+          builder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          network: "mainnet",
+          userId: "user_1",
+          workspaceId: "workspace_1",
+          clientTurnId: `ask-policy-${Math.random()}`,
+          source: overrides.source ?? "CHAT",
+          message: "Turn this doc into 3 X posts",
+          ...(overrides.chat ? { chat: overrides.chat } : {}),
+        });
+        const buildCall = vi.mocked(builder.build).mock.calls[0]?.[0];
+        return {
+          extraHints: buildCall?.extraHints ?? [],
+          socialCalls: socialConnectionFindManyMock.mock.calls.length,
+          socialWhere: socialConnectionFindManyMock.mock.calls[0]?.[0]?.where,
+        };
+      } finally {
+        spy.mockRestore();
+      }
+    };
+
+    // Flag OFF: zero extra social queries, zero candidate hints.
+    const flagOff = await runWith(baseVersion);
+    expect(flagOff.socialCalls).toBe(0);
+    expect(flagOff.extraHints).toEqual([]);
+
+    // Flag ON foreground owner chat: delivers Core's 1-candidate verdict.
+    const flagOn = await runWith(flaggedVersion);
+    expect(flagOn.socialCalls).toBe(1);
+    expect(flagOn.extraHints).toEqual([
+      expect.stringContaining("exactly 1 fitting X destination"),
+    ]);
+    expect(flagOn.extraHints[0]).toContain("@acme_hq");
+
+    // Flag ON personal bot TEAMMATE turn: never leaks owner workspace records.
+    const teammate = await runWith(flaggedVersion, {
+      chat: { askedByUserId: "teammate_1" },
+    });
+    expect(teammate.socialCalls).toBe(0);
+    expect(teammate.extraHints).toEqual([]);
+
+    // Flag ON autonomous SCHEDULE turn: zero candidate queries or hints.
+    const scheduled = await runWith(flaggedVersion, { source: "SCHEDULE" });
+    expect(scheduled.socialCalls).toBe(0);
+    expect(scheduled.extraHints).toEqual([]);
+
+    // Flag ON shared single-project bot: pins query strictly to bot.projectId.
+    const shared = await runWith(flaggedVersion, {
+      botOverrides: { userId: null, projectId: p1.id },
+    });
+    expect(shared.socialCalls).toBe(1);
+    expect(shared.socialWhere).toMatchObject({
+      project: {
+        workspaceId: "workspace_1",
+        closedAt: null,
+        closingAt: null,
+        id: p1.id,
+      },
+    });
   });
 });

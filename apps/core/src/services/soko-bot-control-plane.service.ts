@@ -21,6 +21,7 @@ import {
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   type OwnerAuthorityStopRuleInput,
+  readsContextOnDemand,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -31,6 +32,7 @@ import {
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
   sokoBotContextPacketSchema,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
@@ -43,6 +45,7 @@ import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
+import { isAuthenticatedCmoProjectOwner } from "@/helpers/cmo-project-owner";
 import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import {
   forfeitCusoProjectCredits,
@@ -114,11 +117,14 @@ import {
   adminRetryOperationKey,
   redactAdminPresentation,
 } from "@/lib/soko-bot/admin-action-record";
+import { SOKO_BOT_HIREABLE_AGENT_WHERE } from "@/lib/soko-bot/agent-search";
+import { prepareAskPolicyHints } from "@/lib/soko-bot/ask-policy-candidates";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
 import {
   type ClassificationResult,
   JevTurnClassifier,
   presetClassificationResult,
+  runnableRoutesForMenu,
   storedWriteScope,
   type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
@@ -158,6 +164,7 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ownerPrivateRoom } from "@/lib/soko-bot/x-inbox";
 import {
   LIVE_CUSO_WHERE,
   ONBOARDING_TURN_PREFIX,
@@ -2519,6 +2526,18 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
+    // Keel menu rule (E1, gated by version.routeSteering): filter Jev's route
+    // options to what this bot and workspace can actually run before asking
+    // Jev, then re-check the pick against live availability before acting.
+    const menuCapabilities = input.chat?.askedByBot
+      ? SOKO_BOT_BOT_TO_BOT_CAPABILITIES
+      : applyVersionCapabilities(version, SOKO_BOT_CAPABILITIES);
+    const availableRoutes = version.routeSteering
+      ? runnableRoutesForMenu({
+          capabilities: menuCapabilities,
+          hasAgents: classifierContext.agentIds.length > 0,
+        })
+      : undefined;
     const classification: ClassificationResult = input.presetRoute
       ? presetClassificationResult(message, input.presetRoute)
       : await withEvaluationActor(
@@ -2526,6 +2545,10 @@ export class SokoBotControlPlane {
           () =>
             this.classifier.classify(input.chat?.classifyMessage ?? message, {
               ...classifierContext,
+              ...(availableRoutes ? { availableRoutes } : {}),
+              ...(version.classifierPolicy
+                ? { classifierPolicy: version.classifierPolicy }
+                : {}),
               previousReply:
                 previousTurn?.status === "COMPLETED"
                   ? previousTurn.finalAnswer
@@ -2549,6 +2572,50 @@ export class SokoBotControlPlane {
               })),
             }),
         );
+    if (availableRoutes && !input.presetRoute) {
+      const selectedIntent = classification.classification.selectedIntentId
+        ? pendingIntents.find(
+            (intent) =>
+              intent.id === classification.classification.selectedIntentId,
+          )
+        : undefined;
+      const selectedRoute =
+        selectedIntent?.originatingTurn.route ??
+        classification.classification.route;
+      const liveRoutes =
+        selectedRoute === "HIRE_AGENT"
+          ? runnableRoutesForMenu({
+              capabilities: menuCapabilities,
+              hasAgents:
+                (
+                  await prisma.agent.findMany({
+                    where: SOKO_BOT_HIREABLE_AGENT_WHERE,
+                    select: { id: true },
+                    take: 1,
+                  })
+                ).length > 0,
+            })
+          : availableRoutes;
+      if (!liveRoutes.includes(selectedRoute)) {
+        const {
+          selectedIntentId: _selectedIntentId,
+          continuation: _continuation,
+          writeScope: _writeScope,
+          candidateTaskIds: _candidateTaskIds,
+          ...rest
+        } = classification.classification;
+        classification.classification = {
+          ...rest,
+          route: "CLARIFY",
+          confidence: 0,
+          requiresClarification: true,
+          requiresApproval: false,
+          abstained: true,
+          menuRoutes: liveRoutes,
+          rationaleSummary: `Host re-check rejected unavailable route (${selectedRoute}); reads only.`,
+        };
+      }
+    }
     // Every Task the name matches is a candidate. Several matches used to
     // force CLARIFY, which turned "archive all my [TEST] tasks" into a
     // question; the bot sees the candidates and asks only when the owner
@@ -2732,6 +2799,25 @@ export class SokoBotControlPlane {
           },
         })
       : null;
+    const isFlaggedCmoBot =
+      isSharedSokoBot(bot) &&
+      bot.projectId !== null &&
+      version.profile === "cmo" &&
+      version.cmoOwnerAudience === true;
+    const speakerUserId = input.chat?.askedByUserId ?? input.userId;
+    const cmoProjectOwner =
+      isFlaggedCmoBot &&
+      source === "CHAT" &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0
+        ? await isAuthenticatedCmoProjectOwner({
+            bot,
+            version,
+            userId: speakerUserId,
+            askedByBot: input.chat?.askedByBot,
+            chainDepth: input.chat?.chainDepth,
+          })
+        : false;
     // A mute or standing instruction the owner typed is saved before the turn
     // reads memory, whether or not the model would have thought to.
     const capturedPreference =
@@ -2759,17 +2845,41 @@ export class SokoBotControlPlane {
             turnCreatedAt: new Date(),
           })
         : null;
+    const sharedScope = sokoBotSharedScopeOf(bot);
+    const askPolicyHints =
+      version.askPolicy &&
+      (input.source ?? "CHAT") === "CHAT" &&
+      personAsked &&
+      !input.background &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0 &&
+      (sharedScope !== null || !askedByTeammate)
+        ? await prepareAskPolicyHints({
+            workspaceId: input.workspaceId,
+            projectId: sharedScope?.projectId ?? null,
+            message: input.chat?.said ?? input.chat?.classifyMessage ?? message,
+            hasOpenAccountQuestion: Boolean(accountQuestion),
+          })
+        : [];
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
-      sharedScope: sokoBotSharedScopeOf(bot),
+      sharedScope,
+      ...(cmoProjectOwner ? { cmoProjectOwner: true } : {}),
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       clientTurnId,
       classification: classification.classification,
       personAsked,
-      extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
+      extraHints: [
+        ...(accountQuestion ? [accountQuestionHint(accountQuestion)] : []),
+        ...askPolicyHints,
+      ],
+      routeSteering: version.routeSteering === true,
       capturedPreference,
+      ...(version.cmoApplyChanges && version.profile === "cmo"
+        ? { cmoApplyChanges: true }
+        : {}),
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
         previousTurn?.status === "COMPLETED" ? previousTurn.finalAnswer : null,
@@ -2787,6 +2897,19 @@ export class SokoBotControlPlane {
         (askedByTeammate
           ? (input.background?.destinationRoomId ?? null)
           : null),
+      onDemand:
+        version.profile !== "cmo" && readsContextOnDemand(version.skills),
+      offered: capabilities,
+      xDms:
+        isPersonalSokoBot(bot) &&
+        !askedByTeammate &&
+        !input.chat?.askedByBot &&
+        input.userId === bot.userId &&
+        sokoBotReadsXDms(version.skills) &&
+        (await ownerPrivateRoom(destinationRoom?.id ?? null, {
+          ownerId: bot.userId,
+          sokoBotId: bot.id,
+        })),
       referencedTaskIds: [
         ...new Set([
           ...classifierContext.namedTaskIds,

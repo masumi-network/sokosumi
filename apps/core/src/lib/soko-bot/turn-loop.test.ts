@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   buildActionResponseMock,
   claimsActionMock,
+  claimsActionBySentenceMock,
   turnUpdate,
   turnFind,
   toolCallFind,
@@ -13,6 +14,7 @@ const {
   strategyFind: vi.fn(),
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
+  claimsActionBySentenceMock: vi.fn(),
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
@@ -29,14 +31,21 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: eventTransaction,
   },
 }));
-vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
+vi.mock("./answer-claims", () => ({
+  claimsAction: claimsActionMock,
+  claimsActionBySentence: (...args: unknown[]) =>
+    claimsActionBySentenceMock(...args),
+}));
 vi.mock("./action-response", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./action-response")>()),
   buildActionResponse: buildActionResponseMock,
 }));
 
 import {
+  applyVersionCapabilities,
+  CMO_PRODUCTION_TOOLS,
   getSokoBotVersion,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
 } from "@sokosumi/soko-bot";
 import { expectCoreLogWhys } from "@/test/core-log";
@@ -47,6 +56,7 @@ import {
   isTaintBlocked,
   offeredCapabilities,
   PENDING_STRATEGY_LABEL,
+  productionPacket,
   promptCacheKey,
   RuntimeEventLog,
   runtimeEvent,
@@ -57,6 +67,65 @@ import {
   turnRequiresActionProof,
   WEB_GUIDANCE,
 } from "./turn-loop";
+
+describe("a small-context production run (cmo-v26)", () => {
+  it("offers only tools the version has", () => {
+    const v26 = applyVersionCapabilities(
+      getSokoBotVersion("cmo-v26"),
+      SOKO_BOT_CAPABILITIES,
+    );
+    for (const tool of CMO_PRODUCTION_TOOLS) expect(v26).toContain(tool);
+  });
+
+  it("keeps the marketing context, the owner's memory and who started it, and leaves the rest out", () => {
+    const packet = {
+      schemaVersion: 1,
+      generatedAt: "2026-11-26T00:00:00Z",
+      trigger: { kind: "event" },
+      actor: { name: "Robin" },
+      projects: [],
+      memory: "Never mention competitors by name.",
+      recentTurns: [{ finalAnswer: "x".repeat(5000) }],
+      sourceCoverage: { mail: "none" },
+      tasks: [],
+      workspace: { marketing: { core: { business: "Acme" } }, other: 1 },
+    };
+    expect(productionPacket(packet)).toEqual({
+      schemaVersion: 1,
+      generatedAt: "2026-11-26T00:00:00Z",
+      trigger: { kind: "event" },
+      actor: { name: "Robin" },
+      projects: [],
+      memory: "Never mention competitors by name.",
+      workspace: { marketing: { core: { business: "Acme" } } },
+    });
+  });
+
+  it("offers every tool cmo-v26's skills and packet send a production run to", () => {
+    const v26 = getSokoBotVersion("cmo-v26");
+    for (const tool of [
+      "read_file",
+      "list_files",
+      "read_report",
+      "read_memory",
+      "research_competitor_keywords",
+      "get_video",
+      "list_newsletter_issues",
+      "update_newsletter_issue",
+      "update_social_posts",
+    ])
+      expect(CMO_PRODUCTION_TOOLS as readonly string[]).toContain(tool);
+    const granted = offeredCapabilities(
+      v26,
+      {
+        grant: { capabilities: [...CMO_PRODUCTION_TOOLS] },
+        turn: { source: "EVENT", chainDepth: 0 },
+      } as never,
+      { sandbox: false, production: true },
+    );
+    expect(granted).toEqual([...CMO_PRODUCTION_TOOLS]);
+  });
+});
 
 describe("a version with one fixed tool set", () => {
   const v24 = getSokoBotVersion("cmo-v24");
@@ -232,6 +301,8 @@ function completedMessage(): unknown {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  claimsActionMock.mockReset();
+  claimsActionBySentenceMock.mockReset();
   claimsActionMock.mockResolvedValue(false);
   toolCallFind.mockResolvedValue([]);
   strategyFind.mockResolvedValue([]);
@@ -370,20 +441,21 @@ describe("finishTurn", () => {
     );
   });
 
-  it("shows the cut reply as unchecked when the second check cannot run", async () => {
+  it("keeps individually cleared sentences when the final recheck cannot run", async () => {
     expectCoreLogWhys(
       "warn",
       "Cut a Soko Bot reply's claim of an unconfirmed change",
       ["The reply claims a change that no action receipt confirms"],
     );
     claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([false, true]);
     await finish(
       "Your Padierfind project has an X account. I created the schedule.",
       true,
     );
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
       message: "Your Padierfind project has an X account.",
-      replyCheck: "unchecked",
+      replyCheck: "cut",
     });
   });
 
@@ -412,6 +484,212 @@ describe("finishTurn", () => {
     claimsActionMock.mockResolvedValue(true);
     await finish("Hannah is on it now. I created the schedule.", true);
     expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
+  });
+
+  it("drops only the unsupported scheduling sentence and preserves confirmed draft summary + bullets", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "create_social_post",
+        result: {
+          id: "post-1",
+          status: "NEEDS_APPROVAL",
+          scheduledAt: null,
+        },
+      },
+    ]);
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    claimsActionBySentenceMock.mockResolvedValueOnce([
+      false,
+      false,
+      false,
+      true,
+      false,
+    ]);
+
+    const reply = [
+      "I prepared three X drafts from the one-pager:",
+      "- Draft 1: Typed memory replaces stale notes automatically.",
+      "- Draft 2: Nightly dream runs keep memory clean.",
+      "They are spread across Monday, Wednesday, and Friday next week.",
+      "Approve them in the cards below when ready.",
+    ].join("\n");
+
+    await finish(reply, true);
+
+    expect(claimsActionMock).toHaveBeenNthCalledWith(1, reply, [
+      "Created social post (draft awaiting approval; not scheduled)",
+    ]);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: [
+        "I prepared three X drafts from the one-pager:",
+        "- Draft 1: Typed memory replaces stale notes automatically.",
+        "- Draft 2: Nightly dream runs keep memory clean.",
+        "Approve them in the cards below when ready.",
+      ].join("\n"),
+      replyCheck: "cut",
+    });
+  });
+
+  it("prunes only the unsupported clause from a single mixed sentence", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "create_social_post",
+        result: {
+          id: "post-1",
+          status: "NEEDS_APPROVAL",
+          scheduledAt: null,
+        },
+      },
+    ]);
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    claimsActionBySentenceMock
+      .mockResolvedValueOnce([true])
+      .mockResolvedValueOnce([false, true]);
+
+    await finish(
+      "I drafted three X posts from the one-pager, and scheduled them for Monday, Wednesday, and Friday.",
+      true,
+    );
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "I drafted three X posts from the one-pager.",
+      replyCheck: "cut",
+    });
+  });
+
+  it("withholds an unverified remainder when all sentence checks and the recheck time out", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([null, null]);
+    await finish("I created a task. I forwarded the invoice to Finance.", true);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("does not restore an unchanged reply already rejected as a whole", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true);
+    claimsActionBySentenceMock.mockResolvedValueOnce([null]);
+    await finish("I forwarded the invoice to Finance.", true);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("does not restore an individually rejected sentence after a recheck outage", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([true, true]);
+    await finish("I created a task. I forwarded the invoice to Finance.", true);
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("keeps only positively cleared sentences when later sentences are unchecked due to budget exhaustion", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(null);
+    claimsActionBySentenceMock.mockResolvedValueOnce([false, true, null]);
+
+    await finish(
+      "The file is ready for review. I scheduled the posts. I forwarded the invoice to Finance.",
+      true,
+    );
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "The file is ready for review.",
+      replyCheck: "cut",
+    });
+  });
+
+  it("falls back to strictly cut deterministic scrub when per-sentence check is unavailable and recheck passes", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    claimsActionBySentenceMock.mockResolvedValueOnce([null, null]);
+
+    await finish(
+      "The file is ready for review. I scheduled the posts for next week.",
+      true,
+    );
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: "The file is ready for review.",
+      replyCheck: "cut",
+    });
+  });
+
+  it("still drops a reply when every sentence and clause is an unconfirmed claim", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Cut a Soko Bot reply's claim of an unconfirmed change",
+      ["The reply claims a change that no action receipt confirms"],
+    );
+    claimsActionMock.mockResolvedValueOnce(true);
+    claimsActionBySentenceMock
+      .mockResolvedValueOnce([true])
+      .mockResolvedValueOnce([true, true]);
+
+    await finish("I created the task, and I assigned it to Hannah.", true);
+
+    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      message: null,
+      replyCheck: "cut",
+    });
+  });
+
+  it("passes planned-time draft state to confirmedChanges when scheduledAt is set", async () => {
+    toolCallFind.mockResolvedValue([
+      {
+        capability: "create_social_post",
+        result: {
+          id: "post-1",
+          status: "NEEDS_APPROVAL",
+          scheduledAt: "2026-12-01T09:00:00.000Z",
+        },
+      },
+    ]);
+    claimsActionMock.mockResolvedValueOnce(false);
+
+    await finish("Created a draft awaiting approval with planned time.", true);
+
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Created a draft awaiting approval with planned time.",
+      ["Created social post (draft awaiting approval; planned time set)"],
+    );
   });
 
   it("lets the message report the changes its receipts confirm", async () => {

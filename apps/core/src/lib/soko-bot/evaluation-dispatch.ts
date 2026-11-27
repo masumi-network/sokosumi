@@ -538,6 +538,9 @@ export function evaluationClassifierContext(
     coworkerIds: [],
     agentIds: [],
     jobIds: [],
+    ...(context.classifierPolicy
+      ? { classifierPolicy: context.classifierPolicy }
+      : {}),
     taskIds: context.taskIds.filter((id) => binding.taskIds.includes(id)),
     candidates: context.candidates?.filter((item) =>
       binding.taskIds.includes(item.id),
@@ -545,6 +548,13 @@ export function evaluationClassifierContext(
     pendingIntents: context.pendingIntents?.filter((item) =>
       item.targetIds?.every((id) => binding.taskIds.includes(id)),
     ),
+    ...(context.availableRoutes
+      ? {
+          availableRoutes: context.availableRoutes.filter(
+            (route) => route !== "HIRE_AGENT",
+          ),
+        }
+      : {}),
   };
 }
 

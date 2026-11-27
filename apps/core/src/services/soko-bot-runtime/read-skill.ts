@@ -1,7 +1,9 @@
 import {
+  getSokoBotSkillForVersion,
   renderWritingSkill,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  sokoBotReadsPlaybooks,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
@@ -56,14 +58,31 @@ export async function readSkill(
   const { skill: id } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_skill.parse(input);
   const version = await resolveSokoBotVersion(authorized.turn.versionId);
   if (version.skills.includes(id)) {
-    const skill = SOKO_BOT_SKILLS.find((candidate) => candidate.id === id);
-    if (skill)
+    const exists = SOKO_BOT_SKILLS.some((candidate) => candidate.id === id);
+    if (exists) {
+      const skill = getSokoBotSkillForVersion(id, version);
       return { skill: skill.id, name: skill.name, content: skill.content };
+    }
   }
-  const writing = version.profile === "cmo" ? readWritingSkill(id) : null;
+  // Cuso reads every writing skill; a Soko Bot with the playbooks (v39)
+  // reads only those, never the per-network post skills.
+  const writing =
+    version.profile === "cmo" ||
+    (sokoBotReadsPlaybooks(version.skills) &&
+      WRITING_SKILLS.some(
+        (skill) => skill.id === id && skill.group === "playbooks",
+      ))
+      ? readWritingSkill(id)
+      : null;
   if (writing) return writing;
   const writingIds =
-    version.profile === "cmo" ? WRITING_SKILLS.map((skill) => skill.id) : [];
+    version.profile === "cmo"
+      ? WRITING_SKILLS.map((skill) => skill.id)
+      : sokoBotReadsPlaybooks(version.skills)
+        ? WRITING_SKILLS.filter((skill) => skill.group === "playbooks").map(
+            (skill) => skill.id,
+          )
+        : [];
   const closest = closestSkillIds(id, [...version.skills, ...writingIds]);
   throw new SokoBotRuntimeValidationError(
     `No skill "${id}". ${closest.length ? `Closest: ${closest.join(", ")}. ` : ""}Your skills: ${version.skills.join(", ")}.${writingIds.length ? ` Writing skills, read the same way: ${writingIds.join(", ")}.` : ""}`,

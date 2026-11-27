@@ -1,8 +1,14 @@
 import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "../policy.js";
 import { WRITING_SKILLS } from "../writing-skills/index.js";
+import {
+  CMO_PRODUCTION_TOOLS,
+  cmoCompactProduction,
+} from "./cmo-v26-skills.js";
+import { applyE1Skill } from "./e1-prompts.js";
 import { SKILL_INDEX, type SkillOccasion } from "./skill-index.js";
 import { SOKO_BOT_SKILLS } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
+import { sokoBotReadsPlaybooks } from "./v39-skills.js";
 
 /**
  * A narrower tool set some turns of a version get (cmo-v26's production run),
@@ -14,10 +20,27 @@ export interface TurnToolProfile {
   appliesTo: (version: SokoBotVersion) => boolean;
   occasion: SkillOccasion;
   tools: readonly SokoBotCapability[];
+  /** `skill:tool` pairs a carried skill may name off this set, with why. */
+  namedWithoutOffer?: Readonly<Record<string, string>>;
 }
 
 /** Profiles that narrow a version's tools on some turns; versions add theirs. */
-export const TURN_TOOL_PROFILES: TurnToolProfile[] = [];
+export const TURN_TOOL_PROFILES: TurnToolProfile[] = [
+  {
+    id: "compact production",
+    appliesTo: (version) => cmoCompactProduction(version.skills),
+    occasion: "production",
+    tools: CMO_PRODUCTION_TOOLS,
+    // Every-turn texts in the byte-stable system prompt; a production run
+    // makes the month and gets a plain refusal if it reaches for these.
+    namedWithoutOffer: {
+      "cmo-core-writes-strategy:write_strategy":
+        "strategy changes belong to chat and strategy turns",
+      "cmo-tool-highlights:save_brand_brain":
+        "Brand Brain saves belong to chat and brand turns",
+    },
+  },
+];
 
 /**
  * Tool names a skill text may name without the turn offering them, each with
@@ -59,14 +82,18 @@ function unreadableSkillNames(version: SokoBotVersion): string[] {
     ...version.skills,
     ...(version.profile === "cmo"
       ? WRITING_SKILLS.map((skill) => skill.id)
-      : []),
+      : sokoBotReadsPlaybooks(version.skills)
+        ? WRITING_SKILLS.filter((skill) => skill.group === "playbooks").map(
+            (skill) => skill.id,
+          )
+        : []),
   ]);
   const texts: [string, string][] = [
     ["system prompt", version.systemPrompt],
-    ...version.skills.map((id): [string, string] => [
-      id,
-      SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content ?? "",
-    ]),
+    ...version.skills.map((id): [string, string] => {
+      const raw = SOKO_BOT_SKILLS.find((skill) => skill.id === id);
+      return [id, raw ? applyE1Skill(raw, version).content : ""];
+    }),
   ];
   const problems: string[] = [];
   for (const [where, text] of texts)
@@ -97,6 +124,8 @@ function missingTools(
   skills: readonly string[],
   tools: ReadonlySet<string>,
   scanNames: boolean,
+  version: Pick<SokoBotVersion, "e1Prompts">,
+  allowed: Readonly<Record<string, string>> = {},
 ): string[] {
   const problems: string[] = [];
   for (const id of skills) {
@@ -104,9 +133,14 @@ function missingTools(
       if (!tools.has(tool))
         problems.push(`${label}: ${id} requires ${tool}, not offered`);
     if (!scanNames) continue;
-    const content = SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content;
+    const raw = SOKO_BOT_SKILLS.find((skill) => skill.id === id);
+    const content = raw ? applyE1Skill(raw, version).content : undefined;
     for (const tool of namedTools(content ?? ""))
-      if (!tools.has(tool) && !(tool in NAMED_WITHOUT_OFFER))
+      if (
+        !tools.has(tool) &&
+        !(tool in NAMED_WITHOUT_OFFER) &&
+        !(`${id}:${tool}` in allowed)
+      )
         problems.push(`${label}: ${id} names ${tool}, not offered`);
   }
   return problems;
@@ -147,6 +181,7 @@ export function versionIntegrityProblems(
       version.skills,
       new Set(everyTurnTools),
       onDemand,
+      version,
     ),
   );
   const applied = profiles.filter((each) => each.appliesTo(version));
@@ -159,6 +194,7 @@ export function versionIntegrityProblems(
           version.skills,
           new Set(profile.tools),
           false,
+          version,
         ),
       );
     return problems;
@@ -180,6 +216,8 @@ export function versionIntegrityProblems(
         carriedOn(version, profile.occasion),
         new Set(profile.tools),
         true,
+        version,
+        profile.namedWithoutOffer,
       ),
     );
   return problems;

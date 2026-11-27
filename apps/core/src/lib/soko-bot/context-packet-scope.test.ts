@@ -134,6 +134,65 @@ describe("contextPacketScope", () => {
     expect(scope.askerUserId).toBeNull();
   });
 
+  it("preserves OWNER askedByKind for an authenticated CMO project owner while keeping every shared-scope data filter intact", () => {
+    const scope = contextPacketScope({
+      ...shared,
+      userId: "founder-1",
+      askedByKind: "OWNER",
+      askedByUserId: "founder-1",
+      source: "CHAT",
+      cmoProjectOwner: true,
+    });
+    expect(scope.askedByKind).toBe("OWNER");
+    expect(scope.askerUserId).toBeNull();
+    // Shared-bot privacy isolation must never widen to personal private Tasks/Jobs/Assignments.
+    expect(scope.taskWhere).toEqual(buildSokoBotScopeTaskWhere(projectScope));
+    expect(scope.jobWhere).toEqual(buildSokoBotScopeJobWhere(projectScope));
+    expect(scope.projectWhere).toEqual({ workspaceId: WS, id: "p-1" });
+    expect(scope.coworkerAssignmentWhere).toEqual({ id: { in: [] } });
+    expect(scope.memoryWhere).toEqual({ sokoBotId: BOT });
+
+    // Non-CHAT self-started turns, ASSISTANT turns, workspace-wide bots, and mismatched askers stay non-OWNER.
+    expect(
+      contextPacketScope({
+        ...shared,
+        userId: "founder-1",
+        askedByKind: "OWNER",
+        source: "SCHEDULE",
+        cmoProjectOwner: true,
+      }).askedByKind,
+    ).toBe("TEAMMATE");
+    expect(
+      contextPacketScope({
+        ...shared,
+        userId: "founder-1",
+        askedByKind: "ASSISTANT",
+        source: "CHAT",
+        cmoProjectOwner: true,
+      }).askedByKind,
+    ).toBe("ASSISTANT");
+    expect(
+      contextPacketScope({
+        ...shared,
+        sharedScope: { ...projectScope, projectId: null },
+        userId: "founder-1",
+        askedByKind: "OWNER",
+        source: "CHAT",
+        cmoProjectOwner: true,
+      }).askedByKind,
+    ).toBe("TEAMMATE");
+    expect(
+      contextPacketScope({
+        ...shared,
+        userId: "founder-1",
+        askedByKind: "OWNER",
+        askedByUserId: "other-member",
+        source: "CHAT",
+        cmoProjectOwner: true,
+      }).askedByKind,
+    ).toBe("TEAMMATE");
+  });
+
   it("refuses a scope from another bot or workspace", () => {
     expect(() =>
       contextPacketScope({

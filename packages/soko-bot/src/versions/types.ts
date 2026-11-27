@@ -44,6 +44,57 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * E1 route steering (Option D + keel menu rule):
+   * - Filters Jev's route menu to routes the workspace and version can
+   *   actually run before asking Jev, re-checks Jev's pick against that menu,
+   *   and falls back cleanly on abstain, invalid, or stale picks.
+   * - Omits trigger.route, trigger.confidence, trigger.unsureRoute, and
+   *   version.skillOccasions from model-facing context (opening prompt and
+   *   refresh_context) on foreground human chat turns, replacing the legacy
+   *   route table with one Act-vs-Ask rule while Core gates remain the source
+   *   of truth.
+   * Autonomous turns and versions without this flag stay unchanged.
+   */
+  routeSteering?: true;
+  /**
+   * Jev routing classifier policy. Omitted or `"v3"` runs the legacy v3
+   * questions, thresholds and revision (`soko-bot-classifier-jev-seo-v3`) so
+   * live and control versions stay unchanged. `"v4"` opts into E1 PR 2's
+   * v4 criteria, thresholds and revision (`soko-bot-classifier-jev-v4`).
+   */
+  classifierPolicy?: "v3" | "v4";
+  /**
+   * E1 prompt & skill improvements (outcome checklist, receipt/scope checks,
+   * durable wakes over sleep polling, social scheduledAt clarity, tighter
+   * chained-work skill index, and Cuso shared-Project TEAMMATE & change scope).
+   * Omitted on all live and control versions.
+   */
+  e1Prompts?: true;
+  /**
+   * When true on a CMO bot (`profile === "cmo"`), an authenticated CMO project
+   * owner (the workspace member who hired Cuso, or an organization `OWNER` in
+   * Cuso's paying organization) is framed as `OWNER` in chat dispatch and
+   * `trigger.askedBy`, while other workspace members stay `TEAMMATE` and
+   * shared-bot data isolation (`sharedScope`) remains unchanged.
+   * Omitted on all live and control versions.
+   */
+  cmoOwnerAudience?: true;
+  /**
+   * Core prepares live fitting candidates from its own records before the bot
+   * asks (1 candidate: use it and say which; several: ask once and change
+   * nothing; none: say what is missing) and checks `project_selection` against
+   * those records. Omitted on all live, control, and loop-only versions.
+   */
+  askPolicy?: true;
+  /**
+   * CMO only: when a chat turn saves a new unapproved strategy version on a
+   * project with an approved running month and upcoming unpublished posts,
+   * Core updates the captured-preference hint and bounces the turn once if no
+   * upcoming posts were updated yet. Omitted on all live, control, and
+   * loop-only versions.
+   */
+  cmoApplyChanges?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

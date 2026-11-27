@@ -534,7 +534,9 @@ describe("Social capability ceilings", () => {
     expect(applyVersionCapabilities(version, social)).toEqual(
       social.filter(
         (capability) =>
-          capability !== "send_message" && capability !== "list_recipients",
+          capability !== "send_message" &&
+          capability !== "list_recipients" &&
+          capability !== "read_context",
       ),
     );
     expect(
@@ -543,5 +545,21 @@ describe("Social capability ceilings", () => {
         SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("read_context", () => {
+  it("is offered only to a version that reads context on demand", () => {
+    const all = capabilitiesForClassification(classification("SOCIAL"));
+    expect(all).toContain("read_context");
+    expect(
+      applyVersionCapabilities(getSokoBotVersion("v36"), all),
+    ).not.toContain("read_context");
+    expect(applyVersionCapabilities(getSokoBotVersion("v38"), all)).toContain(
+      "read_context",
+    );
+    expect(
+      applyVersionCapabilities(getSokoBotVersion("cmo-v23"), all),
+    ).not.toContain("read_context");
   });
 });

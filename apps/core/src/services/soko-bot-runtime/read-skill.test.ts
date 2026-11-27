@@ -11,7 +11,8 @@ vi.mock("@/services/cmo-cuso.service", () => ({
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 const { isSkillRead, readSkill, readSkillAgain } = await import("./read-skill");
-const { skillOccasions } = await import("./context");
+const { isForegroundHumanChatTurn, skillOccasions } = await import("./context");
+const { PRESET_VERSION } = await import("@/lib/soko-bot/classifier");
 
 function authorized(versionId: string) {
   return { turn: { versionId } } as never;
@@ -38,6 +39,22 @@ describe("read_skill", () => {
     await expect(
       readSkill(authorized("v36"), { skill: "linkedin" }),
     ).rejects.toThrow(/No skill "linkedin"\. Your skills: /);
+  });
+
+  it("lets a Soko Bot with the playbooks read a playbook, and nothing else of Cuso's", async () => {
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("v39"));
+    const read = await readSkill(authorized("v39"), { skill: "landing-page" });
+    expect(read.skill).toBe("landing-page");
+    await expect(
+      readSkill(authorized("v39"), { skill: "linkedin" }),
+    ).rejects.toThrow(/No skill "linkedin"/);
+    await expect(
+      readSkill(authorized("v39"), { skill: "cmo-launch-plan" }),
+    ).rejects.toThrow(/Closest: [^.]*\blaunch-plan\b/);
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("v37"));
+    await expect(
+      readSkill(authorized("v37"), { skill: "landing-page" }),
+    ).rejects.toThrow(/No skill "landing-page"/);
   });
 
   it("reads the whole skill again on a replayed call", async () => {
@@ -79,6 +96,28 @@ describe("read_skill", () => {
       readSkill(authorized("v36"), { skill: "cmo-strategy-v22" }),
     ).rejects.toThrow(/No skill/);
   });
+
+  it("returns E1-patched skills on read_skill only when e1Prompts is enabled", async () => {
+    const v36 = getSokoBotVersion("v36");
+    resolveSokoBotVersion.mockResolvedValueOnce(v36);
+    const legacy = await readSkill(authorized("v36"), {
+      skill: "long-and-chained-work-follow-ups",
+    });
+    expect(legacy.content).toContain("sleep 120");
+
+    resolveSokoBotVersion.mockResolvedValueOnce({ ...v36, e1Prompts: true });
+    const patched = await readSkill(authorized("v36"), {
+      skill: "long-and-chained-work-follow-ups",
+    });
+    expect(patched.content).not.toContain("sleep 120");
+    expect(patched.content).toContain("durable wakes");
+
+    resolveSokoBotVersion.mockResolvedValueOnce({ ...v36, e1Prompts: true });
+    const social = await readSkill(authorized("v36"), {
+      skill: "social-posting-instructions",
+    });
+    expect(social.content).toContain("unscheduled proposals");
+  });
 });
 
 describe("skillOccasions", () => {
@@ -108,5 +147,103 @@ describe("skillOccasions", () => {
         { workspace: {} },
       ),
     ).toEqual(["MANAGE_WORK", "mail"]);
+  });
+
+  it("keeps work skill preloading under routeSteering without emitting CLARIFY or DIRECT_RESPONSE", () => {
+    const opts = { routeSteering: true, foregroundHumanChat: true };
+    // Confident work route still preloads its skills.
+    expect(
+      skillOccasions(
+        { clientTurnId: null, source: "CHAT", route: "DELEGATE_TASK" },
+        { workspace: {} },
+        opts,
+      ),
+    ).toEqual(["DELEGATE_TASK"]);
+    // Split vote / abstain with work mass recovers work preloading.
+    expect(
+      skillOccasions(
+        {
+          clientTurnId: null,
+          source: "CHAT",
+          route: "CLARIFY",
+          classification: {
+            rawRoute: "ABSTAIN",
+            workConfidence: 0.42,
+            abstained: true,
+          },
+        },
+        { workspace: {} },
+        opts,
+      ),
+    ).toEqual(["MANAGE_WORK"]);
+    // Classifier failure recovers work preloading instead of starving skills.
+    expect(
+      skillOccasions(
+        {
+          clientTurnId: null,
+          source: "CHAT",
+          route: "CLARIFY",
+          classification: { classifierFailed: true },
+        },
+        { workspace: {} },
+        opts,
+      ),
+    ).toEqual(["MANAGE_WORK"]);
+    // Pure low-work Q&A emits neither CLARIFY nor DIRECT_RESPONSE.
+    expect(
+      skillOccasions(
+        {
+          clientTurnId: null,
+          source: "CHAT",
+          route: "DIRECT_RESPONSE",
+          classification: { rawRoute: "DIRECT_RESPONSE", workConfidence: 0.04 },
+        },
+        { workspace: {} },
+        opts,
+      ),
+    ).toEqual([]);
+    // Autonomous turns keep legacy occasions unchanged.
+    expect(
+      skillOccasions(
+        { clientTurnId: null, source: "SCHEDULE", route: "CLARIFY" },
+        { workspace: {} },
+        { routeSteering: true, foregroundHumanChat: false },
+      ),
+    ).toEqual(["CLARIFY", "schedule"]);
+  });
+});
+
+describe("isForegroundHumanChatTurn", () => {
+  it("matches human foreground chat (owner or teammate) and excludes autonomous, child, preset, and assistant turns", () => {
+    const base = {
+      source: "CHAT",
+      chainDepth: 0,
+      parentTurnId: null,
+      classifierVersion: "soko-bot-classifier-jev-seo-v3",
+    };
+    expect(isForegroundHumanChatTurn(base, "OWNER")).toBe(true);
+    expect(isForegroundHumanChatTurn(base, "TEAMMATE")).toBe(true);
+    expect(isForegroundHumanChatTurn(base, "ASSISTANT")).toBe(false);
+    expect(
+      isForegroundHumanChatTurn({ ...base, source: "SCHEDULE" }, "OWNER"),
+    ).toBe(false);
+    expect(
+      isForegroundHumanChatTurn({ ...base, source: "INGEST" }, "OWNER"),
+    ).toBe(false);
+    expect(
+      isForegroundHumanChatTurn({ ...base, source: "EVENT" }, "OWNER"),
+    ).toBe(false);
+    expect(
+      isForegroundHumanChatTurn({ ...base, parentTurnId: "turn-1" }, "OWNER"),
+    ).toBe(false);
+    expect(isForegroundHumanChatTurn({ ...base, chainDepth: 1 }, "OWNER")).toBe(
+      false,
+    );
+    expect(
+      isForegroundHumanChatTurn(
+        { ...base, classifierVersion: PRESET_VERSION },
+        "OWNER",
+      ),
+    ).toBe(false);
   });
 });

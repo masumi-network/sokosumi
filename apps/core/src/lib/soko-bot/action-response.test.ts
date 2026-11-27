@@ -2211,4 +2211,125 @@ describe("authoritative action responses", () => {
       ),
     ).not.toHaveProperty("replyCheck");
   });
+
+  it("preserves a structured time question when an independent draft is confirmed", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_social_post", targetId: "post-one" }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "CLARIFY",
+      message: null,
+      question: "TIME",
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toContain("Created social post.");
+    expect(result.answerText).toContain("When should this happen?");
+  });
+
+  it("preserves a requested target clarification after a refused action", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "update_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "CLARIFY",
+      message: null,
+      question: "TARGET",
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toContain("Which task or item do you mean?");
+  });
+
+  it("never appends a generic DETAILS question after confirmed work completed cleanly", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_social_post", targetId: "post-one" }),
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "CLARIFY",
+      message: null,
+      question: "DETAILS",
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toBe("Created social post.");
+    expect(result.answerText).not.toContain("additional details");
+  });
+
+  it("never falls through to raw uncut answerText or appends a canned question when replyCheck cut the message", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const rawJson =
+      '{"kind":"CLARIFY","message":"I published every post.","question":"DETAILS","observationToolCallIds":[]}';
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      rawJson,
+      false,
+      {
+        kind: "CLARIFY",
+        message: null,
+        question: "DETAILS",
+        observationToolCallIds: [],
+        replyCheck: "cut",
+      },
+    );
+    expect(result.answerText).toBe(REPLY_CHECK_NOTES.cut);
+    expect(result.answerText).not.toContain("published every post");
+    expect(result.answerText).not.toContain("additional details");
+  });
+
+  it("never leaks raw uncut answerText when Cuso saved a record and replyCheck cut the message", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v25",
+    });
+    db.sokoBotToolCall.count.mockImplementation(
+      async (args: { where: { capability: unknown } }) =>
+        JSON.stringify(args.where.capability).includes("save_brand_brain")
+          ? 1
+          : 0,
+    );
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "I updated every scheduled post for the month.",
+      true,
+      {
+        kind: "REPORT",
+        message: null,
+        question: null,
+        observationToolCallIds: [],
+        replyCheck: "cut",
+      },
+    );
+    expect(result.answerText).toBe(REPLY_CHECK_NOTES.cut);
+    expect(result.answerText).not.toContain("updated every scheduled post");
+  });
+
+  it("returns Nothing to add on a background turn when replyCheck cut the entire message", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "EVENT" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "I sent the update.",
+      false,
+      {
+        kind: "REPORT",
+        message: null,
+        question: null,
+        observationToolCallIds: [],
+        replyCheck: "cut",
+      },
+    );
+    expect(result.answerText).toBe("Nothing to add.");
+  });
 });

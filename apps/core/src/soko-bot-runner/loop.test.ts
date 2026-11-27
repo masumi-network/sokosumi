@@ -1290,4 +1290,81 @@ describe("the done check (planLoop)", () => {
       `${TIME_UP_PROMPT}\n\nOpen steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30`,
     );
   });
+
+  it("activates doneCheck on a configured triggerTool even without update_plan, and skips it on non-trigger tools", async () => {
+    const doneCheckCalls: string[] = [];
+    const writeStrategyTool = tool({
+      description: "Write strategy",
+      inputSchema: z.object({}),
+      execute: async () => ({ versionId: "v2", approved: false }),
+    });
+    const readCalendarTool = tool({
+      description: "Read calendar",
+      inputSchema: z.object({}),
+      execute: async () => ({ items: [] }),
+    });
+    const runScenario = async (
+      toolName: "write_strategy" | "read_calendar",
+    ) => {
+      let step = 0;
+      const model = new MockLanguageModelV3({
+        doStream: async () => {
+          step += 1;
+          if (step === 1) {
+            return streamOf({
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: `tc-${toolName}`,
+                  toolName,
+                  input: "{}",
+                },
+              ],
+              finishReason: { unified: "tool-calls", raw: undefined },
+              usage,
+              warnings: [],
+            });
+          }
+          return streamOf({
+            content: [{ type: "text", text: `Reply step ${step}` }],
+            finishReason: { unified: "stop", raw: undefined },
+            usage,
+            warnings: [],
+          });
+        },
+      });
+      return runTurnLoop({
+        model,
+        system: "You are Cuso.",
+        message: "No posts on Fridays.",
+        tools: {
+          write_strategy: writeStrategyTool,
+          read_calendar: readCalendarTool,
+        },
+        maxSteps: 10,
+        background: false,
+        deadline: Date.now() + MINUTE,
+        stopped: new AbortController().signal,
+        plan: {
+          inherited: false,
+          keepLatestPlan: false,
+          triggerTools: new Set(["write_strategy", "save_strategy"]),
+          doneCheck: async (draft) => {
+            doneCheckCalls.push(draft);
+            return "Update the affected upcoming posts before finishing.";
+          },
+          openSteps: async () => null,
+          changeTools: new Set(["update_social_posts"]),
+        },
+      });
+    };
+
+    const readOnly = await runScenario("read_calendar");
+    expect(readOnly.text).toBe("Reply step 2");
+    expect(doneCheckCalls).toEqual([]);
+
+    const strategySave = await runScenario("write_strategy");
+    expect(doneCheckCalls).toEqual(["Reply step 2"]);
+    expect(strategySave.text).toBe("Reply step 3");
+  });
 });

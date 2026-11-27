@@ -5,6 +5,7 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
+import { SOKO_BOT_HIREABLE_AGENT_WHERE } from "./agent-search";
 
 /**
  * The candidates the classifier may name, read at the same visibility seam
@@ -43,7 +44,7 @@ export async function loadClassificationContext(
       take: 50,
     }),
     prisma.agent.findMany({
-      where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
+      where: SOKO_BOT_HIREABLE_AGENT_WHERE,
       select: { id: true, name: true },
       take: 50,
     }),

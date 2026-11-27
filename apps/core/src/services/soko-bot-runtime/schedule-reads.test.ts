@@ -134,7 +134,11 @@ describe("listSchedules", () => {
     })) as {
       botSchedules: Record<string, unknown>[];
       taskSchedules: Record<string, unknown>[];
+      visibility?: string;
     };
+    expect(result.visibility).toMatch(
+      /Other workspace members' personal bot schedules are private/,
+    );
     expect(result.botSchedules[0]).toEqual(
       expect.objectContaining({ runsOn: "Ops", youCanChange: false }),
     );

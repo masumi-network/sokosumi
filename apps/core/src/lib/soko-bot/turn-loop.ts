@@ -3,8 +3,10 @@ import type { Prisma } from "@sokosumi/database";
 import {
   ACTION_LABELS,
   applyVersionCapabilities,
+  CMO_PRODUCTION_TOOLS,
   CMO_SHORT_FORM_TOOLS,
   type CmoShortFormTool,
+  cmoCompactProduction,
   cmoHighlightsTools,
   cmoShortFormAnswer,
   isCmoShortFormCall,
@@ -48,7 +50,7 @@ import {
   buildActionResponse,
   parseActionNarrativeText,
 } from "./action-response";
-import { claimsAction } from "./answer-claims";
+import * as answerClaims from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
@@ -344,6 +346,11 @@ export interface PreparedTurn {
    */
   planLoop: boolean;
   /**
+   * CMO `cmoApplyChanges`: activate the done check when a foreground chat turn
+   * calls `write_strategy` or `save_strategy`, even without `update_plan`.
+   */
+  cmoApplyChanges?: boolean;
+  /**
    * The turn starts with a plan from earlier in its request: the runner asks
    * Core about the plan from the start, not only once the turn writes one.
    */
@@ -434,12 +441,24 @@ export function offeredCapabilities(
     AuthorizedSokoBotRuntime,
     "grant" | "meetingPrep" | "askedByKind" | "turn"
   >,
-  options: { sandbox: boolean; web?: boolean },
+  options: {
+    sandbox: boolean;
+    web?: boolean;
+    /**
+     * cmo-v26: a production run is offered only the production tools, the
+     * same set on every such run, so its steps stay small and cached. Both
+     * sets hold action tools, so the answer format is the same either way.
+     */
+    production?: boolean;
+  },
 ): SokoBotCapability[] {
-  const offerable =
-    version.skillsOnDemand &&
-    !authorized.meetingPrep &&
-    authorized.askedByKind !== "ASSISTANT"
+  const offerable = options.production
+    ? CMO_PRODUCTION_TOOLS.filter((capability) =>
+        authorized.grant.capabilities.includes(capability),
+      )
+    : version.skillsOnDemand &&
+        !authorized.meetingPrep &&
+        authorized.askedByKind !== "ASSISTANT"
       ? stableCapabilities(version, authorized.grant.capabilities)
       : authorized.grant.capabilities;
   return (
@@ -469,6 +488,35 @@ export function turnRequiresActionProof(
   return capabilities.some((capability) => ACTION_CAPABILITIES.has(capability));
 }
 
+/**
+ * A production run's packet (cmo-v26): what making the month reads, the
+ * marketing context Core organized for it, and who and what started it.
+ * Recent turns, Tasks, Coworkers and source coverage stay out.
+ */
+export function productionPacket(packet: unknown): unknown {
+  if (!packet || typeof packet !== "object") return packet;
+  const {
+    workspace,
+    trigger,
+    actor,
+    projects,
+    memory,
+    generatedAt,
+    schemaVersion,
+  } = packet as Record<string, unknown>;
+  const marketing = (workspace as { marketing?: unknown } | null)?.marketing;
+  return {
+    schemaVersion,
+    generatedAt,
+    trigger,
+    actor,
+    projects,
+    // The owner's preferences and corrections bind every piece of the month.
+    memory,
+    workspace: { marketing },
+  };
+}
+
 /** One key per system prompt and tool set, so equal prefixes share a cache. */
 export function promptCacheKey(
   versionId: string,
@@ -495,12 +543,21 @@ export async function prepareTurn(
     (authorized.askedByKind !== "OWNER" || authorized.turn.chainDepth !== 0)
   )
     throw new Error("Evaluation requires an owner turn");
-  const context = await service.getContext({ sessionId, turnId });
+  const context = await service.getContext(
+    { sessionId, turnId },
+    { includeDiagnostics: true },
+  );
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
   const stable = version.skillsOnDemand === true;
-  const capabilities = offeredCapabilities(version, authorized, options);
+  const compactProduction =
+    cmoCompactProduction(version.skills) &&
+    (context.version.skillOccasions ?? []).includes("production");
+  const capabilities = offeredCapabilities(version, authorized, {
+    ...options,
+    production: compactProduction,
+  });
   const requiresActionProof = turnRequiresActionProof(capabilities);
   // Core runs a planLoop version's plan: it alone is no sandbox to guide.
   const hasSandbox =
@@ -517,10 +574,17 @@ export async function prepareTurn(
     ? await mcpServersGuidance(authorized.turn.sokoBotId)
     : [];
   const meetingPrep = authorized.meetingPrep === true;
+  const hideRoute = context.diagnostics?.hideRoute === true;
   const contextParts = stable
-    ? await modelContextParts(context.packet, meetingPrep)
+    ? await modelContextParts(
+        compactProduction ? productionPacket(context.packet) : context.packet,
+        meetingPrep,
+        { hideRoute },
+      )
     : {
-        fixed: await modelContextBlock(context.packet, meetingPrep),
+        fixed: await modelContextBlock(context.packet, meetingPrep, {
+          hideRoute,
+        }),
         perTurn: [],
       };
   const system = [
@@ -578,7 +642,10 @@ export async function prepareTurn(
   if (context.version.preloadedSkills)
     await new RuntimeEventLog(turnId, sessionId).append(
       runtimeEvent(SKILLS_PRELOADED_EVENT, {
-        occasions: context.version.skillOccasions ?? [],
+        occasions:
+          context.diagnostics?.skillOccasions ??
+          context.version.skillOccasions ??
+          [],
         preloaded: context.version.preloadedSkills,
         cacheKey,
       }),
@@ -586,6 +653,8 @@ export async function prepareTurn(
   // The plan is shown only to a turn that can update it.
   const planLoop =
     version.planLoop === true && capabilities.includes("update_plan");
+  const cmoApplyChanges =
+    version.cmoApplyChanges === true && version.profile === "cmo";
   const requestPlan = planLoop
     ? await readRequestPlan(
         authorized.turn.sokoBotId,
@@ -620,6 +689,7 @@ export async function prepareTurn(
     requiresActionProof,
     meetingPrep,
     planLoop,
+    ...(cmoApplyChanges ? { cmoApplyChanges: true } : {}),
     planInherited: requestPlan !== null,
     requestPlan,
     parts,
@@ -863,10 +933,28 @@ async function confirmedChanges(turnId: string): Promise<string[]> {
               : save.label,
           ];
         }
+        if (call.capability === "create_social_post") {
+          return [socialPostConfirmedLabel(call.result)];
+        }
         return [ACTION_LABELS[call.capability] ?? call.capability];
       }),
     ),
   ];
+}
+
+function socialPostConfirmedLabel(result: unknown): string {
+  const base = ACTION_LABELS.create_social_post ?? "Created social post";
+  if (typeof result !== "object" || result === null) return base;
+  const { status, scheduledAt } = result as {
+    status?: unknown;
+    scheduledAt?: unknown;
+  };
+  if (status === "NEEDS_APPROVAL") {
+    return typeof scheduledAt === "string" && scheduledAt.trim().length > 0
+      ? `${base} (draft awaiting approval; planned time set)`
+      : `${base} (draft awaiting approval; not scheduled)`;
+  }
+  return base;
 }
 
 /**
@@ -926,7 +1014,7 @@ async function ownerNarrative(
       : null);
   if (!narrative?.message) return narrative ?? undefined;
   const confirmed = await confirmedChanges(turnId);
-  const claim = await claimsAction(narrative.message, confirmed);
+  const claim = await answerClaims.claimsAction(narrative.message, confirmed);
   if (claim === false) return narrative;
   // The owner always gets the reply, never an unconfirmed claim: the
   // sentences that say something was done go, and the rest stays (what was
@@ -939,24 +1027,255 @@ async function ownerNarrative(
     return { ...narrative, message: kept, replyCheck: "unchecked" };
   }
   warnReplyCheck(turnId, "claims_unconfirmed_change");
-  const recheck =
-    kept !== null && kept !== narrative.message
-      ? await claimsAction(kept, confirmed)
-      : true;
-  // A second check that cannot run leaves the cut as it is: it already
-  // holds no sentence that says something was done.
-  if (recheck === null)
-    return { ...narrative, message: kept, replyCheck: "unchecked" };
-  return {
-    ...narrative,
-    message: recheck === false ? kept : null,
-    replyCheck: "cut",
-  };
+  const originalMessage = narrative.message;
+  const runBudgeted = Object.keys(answerClaims).includes("withClaimCheckBudget")
+    ? answerClaims.withClaimCheckBudget
+    : async <T>(
+        fn: (budget: answerClaims.ClaimCheckBudget) => Promise<T>,
+      ): Promise<T> =>
+        fn({ deadlineAt: Date.now() + 12_000, remainingCalls: 3 });
+  const checkBySentence = Object.keys(answerClaims).includes(
+    "claimsActionBySentence",
+  )
+    ? answerClaims.claimsActionBySentence
+    : undefined;
+  return runBudgeted(async (pruneBudget) => {
+    if (typeof checkBySentence === "function") {
+      const filtered = await filterUnsupportedClaimSentences(
+        originalMessage,
+        confirmed,
+        checkBySentence,
+        pruneBudget,
+      );
+      if (filtered !== null && filtered.outcome === "pruned") {
+        // Negative sentence verdicts are permanent: if zero sentences/clauses were
+        // positively cleared (or nothing actually changed), withhold the rejected text.
+        if (filtered.message === null || filtered.message === originalMessage) {
+          return { ...narrative, message: null, replyCheck: "cut" };
+        }
+        const recheck = await answerClaims.claimsAction(
+          filtered.message,
+          confirmed,
+        );
+        if (recheck === false) {
+          return { ...narrative, message: filtered.message, replyCheck: "cut" };
+        }
+        if (recheck === null) {
+          // Every surviving sentence/clause was already positively cleared by
+          // claimsActionBySentence, so on budget exhaustion or recheck outage
+          // keep only that positively cleared text.
+          return { ...narrative, message: filtered.message, replyCheck: "cut" };
+        }
+        // Recheck flagged the combined surviving text: scrub only the surviving
+        // text (never returning to already-rejected original sentences) and
+        // require positive clearance before keeping it.
+        const scrubbed = withoutChangeClaims(filtered.message);
+        if (scrubbed !== null && scrubbed !== filtered.message) {
+          const finalCheck = await answerClaims.claimsAction(
+            scrubbed,
+            confirmed,
+          );
+          if (finalCheck === false) {
+            return { ...narrative, message: scrubbed, replyCheck: "cut" };
+          }
+        }
+        return { ...narrative, message: null, replyCheck: "cut" };
+      }
+    }
+    // Sentence pruning could not isolate verdicts (unavailable / partial test mock):
+    // never return the unchanged already-rejected reply; only a strictly cut
+    // deterministic scrub may proceed to recheck.
+    if (kept === null || kept === originalMessage) {
+      return { ...narrative, message: null, replyCheck: "cut" };
+    }
+    const recheck = await answerClaims.claimsAction(kept, confirmed);
+    // After a known whole-reply rejection, a regex-only remainder (with no
+    // sentences individually cleared by Jev) must be positively cleared by
+    // recheck before it can be shown.
+    return {
+      ...narrative,
+      message: recheck === false ? kept : null,
+      replyCheck: "cut",
+    };
+  });
+}
+
+interface MessageUnit {
+  lineIndex: number;
+  text: string;
+}
+
+function splitMessageUnits(message: string): {
+  lineCount: number;
+  blankLines: Set<number>;
+  units: MessageUnit[];
+} {
+  const lines = message.split(/\n/);
+  const blankLines = new Set<number>();
+  const units: MessageUnit[] = [];
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex] ?? "";
+    if (!line.trim()) {
+      blankLines.add(lineIndex);
+      continue;
+    }
+    for (const sentence of line.split(/(?<=[.!?])\s+/)) {
+      const trimmed = sentence.trim();
+      if (trimmed) units.push({ lineIndex, text: trimmed });
+    }
+  }
+  return { lineCount: lines.length, blankLines, units };
+}
+
+function joinMessageUnits(
+  lineCount: number,
+  blankLines: ReadonlySet<number>,
+  keptUnits: readonly MessageUnit[],
+): string | null {
+  if (keptUnits.length === 0) return null;
+  const byLine = new Map<number, string[]>();
+  for (const unit of keptUnits) {
+    const list = byLine.get(unit.lineIndex) ?? [];
+    list.push(unit.text);
+    byLine.set(unit.lineIndex, list);
+  }
+  const lines: string[] = [];
+  for (let i = 0; i < lineCount; i++) {
+    const parts = byLine.get(i);
+    if (parts?.length) lines.push(parts.join(" "));
+    else if (blankLines.has(i) && lines.length > 0 && lines.at(-1) !== "") {
+      lines.push("");
+    }
+  }
+  const joined = lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return joined || null;
 }
 
 /** A sentence saying something was done: created, sent, scheduled and the like. */
 const CHANGE_CLAIM =
-  /\b(created|assigned|sent|posted|scheduled|set up|hired|generated|made|drafted|prepared|uploaded|archived|updated|changed|saved|added|booked|published|replied|emailed|messaged|moved|deleted|removed|started|launched)\b/i;
+  /\b(created|assigned|sent|posted|scheduled|spread|queued|slated|set up|hired|generated|made|drafted|prepared|uploaded|archived|updated|changed|saved|added|booked|published|replied|emailed|messaged|moved|deleted|removed|started|launched)\b/i;
+
+const CLAUSE_START = new RegExp(
+  `^(?:(?:I|we|they|it|the|this|that|there|all|each|no|not|nothing|never|kept|left)\\b|${CHANGE_CLAIM.source})`,
+  "i",
+);
+
+/** Splits a single sentence into independent clauses without breaking Oxford lists. */
+function splitIndependentClauses(sentence: string): string[] {
+  const parts = sentence
+    .split(/\s*(?:;|—|–)\s*/)
+    .flatMap((segment) => {
+      const chunks: string[] = [];
+      const matcher = /,\s+(?:and|but|so|then)\s+/gi;
+      let start = 0;
+      for (const match of segment.matchAll(matcher)) {
+        const idx = match.index ?? 0;
+        const after = segment.slice(idx + match[0].length).trim();
+        if (CLAUSE_START.test(after)) {
+          chunks.push(segment.slice(start, idx).trim());
+          start = idx + match[0].length;
+        }
+      }
+      chunks.push(segment.slice(start).trim());
+      return chunks;
+    })
+    .filter((part) => part.length > 0);
+  return parts.length >= 2 ? parts : [sentence];
+}
+
+function tidyKeptClauses(clauses: readonly string[]): string {
+  const joined = clauses
+    .map((clause, index) =>
+      index === 0
+        ? clause.replace(/^(?:and|but|so|then)\s+/i, "").trim()
+        : clause,
+    )
+    .filter(Boolean)
+    .join("; ");
+  if (!joined) return "";
+  return /[.!?]$/.test(joined) ? joined : `${joined}.`;
+}
+
+/**
+ * Drops every rejected or unchecked sentence — keeping only sentences (or
+ * independent clauses of a mixed sentence) positively cleared (`false`) by
+ * `claimsActionBySentence` within the shared pruning budget.
+ */
+async function filterUnsupportedClaimSentences(
+  message: string,
+  confirmed: readonly string[],
+  checkBySentence: typeof answerClaims.claimsActionBySentence,
+  budget: answerClaims.ClaimCheckBudget,
+): Promise<
+  | { outcome: "pruned"; message: string | null }
+  | { outcome: "unavailable" }
+  | null
+> {
+  const { lineCount, blankLines, units } = splitMessageUnits(message);
+  if (units.length === 0) return { outcome: "pruned", message: null };
+
+  const verdicts = await checkBySentence(
+    units.map((unit) => unit.text),
+    confirmed,
+  );
+  if (!Array.isArray(verdicts)) return null;
+  if (verdicts.every((verdict) => verdict === null)) {
+    return { outcome: "unavailable" };
+  }
+
+  // For sentences flagged as unsupported, attempt clause-level pruning in one
+  // batched call (sharing the same budget) so a single mixed sentence keeps
+  // only positively cleared clauses.
+  const clausePlans: { unitIndex: number; clauses: string[] }[] = [];
+  const flatClauses: string[] = [];
+  for (let i = 0; i < units.length; i++) {
+    if (verdicts[i] !== true) continue;
+    const clauses = splitIndependentClauses(units[i]?.text ?? "");
+    if (clauses.length >= 2) {
+      clausePlans.push({ unitIndex: i, clauses });
+      flatClauses.push(...clauses);
+    }
+  }
+  const clauseVerdicts =
+    flatClauses.length > 0 && budget.remainingCalls > 0
+      ? await checkBySentence(flatClauses, confirmed)
+      : [];
+  const rescuedByUnit = new Map<number, string>();
+  if (Array.isArray(clauseVerdicts)) {
+    let cursor = 0;
+    for (const plan of clausePlans) {
+      const keptClauses: string[] = [];
+      for (const clause of plan.clauses) {
+        const verdict = clauseVerdicts[cursor++];
+        if (verdict === false) keptClauses.push(clause);
+      }
+      const rescued = tidyKeptClauses(keptClauses);
+      if (rescued) rescuedByUnit.set(plan.unitIndex, rescued);
+    }
+  }
+
+  const keptUnits: MessageUnit[] = [];
+  for (let i = 0; i < units.length; i++) {
+    const unit = units[i];
+    if (!unit) continue;
+    const verdict = verdicts[i];
+    // Only positively cleared (`false`) sentences/clauses survive inside an
+    // already-rejected reply; rejected (`true`) and unchecked (`null`) drop.
+    if (verdict === false) {
+      keptUnits.push(unit);
+    } else if (verdict === true) {
+      const rescued = rescuedByUnit.get(i);
+      if (rescued) keptUnits.push({ lineIndex: unit.lineIndex, text: rescued });
+    }
+  }
+  return {
+    outcome: "pruned",
+    message: joinMessageUnits(lineCount, blankLines, keptUnits),
+  };
+}
 
 /**
  * A sentence saying something was not done: true even when nothing was

@@ -245,6 +245,8 @@ export {
 } from "./task-tool-contracts.js";
 export {
   isSokoBotDecisionTarget,
+  SOCIAL_POSTS_PER_BATCH,
+  SOKO_BOT_CONTEXT_SECTIONS,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
   SOKO_BOT_PLAN_STEP_STATUSES,
@@ -286,6 +288,7 @@ export {
   sokoBotPostChatInputSchema,
   sokoBotProvideJobInputSchema,
   sokoBotReadChatInputSchema,
+  sokoBotReadContextInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
   sokoBotRemoveSkillInputSchema,
@@ -305,6 +308,7 @@ export {
   sokoBotUpdateScheduleInputSchema,
   sokoBotUploadFileInputSchema,
 } from "./tool-contracts.js";
+export { ASK_POLICY_SECTION } from "./versions/ask-policy.js";
 export {
   CMO_PLAYBOOKS_SKILL,
   cmoReadsPlaybooks,
@@ -367,11 +371,28 @@ export {
   cmoWritesStrategyStep,
 } from "./versions/cmo-v25-skills.js";
 export {
+  CMO_COMPACT_PRODUCTION_SKILL,
+  CMO_PRODUCTION_TOOLS,
+  cmoCompactProduction,
+} from "./versions/cmo-v26-skills.js";
+export {
   CMO_VIDEO_SHAPES,
   CMO_VIDEO_SHAPES_SKILL,
   cmoPostsVideoShapes,
 } from "./versions/cmo-video-shapes-skill.js";
 export {
+  CONTEXT_ON_DEMAND_SKILL,
+  readsContextOnDemand,
+} from "./versions/context-on-demand-skills.js";
+export {
+  applyE1Skill,
+  applyE1SystemPrompt,
+  E1_CUSO_CHANGE_SCOPE_SECTION,
+  E1_FINISHING_SECTION,
+  E1_SKILL_USE_WHEN_OVERRIDES,
+} from "./versions/e1-prompts.js";
+export {
+  applyRouteSteeringPrompt,
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -379,7 +400,9 @@ export {
   composeSystemPrompt,
   composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkillForVersion,
   getSokoBotVersion,
+  ROUTE_STEERING_ACT_OR_ASK_SECTION,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
   SOKO_BOT_VERSIONS,
@@ -399,6 +422,11 @@ export {
   type SkillOccasion,
   splitSkillsForTurn,
 } from "./versions/skill-index.js";
+export {
+  SOCIAL_POSTING_ACCOUNT_SKILL,
+  SOKO_BOT_PLAYBOOKS_SKILL,
+  sokoBotReadsPlaybooks,
+} from "./versions/v39-skills.js";
 export { sokoBotReadsXDms, X_DMS_SKILL_ID } from "./versions/x-dms-skills.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {

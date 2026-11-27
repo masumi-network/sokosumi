@@ -5,6 +5,9 @@ import {
 } from "@sokosumi/soko-bot";
 import { loadSokoBotPersona } from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
+import { PRESET_VERSION } from "@/lib/soko-bot/classifier";
+import { effectiveWorkRouteForPreload } from "@/lib/soko-bot/route-preload";
+import { packetForModel } from "@/lib/soko-bot/turn-model-context";
 import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
@@ -12,6 +15,45 @@ import {
   SokoBotRuntimeAuthorizationError,
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
+
+/**
+ * Whether a turn is a foreground human chat turn (typed by an owner or
+ * teammate, not an autonomous schedule/event/ingest turn, background child,
+ * preset turn, or bot-to-bot turn).
+ */
+export function isForegroundHumanChatTurn(
+  turn: {
+    source: string | null;
+    chainDepth?: number | null;
+    parentTurnId?: string | null;
+    classifierVersion?: string | null;
+  },
+  askedByKind: string | null | undefined,
+): boolean {
+  return (
+    turn.source === "CHAT" &&
+    (turn.chainDepth ?? 0) === 0 &&
+    !turn.parentTurnId &&
+    askedByKind !== "ASSISTANT" &&
+    turn.classifierVersion !== PRESET_VERSION
+  );
+}
+
+function workRouteFromClassification(
+  route: string | null,
+  classification: unknown,
+): string | null {
+  const record =
+    classification && typeof classification === "object"
+      ? (classification as {
+          unsureRoute?: unknown;
+          rawRoute?: unknown;
+          workConfidence?: unknown;
+          classifierFailed?: unknown;
+        })
+      : {};
+  return effectiveWorkRouteForPreload({ route, ...record });
+}
 
 /** Owner-installed skills, advertised by Eve as load-on-demand skills. */
 export async function getInstalledSkills(
@@ -30,14 +72,19 @@ export async function getInstalledSkills(
 /**
  * What a turn is, for the skills it preloads: a Cuso turn's kind from the
  * context organizer, a Soko Bot turn's route and where it came from.
+ * Under `routeSteering` on foreground human chat turns, keeps route-based
+ * skill preloading working (including work fallback when Jev abstained,
+ * split votes, or failed) without emitting `CLARIFY` or `DIRECT_RESPONSE`.
  */
 export function skillOccasions(
   turn: {
     clientTurnId: string | null;
     source: string;
     route: string | null;
+    classification?: unknown;
   },
   packet: unknown,
+  options?: { routeSteering?: boolean; foregroundHumanChat?: boolean },
 ): string[] {
   const kind = (
     packet as {
@@ -48,6 +95,13 @@ export function skillOccasions(
     return turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX)
       ? [kind, "onboarding"]
       : [kind];
+  if (options?.routeSteering && options?.foregroundHumanChat) {
+    const workRoute = workRouteFromClassification(
+      turn.route,
+      turn.classification,
+    );
+    return workRoute ? [workRoute] : [];
+  }
   return [
     ...(turn.route ? [turn.route] : []),
     ...(turn.source === "INGEST" ? ["mail"] : []),
@@ -58,6 +112,7 @@ export function skillOccasions(
 export async function getContext(
   runtime: RuntimeOperations,
   input: RuntimeAuthorizationInput,
+  options?: { includeDiagnostics?: boolean },
 ) {
   const authorized = await runtime.authorize(input);
   const snapshot = await prisma.sokoBotContextSnapshot.findFirst({
@@ -83,12 +138,36 @@ export async function getContext(
   // that loads skills on demand preloads those its kind of turn needs.
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: authorized.turn.id },
-    select: { clientTurnId: true, source: true, route: true },
+    select: {
+      clientTurnId: true,
+      source: true,
+      route: true,
+      parentTurnId: true,
+      chainDepth: true,
+      classifierVersion: true,
+      classification: true,
+    },
   });
-  const occasions = turn ? skillOccasions(turn, snapshot.packet) : [];
+  const foregroundHumanChat = turn
+    ? isForegroundHumanChatTurn(turn, authorized.askedByKind)
+    : false;
+  const hideRoute =
+    version.routeSteering === true &&
+    foregroundHumanChat &&
+    authorized.meetingPrep !== true;
+  const occasions = turn
+    ? skillOccasions(turn, snapshot.packet, {
+        routeSteering: version.routeSteering === true,
+        foregroundHumanChat,
+      })
+    : [];
   const promptTurn = { clientTurnId: turn?.clientTurnId ?? null, occasions };
+  const visiblePacket = hideRoute
+    ? packetForModel(snapshot.packet, { hideRoute: true })
+    : snapshot.packet;
   return {
     ...snapshot,
+    packet: visiblePacket,
     version: {
       id: version.id,
       name: version.name,
@@ -98,10 +177,18 @@ export async function getContext(
       ...(version.skillsOnDemand
         ? {
             turnPreamble: composeTurnPreamble(version, persona, promptTurn),
-            skillOccasions: occasions,
+            ...(hideRoute ? {} : { skillOccasions: occasions }),
             preloadedSkills: splitSkillsForTurn(version, occasions).preloaded,
           }
         : {}),
     },
+    ...(options?.includeDiagnostics
+      ? {
+          diagnostics: {
+            hideRoute,
+            skillOccasions: occasions,
+          },
+        }
+      : {}),
   };
 }
