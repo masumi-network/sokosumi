@@ -154,6 +154,7 @@ const created = {
   sokoBotIds: [] as string[],
   agentIds: [] as string[],
   pricingIds: [] as string[],
+  fixedPricingIds: [] as string[],
   creditCostIds: [] as string[],
 };
 const agents = { paid: "", free: "" };
@@ -371,6 +372,8 @@ async function createAgents() {
   for (const kind of ["paid", "free"] as const) {
     const pricingId = randomUUID();
     created.pricingIds.push(pricingId);
+    const fixedPricingId = randomUUID();
+    if (kind === "paid") created.fixedPricingIds.push(fixedPricingId);
     const identifier = `${randomUUID().replaceAll("-", "")}${kind}`;
     const agent = await db.agent.create({
       data: {
@@ -386,6 +389,7 @@ async function createAgents() {
                   pricingType: "FIXED",
                   fixedPricing: {
                     create: {
+                      id: fixedPricingId,
                       amounts: {
                         create: { unit: "lovelace", amount: PRICE_LOVELACE },
                       },
@@ -801,6 +805,12 @@ describe.skipIf(!enabled)(
       await db.agent.deleteMany({ where: { id: { in: created.agentIds } } });
       await db.agentPricing.deleteMany({
         where: { id: { in: created.pricingIds } },
+      });
+      await db.unitValue.deleteMany({
+        where: { agentFixedPricingId: { in: created.fixedPricingIds } },
+      });
+      await db.agentFixedPricing.deleteMany({
+        where: { id: { in: created.fixedPricingIds } },
       });
       await db.creditCost.deleteMany({
         where: { id: { in: created.creditCostIds } },
