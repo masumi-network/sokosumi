@@ -238,7 +238,7 @@ export function noPreviewChangesMessage() {
   return [
     "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, `apps/cmo-website/`, or `packages/`.",
     "",
-    "Previews only build web, core, CMO, the CMO.XYZ website, and their package dependencies. If you still need a preview, comment `/deploy <network> --force` (not available on fork PRs).",
+    "Previews only build web, core, CMO, the CMO.XYZ website, and their package dependencies. If you still need a preview, comment `/deploy <network> --force`, or on a fork PR push a change under one of those paths and comment `/deploy <network> <sha>` again.",
   ].join("\n");
 }
 
@@ -911,8 +911,15 @@ export async function runPreviewDeployComment(options) {
         );
         return { kind: "reserved-branch" };
       }
+      // Only a notice: a failed comment must not stop the deploy.
       if (noChanges) {
-        await comment(forcedPreviewMessage(deployTargets(networks, apps)));
+        try {
+          await comment(forcedPreviewMessage(deployTargets(networks, apps)));
+        } catch (error) {
+          console.warn(
+            `Forced deploy comment failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
       // Vercel reads `git.deploymentEnabled` from the pushed commit, so a fork's
       // config could start builds on our branch in projects nobody approved.

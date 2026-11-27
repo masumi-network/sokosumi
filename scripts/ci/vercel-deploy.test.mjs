@@ -1701,6 +1701,27 @@ describe("preview skip on /deploy", () => {
     assert.match(posted[0], /web, core, cmo on mainnet/);
   });
 
+  it("still deploys with --force when the notice comment fails", async () => {
+    const created = [];
+    const result = await runPreviewDeployComment(
+      baseComment({
+        commentBody: "/deploy preprod --force",
+        listFiles: async () => [],
+        prepareResources: async () => {},
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async () => {
+          throw new Error("rate limited");
+        },
+      }),
+    );
+    assert.equal(result.kind, "deploy");
+    assert.equal(created.length, 2);
+  });
+
   it("posts nothing extra when --force was not needed", async () => {
     const posted = [];
     const result = await runPreviewDeployComment(
