@@ -16,6 +16,57 @@ describe("TurnStallDetector (E8)", () => {
     output: { text: path },
   });
 
+  it("preserves productive status checks while consulting the same task list (order-independent) and still catches unchanged polls", () => {
+    for (const sameTarget of [false, true]) {
+      for (const reverse of [false, true]) {
+        const detector = new TurnStallDetector();
+        for (let i = 1; i <= 8; i++) {
+          const statusCall = {
+            toolName: "get_task_status",
+            input: { taskId: sameTarget ? "t" : `t${i}` },
+            output: { status: "RUNNING", events: [{ id: `e${i}` }] },
+          };
+          const listCall = {
+            toolName: "list_tasks",
+            input: { projectId: "project" },
+            output: { total: 8 },
+          };
+          const toolResults = reverse
+            ? [listCall, statusCall]
+            : [statusCall, listCall];
+          const hit = detector.observeSteps([{ toolResults }], 0);
+          expect(hit).toBeNull();
+        }
+      }
+    }
+
+    // Unchanged polls alongside the same task list must still trigger poll_no_progress on step 3.
+    const stalled = new TurnStallDetector();
+    const unchangedPoll = {
+      toolName: "get_task_status",
+      input: { taskId: "t" },
+      output: { status: "RUNNING", events: [{ id: "e1" }] },
+    };
+    const listCall = {
+      toolName: "list_tasks",
+      input: { projectId: "project" },
+      output: { total: 8 },
+    };
+    expect(
+      stalled.observeSteps([{ toolResults: [unchangedPoll, listCall] }], 0),
+    ).toBeNull();
+    expect(
+      stalled.observeSteps([{ toolResults: [unchangedPoll, listCall] }], 0),
+    ).toBeNull();
+    expect(
+      stalled.observeSteps([{ toolResults: [unchangedPoll, listCall] }], 0),
+    ).toEqual({
+      pattern: "poll_no_progress",
+      tools: ["get_task_status"],
+      count: STALL_POLL_NO_PROGRESS_THRESHOLD,
+    });
+  });
+
   it("allows repeated reference to an index while previously unread files are opened", () => {
     const detector = new TurnStallDetector();
     for (let i = 0; i < 8; i++) {

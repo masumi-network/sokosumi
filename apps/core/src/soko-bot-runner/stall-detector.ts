@@ -121,10 +121,8 @@ export class TurnStallDetector {
   private window: WindowEntry[] = [];
   private seenSignatures = new Set<string>();
   private redundantCounts = new Map<string, number>();
-  private pollTargets = new Map<
-    string,
-    { outputDigest: string; streak: number }
-  >();
+  private lastPollOutput = new Map<string, string>();
+  private pollStreaks = new Map<string, number>();
   private sleepStreak = 0;
   private strikes = 0;
 
@@ -142,7 +140,8 @@ export class TurnStallDetector {
     this.window = [];
     this.seenSignatures.clear();
     this.redundantCounts.clear();
-    this.pollTargets.clear();
+    this.lastPollOutput.clear();
+    this.pollStreaks.clear();
     this.sleepStreak = 0;
   }
 
@@ -174,8 +173,8 @@ export class TurnStallDetector {
       isPoll: boolean;
       isSleep: boolean;
       isDomainWrite: boolean;
-      isProgressEligible: boolean;
-      inputDigest: string;
+      isNonPollProgressEligible: boolean;
+      targetKey: string;
       outputDigest: string;
       signature: string;
     }
@@ -196,21 +195,22 @@ export class TurnStallDetector {
         !isSleep &&
         call.toolName !== "bash" &&
         !NON_PROGRESS_TOOLS.has(call.toolName);
-      // Any brand-new non-poll, non-sleep, non-bookkeeping call (a new domain
-      // write or a new read returning previously unseen data) counts as
-      // surrounding progress.
-      const isProgressEligible =
+      // Brand-new non-poll, non-sleep, non-bookkeeping calls (new domain writes
+      // or unread reads) count as surrounding progress. Status polls count as
+      // progress only on first observation of a target or a changed status.
+      const isNonPollProgressEligible =
         !isPoll && !isSleep && !NON_PROGRESS_TOOLS.has(call.toolName);
       const inputDigest = canonicalDigest(call.input, false);
       const outputDigest = canonicalDigest(call.output, isPoll);
+      const targetKey = `${call.toolName}|${inputDigest}`;
       const signature = `${call.toolName}|${inputDigest}|${outputDigest}`;
       classified.push({
         toolName: call.toolName,
         isPoll,
         isSleep,
         isDomainWrite,
-        isProgressEligible,
-        inputDigest,
+        isNonPollProgressEligible,
+        targetKey,
         outputDigest,
         signature,
       });
@@ -218,21 +218,35 @@ export class TurnStallDetector {
     if (classified.length === 0) return null;
 
     // Partition the completed step so parallel result ordering never changes
-    // whether a brand-new write or unread file clears earlier redundant reads.
+    // whether a brand-new write, unread file, first status read, or changed
+    // status clears earlier redundant reads or poll streaks.
     const freshProgress: ClassifiedCall[] = [];
     const remainder: ClassifiedCall[] = [];
     const seenFreshInStep = new Set<string>();
+    const stepPollOutput = new Map<string, string>();
     for (const call of classified) {
-      if (
-        call.isProgressEligible &&
+      if (call.isPoll) {
+        const previousOutput = stepPollOutput.has(call.targetKey)
+          ? stepPollOutput.get(call.targetKey)
+          : this.lastPollOutput.get(call.targetKey);
+        if (
+          previousOutput === undefined ||
+          previousOutput !== call.outputDigest
+        ) {
+          stepPollOutput.set(call.targetKey, call.outputDigest);
+          freshProgress.push(call);
+          continue;
+        }
+      } else if (
+        call.isNonPollProgressEligible &&
         !this.seenSignatures.has(call.signature) &&
         !seenFreshInStep.has(call.signature)
       ) {
         seenFreshInStep.add(call.signature);
         freshProgress.push(call);
-      } else {
-        remainder.push(call);
+        continue;
       }
+      remainder.push(call);
     }
 
     const pushWindow = (entry: WindowEntry) => {
@@ -242,11 +256,18 @@ export class TurnStallDetector {
       }
     };
 
+    if (freshProgress.length > 0) {
+      this.redundantCounts.clear();
+      this.pollStreaks.clear();
+      this.sleepStreak = 0;
+    }
+
     for (const call of freshProgress) {
       this.seenSignatures.add(call.signature);
-      this.redundantCounts.clear();
-      this.pollTargets.clear();
-      this.sleepStreak = 0;
+      if (call.isPoll) {
+        this.lastPollOutput.set(call.targetKey, call.outputDigest);
+        this.pollStreaks.set(call.targetKey, 1);
+      }
       if (call.isDomainWrite) {
         // Brand-new domain writes drop prior read/poll entries from the window
         // while keeping prior writes so alternating writeA<->writeB still fires.
@@ -294,28 +315,14 @@ export class TurnStallDetector {
           };
         }
       } else if (call.isPoll) {
-        const targetKey = `${call.toolName}|${call.inputDigest}`;
-        const previous = this.pollTargets.get(targetKey);
-        if (previous && previous.outputDigest === call.outputDigest) {
-          const streak = previous.streak + 1;
-          this.pollTargets.set(targetKey, {
-            outputDigest: call.outputDigest,
-            streak,
-          });
-          if (!pollHit && streak >= STALL_POLL_NO_PROGRESS_THRESHOLD) {
-            pollHit = {
-              pattern: "poll_no_progress",
-              tools: [call.toolName],
-              count: streak,
-            };
-          }
-        } else {
-          // Status or payload changed (e.g., new Coworker comment or completion): progress!
-          this.pollTargets.set(targetKey, {
-            outputDigest: call.outputDigest,
-            streak: 1,
-          });
-          this.sleepStreak = 0;
+        const streak = (this.pollStreaks.get(call.targetKey) ?? 0) + 1;
+        this.pollStreaks.set(call.targetKey, streak);
+        if (!pollHit && streak >= STALL_POLL_NO_PROGRESS_THRESHOLD) {
+          pollHit = {
+            pattern: "poll_no_progress",
+            tools: [call.toolName],
+            count: streak,
+          };
         }
       }
     }
