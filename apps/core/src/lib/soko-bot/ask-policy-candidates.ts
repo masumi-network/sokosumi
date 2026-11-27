@@ -26,12 +26,21 @@ export interface AskPolicyHintsInput {
   hasOpenAccountQuestion?: boolean;
 }
 
+export type AskPolicyDestinationOperation = "social" | "newsletter";
+
 export interface AskPolicyProjectSelectionInput {
   workspaceId: string;
   botProjectId: string | null;
   projectIds: readonly string[];
   /** Empty for non-owner or child runs whose userMessage is not the owner's words. */
   userMessage: string;
+  /**
+   * Confirmed destination operation recorded on this turn (e.g. a social
+   * account/post tool or newsletter tool already ran). Social/newsletter
+   * destination vetoes apply only when this is set; text matches alone stay
+   * advisory and leave the project picker usable.
+   */
+  destinationOperation?: AskPolicyDestinationOperation | null;
 }
 
 interface NewsletterCandidate {
@@ -375,7 +384,10 @@ export async function validateAskPolicyProjectSelection(
     ]);
     const namedProjectIds = new Set(namedProjects.map((project) => project.id));
 
-    const providers = mentionedSocialProviders(input.userMessage);
+    const providers =
+      input.destinationOperation === "social"
+        ? mentionedSocialProviders(input.userMessage)
+        : [];
     if (providers.length === 1) {
       const provider = providers[0];
       const label = socialPostProviderLabel(provider);
@@ -484,7 +496,10 @@ export async function validateAskPolicyProjectSelection(
       return null;
     }
 
-    if (providers.length === 0 && mentionsNewsletter(input.userMessage)) {
+    if (
+      input.destinationOperation === "newsletter" &&
+      mentionsNewsletter(input.userMessage)
+    ) {
       const newsletters = await prisma.newsletter.findMany({
         where: {
           workspaceId: input.workspaceId,

@@ -347,7 +347,7 @@ describe("validateAskPolicyProjectSelection", () => {
     expect(oneMatched).toContain(P1.id);
   });
 
-  it("refuses project_selection when only 1 project has an active account for the named network", async () => {
+  it("refuses project_selection when a social-account operation is underway and only 1 project has an active account for the named network", async () => {
     db.projectFindMany
       .mockResolvedValueOnce([P1, P2])
       .mockResolvedValueOnce([P1, P2]);
@@ -357,13 +357,14 @@ describe("validateAskPolicyProjectSelection", () => {
       botProjectId: null,
       projectIds: [P1.id, P2.id],
       userMessage: "Turn this PDF into 3 X posts",
+      destinationOperation: "social",
     });
     expect(refusal).toContain("exactly 1 fitting X destination");
     expect(refusal).toContain("@acme_hq");
     expect(refusal).toContain(P1.id);
   });
 
-  it("refuses project_selection when 1 project holds 2 accounts for the named network", async () => {
+  it("refuses project_selection when a social-account operation is underway and 1 project holds 2 accounts for the named network", async () => {
     db.projectFindMany
       .mockResolvedValueOnce([P1, P2])
       .mockResolvedValueOnce([P1, P2]);
@@ -373,13 +374,14 @@ describe("validateAskPolicyProjectSelection", () => {
       botProjectId: null,
       projectIds: [P1.id, P2.id],
       userMessage: "Post this on X",
+      destinationOperation: "social",
     });
     expect(refusal).toContain(`Only Project "${P1.name}"`);
     expect(refusal).toContain("@acme_hq, @acme_dev");
     expect(refusal).toContain("ask the owner once which X account");
   });
 
-  it("refuses project_selection when 0 active accounts exist for the named network", async () => {
+  it("refuses project_selection when a social-account operation is underway and 0 active accounts exist for the named network", async () => {
     db.projectFindMany
       .mockResolvedValueOnce([P1, P2])
       .mockResolvedValueOnce([P1, P2]);
@@ -389,11 +391,12 @@ describe("validateAskPolicyProjectSelection", () => {
       botProjectId: null,
       projectIds: [P1.id, P2.id],
       userMessage: "Post this on LinkedIn",
+      destinationOperation: "social",
     });
     expect(refusal).toContain("0 active LinkedIn accounts connected");
   });
 
-  it("refuses mixing non-fitting projects into a network picker and allows only fitting ones", async () => {
+  it("refuses mixing non-fitting projects into a social picker during a social operation and allows only fitting ones", async () => {
     db.projectFindMany
       .mockResolvedValueOnce([P1, P2])
       .mockResolvedValueOnce([P1, P2, P3]);
@@ -403,6 +406,7 @@ describe("validateAskPolicyProjectSelection", () => {
       botProjectId: null,
       projectIds: [P1.id, P2.id, P3.id],
       userMessage: "Draft an X post",
+      destinationOperation: "social",
     });
     expect(mixed).toContain("Only these projects have an active X account");
     expect(mixed).toContain(P1.name);
@@ -418,6 +422,7 @@ describe("validateAskPolicyProjectSelection", () => {
       botProjectId: null,
       projectIds: [P1.id, P2.id],
       userMessage: "Draft an X post",
+      destinationOperation: "social",
     });
     expect(clean).toBeNull();
   });
@@ -448,18 +453,25 @@ describe("validateAskPolicyProjectSelection", () => {
     expect(allowed).toBeNull();
   });
 
-  it("allows choosing a project for work about a network that needs no social account", async () => {
-    db.projectFindMany.mockResolvedValue([P1, P2]);
-    db.connectionFindMany.mockResolvedValue([]);
-    const refusal = await validateAskPolicyProjectSelection({
-      workspaceId: "ws-1",
-      botProjectId: null,
-      projectIds: [P1.id, P2.id],
-      userMessage:
-        "Make a project task to research YouTube captions. Let me pick the project.",
-    });
-    expect(refusal).toBeNull();
-  });
+  it.each([
+    "Draft an internal memo on LinkedIn hiring trends. Let me choose which project gets the memo.",
+    "Create a task to subtitle this YouTube video. Let me choose the project.",
+    "Make a project task to research YouTube captions. Let me pick the project.",
+  ])(
+    "allows a picker for a deliverable that does not use a social account: %s",
+    async (userMessage) => {
+      db.projectFindMany.mockResolvedValue([P1, P2]);
+      db.connectionFindMany.mockResolvedValue([]);
+      expect(
+        await validateAskPolicyProjectSelection({
+          workspaceId: "ws-1",
+          botProjectId: null,
+          projectIds: [P1.id, P2.id],
+          userMessage,
+        }),
+      ).toBeNull();
+    },
+  );
 
   it("carries a named-project constraint into project_selection without substituting another project", async () => {
     db.projectFindMany.mockResolvedValue([P1, P2]);
@@ -469,6 +481,7 @@ describe("validateAskPolicyProjectSelection", () => {
       botProjectId: null,
       projectIds: [P1.id, P2.id],
       userMessage: "For Founder Desk, draft an X post",
+      destinationOperation: "social",
     });
     expect(refusal).toContain(`Project "${P2.name}"`);
     expect(refusal).toContain("0 active X accounts connected");

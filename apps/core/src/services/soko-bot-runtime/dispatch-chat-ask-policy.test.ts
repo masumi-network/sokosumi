@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getSokoBotVersion: vi.fn(),
   turnFindUnique: vi.fn(),
+  toolCallFindMany: vi.fn(),
   projectFindMany: vi.fn(),
   connectionFindMany: vi.fn(),
   newsletterFindMany: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@sokosumi/soko-bot", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findUnique: mocks.turnFindUnique },
+    sokoBotToolCall: { findMany: mocks.toolCallFindMany },
     project: { findMany: mocks.projectFindMany },
     projectSocialConnection: { findMany: mocks.connectionFindMany },
     newsletter: { findMany: mocks.newsletterFindMany },
@@ -78,6 +80,7 @@ beforeEach(() => {
   mocks.turnFindUnique.mockResolvedValue({
     userMessage: "Turn this PDF into 3 X posts",
   });
+  mocks.toolCallFindMany.mockResolvedValue([]);
   mocks.projectFindMany.mockResolvedValue([P1, P2]);
   mocks.connectionFindMany.mockResolvedValue([X1]);
   mocks.newsletterFindMany.mockResolvedValue([]);
@@ -105,8 +108,11 @@ describe("dispatchChatTools preview_result(project_selection) with askPolicy", (
     expect(mocks.resolveChatResultReference).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses project_selection on askPolicy when only 1 project has an active X account", async () => {
+  it("refuses project_selection on askPolicy when a social tool ran on this turn and only 1 project has an active X account", async () => {
     mocks.getSokoBotVersion.mockReturnValue({ id: "v40-e1", askPolicy: true });
+    mocks.toolCallFindMany.mockResolvedValue([
+      { capability: "list_project_social_accounts" },
+    ]);
 
     await expect(
       dispatchChatTools(
@@ -128,6 +134,36 @@ describe("dispatchChatTools preview_result(project_selection) with askPolicy", (
     ).rejects.toThrow(SokoBotRuntimeValidationError);
 
     expect(mocks.resolveChatResultReference).not.toHaveBeenCalled();
+  });
+
+  it("keeps project_selection usable on askPolicy when no social-account operation ran on this turn (text match only)", async () => {
+    mocks.getSokoBotVersion.mockReturnValue({ id: "v40-e1", askPolicy: true });
+    mocks.turnFindUnique.mockResolvedValue({
+      userMessage:
+        "Draft an internal memo on LinkedIn hiring trends. Let me choose which project gets the memo.",
+    });
+    mocks.toolCallFindMany.mockResolvedValue([]);
+    mocks.connectionFindMany.mockResolvedValue([]);
+
+    const result = await dispatchChatTools(
+      runtimeStub,
+      {
+        sessionId: "s-1",
+        turnId: "turn-1",
+        toolCallId: "tc-1",
+        capability: "preview_result",
+        input: {
+          reference: {
+            kind: "project_selection",
+            projectIds: [P1.id, P2.id],
+          },
+        },
+      },
+      authorized({ versionId: "v40-e1" }),
+    );
+
+    expect(result).toMatchObject({ title: "Choose a project" });
+    expect(mocks.resolveChatResultReference).toHaveBeenCalledTimes(1);
   });
 
   it("allows project_selection on askPolicy when 2 genuinely fitting open projects exist", async () => {

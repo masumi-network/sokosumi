@@ -100,17 +100,39 @@ export function namedProjectsIn<T extends NamedProjectCandidate>(
   });
 }
 
-const SOCIAL_PUBLISH_VERBS =
-  "(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|draft(?:ing|s)?|share|sharing|upload(?:ing)?|queue(?:ing)?|queuing|repost(?:ing)?|tweets?|tweeting)";
+/** Verbs that publish/schedule/upload directly to a social network (not generic "draft a memo"). */
+const DIRECT_SOCIAL_VERBS =
+  "(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|upload(?:ing)?|queue(?:ing)?|queuing|repost(?:ing)?|tweets?|tweeting)";
+
+/** "draft a post/thread/update/reel/short/story for/on/to <network>". */
+const DRAFT_SOCIAL_DELIVERABLE =
+  "draft(?:ing)?\\s+(?:a|an|the|\\d+|some|my|our)?\\s*(?:new\\s+|short\\s+|quick\\s+)?(?:posts?|threads?|updates?|reels?|shorts?|stories?|videos?|carousels?|social\\s+posts?)";
 
 const RESEARCH_PREFIX =
   /\b(?:research(?:ing)?|stud(?:y|ying)|analy[sz](?:e|ing)|audit(?:ing)?|review(?:ing)?|summari[sz](?:e|ing)|check(?:ing)?|inspect(?:ing)?|read(?:ing)?|compar(?:e|ing)|track(?:ing)?|monitor(?:ing)?|scrap(?:e|ing)|watch(?:ing)?)\b[^.!?\n]{0,30}$/i;
+
+function providerActionPatterns(aliasRegex: string): readonly RegExp[] {
+  return [
+    new RegExp(
+      `\\b${DIRECT_SOCIAL_VERBS}\\b[^.!?\\n]{0,40}\\b(?:on|to|for)\\s+${aliasRegex}`,
+      "iu",
+    ),
+    new RegExp(
+      `\\b${DRAFT_SOCIAL_DELIVERABLE}\\b[^.!?\\n]{0,20}\\b(?:on|to|for)\\s+${aliasRegex}`,
+      "iu",
+    ),
+    new RegExp(
+      `\\b(?:on|to)\\s+${aliasRegex}[^.!?\\n]{0,25}\\b(?:posts?|threads?|accounts?|drafts?)\\b`,
+      "iu",
+    ),
+  ];
+}
 
 const PROVIDER_SPECS: ReadonlyArray<{
   provider: SocialPostProvider;
   /** Matches `<alias> <deliverable>` directly (subject to non-research check). */
   deliverablePattern: RegExp;
-  /** Matches explicit publish/post/schedule/draft/upload intent targeting `<alias>`. */
+  /** Matches explicit publish/post/schedule/upload intent targeting `<alias>`. */
   actionPatterns: readonly RegExp[];
 }> = [
   {
@@ -119,72 +141,38 @@ const PROVIDER_SPECS: ReadonlyArray<{
       /(?:^|[^\p{L}\p{N}_-])(?:x|twitter|x\s*\/\s*twitter|twitter\s*\/\s*x)\s+(?:posts?|threads?|accounts?|drafts?|updates?|handles?|profiles?|channels?)\b/giu,
     actionPatterns: [
       /\b(?:tweets?|tweeting)\b/i,
-      new RegExp(
-        `\\b${SOCIAL_PUBLISH_VERBS}\\b[^.!?\\n]{0,45}\\b(?:on|to|for)\\s+(?:x|twitter)(?![\\p{L}\\p{N}_/.-])`,
-        "iu",
-      ),
-      /\b(?:on|to)\s+(?:x|twitter)\b[^.!?\n]{0,30}\b(?:posts?|threads?|accounts?|drafts?)\b/iu,
+      ...providerActionPatterns("(?:x|twitter)(?![\\p{L}\\p{N}_/.-])"),
     ],
   },
   {
     provider: "linkedin",
     deliverablePattern:
       /\blinked\s*in\s+(?:posts?|threads?|updates?|articles?|accounts?|drafts?|carousels?|handles?)\b/gi,
-    actionPatterns: [
-      new RegExp(
-        `\\b${SOCIAL_PUBLISH_VERBS}\\b[^.!?\\n]{0,45}\\blinked\\s*in\\b`,
-        "i",
-      ),
-      /\blinked\s*in\b[^.!?\n]{0,30}\b(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|draft(?:ing|s)?)\b/i,
-    ],
+    actionPatterns: providerActionPatterns("linked\\s*in\\b"),
   },
   {
     provider: "instagram",
     deliverablePattern:
       /\b(?:instagram|ig)\s+(?:posts?|reels?|stories?|story|accounts?|drafts?|carousels?|handles?)\b/gi,
-    actionPatterns: [
-      new RegExp(
-        `\\b${SOCIAL_PUBLISH_VERBS}\\b[^.!?\\n]{0,45}\\b(?:instagram|ig)\\b`,
-        "i",
-      ),
-      /\b(?:instagram|ig)\b[^.!?\n]{0,30}\b(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|draft(?:ing|s)?)\b/i,
-    ],
+    actionPatterns: providerActionPatterns("(?:instagram|ig)\\b"),
   },
   {
     provider: "facebook",
     deliverablePattern:
       /\b(?:facebook|fb)\s+(?:posts?|reels?|stories?|accounts?|drafts?)\b/gi,
-    actionPatterns: [
-      new RegExp(
-        `\\b${SOCIAL_PUBLISH_VERBS}\\b[^.!?\\n]{0,45}\\b(?:facebook|fb)\\b`,
-        "i",
-      ),
-      /\b(?:facebook|fb)\b[^.!?\n]{0,30}\b(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|draft(?:ing|s)?)\b/i,
-    ],
+    actionPatterns: providerActionPatterns("(?:facebook|fb)\\b"),
   },
   {
     provider: "tiktok",
     deliverablePattern:
       /\btik\s*tok\s+(?:posts?|videos?|clips?|accounts?|drafts?|handles?)\b/gi,
-    actionPatterns: [
-      new RegExp(
-        `\\b${SOCIAL_PUBLISH_VERBS}\\b[^.!?\\n]{0,45}\\btik\\s*tok\\b`,
-        "i",
-      ),
-      /\btik\s*tok\b[^.!?\n]{0,30}\b(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|draft(?:ing|s)?|upload(?:ing)?)\b/i,
-    ],
+    actionPatterns: providerActionPatterns("tik\\s*tok\\b"),
   },
   {
     provider: "youtube",
     deliverablePattern:
       /\byou\s*tube\s+(?:posts?|shorts?|accounts?|drafts?)\b/gi,
-    actionPatterns: [
-      new RegExp(
-        `\\b${SOCIAL_PUBLISH_VERBS}\\b[^.!?\\n]{0,45}\\byou\\s*tube\\b`,
-        "i",
-      ),
-      /\byou\s*tube\b[^.!?\n]{0,30}\b(?:posts?|posting|publish(?:ing)?|schedul(?:e|ing)|draft(?:ing|s)?|upload(?:ing)?)\b/i,
-    ],
+    actionPatterns: providerActionPatterns("you\\s*tube\\b"),
   },
 ];
 
@@ -199,10 +187,10 @@ function hasNonResearchMatch(text: string, pattern: RegExp): boolean {
 }
 
 /**
- * Social networks targeted for posting, drafting, scheduling, uploading, or
- * account selection outside quoted copy and URLs. Research/read mentions
- * (such as researching YouTube captions or auditing competitor pages) do not
- * require a connected social account and are not returned.
+ * Social networks suggested for posting, drafting, scheduling, uploading, or
+ * account selection outside quoted copy and URLs. Used for advisory hints at
+ * turn start and paired with a confirmed social-account operation before
+ * vetoing a project selector.
  */
 export function mentionedSocialProviders(
   message: string,
@@ -236,11 +224,11 @@ const NEWSLETTER_DELIVERABLE_PATTERN =
   /\bnewsletters?\s+(?:issues?|editions?|subscribers?|settings|signups?)\b/gi;
 
 const NEWSLETTER_NON_DESTINATION_GAP =
-  /\b(?:tasks?|tickets?|research(?:ing)?|stud(?:y|ying)|audit(?:ing)?|analy[sz](?:e|ing)|inspiration|ideas?)\b/i;
+  /\b(?:tasks?|tickets?|memos?|reports?|notes?|docs?|research(?:ing)?|stud(?:y|ying)|audit(?:ing)?|analy[sz](?:e|ing)|inspiration|ideas?)\b/i;
 
 /**
  * True when the owner asks to draft, send, edit, or manage a newsletter
- * destination outside quoted copy and URLs (not a generic task to research
+ * destination outside quoted copy and URLs (not a generic task or memo about
  * newsletters).
  */
 export function mentionsNewsletter(message: string): boolean {
