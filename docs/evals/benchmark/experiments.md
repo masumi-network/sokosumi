@@ -8,7 +8,7 @@ One row per harness experiment. Each one runs behind its own version flag on a t
 
 Experiments get combined only after each has won alone.
 
-**Kept** means it beat the control on both sets, with no newly failing journey and input tokens per turn no more than 10% worse. Anything else is **discarded**: the PR is closed and the reason is noted here. Each measurement gets its own dated file in this folder, linked from the Result column. Held-out results are totals only.
+**Kept** means it beat the control on both sets, with no newly failing journey and input tokens per turn no more than 10% worse. Anything else is **discarded**: the PR is closed and the reason is noted here. Each measurement gets its own dated file in this folder, linked from the Result column, and names the judge. Arms are compared only under the same judge: an experiment that changes the judge (B1) re-judges both arms under it first. Held-out results are totals only.
 
 | Id        | Idea                                                                                                                                                      | Flag                      | PR                                                     | Result           | Kept?   |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------ | ---------------- | ------- |
