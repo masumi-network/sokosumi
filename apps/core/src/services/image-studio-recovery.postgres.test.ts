@@ -77,6 +77,7 @@ vi.mock("@/services/image-studio-assets.service", async (importOriginal) => ({
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
+import mountStudioGet from "@/routes/v1/projects/[id]/image-studio/get";
 import mountTalkingVideos from "@/routes/v1/projects/[id]/image-studio/talking-videos-get";
 import {
   reconcileJob,
@@ -601,3 +602,90 @@ describe.skipIf(!enabled)("bounded recovery sweeps make progress", () => {
     expect(row.status).toBe("SUCCEEDED");
   });
 });
+
+describe.skipIf(!enabled)(
+  "a studio read sweeps only its own Project's stalled submissions",
+  () => {
+    it("leaves another workspace's job for the cron sweep", async () => {
+      const otherUserId = randomUUID();
+      const otherWorkspaceId = randomUUID();
+      await prisma.user.create({
+        data: {
+          id: otherUserId,
+          name: "Other workspace fixture",
+          email: `${otherUserId}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          workspace: { create: { id: otherWorkspaceId } },
+        },
+      });
+      const otherProject = await prisma.project.create({
+        data: { workspaceId: otherWorkspaceId, name: "Other workspace" },
+      });
+      const stalled = {
+        status: "SUBMITTING" as const,
+        falRequestId: null,
+        submitLeaseAt: new Date(Date.now() - 10 * 60 * 1000),
+      };
+      const own = await makeJob(stalled);
+      const ownLater = await makeJob(stalled);
+      const other = await makeJob({
+        ...stalled,
+        projectId: otherProject.id,
+        workspaceId: otherWorkspaceId,
+        requestedByUserId: otherUserId,
+      });
+      const statusOf = async (id: string) =>
+        (
+          await prisma.projectImageJob.findUniqueOrThrow({
+            where: { id },
+            select: { status: true },
+          })
+        ).status;
+      try {
+        // The bot's get_image / get_video read.
+        await reconcileProjectJobs(projectId);
+        expect(await statusOf(own.id)).toBe("SUBMISSION_UNCERTAIN");
+        expect(await statusOf(other.id)).toBe("SUBMITTING");
+
+        // The studio page read, through its route.
+        await prisma.projectImageJob.update({
+          where: { id: ownLater.id },
+          data: stalled,
+        });
+        const app = new OpenAPIHono<EnvVariables>();
+        app.use("*", async (c, next) => {
+          c.set("requestId", "studio-read-scope");
+          c.set("authContext", {
+            actor: "user",
+            authenticationMethod: "session",
+            userId,
+            organizationId: null,
+            role: "user",
+          });
+          c.set("workspaceContext", {
+            userId,
+            workspaceId,
+            organizationId: null,
+          });
+          await next();
+        });
+        mountStudioGet(app);
+        const response = await app.request(`/${projectId}/image-studio`);
+        expect(response.status).toBe(200);
+        expect(await statusOf(ownLater.id)).toBe("SUBMISSION_UNCERTAIN");
+        expect(await statusOf(other.id)).toBe("SUBMITTING");
+
+        // Only the maintenance cron sweeps every Project.
+        await reconcileStaleJobs({ olderThanMs: 60 * 60 * 1000, limit: 10 });
+        expect(await statusOf(other.id)).toBe("SUBMISSION_UNCERTAIN");
+      } finally {
+        await prisma.projectImageJob.deleteMany({
+          where: { projectId: otherProject.id },
+        });
+        await prisma.project.delete({ where: { id: otherProject.id } });
+      }
+    });
+  },
+);

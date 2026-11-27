@@ -1504,6 +1504,37 @@ export const StripeSubscriptionStatus = {
  */
 export type StripeSubscriptionStatus = typeof StripeSubscriptionStatus[keyof typeof StripeSubscriptionStatus];
 
+export type AdminPreprodAccess = {
+    enabled: boolean;
+    /**
+     * The 20 most recent changes, newest first
+     */
+    changes: Array<{
+        id: string;
+        createdAt: Date;
+        enabled: boolean;
+        reason: string;
+        operator: {
+            id: string;
+            /**
+             * Null when the admin's account no longer exists
+             */
+            name: string | null;
+        };
+    }>;
+};
+
+export type SetAdminPreprodAccessBody = {
+    /**
+     * Whether the user or Organization may use Preprod
+     */
+    enabled: boolean;
+    /**
+     * Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.
+     */
+    reason: string;
+};
+
 export type AdminMatchedChannelOption = {
     id: string;
     name: string;
@@ -7349,6 +7380,10 @@ export type UserWorkspace = {
      * Whether a new session opens this workspace
      */
     preferred: boolean;
+    /**
+     * Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person's own Preprod access for the personal workspace and the organization's for an organization workspace
+     */
+    canUsePreprod: boolean;
 };
 
 export const ProjectSocialProvider = {
@@ -19130,6 +19165,16 @@ export type ContextOrganizationId = string;
  */
 export type SokosumiClient = string;
 
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ */
+export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
+
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ */
+export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
+
 export type StopAdminImpersonationData = {
     body?: never;
     path?: never;
@@ -22368,6 +22413,171 @@ export type ListAdminUsersResponses = {
 
 export type ListAdminUsersResponse = ListAdminUsersResponses[keyof ListAdminUsersResponses];
 
+export type GetAdminUserPreprodAccessData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type GetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessError = GetAdminUserPreprodAccessErrors[keyof GetAdminUserPreprodAccessErrors];
+
+export type GetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminUserPreprodAccessResponse = GetAdminUserPreprodAccessResponses[keyof GetAdminUserPreprodAccessResponses];
+
+export type SetAdminUserPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/preprod-access';
+};
+
+export type SetAdminUserPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessError = SetAdminUserPreprodAccessErrors[keyof SetAdminUserPreprodAccessErrors];
+
+export type SetAdminUserPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminUserPreprodAccessResponse = SetAdminUserPreprodAccessResponses[keyof SetAdminUserPreprodAccessResponses];
+
 export type ListAdminMatchedChannelsData = {
     body?: never;
     path?: never;
@@ -23849,6 +24059,171 @@ export type AssignAdminOrganizationMemberSeatResponses = {
 };
 
 export type AssignAdminOrganizationMemberSeatResponse = AssignAdminOrganizationMemberSeatResponses[keyof AssignAdminOrganizationMemberSeatResponses];
+
+export type GetAdminOrganizationPreprodAccessData = {
+    body?: never;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type GetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessError = GetAdminOrganizationPreprodAccessErrors[keyof GetAdminOrganizationPreprodAccessErrors];
+
+export type GetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminOrganizationPreprodAccessResponse = GetAdminOrganizationPreprodAccessResponses[keyof GetAdminOrganizationPreprodAccessResponses];
+
+export type SetAdminOrganizationPreprodAccessData = {
+    body: SetAdminPreprodAccessBody;
+    path: {
+        slug: string;
+    };
+    query?: never;
+    url: '/admin/organizations/{slug}/preprod-access';
+};
+
+export type SetAdminOrganizationPreprodAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessError = SetAdminOrganizationPreprodAccessErrors[keyof SetAdminOrganizationPreprodAccessErrors];
+
+export type SetAdminOrganizationPreprodAccessResponses = {
+    /**
+     * Preprod access and its recent changes
+     */
+    200: {
+        data: AdminPreprodAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminOrganizationPreprodAccessResponse = SetAdminOrganizationPreprodAccessResponses[keyof SetAdminOrganizationPreprodAccessResponses];
 
 export type ListAdminInvoicesData = {
     body?: never;
@@ -26314,6 +26689,21 @@ export type GetAgentsData = {
 };
 
 export type GetAgentsErrors = {
+    /**
+     * Forbidden. Only with `X-Sokosumi-Network: preprod`. Branch on `kind`: preprod_off (Preprod is switched off) or preprod_access_required (an anonymous caller, a credential other than a browser session, or a person without Preprod access in the workspace)
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */

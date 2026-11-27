@@ -45,17 +45,22 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const network = {
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
-    syncMetadata: { findUnique: syncMetadataFindUniqueMock },
     // A spy, not a bare passthrough: the snapshot's ISOLATION LEVEL is the
     // second argument, and a mock that discarded it left the option free to
     // delete with every test still green.
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The shared side holds no Network model: the list reads those through
+  // its scope's Network client.
+  return {
+    default: { syncMetadata: { findUnique: syncMetadataFindUniqueMock } },
+    networkPrisma: () => network,
+  };
+});
 
 describe("GET /agents?kind=x402 catalog query", () => {
   beforeEach(() => {

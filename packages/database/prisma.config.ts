@@ -16,6 +16,7 @@ const preflight = isDbMutatingPrismaCommand(process.argv)
   ? checkMigrateDeployEnv({
       VERCEL: process.env.VERCEL,
       VERCEL_ENV: process.env.VERCEL_ENV,
+      DATABASE_URL: process.env.DATABASE_URL,
       DATABASE_URL_UNPOOLED: process.env.DATABASE_URL_UNPOOLED,
     })
   : { ok: true as const, messages: [] };

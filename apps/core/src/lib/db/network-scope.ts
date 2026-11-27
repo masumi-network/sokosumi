@@ -54,6 +54,15 @@ export interface NetworkScope {
     isolationLevel?: Prisma.TransactionIsolationLevel,
   ): Promise<T>;
   /**
+   * Independent reads on this Network's client in one batch transaction: one
+   * snapshot at `isolationLevel`, with no connection held across application
+   * code, so a read-only GET can use it.
+   */
+  netBatch<T extends readonly Prisma.PrismaPromise<unknown>[]>(
+    build: (db: NetworkDb) => [...T],
+    isolationLevel?: Prisma.TransactionIsolationLevel,
+  ): Promise<{ [K in keyof T]: Awaited<T[K]> }>;
+  /**
    * The same on the shared client. Network rows: raw SQL with `networkTable`.
    * Inside, use `tx`, not `sharedDb`.
    */
@@ -93,6 +102,46 @@ export function createNetworkScope(network: Network): NetworkScope {
         conflictMessage,
         isolationLevel,
       ),
+    sharedTransaction: (callback, conflictMessage, isolationLevel) =>
+      retriedTransaction(callback, conflictMessage, isolationLevel),
+    netBatch: <T extends readonly Prisma.PrismaPromise<unknown>[]>(
+      build: (db: NetworkDb) => [...T],
+      isolationLevel?: Prisma.TransactionIsolationLevel,
+    ) => {
+      const client = networkPrisma(known);
+      const side: NetworkSide = client;
+      // Prisma types the result as its own `UnwrapTuple`, the same tuple.
+      return client.$transaction(
+        build(side as NetworkDb),
+        isolationLevel && { isolationLevel },
+      ) as Promise<{ [K in keyof T]: Awaited<T[K]> }>;
+    },
+  };
+}
+
+/**
+ * A scope for a request that names a Network it may not use: its Network side
+ * (`network`, `networkDb`, `networkTable`, `netTransaction`, `netBatch`) throws `refusal`
+ * on first use, its shared side works. So only work on Network data is
+ * refused.
+ */
+export function createRefusedNetworkScope(refusal: Error): NetworkScope {
+  const refuse = (): never => {
+    throw refusal;
+  };
+  return {
+    get network() {
+      return refuse();
+    },
+    get networkDb() {
+      return refuse();
+    },
+    get sharedDb() {
+      return prisma;
+    },
+    networkTable: refuse,
+    netTransaction: async () => refuse(),
+    netBatch: async () => refuse(),
     sharedTransaction: (callback, conflictMessage, isolationLevel) =>
       retriedTransaction(callback, conflictMessage, isolationLevel),
   };

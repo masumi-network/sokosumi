@@ -8338,6 +8338,38 @@
           "download": "JSONL herunterladen",
           "error": "Anzeigendaten konnten nicht exportiert werden. Erneut versuchen."
         }
+      },
+      "PreprodAccess": {
+        "title": "Preprod-Zugang",
+        "noEffect": "Dieser Schalter ändert noch nicht, was jemand tun kann.",
+        "state": "{enabled, select, true {An} other {Aus}}",
+        "saved": "{enabled, select, true {Preprod-Zugang ist an.} other {Preprod-Zugang ist aus.}}",
+        "history": {
+          "title": "Letzte Änderungen",
+          "entry": "{enabled, select, true {Eingeschaltet} other {Ausgeschaltet}} von {operator}",
+          "unknown": "einem unbekannten Admin",
+          "empty": "Noch keine Änderungen."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {Preprod-Zugang einschalten?} other {Preprod-Zugang ausschalten?}}",
+          "description": "{enabled, select, true {{type, select, user {Der Nutzer} other {Die Organisation}} {name} erhält Preprod-Zugang.} other {{type, select, user {Der Nutzer} other {Die Organisation}} {name} verliert den Preprod-Zugang.}} Dein Name und der Grund werden mit der Änderung gespeichert.",
+          "reasonLabel": "Grund",
+          "reasonHint": "Ticket-ID, keine personenbezogenen Daten.",
+          "reasonRequired": "Gib einen Grund ein.",
+          "cancel": "Abbrechen",
+          "confirm": "{enabled, select, true {Einschalten} other {Ausschalten}}"
+        },
+        "errors": {
+          "forbidden": "Nicht erlaubt: Nur ein Admin, der als er selbst angemeldet ist, kann den Preprod-Zugang ändern.",
+          "notFound": "{type, select, user {Diesen Nutzer gibt es nicht mehr.} other {Diese Organisation gibt es nicht mehr.}}",
+          "invalid": "Die Änderung wurde nicht angenommen. Prüfe den Grund und versuche es erneut.",
+          "failed": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut."
+        },
+        "unavailable": {
+          "title": "Der Preprod-Zugang konnte nicht geladen werden.",
+          "description": "Der Rest der Seite funktioniert.",
+          "retry": "Erneut versuchen"
+        }
       }
     },
     "Billing": {

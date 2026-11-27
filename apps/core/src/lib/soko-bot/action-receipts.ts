@@ -318,7 +318,7 @@ export async function commitActionReceipt(
 }
 
 /** Tools that start a Content Studio job and answer with its jobId. */
-const STUDIO_JOB_CAPABILITIES: ReadonlySet<string> = new Set([
+export const STUDIO_JOB_CAPABILITIES: ReadonlySet<string> = new Set([
   "generate_image",
   "generate_video",
   "generate_talking_video",

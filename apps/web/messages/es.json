@@ -8338,6 +8338,38 @@
           "download": "Descargar JSONL",
           "error": "No se pudieron exportar los datos de anuncios. Inténtalo de nuevo."
         }
+      },
+      "PreprodAccess": {
+        "title": "Acceso a Preprod",
+        "noEffect": "Este ajuste todavía no cambia el acceso a Preprod.",
+        "state": "{enabled, select, true {Activado} other {Desactivado}}",
+        "saved": "{enabled, select, true {El acceso a Preprod está activado.} other {El acceso a Preprod está desactivado.}}",
+        "history": {
+          "title": "Cambios recientes",
+          "entry": "{enabled, select, true {Activado} other {Desactivado}} por {operator}",
+          "unknown": "un admin desconocido",
+          "empty": "Todavía no hay cambios."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {¿Activar el acceso a Preprod?} other {¿Desactivar el acceso a Preprod?}}",
+          "description": "{enabled, select, true {{type, select, user {El usuario} other {La organización}} {name} obtiene acceso a Preprod.} other {{type, select, user {El usuario} other {La organización}} {name} pierde el acceso a Preprod.}} Tu nombre y el motivo se guardan con el cambio.",
+          "reasonLabel": "Motivo",
+          "reasonHint": "ID del ticket, sin datos personales.",
+          "reasonRequired": "Escribe un motivo.",
+          "cancel": "Cancelar",
+          "confirm": "{enabled, select, true {Activar} other {Desactivar}}"
+        },
+        "errors": {
+          "forbidden": "No permitido: solo un admin que haya iniciado sesión como sí mismo puede cambiar el acceso a Preprod.",
+          "notFound": "{type, select, user {Este usuario ya no existe.} other {Esta organización ya no existe.}}",
+          "invalid": "El cambio no se aceptó. Revisa el motivo e inténtalo de nuevo.",
+          "failed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+        },
+        "unavailable": {
+          "title": "No se pudo cargar el acceso a Preprod.",
+          "description": "El resto de la página funciona.",
+          "retry": "Reintentar"
+        }
       }
     },
     "Billing": {

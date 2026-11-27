@@ -198,9 +198,6 @@ export type FundraisingDataRoomVisitDto = z.input<
   typeof fundraisingDataRoomVisitSchema
 >;
 
-/** How many investors one search asks Exa for. */
-export const FUNDRAISING_SEARCH_SIZES = [10, 25] as const;
-
 export const fundraisingFindInputSchema = z
   .object({
     /** Who to look for: stage, sector, geography, cheque size, anything that narrows it. */

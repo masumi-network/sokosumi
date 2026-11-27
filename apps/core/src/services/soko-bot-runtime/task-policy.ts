@@ -406,21 +406,6 @@ export async function createTaskInputIdentity(
 }
 
 /**
- * Returns the equivalent alternate `create_task` input form on a single-Task
- * EVENT wake: when `triggeringTaskId` is omitted, returns the explicit form
- * with that single Task ID; when `triggeringTaskId` matches that single Task
- * ID, returns the implicit form without `triggeringTaskId`.
- */
-export async function alternateCreateTaskEventInput(
-  db: Pick<Prisma.TransactionClient, "sokoBotEventInbox">,
-  turn: { id: string; sokoBotId: string; source: string | null },
-  rawInput: unknown,
-): Promise<unknown | null> {
-  const singleEventTaskId = await singleEventTaskIdForTurn(db, turn);
-  return alternateCreateTaskEventInputWithTaskId(rawInput, singleEventTaskId);
-}
-
-/**
  * The Task an event turn's batch is about, when there is only one: a follow-up
  * created on that turn belongs to it. With several, the model has to say which.
  */
