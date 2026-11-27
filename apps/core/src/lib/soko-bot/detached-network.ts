@@ -37,6 +37,11 @@ export async function detachedNetworkScope(
   },
   db?: DbClient,
 ) {
+  if (row.network === null) {
+    throw new DetachedNetworkRefusal(
+      CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+    );
+  }
   const network = requireNetwork(row.network);
   if (network === "preprod") {
     if (!isPreprodOn()) {

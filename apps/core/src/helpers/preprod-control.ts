@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { v7 as uuidv7 } from "uuid";
 
 import { serviceUnavailable } from "@/helpers/error";
@@ -146,12 +147,16 @@ export async function networkStamp(
     // Recorded above; a planned refusal is no Sentry Issue.
     throw serviceUnavailable(
       "Preprod's state could not be read; try again later",
-      { reportToSentry: false },
+      {
+        kind: CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+        reportToSentry: false,
+      },
     );
   }
   if (control.state !== "open") {
     // An operator's pause: planned, so no Sentry Issue.
     throw serviceUnavailable("Preprod is paused; try again later", {
+      kind: CORE_API_ERROR_KINDS.PREPROD_PAUSED,
       reportToSentry: false,
     });
   }

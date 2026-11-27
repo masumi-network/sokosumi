@@ -1750,7 +1750,7 @@ export class SokoBotControlPlane {
       status: "FAILED",
       errorKind: CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
       clearSession: true,
-      stalePreprod: true,
+      staleNetwork: true,
     });
   }
 
@@ -1763,7 +1763,7 @@ export class SokoBotControlPlane {
     leaseToken?: string;
     providerCompletedAt?: Date;
     requireMissingEveSession?: boolean;
-    stalePreprod?: true;
+    staleNetwork?: true;
   }): Promise<boolean> {
     // Set inside the transaction and read after it commits, because the
     // low-balance check publishes over realtime and must not run for a
@@ -1792,7 +1792,9 @@ export class SokoBotControlPlane {
       const turn = await tx.sokoBotTurn.findUnique({
         where: {
           id: input.turnId,
-          ...(input.stalePreprod ? { network: "preprod" } : {}),
+          ...(input.staleNetwork
+            ? { OR: [{ network: "preprod" }, { network: null }] }
+            : {}),
         },
         select: {
           sokoBotId: true,
@@ -1835,15 +1837,15 @@ export class SokoBotControlPlane {
       if (input.leaseToken && turn.leaseToken !== input.leaseToken)
         return false;
 
-      let stalePreprod = input.stalePreprod === true;
-      let canCharge = !stalePreprod;
-      if (canCharge && turn.network === "preprod") {
+      let staleNetwork = input.staleNetwork === true;
+      let canCharge = !staleNetwork;
+      if (canCharge && (turn.network === "preprod" || turn.network === null)) {
         try {
           await detachedNetworkScope(turn, tx);
         } catch (error) {
           if (!(error instanceof DetachedNetworkRefusal)) throw error;
           canCharge = false;
-          stalePreprod = error.final;
+          staleNetwork = error.final;
         }
       }
       const usageCharge = !canCharge
@@ -1889,7 +1891,7 @@ export class SokoBotControlPlane {
         turn.cancellationRequestedAt !== null &&
         (input.providerCompletedAt === undefined ||
           input.providerCompletedAt >= turn.cancellationRequestedAt);
-      const settledStatus: TerminalSokoBotTurnStatus = stalePreprod
+      const settledStatus: TerminalSokoBotTurnStatus = staleNetwork
         ? "FAILED"
         : completionLostToCancellation
           ? "CANCELLED"
@@ -1900,14 +1902,14 @@ export class SokoBotControlPlane {
           code: input.errorKind,
           message: input.errorDetail,
         }) === AI_BUDGET_EXCEEDED;
-      const errorKind = stalePreprod
+      const errorKind = staleNetwork
         ? CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
         : budgetExceeded
           ? AI_BUDGET_EXCEEDED
           : usageCharge?.shortfall
             ? "insufficient_credits"
             : safeRuntimeDiagnostic(input.errorKind, 120);
-      const errorDetail = stalePreprod
+      const errorDetail = staleNetwork
         ? null
         : budgetExceeded
           ? AI_BUDGET_EXCEEDED_MESSAGE
@@ -1959,7 +1961,7 @@ export class SokoBotControlPlane {
       // a production run ends, the month's next one. A turn the owner
       // stopped starts nothing.
       if (
-        !stalePreprod &&
+        !staleNetwork &&
         settledStatus !== "CANCELLED" &&
         (turn.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
           turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) ||
@@ -1974,7 +1976,7 @@ export class SokoBotControlPlane {
           clientTurnId: turn.clientTurnId,
         };
       }
-      const outcome = stalePreprod
+      const outcome = staleNetwork
         ? null
         : await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
@@ -1990,14 +1992,14 @@ export class SokoBotControlPlane {
       }
       if (settledStatus === "COMPLETED")
         await prepareTurnActionResultPreviews(input.turnId, turn, tx);
-      if (!stalePreprod) {
+      if (!staleNetwork) {
         await enqueueSokoBotDelivery(tx, input.turnId);
         deliver = true;
       }
 
       // A background run never held the chat's status or session.
-      const clearSession = stalePreprod || input.clearSession;
-      if (!turn.parentTurnId && (!stalePreprod || turn.eveSessionId))
+      const clearSession = staleNetwork || input.clearSession;
+      if (!turn.parentTurnId && (!staleNetwork || turn.eveSessionId))
         await tx.sokoBot.updateMany({
           where: {
             id: turn.sokoBotId,
@@ -2010,7 +2012,7 @@ export class SokoBotControlPlane {
           },
           data: {
             ...(clearSession ? { eveSessionId: null } : {}),
-            ...(stalePreprod
+            ...(staleNetwork
               ? { status: "IDLE" }
               : settledStatus === "FAILED"
                 ? {
@@ -2057,7 +2059,7 @@ export class SokoBotControlPlane {
           if (completed) {
             await recordCompletedScheduleRun(tx, scheduleRun.scheduleId, now);
           } else if (
-            !stalePreprod &&
+            !staleNetwork &&
             !isPlatformTurnFailure(errorKind ?? null)
           ) {
             await tx.sokoBotSchedule.update({
@@ -5440,6 +5442,14 @@ export class SokoBotControlPlane {
                 expectedPrompt: scheduleRun.prompt,
               },
         });
+        if (
+          provenance.network === "preprod" &&
+          retry.errorKind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
+        ) {
+          throw new DetachedNetworkRefusal(
+            CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+          );
+        }
         await prisma.sokoBotAdminAction.create({
           data: {
             operationId,
@@ -5459,7 +5469,7 @@ export class SokoBotControlPlane {
       } catch (error) {
         if (isTemporaryScheduleRefusal(scheduleRun.schedule, error))
           throw error;
-        if (error instanceof DetachedNetworkRefusal) {
+        if (error instanceof DetachedNetworkRefusal && error.final) {
           await finishStaleSchedule(scheduleRun.schedule, scheduleRun);
           await recordFailure(error);
           throw error;

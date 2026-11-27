@@ -4,6 +4,7 @@ import {
   parseOwnerAuthority,
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
@@ -777,6 +778,15 @@ export class SokoBotSchedulesSyncService {
       }
 
       if (
+        provenance.network === "preprod" &&
+        turnErrorKind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE
+      ) {
+        return (await finishStaleSchedule(schedule, { ...run, turnId }))
+          ? "failed"
+          : "deferred";
+      }
+
+      if (
         turnStatus === "FAILED" &&
         turnErrorKind === "runtime_start_ambiguous"
       ) {
@@ -856,7 +866,7 @@ export class SokoBotSchedulesSyncService {
         });
         return "deferred";
       }
-      if (error instanceof DetachedNetworkRefusal) {
+      if (error instanceof DetachedNetworkRefusal && error.final) {
         return (await finishStaleSchedule(schedule, run))
           ? "failed"
           : "deferred";
