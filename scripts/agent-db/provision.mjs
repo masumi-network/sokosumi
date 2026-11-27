@@ -23,13 +23,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  applyUrlsToProcessEnv,
   injectShellRc,
   patchAppEnvFiles,
   removeLegacyState,
   writeEnvFile,
   writeState,
 } from "./apply-env.mjs";
+import { assertAgentBranchSafety } from "./assert-agent-database.mjs";
 import {
   agentBranchName,
   expiresAtIso,
@@ -37,6 +37,7 @@ import {
   isAgentRunId,
 } from "./names.mjs";
 import {
+  assertBranchConnectionUrls,
   createBranch,
   deleteBranch,
   findBranchByName,
@@ -75,17 +76,12 @@ function shouldProvision(env = process.env) {
   return env.CURSOR_AGENT === "1";
 }
 
-async function ensureBranch(config, branchName) {
+async function ensureBranch(config, branchName, parent) {
   const existing = await findBranchByName(config, branchName);
-  const expiresAt = expiresAtIso();
-
   if (existing) {
-    log(`Reusing branch ${branchName} (${existing.id}); refreshing TTL`);
-    await refreshBranchExpiration(config, existing.id, { expiresAt });
-    return { branchId: existing.id, branchName, reused: true };
+    return { branch: existing, reused: true };
   }
 
-  const parent = await resolveParentBranch(config, isAgentBranchName);
   log(
     `Creating branch ${branchName} from parent ${parent.name} (${parent.id})`,
   );
@@ -95,7 +91,7 @@ async function ensureBranch(config, branchName) {
     created = await createBranch(config, {
       name: branchName,
       parentId: parent.id,
-      expiresAt,
+      expiresAt: expiresAtIso(),
     });
   } catch (error) {
     // Race: another provision created the same name
@@ -103,40 +99,55 @@ async function ensureBranch(config, branchName) {
     if (error.status === 409 || /already exists/i.test(error.message)) {
       const raced = await findBranchByName(config, branchName);
       if (raced) {
-        await refreshBranchExpiration(config, raced.id, { expiresAt });
-        return { branchId: raced.id, branchName, reused: true };
+        return { branch: raced, reused: true };
       }
     }
     throw error;
   }
 
-  const branchId = created?.branch?.id;
-  if (!branchId) {
+  if (!created?.branch?.id) {
     throw new Error("Neon create branch response missing branch.id");
   }
 
-  return { branchId, branchName, reused: false, created };
+  return { branch: created.branch, reused: false };
 }
 
-async function connectionUrlsOrCleanup(config, branchMeta) {
+export async function provisionAgentBranch(config, branchName) {
+  const parent = await resolveParentBranch(config, isAgentBranchName);
+  const { branch, reused } = await ensureBranch(config, branchName, parent);
+  let urls;
   try {
-    return await getBranchConnectionUrls(config, branchMeta.branchId);
+    urls = await getBranchConnectionUrls(config, branch.id);
   } catch (error) {
-    if (!branchMeta.reused) {
-      warn(
-        `Connection URI failed; deleting orphan branch ${branchMeta.branchName}`,
-      );
+    if (!reused) {
+      assertAgentBranchSafety(branch, branchName, parent.id);
+      warn(`Connection URI failed; deleting orphan branch ${branchName}`);
       try {
-        await deleteBranch(config, branchMeta.branchId);
+        await deleteBranch(config, branch.id);
       } catch (cleanupError) {
         warn(`Failed to delete orphan branch: ${cleanupError.message}`);
       }
     }
     throw error;
   }
+
+  assertAgentBranchSafety(branch, branchName, parent.id);
+  const databaseUrlUnpooledHost = await assertBranchConnectionUrls(
+    config,
+    branch.id,
+    urls,
+  );
+  if (reused) {
+    log(`Reusing branch ${branchName} (${branch.id}); refreshing TTL`);
+    await refreshBranchExpiration(config, branch.id, {
+      expiresAt: expiresAtIso(),
+    });
+  }
+  return { branchId: branch.id, reused, urls, databaseUrlUnpooledHost };
 }
 
-function runMigrations() {
+/** @param {{ databaseUrl: string, databaseUrlUnpooled: string }} urls */
+function runMigrations(urls) {
   if (process.env.CLOUD_AGENT_DB_SKIP_MIGRATE === "1") {
     log("Skipping migrations (CLOUD_AGENT_DB_SKIP_MIGRATE=1)");
     return;
@@ -145,7 +156,11 @@ function runMigrations() {
   log("Applying pending Prisma migrations");
   const result = spawnSync("pnpm", ["prisma:migrate:deploy"], {
     cwd: REPO_ROOT,
-    env: process.env,
+    env: {
+      ...process.env,
+      DATABASE_URL: urls.databaseUrl,
+      DATABASE_URL_UNPOOLED: urls.databaseUrlUnpooled,
+    },
     stdio: "inherit",
     shell: false,
   });
@@ -189,22 +204,21 @@ async function main() {
     return;
   }
 
-  let branchMeta;
   try {
-    branchMeta = await ensureBranch(config, branchName);
-    const urls = await connectionUrlsOrCleanup(config, branchMeta);
-    applyUrlsToProcessEnv(urls);
+    const { branchId, reused, urls, databaseUrlUnpooledHost } =
+      await provisionAgentBranch(config, branchName);
 
     const state = {
       agentId,
       branchName,
-      branchId: branchMeta.branchId,
+      branchId,
       parentBranchName: config.parentBranchName,
       projectId: config.projectId,
       databaseUrlHost: safeHost(urls.databaseUrl),
+      databaseUrlUnpooledHost,
       provisionedAt: new Date().toISOString(),
       expiresAt: expiresAtIso(),
-      reused: branchMeta.reused,
+      reused,
     };
 
     await writeState(REPO_ROOT, state);
@@ -220,12 +234,12 @@ async function main() {
       await injectShellRc(path.join(home, ".profile"), REPO_ROOT);
     }
 
-    runMigrations();
-    await runAuthFixtures({ branchName });
+    runMigrations(urls);
+    await runAuthFixtures(urls.databaseUrlUnpooled);
 
     log(
-      `Ready: branch ${branchName} (${branchMeta.branchId})` +
-        (branchMeta.reused ? " [reused]" : " [created]"),
+      `Ready: branch ${branchName} (${branchId})` +
+        (reused ? " [reused]" : " [created]"),
     );
     log("Use: node scripts/agent-db/with-db.mjs -- <command>");
   } catch (error) {
@@ -235,9 +249,9 @@ async function main() {
 
 /**
  * Upsert known login users on the agent branch only.
- * @param {{ branchName: string }} input
+ * @param {string} databaseUrl
  */
-async function runAuthFixtures(input) {
+async function runAuthFixtures(databaseUrl) {
   if (process.env.CLOUD_AGENT_DB_SKIP_FIXTURES === "1") {
     log("Skipping auth fixtures (CLOUD_AGENT_DB_SKIP_FIXTURES=1)");
     return;
@@ -245,10 +259,7 @@ async function runAuthFixtures(input) {
 
   log("Seeding guarded auth fixtures");
   const { seedAuthFixtures } = await import("./seed-auth-fixtures.mjs");
-  const result = await seedAuthFixtures({
-    branchName: input.branchName,
-    databaseUrl: process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL,
-  });
+  const result = await seedAuthFixtures({ databaseUrl });
   if (!result.skipped) {
     log(
       `Auth fixtures ready (${result.seeded}); see docs/agents/agent-database.md`,
@@ -267,4 +278,10 @@ function safeHost(url) {
   }
 }
 
-await main();
+const isDirectRun =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  await main();
+}
