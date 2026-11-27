@@ -206,6 +206,71 @@ describe.runIf(ON_POSTGRES)(
       }, 60_000);
     });
 
+    // The move of `PUT /v1/jobs/{id}/workspace`: it takes no lock the
+    // deletion holds, because the Job's Owner stays and only the destination
+    // workspace is new to it.
+    describe.each(networks)(
+      "a Job moved out of the personal workspace on %s",
+      (network) => {
+        async function accountWithAJobToMove() {
+          const created = await account();
+          const jobId = randomUUID();
+          const organizationId = randomUUID();
+          const destinationId = randomUUID();
+          cleanup.push(async () => {
+            await prisma.$executeRaw`DELETE FROM ${netTable(network, "Job")} WHERE "id" = ${jobId}`;
+            await prisma.organization.deleteMany({
+              where: { id: organizationId },
+            });
+          });
+          await prisma.organization.create({
+            data: {
+              id: organizationId,
+              name: "Destination",
+              slug: `destination-${organizationId}`,
+              members: { create: { userId: created.userId, role: "member" } },
+              workspace: { create: { id: destinationId } },
+            },
+          });
+          await created.job(network, prisma, jobId);
+          let moved: number | undefined;
+          const move = async (tx: Tx) => {
+            moved = await tx.$executeRaw`
+            UPDATE ${netTable(network, "Job")}
+            SET "workspaceId" = ${destinationId}::uuid, "projectId" = NULL
+            WHERE "id" = ${jobId}`;
+          };
+          const job = () =>
+            prisma.$queryRaw<{ workspaceId: string; ownerId: string | null }[]>`
+            SELECT "workspaceId", "ownerId" FROM ${netTable(network, "Job")} WHERE "id" = ${jobId}`;
+          return { ...created, destinationId, move, job, moved: () => moved };
+        }
+
+        it("stays in its destination, without its Owner, when the move committed first", async () => {
+          const { userId, destinationId, move, job, moved } =
+            await accountWithAJobToMove();
+
+          await writerFirst(userId, move);
+
+          expect(moved()).toBe(1);
+          expect(await job()).toEqual([
+            { workspaceId: destinationId, ownerId: null },
+          ]);
+          expect(await prisma.user.count({ where: { id: userId } })).toBe(0);
+        }, 60_000);
+
+        it("is deleted with the account, and the move finds no Job, when the deletion locked it first", async () => {
+          const { userId, move, job, moved } = await accountWithAJobToMove();
+
+          expect(await deletionFirst(userId, move)).toBe("written");
+
+          expect(moved()).toBe(0);
+          expect(await job()).toEqual([]);
+          expect(await prisma.user.count({ where: { id: userId } })).toBe(0);
+        }, 60_000);
+      },
+    );
+
     describe("a share of a Job that goes with the account", () => {
       async function accountWithAJob() {
         const created = await account();

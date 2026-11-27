@@ -13,6 +13,7 @@ import {
   type DeletionBlocker,
   type DeletionWorld,
   insertRow,
+  networkRowsAfterDeletion,
   seedDeletionBlocker,
   seedDeletionWorld,
 } from "@/test-fixtures/user-deletion-world";
@@ -291,6 +292,31 @@ describe.runIf(ON_POSTGRES)(
       } as never);
     }
 
+    /**
+     * The comparison's two sides share the deletion's statements on Jobs,
+     * claims and payments, so equal digests cannot show that those select
+     * the right rows. This does: the rows that must stay, and the ones that
+     * must go, by id.
+     */
+    async function expectTheNamedRows(tx: Tx, { id }: DeletionWorld) {
+      for (const network of networks) {
+        for (const [table, { kept, gone }] of Object.entries(
+          networkRowsAfterDeletion(network),
+        ) as [
+          keyof ReturnType<typeof networkRowsAfterDeletion>,
+          { kept: readonly string[]; gone: readonly string[] },
+        ][]) {
+          const rows = await tx.$queryRaw<{ id: string }[]>`
+            SELECT "id" FROM ${netTable(network, table)}
+            WHERE "id" = ANY(${[...kept, ...gone].map(id)})`;
+          expect(
+            rows.map((row) => row.id).sort(),
+            `${network} ${table}`,
+          ).toEqual(kept.map(id).sort());
+        }
+      }
+    }
+
     async function backToTheWorld(tx: Tx) {
       await tx.$executeRaw`ROLLBACK TO SAVEPOINT world`;
     }
@@ -309,21 +335,25 @@ describe.runIf(ON_POSTGRES)(
         let keysThatFired: string[] = [];
         let droppedKeys = 0;
 
-        await inWorld(async (tx, { ada }) => {
+        await inWorld(async (tx, world) => {
+          const { ada } = world;
           seeded = await tableDigests(tx);
           parents = await referencedParents(tx, networks);
 
           await deleteAccount(tx, ada, { rules: false });
+          await expectTheNamedRows(tx, world);
           byTheKeys = await tableDigests(tx);
           keysThatFired = await keysWithAParentGone(tx, parents);
           await backToTheWorld(tx);
 
           await deleteAccount(tx, ada, { rules: true });
+          await expectTheNamedRows(tx, world);
           byCoreBesideTheKeys = await tableDigests(tx);
           await backToTheWorld(tx);
 
           droppedKeys = await dropCrossingKeys(tx);
           await deleteAccount(tx, ada, { rules: true });
+          await expectTheNamedRows(tx, world);
           byCoreAlone = await tableDigests(tx);
           orphansByCoreAlone = await countOrphans(tx);
         }, preprod);

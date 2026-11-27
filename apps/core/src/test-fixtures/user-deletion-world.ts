@@ -647,6 +647,42 @@ async function seedNetworkRows(
   }
 }
 
+/**
+ * What Ada's deletion must leave of the Jobs, claims and payments on
+ * `network`, by name: stated here, not derived from the deletion's own
+ * statements. `kept` are Bob's, or public work that outlives her.
+ */
+export function networkRowsAfterDeletion(network: Network) {
+  // The twin is Bob's on Mainnet and in Ada's personal workspace elsewhere.
+  const twin = network === "mainnet" ? "kept" : "gone";
+  return {
+    Job: {
+      kept: [
+        "job.public",
+        "job.onPrivateChild",
+        "job.onPersonalTask",
+        "job.onStrayChild",
+        "job.onPersonalProject",
+        "job.bob",
+        ...(twin === "kept" ? ["job.twin"] : []),
+      ],
+      gone: [
+        "job.personal",
+        "job.private",
+        ...(twin === "gone" ? ["job.twin"] : []),
+      ],
+    },
+    task_payment_claim: {
+      kept: ["claim.onPrivateEvent", "claim.onPersonalEvent"],
+      gone: ["claim.terminal"],
+    },
+    task_x402_payment: {
+      kept: ["payment.onPrivateEvent", "payment.onPersonalEvent"],
+      gone: ["payment.private", "payment.personal"],
+    },
+  } as const;
+}
+
 export type DeletionBlocker =
   | "job in the personal workspace"
   | "payment on a subtask"

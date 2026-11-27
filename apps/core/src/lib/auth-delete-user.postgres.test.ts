@@ -82,7 +82,7 @@ describe.skipIf(!enabled)("a user deletes their own account", () => {
     await prisma.$executeRaw`DELETE FROM ${netTable("mainnet", "AgentPricing")} WHERE "id" = ${agentId}`;
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     await prisma.$disconnect();
-  });
+  }, 60_000);
 
   it("previews no blocker, then deletes the account", async () => {
     const { user, request } = await signedIn("Deletes herself");
@@ -98,9 +98,14 @@ describe.skipIf(!enabled)("a user deletes their own account", () => {
 
   it("refuses while the user owns a Job that has not finished, and keeps the account", async () => {
     const { user, request } = await signedIn("Has a running Job");
-    const workspace = await prisma.workspace.create({
-      data: { userId: user.id },
+    // A bare personal workspace, removed with the user: the route that
+    // creates one also grants credits, which this test does not need.
+    const { workspace } = await prisma.user.update({
+      where: { id: user.id },
+      data: { workspace: { create: {} } },
+      select: { workspace: { select: { id: true } } },
     });
+    if (!workspace) throw new Error("The workspace was not created");
     await seedJob(prisma, "mainnet", {
       id: jobId,
       agentId,

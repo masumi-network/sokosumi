@@ -60,8 +60,7 @@ const {
     findLiveAuthorizationX402Payment: vi.fn(),
     findForeignChargeX402Payment: vi.fn(),
     deleteSweepableX402Payments: vi.fn(),
-    findJobsDeletedWithUser: vi.fn(),
-    deleteJobs: vi.fn(),
+    deleteJobsOfUser: vi.fn(),
   },
   rules: {
     applyPersonalWorkspaceRules: vi.fn(),
@@ -117,7 +116,7 @@ describe("prepareTasksForUserDeletion", () => {
     for (const mock of Object.values({ ...network, ...rules })) {
       mock.mockResolvedValue(undefined);
     }
-    network.findJobsDeletedWithUser.mockResolvedValue([]);
+    network.deleteJobsOfUser.mockResolvedValue([]);
     chatRoomFindManyMock.mockResolvedValue([]);
     chatRoomUpdateMock.mockResolvedValue({});
     chatRoomDeleteMock.mockResolvedValue({});
@@ -429,7 +428,7 @@ describe("prepareTasksForUserDeletion", () => {
     });
   });
 
-  it("applies each crossing rule before the delete of its parent", async () => {
+  it("applies each crossing rule before the delete of its parent, and the Jobs' after theirs", async () => {
     queryRawMock.mockImplementation(
       async (strings: TemplateStringsArray, ...values: unknown[]) =>
         PrismaRaw.sql(strings, ...values).sql.includes(
@@ -438,7 +437,7 @@ describe("prepareTasksForUserDeletion", () => {
           ? [{ id: "workspace_personal", userId: "user_delete" }]
           : [],
     );
-    network.findJobsDeletedWithUser.mockResolvedValue(["job_private"]);
+    network.deleteJobsOfUser.mockResolvedValue(["job_private"]);
     taskDeleteManyMock.mockResolvedValue({ count: 1 });
 
     await prepareTasksForUserDeletion("user_delete", {
@@ -451,8 +450,9 @@ describe("prepareTasksForUserDeletion", () => {
     expect(rules.applyJobRules.mock.calls).toEqual([
       [expect.any(Object), "mainnet", ["job_private"]],
     ]);
-    expect(network.deleteJobs.mock.calls).toEqual([
-      [expect.any(Object), "mainnet", ["job_private"]],
+    // The delete decides which Jobs go; the rules get the ids it returned.
+    expect(network.deleteJobsOfUser.mock.calls).toEqual([
+      [expect.any(Object), "mainnet", "user_delete"],
     ]);
     const order = (mock: { mock: { invocationCallOrder: number[] } }) =>
       mock.mock.invocationCallOrder[0];
@@ -461,8 +461,8 @@ describe("prepareTasksForUserDeletion", () => {
         network.deleteSweepableX402Payments,
         rules.applyPersonalWorkspaceRules,
         eraseWorkspaceCalendarDataMock,
+        network.deleteJobsOfUser,
         rules.applyJobRules,
-        network.deleteJobs,
         rules.applyPrivateTaskRules,
         taskDeleteManyMock,
         rules.applyUserRules,
@@ -473,8 +473,8 @@ describe("prepareTasksForUserDeletion", () => {
         network.deleteSweepableX402Payments,
         rules.applyPersonalWorkspaceRules,
         eraseWorkspaceCalendarDataMock,
+        network.deleteJobsOfUser,
         rules.applyJobRules,
-        network.deleteJobs,
         rules.applyPrivateTaskRules,
         taskDeleteManyMock,
         rules.applyUserRules,

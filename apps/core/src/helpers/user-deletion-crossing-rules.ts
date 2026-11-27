@@ -16,7 +16,9 @@ import { type Network, networksThatAreOn } from "@/lib/network";
  * The keys this flow owns are the rows with "user" in
  * `src/lib/db/crossing-keys.ts`; each statement names its key. Every step
  * runs before the delete of its parent, so it holds with the keys in place
- * and without them. No rule is changed here, the ones that look wrong
+ * and without them. The one exception is `applyJobRules`, which follows the
+ * delete of its Jobs: none of its keys restricts, and the delete itself must
+ * decide which Jobs go. No rule is changed here, the ones that look wrong
  * included: each refusal names its follow-up.
  */
 type Tx = Pick<Prisma.TransactionClient, "$queryRaw" | "$executeRaw">;
@@ -117,6 +119,8 @@ export async function applyPersonalWorkspaceRules(
     SELECT task."id", task."workspaceId" = ${workspaceId}::uuid AS "inWorkspace"
     FROM ${sharedTable("task")} AS task
     INNER JOIN doomed ON doomed."id" = task."id"
+    ORDER BY task."id" ASC
+    FOR UPDATE OF task
   `;
   // The erasure sweeps the payments on this workspace's own Tasks, after its
   // lock refused the ones it must keep.
@@ -134,6 +138,8 @@ export async function applyPersonalWorkspaceRules(
   const projectIds = projects.map((project) => project.id);
   const sokoBots = await tx.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM ${sharedTable("soko_bot")} WHERE "projectId" = ANY(${projectIds}::uuid[])
+    ORDER BY "id" ASC
+    FOR UPDATE
   `;
   const sokoBotIds = sokoBots.map((sokoBot) => sokoBot.id);
   for (const network of networksThatAreOn()) {
@@ -197,16 +203,20 @@ export async function applyPrivateTaskRules(
       FROM ${sharedTable("task")} AS child
       INNER JOIN doomed ON child."parentTaskId" = doomed."id"
     )
-    SELECT "id" FROM doomed
+    SELECT task."id"
+    FROM ${sharedTable("task")} AS task
+    INNER JOIN doomed ON doomed."id" = task."id"
+    ORDER BY task."id" ASC
+    FOR UPDATE OF task
   `;
   const taskIds = tasks.map((task) => task.id);
   await applyTaskRules(tx, taskIds, taskIds, { userId });
 }
 
 /**
- * Before Jobs of one Network are deleted: the shared rows that point at them.
- * A delegation or schedule carries its Network (none means Mainnet); a share
- * is Mainnet's.
+ * After Jobs of one Network were deleted: the shared rows that pointed at
+ * them. A delegation or schedule carries its Network (none means Mainnet); a
+ * share is Mainnet's.
  */
 export async function applyJobRules(
   tx: Tx,
@@ -242,6 +252,8 @@ export async function applyUserRules(tx: Tx, userId: string): Promise<void> {
   const sokoBots = await tx.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM ${sharedTable("soko_bot")}
     WHERE "userId" = ${userId} OR "workspaceId" = ANY(${workspaceIds}::uuid[])
+    ORDER BY "id" ASC
+    FOR UPDATE
   `;
   const sokoBotIds = sokoBots.map((sokoBot) => sokoBot.id);
 

@@ -28,11 +28,10 @@ import {
   applyUserRules,
 } from "@/helpers/user-deletion-crossing-rules";
 import {
-  deleteJobs,
+  deleteJobsOfUser,
   deleteSweepableX402Payments,
   deleteTerminalClaims,
   findForeignChargeX402Payment,
-  findJobsDeletedWithUser,
   findLiveAuthorizationX402Payment,
   findPendingClaim,
   findReviewRequiredClaim,
@@ -491,9 +490,8 @@ export async function prepareTasksForUserDeletion(
         // Before their Tasks, which would only detach them. Jobs in the
         // personal workspace go too: that workspace is deleted with the user.
         for (const network of networks) {
-          const jobIds = await findJobsDeletedWithUser(tx, network, userId);
+          const jobIds = await deleteJobsOfUser(tx, network, userId);
           await applyJobRules(tx, network, jobIds);
-          await deleteJobs(tx, network, jobIds);
         }
         await applyPrivateTaskRules(tx, userId);
         await tx.task.deleteMany({ where: privateTaskWhere });

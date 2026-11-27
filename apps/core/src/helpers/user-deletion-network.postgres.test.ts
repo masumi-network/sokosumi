@@ -227,21 +227,18 @@ describe.runIf(ON_POSTGRES)(
             refundTransactionId: id("transaction.adaPayment"),
           });
           await statements.deleteTerminalClaims(tx, network, ada);
-          expect(
-            await Promise.all(
-              [
-                "claim.terminal",
-                "refunded",
-                "pending",
-                "reviewed",
-                "bobs",
-                "claim.onPersonalEvent",
-              ].map(async (name) => [
-                name,
-                await exists(tx, "claim", id(name)),
-              ]),
-            ),
-          ).toEqual([
+          const claims: [string, boolean][] = [];
+          for (const name of [
+            "claim.terminal",
+            "refunded",
+            "pending",
+            "reviewed",
+            "bobs",
+            "claim.onPersonalEvent",
+          ]) {
+            claims.push([name, await exists(tx, "claim", id(name))]);
+          }
+          expect(claims).toEqual([
             ["claim.terminal", false],
             ["refunded", false],
             ["pending", true],
@@ -254,11 +251,7 @@ describe.runIf(ON_POSTGRES)(
 
       it("deletes the Jobs on Ada's private Tasks and in her personal workspace, no other", async () => {
         await inWorld(async (tx, { ada, id }) => {
-          const jobs = await statements.findJobsDeletedWithUser(
-            tx,
-            network,
-            ada,
-          );
+          const jobs = await statements.deleteJobsOfUser(tx, network, ada);
           expect(jobs.sort()).toEqual(
             [
               id("job.personal"),
@@ -267,10 +260,12 @@ describe.runIf(ON_POSTGRES)(
               ...(network === "mainnet" ? [] : [id("job.twin")]),
             ].sort(),
           );
-          await statements.deleteJobs(tx, network, jobs);
-          expect(
-            await statements.findJobsDeletedWithUser(tx, network, ada),
-          ).toEqual([]);
+          const left = await tx.$queryRaw<{ id: string }[]>`
+            SELECT "id" FROM ${netTable(network, "Job")} WHERE "id" = ANY(${jobs})`;
+          expect(left).toEqual([]);
+          expect(await statements.deleteJobsOfUser(tx, network, ada)).toEqual(
+            [],
+          );
         });
       });
     });

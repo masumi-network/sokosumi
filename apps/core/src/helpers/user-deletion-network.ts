@@ -240,17 +240,21 @@ export async function deleteSweepableX402Payments(
 }
 
 /**
- * The Jobs that go with the account: those on the private Tasks this user
- * owns, and every Job in their personal workspace.
+ * Deletes the Jobs that go with the account: those on the private Tasks this
+ * user owns, and every Job in their personal workspace. Returns their ids.
+ *
+ * One statement, so the Jobs it deletes are the ones that match when it
+ * locks them: a Job that another session moved out of the personal workspace
+ * a moment ago stays. Its caller handles the shared rows that pointed at the
+ * returned Jobs afterwards.
  */
-export async function findJobsDeletedWithUser(
+export async function deleteJobsOfUser(
   tx: Tx,
   network: Network,
   userId: string,
 ): Promise<string[]> {
   const jobs = await tx.$queryRaw<{ id: string }[]>`
-    SELECT job."id"
-    FROM ${netTable(network, "Job")} AS job
+    DELETE FROM ${netTable(network, "Job")} AS job
     WHERE (
         job."ownerId" = ${userId}
         AND EXISTS (
@@ -264,17 +268,7 @@ export async function findJobsDeletedWithUser(
         SELECT 1 FROM ${sharedTable("workspace")} AS job_workspace
         WHERE job_workspace."id" = job."workspaceId" AND job_workspace."userId" = ${userId}
       )
+    RETURNING job."id"
   `;
   return jobs.map((job) => job.id);
-}
-
-export async function deleteJobs(
-  tx: Tx,
-  network: Network,
-  jobIds: string[],
-): Promise<void> {
-  if (jobIds.length === 0) return;
-  await tx.$executeRaw`
-    DELETE FROM ${netTable(network, "Job")} WHERE "id" = ANY(${jobIds})
-  `;
 }
