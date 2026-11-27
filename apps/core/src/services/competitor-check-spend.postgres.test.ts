@@ -489,6 +489,19 @@ async function observe(payer: Payer, now: Date) {
   }
   const ended = Date.now();
   const left = await rows(payer);
+  // Before `plain` turns every time into `<time>`: a debit is one instant, its
+  // update time and each consumption's creation time equal its creation time.
+  for (const debit of left.transactions) {
+    const times = [
+      debit.updatedAt,
+      ...left.consumptions
+        .filter((consumption) => consumption.transactionId === debit.id)
+        .map((consumption) => consumption.createdAt),
+    ];
+    expect(times.map((time) => time.getTime())).toEqual(
+      times.map(() => debit.createdAt.getTime()),
+    );
+  }
   const debitRows = [...left.transactions, ...left.consumptions];
   const debitTimes = [
     ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),

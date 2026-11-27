@@ -3,7 +3,8 @@ import {
   InsufficientBalanceError,
 } from "@sokosumi/database/repositories";
 
-import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
+import { isPrismaTransactionConflict } from "@/helpers/prisma";
+import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 /** Whose credits a spend takes. */
 export interface CreditPayer {
@@ -21,62 +22,178 @@ export interface CreditPayer {
   projectId: string | null;
 }
 
-export interface SpendInput {
+/**
+ * What a spend does with its price:
+ * - `in_full`: the whole price or nothing. A price of zero is refused.
+ * - `in_full_or_zero`: the same, and a price of zero is recorded as a debit
+ *   of zero, which the caller's receipt points to.
+ * - `up_to_balance`: the price, or what the balance holds when that is less.
+ *   An empty balance pays nothing. A price of zero is refused.
+ */
+export type SpendMode = "in_full" | "in_full_or_zero" | "up_to_balance";
+
+export interface SpendInput<Mode extends SpendMode = SpendMode> {
   /** The Network whose credits pay. The one place the Network is read. */
   scope: NetworkScope;
   /**
-   * The caller's open transaction, of the shared side: the debit commits or
-   * rolls back with the caller's own receipt, at the caller's isolation level
-   * and retry rules. The Network's rows are written through it in raw SQL.
+   * The caller's open transaction, on the side the caller opened it: the
+   * debit commits or rolls back with the caller's own receipt, at the
+   * caller's isolation level and retry rules. Every statement of the spend
+   * runs on it. A legacy transaction is one of the shared side.
    */
-  tx: SharedDb;
+  tx: { shared: SharedDb } | { network: NetworkDb };
   payer: CreditPayer;
-  /** The price, in cents, above zero. */
+  /** The price, in cents. */
   quotedCents: bigint;
+  mode: Mode;
 }
 
-export type SpendResult =
-  | {
-      /** The debit: the credit transaction written. */
-      transactionId: string;
-      quotedCents: bigint;
-      chargedCents: bigint;
-      shortfall: false;
-    }
-  | {
-      /** The credits do not cover the price: nothing was written. */
-      transactionId: null;
-      quotedCents: bigint;
-      chargedCents: 0n;
-      shortfall: true;
-      /** What the payer's credits could cover. */
-      availableCents: bigint;
-    };
+/** The price was paid in full: one debit of the price. */
+export interface SpendCharged {
+  outcome: "charged";
+  transactionId: string;
+  quotedCents: bigint;
+  chargedCents: bigint;
+  shortfall: false;
+}
+/** The balance held less than the price: one debit of what it held. */
+export interface SpendPartlyCharged {
+  outcome: "partly_charged";
+  transactionId: string;
+  quotedCents: bigint;
+  /** Above zero and below the price. */
+  chargedCents: bigint;
+  shortfall: true;
+}
+/** The price was zero: one debit of zero, with no credits taken. */
+export interface SpendRecordedZero {
+  outcome: "recorded_zero";
+  transactionId: string;
+  quotedCents: 0n;
+  chargedCents: 0n;
+  shortfall: false;
+}
+/** The credits do not cover the price: nothing was written. */
+export interface SpendNotCharged {
+  outcome: "not_charged";
+  transactionId: null;
+  quotedCents: bigint;
+  chargedCents: 0n;
+  shortfall: true;
+  /** What the payer's credits could cover. */
+  availableCents: bigint;
+}
+
+interface SpendResults {
+  in_full: SpendCharged | SpendNotCharged;
+  in_full_or_zero: SpendCharged | SpendRecordedZero | SpendNotCharged;
+  up_to_balance: SpendCharged | SpendPartlyCharged | SpendNotCharged;
+}
+export type SpendResult<Mode extends SpendMode = SpendMode> =
+  SpendResults[Mode];
 
 /**
- * Spends the payer's credits for a price, in full or not at all: the soonest
- * expiring credits first, a Project's own before the pool. The module owns
- * which credits pay and the rows of the debit. The caller owns who may spend,
- * the price, the transaction and its retries, and its own receipt, which is
- * also how it knows a repeated call is already paid.
+ * The spend failed before anything was written, while the balance or the
+ * buckets were read, for a reason other than missing credits: `cause` holds
+ * it. A caller that answers such a failure with its own status catches this
+ * class. A failure of the write itself, and a transaction conflict at any
+ * point, are thrown as they are.
  */
-export async function spend(input: SpendInput): Promise<SpendResult> {
-  const { scope, tx, payer, quotedCents } = input;
-  let consumptions: Awaited<
-    ReturnType<typeof creditBucketRepository.prepareConsumption>
-  >;
+export class SpendPreparationError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = "SpendPreparationError";
+  }
+}
+
+/** The reads before the write, with their failures told apart from a write's. */
+async function prepared<T>(read: () => Promise<T>): Promise<T> {
   try {
-    consumptions = await creditBucketRepository.prepareConsumption(
-      scope.network,
-      payer.userId,
-      payer.organizationId,
-      quotedCents,
-      tx,
-      { projectId: payer.projectId },
+    return await read();
+  } catch (error) {
+    if (
+      error instanceof InsufficientBalanceError ||
+      isPrismaTransactionConflict(error)
+    ) {
+      throw error;
+    }
+    throw new SpendPreparationError(error);
+  }
+}
+
+/**
+ * Spends the payer's credits for a price: the soonest expiring credits first,
+ * a Project's own before the pool. The module owns which credits pay and the
+ * rows of the debit. The caller owns who may spend, the price, the
+ * transaction and its retries, and its own receipt, which is also how it
+ * knows a repeated call is already paid.
+ */
+export async function spend(
+  input: SpendInput<"in_full">,
+): Promise<SpendResult<"in_full">>;
+export async function spend(
+  input: SpendInput<"in_full_or_zero">,
+): Promise<SpendResult<"in_full_or_zero">>;
+export async function spend(
+  input: SpendInput<"up_to_balance">,
+): Promise<SpendResult<"up_to_balance">>;
+export async function spend(input: SpendInput): Promise<SpendResult> {
+  const { scope, tx, payer, quotedCents, mode } = input;
+  const { userId, organizationId, projectId } = payer;
+  const { network } = scope;
+  const record = (cents: bigint, consumptions: Consumptions) =>
+    creditBucketRepository.recordSpend(
+      network,
+      { userId, organizationId, cents, consumptions },
+      "shared" in tx ? tx.shared : tx.network,
+    );
+
+  if (mode === "in_full_or_zero" && quotedCents === 0n) {
+    return {
+      outcome: "recorded_zero",
+      transactionId: await record(0n, []),
+      quotedCents: 0n,
+      chargedCents: 0n,
+      shortfall: false,
+    };
+  }
+
+  let chargedCents = quotedCents;
+  if (mode === "up_to_balance" && quotedCents > 0n) {
+    const balance = await prepared(() =>
+      creditBucketRepository.getBalanceOn(network, userId, organizationId, tx, {
+        projectId,
+      }),
+    );
+    if (balance < quotedCents) chargedCents = balance;
+    if (chargedCents <= 0n) {
+      return {
+        outcome: "not_charged",
+        transactionId: null,
+        quotedCents,
+        chargedCents: 0n,
+        shortfall: true,
+        availableCents: balance,
+      };
+    }
+  }
+
+  let consumptions: Consumptions;
+  try {
+    consumptions = await prepared(() =>
+      creditBucketRepository.prepareConsumptionOn(
+        network,
+        userId,
+        organizationId,
+        chargedCents,
+        tx,
+        { projectId },
+      ),
     );
   } catch (error) {
     if (!(error instanceof InsufficientBalanceError)) throw error;
     return {
+      outcome: "not_charged",
       transactionId: null,
       quotedCents,
       chargedCents: 0n,
@@ -84,20 +201,24 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
       availableCents: error.available,
     };
   }
-  const transactionId = await creditBucketRepository.recordSpend(
-    scope.network,
-    {
-      userId: payer.userId,
-      organizationId: payer.organizationId,
-      cents: quotedCents,
-      consumptions,
-    },
-    tx,
-  );
-  return {
-    transactionId,
-    quotedCents,
-    chargedCents: quotedCents,
-    shortfall: false,
-  };
+  const transactionId = await record(chargedCents, consumptions);
+  return chargedCents < quotedCents
+    ? {
+        outcome: "partly_charged",
+        transactionId,
+        quotedCents,
+        chargedCents,
+        shortfall: true,
+      }
+    : {
+        outcome: "charged",
+        transactionId,
+        quotedCents,
+        chargedCents,
+        shortfall: false,
+      };
 }
+
+type Consumptions = Awaited<
+  ReturnType<typeof creditBucketRepository.prepareConsumptionOn>
+>;
