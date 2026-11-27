@@ -350,6 +350,25 @@ describe("site crawl ledger", () => {
     expect(row(crawl, "brokenLinks")).toMatchObject({ state: "found" });
   });
 
+  it("finds a sitemap URL that only nofollow links reach, as Google follows none of them", () => {
+    const crawl = cleanCrawl();
+    crawl.orphans = {
+      state: "found",
+      urls: [`${SITE}/lost`],
+      total: 1,
+      nofollowOnly: { urls: [`${SITE}/hidden`], total: 2 },
+      candidates: false,
+    };
+    expect(row(crawl, "orphans")).toMatchObject({
+      state: "found",
+      total: 3,
+      items: [
+        { label: `${SITE}/lost`, url: true },
+        { label: `${SITE}/hidden`, url: true, kind: "nofollow only" },
+      ],
+    });
+  });
+
   it("keeps why a site was not crawled, and shows nothing for a report without a crawl", () => {
     expect(
       seoSiteCrawlView({ state: "not crawled", reason: "robots.txt" }),

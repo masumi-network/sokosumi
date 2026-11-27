@@ -28,6 +28,7 @@ export type SeoCrawlStop = Crawled["stop"];
 /** The SEO bot's word for an entry of a list. */
 export type SeoCrawlKind =
   | "javascript"
+  | "nofollow only"
   | Exclude<NonNullable<Crawled["links"]>["chains"][number]["kind"], "chain">
   | PageChecks["badCanonicals"]["pages"][number]["kind"];
 
@@ -251,11 +252,18 @@ function read(crawl: Crawled, check: SeoCrawlCheck): Reading {
           }
         : { missing: true };
     case "orphans":
+      // Google follows no nofollow link: a page only such links reach is as hard to find as an orphan.
       return orphans?.state === "found"
         ? {
-            found: orphans.total,
+            found: orphans.total + (orphans.nofollowOnly?.total ?? 0),
             notDetermined: 0,
-            items: urlItems(orphans.urls),
+            items: [
+              ...urlItems(orphans.urls),
+              ...urlItems(orphans.nofollowOnly?.urls ?? []).map((item) => ({
+                ...item,
+                kind: "nofollow only" as const,
+              })),
+            ],
           }
         : { missing: true };
     case "javascript": {

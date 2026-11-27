@@ -26,6 +26,7 @@ export const STOP_KEY = {
 } as const satisfies Record<SeoCrawlStop, string>;
 export const KIND_KEY = {
   javascript: "javascript",
+  "nofollow only": "nofollowOnly",
   loop: "loop",
   "too many hops": "tooManyHops",
   "target not 2xx": "targetNot2xx",

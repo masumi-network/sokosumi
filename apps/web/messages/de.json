@@ -15786,6 +15786,7 @@
         "from": "Linked from",
         "kind": {
           "javascript": "Reached through JavaScript",
+          "nofollowOnly": "Only nofollow links",
           "loop": "Loop",
           "tooManyHops": "Too many hops",
           "targetNot2xx": "Canonical target is not 2xx",
@@ -15825,7 +15826,7 @@
             "missingH1": "Give each page below one h1 heading.",
             "noindexInSitemap": "Remove each page below from the sitemap, or remove its noindex if search must show the page.",
             "badCanonicals": "Give each page below one canonical URL on this site that answers with status 200.",
-            "orphans": "Check first that no page of the site links to each page below. Then link to it from another page of the site, or remove it from the sitemap.",
+            "orphans": "Check first that no page of the site links to each page below with a link that has no nofollow. Then add such a link from another page of the site, or remove the page from the sitemap.",
             "javascript": "Put the links and the main text of each page group below in the HTML that the server sends."
           }
         },
