@@ -1,3 +1,5 @@
+import type { Prisma } from "@sokosumi/database";
+
 import { forbidden, notFound } from "@/helpers/error";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
@@ -8,7 +10,8 @@ import {
 } from "@/middleware/auth";
 
 export interface PreprodAccessTarget {
-  type: "user" | "organization";
+  /** "network" with id "preprod": the Preprod pause (`preprod-control.ts`). */
+  type: "user" | "organization" | "network";
   id: string;
 }
 
@@ -104,21 +107,33 @@ export function setPreprodAccess(input: {
     }
     const changed = { type: target.type, id: current.id };
     if (count > 0) {
-      // The database's clock, read after the update and under its row lock,
-      // so the newest record is the last switch on any Core host; Prisma's
-      // own stamp is the host's clock, the column default the transaction's
-      // start.
-      await tx.preprodAccessChange.create({
-        data: {
-          createdAt: await databaseNow(tx),
-          targetType: changed.type,
-          targetId: changed.id,
-          enabled,
-          operatorId,
-          reason,
-        },
+      await recordPreprodAccessChange(tx, changed, {
+        enabled,
+        operatorId,
+        reason,
       });
     }
     return preprodAccessOf(tx, changed, current.preprodEnabled);
+  });
+}
+
+/**
+ * The record of one switch. Called in the switch's transaction, after its
+ * update: the database's clock, read under the update's row lock, so the
+ * newest record is the last switch on any Core host; Prisma's own stamp is
+ * the host's clock, the column default the transaction's start.
+ */
+export async function recordPreprodAccessChange(
+  tx: Prisma.TransactionClient,
+  target: PreprodAccessTarget,
+  change: { enabled: boolean; operatorId: string; reason: string },
+) {
+  await tx.preprodAccessChange.create({
+    data: {
+      createdAt: await databaseNow(tx),
+      targetType: target.type,
+      targetId: target.id,
+      ...change,
+    },
   });
 }
