@@ -3266,7 +3266,7 @@
                 "<contacts Organization's workspace>",
                 "<contact list>",
                 "Pre-seed investors",
-                2,
+                10,
                 2,
                 "10000000000",
                 "<id 1>",
@@ -3363,6 +3363,14 @@
             "organizationId": "<contacts Organization>",
             "projectId": "<contacts Organization's Project>",
             "consumptions": []
+          },
+          {
+            "id": "<bucket pool latest of contacts Organization>",
+            "amount": "50000000000",
+            "userId": null,
+            "organizationId": "<contacts Organization>",
+            "projectId": null,
+            "consumptions": []
           }
         ],
         "debits": [
@@ -3397,7 +3405,7 @@
         "contactSearches": [
           {
             "found": 2,
-            "requested": 2,
+            "requested": 10,
             "chargedCents": "10000000000",
             "transactionId": "<id 1>",
             "costUsdMicros": 13000
@@ -5666,7 +5674,7 @@
                 "<contacts Organization's workspace>",
                 "<contact list>",
                 "Pre-seed investors",
-                2,
+                10,
                 2,
                 "10000000000",
                 "<id 1>",
@@ -5763,6 +5771,14 @@
             "organizationId": "<contacts Organization>",
             "projectId": "<contacts Organization's Project>",
             "consumptions": []
+          },
+          {
+            "id": "<bucket pool latest of contacts Organization>",
+            "amount": "50000000000",
+            "userId": null,
+            "organizationId": "<contacts Organization>",
+            "projectId": null,
+            "consumptions": []
           }
         ],
         "debits": [
@@ -5797,7 +5813,7 @@
         "contactSearches": [
           {
             "found": 2,
-            "requested": 2,
+            "requested": 10,
             "chargedCents": "10000000000",
             "transactionId": "<id 1>",
             "costUsdMicros": 13000
