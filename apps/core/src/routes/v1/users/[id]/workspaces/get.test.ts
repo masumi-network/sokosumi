@@ -149,6 +149,7 @@ describe("GET /users/{id}/workspaces", () => {
           logo: null,
           websiteUrl: null,
           preferred: false,
+          canUsePreprod: false,
         },
         {
           id: ORG_WORKSPACE_ID,
@@ -168,6 +169,7 @@ describe("GET /users/{id}/workspaces", () => {
             "facebook",
           ],
           preferred: true,
+          canUsePreprod: false,
         },
       ],
       pendingInvitationCount: 0,
@@ -384,6 +386,7 @@ describe("GET /users/{id}/workspaces", () => {
         logo: null,
         websiteUrl: null,
         preferred: true,
+        canUsePreprod: false,
       }),
     ]);
   });

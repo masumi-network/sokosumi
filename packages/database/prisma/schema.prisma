@@ -138,6 +138,10 @@ model Organization {
 
   stripeCustomerId String?
 
+  /// Preprod access, switched by a platform admin (PreprodAccessChange records
+  /// each change). Not a Better Auth field: never writable by a client.
+  preprodEnabled Boolean @default(false)
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -2752,6 +2756,7 @@ model SokoBot {
   memoryRevisions      SokoBotMemoryRevision[]
   legacyMessages       SokoBotLegacyMessage[]
   pendingDecisions     SokoBotPendingDecision[]
+  accountQuestions     SokoBotAccountQuestion[]
   schedules            SokoBotSchedule[]
   authoritySpends      SokoBotAuthoritySpend[]
   cmoUpgradesSeen      CmoUpgradeSeen[]
@@ -2919,6 +2924,7 @@ model SokoBotTurn {
   watches             SokoBotWatch[]
   authoritySpends     SokoBotAuthoritySpend[]
   pendingDecisions    SokoBotPendingDecision[]
+  accountQuestions    SokoBotAccountQuestion[]
   memoryRevisions     SokoBotMemoryRevision[]
   scheduleRun         SokoBotScheduleRun?
   /// Marketing strategy versions this turn wrote.
@@ -3362,6 +3368,32 @@ model SokoBotIntentOutcome {
   @@map("soko_bot_intent_outcome")
 }
 
+/// "Which account?" asked before a social post (social-destination.ts): the
+/// options shown, in order. A later owner chat turn answers it by passing its
+/// id and one option to create_social_post.
+model SokoBotAccountQuestion {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime    @default(now())
+  sokoBotId         String      @db.Uuid
+  sokoBot           SokoBot     @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  turnId            String      @db.Uuid
+  turn              SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  requestedByUserId String?
+  destinationRoomId String?     @db.Uuid
+  provider          String
+  /// Connection ids, in the order the question showed them.
+  optionIds         String[]    @db.Uuid
+  /// When Core put the question with its options into the owner's reply;
+  /// a question never shown is never open.
+  shownAt           DateTime?
+  /// The owner turn that answered it; its drafts may use it, no later turn.
+  answeredTurnId    String?     @db.Uuid
+
+  @@unique([turnId, provider])
+  @@index([sokoBotId, createdAt(sort: Desc)])
+  @@map("soko_bot_account_question")
+}
+
 model SokoBotPendingDecision {
   intentId  String?        @db.Uuid
   intent    SokoBotIntent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
@@ -3537,6 +3569,28 @@ model SokoBotAdminAction {
   @@index([operatorId, createdAt(sort: Desc)])
   @@index([traceId, createdAt(sort: Desc)])
   @@map("soko_bot_admin_action")
+}
+
+/// Append-only record of Preprod access changes: who switched it, for whom and
+/// why. No foreign keys, like the other operator audit tables: a record
+/// outlives the user, the Organization and the admin it names. Nothing sweeps
+/// it, so `reason` takes a ticket id, no personal details.
+model PreprodAccessChange {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  /// "user" | "organization" | "network" (the Preprod pause)
+  targetType String
+  /// User.id, Organization.id, or "preprod". Intentionally not a relation.
+  targetId   String
+  /// The value the flag was switched to.
+  enabled    Boolean
+  /// User.id of the admin. Intentionally not a relation.
+  operatorId String
+  reason     String @db.VarChar(500)
+
+  @@index([targetType, targetId, createdAt])
+  @@map("preprod_access_change")
 }
 
 /// A member closed CMO's "Cuso got better" dialog for this Cuso's move onto

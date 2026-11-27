@@ -12,8 +12,9 @@ import {
 import type { JobFailureNotificationEmailProps } from "@sokosumi/email";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type { JobStatusResponseSchemaType } from "@sokosumi/masumi/schemas";
-import { buildWebhookFailureContext, postWebhook } from "@sokosumi/net";
+import { postWebhook } from "@sokosumi/net";
 import { SokosumiJobStatus } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 import type { SendEmailInput } from "@/clients/email.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -21,7 +22,7 @@ import { getAgentName } from "@/helpers/agent";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
-import { emitCoreError } from "@/lib/evlog";
+import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -101,26 +102,35 @@ async function dispatchJobFailureNotification(
 
     if (webhookUrl) {
       // Fire-and-forget: dispatch the webhook without blocking the email path.
-      void postWebhook(webhookUrl, notificationData, {
-        userAgent: WEBHOOK_USER_AGENT,
-        timeoutMs: WEBHOOK_TIMEOUT_MS,
-      })
-        .then((result) => {
-          if (result.status === "failed") {
-            Sentry.captureMessage("Failed to call job-failure webhook", {
-              level: "warning",
-              extra: buildWebhookFailureContext(result, {
-                jobId: job.id,
-                userId: job.ownerId,
-                notificationType: "job-failure-webhook",
-                webhookUrl,
-              }),
-            });
-          }
+      // waitUntil keeps delivery alive after the cron's sync completes.
+      waitUntil(
+        postWebhook(webhookUrl, notificationData, {
+          userAgent: WEBHOOK_USER_AGENT,
+          timeoutMs: WEBHOOK_TIMEOUT_MS,
         })
-        .catch(() => {
-          // postWebhook never rejects; guard only against the reporter throwing.
-        });
+          .then((result) => {
+            if (result.status === "failed") {
+              emitCoreWarning(
+                { operation: "job_failure_webhook" },
+                {
+                  message: "Could not deliver a job failure webhook",
+                  why: "The webhook request failed",
+                },
+                {
+                  jobId: job.id,
+                  userId: job.ownerId,
+                  notificationType: "job-failure-webhook",
+                  webhookUrl: new URL(webhookUrl).origin,
+                  responseStatus: result.httpStatus,
+                  failure: messageSafeErrorFields(result.error),
+                },
+              );
+            }
+          })
+          .catch(() => {
+            // postWebhook never rejects; guard only against the reporter throwing.
+          }),
+      );
     }
 
     const stakeholderEmails = getEnv().JOB_FAILURE_NOTIFICATION_EMAILS.filter(

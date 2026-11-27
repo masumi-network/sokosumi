@@ -6399,6 +6399,89 @@ export const StripeSubscriptionStatusSchema = {
     description: 'Stripe subscription lifecycle status'
 } as const;
 
+export const AdminPreprodAccessSchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    enabled: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'enabled',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent changes, newest first'
+        }
+    },
+    required: [
+        'enabled',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodAccessBodySchema = {
+    type: 'object',
+    properties: {
+        enabled: {
+            type: 'boolean',
+            description: 'Whether the user or Organization may use Preprod'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why access is switched: a ticket id, no personal details. Kept with the change after the account is deleted.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'enabled',
+        'reason'
+    ]
+} as const;
+
 export const AdminMatchedChannelOptionSchema = {
     type: 'object',
     properties: {
@@ -6688,6 +6771,96 @@ export const AdminRemoveMatchedChannelParticipantSchema = {
         'userId',
         'roomId',
         'outcome'
+    ]
+} as const;
+
+export const AdminPreprodPauseSchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused. Paused until an admin opens it.'
+        },
+        generation: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Preprod\'s generation number, raised by each wipe; 0 before the first.'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    paused: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'paused',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent pause changes, newest first'
+        }
+    },
+    required: [
+        'paused',
+        'generation',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodPauseBodySchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why Preprod is paused or opened: a ticket id, no personal details.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'paused',
+        'reason'
     ]
 } as const;
 
@@ -26321,6 +26494,11 @@ export const UserWorkspaceSchema = {
             type: 'boolean',
             description: 'Whether a new session opens this workspace',
             example: true
+        },
+        canUsePreprod: {
+            type: 'boolean',
+            description: 'Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person\'s own Preprod access for the personal workspace and the organization\'s for an organization workspace',
+            example: false
         }
     },
     required: [
@@ -26334,7 +26512,8 @@ export const UserWorkspaceSchema = {
         'role',
         'memberCount',
         'enabledSocialProviders',
-        'preferred'
+        'preferred',
+        'canUsePreprod'
     ]
 } as const;
 

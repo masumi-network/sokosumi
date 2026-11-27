@@ -1,7 +1,6 @@
 /**
  * Exa Agent runs: a question with a JSON schema, answered by Exa's agent from
- * pages it read, with a cost per run. Fixed efforts are a flat price; an
- * `email` field in the schema adds $0.02 per address found.
+ * pages it read, with a cost per run. Fixed efforts are a flat price.
  */
 import { getEnv } from "@/config/env";
 import { ExaUnavailableError } from "@/lib/soko-bot/exa";
@@ -20,8 +19,6 @@ export const EXA_AGENT_EFFORT_USD: Record<ExaAgentEffort, number> = {
   medium: 0.1,
   high: 0.5,
 };
-/** Per address found, on top of the run. */
-export const EXA_AGENT_EMAIL_USD = 0.02;
 
 export interface ExaAgentRunInput {
   query: string;

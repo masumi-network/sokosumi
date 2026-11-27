@@ -324,7 +324,6 @@ export function seedDatabase(passedUrl, env, provisioned) {
 /**
  * @param {{
  *   databaseUrl?: string, // a provisioned agent branch
- *   branchName?: string | null,
  *   force?: boolean,
  * }} [options]
  */
@@ -340,13 +339,13 @@ export async function seedAuthFixtures(options = {}) {
     process.env,
     await readUrlsFile(REPO_ROOT),
   );
-  const branchName = options.branchName ?? state?.branchName ?? null;
   const force =
     options.force === true || process.env.CLOUD_AGENT_DB_FORCE === "1";
 
   assertAgentFixtureSafety({
-    branchName,
+    branchName: state?.branchName,
     databaseUrl,
+    databaseUrlUnpooledHost: state?.databaseUrlUnpooledHost,
     force,
   });
 
