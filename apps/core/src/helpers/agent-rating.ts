@@ -76,7 +76,7 @@ export async function doesUserHaveFinishedJobWithAgent(
 
 export const calculateAgentRating = async (
   agentId: string,
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
 ): Promise<RatingMetrics> => {
   const ratingStats = await tx.userAgentRating.aggregate({
     where: {
