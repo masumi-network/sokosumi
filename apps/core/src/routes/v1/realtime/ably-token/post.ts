@@ -26,7 +26,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/ably-token",
     description:
-      "Mint an Ably TokenRequest for Realtime. Grants chat room subscribe for the caller's memberships, narrowed to the rooms named by roomIds when present, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification channels, Job status channels by Network and Workspace, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+      "Mint an Ably TokenRequest for Realtime. Grants chat room subscribe for the caller's memberships, narrowed to the rooms named by roomIds when present, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
     tags: ["Realtime"],
     request: {
       query: z.object({
