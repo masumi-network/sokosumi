@@ -9,6 +9,7 @@
  * starts from a clean slate instead, so its outcome does not hinge on what
  * the scenarios before it happened to leave behind.
  */
+import { checkPattern, matchesText, plainQuotes } from "./check-text.js";
 import { cmoCompetitorWatchBrief } from "./competitors.js";
 import { A2A_SCENARIOS } from "./scenario-a2a.js";
 import { MUTATING_TOOLS } from "./scenario-mutating-tools.js";
@@ -2968,15 +2969,14 @@ export function evaluateScenario(
     });
   }
   if (expect.answerMatches) {
-    const re = new RegExp(expect.answerMatches, "i");
     checks.push({
       label: `Answer matches /${expect.answerMatches}/`,
-      pass: re.test(answer.trim()),
+      pass: matchesText(answer.trim(), expect.answerMatches),
       actual: answer.trim().slice(0, 80) || "(empty)",
     });
   }
   if (expect.answerAvoids) {
-    const match = answer.match(new RegExp(expect.answerAvoids, "i"));
+    const match = plainQuotes(answer).match(checkPattern(expect.answerAvoids));
     checks.push({
       label: `Answer avoids /${expect.answerAvoids}/`,
       pass: !match,

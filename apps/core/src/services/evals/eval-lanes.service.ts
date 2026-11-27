@@ -522,6 +522,12 @@ export async function resetEvalLaneForSokoBot(
           : "user",
       pathnames: [upload.sourceId],
     });
+  // Files tables and their search entries: a kept table shows in the next
+  // case's Files, and its column ids collide with a create that reuses them.
+  await prisma.fileResource.deleteMany({
+    where: { workspaceId, sourceKind: FileSourceKind.NATIVE_TABLE },
+  });
+  await prisma.dataTable.deleteMany({ where: { workspaceId } });
   await prisma.socialPost.deleteMany({ where: { workspaceId } });
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });

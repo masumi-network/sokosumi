@@ -307,6 +307,34 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect((await check("edited", { promptAvoids: ["stuck"] })).pass).toBe(
         true,
       );
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: {
+          prompt: "Report finished and waiting work, without the stuck part.",
+        },
+      });
+      expect((await check("edited", { promptAvoids: ["stuck"] })).pass).toBe(
+        true,
+      );
+    });
+
+    it("passes an edit to the time zone the owner asked for, and counts a zone-only edit as a change", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      const original = await create("Report finished and waiting work.");
+      await check("remember");
+      const asked = { timezone: "America/Los_Angeles", hour: 8 };
+      expect(await check("edited", asked)).toMatchObject({
+        pass: false,
+        actual: expect.stringContaining("not changed"),
+      });
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { timezone: "America/Los_Angeles" },
+      });
+      expect((await check("edited", asked)).pass).toBe(true);
+      expect(
+        (await check("edited", { timezone: "America/New_York" })).actual,
+      ).toContain("America/Los_Angeles");
     });
   });
 

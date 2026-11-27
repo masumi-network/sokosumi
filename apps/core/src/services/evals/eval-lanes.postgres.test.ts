@@ -261,4 +261,48 @@ describe.skipIf(!enabled)("eval lanes", () => {
       true,
     );
   });
+
+  it("removes an earlier case's Files table, so its column ids are free again", async () => {
+    const [lane] = await ensureEvalLanes(1);
+    if (!lane) throw new Error("no lane");
+    const columnId = "11111111-1111-4111-8111-111111111111";
+    const create = () =>
+      prisma.dataTable.create({
+        data: {
+          workspaceId: lane.workspaceId,
+          title: "European seed investors",
+          createdBy: lane.userId,
+          columns: {
+            create: { id: columnId, name: "Fund", type: "text", position: 0 },
+          },
+        },
+        select: { id: true },
+      });
+    await resetEvalLaneForSokoBot(lane);
+    const earlier = await create();
+    await prisma.fileResource.create({
+      data: {
+        workspaceId: lane.workspaceId,
+        sourceKind: "NATIVE_TABLE",
+        sourceScope: "ORGANIZATION",
+        sourceId: earlier.id,
+        ownerOrganizationId: lane.organizationId,
+        displayName: "European seed investors",
+        normalizedName: "european seed investors",
+      },
+    });
+    await expect(create()).rejects.toThrow();
+    await resetEvalLaneForSokoBot(lane);
+    expect(
+      await prisma.dataTable.count({
+        where: { workspaceId: lane.workspaceId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.fileResource.count({
+        where: { workspaceId: lane.workspaceId, sourceKind: "NATIVE_TABLE" },
+      }),
+    ).toBe(0);
+    await create();
+  });
 });
