@@ -143,26 +143,23 @@ export function seoActionHeadline(
 }
 
 /**
- * Where a fix from an earlier check stands in the newest page check, when that check is compared with the one before
- * it: still failing, or not tested again since the check that proposed it. Null for a fix of the newest check, and
- * where no comparison says either: a fix that check fixed is no longer listed.
+ * Where a fix from an earlier check stands in the page checks after it: still failing in the check that found it last,
+ * or not tested again since the check that proposed it. Null for a fix of the newest check, and for one a later check
+ * fixed: a proposal it fixed is no longer listed.
  */
 export function seoFixCheckState(
   action: Action,
-  workspace: Pick<ProjectSeoWorkspace, "observations" | "runs">,
-): { state: "failing" | "notTested"; since: Date } | null {
+  workspace: Pick<ProjectSeoWorkspace, "observations">,
+): { state: "failing" | "notTested"; day: Date } | null {
   const newest = workspace.observations.find((row) => isSeoRuleCheck(row.kind));
   const own = workspace.observations.find(
     (row) => row.id === action.observationId,
   );
   if (action.kind !== "fix" || !newest || !own || own.id === newest.id)
     return null;
-  if (action.lastCheckResult === "failing")
-    return { state: "failing", since: own.observedAt };
-  const compared = workspace.runs?.find(
-    (run) => run.observationId === newest.id,
-  )?.runDiff?.comparable;
-  return compared && !action.lastCheckResult
-    ? { state: "notTested", since: own.observedAt }
-    : null;
+  if (action.lastCheckResult === "failing" && action.lastCheckAt)
+    return { state: "failing", day: action.lastCheckAt };
+  return action.lastCheckResult
+    ? null
+    : { state: "notTested", day: own.observedAt };
 }

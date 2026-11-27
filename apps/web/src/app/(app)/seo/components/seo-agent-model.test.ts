@@ -310,41 +310,37 @@ describe("seoFixCheckState", () => {
     kind: "audit_full",
     observedAt: new Date("2026-11-03T09:00:00Z"),
   };
-  const workspace = (comparable: boolean) =>
-    ({
-      observations: [newest, older],
-      runs: [{ observationId: "newest", runDiff: { comparable } }],
-    }) as unknown as Workspace;
+  const failedAt = new Date("2026-11-12T09:00:00Z");
+  const workspace = { observations: [newest, older] } as unknown as Workspace;
   const fix = (
     observationId: string,
     lastCheckResult?: "failing" | "fixed",
     kind: "fix" | "opportunity" = "fix",
   ) =>
-    ({ observationId, lastCheckResult, kind }) as Parameters<
-      typeof seoFixCheckState
-    >[0];
+    ({
+      observationId,
+      lastCheckResult,
+      ...(lastCheckResult && { lastCheckAt: failedAt }),
+      kind,
+    }) as Parameters<typeof seoFixCheckState>[0];
 
-  it("names a fix of an earlier check as still failing or not tested again, by the newest comparison", () => {
-    expect(seoFixCheckState(fix("older", "failing"), workspace(true))).toEqual({
+  it("names a fix of an earlier check as failing in the check that found it, or not tested again", () => {
+    expect(seoFixCheckState(fix("older", "failing"), workspace)).toEqual({
       state: "failing",
-      since: older.observedAt,
+      day: failedAt,
     });
-    expect(seoFixCheckState(fix("older"), workspace(true))).toEqual({
+    expect(seoFixCheckState(fix("older"), workspace)).toEqual({
       state: "notTested",
-      since: older.observedAt,
+      day: older.observedAt,
     });
   });
 
-  it("says nothing where no comparison can tell, nor for a fix of the newest check or a suggestion", () => {
-    // A newest check that is not compared has no result for any fix: no row may claim it was not tested.
-    expect(seoFixCheckState(fix("older"), workspace(false))).toBeNull();
+  it("says nothing for a fix of the newest check, a suggestion, or a fix a later check fixed", () => {
+    expect(seoFixCheckState(fix("newest", "failing"), workspace)).toBeNull();
     expect(
-      seoFixCheckState(fix("newest", "failing"), workspace(true)),
+      seoFixCheckState(fix("older", undefined, "opportunity"), workspace),
     ).toBeNull();
-    expect(
-      seoFixCheckState(fix("older", undefined, "opportunity"), workspace(true)),
-    ).toBeNull();
-    // A fix the newest check fixed that still carries a Task stays in its place without a claim.
-    expect(seoFixCheckState(fix("older", "fixed"), workspace(true))).toBeNull();
+    // A fix a later check fixed that still carries a Task stays in its place without a claim.
+    expect(seoFixCheckState(fix("older", "fixed"), workspace)).toBeNull();
   });
 });

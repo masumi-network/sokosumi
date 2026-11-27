@@ -14809,7 +14809,7 @@
         "changeProperty": "Change property",
         "chooseProperty": "Choose property",
         "fixState": {
-          "failing": "Still fails in the last check",
+          "failing": "Still failed in the check on {day}",
           "notTested": "Not tested again since {day}"
         }
       },

@@ -287,14 +287,12 @@ export function SeoActionStepRow({
           {/* A fix from an earlier check says where it stands now, as the test results of the last check count it. */}
           {checkState ? (
             <span className="text-muted-foreground mt-1 block text-xs">
-              {checkState.state === "failing"
-                ? t("agent.fixState.failing")
-                : t("agent.fixState.notTested", {
-                    day: format.dateTime(new Date(checkState.since), {
-                      dateStyle: "medium",
-                      timeZone: "UTC",
-                    }),
-                  })}
+              {t(`agent.fixState.${checkState.state}`, {
+                day: format.dateTime(new Date(checkState.day), {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }),
+              })}
             </span>
           ) : null}
           {lead ? (
