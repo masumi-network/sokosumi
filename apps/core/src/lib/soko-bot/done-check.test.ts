@@ -552,19 +552,38 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
       costUsd: 0.00004,
     });
 
-    await evaluateTurnDoneCheck({
+    const prompt = await evaluateTurnDoneCheck({
       turnId: "turn-1",
       sessionId: "sess-1",
       draft: "Checking status.",
     });
 
     const jevCall = mocks.evaluateWithJev.mock.calls[0]?.[0] as {
+      questions: { decision: { criteria: Record<string, string> } };
       state: {
         coreWriteReceipts: Array<{ capability: string; outcome: string }>;
         readToolsUsed: Array<{ capability: string }>;
         unresolvedCoreRefusals: Array<{ capability: string }>;
       };
     };
+    expect(Object.keys(jevCall.questions.decision.criteria)).toEqual([
+      "continue",
+      "ask_owner",
+      "abstain",
+    ]);
+    expect(prompt).toContain("Core could not confirm");
+    expect(prompt).toContain("read back");
+    expect(mocks.append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: COMPLETION_DECIDER_EVENT,
+        data: expect.objectContaining({
+          fallback: true,
+          fallbackPolicy: "unconfirmed_readback",
+          outcome: "continue",
+          bounced: true,
+        }),
+      }),
+    );
     expect(jevCall.state.coreWriteReceipts).toEqual([
       expect.objectContaining({
         capability: "investor_warm_paths",
@@ -585,7 +604,7 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
     ]);
   });
 
-  it("reads the full call set without a 100-call cap and preserves an early unconfirmed publish behind 105 reads and 20 uploads", async () => {
+  it("reads the full call set without a 100-call cap, preserves an early unconfirmed publish behind 105 reads and 20 uploads, and keeps the turn open for read-back", async () => {
     mocks.findTurn.mockResolvedValue(baseTurn());
     mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
     mocks.findToolCalls.mockResolvedValue([
@@ -642,16 +661,21 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
       costUsd: 0.00004,
     });
 
-    await evaluateTurnDoneCheck({
+    const prompt = await evaluateTurnDoneCheck({
       turnId: "turn-1",
       sessionId: "sess-1",
-      draft: "Uploaded the files.",
+      draft: "Published the post and uploaded the files.",
     });
 
     expect(mocks.findToolCalls).toHaveBeenCalledWith(
       expect.not.objectContaining({ take: expect.anything() }),
     );
+    expect(prompt).toContain(
+      "publish_social_post (id post-1): Core could not confirm",
+    );
+    expect(prompt).toContain("read back");
     const jevCall = mocks.evaluateWithJev.mock.calls[0]?.[0] as {
+      questions: { decision: { criteria: Record<string, string> } };
       state: {
         coreWriteReceipts: Array<{ capability: string; outcome: string }>;
         coreWriteReceiptsOverflow: {
@@ -663,6 +687,9 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
         readToolsUsed: Array<{ capability: string; completedCount: number }>;
       };
     };
+    expect(Object.keys(jevCall.questions.decision.criteria)).not.toContain(
+      "finish",
+    );
     expect(jevCall.state.coreWriteReceipts).toHaveLength(20);
     expect(jevCall.state.coreWriteReceipts[0]).toEqual(
       expect.objectContaining({
@@ -681,5 +708,57 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
     expect(jevCall.state.readToolsUsed).toEqual([
       expect.objectContaining({ capability: "read_file", completedCount: 105 }),
     ]);
+  });
+
+  it("still allows finish on a confirmed FAILED/REJECTED publish when the bot reports the refusal (negative control)", async () => {
+    mocks.findTurn.mockResolvedValue(baseTurn());
+    mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
+    mocks.findToolCalls.mockResolvedValue([
+      {
+        turnId: "turn-1",
+        capability: "publish_social_post",
+        input: {},
+        status: "FAILED",
+        disposition: "REJECTED",
+        targetId: "post-1",
+        result: null,
+        errorKind: "refused",
+        errorDetail: "Post requires owner approval before publishing",
+      },
+    ]);
+    mocks.evaluateWithJev.mockResolvedValue({
+      answers: new Map([
+        [
+          "decision",
+          {
+            type: "choice",
+            choice: "finish",
+            probabilities: {
+              finish: 0.91,
+              continue: 0.04,
+              ask_owner: 0.03,
+              abstain: 0.02,
+            },
+          },
+        ],
+      ]),
+      costUsd: 0.00004,
+    });
+
+    const prompt = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft:
+        "Core refused to publish because the post still awaits your approval.",
+    });
+
+    const jevCall = mocks.evaluateWithJev.mock.calls[0]?.[0] as {
+      questions: { decision: { criteria: Record<string, string> } };
+    };
+    expect(Object.keys(jevCall.questions.decision.criteria)).toContain(
+      "finish",
+    );
+    expect(prompt).toBeNull();
+    expect(mocks.appendUnless).not.toHaveBeenCalled();
   });
 });

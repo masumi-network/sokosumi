@@ -117,7 +117,11 @@ export interface CompletionDecisionReceipt {
   validationDetail: string | null;
   /** True whenever host fallback decided instead of Jev; never counts as a selector win. */
   fallback: boolean;
-  fallbackPolicy: "finish" | "plan_loop_done_check" | null;
+  fallbackPolicy:
+    | "finish"
+    | "plan_loop_done_check"
+    | "unconfirmed_readback"
+    | null;
   outcome: CompletionOutcome;
   bounced: boolean;
   latencyMs: number;
@@ -236,22 +240,33 @@ function hasAnyTool(ctx: CompletionDeciderContext): boolean {
   return ctx.availableWriteTools.length > 0 || ctx.availableReadToolCount > 0;
 }
 
+function hasUnconfirmedReceipt(ctx: CompletionDeciderContext): boolean {
+  return ctx.receipts.some((receipt) => receipt.outcome === "unconfirmed");
+}
+
 /**
  * Host-prepared candidate menu, filtered to what the host can actually run
- * before asking Jev (Keel rule).
+ * before asking Jev (Keel rule). When Core recorded an uncertain (`unconfirmed`)
+ * effect, `finish` is withheld so the turn stays open for a read-back or owner
+ * question instead of finishing as done.
  */
 export function buildCompletionQuestions(ctx: CompletionDeciderContext): {
   candidates: CompletionDecisionOption[];
   targetCandidates: string[];
   questions: Record<string, JevQuestion>;
 } {
+  const unconfirmed = hasUnconfirmedReceipt(ctx);
   const canContinue =
     !ctx.alreadyBounced &&
     hasAnyTool(ctx) &&
-    (!ctx.waitingOnOthers || hasLocalInProgressStep(ctx.openSteps));
+    (!ctx.waitingOnOthers ||
+      hasLocalInProgressStep(ctx.openSteps) ||
+      unconfirmed);
 
   const candidates: CompletionDecisionOption[] = canContinue
-    ? ["finish", "continue", "ask_owner", "abstain"]
+    ? unconfirmed
+      ? ["continue", "ask_owner", "abstain"]
+      : ["finish", "continue", "ask_owner", "abstain"]
     : ["finish", "ask_owner", "abstain"];
 
   const decisionCriteria = Object.fromEntries(
@@ -452,7 +467,7 @@ export function buildCompletionState(ctx: CompletionDeciderContext): JevState {
   };
 }
 
-function makeFallback(
+async function makeFallback(
   ctx: CompletionDeciderContext,
   base: Omit<
     CompletionDecisionReceipt,
@@ -460,11 +475,63 @@ function makeFallback(
   >,
   recheckWaitingOnOthers: boolean,
   recheckOpenCount: number,
-  recheckHasInProgress = hasLocalInProgressStep(ctx.openSteps),
-): CompletionDecisionResult {
+  options: {
+    recheckHasInProgress?: boolean;
+    recheckAlreadyBounced?: boolean;
+    recheckHasTools?: boolean;
+    alreadyRechecked?: boolean;
+    recheckState?: () => Promise<CompletionRecheckSnapshot>;
+  } = {},
+): Promise<CompletionDecisionResult> {
+  const recheckHasInProgress =
+    options.recheckHasInProgress ?? hasLocalInProgressStep(ctx.openSteps);
+  const canStillAct =
+    !ctx.alreadyBounced &&
+    hasAnyTool(ctx) &&
+    !options.recheckAlreadyBounced &&
+    options.recheckHasTools !== false;
+
+  if (hasUnconfirmedReceipt(ctx) && canStillAct) {
+    if (!options.alreadyRechecked && options.recheckState) {
+      const fresh = await options.recheckState();
+      if (fresh.alreadyBounced || !fresh.hasTools) {
+        return {
+          receipt: {
+            ...base,
+            validation: "stale",
+            validationDetail: fresh.alreadyBounced
+              ? "turn_already_bounced"
+              : "no_tools_available",
+            fallback: true,
+            fallbackPolicy: "finish",
+            outcome: "finish",
+            bounced: false,
+          },
+          action: "finish",
+          namedStep: null,
+          continueGap: null,
+          usePlanLoopFallback: false,
+        };
+      }
+    }
+    return {
+      receipt: {
+        ...base,
+        fallback: true,
+        fallbackPolicy: "unconfirmed_readback",
+        outcome: "continue",
+        bounced: true,
+      },
+      action: "continue",
+      namedStep: null,
+      continueGap: "unsettled_receipt",
+      usePlanLoopFallback: false,
+    };
+  }
+
   const usePlanLoopFallback =
     ctx.hasPlanLoop &&
-    !ctx.alreadyBounced &&
+    canStillAct &&
     recheckOpenCount > 0 &&
     !(recheckWaitingOnOthers && !recheckHasInProgress);
   return {
@@ -525,15 +592,22 @@ export async function decideCompletionWithJev(
   };
 
   // Host pre-filter: skip Jev when the host cannot bounce. Only a quiet wake
-  // (EVENT/SCHEDULE) with no open plan steps may exit silently; a foreground
-  // owner CHAT or any turn with open steps must still be evaluated.
+  // (EVENT/SCHEDULE) with no open plan steps and no unconfirmed receipt may
+  // exit silently; a foreground owner CHAT, any turn with open steps, or any
+  // turn with an uncertain Core outcome must still be evaluated.
+  const unconfirmed = hasUnconfirmedReceipt(ctx);
   const quietWakeSilent =
-    draft.silent && ctx.turnSource !== "CHAT" && ctx.openSteps.length === 0;
+    draft.silent &&
+    ctx.turnSource !== "CHAT" &&
+    ctx.openSteps.length === 0 &&
+    !unconfirmed;
   const prefilterReason = ctx.alreadyBounced
     ? "already_bounced"
     : quietWakeSilent
       ? "silent_draft"
-      : ctx.waitingOnOthers && !hasLocalInProgressStep(ctx.openSteps)
+      : ctx.waitingOnOthers &&
+          !hasLocalInProgressStep(ctx.openSteps) &&
+          !unconfirmed
         ? "waiting_on_others"
         : !hasAnyTool(ctx)
           ? "no_tools"
@@ -618,6 +692,7 @@ export async function decideCompletionWithJev(
       },
       ctx.waitingOnOthers,
       ctx.openSteps.length,
+      { recheckState: options.recheckState },
     );
   }
 
@@ -659,6 +734,7 @@ export async function decideCompletionWithJev(
       },
       ctx.waitingOnOthers,
       ctx.openSteps.length,
+      { recheckState: options.recheckState },
     );
   }
 
@@ -691,6 +767,7 @@ export async function decideCompletionWithJev(
       },
       ctx.waitingOnOthers,
       ctx.openSteps.length,
+      { recheckState: options.recheckState },
     );
   }
 
@@ -709,6 +786,7 @@ export async function decideCompletionWithJev(
         },
         ctx.waitingOnOthers,
         ctx.openSteps.length,
+        { recheckState: options.recheckState },
       );
     }
     return {
@@ -731,8 +809,7 @@ export async function decideCompletionWithJev(
   if (choice === "ask_owner") {
     if (draft.asksOwner) {
       if (
-        ctx.hasPlanLoop &&
-        ctx.openSteps.length > 1 &&
+        ((ctx.hasPlanLoop && ctx.openSteps.length > 1) || unconfirmed) &&
         confidence < MIN_OVERRIDE_OPEN_STEPS
       ) {
         return makeFallback(
@@ -744,6 +821,7 @@ export async function decideCompletionWithJev(
           },
           ctx.waitingOnOthers,
           ctx.openSteps.length,
+          { recheckState: options.recheckState },
         );
       }
       return {
@@ -776,6 +854,7 @@ export async function decideCompletionWithJev(
         },
         ctx.waitingOnOthers,
         ctx.openSteps.length,
+        { recheckState: options.recheckState },
       );
     }
 
@@ -793,6 +872,11 @@ export async function decideCompletionWithJev(
           },
           fresh.waitingOnOthers,
           fresh.openStepIds?.length ?? 0,
+          {
+            recheckAlreadyBounced: fresh.alreadyBounced,
+            recheckHasTools: fresh.hasTools,
+            alreadyRechecked: true,
+          },
         );
       }
     }
@@ -829,6 +913,7 @@ export async function decideCompletionWithJev(
       },
       ctx.waitingOnOthers,
       ctx.openSteps.length,
+      { recheckState: options.recheckState },
     );
   }
 
@@ -845,6 +930,7 @@ export async function decideCompletionWithJev(
       },
       ctx.waitingOnOthers,
       ctx.openSteps.length,
+      { recheckState: options.recheckState },
     );
   }
 
@@ -864,6 +950,7 @@ export async function decideCompletionWithJev(
         },
         ctx.waitingOnOthers,
         ctx.openSteps.length,
+        { recheckState: options.recheckState },
       );
     }
   } else if (rawChosenTarget?.startsWith("gap:")) {
@@ -881,6 +968,7 @@ export async function decideCompletionWithJev(
         },
         ctx.waitingOnOthers,
         ctx.openSteps.length,
+        { recheckState: options.recheckState },
       );
     }
   } else {
@@ -894,6 +982,7 @@ export async function decideCompletionWithJev(
       },
       ctx.waitingOnOthers,
       ctx.openSteps.length,
+      { recheckState: options.recheckState },
     );
   }
 
@@ -911,6 +1000,11 @@ export async function decideCompletionWithJev(
         },
         fresh.waitingOnOthers,
         0,
+        {
+          recheckAlreadyBounced: true,
+          recheckHasTools: fresh.hasTools,
+          alreadyRechecked: true,
+        },
       );
     }
     if (!fresh.hasTools) {
@@ -923,11 +1017,16 @@ export async function decideCompletionWithJev(
         },
         fresh.waitingOnOthers,
         0,
+        {
+          recheckAlreadyBounced: false,
+          recheckHasTools: false,
+          alreadyRechecked: true,
+        },
       );
     }
     const freshWorking =
       fresh.hasInProgressStep ?? hasLocalInProgressStep(ctx.openSteps);
-    if (fresh.waitingOnOthers && !freshWorking) {
+    if (fresh.waitingOnOthers && !freshWorking && !unconfirmed) {
       return makeFallback(
         ctx,
         {
@@ -937,7 +1036,12 @@ export async function decideCompletionWithJev(
         },
         true,
         freshOpenCount,
-        false,
+        {
+          recheckHasInProgress: false,
+          recheckAlreadyBounced: false,
+          recheckHasTools: fresh.hasTools,
+          alreadyRechecked: true,
+        },
       );
     }
     if (
@@ -953,6 +1057,12 @@ export async function decideCompletionWithJev(
         },
         fresh.waitingOnOthers,
         freshOpenCount,
+        {
+          recheckHasInProgress: freshWorking,
+          recheckAlreadyBounced: false,
+          recheckHasTools: fresh.hasTools,
+          alreadyRechecked: true,
+        },
       );
     }
   }
@@ -1017,7 +1127,7 @@ function compactReceiptsNote(
   const overflowLine = overflowParts.length
     ? `(${overflowParts.join(" and ")} omitted above.)\n`
     : "";
-  return `Core's receipts for this request so far:\n${lines}\n${overflowLine}Do not repeat any save marked done. Never repeat an unconfirmed external action blind: read back whether it happened first. For work marked started, wait for it instead of starting it again.\n`;
+  return `Core's receipts for this request so far:\n${lines}\n${overflowLine}Do not repeat any save marked done. Never repeat an unconfirmed external action blind: read back whether it happened first, and never report an unconfirmed action as completed or failed until you verify its actual state. For work marked started, wait for it instead of starting it again.\n`;
 }
 
 /** Builds the single bounce prompt handed back to the agent on continue / ask_owner_bounce. */
@@ -1028,6 +1138,12 @@ export function buildCompletionBouncePrompt(input: {
   savedNoteText: string;
 }): string | null {
   const { ctx, decision, openStepsText, savedNoteText } = input;
+  const unconfirmed = hasUnconfirmedReceipt(ctx);
+  const unconfirmedReceiptsBlock =
+    unconfirmed && !savedNoteText.includes("Core could not confirm")
+      ? compactReceiptsNote(ctx.receipts)
+      : "";
+
   if (decision.action === "ask_owner_bounce") {
     const refusalNote = ctx.unresolvedRefusals.length
       ? `Unresolved Core refusals:\n${ctx.unresolvedRefusals
@@ -1042,22 +1158,29 @@ export function buildCompletionBouncePrompt(input: {
       ctx.plan && ctx.openSteps.length
         ? `Call update_plan (revision ${ctx.plan.revision}) to mark any step waiting on the owner as blocked (with blockedOn owner and the question as reason), complete any independent steps that do not need their answer, then ask the owner one concrete question.`
         : "Ask the owner one concrete question for the missing choice or approval, and do not guess or claim unconfirmed changes.";
-    return `This turn still needs an answer from the owner before you finish.\n${refusalNote}${planNote}`;
+    return `This turn still needs an answer from the owner before you finish.\n${refusalNote}${unconfirmedReceiptsBlock}${planNote}`;
   }
 
   if (decision.action !== "continue") return null;
 
   // Plan with open steps: highlight Jev's chosen next step beside the full open list + receipts.
-  if (ctx.plan && ctx.openSteps.length > 0) {
+  if (
+    ctx.plan &&
+    ctx.openSteps.length > 0 &&
+    decision.receipt.fallbackPolicy !== "unconfirmed_readback"
+  ) {
     const nextStepLine = decision.namedStep
       ? `Next open step to act on now: ${decision.namedStep.id} [${decision.namedStep.status}] ${decision.namedStep.step}\n`
       : "";
-    return `${nextStepLine}Your plan still lists open steps:\n${openStepsText}\n${savedNoteText}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${ctx.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
+    return `${nextStepLine}Your plan still lists open steps:\n${openStepsText}\n${savedNoteText}${unconfirmedReceiptsBlock}Do what you can of the rest now. A step that waits on someone: call update_plan (revision ${ctx.plan.revision}) and mark it blocked, with blockedOn and a reason; one no longer needed: skipped, with a reason. Then reply.`;
   }
 
-  // Plan exists with all steps settled, OR no plan exists: guide from Core receipts + typed gap.
+  // Plan exists with all steps settled, unconfirmed-readback fallback, OR no plan exists:
+  // guide from Core receipts + typed gap.
   const gap = decision.continueGap ?? "incomplete_work";
-  const receiptsBlock = savedNoteText || compactReceiptsNote(ctx.receipts);
+  const receiptsBlock = unconfirmedReceiptsBlock
+    ? `${savedNoteText}${unconfirmedReceiptsBlock}`
+    : savedNoteText || compactReceiptsNote(ctx.receipts);
   const planSuffix = ctx.plan
     ? ` If a step cannot be completed, call update_plan (revision ${ctx.plan.revision}) to mark it blocked with the reason.`
     : "";

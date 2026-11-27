@@ -709,6 +709,164 @@ describe("completion-decider (experiment E3)", () => {
       expect(overflowUnresolved.omittedUnresolvedCount).toBe(1);
     });
 
+    it("never finishes as done on an unconfirmed publish (withholds finish, forces read-back fallback, keeps confirmed refusal as negative control)", async () => {
+      const unconfirmedCtx = makeCtx({
+        request: "Publish the approved announcement post now.",
+        draft: "I published the announcement post.",
+        receipts: [
+          {
+            capability: "publish_social_post",
+            label: "id post-1",
+            outcome: "unconfirmed",
+          },
+        ],
+      });
+
+      // Host menu withholds finish whenever Core recorded an unconfirmed effect,
+      // even if another delegation/watch is active or the draft is silent.
+      expect(buildCompletionQuestions(unconfirmedCtx).candidates).toEqual([
+        "continue",
+        "ask_owner",
+        "abstain",
+      ]);
+      expect(
+        buildCompletionQuestions({
+          ...unconfirmedCtx,
+          waitingOnOthers: true,
+        }).candidates,
+      ).toEqual(["continue", "ask_owner", "abstain"]);
+
+      // Even if Jev returns finish, abstain, low-confidence continue, or throws,
+      // the turn stays open for a read-back (fallback=true, never finish).
+      const warned = expectCoreLog(
+        "warn",
+        "Completion decider Jev call failed; using fallback",
+      );
+      for (const evaluator of [
+        mockJev({
+          decision: {
+            type: "choice",
+            choice: "finish",
+            probabilities: { finish: 1 },
+          },
+        }),
+        mockJev({
+          decision: {
+            type: "choice",
+            choice: "abstain",
+            probabilities: { abstain: 1 },
+          },
+        }),
+        mockJev({
+          decision: {
+            type: "choice",
+            choice: "continue",
+            probabilities: { continue: 0.5, ask_owner: 0.3, abstain: 0.2 },
+          },
+        }),
+        vi.fn(async () => {
+          throw new Error("timeout");
+        }),
+      ]) {
+        const result = await decideCompletionWithJev(unconfirmedCtx, {
+          evaluate: evaluator,
+        });
+        expect(result.action).toBe("continue");
+        expect(result.continueGap).toBe("unsettled_receipt");
+        expect(result.receipt.fallback).toBe(true);
+        expect(result.receipt.fallbackPolicy).toBe("unconfirmed_readback");
+        expect(result.receipt.bounced).toBe(true);
+        const prompt = buildCompletionBouncePrompt({
+          ctx: unconfirmedCtx,
+          decision: result,
+          openStepsText: "",
+          savedNoteText: "",
+        });
+        expect(prompt).toContain("Core could not confirm");
+        expect(prompt).toContain("read back");
+        expect(prompt).toContain(
+          "never report an unconfirmed action as completed or failed",
+        );
+      }
+      expect(warned).toHaveLength(1);
+
+      // Asking the owner explicitly can pass via ask_owner_pass (never finish).
+      const askOwnerPass = await decideCompletionWithJev(
+        {
+          ...unconfirmedCtx,
+          draft:
+            "Core could not confirm whether the post published and I could not verify it. Should I check again or leave it?",
+        },
+        {
+          evaluate: mockJev({
+            decision: {
+              type: "choice",
+              choice: "ask_owner",
+              probabilities: { continue: 0.08, ask_owner: 0.9, abstain: 0.02 },
+            },
+          }),
+        },
+      );
+      expect(askOwnerPass.action).toBe("ask_owner_pass");
+      expect(askOwnerPass.receipt.bounced).toBe(false);
+
+      // Live recheck stops a fallback read-back if the turn was already bounced.
+      const staleRecheck = await decideCompletionWithJev(unconfirmedCtx, {
+        evaluate: mockJev({
+          decision: {
+            type: "choice",
+            choice: "abstain",
+            probabilities: { abstain: 1 },
+          },
+        }),
+        recheckState: async () => ({
+          alreadyBounced: true,
+          waitingOnOthers: false,
+          openStepIds: null,
+          hasTools: true,
+        }),
+      });
+      expect(staleRecheck.action).toBe("finish");
+      expect(staleRecheck.receipt.validation).toBe("stale");
+      expect(staleRecheck.receipt.bounced).toBe(false);
+
+      // Negative control: a confirmed refusal (outcome: "not done") still offers
+      // finish so the bot can report the refusal and end cleanly.
+      const refusedCtx = makeCtx({
+        request: "Publish the post now.",
+        draft: "Core refused the publish because the post is not approved yet.",
+        receipts: [
+          {
+            capability: "publish_social_post",
+            label: "id post-1",
+            outcome: "not done",
+            errorKind: "refused",
+            errorDetail: "Post is not approved",
+          },
+        ],
+      });
+      expect(buildCompletionQuestions(refusedCtx).candidates).toContain(
+        "finish",
+      );
+      const refusedResult = await decideCompletionWithJev(refusedCtx, {
+        evaluate: mockJev({
+          decision: {
+            type: "choice",
+            choice: "finish",
+            probabilities: {
+              finish: 0.92,
+              continue: 0.04,
+              ask_owner: 0.02,
+              abstain: 0.02,
+            },
+          },
+        }),
+      });
+      expect(refusedResult.action).toBe("finish");
+      expect(refusedResult.receipt.fallback).toBe(false);
+      expect(refusedResult.receipt.bounced).toBe(false);
+    });
+
     it("bounds request, rootRequest, and draft fields in Jev state", () => {
       const state = buildCompletionState(
         makeCtx({
