@@ -14746,6 +14746,7 @@
         },
         "researchCompetitors": "Research competitors",
         "verdict": {
+          "actions": "{count, plural, one {# thing to fix} other {# things to fix}}",
           "issues": "{count, plural, one {# issue to fix} other {# issues to fix}}",
           "waiting": "{count, plural, one {# suggestion to review} other {# suggestions to review}}",
           "clear": "No issues found in the last check",
@@ -14803,12 +14804,13 @@
       },
       "runDiff": {
         "title": "Since the check on {day}",
+        "cardTitle": "Test results since the check on {day}",
         "open": "What changed since the check before",
-        "issues": "Open page issues: {from, number} before, {to, number} now",
-        "issuesNow": "Open page issues now: {to, number}",
+        "issues": "Failed page tests: {from, number} before, {to, number} now",
+        "issuesNow": "Failed page tests now: {to, number}",
         "new": "New ({count, number})",
         "fixed": "Fixed ({count, number})",
-        "stillOpen": "Still open ({count, number})",
+        "stillOpen": "Still failing ({count, number})",
         "none": "None",
         "more": "and {count, number} more",
         "notCheckedAgain": "{count, plural, one {# earlier issue has no clear result in this check. It counts as neither fixed nor open.} other {# earlier issues have no clear result in this check. They count as neither fixed nor open.}}",
@@ -14825,12 +14827,10 @@
         "count": {
           "new": "New",
           "fixed": "Fixed",
-          "stillOpen": "Still open"
+          "stillOpen": "Still failing"
         },
         "rulebookChange": "The tests changed between the two checks. {compared, plural, one {# test both checks ran is} other {# tests both checks ran are}} compared, {other, number} left out.",
-        "firstNew": "First new issues",
-        "outside": "{count, plural, one {# more open issue comes from Search Console indexing. It is outside this comparison.} other {# more open issues come from Search Console indexing. They are outside this comparison.}}",
-        "outsideAny": "{count, plural, one {# more open issue is outside this comparison: a Search Console indexing issue, or an issue of a test only one check ran.} other {# more open issues are outside this comparison: Search Console indexing issues, or issues of tests only one check ran.}}"
+        "firstNew": "First new failed tests"
       },
       "filterDates": "Filter by date",
       "syncNow": "Sync now",

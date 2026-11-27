@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   seoRunDiffOf,
   seoRunDiffView,
-  seoRunIssuesOutsideDiff,
   seoStopCheckId,
 } from "./seo-run-diff-model";
 import type { SeoStopNode } from "./seo-timeline-model";
@@ -139,39 +138,6 @@ describe("seoRunDiffOf", () => {
     expect(seoRunDiffOf(workspace, "check-1")).toBeNull();
     expect(seoRunDiffOf(workspace, undefined)).toBeNull();
     expect(seoRunDiffOf({}, "check-2")).toBeNull();
-  });
-});
-
-describe("seoRunIssuesOutsideDiff", () => {
-  it("counts the open issues a check has beyond the page issues its comparison reads", () => {
-    const run = {
-      kind: "audit_full",
-      observedAt: new Date("2026-11-08T09:00:00Z"),
-      seconds: null,
-    };
-    const compared = (to: number | null) =>
-      diff({ numbers: { issues: { from: 2, to }, moves: [], moveCount: 0 } });
-    const workspace = {
-      runs: [
-        // Two page issues fixed, one Search Console indexing issue still in the count.
-        { ...run, observationId: "audit", issues: 1, runDiff: compared(0) },
-        { ...run, observationId: "same", issues: 3, runDiff: compared(3) },
-        {
-          ...run,
-          observationId: "noTotal",
-          issues: null,
-          runDiff: compared(0),
-        },
-        { ...run, observationId: "ranks", issues: 4, runDiff: compared(null) },
-        { ...run, observationId: "first", issues: 4 },
-      ],
-    };
-    expect(seoRunIssuesOutsideDiff(workspace, "audit")).toBe(1);
-    expect(seoRunIssuesOutsideDiff(workspace, "same")).toBe(0);
-    expect(seoRunIssuesOutsideDiff(workspace, "noTotal")).toBe(0);
-    expect(seoRunIssuesOutsideDiff(workspace, "ranks")).toBe(0);
-    expect(seoRunIssuesOutsideDiff(workspace, "first")).toBe(0);
-    expect(seoRunIssuesOutsideDiff(workspace, undefined)).toBe(0);
   });
 });
 

@@ -1,5 +1,10 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { seoOpenFixes, seoOverviewModel } from "./seo-overview-model";
+import {
+  SEO_ISSUE_SEVERITY_NAMES,
+  type SeoIssueSeverity,
+  seoOpenFixes,
+  seoOverviewModel,
+} from "./seo-overview-model";
 import { seoStrategyRows } from "./seo-places-model";
 import { isSeoRuleCheck } from "./seo-runs-model";
 import { latestSeoMeasurements } from "./seo-statistics-model";
@@ -111,3 +116,25 @@ export function seoAgentBrief(workspace: ProjectSeoWorkspace, now: Date) {
 }
 
 export type SeoAgentBrief = ReturnType<typeof seoAgentBrief>;
+
+/**
+ * The count the Agent tab leads with: the action rows of its list, split by the impact of the worst issue each fixes.
+ * A split that leaves an action out would not add up to the count, so the count then stands alone.
+ */
+export function seoActionHeadline(
+  steps: SeoAgentStep[],
+  severity: (action: Action) => SeoIssueSeverity | null,
+) {
+  const actions = steps.flatMap((step) =>
+    step.kind === "action" ? [step.action] : [],
+  );
+  const parts = SEO_ISSUE_SEVERITY_NAMES.map((name) => ({
+    severity: name,
+    count: actions.filter((action) => severity(action) === name).length,
+  })).filter((part) => part.count > 0);
+  const named = parts.reduce((sum, part) => sum + part.count, 0);
+  return {
+    count: actions.length,
+    parts: named === actions.length ? parts : [],
+  };
+}

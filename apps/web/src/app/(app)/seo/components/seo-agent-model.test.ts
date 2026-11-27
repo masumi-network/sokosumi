@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   SEO_QUERY_RETRY_MS,
   SEO_SEARCH_STALE_MS,
+  type SeoAgentStep,
+  seoActionHeadline,
   seoAgentBrief,
 } from "./seo-agent-model";
 import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
@@ -239,5 +241,35 @@ it("uses a measured organic outcome to choose between comparable actions only fo
   expect(seoAgentBrief(workspace, synced).steps[0]).toEqual({
     kind: "action",
     action: a,
+  });
+});
+
+describe("seoActionHeadline", () => {
+  type Action = ProjectSeoWorkspace["actions"][number];
+  const action = (id: string) => ({ id }) as Action;
+  const steps: SeoAgentStep[] = [
+    { kind: "action", action: action("a") },
+    { kind: "strategy", count: 2, places: false },
+    { kind: "action", action: action("b") },
+    { kind: "action", action: action("c") },
+  ];
+
+  it("counts the action rows of the list, not its other steps, split by impact worst first", () => {
+    const severity = { a: "minor", b: "major", c: "major" } as const;
+    expect(
+      seoActionHeadline(steps, (row) => severity[row.id as "a" | "b" | "c"]),
+    ).toEqual({
+      count: 3,
+      parts: [
+        { severity: "major", count: 2 },
+        { severity: "minor", count: 1 },
+      ],
+    });
+  });
+
+  it("names no split when an action has no issue, so the split never adds up to less than the count", () => {
+    expect(
+      seoActionHeadline(steps, (row) => (row.id === "a" ? null : "major")),
+    ).toEqual({ count: 3, parts: [] });
   });
 });

@@ -50,21 +50,6 @@ export function seoRunDiffOf(
   );
 }
 
-/**
- * Open issues the check counts that its comparison leaves out: Search Console indexing issues add to the issue count
- * of a check, not to its page issues. Zero where either count is missing.
- */
-export function seoRunIssuesOutsideDiff(
-  workspace: Pick<ProjectSeoWorkspace, "runs">,
-  observationId: string | undefined,
-): number {
-  const run = workspace.runs?.find(
-    (row) => row.observationId === observationId,
-  );
-  const now = run?.runDiff?.numbers.issues.to;
-  return run?.issues == null || now == null ? 0 : Math.max(0, run.issues - now);
-}
-
 /** The newest page check of a stop's events, as the day counts: a ranking check there may be an older one. */
 export function seoStopCheckId(nodes: SeoStopNode[]): string | undefined {
   return nodes.find(

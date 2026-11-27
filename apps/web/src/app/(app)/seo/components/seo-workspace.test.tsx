@@ -907,6 +907,58 @@ describe("SEO workspace integration", () => {
     expect(within(dialog).getByText("One price.")).toBeVisible();
   });
 
+  it("leads the Agent tab with the count of the actions it lists, split by impact", async () => {
+    const workspace = seoTestCheckedAudit();
+    const observationId = workspace.observations[0].id;
+    const pageUrl = workspace.pages[0].url;
+    for (const [id, severity] of [
+      ["one", "major"],
+      ["two", "major"],
+      ["three", "minor"],
+    ] as const) {
+      workspace.findings.push({
+        id,
+        observationId,
+        pageUrl,
+        device: "mobile",
+        rowId: `R-${id}`,
+        title: `Check ${id}`,
+        severity,
+        evidence: ["found"],
+        sourceRef: "html:head",
+        observedAt: new Date("2026-01-03T12:00:00Z"),
+      });
+      workspace.actions.push({
+        id: `fix-${id}`,
+        observationId,
+        pageUrl,
+        findingIds: [id],
+        title: `Fix ${id}`,
+        why: "Why",
+        effort: "low",
+        expectedEffect: "Effect",
+        edit: null,
+        taskId: null,
+        status: "recommended",
+        kind: "fix",
+        evidence: [],
+      });
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace);
+    // The headline and the list under it count the same rows.
+    expect(await screen.findByTestId("seo-agent-verdict")).toHaveTextContent(
+      "3 things to fix: 2 high impact and 1 low impact",
+    );
+    for (const title of ["Fix one", "Fix two", "Fix three"])
+      expect(
+        screen.getByRole("button", { name: new RegExp(`^${title}`) }),
+      ).toBeVisible();
+  });
+
   it("filters the Actions worklist by impact, with suggestions apart", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();

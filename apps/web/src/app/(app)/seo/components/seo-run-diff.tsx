@@ -124,10 +124,13 @@ export function SeoRunDiff({
 }
 
 /** The heading of a comparison: the UTC day of the earlier check, as the runs row names its days. */
-export function useSeoRunDiffTitle(diff: ProjectSeoRunDiff) {
+export function useSeoRunDiffTitle(
+  diff: ProjectSeoRunDiff,
+  key: "runDiff.title" | "runDiff.cardTitle" = "runDiff.title",
+) {
   const t = useSeoResultTranslations("App.Seo");
   const format = useSeoResultFormatter();
-  return t("runDiff.title", {
+  return t(key, {
     // The workspace reaches the page as JSON, so the date is a string.
     day: format.dateTime(new Date(diff.from), {
       dateStyle: "medium",

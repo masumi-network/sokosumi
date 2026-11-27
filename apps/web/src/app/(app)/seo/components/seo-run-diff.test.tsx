@@ -70,7 +70,7 @@ it("lists new, fixed and still open issues under headings that carry the full co
     screen
       .getAllByRole("heading", { level: 4 })
       .map((node) => node.textContent),
-  ).toEqual(["New (9)", "Fixed (0)", "Still open (1)"]);
+  ).toEqual(["New (9)", "Fixed (0)", "Still failing (1)"]);
   const [added, open] = screen.getAllByRole("list");
   expect(within(added).getAllByRole("listitem")).toHaveLength(2);
   expect(within(added).getByText("/pricing (mobile)")).toBeInTheDocument();
@@ -78,7 +78,7 @@ it("lists new, fixed and still open issues under headings that carry the full co
   expect(screen.getByText("and 7 more")).toBeInTheDocument();
   expect(screen.getByText("None")).toBeInTheDocument();
   expect(
-    screen.getByText("Open page issues: 3 before, 10 now"),
+    screen.getByText("Failed page tests: 3 before, 10 now"),
   ).toBeInTheDocument();
   expect(
     screen.getByText(/^2 earlier issues have no clear result in this check/),
@@ -152,27 +152,22 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
     notCheckedBefore: 1,
     numbers: { issues: { from: 2, to: 5 }, moves: [], moveCount: 0 },
   });
-  show(value, <SeoRunDiffCard diff={value} outside={2} />);
+  show(value, <SeoRunDiffCard diff={value} />);
   const card = screen.getByTestId("seo-agent-run-diff-card");
+  // Test results, so they do not read as the count of the action list under the card.
   expect(
     within(card).getByRole("heading", {
       level: 4,
-      name: "Since the check on Nov 1, 2026",
+      name: "Test results since the check on Nov 1, 2026",
     }),
   ).toBeInTheDocument();
   expect(within(card).getByText("Fixed").nextSibling).toHaveTextContent("2");
-  // The issue count above the card is the "now" total: the counts add up to it.
+  // Before and now, so the counts under it add up to it.
   expect(
-    within(card).getAllByText("Open page issues: 2 before, 5 now"),
+    within(card).getAllByText("Failed page tests: 2 before, 5 now"),
   ).toHaveLength(2);
-  // The check's issue total is higher: with tests only one check ran, the card names no single cause.
   expect(
-    within(card).getByText(
-      "2 more open issues are outside this comparison: Search Console indexing issues, or issues of tests only one check ran.",
-    ),
-  ).toBeInTheDocument();
-  expect(
-    within(within(card).getByRole("list", { name: "First new issues" }))
+    within(within(card).getByRole("list", { name: "First new failed tests" }))
       .getAllByRole("listitem")
       .map((item) => item.firstChild?.textContent),
   ).toEqual(["Title of A", "Title of B", "Title of C"]);
@@ -189,48 +184,20 @@ it("shows the counts and the first new issues open on the Agent tab, and says wh
   ).toHaveLength(2);
 });
 
-it.each([
-  ["with the same tests", undefined],
-  [
-    "across a rulebook change where both checks ran every test",
-    { compared: 40, other: 0 },
-  ],
-])(
-  "names Search Console indexing as the issues outside a comparison %s",
-  (_, rulebookChange) => {
-    const value = diff({
-      fixedCount: 2,
-      rulebookChange,
-      numbers: { issues: { from: 2, to: 0 }, moves: [], moveCount: 0 },
-    });
-    show(value, <SeoRunDiffCard diff={value} outside={1} />);
-    expect(
-      screen.getByText(
-        "1 more open issue comes from Search Console indexing. It is outside this comparison.",
-      ),
-    ).toBeInTheDocument();
-  },
-);
-
-it("opens the card with the issues now when the earlier check counted no page issues", () => {
+it("opens the card with the failed tests now when the earlier check counted no page issues", () => {
   const value = diff({
     notCheckedBefore: 1,
     numbers: { issues: { from: null, to: 1 }, moves: [], moveCount: 0 },
   });
-  show(value, <SeoRunDiffCard diff={value} outside={1} />);
+  show(value, <SeoRunDiffCard diff={value} />);
   const card = screen.getByTestId("seo-agent-run-diff-card");
-  expect(within(card).getAllByText("Open page issues now: 1")).toHaveLength(2);
+  expect(within(card).getAllByText("Failed page tests now: 1")).toHaveLength(2);
   // New, fixed and still open are 0: this note beside them says where the open issue went.
   expect(
     within(card).getAllByText(
       "1 open issue has no clear result in the earlier check. It does not count as new.",
     ),
   ).toHaveLength(2);
-  expect(
-    within(card).getByText(
-      "1 more open issue comes from Search Console indexing. It is outside this comparison.",
-    ),
-  ).toBeInTheDocument();
 });
 
 it.each([

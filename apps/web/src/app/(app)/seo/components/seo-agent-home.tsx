@@ -20,6 +20,7 @@ import { SeoAgentGraphics } from "./seo-agent-graphics";
 import {
   type SeoAgentBrief,
   type SeoAgentStep,
+  seoActionHeadline,
   seoAgentBrief,
 } from "./seo-agent-model";
 import { SeoAgentStatistics } from "./seo-agent-statistics";
@@ -41,7 +42,7 @@ import { SeoPlanPdfLink } from "./seo-plan-pdf-link";
 import { SeoPropertyPerformance } from "./seo-property-performance";
 import { SeoReportPlan } from "./seo-report-plan";
 import { SeoRunDiffCard } from "./seo-run-diff-card";
-import { seoRunDiffOf, seoRunIssuesOutsideDiff } from "./seo-run-diff-model";
+import { seoRunDiffOf } from "./seo-run-diff-model";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning, seoRunAction } from "./seo-setup-model";
@@ -95,12 +96,7 @@ function SeoAgentPanel({
   // The written plan and the verdict card both show one: the plan takes the place of the card.
   const runDiffFold = (id: string | undefined) => {
     const diff = seoRunDiffOf(model.data, id);
-    return diff ? (
-      <SeoRunDiffCard
-        diff={diff}
-        outside={seoRunIssuesOutsideDiff(model.data, id)}
-      />
-    ) : null;
+    return diff ? <SeoRunDiffCard diff={diff} /> : null;
   };
   const check = lastRuleCheck(model.data);
   const runsShown = seoRunsDateCheck(
@@ -205,6 +201,18 @@ function SeoAgentPanel({
   const leadFocused = useSeoAgentLeadFocusRecovery(verdict, leadKey);
   const periodId = useId();
   const numbers = seoSummary(model.data);
+  // The headline counts the rows of the list under it: an issue count beside more rows would not add up.
+  const headline = seoActionHeadline(steps, actionSeverity);
+  const headlineSplit = headline.parts.length
+    ? `: ${reportFormat.list(
+        headline.parts.map((part) =>
+          report("summary.severityCount", {
+            count: part.count,
+            severity: part.severity,
+          }),
+        ),
+      )}`
+    : "";
   // The headline carries the severities, so the Agent tab needs no issues tile.
   const severitySplit = numbers.issues?.parts.length
     ? `: ${reportFormat.list(
@@ -386,34 +394,36 @@ function SeoAgentPanel({
             // The search numbers alone name no period; the line under them does.
             aria-describedby={trafficLead ? periodId : undefined}
           >
-            {brief.issues
-              ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
-              : brief.fixes
-                ? report("agent.verdict.fixes", { count: brief.fixes })
-                : brief.opportunities
-                  ? report("agent.verdict.waiting", {
-                      count: brief.opportunities,
-                    })
-                  : brief.earlierIssues
-                    ? report("overview.earlierFindings", {
-                        count: brief.earlierIssues,
+            {headline.count
+              ? `${report("agent.verdict.actions", { count: headline.count })}${headlineSplit}`
+              : brief.issues
+                ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
+                : brief.fixes
+                  ? report("agent.verdict.fixes", { count: brief.fixes })
+                  : brief.opportunities
+                    ? report("agent.verdict.waiting", {
+                        count: brief.opportunities,
                       })
-                    : brief.checkClear && lastCheckMeasured
-                      ? rarelyShown
-                        ? report("agent.verdict.clearRarelyShown", {
-                            pages: brief.lastCheck?.pages ?? 1,
-                          })
-                        : report("agent.verdict.clear")
-                      : brief.lastCheck
-                        ? report("actions.checksIncomplete")
-                        : brief.ruleCheckOutsideSelection
-                          ? report("agent.verdict.noPageCheckInView")
-                          : // No call to run a check where no check can run: lead with what is known.
-                            canRequestAnalysis
-                            ? report("agent.verdict.noCheck")
-                            : trafficLead
-                              ? trafficLine
-                              : report("agent.verdict.noCheckOff")}
+                    : brief.earlierIssues
+                      ? report("overview.earlierFindings", {
+                          count: brief.earlierIssues,
+                        })
+                      : brief.checkClear && lastCheckMeasured
+                        ? rarelyShown
+                          ? report("agent.verdict.clearRarelyShown", {
+                              pages: brief.lastCheck?.pages ?? 1,
+                            })
+                          : report("agent.verdict.clear")
+                        : brief.lastCheck
+                          ? report("actions.checksIncomplete")
+                          : brief.ruleCheckOutsideSelection
+                            ? report("agent.verdict.noPageCheckInView")
+                            : // No call to run a check where no check can run: lead with what is known.
+                              canRequestAnalysis
+                              ? report("agent.verdict.noCheck")
+                              : trafficLead
+                                ? trafficLine
+                                : report("agent.verdict.noCheckOff")}
           </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (
@@ -492,7 +502,7 @@ function SeoAgentPanel({
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
           {/* The verdict names the issues its steps fix. A written plan has no verdict, so the list has its title. */}
-          {brief.issues && !message ? null : (
+          {(headline.count || brief.issues) && !message ? null : (
             <h3 lang="en" className="px-2 text-sm font-semibold">
               {report("agent.nextTitle")}
             </h3>

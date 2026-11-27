@@ -16,16 +16,10 @@ import { SeoFoldSummary } from "./seo-shared";
  * What the newest check changed, open on the Agent tab: how many issues are new, fixed and still open, the first new
  * issues, and every change in a fold. A comparison with no issue counts stays in its fold.
  */
-export function SeoRunDiffCard({
-  diff,
-  outside = 0,
-}: {
-  diff: ProjectSeoRunDiff;
-  /** Open issues the check counts that the comparison leaves out, such as Search Console indexing issues. */
-  outside?: number;
-}) {
+export function SeoRunDiffCard({ diff }: { diff: ProjectSeoRunDiff }) {
   const t = useSeoResultTranslations("App.Seo");
-  const title = useSeoRunDiffTitle(diff);
+  // Test results, not the actions of the headline: the headline counts the list under the card.
+  const title = useSeoRunDiffTitle(diff, "runDiff.cardTitle");
   const view = seoRunDiffView(diff);
   const listId = useId();
   const fold = (label: string) => (
@@ -51,7 +45,7 @@ export function SeoRunDiffCard({
     >
       <div>
         <h4 className="font-medium">{title}</h4>
-        {/* Before and now, or now alone after a check with no issue count, so the counts add up to the issue total. */}
+        {/* Before and now, or now alone after a check with no issue count: the counts under it add up to it. */}
         <p className="text-muted-foreground text-xs">
           {view.issues.from === null
             ? t("runDiff.issuesNow", { to: view.issues.to })
@@ -81,10 +75,7 @@ export function SeoRunDiffCard({
           </div>
         ))}
       </dl>
-      {view.rulebookChange ||
-      view.notCheckedAgain ||
-      view.notCheckedBefore ||
-      outside ? (
+      {view.rulebookChange || view.notCheckedAgain || view.notCheckedBefore ? (
         <div className="text-muted-foreground space-y-1 text-xs">
           {/* The counts cover only the rules both checks ran: say so beside them, not only in the fold. */}
           {view.rulebookChange ? (
@@ -101,18 +92,6 @@ export function SeoRunDiffCard({
               {t("runDiff.notCheckedBefore", {
                 count: view.notCheckedBefore,
               })}
-            </p>
-          ) : null}
-          {/* The issue total of the check also counts these: say why it is higher than "now". Across a rulebook
-              change with tests only one check ran, some of them can be page issues of those tests. */}
-          {outside ? (
-            <p>
-              {t(
-                view.rulebookChange?.other
-                  ? "runDiff.outsideAny"
-                  : "runDiff.outside",
-                { count: outside },
-              )}
             </p>
           ) : null}
         </div>
