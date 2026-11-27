@@ -64,6 +64,7 @@ const { isEvalWorkspaceMock, fetchQueueStatusMock } = vi.hoisted(() => ({
   isEvalWorkspaceMock: vi.fn(async () => false),
   fetchQueueStatusMock: vi.fn(),
 }));
+const observation = vi.hoisted(() => ({ reserving: false }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 vi.mock("@/lib/evals/eval-guard", () => ({
@@ -128,7 +129,12 @@ vi.mock("@/lib/db/transaction", async () => ({
   // count and the insert go through one atomic step at all.
   serializableTransaction: async (run: (tx: unknown) => Promise<unknown>) => {
     const prisma = (await import("@/lib/db/prisma")).default;
-    return await run(prisma);
+    observation.reserving = true;
+    try {
+      return await run(prisma);
+    } finally {
+      observation.reserving = false;
+    }
   },
 }));
 
@@ -837,6 +843,19 @@ describe("image studio job submission", () => {
       status: 429,
     });
     expect(submitToQueueMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the eval registry before the reservation, never with a second client inside it", async () => {
+    const inside: boolean[] = [];
+    isEvalWorkspaceMock.mockImplementationOnce(async () => {
+      inside.push(observation.reserving);
+      return false;
+    });
+    jobCountMock.mockResolvedValueOnce(0).mockResolvedValueOnce(40);
+    await expect(createImageJob(BASE_INPUT)).rejects.toMatchObject({
+      status: 429,
+    });
+    expect(inside).toEqual([false]);
   });
 
   it("leaves the month's own pictures and other video shapes out of the owner's hourly count", async () => {

@@ -180,14 +180,22 @@ async function scheduleCheck(
         select: {
           name: true,
           description: true,
+          expr: true,
           assignee: { select: { name: true } },
         },
       })
     : [];
+  // A Coworker's part counts only when it runs on the days the owner asked
+  // for: a weekly delivery is not the daily hand-off.
+  const onTheDays = coworkerParts.filter(
+    (part) =>
+      !outcome.days ||
+      cronDays(part.expr).join() === [...outcome.days].sort().join(),
+  );
   const prompt = matchesAll(
     [
       latest.prompt,
-      ...coworkerParts.map((part) =>
+      ...onTheDays.map((part) =>
         [part.assignee?.name, part.name, part.description].join("\n"),
       ),
     ].join("\n"),

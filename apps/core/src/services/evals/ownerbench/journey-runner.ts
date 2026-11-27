@@ -735,11 +735,61 @@ function toolObject(capability: string): string {
   return capability.split("_").slice(1).join("_").replace(/s$/, "");
 }
 
+/** Reads change nothing, so a working read never makes a failed call good. */
+const READ_VERB = /^(list|get|read|search|find|count|preview|refresh)_/;
+
+/** What a call acts on, from the ids or names its input addresses. */
+function callTarget(input: unknown): string {
+  if (!input || typeof input !== "object") return "";
+  const fields = input as Record<string, unknown>;
+  return [
+    "scheduleId",
+    "scheduleName",
+    "postId",
+    "taskId",
+    "jobId",
+    "issueId",
+    "contactId",
+    "tableId",
+    "fileId",
+    "id",
+  ]
+    .map((key) => (fields[key] == null ? "" : `${key}=${String(fields[key])}`))
+    .join("|");
+}
+
+/**
+ * Whether `later` makes the failed `call` good: a write, in the same turn,
+ * that either repeats the call on the same target (a refusal's hint
+ * followed) or creates the same kind of thing (the alternative the hint
+ * points to, e.g. a new schedule beside a built-in one). Another target's
+ * edit, or any read, does not.
+ */
+function makesGood(
+  call: { turnId: string; capability: string; input: unknown },
+  later: {
+    turnId: string;
+    capability: string;
+    status: string;
+    input: unknown;
+  },
+): boolean {
+  if (later.turnId !== call.turnId || later.status !== "COMPLETED")
+    return false;
+  if (READ_VERB.test(later.capability)) return false;
+  if (later.capability === call.capability)
+    return callTarget(later.input) === callTarget(call.input);
+  return (
+    later.capability.startsWith("create_") &&
+    !READ_VERB.test(call.capability) &&
+    toolObject(later.capability) === toolObject(call.capability)
+  );
+}
+
 /**
  * The failed calls of these turns that no later call in the same turn made
- * good, and the ones it did. A refusal followed by a working call on the same
- * thing (a rule refusal with a hint, then the right call) is recovered.
- * Failures a step allows or expects are left out.
+ * good, and the ones it did (see `makesGood`). Failures a step allows are
+ * left out.
  */
 export async function failedCallsByRecovery(
   turnIds: readonly string[],
@@ -748,7 +798,7 @@ export async function failedCallsByRecovery(
   const calls = await prisma.sokoBotToolCall.findMany({
     where: { turnId: { in: [...turnIds] } },
     orderBy: { createdAt: "asc" },
-    select: { turnId: true, capability: true, status: true },
+    select: { turnId: true, capability: true, status: true, input: true },
   });
   const unrecovered: string[] = [];
   const recovered: string[] = [];
@@ -757,13 +807,7 @@ export async function failedCallsByRecovery(
     if (expect.allowFailedTools?.includes(call.capability)) return;
     const madeGood = calls
       .slice(index + 1)
-      .some(
-        (later) =>
-          later.turnId === call.turnId &&
-          later.status === "COMPLETED" &&
-          (later.capability === call.capability ||
-            toolObject(later.capability) === toolObject(call.capability)),
-      );
+      .some((later) => makesGood(call, later));
     (madeGood ? recovered : unrecovered).push(call.capability);
   });
   return { unrecovered, recovered };

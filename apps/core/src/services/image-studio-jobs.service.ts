@@ -436,6 +436,8 @@ async function requireBalanceForQuote(options: {
 }
 
 async function reserveJobTransaction(input: ReserveImageJobInput) {
+  // Read before the reservation: inside it, only `tx` may touch the database.
+  const benchmarkLane = await isEvalWorkspace(input.workspaceId);
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageJob.findUnique({
       where: {
@@ -599,7 +601,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // lane's pictures are the media stub's, which spend nothing, and its one
     // owner makes every journey's pictures back to back.
     const recent =
-      input.forCmoMonth || (await isEvalWorkspace(input.workspaceId))
+      input.forCmoMonth || benchmarkLane
         ? 0
         : await tx.projectImageJob.count({
             where: {
