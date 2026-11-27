@@ -21,7 +21,10 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 const showAccountQuestion = vi.hoisted(() => vi.fn());
-vi.mock("./account-question", () => ({ showAccountQuestion }));
+vi.mock("./account-question", () => ({
+  ACCOUNT_QUESTION_HEADING: "Which account should this go on?",
+  showAccountQuestion,
+}));
 
 describe("an account question Core asks", () => {
   const QUESTION =
@@ -66,7 +69,11 @@ describe("an account question Core asks", () => {
       true,
       narrative,
     );
-    expect(showAccountQuestion).toHaveBeenCalledWith(prisma, "turn-current");
+    expect(showAccountQuestion).toHaveBeenCalledWith(
+      prisma,
+      "turn-current",
+      true,
+    );
     expect(response.answerText).toContain("When should the posts go out?");
     expect(response.answerText.endsWith(QUESTION)).toBe(true);
   });
@@ -79,6 +86,22 @@ describe("an account question Core asks", () => {
       `Nothing drafted yet.\n\n${QUESTION}`,
     );
     expect(response.answerText.split(QUESTION)).toHaveLength(2);
+  });
+
+  it("leaves the earlier question out of a rebuild that can no longer show it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([refused]);
+    showAccountQuestion.mockResolvedValueOnce(null);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      `Nothing drafted yet.\n\n${QUESTION}`,
+    );
+    expect(showAccountQuestion).toHaveBeenCalledWith(
+      prisma,
+      "turn-current",
+      true,
+    );
+    expect(response.answerText).not.toContain("Which account");
   });
 
   it("is not looked up on a turn without a refused draft", async () => {

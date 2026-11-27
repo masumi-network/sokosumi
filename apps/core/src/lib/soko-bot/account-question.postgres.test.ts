@@ -200,6 +200,28 @@ describe.skipIf(!enabled)("openAccountQuestion", () => {
     await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
   });
 
+  it("is unshown again when settlement rebuilds the reply after an account disconnected", async () => {
+    const now = new Date();
+    const turn = await turnAt(new Date(now.getTime() - HOUR));
+    const asked = await askedOn(turn, undefined, undefined, false);
+    expect(await showAccountQuestion(prisma, turn.id)).not.toBeNull();
+    await prisma.projectSocialConnection.update({
+      where: { id: B },
+      data: { status: "revoked" },
+    });
+    expect(await showAccountQuestion(prisma, turn.id)).toBeNull();
+    expect(await openAccountQuestion(scope(now))).toBeNull();
+    await prisma.projectSocialConnection.update({
+      where: { id: B },
+      data: { status: "active" },
+    });
+    // A reply that ends up saying nothing leaves it unshown too.
+    expect(await showAccountQuestion(prisma, turn.id)).not.toBeNull();
+    expect(await showAccountQuestion(prisma, turn.id, false)).toBeNull();
+    expect(await openAccountQuestion(scope(now))).toBeNull();
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
   it("is not shown, and stays closed, when fewer than two of its accounts are still connected", async () => {
     const now = new Date();
     const turn = await turnAt(new Date(now.getTime() - HOUR));

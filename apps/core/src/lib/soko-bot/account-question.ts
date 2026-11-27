@@ -1,6 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
 
+/** Core's own line, first of the question it adds under a reply. */
+export const ACCOUNT_QUESTION_HEADING = "Which account should this go on?";
+
 /** An unanswered account question stays open this long. */
 export const ACCOUNT_QUESTION_OPEN_MS = 24 * 60 * 60 * 1_000;
 
@@ -72,6 +75,8 @@ const asShown = (options: AccountOption[]) =>
 export async function showAccountQuestion(
   tx: Prisma.TransactionClient,
   turnId: string,
+  /** False when the reply says nothing to the owner: then it is unshown. */
+  visible = true,
 ): Promise<string | null> {
   const question = await tx.sokoBotAccountQuestion.findFirst({
     where: { turnId, answeredTurnId: null },
@@ -79,8 +84,16 @@ export async function showAccountQuestion(
     select: { id: true, optionIds: true },
   });
   if (!question) return null;
-  const live = await liveOptions(tx, question.optionIds);
-  if (live.length < 2) return null;
+  const live = visible ? await liveOptions(tx, question.optionIds) : [];
+  // Settlement rebuilds the reply: what the last build shows is what the
+  // owner reads, so a question it leaves out is unshown again.
+  if (live.length < 2) {
+    await tx.sokoBotAccountQuestion.update({
+      where: { id: question.id },
+      data: { shownAt: null },
+    });
+    return null;
+  }
   const options = asShown(live);
   // What was shown is what is stored: the numbers the owner reads.
   await tx.sokoBotAccountQuestion.update({
@@ -90,7 +103,7 @@ export async function showAccountQuestion(
       optionIds: options.map((option) => option.id),
     },
   });
-  return `Which account should this go on?\n${options.map(shownOption).join("\n")}`;
+  return `${ACCOUNT_QUESTION_HEADING}\n${options.map(shownOption).join("\n")}`;
 }
 
 /**
@@ -143,10 +156,9 @@ export async function openAccountQuestion(
     select: { id: true, optionIds: true },
   });
   if (!question) return null;
-  return {
-    id: question.id,
-    options: await liveOptions(prisma, question.optionIds),
-  };
+  const options = await liveOptions(prisma, question.optionIds);
+  // Nothing left to pick from: no question to carry.
+  return options.length > 0 ? { id: question.id, options } : null;
 }
 
 /** For the next owner turn's packet: what to pass, and never to show. */

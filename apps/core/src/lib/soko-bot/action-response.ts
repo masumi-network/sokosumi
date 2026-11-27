@@ -8,7 +8,10 @@ import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
 import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
-import { showAccountQuestion } from "./account-question";
+import {
+  ACCOUNT_QUESTION_HEADING,
+  showAccountQuestion,
+} from "./account-question";
 import {
   ACTION_CAPABILITIES,
   ACTION_RECEIPT_CAPABILITIES,
@@ -838,12 +841,13 @@ export async function buildActionResponse(
     (call) =>
       call.capability === "create_social_post" && call.status === "FAILED",
   );
-  const asked =
-    refusedPost && noted !== "Nothing to add."
-      ? await showAccountQuestion(tx, turnId)
-      : null;
-  const checked =
-    asked && !noted.includes(asked) ? `${noted}\n\n${asked}` : noted;
+  // A rebuild from the stored answer drops Core's earlier question first: the
+  // options may have changed since, and the reply shows the current ones.
+  const base = noted.split(`\n\n${ACCOUNT_QUESTION_HEADING}`)[0] ?? noted;
+  const asked = refusedPost
+    ? await showAccountQuestion(tx, turnId, base !== "Nothing to add.")
+    : null;
+  const checked = asked ? `${base}\n\n${asked}` : base;
   return {
     appliedReceiptIds,
     narrative,
