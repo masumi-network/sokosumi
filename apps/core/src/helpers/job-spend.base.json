@@ -1624,7 +1624,7 @@
     },
     "debit": {
       "uuidVersions": ["4", "4"],
-      "timesWithinTheCall": [false, false, false],
+      "timesWithinTheCall": [true, true, true],
       "bucketsInIdOrder": [["<bucket only bucket of drained person>"]]
     },
     "receiptTimesAfterTheDebit": []

@@ -653,7 +653,9 @@ async function spendElsewhere(userId: string, cents: bigint) {
       [userId],
     );
     const id = randomUUID();
-    const now = new Date();
+    // In UTC, as Prisma writes: `pg` sends a Date in the machine's zone, and
+    // a `timestamp` column drops the offset, so the time would be the zone's.
+    const now = new Date().toISOString();
     labels.set(id, "<spend elsewhere>");
     await client.query(
       `INSERT INTO "${schema}"."Transaction" (id, "createdAt", "updatedAt", amount, "userId") VALUES ($1, $2, $2, $3, $4)`,
