@@ -378,6 +378,11 @@ function TableWorkspace({
   // What the archive dialog was opened to do. Polling can change
   // `archivedAt` while the dialog is open; the dialog keeps its action.
   const [archiving, setArchiving] = useState(true);
+  // The dialog last opened. It keeps the closing dialog's words while it
+  // animates out and the table refreshes, instead of flashing "Save".
+  const [shownDialog, setShownDialog] = useState(dialog);
+  if (dialog !== null && dialog !== shownDialog) setShownDialog(dialog);
+  const dialogKind = dialog ?? shownDialog;
   const [historyCursor, setHistoryCursor] = useState<string>();
   const [historyCell, setHistoryCell] = useState<{
     rowId?: string;
@@ -1568,24 +1573,24 @@ function TableWorkspace({
         <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
-              {dialog === "views"
+              {dialogKind === "views"
                 ? t("configureView")
-                : dialog === "history"
+                : dialogKind === "history"
                   ? t("history")
-                  : dialog === "enrich"
+                  : dialogKind === "enrich"
                     ? t("askAgent")
-                    : dialog === "rename"
+                    : dialogKind === "rename"
                       ? t("rename")
                       : archiving
                         ? t("archive")
                         : t("restore")}
             </DialogTitle>
             <DialogDescription>
-              {dialog === "enrich"
+              {dialogKind === "enrich"
                 ? t("enrichDescription")
-                : dialog === "history"
+                : dialogKind === "history"
                   ? t("historyDescription")
-                  : dialog === "archive"
+                  : dialogKind === "archive"
                     ? t(archiving ? "archiveDescription" : "restoreDescription")
                     : t("tableSettings")}
             </DialogDescription>
@@ -2066,9 +2071,9 @@ function TableWorkspace({
                   )
                 }
               >
-                {dialog === "enrich"
+                {dialogKind === "enrich"
                   ? t("createTask")
-                  : dialog === "archive"
+                  : dialogKind === "archive"
                     ? t(archiving ? "archive" : "restore")
                     : t("save")}
               </Button>
