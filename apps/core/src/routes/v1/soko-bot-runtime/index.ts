@@ -20,6 +20,7 @@ import {
   recordSandboxReasoning,
   runSandboxTool,
   sandboxFileSource,
+  sandboxPlanNote,
   startSandboxTurn,
 } from "@/services/soko-bot-sandbox-turn.service";
 
@@ -54,6 +55,8 @@ const completeSchema = z.object({
   text: z.string().max(200_000),
   finishReason: z.string().max(64),
 });
+/** A draft answer for the done check; none asks for the open steps. */
+const planSchema = z.object({ draft: z.string().max(200_000).optional() });
 /** One model step's reasoning summary, as the provider returned it. */
 const reasoningSchema = z.object({ text: z.string().min(1).max(20_000) });
 const failSchema = z.object({
@@ -111,6 +114,15 @@ app.post("/turns/:turnId/files", async (c) =>
       (await parseJsonBody(c, z.object({ fileId: z.uuid() }))).fileId,
     ),
   ),
+);
+
+app.post("/turns/:turnId/plan", async (c) =>
+  c.json({
+    note: await sandboxPlanNote(
+      c.get("turn"),
+      await parseJsonBody(c, planSchema),
+    ),
+  }),
 );
 
 app.post("/turns/:turnId/uploads", async (c) =>

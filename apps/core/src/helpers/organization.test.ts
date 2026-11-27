@@ -26,6 +26,7 @@ function createOrganization(overrides: Record<string, unknown> = {}) {
     logo: null,
     metadata: null,
     stripeCustomerId: null,
+    preprodEnabled: false,
     ...overrides,
   };
 }

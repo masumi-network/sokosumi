@@ -1469,6 +1469,8 @@ export interface CreateShortVideoJobInput {
   script: string;
   /** The words over the first seconds; omitted, they are written from the script. */
   hookLine?: string | null;
+  /** A launch's real date, as its card shows it. */
+  launchDate?: string;
   voice: string;
   /** ISO 639-1 language of the script. */
   languageCode: string;
@@ -1513,6 +1515,12 @@ export async function createShortVideoJob(input: CreateShortVideoJobInput) {
     throw unprocessableEntity("A website tour needs the Project's website.", {
       kind: "invalid_video_settings",
     });
+  const launchDate =
+    input.format === "launch" ? input.launchDate?.trim() || null : null;
+  if (input.format === "launch" && !launchDate)
+    throw unprocessableEntity("A launch needs the date of what it announces.", {
+      kind: "invalid_video_settings",
+    });
   if (posesAsCustomerTestimonial(input.script))
     throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
       kind: "talking_video_testimonial",
@@ -1544,6 +1552,7 @@ export async function createShortVideoJob(input: CreateShortVideoJobInput) {
     music: true,
     musicRequestId: null,
     format: input.format,
+    ...(launchDate ? { launchDate } : {}),
     picturePathnames: [],
     ...wantedShapes(input.format, input.shapes),
   };
@@ -2408,12 +2417,17 @@ async function submitPreparedJob(
  * reason the row is stuck is that we do not know whether the first attempt
  * reached fal. The row stays, and it keeps counting against the hourly window,
  * because it may represent money.
+ *
+ * A read sweeps only the Project it reads: one workspace's page load must not
+ * touch another's jobs. Only the maintenance cron sweeps every Project.
  */
 export async function sweepStalledSubmissions(
   now: Date = new Date(),
+  scope?: { projectId: string },
 ): Promise<number> {
   const result = await prisma.projectImageJob.updateMany({
     where: {
+      ...(scope ? { projectId: scope.projectId } : {}),
       status: ProjectImageJobStatus.SUBMITTING,
       submitLeaseAt: { lt: new Date(now.getTime() - SUBMIT_LEASE_MS) },
     },
@@ -3026,10 +3040,17 @@ async function makeShortVideo(
       .then((project) => (project ? loadTalkingVideoEndCard(project) : null)),
     loadStudioBrand(job.projectId),
   ]);
-  const colour = (brand.look?.colors ?? brand.designColors ?? []).find(
-    (value) => /^#[0-9a-f]{6}$/i.test(value),
-  );
+  const colors = brand.look?.colors ?? brand.designColors ?? [];
+  const colour = colors.find((value) => /^#[0-9a-f]{6}$/i.test(value));
   const edited = await editShortVideo({
+    ...(settings.format === "launch" && settings.launchDate
+      ? {
+          launch: {
+            date: settings.launchDate,
+            brand: { colors, font: brand.look?.fonts[0] ?? null },
+          },
+        }
+      : {}),
     shape: settings.shape,
     format: settings.format!,
     words: settings.words,
@@ -4094,7 +4115,7 @@ function isUniqueViolation(error: unknown): boolean {
  * Bounded on purpose: a handful of provider reads per page load, never a scan.
  */
 export async function reconcileProjectJobs(projectId: string): Promise<void> {
-  await sweepStalledSubmissions();
+  await sweepStalledSubmissions(new Date(), { projectId });
   // Deployments without a reachable webhook settle here, so this is also where
   // a reservation stranded by a crashed request gets picked back up.
   await recoverUnclaimedReservations({ projectId }).catch((error) => {

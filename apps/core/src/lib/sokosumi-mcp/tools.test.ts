@@ -183,6 +183,15 @@ describe("tools that spend credits", () => {
     }
   });
 
+  it("leave chat messages out: no cost warning or confirm step on chat", () => {
+    for (const name of ["chats_send", "chats_retry_mention"]) {
+      const tool = MCP_TOOLS.find((tool) => tool.name === name);
+      expect(tool, name).toBeDefined();
+      expect(tool?.spendsCredits, name).toBeFalsy();
+      expect(tool?.description, name).not.toMatch(/credits|paid|confirm/i);
+    }
+  });
+
   it("include every Image Studio start, and not its cancel (ADR 0077)", () => {
     const spends = (operation: string) =>
       MCP_TOOLS.find((tool) => tool.operation === operation)?.spendsCredits;

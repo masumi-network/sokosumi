@@ -4,6 +4,12 @@ import {
   seoConversionSchema,
   seoDeviceSchema,
 } from "@/schemas/project-seo.schema";
+import {
+  seoEstimateReasonFields,
+  seoFitSchema,
+  seoIntentClassSchema,
+} from "@/schemas/project-seo-keyword-estimate.schema";
+import { omitUndefinedProperties } from "./project-seo-public-report";
 import type { LegacySeoReport, PublicSeoPayload } from "./project-seo-report";
 
 export const FEATURE_CHARS = 200;
@@ -27,7 +33,26 @@ export const estimate = {
     .max(FEATURE_CHARS)
     .optional()
     .catch(undefined),
+  intentClass: seoIntentClassSchema.optional().catch(undefined),
+  fit: seoFitSchema.optional().catch(undefined),
 };
+// The estimate as a stored check holds it.
+export const storedEstimate = {
+  conversion: seoConversionSchema.nullable().optional(),
+  feature: z.string().max(FEATURE_CHARS).nullable().optional(),
+  ...seoEstimateReasonFields,
+};
+/** The estimate fields, for a result that carries no estimate. */
+export const ESTIMATE_KEYS = {
+  conversion: true,
+  feature: true,
+  intentClass: true,
+  fit: true,
+} as const;
+type Estimate = z.infer<z.ZodObject<typeof estimate>>;
+/** The estimate fields a Report row has. A field the row does not have stays absent. */
+const estimateOf = ({ conversion, feature, intentClass, fit }: Estimate) =>
+  omitUndefinedProperties({ conversion, feature, intentClass, fit });
 
 const keywordKey = (keyword: string) => keyword.normalize("NFKC").toLowerCase();
 
@@ -78,10 +103,7 @@ export function legacyReportKeywords(
           volume: row.volume,
           difficulty: difficultyOf(row.keyword),
           intent: row.intent,
-          ...(row.conversion !== undefined
-            ? { conversion: row.conversion }
-            : {}),
-          ...(row.feature !== undefined ? { feature: row.feature } : {}),
+          ...estimateOf(row),
           source: "focus",
           sourceRef: result.snapshotId,
           observedAt: at,
@@ -134,8 +156,7 @@ export function legacyReportKeywords(
       volume: row.volume,
       difficulty: row.difficulty ?? null,
       intent: row.intent,
-      ...(row.conversion !== undefined ? { conversion: row.conversion } : {}),
-      ...(row.feature !== undefined ? { feature: row.feature } : {}),
+      ...estimateOf(row),
       ...(row.editorial && { editorial: row.editorial }),
       source: "opportunity",
       ...(broad && { ideaRank: index + 1 }),

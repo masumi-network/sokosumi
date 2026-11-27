@@ -51,16 +51,18 @@ sokosumi evals show RUN_ID --summary-md --slug cmo-v8  # the run file for docs/e
 sokosumi evals list                                    # recent runs and scores
 ```
 
-`--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. Each run executes with the code of whichever Core ticks it, so when several local Cores share one database, tick from one of them only, and from a checkout whose schema matches that database. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the weekly run before it.
+`--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. A Core starts and advances only runs of its own environment, and waits while a run of another environment is running in the same database, so a preview or agent database forked from production never runs production's copied runs; a copied run that is still running times out there like any stuck run. Each run executes with the code of whichever Core ticks it, so when several local Cores share one database, tick from one of them only, and from a checkout whose schema matches that database. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the weekly run before it.
 
 The weekly run runs each case once, judged cases twice. A run you start runs once unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the weekly run on one repeat may be chance: run it with three repeats before chasing it.
 
 ### On your own ChatGPT plan
 
-Local runs can use your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan usage) instead of the AI Gateway. Use it to check cases while you work. A plan run sends nothing to the Gateway:
+Local runs can use your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan usage) instead of the AI Gateway. Use it to check cases while you work. A plan run sends nothing to the Gateway except real Jev:
 
 - OpenAI models run on the plan as themselves.
-- Every other model (Gemini and Claude checks) and Jev's typed questions run on the plan's stand-in, `gpt-6-luna`. Jev answers are labelled `chatgpt-plan-jev` in the ledger.
+- **Real Jev is on by default for `evals:local --plan`** (`SOKO_BOT_PLAN_REAL_JEV=1`; set it to `0` to opt out). Production routes with Jev, and the stand-in routes differently, so stand-in routing can't tell how a version behaves in production. Jev's typed questions (routing, the claim check, agent fit, mail triage, the Cuso context organizer and other `evaluateWithJev` calls) then go to `typesafe-ai/jev` through the Gateway with your `.env` key, with Jev's normal 3.5 s (organizer 4 s) timeouts. Only Jev's decision model gets through the plan guard; every other Gateway request still fails.
+  - If real Jev fails (a Gateway budget stop, or more than a tenth of its last calls failing or timing out), the run keeps going: Jev questions use the stand-in for 30 minutes, then real Jev is tried again. Each owner-benchmark result says which Jev answered it (`output.jev`: `real` or `stand-in`), and `evals:local` prints the real Jev call count, cost and any stand-in windows at the end. Rerun the stand-in results with real Jev before using them for a decision.
+- Without real Jev, every other model (Gemini and Claude checks) and Jev's typed questions run on the plan's stand-in, `gpt-6-luna`. Stand-in Jev answers are labelled `chatgpt-plan-jev` in the ledger. With real Jev, only the non-Jev models do.
 - Embeddings for in-process comparisons (repeat checks) are computed locally from shared wording (`chatgpt-plan/local-token-overlap`).
 - Searches against stored Gateway vectors don't use those local vectors, and a plan run never stores them:
   - contact search matches by text only
@@ -70,7 +72,7 @@ Local runs can use your own ChatGPT plan (OpenAI's "Sign in with ChatGPT" plan u
 - The judge runs on Claude Code unless you set `SOKO_BOT_JUDGE_RUNNER`. Stored results name the model that actually ran (`chatgpt-plan:<slug>`, `claude-code:<model>`).
 - Any other call to the Gateway fails with "A ChatGPT plan run tried to call the AI Gateway". Nothing is sent.
 
-All of this applies whenever plan mode is on, whether you passed `--plan` or only set `SOKO_BOT_LOCAL_CHATGPT_PLAN=1`. A plan run records its environment as `local-chatgpt-plan`, with the label "local, ChatGPT plan (approximate)". It is compared only with other plan runs, never with the daily production runs. Plan runs from before this change (environment `local`, label "local, OpenAI on ChatGPT plan") still used real Jev and Gemini checks, so they form their own group.
+All of this applies whenever plan mode is on, whether you passed `--plan` or only set `SOKO_BOT_LOCAL_CHATGPT_PLAN=1`. A plan run with real Jev records its environment as `local-chatgpt-plan-real-jev`, with the label "local, ChatGPT plan + real Jev". One with the stand-in records `local-chatgpt-plan`, with the label "local, ChatGPT plan (approximate)". Each is compared only with runs of its own environment, never with the other or with the daily production runs. Real Jev's Gateway cost counts against the local key's budget, so the hard stops for local Gateway spend apply. Plan runs from before this change (environment `local`, label "local, OpenAI on ChatGPT plan") still used real Jev and Gemini checks, so they form their own group.
 
 Stand-in answers, check results and similarity scores are approximate, so pass rates can differ from a Gateway run.
 

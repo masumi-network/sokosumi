@@ -10,7 +10,9 @@ import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, emitCoreError, logCoreWarning } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
+import { isScheduleAuthorityRevoked } from "@/lib/soko-bot/owner-authority";
 import {
   isRetryableSokoBotRuntimeError,
   SokoBotRuntimeUnavailableError,
@@ -672,7 +674,13 @@ export class SokoBotSchedulesSyncService {
           );
         }
         const actingUserId = sokoBotScheduleActingUserId(schedule);
+        const systemRoute = systemScheduleRoute(schedule.systemKey);
+        const scheduleRevoked =
+          !systemRoute && schedule.authority != null
+            ? await isScheduleAuthorityRevoked(schedule)
+            : false;
         const started = await sokoBotControlPlane.startTurn({
+          network: DETACHED_SOKO_BOT_NETWORK,
           userId: actingUserId,
           sokoBotId: schedule.sokoBotId,
           workspaceId: schedule.workspaceId,
@@ -684,7 +692,7 @@ export class SokoBotSchedulesSyncService {
           // owner or the bot wrote runs with its stored tools intersected
           // against its persisted OwnerAuthority.
           presetRoute:
-            systemScheduleRoute(schedule.systemKey) ??
+            systemRoute ??
             scheduleAuthorityRoute({
               id: schedule.id,
               sokoBotId: schedule.sokoBotId,
@@ -695,6 +703,7 @@ export class SokoBotSchedulesSyncService {
               botUserId: schedule.sokoBot.userId,
               botProjectId: schedule.sokoBot.projectId ?? null,
               botVersionId: schedule.sokoBot.versionId ?? null,
+              ...(scheduleRevoked ? { revoked: true } : {}),
             }),
           scheduleReservation: {
             runId: run.id,

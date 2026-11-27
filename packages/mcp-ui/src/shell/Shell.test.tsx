@@ -25,6 +25,7 @@ const Greeting = z.object({ name: z.string() });
 interface OpenViewOptions {
   isEmpty?: (data: z.infer<typeof Greeting>) => boolean;
   refreshTool?: string;
+  refreshArgs?: Record<string, string>;
   /** Answers the view's `tools/call`; the host then offers `serverTools`. */
   callTool?: (params: CallToolRequest["params"]) => Promise<CallToolResult>;
 }
@@ -37,7 +38,7 @@ const links = vi.fn();
 /** A fake host: an AppBridge on one end of an in-memory pipe, the view on the other. */
 async function openView(
   hostContext: McpUiHostContext = {},
-  { isEmpty, refreshTool, callTool }: OpenViewOptions = {},
+  { isEmpty, refreshTool, refreshArgs, callTool }: OpenViewOptions = {},
 ) {
   const [hostSide, viewSide] = InMemoryTransport.createLinkedPair();
   const bridge = new AppBridge(
@@ -68,6 +69,7 @@ async function openView(
       schema={Greeting}
       isEmpty={isEmpty}
       refreshTool={refreshTool}
+      refreshArgs={refreshArgs}
     >
       {(data, context) => {
         refresh = context.refresh;
@@ -196,6 +198,36 @@ describe("Shell", () => {
       expect.anything(),
     );
     expect(screen.getByText(/^Grace in/)).toBeTruthy();
+  });
+
+  it("refreshes with the view's own arguments over the tool's input", async () => {
+    const callTool = vi.fn(async () => greeting("Grace"));
+    const bridge = await openView(
+      {},
+      {
+        refreshTool: "tasks_list",
+        refreshArgs: { includeDescription: "false" },
+        callTool,
+      },
+    );
+    await act(() =>
+      bridge.sendToolInput({
+        arguments: { scope: "workspace", includeDescription: "true" },
+      }),
+    );
+    await act(() => bridge.sendToolResult(greeting("Ada")));
+
+    await act(async () => {
+      await refresh?.();
+    });
+
+    expect(callTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "tasks_list",
+        arguments: { scope: "workspace", includeDescription: "false" },
+      }),
+      expect.anything(),
+    );
   });
 
   it("keeps the last result when a refresh fails", async () => {

@@ -4674,14 +4674,16 @@
         "voiceover": "Geschichte mit Stimme",
         "site_tour": "Website-Tour",
         "top_three": "Top-3-Liste",
-        "slideshow": "Foto-Slideshow"
+        "slideshow": "Foto-Slideshow",
+        "launch": "Ankündigung"
       },
       "kindHints": {
         "presenter": "Eine Person spricht dein Skript in die Kamera.",
         "voiceover": "Eine Stimme erzählt eine kurze Geschichte zu deinen Bildern und deiner Website.",
         "site_tour": "Eine Stimme führt durch deine Website.",
         "top_three": "Eine Stimme nennt drei nummerierte Punkte.",
-        "slideshow": "Deine Bilder mit Musik, auf jedem eine Zeile."
+        "slideshow": "Deine Bilder mit Musik, auf jedem eine Zeile.",
+        "launch": "Eine Stimme kündigt etwas Neues an, das Datum steht auf einer Karte."
       },
       "kindNeedsSite": "Füge dem Projekt zuerst deine Website hinzu.",
       "stepShows": "Was es zeigt",
@@ -4698,17 +4700,23 @@
         "voiceover": "Das machen die meisten falsch bei…",
         "site_tour": "Das ist unsere Website. Das kannst du hier tun…",
         "top_three": "Drei Wege, um… Erstens, … Zweitens, … Drittens, … Probier es heute aus.",
-        "slideshow": "Code fertig?\nJetzt die Seite.\nHeute kostenlos testen"
+        "slideshow": "Code fertig?\nJetzt die Seite.\nHeute kostenlos testen",
+        "launch": "Unsere Winterkarte ist da. Sie startet am 3. Dezember. Sechs warme Gerichte, jeden Morgen frisch. Reserviere heute deinen Tisch."
       },
       "scriptHints": {
         "voiceover": "Der erste Satz ist der Hook.",
         "site_tour": "Sag, was man auf deiner Website sieht, von oben nach unten.",
         "top_three": "Ein Satz, der die Liste nennt, einer pro Punkt, dann der nächste Schritt.",
-        "slideshow": "Eine kurze Zeile pro Bild, eine pro Zeile."
+        "slideshow": "Eine kurze Zeile pro Bild, eine pro Zeile.",
+        "launch": "Sag, was neu ist, dann wann. Das Datum steht auf einer Karte, während der zweite Satz gesprochen wird."
       },
       "hookLine": "Text im Bild am Anfang",
       "hookLinePlaceholder": "Leer lassen, dann schreiben wir ihn für dich",
       "hookLineHint": "Bis zu sechs Wörter, die sagen, warum man weiterschauen soll.",
+      "launchDate": "Datum",
+      "launchDatePlaceholder": "3. Dezember",
+      "launchDateHint": "Wann es startet, so wie es auf der Karte stehen soll.",
+      "launchDateMissing": "Gib das Datum an, um das es geht.",
       "shortIncludes": "Untertitel, Musik und dein Logo am Ende sind inbegriffen.",
       "slideshowIncludes": "Musik und dein Logo am Ende sind inbegriffen.",
       "costDetailShort": "wird erst berechnet, wenn das Video fertig ist, in etwa einer Minute",
@@ -6408,6 +6416,10 @@
             "title": "Warnungen für SEO-Audits",
             "description": "Auditfehler und Verbindungsstatus prüfen."
           },
+          "seoImpact": {
+            "title": "SEO-Wirkung",
+            "description": "Erledigte Seitenänderungen verfolgen, bis Google sie crawlt."
+          },
           "x402Payments": {
             "title": "x402-Zahlungen",
             "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
@@ -7832,6 +7844,28 @@
       },
       "SeoAlerts": {
         "type": "Meldungstyp",
+        "impactTab": "Wirkung der Maßnahmen",
+        "impactDescription": "Search-Console-Summen für die Seite jeder erledigten SEO-Maßnahme, für gleich viele Tage davor und danach. Jeder Eintrag ist ein Audit und die Person, deren Search-Console-Daten er enthält. Die Zahlen schließen die Saisonalität, andere Änderungen an der Seite und ein Google-Update nicht aus.",
+        "impactWindow": "Tage davor und danach",
+        "impactEmpty": "Noch kein Audit hat tägliche Seitendaten gespeichert.",
+        "impactNoActions": "Keine erledigte Maßnahme auf einer Seite mit gespeicherten Tagesdaten.",
+        "impactCompleted": "Aufgabe abgeschlossen am {date}",
+        "impactVerified": "Korrektur bestätigt am {date}",
+        "impactMetric": "Kennzahl",
+        "impactBefore": "{days, number} Tage davor",
+        "impactAfter": "{days, number} Tage danach",
+        "impactClicks": "Klicks",
+        "impactImpressions": "Impressionen",
+        "impactPosition": "Durchschnittliche Position",
+        "impactNotMeasured": "Nicht gemessen",
+        "impactPending": "Noch nicht endgültig",
+        "impactNoPosition": "Keine Impressionen",
+        "impactState": {
+          "measured": "Gemessen",
+          "too_early": "Zu früh",
+          "not_measured": "Nicht gemessen",
+          "low_counts": "Zu wenige Impressionen"
+        },
         "pricingAttention": "Zu prüfende Audit-Zahlungen: {count}",
         "billingTab": "Audit-Abrechnung ({count})",
         "billingDescription": "Vollständige Audits mit verbrauchsabhängiger Abrechnung und ihrem aktuellen Zahlungsstatus. Die Kosten stammen aus geprüften Anbieterbelegen, die abgebuchten Credits aus der Transaktion.",
@@ -7884,7 +7918,7 @@
         "search_console": "Search Console",
         "ga4": "Google Analytics 4",
         "connectionSummary": "Erneut zu verbindende Konten: {count}",
-        "summary": "Letzte 30 Tage: {critical} kritisch, {warning, plural, one {# Warnung} other {# Warnungen}}",
+        "summary": "Offen oder aus den letzten 30 Tagen: {critical} kritisch, {warning, plural, one {# Warnung} other {# Warnungen}}",
         "unavailable": "Die Anzahl der Meldungen ist nicht verfügbar.",
         "title": "Warnungen für SEO-Audits",
         "description": "Der letzte abgeschlossene oder überfällige Lauf pro Audit. Ab {percent}% fehlgeschlagener Seiten wird eine Warnung angezeigt.",
@@ -7933,6 +7967,47 @@
           "gscProperty": "Das Audit konnte die ausgewählte Search Console-Property nicht nutzen.",
           "gscUnavailable": "Das Audit konnte die Abdeckung der Search Console nicht prüfen.",
           "gscSkipped": "Das Audit wurde auf Wunsch des Inhabers ohne Search Console fortgesetzt."
+        }
+      },
+      "SeoImpact": {
+        "title": "SEO-Wirkung",
+        "description": "Seitenänderungen, die Kunden als erledigt markiert haben. Jede Zeile wartet auf Googles ersten Crawl nach der Änderung und erhält dann die vier Wochen, die ihr Urteil vergleicht.",
+        "summary": "{shown} von {total} verfolgten Seitenänderungen.",
+        "period": "Zeitraum",
+        "periods": {
+          "90": "90 Tage",
+          "365": "365 Tage",
+          "all": "Alle"
+        },
+        "empty": "In diesem Zeitraum wurde keine Seitenänderung verfolgt.",
+        "customer": "Kunde",
+        "page": "Seite",
+        "suggestion": "Vorschlag",
+        "source": "Quelle",
+        "changedAt": "Geändert",
+        "crawledAt": "Erster beobachteter Crawl nach der Änderung",
+        "window": "Zeitfenster",
+        "state": "Status",
+        "reason": "Grund",
+        "none": "Keine",
+        "notYet": "Noch nicht",
+        "windowRange": "{start} bis {end}",
+        "readyOn": "Daten endgültig am {date}",
+        "sources": {
+          "cuso_done": "Als erledigt markiert",
+          "audit_recheck": "Audit-Nachprüfung"
+        },
+        "states": {
+          "waiting_crawl": "Wartet auf Crawl",
+          "waiting_window": "Wartet auf Zeitfenster",
+          "not_measurable": "Nicht messbar"
+        },
+        "reasons": {
+          "no_cuso": "Das Projekt hat keinen aktiven Cuso.",
+          "not_connected": "Search Console ist nicht verbunden.",
+          "no_property": "Keine Search-Console-Property deckt die Seite ab.",
+          "inspection_failed": "Die URL-Prüfung ist fehlgeschlagen oder wurde abgelehnt.",
+          "not_crawled_yet": "Google hat die Seite seit der Änderung nicht gecrawlt."
         }
       },
       "CmoSpend": {
@@ -8258,6 +8333,38 @@
           "help": "Nur mit Trainingsfreigabe. Markentext entfällt; Bildlinks laufen nach 10 Minuten ab.",
           "download": "JSONL herunterladen",
           "error": "Anzeigendaten konnten nicht exportiert werden. Erneut versuchen."
+        }
+      },
+      "PreprodAccess": {
+        "title": "Preprod-Zugang",
+        "noEffect": "Dieser Schalter ändert noch nicht, was jemand tun kann.",
+        "state": "{enabled, select, true {An} other {Aus}}",
+        "saved": "{enabled, select, true {Preprod-Zugang ist an.} other {Preprod-Zugang ist aus.}}",
+        "history": {
+          "title": "Letzte Änderungen",
+          "entry": "{enabled, select, true {Eingeschaltet} other {Ausgeschaltet}} von {operator}",
+          "unknown": "einem unbekannten Admin",
+          "empty": "Noch keine Änderungen."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {Preprod-Zugang einschalten?} other {Preprod-Zugang ausschalten?}}",
+          "description": "{enabled, select, true {{type, select, user {Der Nutzer} other {Die Organisation}} {name} erhält Preprod-Zugang.} other {{type, select, user {Der Nutzer} other {Die Organisation}} {name} verliert den Preprod-Zugang.}} Dein Name und der Grund werden mit der Änderung gespeichert.",
+          "reasonLabel": "Grund",
+          "reasonHint": "Ticket-ID, keine personenbezogenen Daten.",
+          "reasonRequired": "Gib einen Grund ein.",
+          "cancel": "Abbrechen",
+          "confirm": "{enabled, select, true {Einschalten} other {Ausschalten}}"
+        },
+        "errors": {
+          "forbidden": "Nicht erlaubt: Nur ein Admin, der als er selbst angemeldet ist, kann den Preprod-Zugang ändern.",
+          "notFound": "{type, select, user {Diesen Nutzer gibt es nicht mehr.} other {Diese Organisation gibt es nicht mehr.}}",
+          "invalid": "Die Änderung wurde nicht angenommen. Prüfe den Grund und versuche es erneut.",
+          "failed": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut."
+        },
+        "unavailable": {
+          "title": "Der Preprod-Zugang konnte nicht geladen werden.",
+          "description": "Der Rest der Seite funktioniert.",
+          "retry": "Erneut versuchen"
         }
       }
     },
@@ -13502,9 +13609,11 @@
         "notInKeptRows": "Nicht unter den ersten {count} gespeicherten Zeilen",
         "trendShow": "Tägliche Positionen",
         "trendEmpty": "In keinem Land Search-Console-Impressionen",
-        "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 25 verfolgte Keywords erhalten tägliche Positionen.",
+        "trendNotRequested": "Bei der letzten Synchronisierung nicht gelesen. Bis zu 50 verfolgte Keywords erhalten tägliche Positionen.",
         "trendLabel": "Durchschnittliche Position für „{keyword}“",
         "trendNoImpressions": "Keine Impressionen",
+        "trendTruncated": "Eine Search-Console-Abfrage hat ihr Zeilenlimit erreicht. Einige Tage können fehlen.",
+        "trendNoPosition": "Keine Position gemeldet",
         "summary": "In den ersten Google-Ergebnissen für {found} von {read, plural, one {# geprüftem Keyword} other {# geprüften Keywords}}",
         "firstPage": "{count} auf der ersten Seite",
         "more": "{count, plural, one {# weiteres Keyword anzeigen} other {# weitere Keywords anzeigen}}",
@@ -13516,7 +13625,19 @@
             "medium": "Mittlere Conversion-Chance",
             "high": "Hohe Conversion-Chance"
           },
-          "note": "Die Zielrelevanz ist eine Schätzung anhand der Suche und des Angebots deiner Seite.",
+          "note": "Die Conversion-Chance ist die eigene Einschätzung der SEO-Prüfung, gebildet aus dem, wonach Menschen suchen, und dem, was deine Seite bietet. Sie ist keine gemessene Conversion-Rate.",
+          "checkedOn": "Aus der Prüfung vom <date></date>",
+          "reason": "{intent}, {fit}",
+          "intent": {
+            "product": "Sucht ein Produkt",
+            "comparison": "Vergleicht Angebote",
+            "problem": "Will ein Problem lösen",
+            "learn": "Will etwas lernen"
+          },
+          "fit": {
+            "direct": "passt zu deinem Angebot",
+            "partial": "passt teilweise zu deinem Angebot"
+          },
           "high": "Hoch",
           "medium": "Mittel",
           "low": "Niedrig"
@@ -13620,14 +13741,17 @@
         "historyShow": "Verlauf",
         "historyPaidTitle": "Positionen in bezahlten Prüfungen",
         "historyPaidNote": "Jeder Punkt ist eine Prüfung der Suchergebnisse an diesem Tag.",
+        "historyOlderHidden": "Ältere Prüfungen werden nicht angezeigt.",
         "historyPaidLabel": "{device, select, mobile {Mobil} desktop {Desktop} other {Alle Geräte}}: Position in bezahlten Prüfungen für „{keyword}“",
         "historyNotInRange": "Nicht in den geprüften Ergebnissen",
-        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine Prüfung, die die Seite nicht in ihren Ergebnissen fand, hat keine Position.",
+        "historyNotInTop": "Nicht in den Top {count}",
+        "historyPaidAxis": "Position 1 steht oben. Eine niedrigere Position ist besser. Eine hohle Markierung unten ist eine Prüfung, die die Seite nicht in ihren Ergebnissen fand: Sie hat keine Position.",
         "historyGscTitle": "Durchschnittliche Position in der Search Console, täglich",
         "historyGscNote": "Ein Durchschnitt über alle Impressionen des Tages, keine einzelne Prüfung.",
         "serp": {
           "title": "Suchergebnisse in bezahlten Prüfungen",
           "note": "Was die Ergebnisseite bei jeder Prüfung zeigte, die neueste zuerst.",
+          "aiNote": "Eine KI-Übersicht ist die Zusammenfassung, die Google über den Ergebnissen schreibt. Sie zitiert eine Seite, wenn sie diese Seite als Quelle verlinkt.",
           "check": "Prüfung",
           "aiOverview": "KI-Übersicht",
           "featured": "Hervorgehobenes Snippet",
@@ -13641,8 +13765,13 @@
             "not_checked": "KI-Übersicht nicht geprüft",
             "undetermined": "Zitierung nicht ermittelt",
             "cited_checked": "Zitiert eine geprüfte Seite",
-            "other_page": "Für eine andere Seite geprüft"
+            "other_page": "Für eine andere Seite geprüft",
+            "site_cited": "Zitiert die Website der Seite",
+            "site_cited_checked": "Zitiert eine geprüfte Website"
           },
+          "aiSources": "Quellen",
+          "ownSource": "{domain} (deine Website)",
+          "moreSources": "+{count} weitere",
           "snippet": {
             "owned": "Website der Seite",
             "checked_site": "Eine geprüfte Website",
@@ -13682,15 +13811,15 @@
         "shortlist": {
           "label": "Empfohlen",
           "chartKey": "Empfohlen · geschätzte zusätzliche Klicks auf Platz 10",
-          "summary": "{count, plural, one {# Idee passt} other {# Ideen passen}} zum Ziel, mit wenig Konkurrenz und Aussicht auf mehr Klicks.",
-          "none": "Keine Idee erfüllt alle drei Kriterien: passend zum Ziel, wenig Konkurrenz und Aussicht auf mehr Klicks.",
+          "summary": "{count, plural, one {# Idee wird empfohlen} other {# Ideen werden empfohlen}}: hohe Conversion-Chance, wenig Konkurrenz und Aussicht auf mehr Klicks.",
+          "none": "Keine Idee erfüllt alle drei Kriterien: hohe Conversion-Chance, wenig Konkurrenz und Aussicht auf mehr Klicks.",
           "gain": "Geschätztes Plus auf Platz 10",
           "clicks": "{count, plural, =0 {0 Klicks/Monat} one {+# Klick/Monat} other {+# Klicks/Monat}}",
           "lift": "{percent} mehr monatliche Klicks als aktuell geschätzt.",
-          "priority": "Hohe Zielrelevanz und geringe Schwierigkeit. Der mittlere Zuwachs für Ideen in diesem Markt beträgt {median, number} zusätzliche Klicks pro Monat.",
-          "fitUnknown": "Die Zielrelevanz wurde noch nicht bewertet.",
-          "medium": "Die geschätzte Zielrelevanz ist mittel.",
-          "low": "Die geschätzte Zielrelevanz ist gering.",
+          "priority": "Hohe Conversion-Chance und geringe Schwierigkeit. Der mittlere Zuwachs für Ideen in diesem Markt beträgt {median, number} zusätzliche Klicks pro Monat.",
+          "fitUnknown": "Die Conversion-Chance wurde noch nicht bewertet.",
+          "medium": "Die Conversion-Chance ist mittel.",
+          "low": "Die Conversion-Chance ist niedrig.",
           "difficultyUnknown": "Die Schwierigkeit wurde noch nicht gemessen.",
           "competition": "Die Konkurrenz ist für eine Empfehlung zu stark.",
           "gainUnknown": "Für Platz 10 fehlt eine Klickschätzung.",
@@ -13810,7 +13939,25 @@
         "alternative": "Alternative",
         "nextCheck": "Nächste Prüfung",
         "canceled": "Aufgabe abgebrochen",
-        "failed": "Aufgabe fehlgeschlagen"
+        "failed": "Aufgabe fehlgeschlagen",
+        "impact": {
+          "title": "Vorher und nachher",
+          "completed": "Gezählt ab {date}, dem Tag, an dem die Aufgabe abgeschlossen wurde.",
+          "verified": "Gezählt ab {date}, dem Tag, an dem die Korrektur bestätigt wurde.",
+          "metric": "Kennzahl",
+          "beforeDays": "{days, number} Tage davor",
+          "afterDays": "{days, number} Tage danach",
+          "clicks": "Klicks",
+          "impressions": "Impressionen",
+          "position": "Durchschnittliche Position",
+          "notMeasured": "Nicht gemessen",
+          "pending": "Noch nicht endgültig",
+          "noPosition": "Keine Impressionen",
+          "tooEarly": "Search Console hat ab {date} endgültige Daten für die {days, number} Tage danach. Das nächste Audit nach diesem Tag liest sie.",
+          "notMeasuredNote": "Kein Audit hat die täglichen Search-Console-Daten dieser Seite für den ganzen Zeitraum gelesen. Ein neues Audit liest die 400 Tage davor.",
+          "lowCounts": "Ein Zeitraum hat weniger als {min, number} Impressionen oder Klicks. Das ist zu wenig für eine Prozentangabe.",
+          "caveat": "Das sind Search-Console-Zahlen nur für diese Seite. Sie schließen die Saisonalität, andere Änderungen an der Seite oder ein Google-Update nicht aus."
+        }
       },
       "pages": {
         "title": "Seiten",
@@ -14080,7 +14227,7 @@
         "retryPrevious": "Vorherige Anfrage wiederholen",
         "coverage": {
           "limitedScope": "Das Audit prüft weiterhin eine Stichprobe öffentlicher Seiten und ihrer internen Links. Klicks, Impressionen und Indexierungsdaten von Google fehlen dann.",
-          "privateConnection": "Das Audit nutzt deine Google-Verbindung nur für die freigegebene Search Console-Property. Deine Kontodaten bleiben privat.",
+          "privateConnection": "Das Audit nutzt deine Google-Verbindung nur für die freigegebene Search Console-Property. Alle, die das Audit sehen können, sehen seine Search Console-Ergebnisse. Deine Google-Verbindung und deine Kontodaten bleiben privat.",
           "withoutSearch": "Ohne Search Console",
           "withSearch": "Mit Search Console",
           "title": "Abdeckung durch die Search Console",
@@ -14131,8 +14278,8 @@
         "importSitemapHelp": "Bis zu {count} aufgeführte Seiten-URLs werden für dieses Audit freigegeben. Die XML-Datei bleibt auf deinem Gerät.",
         "sitemapReading": "Sitemap wird gelesen…",
         "sitemapInvalid": "Wähle eine XML-Sitemap unter 512 KiB mit öffentlichen Seiten dieser Website.",
-        "includePropertyTotals": "Suchdaten, Seiten und Suchanfragen der gesamten Search Console-Property in meinen privaten Bericht aufnehmen.",
-        "includeSitemaps": "Den Status der bei Google eingereichten Sitemaps dieser Property in meinen privaten Bericht aufnehmen.",
+        "includePropertyTotals": "Suchdaten, Seiten und Suchanfragen der gesamten Search Console-Property in den Bericht aufnehmen. Alle, die das Audit sehen, sehen sie auch.",
+        "includeSitemaps": "Den Status der bei Google eingereichten Sitemaps dieser Property in den Bericht aufnehmen. Alle, die das Audit sehen, sehen ihn auch.",
         "alreadyRunning": "Eine Prüfung läuft. Warte auf ihr Ergebnis, bevor du die nächste startest.",
         "noPermission": "Für diese Seiten kann keine Prüfung angefragt werden.",
         "running": "Laufende Prüfungen",
@@ -14275,10 +14422,16 @@
           "fixed": "{count} behoben",
           "drops": "{count, plural, one {# Ranking-Verlust} other {# Ranking-Verluste}}",
           "rises": "{count, plural, one {# Ranking-Gewinn} other {# Ranking-Gewinne}}",
+          "lostCitations": "{count, plural, one {# verlorene Nennung in der KI-Übersicht} other {# verlorene Nennungen in der KI-Übersicht}}",
           "newFailuresTitle": "Jetzt fehlerhaft",
           "fixedTitle": "Behoben",
           "movesTitle": "Ranking-Bewegungen",
           "move": "{keyword}: Position {from} → {to}",
+          "lost": "{keyword}: war Position {from}, jetzt nicht in den Top {checked}",
+          "lostCitationsTitle": "Nennungen in der KI-Übersicht verloren",
+          "lostCitation": "{keyword}: Die KI-Übersicht nennt deine Seite nicht mehr",
+          "lostCitationGone": "{keyword}: Die KI-Übersicht, die deine Seite nannte, erscheint nicht mehr",
+          "lostCitationsShowing": "{shown} von {total} angezeigt",
           "band": "Eine Ranking-Bewegung zählt nur, wenn sie größer als das normale Suchrauschen ist: 2 Plätze in den Top 3, 5 in den Top 10, 7 in den Top 20."
         },
         "plan": {
@@ -14988,6 +15141,7 @@
         "brandLimited": "Es gibt mehr Zeilen mit Suchanfragen, als die Aufteilung lesen kann. Die Zahlen mit Marke und ohne Marke sind eine Untergrenze.",
         "brandListedOnly": "Diese Zahlen zählen nur die aufgeführten Suchanfragen. Die Tagessummen konnten nicht verglichen werden, deshalb gibt es keine Anteile.",
         "brandUnavailable": "Die Suchanfragen für diesen Zeitraum konnten nicht gelesen werden. Deshalb gibt es keine Markenaufteilung.",
+        "brandLoading": "Die Markenaufteilung wird gelesen…",
         "brandEmpty": "Fügen Sie Ihre Markenbegriffe hinzu. Dann sehen Sie, wie viele Zugriffe aus Suchen nach Ihrem Namen kommen."
       },
       "traffic": {
@@ -15022,8 +15176,7 @@
           "googleNews": "Google News"
         },
         "keyEvents": "Schlüsselereignisse (organisch)",
-        "noKeyEvents": "Google Analytics hat für diese Seiten keine Schlüsselereignisse erfasst. Richte dort Schlüsselereignisse ein, um Conversions hier zu sehen.",
-        "keyEventsAiAssistant": "Schlüsselereignisse (KI-Assistenten)",
+        "noKeyEvents": "Google Analytics hat für diese Seiten keine Schlüsselereignisse erfasst. Richte dort Schlüsselereignisse ein, um sie hier zu sehen.",
         "aiAssistants": "KI-Assistenten",
         "aiAssistantsHelp": "Besuche im Google-Analytics-Kanal „AI Assistant“ (ChatGPT, Perplexity, Gemini, Copilot und andere) nach Einstiegsseite",
         "aiAssistantsTruncated": "Nur die ersten Zeilen wurden behalten, die Summen können höher sein",
@@ -15039,6 +15192,7 @@
           "non_branded": "Ohne Marke"
         },
         "brandTotals": "Aufgeführte Suchanfragen: {branded} Klicks mit Marke ({brandedShare}), {nonBranded} Klicks ohne Marke ({nonBrandedShare})",
+        "brandTotalsNoShare": "Aufgeführte Suchanfragen: {branded} Klicks mit Marke, {nonBranded} Klicks ohne Marke",
         "brandSuggested": "Vorschlag aus dem Namen Ihrer Website. Prüfen Sie die Begriffe vor dem Speichern.",
         "editBrandTerms": "Markenbegriffe bearbeiten",
         "addBrandTerms": "Markenbegriffe hinzufügen",
@@ -15048,7 +15202,8 @@
         "cancelBrandTerms": "Abbrechen",
         "brandSaved": "Markenbegriffe gespeichert",
         "noQueryData": "Für diesen Suchtyp gibt es keine Suchanfragen",
-        "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite"
+        "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite",
+        "keyEventsNotSelected": "Nicht in diesem Abruf"
       },
       "export": {
         "menu": "Exportieren: {table}",
@@ -15293,7 +15448,7 @@
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",
-            "missing": "KI-Übersichten, die Google erst nach der Seite lädt, werden nicht geprüft, weil dieser Abruf extra kostet."
+            "missing": "Du bekommst keinen Hinweis, wenn eine KI-Übersicht deine Seite nicht mehr zitiert."
           },
           "40": {
             "title": "Zugriffe über KI-Assistenten",
@@ -15792,7 +15947,11 @@
         "assigned": "Dir wurde {taskName} zugewiesen",
         "participantAdded": "Du wurdest als Teilnehmer zu {taskName} hinzugefügt",
         "followUp": "{taskName} wartet weiterhin auf dich",
-        "seoMonitorWorse": "{taskName}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}."
+        "seoMonitorWorse": "{site}: Das neueste geplante SEO-Ergebnis ist schlechter. Neue Fehler: {newFailures}. Ranking-Verluste: {drops}. Verlorene Nennungen in der KI-Übersicht: {lostCitations}.",
+        "seoMonitorClicksDrop": "{site}: Die Search-Console-Klicks sind gegenüber dem Zeitraum davor von {clicksFrom} auf {clicksTo} gesunken."
+      },
+      "System": {
+        "seoAdminCritical": "Ein SEO-Audit hat eine kritische Warnung. Öffne die SEO-Warnungen im Adminbereich, um sie zu prüfen."
       },
       "Billing": {
         "lowBalance": "Deine Credits werden knapp: noch {credits}",

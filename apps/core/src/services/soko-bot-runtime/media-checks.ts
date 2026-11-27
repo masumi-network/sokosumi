@@ -6,6 +6,7 @@ import {
   sokoBotGenerateVideoInputSchema as generateVideoInputSchema,
   getSokoBotVersion,
   type OwnerAuthority,
+  parseOwnerAuthority,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -45,8 +46,15 @@ import {
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
   intersectOwnerAuthority,
+  isAuthorityRevokedInSources,
+  isWatchClientTurnId,
+  loadRevokedAuthoritySources,
   type OwnerAuthorityAskedByKind,
   resolveDelegationWakeAuthority,
+  resolveSocialWriteOrigin,
+  SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_INVALID_MESSAGE,
+  WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
 } from "@/lib/soko-bot/owner-authority";
 import { sokoBotProjectRefusal } from "@/lib/soko-bot/write-scope";
 import {
@@ -128,23 +136,272 @@ function wakeAskedByKind(
   return (authorized.turn.chainDepth ?? 0) > 0 ? "ASSISTANT" : "OWNER";
 }
 
+type MediaCapability =
+  | "generate_image"
+  | "generate_video"
+  | "generate_talking_video";
+
+function explicitLimitsAllowMediaCapability(
+  limits: NonNullable<OwnerAuthority["limits"]>,
+  capability: MediaCapability,
+): boolean {
+  const hasAnyCap =
+    limits.images !== undefined ||
+    limits.videos !== undefined ||
+    limits.maxMediaCredits !== undefined;
+  if (!hasAnyCap) return false;
+  if (capability === "generate_image") {
+    return (
+      limits.images !== undefined ||
+      (limits.videos === undefined && limits.maxMediaCredits !== undefined)
+    );
+  }
+  return (
+    limits.videos !== undefined ||
+    (limits.images === undefined && limits.maxMediaCredits !== undefined)
+  );
+}
+
+function summarizeSingleAuthorityMediaAllowance(
+  authority: OwnerAuthority,
+  grantIdOverride?: string,
+): MediaAllowance {
+  const effectiveAuthority =
+    grantIdOverride && authority.limits
+      ? {
+          ...authority,
+          grantId: grantIdOverride,
+          limits: { ...authority.limits, grantId: grantIdOverride },
+        }
+      : authority;
+  const summarized = summarizeGrantBuckets([{ authority: effectiveAuthority }]);
+  if (summarized.unboundedPerTurn) {
+    return {};
+  }
+  const total = (key: "images" | "maxMediaCredits") => {
+    const given = summarized.grants.flatMap((grant) =>
+      grant[key] !== undefined ? [grant[key]] : [],
+    );
+    return given.length
+      ? given.reduce((sum, value) => sum + value, 0)
+      : undefined;
+  };
+  return {
+    images: total("images"),
+    maxCredits: total("maxMediaCredits"),
+    grants: summarized.grants,
+    unboundedPerTurn: false,
+  };
+}
+
 /**
  * A person asked in chat, or this turn carries out a follow-up the owner
  * asked for: "have a Coworker research this, then make images and a post"
  * reaches the images on the turn Core starts when the research is back.
  *
- * Evaluates each carried delegation's persisted `OwnerAuthority` (falling back
- * deterministically for pre-migration rows where `authority === null`),
- * intersects with live binding/actor/expiry, and collapses parallel siblings
- * sharing one `grantId` into a single shared spend bucket.
+ * Evaluates persisted `OwnerAuthority` for watch wakes, scheduled runs (with
+ * explicit `per_occurrence` or `lifetime` media limits), `ADMIN_RETRY` replays,
+ * and delegation `EVENT` wakes (falling back deterministically for pre-migration
+ * rows where `authority === null`), intersects with live binding/actor/expiry/
+ * Project scope, and enforces shared durable `grantId` balances.
  */
 export async function mayMakeMediaForOwner(
   runtime: Pick<RuntimeOperations, "mayActForOwner">,
   authorized: AuthorizedSokoBotRuntime,
-  options?: { projectId?: string },
+  options?: { projectId?: string; capability?: MediaCapability },
 ): Promise<MediaAllowance | null> {
+  const capability: MediaCapability = options?.capability ?? "generate_image";
+  const isWatchOrScheduledOrRetry =
+    isWatchClientTurnId(authorized.turn.clientTurnId) ||
+    authorized.turn.source === "SCHEDULE" ||
+    authorized.turn.source === "ADMIN_RETRY";
+
+  if (isWatchOrScheduledOrRetry) {
+    const origin = await resolveSocialWriteOrigin(authorized.turn, prisma);
+    const now = new Date();
+    const askedByKind = wakeAskedByKind(authorized);
+    const sharedBot = Boolean(authorized.reader?.sharedScope);
+
+    if (origin.watchAuthority && origin.watchAuthority.kind !== "none") {
+      if (origin.watchAuthority.kind === "unresolved") {
+        throw new SokoBotRuntimeAuthorizationError(
+          WATCH_AUTHORITY_UNAVAILABLE_MESSAGE,
+        );
+      }
+      const persisted = parseOwnerAuthority(origin.watchAuthority.authority);
+      if (!persisted) {
+        throw new SokoBotRuntimeAuthorizationError(
+          WATCH_AUTHORITY_INVALID_MESSAGE,
+        );
+      }
+      const liveProjectId =
+        options?.projectId ??
+        origin.watchAuthority.watchProjectId ??
+        authorized.turn.botProjectId ??
+        origin.watchAuthority.botProjectId ??
+        null;
+      const effective = intersectOwnerAuthority(persisted, {
+        sokoBotId: authorized.turn.sokoBotId,
+        workspaceId: authorized.turn.workspaceId,
+        versionId: authorized.turn.versionId,
+        actingUserId: authorized.turn.actingUserId,
+        askedByKind,
+        sharedBot,
+        source: origin.source,
+        ...(persisted.scheduleId ? { scheduleId: persisted.scheduleId } : {}),
+        ...(liveProjectId
+          ? {
+              targetScope: {
+                kind: "project" as const,
+                projectId: liveProjectId,
+              },
+            }
+          : {}),
+        hasWorkspaceAccess: true,
+        botAlive: true,
+        ...(origin.watchAuthority.revoked ? { revoked: true } : {}),
+        carriedUntrustedContent:
+          origin.watchAuthority.watchKind === "chat_reply",
+        offeredCapabilities: [capability],
+        now,
+      });
+      if (!effective.effective) {
+        if (effective.denialReason === "target_scope_mismatch") {
+          throw new SokoBotRuntimeValidationError(
+            "The owner's media authorization for this follow-up is scoped to a different Project.",
+          );
+        }
+        if (effective.denialReason === "revoked") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "The owner's media authorization for this follow-up was revoked. Ask the owner in chat to start it again.",
+          );
+        }
+        if (effective.denialReason === "expired") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "The owner's media authorization for this follow-up has expired. Ask the owner in chat to renew it.",
+          );
+        }
+        return null;
+      }
+      if (
+        effective.authority.origin === "system" ||
+        effective.authority.scope === "read_only"
+      ) {
+        return null;
+      }
+      const limits = effective.authority.limits;
+      if (limits && !explicitLimitsAllowMediaCapability(limits, capability)) {
+        return null;
+      }
+      const hasExplicitMedia = limits !== undefined;
+      const chatWatchAllowed =
+        origin.source === "CHAT" &&
+        (authorized.turn.source === "ADMIN_RETRY"
+          ? authorized.turn.chainDepth === 0 &&
+            authorized.askedByKind !== "ASSISTANT"
+          : await runtime.mayActForOwner(authorized));
+      const scheduleWatchAllowed =
+        origin.source === "SCHEDULE" &&
+        (hasExplicitMedia || (await runtime.mayActForOwner(authorized)));
+      if (!chatWatchAllowed && !scheduleWatchAllowed) {
+        return null;
+      }
+      return summarizeSingleAuthorityMediaAllowance(effective.authority);
+    }
+
+    if (
+      origin.source === "SCHEDULE" &&
+      origin.scheduleAuthority.kind !== "none"
+    ) {
+      if (origin.scheduleAuthority.kind === "unresolved") {
+        return null;
+      }
+      const persisted = parseOwnerAuthority(origin.scheduleAuthority.authority);
+      if (!persisted) {
+        throw new SokoBotRuntimeAuthorizationError(
+          SCHEDULE_AUTHORITY_INVALID_MESSAGE,
+        );
+      }
+      const liveProjectId =
+        options?.projectId ??
+        authorized.turn.botProjectId ??
+        origin.scheduleAuthority.botProjectId ??
+        null;
+      const effective = intersectOwnerAuthority(persisted, {
+        sokoBotId: authorized.turn.sokoBotId,
+        workspaceId: authorized.turn.workspaceId,
+        versionId: authorized.turn.versionId,
+        actingUserId: authorized.turn.actingUserId,
+        askedByKind,
+        sharedBot,
+        source: "SCHEDULE",
+        scheduleId: origin.scheduleAuthority.scheduleId,
+        ...(liveProjectId
+          ? {
+              targetScope: {
+                kind: "project" as const,
+                projectId: liveProjectId,
+              },
+            }
+          : {}),
+        hasWorkspaceAccess: true,
+        botAlive: true,
+        ...(origin.scheduleAuthority.revoked ? { revoked: true } : {}),
+        offeredCapabilities: [capability],
+        now,
+      });
+      if (!effective.effective) {
+        if (effective.denialReason === "target_scope_mismatch") {
+          throw new SokoBotRuntimeValidationError(
+            "The owner's media authorization for this schedule is scoped to a different Project.",
+          );
+        }
+        if (effective.denialReason === "revoked") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "The owner's media authorization for this schedule was revoked. Ask the owner in chat to re-enable or recreate it.",
+          );
+        }
+        if (effective.denialReason === "expired") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "The owner's media authorization for this schedule has expired. Ask the owner in chat to renew it.",
+          );
+        }
+        return null;
+      }
+      if (
+        effective.authority.origin === "system" ||
+        effective.authority.scope === "read_only"
+      ) {
+        return null;
+      }
+      const limits = effective.authority.limits;
+      if (limits) {
+        if (!explicitLimitsAllowMediaCapability(limits, capability)) {
+          return null;
+        }
+        const bucketGrantId =
+          limits.period === "lifetime"
+            ? limits.grantId
+            : `${limits.grantId}:${origin.scheduleAuthority.occurrenceKey ?? `turn:${authorized.turn.id}`}`;
+        return summarizeSingleAuthorityMediaAllowance(
+          effective.authority,
+          bucketGrantId,
+        );
+      }
+      if (authorized.turn.source === "ADMIN_RETRY") {
+        return null;
+      }
+      return (await runtime.mayActForOwner(authorized)) ? {} : null;
+    }
+  }
+
   if (await runtime.mayActForOwner(authorized)) return {};
-  if (authorized.turn.source !== "EVENT") return null;
+  if (
+    authorized.turn.source !== "EVENT" ||
+    capability === "generate_talking_video"
+  ) {
+    return null;
+  }
   const owner = {
     source: true,
     chainDepth: true,
@@ -181,12 +438,13 @@ export async function mayMakeMediaForOwner(
   const versionId = authorized.turn.versionId ?? null;
   const allLiveEffective: { authority: OwnerAuthority }[] = [];
   const matchedEffective: { authority: OwnerAuthority }[] = [];
+  let sawRevoked = false;
   let sawExpired = false;
   let sawScopeMismatch = false;
 
-  for (let index = 0; index < carried.length; index += 1) {
-    const delegation = carried[index]!;
-    const authority = resolveDelegationWakeAuthority(
+  const resolvedDelegations = carried.map((delegation, index) => ({
+    delegation,
+    authority: resolveDelegationWakeAuthority(
       {
         id: delegation.id ?? `legacy-${index}`,
         authority: delegation.authority,
@@ -198,7 +456,14 @@ export async function mayMakeMediaForOwner(
         workspaceId: fallbackWorkspaceId,
         versionId,
       },
-    );
+    ),
+  }));
+  const revokedSources = await loadRevokedAuthoritySources(
+    resolvedDelegations.map((item) => item.authority),
+    prisma,
+  );
+
+  for (const { delegation, authority } of resolvedDelegations) {
     if (authority.origin === "system") continue;
     const sokoBotId = authorized.turn.sokoBotId ?? authority.sokoBotId;
     const workspaceId = authorized.turn.workspaceId ?? authority.workspaceId;
@@ -211,6 +476,7 @@ export async function mayMakeMediaForOwner(
       authorized.turn.botProjectId ??
       delegation.turn.sokoBot?.projectId ??
       null;
+    const revoked = isAuthorityRevokedInSources(authority, revokedSources);
     const baseContext = {
       sokoBotId,
       workspaceId,
@@ -219,8 +485,10 @@ export async function mayMakeMediaForOwner(
       askedByKind,
       sharedBot,
       source: "EVENT",
+      ...(authority.scheduleId ? { scheduleId: authority.scheduleId } : {}),
       hasWorkspaceAccess: true,
       botAlive: true,
+      ...(revoked ? { revoked: true } : {}),
       offeredCapabilities: ["generate_image", "generate_video"] as const,
       now,
     };
@@ -234,6 +502,7 @@ export async function mayMakeMediaForOwner(
         : authority.targetScope,
     });
     if (!liveBotScoped.effective) {
+      if (liveBotScoped.denialReason === "revoked") sawRevoked = true;
       if (liveBotScoped.denialReason === "expired") sawExpired = true;
       if (liveBotScoped.denialReason === "target_scope_mismatch") {
         sawScopeMismatch = true;
@@ -273,6 +542,11 @@ export async function mayMakeMediaForOwner(
     if (sawScopeMismatch) {
       throw new SokoBotRuntimeValidationError(
         "The owner's media authorization for this follow-up is scoped to a different Project.",
+      );
+    }
+    if (sawRevoked) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "The owner's media authorization for this follow-up was revoked. Ask the owner in chat to start it again.",
       );
     }
     if (sawExpired) {
@@ -371,6 +645,7 @@ export async function checkImageRequest(
   const input = generateImageInputSchema.parse(raw);
   const allowance = await mayMakeMediaForOwner(runtime, authorized, {
     projectId: input.projectId,
+    capability: "generate_image",
   });
   if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
@@ -565,6 +840,7 @@ export async function checkVideoRequest(
   const input = generateVideoInputSchema.parse(raw);
   const allowance = await mayMakeMediaForOwner(runtime, authorized, {
     projectId: input.projectId,
+    capability: "generate_video",
   });
   if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
@@ -692,13 +968,39 @@ export async function checkTalkingVideoRequest(
   authorized: AuthorizedSokoBotRuntime,
   raw: unknown,
   toolCallId: string,
+  operationKey: string | null = null,
 ) {
   const input = generateTalkingVideoInputSchema.parse(raw);
-  if (!(await runtime.mayActForOwner(authorized)))
+  const allowance = await mayMakeMediaForOwner(runtime, authorized, {
+    projectId: input.projectId,
+    capability: "generate_talking_video",
+  });
+  if (!allowance)
     throw new SokoBotRuntimeAuthorizationError(
       "Talking videos are made only when a person asks in chat. Write the script you would use instead.",
     );
   runtime.refuseCmoRunMedia(authorized);
+  const authoritySpend: MediaSpendRequest | null =
+    allowance.grants &&
+    allowance.grants.length > 0 &&
+    !allowance.unboundedPerTurn
+      ? {
+          sokoBotId: authorized.turn.sokoBotId,
+          workspaceId: authorized.turn.workspaceId,
+          turnId: authorized.turn.id,
+          toolCallId,
+          operationKey,
+          capability: "generate_talking_video",
+          projectId: input.projectId,
+          images: 0,
+          videos: 1,
+          credits: input.maxCredits,
+          grants: allowance.grants,
+        }
+      : null;
+  if (authoritySpend) {
+    await checkGrantSpendPreflight(prisma, authoritySpend);
+  }
   const started = await prisma.sokoBotToolCall.count({
     where: {
       turnId: authorized.turn.id,
@@ -753,7 +1055,7 @@ export async function checkTalkingVideoRequest(
       `This video costs ${credits} credits, more than the ${input.maxCredits} allowed. ${fits >= 20 ? `A script of at most ${fits} characters fits; shorten it, or ask` : "Ask"} your owner before spending more.`,
     );
   }
-  return { input, model, credits };
+  return { input, model, credits, authoritySpend };
 }
 
 /**

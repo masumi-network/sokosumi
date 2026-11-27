@@ -14,16 +14,18 @@ import {
 } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import { recordCoreWarning } from "@/lib/evlog";
-import {
-  chatGptPlanEffectiveModel,
-  localChatGptPlanEnabled,
-} from "@/lib/local-chatgpt-plan";
+import { chatGptPlanEffectiveModel } from "@/lib/local-chatgpt-plan";
 import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
+import { planJevMode, planUsesJevStandIn } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { evaluationClassifierContext } from "./evaluation-dispatch";
-import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
+import {
+  JEV_PROVIDER_OPTIONS,
+  recordedOnPlan,
+  SOKO_BOT_JEV_MODEL,
+} from "./jev";
 
 /**
  * Jev, TypeSafe AI's evaluation model, picks every route.
@@ -53,9 +55,7 @@ const MAX_ATTEMPTS = 2;
 export function classifierAttemptTimeoutMs(
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  return localChatGptPlanEnabled(env)
-    ? PLAN_ATTEMPT_TIMEOUT_MS
-    : ATTEMPT_TIMEOUT_MS;
+  return planUsesJevStandIn(env) ? PLAN_ATTEMPT_TIMEOUT_MS : ATTEMPT_TIMEOUT_MS;
 }
 const MAX_MESSAGE_LENGTH = 8_000;
 const MAX_PREVIOUS_REPLY_LENGTH = 1_500;
@@ -306,6 +306,7 @@ export interface RouteEvaluation {
 
 /** The routing model that actually answers: Jev, or the plan's stand-in. */
 export function routeModelName(): string {
+  if (planJevMode() === "real") return SOKO_BOT_ROUTE_MODEL;
   return (
     chatGptPlanEffectiveModel(SOKO_BOT_ROUTE_MODEL) ?? SOKO_BOT_ROUTE_MODEL
   );
@@ -327,21 +328,25 @@ const evaluateWithJev: RouteEvaluator = async ({
   hasPendingProposals,
   abortSignal,
 }) => {
-  if (localChatGptPlanEnabled())
+  const mode = planJevMode();
+  if (mode === "stand-in")
     return evaluateOnChatGptPlan({
       state,
       questions: routeQuestions(hasPendingProposals),
       abortSignal,
     });
-  const result = await experimental_evaluate({
-    model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
-    // Clipped text can end in half an emoji, which the Gateway refuses.
-    state: wellFormed(state),
-    questions: routeQuestions(hasPendingProposals),
-    abortSignal,
-    maxRetries: 0,
-    providerOptions: JEV_PROVIDER_OPTIONS,
-  }).catch(rethrowAiGatewayFailure);
+  const result = await recordedOnPlan(
+    mode,
+    experimental_evaluate({
+      model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
+      // Clipped text can end in half an emoji, which the Gateway refuses.
+      state: wellFormed(state),
+      questions: routeQuestions(hasPendingProposals),
+      abortSignal,
+      maxRetries: 0,
+      providerOptions: JEV_PROVIDER_OPTIONS,
+    }).catch(rethrowAiGatewayFailure),
+  );
   return {
     answers: result.answers,
     usage: result.usage,

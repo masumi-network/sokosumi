@@ -38,6 +38,7 @@ import {
   normalizeGscKeywordSeries,
   normalizeGscQueries,
   selectTrackedKeywords,
+  storedKeywordSeries,
 } from "@/lib/seo/native-gsc-queries";
 import {
   applyPreviousSeoPeriod,
@@ -569,7 +570,7 @@ export async function syncProjectSeoStatistics(
         readsQueries && !audit
           ? selectTrackedKeywords(workspace.keywords)
           : { groups: [], leftOut: [] };
-      // One read per keyword country; any failed read drops the whole series, so no country reads as partial.
+      // One read per keyword group; any failed read drops the whole series, so no country reads as partial.
       const collectKeywordSeries =
         async (): Promise<NativeKeywordSeries | null> => {
           if (!tracked.groups.length) return null;
@@ -667,7 +668,7 @@ export async function syncProjectSeoStatistics(
           metrics.notes.push(SEO_STATISTICS_QUERY_ROWS_UNAVAILABLE_NOTE);
         if (tracked.groups.length) {
           if (keywordSeries.status === "fulfilled" && keywordSeries.value) {
-            metrics.keywordSeries = keywordSeries.value;
+            Object.assign(metrics, storedKeywordSeries(keywordSeries.value));
             if (keywordSeries.value.truncated)
               metrics.notes.push(
                 seoStatisticsKeywordRowsCutNote(keywordSeries.value.rowLimit),

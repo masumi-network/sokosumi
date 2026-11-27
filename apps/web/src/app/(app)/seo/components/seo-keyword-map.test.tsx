@@ -741,7 +741,9 @@ it("marks recommended ideas in the graph and explains the same marker from the k
   graph.focus();
   await user.keyboard("{ArrowRight}{Enter}");
   const details = within(await screen.findByTestId("seo-keyword-popover"));
-  expect(details.getByText(/Strong goal fit and low difficulty/)).toBeVisible();
+  expect(
+    details.getByText(/High chance to convert and low difficulty/),
+  ).toBeVisible();
   expect(details.getByText(/400%/)).toBeVisible();
   expect(
     details.getByRole("button", { name: /Draft in Content Studio/ }),
@@ -764,9 +766,7 @@ it("expands the whole idea row, keeps tracking independent, and gives the detail
     </NextIntlClientProvider>,
   );
   const toggle = screen.getByRole("button", { name: idea.keyword });
-  expect(
-    screen.queryByText("The estimated fit with your page goal is medium."),
-  ).toBeNull();
+  expect(screen.queryByText("The chance to convert is medium.")).toBeNull();
   const summary = toggle.closest("tr")!;
   await user.click(within(summary).getByRole("button", { name: "Track" }));
   expect(model.toggleKeyword).toHaveBeenCalledWith(idea);
@@ -774,16 +774,14 @@ it("expands the whole idea row, keeps tracking independent, and gives the detail
   await user.click(within(summary).getByText("14,800"));
   expect(toggle).toHaveAttribute("aria-expanded", "true");
   const panel = screen
-    .getByText("The estimated fit with your page goal is medium.")
+    .getByText("The chance to convert is medium.")
     .closest("td")!;
   expect(panel.colSpan).toBe(summary.cells.length);
   expect(panel).toHaveTextContent("Top 10 +120");
   expect(panel).toHaveTextContent("Top 3 +891");
   toggle.focus();
   await user.keyboard(" ");
-  expect(
-    screen.queryByText("The estimated fit with your page goal is medium."),
-  ).toBeNull();
+  expect(screen.queryByText("The chance to convert is medium.")).toBeNull();
 });
 
 it("folds exactly ten of eleven keyword ideas and expands the remaining idea", async () => {

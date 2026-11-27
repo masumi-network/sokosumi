@@ -15,6 +15,8 @@ Export both `DATABASE_URL` and `DATABASE_URL_UNPOOLED` as the printed URL (`post
 
 Deploy to a Neon database over its direct URL (`DATABASE_URL_UNPOOLED`, the host without `-pooler`). Through the pooler, Prisma's migration advisory lock can outlive the run and block every later deploy on that database.
 
+GitHub preview provisioning verifies both URLs against the preview branch's read-write endpoint before writing them to Vercel, and Prisma's Preview preflight checks that they name the same endpoint, database and role.
+
 To build a database that matches `main`, move the branch's new folders out of `prisma/migrations`, deploy, then move them back and deploy again. `prisma.config.ts` pins `migrations.path`, so `--schema` pointed at another tree still applies the branch's migrations. Check the migration count in the deploy log, and `git status --porcelain prisma/migrations` after the restore.
 
 The same server runs a Core `*.postgres.test.ts` locally: from `apps/core`, `RUN_DATABASE_INTEGRATION_TESTS=true pnpm exec vitest run <file>` with the URL exported. A race test needs several connections and proves itself only in CI's real PostgreSQL.
@@ -42,12 +44,19 @@ RESET lock_timeout;
 ```
 
 Reset the timeout before backfills and `VALIDATE CONSTRAINT`. Use plain `SET lock_timeout` because `SET LOCAL` has no effect outside an explicit transaction block.
+Keep the timeout during a backfill that rewrites rows a live lease writes so a blocked backfill releases the rows it already locked.
 
 After `prisma migrate dev`, add both lines by hand, even if `ALTER TABLE` only adds a foreign key to a table created in the same migration, because the foreign key also locks the referenced table. For pull requests, Test Packages runs this check only when the PR is ready for review, so add the lines before marking it ready.
 
 Test Packages checks new migrations for `SET lock_timeout` whenever the file contains `ALTER TABLE`. For a migration that can safely omit the timeout, add a line in the SQL file in the form `-- lock-timeout: not needed, <reason>`.
 
 A lock timeout fails the statement with PostgreSQL error `55P03`. Check which statements took effect and make sure the migration can safely run again. Run `pnpm exec prisma migrate resolve --rolled-back <name>` using the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again. A plain redeploy stops at `P3009`.
+
+### Concurrent index builds
+
+Prisma 7.10.1 fails with `25001` when a migration file contains `DROP INDEX CONCURRENTLY` alongside another statement. A concurrent build therefore cannot carry its own leading drop. Give the build its own migration file so it can be retried independently. [Prisma engines pull request #5847](https://github.com/prisma/prisma-engines/pull/5847)
+
+For a concurrent build, omit `lock_timeout` because it can cancel the build and leave an invalid index, and omit `IF NOT EXISTS` because it hides an invalid index. A failed build blocks every later production deploy with `P3009` until a human recovers it. Check `pg_stat_activity` first for a still-running `CREATE INDEX` targeting the index. Once the build has stopped and the cause is fixed, run `DROP INDEX CONCURRENTLY IF EXISTS "<index>"` and `pnpm exec prisma migrate resolve --rolled-back <migration>` on the direct URL (`DATABASE_URL_UNPOOLED`), then deploy again.
 
 ## CI checks on migration text
 

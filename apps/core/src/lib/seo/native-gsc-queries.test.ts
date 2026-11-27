@@ -147,10 +147,10 @@ describe("tracked keyword daily rows", () => {
   });
 
   it("chooses 25 saved keywords by priority and names the rest", () => {
-    const keywords = Array.from({ length: 30 }, (_, i) => ({
+    const keywords = Array.from({ length: 60 }, (_, i) => ({
       keyword: `kw ${String(i).padStart(2, "0")}`,
       saved: true,
-      priority: (i === 29 ? "high" : "medium") as "high" | "medium",
+      priority: (i === 59 ? "high" : "medium") as "high" | "medium",
       countryCode: "US",
       version: 1,
       source: "saved",
@@ -158,7 +158,7 @@ describe("tracked keyword daily rows", () => {
     const { groups, leftOut } = selectTrackedKeywords([
       ...keywords,
       {
-        keyword: "KW  29",
+        keyword: "KW  59",
         saved: true,
         priority: "low",
         countryCode: "US",
@@ -174,38 +174,42 @@ describe("tracked keyword daily rows", () => {
         source: "saved",
       },
     ]);
-    expect(groups).toHaveLength(1);
-    const chosen = groups[0].keywords;
-    expect(chosen).toHaveLength(25);
-    expect(chosen.slice(0, 3)).toEqual(["kw 29", "kw 00", "kw 01"]);
+    expect(groups.map((group) => group.keywords.length)).toEqual([25, 25]);
+    expect(groups.every((group) => group.countryCode === "US")).toBe(true);
+    const chosen = groups.flatMap((group) => group.keywords);
+    expect(new Set(chosen).size).toBe(50);
+    expect(chosen.slice(0, 3)).toEqual(["kw 59", "kw 00", "kw 01"]);
     expect(leftOut).toEqual([
-      "kw 24 (US)",
-      "kw 25 (US)",
-      "kw 26 (US)",
-      "kw 27 (US)",
-      "kw 28 (US)",
+      "kw 49 (US)",
+      "kw 50 (US)",
+      "kw 51 (US)",
+      "kw 52 (US)",
+      "kw 53 (US)",
+      "kw 54 (US)",
+      "kw 55 (US)",
+      "kw 56 (US)",
+      "kw 57 (US)",
+      "kw 58 (US)",
     ]);
     const note = seoStatisticsKeywordsLeftOutNote(
       leftOut,
       SEO_KEYWORD_SERIES_MAX_KEYWORDS,
       SEO_KEYWORD_SERIES_MAX_COUNTRIES,
     );
-    expect(note).toContain(
-      '"kw 24 (US)", "kw 25 (US)", "kw 26 (US)", "kw 27 (US)", "kw 28 (US)".',
-    );
+    expect(note).toContain('"kw 49 (US)", "kw 50 (US)"');
     expect(note).not.toMatch(/[–—]/);
   });
 
   it("reads the reader's own keywords before the keywords tracked from a check", () => {
     // A check tracks its keywords from the start, with no stored choice (version 0).
-    const fromCheck = Array.from({ length: 26 }, (_, i) => ({
+    const fromCheck = Array.from({ length: 51 }, (_, i) => ({
       keyword: `check ${String(i).padStart(2, "0")}`,
       saved: true,
       priority: "high" as const,
       countryCode: "US",
       version: 0,
       // The last one is a keyword the check set out to read; the others it found on the way.
-      source: i === 25 ? "focus" : "ranked",
+      source: i === 50 ? "focus" : "ranked",
     }));
     const own = {
       keyword: "own",
@@ -221,14 +225,14 @@ describe("tracked keyword daily rows", () => {
       // The same keyword in a second language of the country, there without a choice: the choice holds.
       { ...own, keyword: "OWN", version: 0, source: "ranked" },
     ]);
-    // The reader's keyword keeps its place, at the lowest priority and after 26 others.
+    // The reader's keyword keeps its place, at the lowest priority and after 51 others.
     // Then the keyword the check set out to read, then the others by name.
     expect(groups[0].keywords.slice(0, 3)).toEqual([
       "own",
-      "check 25",
+      "check 50",
       "check 00",
     ]);
-    expect(groups[0].keywords).toHaveLength(25);
+    expect(groups.flatMap((group) => group.keywords)).toHaveLength(50);
     // Two keywords of the check did not fit. The reader did not choose them, so no note names them.
     expect(leftOut).toEqual([]);
   });
@@ -270,14 +274,55 @@ describe("tracked keyword daily rows", () => {
       source: "saved",
     }));
     const { groups, leftOut } = selectTrackedKeywords(keywords);
-    expect(leftOut.length).toBeGreaterThan(0);
-    const [group] = gscKeywordSeriesArguments(query, groups[0])
-      .dimension_filter_groups as Array<{
-      filters: Array<{ expression: string }>;
-    }>;
-    expect(group.filters[1].expression.length).toBeLessThanOrEqual(
-      GSC_FILTER_EXPRESSION_LIMIT,
-    );
+    // Long keywords fill a read before 25 fit, so the next ones start a new read.
+    expect(groups.length).toBeGreaterThan(1);
+    expect(leftOut).toEqual([]);
+    for (const chosen of groups) {
+      const [group] = gscKeywordSeriesArguments(query, chosen)
+        .dimension_filter_groups as Array<{
+        filters: Array<{ expression: string }>;
+      }>;
+      expect(group.filters[1].expression.length).toBeLessThanOrEqual(
+        GSC_FILTER_EXPRESSION_LIMIT,
+      );
+    }
+  });
+
+  it("puts a keyword in an earlier read of its country that has room", () => {
+    const tracked = (keyword: string, priority: "high" | "medium" | "low") => ({
+      keyword,
+      saved: true,
+      priority,
+      countryCode: "US",
+      version: 1,
+      source: "saved",
+    });
+    const { groups, leftOut } = selectTrackedKeywords([
+      tracked(`a${"a".repeat(1500)}`, "high"),
+      tracked(`b${"b".repeat(1500)}`, "high"),
+      ...Array.from({ length: 6 }, (_, i) =>
+        tracked(`${i}${"c".repeat(2000)}`, "medium"),
+      ),
+      tracked(`z${"z".repeat(800)}`, "low"),
+    ]);
+    // 4 reads are full of long keywords. The short one still fits the first read.
+    expect(groups.map((group) => group.keywords.length)).toEqual([3, 2, 2, 2]);
+    expect(leftOut).toEqual([]);
+  });
+
+  it("stops at 4 reads per sync when long keywords fill each read", () => {
+    const keywords = Array.from({ length: 12 }, (_, i) => ({
+      keyword: `${String(i).padStart(2, "0")}${"a".repeat(1500)}`,
+      saved: true,
+      priority: "medium" as const,
+      countryCode: i < 10 ? "US" : "DE",
+      version: 1,
+      source: "saved",
+    }));
+    const { groups, leftOut } = selectTrackedKeywords(keywords);
+    // 2 keywords of 1,502 characters fit one read. The first 8 take all 4 reads.
+    expect(groups.map((group) => group.keywords.length)).toEqual([2, 2, 2, 2]);
+    expect(leftOut).toHaveLength(4);
   });
 
   it("merges case and spacing variants per day with an impression-weighted position", () => {
@@ -307,6 +352,34 @@ describe("tracked keyword daily rows", () => {
         { keyword: "unused keyword", countryCode: "US", points: [] },
       ],
     });
+  });
+
+  it("leaves out the rows of a query that differs from a keyword by case folding only", () => {
+    // The filter ignores case: a read of "οσ" also returns "ος", which is another keyword.
+    const result = normalizeGscKeywordSeries(
+      query,
+      { countryCode: "US", keywords: ["οσ"] },
+      { rows: [day("2026-10-10", "οσ", 1, 4), day("2026-10-10", "ος", 9, 9)] },
+    );
+    expect(result.keywords).toEqual([
+      {
+        keyword: "οσ",
+        countryCode: "US",
+        points: [expect.objectContaining({ date: "2026-10-10", clicks: 1 })],
+      },
+    ]);
+  });
+
+  it("leaves out a case-fold twin that normalizing composes into another letter", () => {
+    // The filter matches "\u03b1\u0345" for "\u03b1\u03b9" as written; normalized it is "\u1fb3", which no longer matches.
+    const result = normalizeGscKeywordSeries(
+      query,
+      { countryCode: "US", keywords: ["\u03b1\u03b9"] },
+      { rows: [day("2026-10-10", "\u03b1\u0345", 9, 9)] },
+    );
+    expect(result.keywords).toEqual([
+      { keyword: "\u03b1\u03b9", countryCode: "US", points: [] },
+    ]);
   });
 
   it("refuses a query outside the set, a date outside the period, duplicates and other groupings", () => {

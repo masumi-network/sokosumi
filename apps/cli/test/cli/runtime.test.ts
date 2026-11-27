@@ -776,3 +776,164 @@ test("runtime receipt rejects --organization-id like key-import", async () => {
     /does not accept --organization-id; the Task ID selects the Task/,
   );
 });
+
+// SOKD-478: the Coworker-key routes run on the runtime path, with that Coworker's key only.
+function selfDependencies(store?: CredentialStore<RuntimeCredential>) {
+  const output: string[] = [];
+  const calls: { method: string; path: string; body?: unknown }[] = [];
+  const dependencies: CliDependencies = {
+    get authManager(): never {
+      throw new Error("Developer credentials must not be read");
+    },
+    get env(): never {
+      throw new Error("Developer environment must not be read");
+    },
+    stdout: { write: (value) => output.push(value) },
+    readStdin: () => key,
+    runtime: {
+      ...(store ? { credentialStore: store } : {}),
+      fetchImpl: async (input, init) => {
+        const url = new URL(String(input));
+        assert.equal(url.origin, PREPROD_API_URL);
+        assert.equal(
+          new Headers(init?.headers).get("Authorization"),
+          `Bearer ${key}`,
+        );
+        const method = init?.method || "GET";
+        calls.push({
+          method,
+          path: url.pathname,
+          body: init?.body ? JSON.parse(String(init.body)) : undefined,
+        });
+        if (url.pathname === "/v1/coworkers/me")
+          return Response.json({ data: { id: "cw-1", name: "Ada" } });
+        if (url.pathname === "/v1/coworkers/me/events")
+          return Response.json({ data: [{ id: "evt-1" }] });
+        return Response.json({ data: { id: "usage-1" } }, { status: 201 });
+      },
+    },
+  };
+  return { dependencies, calls, output };
+}
+
+const storedKey: CredentialStore<RuntimeCredential> = {
+  isSupported: true,
+  read: () => ({ apiKey: key }),
+  write: () => {},
+  clear: () => {},
+};
+
+test("runtime me and events read the Coworker with its stored key", async () => {
+  for (const [command, path, data] of [
+    ["me", "/v1/coworkers/me", { id: "cw-1", name: "Ada" }],
+    ["events", "/v1/coworkers/me/events", [{ id: "evt-1" }]],
+  ] as const) {
+    const f = selfDependencies(storedKey);
+    await runCli(
+      ["runtime", command, "--coworker-id", "cw-1", "--json"],
+      f.dependencies,
+    );
+    assert.deepEqual(f.calls, [{ method: "GET", path, body: undefined }]);
+    assert.deepEqual(JSON.parse(f.output.join("")).data, data);
+  }
+});
+
+test("runtime report-usage posts the usage body with the Coworker key", async () => {
+  const usage = { userId: "user-1", idempotencyKey: "u-1", credits: 2.5 };
+  const f = selfDependencies();
+  await runCli(
+    [
+      "runtime",
+      "report-usage",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
+      "--input-json",
+      JSON.stringify(usage),
+      "--json",
+    ],
+    f.dependencies,
+  );
+  assert.deepEqual(f.calls, [
+    { method: "POST", path: "/v1/coworkers/me/usage", body: usage },
+  ]);
+  assert.deepEqual(JSON.parse(f.output.join("")).data, { id: "usage-1" });
+});
+
+test("runtime report-usage needs a body; me and events take no Task ID", async () => {
+  const f = selfDependencies(storedKey);
+  await assert.rejects(
+    runCli(
+      ["runtime", "report-usage", "--coworker-id", "cw-1"],
+      f.dependencies,
+    ),
+    /--input-json or --input-file/,
+  );
+  await assert.rejects(
+    runCli(
+      ["runtime", "me", "task-1", "--coworker-id", "cw-1"],
+      f.dependencies,
+    ),
+    /takes no Task ID/,
+  );
+  assert.equal(f.calls.length, 0);
+});
+
+test("runtime me without a stored key says how to configure one", async () => {
+  const f = selfDependencies({ ...storedKey, read: () => null });
+  await assert.rejects(
+    runCli(["runtime", "me", "--coworker-id", "cw-1"], f.dependencies),
+    /runtime key-import or supply --api-key-stdin/,
+  );
+  assert.equal(f.calls.length, 0);
+});
+
+test("coworkers me, events and report-usage point to the runtime commands before sign-in", async () => {
+  for (const command of ["me", "events", "report-usage"]) {
+    const f = selfDependencies();
+    await assert.rejects(
+      runCli(["coworkers", command], f.dependencies),
+      new RegExp(`runtime ${command} --coworker-id COWORKER_ID`),
+    );
+    assert.equal(f.calls.length, 0);
+  }
+});
+
+test("runtime events pages with --limit and --cursor", async () => {
+  const f = selfDependencies(storedKey);
+  const paths: string[] = [];
+  const fetchImpl = f.dependencies.runtime!.fetchImpl!;
+  f.dependencies.runtime!.fetchImpl = async (input, init) => {
+    const url = new URL(String(input));
+    paths.push(`${url.pathname}${url.search}`);
+    return fetchImpl(input, init);
+  };
+  await runCli(
+    [
+      "runtime",
+      "events",
+      "--coworker-id",
+      "cw-1",
+      "--limit",
+      "50",
+      "--cursor",
+      "evt 9",
+    ],
+    f.dependencies,
+  );
+  assert.deepEqual(paths, ["/v1/coworkers/me/events?limit=50&cursor=evt+9"]);
+});
+
+test("runtime receipt without a Coworker points a person to tasks receipt (SOKD-467)", async () => {
+  for (const argv of [
+    ["runtime", "receipt", "task-1", "--organization-slug", "utxo"],
+    ["runtime", "receipt", "task-1"],
+  ]) {
+    const f = fixture();
+    await assert.rejects(
+      runCli(argv, f.dependencies),
+      /sokosumi tasks receipt TASK_ID/,
+    );
+    assert.equal(f.calls.length, 0);
+  }
+});

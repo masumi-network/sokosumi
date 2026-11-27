@@ -13,6 +13,7 @@ import {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
@@ -200,6 +201,7 @@ async function startFollowUp(
     asked.capabilityNames,
   );
   const started = await sokoBotControlPlane.startTurn({
+    network: DETACHED_SOKO_BOT_NETWORK,
     userId: lane.userId,
     workspaceId: lane.workspaceId,
     sokoBotId: lane.cusoBotId,
@@ -288,6 +290,7 @@ async function startScenario(
   if (scenario.setup?.xDms) await seedEvalXDms(lane, scenario.setup.xDms);
   for (const schedule of scenario.setup?.schedules ?? [])
     await createSokoBotSchedule({
+      network: DETACHED_SOKO_BOT_NETWORK,
       userId: lane.userId,
       workspaceId: lane.workspaceId,
       sokoBotId,
@@ -313,6 +316,7 @@ async function startScenario(
           ? await startCusoRhythmTurn(lane, scenario.cusoRhythm)
           : (
               await sokoBotControlPlane.startTurn({
+                network: DETACHED_SOKO_BOT_NETWORK,
                 userId: lane.userId,
                 workspaceId: lane.workspaceId,
                 sokoBotId,

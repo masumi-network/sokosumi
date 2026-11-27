@@ -1,13 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import { createFormatter, createTranslator } from "next-intl";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "@/messages/en.json";
 import AdminSeoAlertsPage from "./page";
 
-const { read } = vi.hoisted(() => ({ read: vi.fn() }));
+const { read, readImpact, zone } = vi.hoisted(() => ({
+  read: vi.fn(),
+  readImpact: vi.fn(),
+  zone: { current: "UTC" },
+}));
 vi.mock("@/lib/services/admin-seo-alerts.service", () => ({
   readAdminSeoAlerts: read,
+  readAdminSeoActionImpact: readImpact,
 }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async () =>
@@ -19,10 +24,13 @@ vi.mock("next-intl/server", () => ({
   getFormatter: async () =>
     createFormatter({
       locale: "en",
-      timeZone: "UTC",
+      timeZone: zone.current,
       formats: createFormats(),
     }),
 }));
+afterEach(() => {
+  zone.current = "UTC";
+});
 
 it("shows aggregate counts, incident time, page impact and an admin-only task link", async () => {
   read.mockResolvedValue({
@@ -75,7 +83,7 @@ it("shows counts on the admin hub and distinguishes a failed read from zero aler
   });
   render(await SeoAlertSummary());
   expect(
-    screen.getByText("Last 30 days: 2 critical, 3 warnings"),
+    screen.getByText("Open or from the last 30 days: 2 critical, 3 warnings"),
   ).toBeInTheDocument();
   expect(screen.getByText("Connections to reconnect: 1")).toBeInTheDocument();
   expect(read).toHaveBeenLastCalledWith({
@@ -283,4 +291,113 @@ it("shows a settled run's cost breakdown with unpriced models and the Unattribut
     "Unattributed$0.75",
   ]);
   expect(screen.getAllByText("Unattributed")).toHaveLength(1);
+});
+
+it("shows staff the before and after of a done action and keeps the window across pages", async () => {
+  read.mockResolvedValue({
+    total: 0,
+    connectionTotal: 0,
+    billingTotal: 0,
+    pageSize: 25,
+    items: [],
+  });
+  const window = { from: "2026-05-27", to: "2026-06-09" };
+  readImpact.mockResolvedValue({
+    hasNext: true,
+    pageSize: 10,
+    items: [
+      {
+        auditId: "audit-1",
+        projectId: null,
+        workspaceId: "workspace-1",
+        workspaceOrganizationSlug: null,
+        workspaceUserId: "ada",
+        userId: "ada/1",
+        actions: [
+          {
+            id: "a",
+            pageUrl: "https://example.test/a",
+            title: "Fix the title",
+            impact: {
+              anchor: "2026-06-10",
+              anchorKind: "completed",
+              days: 14,
+              state: "measured",
+              before: {
+                ...window,
+                clicks: 40,
+                impressions: 1000,
+                position: 8.25,
+              },
+              after: {
+                ...window,
+                clicks: 60,
+                impressions: 1000,
+                position: null,
+              },
+            },
+          },
+          {
+            id: "b",
+            pageUrl: "https://example.test/b",
+            title: "Fix the links",
+            impact: {
+              anchor: "2026-06-20",
+              anchorKind: "verified",
+              days: 14,
+              state: "too_early",
+              before: null,
+              after: null,
+            },
+          },
+        ],
+      },
+      {
+        auditId: null,
+        projectId: "project-2",
+        workspaceId: "workspace-2",
+        workspaceOrganizationSlug: "acme",
+        workspaceUserId: null,
+        userId: "bob",
+        actions: [],
+      },
+    ],
+  });
+  // Noon UTC is the next day in Auckland. The day of the action stays a Search Console day.
+  zone.current = "Pacific/Auckland";
+  render(
+    await AdminSeoAlertsPage({
+      searchParams: Promise.resolve({ view: "impact", days: "14" }),
+    }),
+  );
+  // The other tabs' counts load without a page of their rows.
+  expect(read).toHaveBeenLastCalledWith({
+    period: "30",
+    page: 1,
+    view: "counts",
+  });
+  expect(readImpact).toHaveBeenLastCalledWith({ days: 14, page: 1 });
+  expect(screen.getByText("Fix the title")).toBeVisible();
+  expect(screen.getByText(/Task completed on Jun 10, 2026/)).toBeVisible();
+  const cells = screen.getAllByRole("cell").map((cell) => cell.textContent);
+  expect(cells).toEqual([
+    "40",
+    "60 (+50%)",
+    "1,000",
+    "1,000 (0%)",
+    "8.3",
+    "No impressions",
+    // A too-early after side is not a missing read.
+    ...Array(3).fill(["Not measured", "Not final yet"]).flat(),
+  ]);
+  expect(
+    screen.getByText("No done action on a page with stored daily data."),
+  ).toBeVisible();
+  expect(
+    screen.getAllByRole("link", { name: "Open account" })[0],
+  ).toHaveAttribute("href", "/admin/users/ada%2F1");
+  expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute(
+    "href",
+    "/admin/seo-alerts?period=30&view=impact&days=14&page=2",
+  );
 });

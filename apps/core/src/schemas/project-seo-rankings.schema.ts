@@ -15,6 +15,8 @@ export const seoPositionPointSchema = z
     observationId: z.string(),
     position: z.number().nullable(),
     positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),
+    /** Organic results the read checked: "not_in_range" means not in this many. Null: the check did not say. */
+    checkedResults: z.number().int().nullable().optional(),
     device: z.union([device, z.null()]),
   })
   .openapi("ProjectSeoPositionPoint");
@@ -46,6 +48,11 @@ export const seoSerpPointSchema = z
          * domain on the page's host (not determined).
          */
         pageCited: z.boolean().nullable(),
+        /**
+         * The AI Overview cites at least one checked site (one value for all pages of the check). Null: a source names neither URL nor domain (not determined).
+         * Missing on reads stored before the SEO bot sent it.
+         */
+        siteCited: z.boolean().nullable().optional(),
       }),
       z.null(),
     ]),

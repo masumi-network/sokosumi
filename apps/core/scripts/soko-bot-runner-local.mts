@@ -10,6 +10,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { issueTurnToken } from "@/lib/soko-bot/sandbox/turn-token";
 import { SokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 
@@ -43,6 +44,7 @@ const manualRuntime = {
 
 const plane = new SokoBotControlPlane(manualRuntime as never);
 const started = await plane.startTurn({
+  network: DETACHED_SOKO_BOT_NETWORK,
   userId,
   workspaceId,
   clientTurnId: `local-runner:${Date.now()}`,

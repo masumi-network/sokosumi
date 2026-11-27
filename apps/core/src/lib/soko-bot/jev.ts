@@ -1,8 +1,12 @@
 import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
-import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { evaluateOnChatGptPlan } from "@/lib/local-chatgpt-plan-stand-ins";
+import {
+  type PlanJevMode,
+  planJevMode,
+  recordRealJevCall,
+} from "@/lib/plan-jev";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 
 import { gatewayCostUsd } from "./gateway-cost";
@@ -55,22 +59,26 @@ export async function evaluateWithJev(options: {
   /** Confidence-based suggestions require the model's reported probability for its choice. */
   requireChoiceProbability?: boolean;
 }): Promise<{ answers: Map<string, JevAnswer>; costUsd: number }> {
+  const mode = planJevMode();
   const result: { answers?: unknown; providerMetadata?: unknown } =
-    localChatGptPlanEnabled()
+    mode === "stand-in"
       ? await evaluateOnChatGptPlan({
           state: options.state,
           questions: options.questions,
           abortSignal: AbortSignal.timeout(options.timeoutMs),
         })
-      : await experimental_evaluate({
-          model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
-          // Clipped text can end in half an emoji, which the Gateway refuses.
-          state: wellFormed(options.state),
-          questions: options.questions,
-          abortSignal: AbortSignal.timeout(options.timeoutMs),
-          maxRetries: 1,
-          providerOptions: JEV_PROVIDER_OPTIONS,
-        }).catch(rethrowAiGatewayFailure);
+      : await recordedOnPlan(
+          mode,
+          experimental_evaluate({
+            model: gateway.evaluationModel(SOKO_BOT_JEV_MODEL),
+            // Clipped text can end in half an emoji, which the Gateway refuses.
+            state: wellFormed(options.state),
+            questions: options.questions,
+            abortSignal: AbortSignal.timeout(options.timeoutMs),
+            maxRetries: 1,
+            providerOptions: JEV_PROVIDER_OPTIONS,
+          }).catch(rethrowAiGatewayFailure),
+        );
   const answers = new Map<string, JevAnswer>();
   for (const [key, raw] of Object.entries(
     (result.answers ?? {}) as Record<string, unknown>,
@@ -95,6 +103,25 @@ export async function evaluateWithJev(options: {
       });
   }
   return { answers, costUsd: gatewayCostUsd(result.providerMetadata) };
+}
+
+/** On a real-Jev plan run, counts the call so failures can pause real Jev. */
+export async function recordedOnPlan<T extends { providerMetadata?: unknown }>(
+  mode: PlanJevMode | null,
+  call: Promise<T>,
+): Promise<T> {
+  if (mode !== "real") return call;
+  try {
+    const result = await call;
+    recordRealJevCall({
+      ok: true,
+      costUsd: gatewayCostUsd(result.providerMetadata),
+    });
+    return result;
+  } catch (error) {
+    recordRealJevCall({ ok: false, error });
+    throw error;
+  }
 }
 
 /** Yes/no questions only: each answer's probability of "yes", by key. */

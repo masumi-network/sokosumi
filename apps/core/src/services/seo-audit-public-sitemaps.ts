@@ -50,7 +50,6 @@ export async function readPublicAuditSitemaps(
       task: {
         id: { in: taskIds },
         workspaceId: actor.workspaceId,
-        ownerId: actor.userId,
         status: "COMPLETED",
         visibility: "PUBLIC",
         archivedAt: null,

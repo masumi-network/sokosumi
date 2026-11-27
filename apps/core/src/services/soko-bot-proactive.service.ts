@@ -19,6 +19,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreWarning } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   MAIL_TRIAGE_GUIDE,
@@ -211,6 +212,7 @@ export async function ensureSystemSchedules(bot: {
     await prisma.sokoBotSchedule
       .create({
         data: {
+          network: DETACHED_SOKO_BOT_NETWORK,
           sokoBotId: bot.id,
           requestedByUserId:
             bot.userId ?? (cmo ? (bot.createdByUserId ?? null) : null),

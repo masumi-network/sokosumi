@@ -324,6 +324,23 @@ describe("system turn routes", () => {
     expect(expired.capabilities).not.toContain("create_task");
     expect(expired.sandbox).toBe(false);
 
+    // Revoked schedule clamps strictly to read-only.
+    const revoked = scheduleAuthorityRoute({
+      id: schedId,
+      sokoBotId: botId,
+      workspaceId,
+      capabilityNames: storedCaps,
+      authority: baseAuthority,
+      actingUserId: ownerId,
+      botUserId: ownerId,
+      botProjectId: null,
+      botVersionId: "v36",
+      revoked: true,
+    });
+    expect(revoked.capabilities).toEqual(["list_social_posts"]);
+    expect(revoked.sandbox).toBe(false);
+    expect(revoked.reason).toContain("revoked");
+
     // Malformed non-null authority clamps strictly to read-only.
     const malformed = scheduleAuthorityRoute({
       id: schedId,

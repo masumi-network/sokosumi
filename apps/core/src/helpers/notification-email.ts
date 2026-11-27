@@ -106,7 +106,12 @@ export function taskAttentionReasonOf(
  * until it is listed, and it gets the generic sentence rather than no email,
  * because the reader turned the row on to hear about changes as a whole.
  */
-const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = ["failed", "canceled"];
+const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
+  "failed",
+  "canceled",
+  "seoMonitorWorse",
+  "seoMonitorClicksDrop",
+];
 
 export function taskUpdateReasonOf(messageKey: string): TaskUpdateReason {
   const tail = messageKey.slice(messageKey.lastIndexOf(".") + 1);
@@ -310,10 +315,26 @@ export async function buildNotificationEmail(
           projectName: readString(params, "projectName"),
           reason: taskUpdateReasonOf(input.messageKey),
           taskName: readString(params, "taskName"),
+          site: readString(params, "site"),
+          newFailures: readCount(params, "newFailures"),
+          drops: readCount(params, "drops"),
+          lostCitations: readCount(params, "lostCitations"),
+          clicksFrom: readCount(params, "clicksFrom"),
+          clicksTo: readCount(params, "clicksTo"),
         }),
       );
     }
   }
+}
+
+/** One whole-number field of the stored params, or null when it is not one. */
+function readCount(
+  values: Record<string, unknown> | null | undefined,
+  key: string,
+): null | number {
+  const value = values?.[key];
+
+  return typeof value === "number" && Number.isInteger(value) ? value : null;
 }
 
 /** One tag for all of them, so an event email is one thing to look for in Resend. */

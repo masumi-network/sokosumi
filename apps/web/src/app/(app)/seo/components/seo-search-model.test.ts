@@ -297,6 +297,7 @@ describe("keyword trend", () => {
   it("fills missing days with gaps up to the last day Google reported", () => {
     expect(keywordTrend(seriesWorkspace(), "  USDC ", "US")).toEqual({
       state: "measured",
+      truncated: false,
       points: [
         { date: "2026-10-01", value: 6.5 },
         { date: "2026-10-02", value: null },
@@ -306,9 +307,55 @@ describe("keyword trend", () => {
     });
   });
 
+  it("starts at the first day earlier syncs read for the keyword", () => {
+    const queries = seriesWorkspace();
+    const entry = queries.keywordSeries?.keywords[0];
+    if (!entry) throw new Error("fixture");
+    entry.from = "2026-09-29";
+    entry.points.unshift(point("2026-09-29", 3, 8));
+    expect(keywordTrend(queries, "usdc", "US")).toMatchObject({
+      points: [
+        { date: "2026-09-29", value: 8 },
+        { date: "2026-09-30", value: null },
+        { date: "2026-10-01", value: 6.5 },
+        { date: "2026-10-02", value: null },
+        { date: "2026-10-03", value: null },
+        { date: "2026-10-04", value: null },
+      ],
+    });
+    // A keyword without older days keeps the sync's own first day.
+    expect(keywordTrend(queries, "stablecoin", "US")).toMatchObject({
+      points: [{}, {}, {}, { date: "2026-10-04", value: 3 }],
+    });
+  });
+
+  it("says when the read stopped at its row limit", () => {
+    const queries = seriesWorkspace();
+    if (!queries.keywordSeries) throw new Error("fixture");
+    queries.keywordSeries.truncated = true;
+    expect(keywordTrend(queries, "usdc", "US")).toMatchObject({
+      state: "measured",
+      truncated: true,
+    });
+    // No rows for a keyword of a cut read: the rows can be missing, so the state says it too.
+    expect(keywordTrend(queries, "eurc", "US")).toEqual({
+      state: "empty",
+      truncated: true,
+    });
+    // The limit of the query list is another read: it says nothing about the daily series.
+    queries.keywordSeries.truncated = false;
+    queries.truncated = true;
+    expect(keywordTrend(queries, "usdc", "US")).toMatchObject({
+      truncated: false,
+    });
+  });
+
   it("tells an unrequested keyword from one without impressions", () => {
     const queries = seriesWorkspace();
-    expect(keywordTrend(queries, "EURC", "US")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "EURC", "US")).toEqual({
+      state: "empty",
+      truncated: false,
+    });
     expect(keywordTrend(queries, "usdt", "US")).toEqual({
       state: "not_requested",
     });
@@ -327,7 +374,10 @@ describe("keyword trend", () => {
       },
       { keyword: "eurc", countryCode: "US", points: [] },
     ];
-    expect(keywordTrend(queries, "eurc", "US")).toEqual({ state: "empty" });
+    expect(keywordTrend(queries, "eurc", "US")).toEqual({
+      state: "empty",
+      truncated: false,
+    });
     expect(keywordTrend(queries, "eurc", "FR")).toEqual({
       state: "not_requested",
     });

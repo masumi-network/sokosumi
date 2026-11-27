@@ -30,13 +30,6 @@ export interface VideoCardBrand {
   font: string | null;
 }
 
-/** A card over the cut, from `start` to `end` seconds. */
-export interface TimedVideoCard {
-  png: Uint8Array;
-  start: number;
-  end: number;
-}
-
 const HEX = /^#[0-9a-f]{6}$/i;
 /** Ink on a light accent, white on a dark one. */
 const INK = "#101010";
@@ -162,6 +155,8 @@ const MIN_CARD_SCALE = 0.4;
  * reach a pixel or two past its line height; the card's padding holds them.
  * False when even the smallest size spills.
  */
+export const CARD_PAGE_NAME_SHIM = "globalThis.__name = (fn) => fn";
+
 function fitCard(minScale: number): boolean {
   const safe = document.querySelector(".safe")!.getBoundingClientRect();
   const card = document.querySelector<HTMLElement>(".card")!;
@@ -233,6 +228,9 @@ export async function renderVideoCards(
             timeout: timeoutMs,
           });
           await page.evaluate(() => document.fonts.ready.then(() => undefined));
+          // The bundler wraps `fitCard`'s inner functions in `__name(...)`,
+          // which the page would not find (as in `site-capture`).
+          await page.evaluate(CARD_PAGE_NAME_SHIM);
           if (!(await page.evaluate(fitCard, MIN_CARD_SCALE)))
             return "too_long";
           pngs.push(

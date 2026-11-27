@@ -79,6 +79,10 @@ import {
 } from "./acting-scope";
 import { chargeCheck } from "./cmo";
 import { type RuntimeOperations } from "./operations";
+import {
+  claimAccountQuestion,
+  requireChosenSocialDestination,
+} from "./social-destination";
 
 /**
  * Every write locks the turn's row (`requireMutationAuthority`), so a model's
@@ -183,6 +187,7 @@ async function enforceSocialWriteAuthority(
     tainted,
     turnAuthority: resolved?.authority ?? null,
     scheduleAuthority: origin.scheduleAuthority,
+    watchAuthority: origin.watchAuthority,
   });
   if (!decision.allowed) {
     if (decision.kind === "tainted") {
@@ -580,6 +585,13 @@ export async function executeSocialTool(
           postId: params.postId,
         });
       }
+      const { answersQuestionId, answeringTurnId } =
+        input.capability === "create_social_post"
+          ? await requireChosenSocialDestination(
+              authorized,
+              SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.parse(input.input),
+            )
+          : {};
       // Resolved before the transaction: it reads the blob store, and a
       // serializable transaction should not wait on the network.
       let { media, threadParts } =
@@ -668,11 +680,11 @@ export async function executeSocialTool(
           const post = await (async () => {
             switch (input.capability) {
               case "create_social_post": {
-                const params =
+                const { accountQuestionId: _checked, ...params } =
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.parse(
                     input.input,
                   );
-                return createSocialPost(
+                const created = await createSocialPost(
                   {
                     ...params,
                     ...scope,
@@ -685,6 +697,14 @@ export async function executeSocialTool(
                   },
                   tx,
                 );
+                // Taken with the saved draft: a failed draft leaves it open.
+                if (answersQuestionId)
+                  await claimAccountQuestion(
+                    tx,
+                    answersQuestionId,
+                    answeringTurnId ?? authorized.turn.id,
+                  );
+                return created;
               }
               case "update_social_post": {
                 const params =

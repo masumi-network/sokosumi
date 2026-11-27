@@ -167,6 +167,46 @@ describe("SEO keyword rows", () => {
     expect(checked[1].conversion).toBe("high");
   });
 
+  it("dates an estimate that comes from an older check than the shown rank", () => {
+    const audit = {
+      positionStatus: "ranked",
+      position: 9,
+      observationId: "audit",
+      observedAt: new Date("2026-11-01T10:00:00.000Z"),
+    } as const;
+    // A newer rank refresh reads the position and gives no estimate.
+    const refresh = row({
+      source: "rank_refresh",
+      positionStatus: "ranked",
+      position: 4,
+      observationId: "refresh",
+      observedAt: new Date("2026-11-20T10:00:00.000Z"),
+    });
+    const [older] = keywordGroups([
+      refresh,
+      row({
+        ...audit,
+        conversion: "high",
+        feature: "Alerts",
+        intentClass: "comparison",
+        fit: "direct",
+      }),
+    ]).checked;
+    // The reason comes from the check that gave the level, like the date.
+    expect(older).toMatchObject({
+      best: 4,
+      conversion: "high",
+      estimateAt: audit.observedAt,
+      intentClass: "comparison",
+      fit: "direct",
+    });
+    // The estimate of the check whose rank shows needs no date.
+    const [same] = keywordGroups([
+      row({ ...audit, conversion: "high" }),
+    ]).checked;
+    expect(same).toMatchObject({ conversion: "high", estimateAt: null });
+  });
+
   it("keeps a tracked keyword first and a failed read out of the ideas", () => {
     const { checked, ideas } = keywordGroups([
       row({ keyword: "rank 3", positionStatus: "ranked", position: 3 }),

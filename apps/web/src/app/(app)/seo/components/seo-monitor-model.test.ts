@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
   seoMonitorBlock,
+  seoMonitorChangeOf,
   seoMonitorChangeSummary,
   seoMonitorPagesDiffer,
   seoMonitorPlan,
@@ -96,6 +97,8 @@ describe("SEO monitor card model", () => {
       moves: [],
       moveCount: 3,
       dropCount: 1,
+      lostCitations: [],
+      lostCitationCount: 0,
     };
     expect(seoMonitorChangeSummary(change)).toEqual({
       kind: "changed",
@@ -103,14 +106,28 @@ describe("SEO monitor card model", () => {
       fixed: 0,
       drops: 1,
       rises: 2,
+      lostCitations: 0,
     });
+    const still = { ...change, moveCount: 0, dropCount: 0 };
+    expect(seoMonitorChangeSummary(still)).toEqual({ kind: "same" });
+    // A lost AI Overview citation alone is a change: "No change" would hide the alert's reason.
     expect(
-      seoMonitorChangeSummary({ ...change, moveCount: 0, dropCount: 0 }),
-    ).toEqual({ kind: "same" });
+      seoMonitorChangeSummary({ ...still, lostCitationCount: 1 }),
+    ).toMatchObject({ kind: "changed", lostCitations: 1 });
     expect(seoMonitorChangeSummary({ ...change, comparable: false })).toEqual({
       kind: "notComparable",
     });
     expect(seoMonitorChangeSummary(null)).toEqual({ kind: "none" });
+    // A Core build from before the lost citations sends neither field.
+    const { lostCitations: _, lostCitationCount: __, ...older } = change;
+    expect(seoMonitorChangeSummary(older as typeof change)).toMatchObject({
+      kind: "changed",
+      lostCitations: 0,
+    });
+    expect(seoMonitorChangeOf(older as typeof change)).toMatchObject({
+      lostCitations: [],
+      lostCitationCount: 0,
+    });
   });
 
   it("lists weekdays Monday first, the way the editor shows the week", () => {

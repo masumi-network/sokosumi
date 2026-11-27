@@ -91,7 +91,12 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  accountQuestionHint,
+  openAccountQuestion,
+} from "@/lib/soko-bot/account-question";
 import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
@@ -203,6 +208,8 @@ import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 /** Context for the control plane's standalone events. */
 const TURN_LOG = { operation: "soko_bot_turn" };
+/** Stands for the turn about to be created, which no question can belong to. */
+const NO_TURN_YET = "00000000-0000-0000-0000-000000000000";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 /**
@@ -2736,6 +2743,21 @@ export class SokoBotControlPlane {
             message: input.chat?.classifyMessage ?? message,
           })
         : null;
+    // The owner may be answering "which account?": the model needs the
+    // question's id and options to pass them, which no message carries.
+    const accountQuestion =
+      (input.source ?? "CHAT") === "CHAT" &&
+      personAsked &&
+      !askedByTeammate &&
+      !input.chat?.askedByBot
+        ? await openAccountQuestion({
+            sokoBotId: bot.id,
+            requestedByUserId: input.userId,
+            destinationRoomId: destinationRoom?.id ?? null,
+            turnId: NO_TURN_YET,
+            turnCreatedAt: new Date(),
+          })
+        : null;
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
@@ -2745,6 +2767,7 @@ export class SokoBotControlPlane {
       clientTurnId,
       classification: classification.classification,
       personAsked,
+      extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
       capturedPreference,
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
@@ -2894,6 +2917,7 @@ export class SokoBotControlPlane {
         });
         const created = await tx.sokoBotTurn.create({
           data: {
+            network: input.network,
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,
@@ -5269,6 +5293,7 @@ export class SokoBotControlPlane {
           boundReplayTurnId,
         );
         retry = await this.startTurn({
+          network: DETACHED_SOKO_BOT_NETWORK,
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
             systemKey: scheduleRun.schedule.systemKey,

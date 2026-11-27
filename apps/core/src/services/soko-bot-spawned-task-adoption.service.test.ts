@@ -60,6 +60,7 @@ describe("adoptCoworkerSpawnedTasks", () => {
     expect(createManyMock).toHaveBeenCalledWith({
       data: [
         {
+          network: "mainnet",
           turnId: "turn_bot_1_coworker_elena",
           toolCallId: "subtask:task_hannah",
           kind: "TASK",
