@@ -117,6 +117,66 @@ describe("public SEO report trust boundary", () => {
     expect(report.actions[0].findingIds).toEqual(["title.desktop:desktop"]);
   });
 
+  it("keeps an action's opening text draft or held-back note through page and site import and the stored re-parse", () => {
+    const drafted = {
+      target: "opening" as const,
+      devices: ["mobile" as const, "desktop" as const],
+      before: "Widgets for every room.",
+      after: "Example Corp makes widgets for every room.",
+    };
+    const heldBack = {
+      target: "opening" as const,
+      devices: ["mobile" as const],
+      heldBack: 'The draft names "Acme", which the page does not state.',
+    };
+    const raw = legacyReport();
+    raw.actions = [
+      { ...raw.actions[0], n: 1, bodyDraft: drafted },
+      { ...raw.actions[0], n: 2, bodyDraft: heldBack },
+      // No device: Core cannot read this draft, so it drops the draft and keeps the action.
+      { ...raw.actions[0], n: 3, bodyDraft: { ...drafted, devices: [] } },
+      { ...raw.actions[0], n: 4 },
+      // A checked draft that also carries a held-back reason reads as held back.
+      { ...raw.actions[0], n: 5, bodyDraft: { ...drafted, heldBack: "No." } },
+      // These are dropped: an empty reason never makes the draft checked, nor do a repeated device or blank text.
+      { ...raw.actions[0], n: 6, bodyDraft: { ...drafted, heldBack: "" } },
+      {
+        ...raw.actions[0],
+        n: 7,
+        bodyDraft: { ...drafted, devices: ["mobile", "mobile"] },
+      },
+      { ...raw.actions[0], n: 8, bodyDraft: { ...drafted, after: " \n" } },
+    ] as typeof raw.actions;
+    const drafts = (payload: { actions: { bodyDraft?: unknown }[] }) =>
+      payload.actions.map((row) => row.bodyDraft);
+    const expected = [
+      drafted,
+      heldBack,
+      undefined,
+      undefined,
+      { target: "opening", devices: drafted.devices, heldBack: "No." },
+      undefined,
+      undefined,
+      undefined,
+    ];
+    const page = parsePublicSeoArtifact(raw);
+    expect(drafts(page)).toEqual(expected);
+    expect(page.actions[3]).not.toHaveProperty("bodyDraft");
+    // The projection reads the stored JSON with the same schema: a plain object would strip the new key.
+    expect(
+      drafts(publicSeoPayloadSchema.parse(JSON.parse(JSON.stringify(page)))),
+    ).toEqual(expected);
+    // Focused results read actions with the stored schema too: a bad draft there drops only the draft.
+    const stored = JSON.parse(JSON.stringify(page));
+    stored.actions[0].bodyDraft.devices = [];
+    expect(drafts(publicSeoPayloadSchema.parse(stored))[0]).toBeUndefined();
+    const site = parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages: [raw],
+    });
+    expect(drafts(site)).toEqual(expected);
+  });
+
   it("retains site-wide findings without inventing page or device evidence", () => {
     const raw = {
       ...siteStrategyReport(),

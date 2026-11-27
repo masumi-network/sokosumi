@@ -224,7 +224,10 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
     "Authentication required. Run `sokosumi auth login` first.";
   await assert.rejects(
     runCli(["agents", "list", "--json"], {
-      env: { SOKOSUMI_API_URL: "https://api.example.test" },
+      env: {
+        SOKOSUMI_API_URL: "https://api.example.test",
+        SOKOSUMI_OAUTH_CLIENT_ID: "cli-client",
+      },
       authManager: createTestAuthManager(),
       coreClient: {
         get: async <T>() => {
@@ -1080,7 +1083,10 @@ test("new read commands reject unauthenticated calls before Core", async () => {
     let coreCalls = 0;
     await assert.rejects(
       runCli([...testCase.argv, "--json"], {
-        env: { SOKOSUMI_API_URL: "https://api.example.test" },
+        env: {
+          SOKOSUMI_API_URL: "https://api.example.test",
+          SOKOSUMI_OAUTH_CLIENT_ID: "cli-client",
+        },
         authManager: createTestAuthManager(),
         coreClient: {
           get: async <T>() => {

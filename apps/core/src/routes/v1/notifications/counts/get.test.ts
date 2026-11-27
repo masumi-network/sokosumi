@@ -45,10 +45,8 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       findMany: taskFindManyMock,
     },
-    job: {
-      findMany: jobFindManyMock,
-    },
   },
+  networkPrisma: () => ({ job: { findMany: jobFindManyMock } }),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {

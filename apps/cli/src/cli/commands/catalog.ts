@@ -974,6 +974,11 @@ export const CLI_COMMAND_CATALOG = [
     operation: "PUT /projects/{id}/image-studio/brand-kit",
   },
   {
+    command: "projects image-studio-brand-assets-update",
+    usage: `PROJECT_ID --input-json '{"add":{"id":"FILE_ID","name":"mascot.png"}}'`,
+    operation: "PATCH /projects/{id}/image-studio/brand-kit/assets",
+  },
+  {
     command: "projects image-studio-brand-look-update",
     usage: `PROJECT_ID --input-json '{"look":{...},"lookRevision":0}'`,
     operation: "PUT /projects/{id}/image-studio/brand-kit/look",

@@ -28,6 +28,7 @@ import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { modelCallTelemetryFor } from "@/lib/soko-bot/model-call-roles";
 import { withModelCallTurn } from "@/lib/soko-bot/model-calls";
@@ -334,6 +335,7 @@ async function runTurn(
       requiresActionProof: turn.requiresActionProof,
     });
   } catch (error) {
+    if (error instanceof DetachedNetworkRefusal) return;
     await failTurn(log, {
       code: error instanceof Error ? error.name : "runtime_failed",
       message: error instanceof Error ? error.message : "Soko Bot turn failed",

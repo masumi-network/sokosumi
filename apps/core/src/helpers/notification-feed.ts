@@ -19,7 +19,9 @@ import {
 } from "@sokosumi/utils";
 
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import { isPreprodOn, type Network, networksThatAreOn } from "@/lib/network";
 
 const BROWSER_ONLY_KIND_FILTER = [
   ...BROWSER_ONLY_NOTIFICATION_KINDS,
@@ -37,6 +39,10 @@ const BROWSER_ONLY_KIND_FEED_EXCEPTION: Prisma.NotificationWhereInput = {
   messageKey: { in: [...CHAT_FEED_MESSAGE_KEYS] },
 };
 
+export const NON_PREPROD_NOTIFICATION_WHERE: Prisma.NotificationWhereInput = {
+  OR: [{ network: null }, { network: { not: "preprod" } }],
+};
+
 /**
  * Prisma filter for the in-app notification feed (list, unread count,
  * mark-all-read).
@@ -52,11 +58,12 @@ const BROWSER_ONLY_KIND_FEED_EXCEPTION: Prisma.NotificationWhereInput = {
 export function notificationFeedWhere(
   requestedKinds?: readonly NotificationKind[],
 ): Prisma.NotificationWhereInput {
+  const visibleNetworks = isPreprodOn() ? {} : NON_PREPROD_NOTIFICATION_WHERE;
   const feedWhere: Prisma.NotificationWhereInput = {
     inApp: true,
     OR: [
-      { kind: { notIn: BROWSER_ONLY_KIND_FILTER } },
-      BROWSER_ONLY_KIND_FEED_EXCEPTION,
+      { kind: { notIn: BROWSER_ONLY_KIND_FILTER }, ...visibleNetworks },
+      { ...BROWSER_ONLY_KIND_FEED_EXCEPTION, ...visibleNetworks },
     ],
   };
 
@@ -302,10 +309,18 @@ interface NeedsActionCandidate {
   id: string;
   messageKey: string;
   referenceId: string;
+  network: string | null;
 }
 
 /** One waiting record is one row: the key it asked with, and what it asked about. */
-function recordKey(messageKey: string, referenceId: string): string {
+function recordKey(
+  messageKey: string,
+  referenceId: string,
+  network?: string | null,
+): string {
+  if (messageKey === JOB_INPUT_REQUIRED_MESSAGE_KEY) {
+    return `${messageKey}:${network ?? "mainnet"}:${referenceId}`;
+  }
   return `${messageKey}:${referenceId}`;
 }
 
@@ -332,28 +347,46 @@ function recordKey(messageKey: string, referenceId: string): string {
 export async function findNeedsActionNotificationIds(
   userId: string,
   projectId?: string,
-  { exceptTasksIn }: { exceptTasksIn?: ActiveWorkspace } = {},
+  {
+    exceptTasksIn,
+    canReadPreprodJobs,
+  }: {
+    exceptTasksIn?: ActiveWorkspace;
+    canReadPreprodJobs?: () => Promise<boolean>;
+  } = {},
 ): Promise<string[]> {
   const asked: NeedsActionCandidate[] = await prisma.notification.findMany({
-    where: { userId, messageKey: { in: [...NEEDS_ACTION_MESSAGE_KEYS] } },
-    select: { id: true, messageKey: true, referenceId: true },
+    where: {
+      userId,
+      messageKey: { in: [...NEEDS_ACTION_MESSAGE_KEYS] },
+      ...(isPreprodOn() ? {} : NON_PREPROD_NOTIFICATION_WHERE),
+    },
+    select: { id: true, messageKey: true, referenceId: true, network: true },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 
   const newestPerRecord = new Map<string, NeedsActionCandidate>();
   for (const candidate of asked) {
     if (candidate.referenceId.length === 0) continue;
-    const key = recordKey(candidate.messageKey, candidate.referenceId);
+    const key = recordKey(
+      candidate.messageKey,
+      candidate.referenceId,
+      candidate.network,
+    );
     if (!newestPerRecord.has(key)) newestPerRecord.set(key, candidate);
   }
   const newest = [...newestPerRecord.values()];
-  const referenceIdsFor = (messageKey: string): string[] =>
+  const referenceIdsFor = (messageKey: string, network?: Network): string[] =>
     newest
-      .filter((candidate) => candidate.messageKey === messageKey)
+      .filter(
+        (candidate) =>
+          candidate.messageKey === messageKey &&
+          (network === undefined ||
+            (candidate.network ?? "mainnet") === network),
+      )
       .map((candidate) => candidate.referenceId);
 
   const taskIds = referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY);
-  const jobIds = referenceIdsFor(JOB_INPUT_REQUIRED_MESSAGE_KEY);
   const projectWhere = projectId === undefined ? {} : { projectId };
   const grantIds = projectId
     ? []
@@ -362,7 +395,7 @@ export async function findNeedsActionNotificationIds(
     ? []
     : referenceIdsFor(COWORKER_ACCESS_PENDING_MESSAGE_KEY);
 
-  const [waitingTasks, jobs, pendingGrants, pendingAccesses] =
+  const [waitingTasks, waitingJobs, pendingGrants, pendingAccesses] =
     await Promise.all([
       taskIds.length === 0
         ? []
@@ -377,12 +410,34 @@ export async function findNeedsActionNotificationIds(
             },
             select: { id: true },
           }),
-      jobIds.length === 0
-        ? []
-        : prisma.job.findMany({
-            where: { id: { in: jobIds }, ...projectWhere },
-            select: { id: true, ...jobForStatusComputeSelect },
-          }),
+      Promise.all(
+        networksThatAreOn().map(async (network) => {
+          const jobIds = referenceIdsFor(
+            JOB_INPUT_REQUIRED_MESSAGE_KEY,
+            network,
+          );
+          if (
+            jobIds.length === 0 ||
+            (network === "preprod" && !(await canReadPreprodJobs?.()))
+          ) {
+            return [];
+          }
+          const jobs = await createNetworkScope(network).networkDb.job.findMany(
+            {
+              where: { id: { in: jobIds }, ...projectWhere },
+              select: { id: true, ...jobForStatusComputeSelect },
+            },
+          );
+          return jobs
+            .filter(
+              (job) =>
+                computeJobStatus(job) === SokosumiJobStatus.INPUT_REQUIRED,
+            )
+            .map((job) =>
+              recordKey(JOB_INPUT_REQUIRED_MESSAGE_KEY, job.id, network),
+            );
+        }),
+      ),
       grantIds.length === 0
         ? []
         : prisma.vendorGrant.findMany({
@@ -404,11 +459,7 @@ export async function findNeedsActionNotificationIds(
     ...waitingTasks.map((task) =>
       recordKey(TASK_INPUT_REQUIRED_MESSAGE_KEY, task.id),
     ),
-    ...jobs
-      .filter(
-        (job) => computeJobStatus(job) === SokosumiJobStatus.INPUT_REQUIRED,
-      )
-      .map((job) => recordKey(JOB_INPUT_REQUIRED_MESSAGE_KEY, job.id)),
+    ...waitingJobs.flat(),
     ...pendingGrants.map((grant) =>
       recordKey(VENDOR_GRANT_PENDING_MESSAGE_KEY, grant.id),
     ),
@@ -419,7 +470,13 @@ export async function findNeedsActionNotificationIds(
 
   return newest
     .filter((candidate) =>
-      waiting.has(recordKey(candidate.messageKey, candidate.referenceId)),
+      waiting.has(
+        recordKey(
+          candidate.messageKey,
+          candidate.referenceId,
+          candidate.network,
+        ),
+      ),
     )
     .map((candidate) => candidate.id);
 }

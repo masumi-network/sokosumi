@@ -210,10 +210,24 @@ export function versionDeltaBySet(
   };
 }
 
+function judgeModesIn(report: ParityReport): Set<"holistic" | "per-item"> {
+  const modes = new Set<"holistic" | "per-item">();
+  for (const evalCase of report.cases) {
+    if (!evalCase.caseId.startsWith("owner-")) continue;
+    for (const result of evalCase.results) {
+      if (result.status !== "PASSED" && result.status !== "FAILED") continue;
+      const raw = (result.output as { judgeMode?: unknown } | null)?.judgeMode;
+      modes.add(raw === "per-item" ? "per-item" : "holistic");
+    }
+  }
+  return modes;
+}
+
 /**
  * Why two runs can't be compared, or null. Both must come from the same
- * environment, and a plan run's must use real Jev: the stand-in routes
- * unlike production, so it is never fleet evidence.
+ * environment and the same judge mode (holistic vs per-item), and a plan run's
+ * must use real Jev: the stand-in routes unlike production, so it is never
+ * fleet evidence.
  */
 export function environmentMismatch(
   baseline: ParityReport,
@@ -228,6 +242,13 @@ export function environmentMismatch(
     return `the runs come from different environments (${before ?? "unknown"} vs ${after ?? "unknown"})`;
   if (before === "local-chatgpt-plan")
     return "both runs used the plan's Jev stand-in, which routes unlike production; rerun with real Jev (SOKO_BOT_PLAN_REAL_JEV=1)";
+  const [beforeModes, afterModes] = [baseline, candidate].map(judgeModesIn);
+  if ((beforeModes?.size ?? 0) > 1 || (afterModes?.size ?? 0) > 1)
+    return "a report mixes holistic and per-item judge results; score every journey under one judge";
+  const beforeMode = beforeModes?.values().next().value;
+  const afterMode = afterModes?.values().next().value;
+  if (beforeMode && afterMode && beforeMode !== afterMode)
+    return `the runs used different judges (${beforeMode} vs ${afterMode}); re-score both under the same judge`;
   return null;
 }
 

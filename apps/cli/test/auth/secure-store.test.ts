@@ -117,6 +117,43 @@ test("custom target vault entries stay isolated in case-insensitive vaults", () 
   });
 });
 
+test("custom target OAuth entry does not depend on the client id", () => {
+  const entries = new Map<string, string>();
+  const entryFactory = (serviceName: string, accountName: string) => {
+    const key = `${serviceName}\0${accountName}`;
+    return {
+      getPassword: () => entries.get(key) || null,
+      setPassword: (value: string) => {
+        entries.set(key, value);
+      },
+      deletePassword: () => entries.delete(key),
+    };
+  };
+  const scope = resolveTargetScope("custom", "https://core.example.test");
+  const stores = (targetScope: string, clientId: string) =>
+    createAuthCredentialStores<StoredCredentials>({
+      targetScope,
+      clientId,
+      platform: "darwin",
+      entryFactory,
+    });
+
+  stores(scope, "cli-client").oauth.write({
+    authToken: "custom-access",
+    refreshToken: "custom-refresh",
+  });
+  assert.deepEqual(stores(scope, "").oauth.read(), {
+    authToken: "custom-access",
+    refreshToken: "custom-refresh",
+  });
+
+  stores("mainnet", "first-client").oauth.write({
+    authToken: "mainnet-access",
+    refreshToken: "mainnet-refresh",
+  });
+  assert.equal(stores("mainnet", "other-client").oauth.read(), null);
+});
+
 test("custom target scopes omit standalone key credentials", () => {
   const credentialUrl =
     "https://user:password@host/api?API_KEY=secret&key=key-value&access_key=access-value&Authorization=bearer-token&private-key=private-value&auth-key=auth-value&signature=signature-value&JWT=jwt-value&region=west#fragment";

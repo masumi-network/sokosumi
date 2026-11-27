@@ -22,6 +22,16 @@ vi.mock("./exa", async (importOriginal) => ({
   searchExa,
 }));
 vi.mock("./model-calls", () => ({ recordModelCall }));
+const { turnFindUnique, isEvalWorkspace } = vi.hoisted(() => ({
+  turnFindUnique: vi.fn(),
+  isEvalWorkspace: vi.fn(),
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: { sokoBotTurn: { findUnique: turnFindUnique } },
+}));
+vi.mock("@/lib/evals/eval-guard", () => ({
+  isEvalWorkspaceNow: isEvalWorkspace,
+}));
 vi.mock("./turn-loop", () => ({
   RuntimeEventLog: class {
     append = vi.fn();
@@ -43,6 +53,61 @@ describe("runCoreWebTool", () => {
     vi.clearAllMocks();
     recordAction.mockResolvedValue(undefined);
     recordResult.mockResolvedValue(undefined);
+    turnFindUnique.mockResolvedValue({ workspaceId: "ws-1" });
+    isEvalWorkspace.mockResolvedValue(false);
+  });
+
+  describe("in an eval lane", () => {
+    beforeEach(() => isEvalWorkspace.mockResolvedValue(true));
+
+    it("fetches from the eval world's fixed pages, never the network", async () => {
+      const output = await runCoreWebTool({
+        ...base,
+        capability: "web_fetch",
+        toolInput: { url: "https://sokosumi.com/" },
+      });
+      expect(fetchPage).not.toHaveBeenCalled();
+      expect(output).toMatchObject({
+        url: "https://www.sokosumi.com",
+        status: 200,
+        text: expect.stringContaining("Soko Bot"),
+      });
+      expect(recordResult).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          status: "completed",
+          sources: ["https://www.sokosumi.com"],
+        }),
+      );
+    });
+
+    it("answers an unknown page with a 404, not a real request", async () => {
+      await expect(
+        runCoreWebTool({
+          ...base,
+          capability: "web_fetch",
+          toolInput: { url: "https://example.org/anything" },
+        }),
+      ).resolves.toMatchObject({ status: 404 });
+      expect(fetchPage).not.toHaveBeenCalled();
+    });
+
+    it("searches inside the eval world, so the search runs with the lane mark", async () => {
+      searchExa.mockImplementation(async () => {
+        const { evalWorldWorkspace } = await import(
+          "@/lib/evals/eval-world-context"
+        );
+        return { results: [], costUsd: 0, lane: evalWorldWorkspace() };
+      });
+      await runCoreWebTool({
+        ...base,
+        capability: "web_search",
+        toolInput: { query: "pricing" },
+      });
+      expect(await searchExa.mock.results[0]?.value).toMatchObject({
+        lane: "ws-1",
+      });
+    });
   });
 
   it("records a fetch like the sandbox does, with the page as a source", async () => {

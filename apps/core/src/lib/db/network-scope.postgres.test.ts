@@ -161,6 +161,25 @@ describe.runIf(enabled)("Network scope on PostgreSQL", () => {
       }
     });
 
+    it("reads a batch on its own Network, in one snapshot", async () => {
+      const { createNetworkScope } = await start("true");
+
+      for (const network of NETWORKS) {
+        const [tag, count] = await createNetworkScope(network).netBatch(
+          (db) => [
+            db.tag.findUnique({ where: { id } }),
+            db.tag.count({ where: { id } }),
+          ],
+          "RepeatableRead",
+        );
+        expect([network, tag?.name, count]).toEqual([
+          network,
+          name(network),
+          1,
+        ]);
+      }
+    });
+
     it("refuses a Preprod scope while Preprod is off", async () => {
       const { createNetworkScope } = await start("false");
 

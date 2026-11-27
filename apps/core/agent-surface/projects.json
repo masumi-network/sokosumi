@@ -179,6 +179,10 @@
       "cli": "projects image-studio-website-research",
       "mcp": "projects_image_studio_website_research"
     },
+    "PATCH /projects/{id}/image-studio/brand-kit/assets": {
+      "cli": "projects image-studio-brand-assets-update",
+      "mcp": "projects_image_studio_brand_assets_update"
+    },
     "PUT /projects/{id}/image-studio/brand-kit/look": {
       "cli": "projects image-studio-brand-look-update",
       "mcp": "projects_image_studio_brand_look_update"

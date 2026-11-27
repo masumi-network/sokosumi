@@ -93,6 +93,16 @@ function deleteManyRecorder(table: string) {
   });
 }
 
+// Usage rows and hired Jobs are counted per Network in raw SQL; the
+// PostgreSQL tests cover the statements.
+vi.mock("@/helpers/soko-bot-deletion-crossing-rules", () => ({
+  countSokoBotNetworkRows: vi.fn(async () => ({
+    billingRecords: counts.usage,
+    jobs: counts.job,
+  })),
+  applySokoBotRules: vi.fn(async () => ({})),
+}));
+
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: vi.fn(async (operation: (tx: unknown) => unknown) =>
     operation({
@@ -133,11 +143,9 @@ vi.mock("@/lib/db/transaction", () => ({
       taskEvent: {
         count: vi.fn(async () => counts.taskEvent),
       },
-      sokoBotUsage: { count: vi.fn(async () => counts.usage) },
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
       taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
       taskSchedule: { count: vi.fn(async () => counts.taskSchedule) },
-      job: { count: vi.fn(async () => counts.job) },
       socialPost: { count: vi.fn(async () => counts.socialPost) },
     }),
   ),

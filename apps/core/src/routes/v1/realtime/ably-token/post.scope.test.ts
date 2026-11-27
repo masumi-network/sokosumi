@@ -72,6 +72,7 @@ describe("browser Ably room scope", () => {
     expect(JSON.stringify(data).length).toBeLessThan(SDK_AUTH_PAYLOAD_LIMIT);
     expect(JSON.parse(data.capability)).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
+      "agent_jobs:mainnet:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
       "notifications:all:user_user_123": [
         "presence",
@@ -120,7 +121,7 @@ describe("browser Ably room scope", () => {
       },
     );
     const { data } = await response.json();
-    expect(Object.keys(JSON.parse(data.capability))).toHaveLength(5);
+    expect(Object.keys(JSON.parse(data.capability))).toHaveLength(6);
   });
 
   it("preserves every membership when a native client omits the scope", async () => {
@@ -128,7 +129,7 @@ describe("browser Ably room scope", () => {
       method: "POST",
     });
     const { data } = await response.json();
-    expect(Object.keys(JSON.parse(data.capability))).toHaveLength(2_005);
+    expect(Object.keys(JSON.parse(data.capability))).toHaveLength(2_006);
   });
 
   it("rejects a room list above the cap before reading memberships", async () => {

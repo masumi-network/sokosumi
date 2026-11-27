@@ -51,7 +51,7 @@ sokosumi evals show RUN_ID --summary-md --slug cmo-v8  # the run file for docs/e
 sokosumi evals list                                    # recent runs and scores
 ```
 
-`--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. Each run executes with the code of whichever Core ticks it, so when several local Cores share one database, tick from one of them only, and from a checkout whose schema matches that database. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the weekly run before it.
+`--preprod` or `--api-url` picks the deployment, as for every CLI command. Runs queue: the lanes run one run at a time. A Core starts and advances only runs of its own environment, and waits while a run of another environment is running in the same database, so a preview or agent database forked from production never runs production's copied runs; a copied run that is still running times out there like any stuck run. Each run executes with the code of whichever Core ticks it, so when several local Cores share one database, tick from one of them only, and from a checkout whose schema matches that database. The admin page (Admin → Evals) shows the trend per PR, each run's cases worst first, and each case's checks, judge verdict, answer and tools beside the weekly run before it.
 
 The weekly run runs each case once, judged cases twice. A run you start runs once unless you ask for `--repeats 2` or `3`. In development, run the few cases your change touches while you iterate, then the suite your change touches with three repeats before you open the PR. A case that regressed in the weekly run on one repeat may be chance: run it with three repeats before chasing it.
 
@@ -149,6 +149,16 @@ pnpm evals:local --plan --ownerbench --holdout HELD_OUT.json --soko-bot-version 
 pnpm evals:local --plan --ownerbench --holdout HELD_OUT.json --soko-bot-version v39 --cuso-version cmo-v26 --json-out candidate.json
 pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline.json candidate.json --holdout HELD_OUT.json
 ```
+
+**Per-item judge (`--judge per-item`).** Optional 3-vote per-criterion judge (B1 / R1-A) that replaces holistic `pass`/`weak`/`fail` grading with frozen atomic yes/no splits (every item majority must pass). Dev splits live in `apps/core/src/services/evals/ownerbench/dev-rubric-splits.json`; held-out splits stay outside the repo beside the held-out journeys file and are passed via `--splits FILE` (`OWNERBENCH_SPLITS_FILE`, JSON object or module exporting `HELDOUT_RUBRIC_SPLITS`). Review every new or updated split against [`docs/evals/benchmark/rubric-split-checklist.md`](../evals/benchmark/rubric-split-checklist.md). To re-score finished runs without re-running bots or modifying Postgres (keeping both old and new views):
+
+```bash
+pnpm evals:local --rejudge BASELINE_RUN_ID --judge per-item --holdout HELD_OUT.ts --splits HELD_OUT_SPLITS.json --json-out baseline-b1.json
+pnpm evals:local --rejudge CANDIDATE_RUN_ID --judge per-item --holdout HELD_OUT.ts --splits HELD_OUT_SPLITS.json --json-out candidate-b1.json
+pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-compare.mts baseline-b1.json candidate-b1.json --holdout HELD_OUT.ts
+```
+
+Holistic and per-item scores are not comparable (`ownerbench-compare.mts` rejects mixed judge modes); always compare runs scored under the same judge.
 
 **Held-out journeys.** A second set nobody iterates on, written from real prod requests and kept out of this repository so builders never tune to it. Whoever owns the benchmark keeps the file outside every checkout and hands its path only to whoever runs a version comparison; builders don't read it. Its results are reported as totals and a verdict only (journeys passed, steps right, tokens per turn, how many regressed), never per journey or by id, and don't enter the dev scoreboard. It's a JSON array of journeys in the same shape as `journeys.ts`, or a TypeScript module exporting them as `HELDOUT_JOURNEYS`, with ids starting `owner-holdout-`, using only the benchmark's world, `prepare` kinds, step kinds and outcome kinds (`ownerbench/holdout.ts` checks every journey and names each problem). What a prepare seeds comes from the journey's own `fixtures`, so the repository holds the mechanism and never the set's content. Each held-out journey runs three times in a run (`HOLDOUT_REPEATS`): it counts as passed only when all three did (pass^3), and its pass^1 share and mean steps count too. Run it with `--holdout FILE` beside `--ownerbench`, in both the baseline and the candidate run. Its per-journey results stay in the database of whoever ran it (area "Owner bench (held out)"); only `ownerbench-compare`'s totals and verdict are shared. Fix mechanisms, never a journey's wording: no prompt text, rule or check may name a benchmark case, account, Coworker or phrasing.
 

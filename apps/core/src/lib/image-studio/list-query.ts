@@ -38,6 +38,7 @@ export const jobSelect = {
   prompt: true,
   settings: true,
   referenceAssetIds: true,
+  brandReferenceCount: true,
   referenceFileIds: true,
   useProductCutout: true,
   lettering: true,

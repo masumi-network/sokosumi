@@ -20,6 +20,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 - Local cluster is **PostgreSQL 16** (apt). It is **not started on boot** — start it with `sudo pg_ctlcluster 16 main start` (check with `pg_lsclusters`). DB `core`, role `sokosumi` / password `sokosumi`, on `localhost:5432`.
 - **Gotcha — ambient `DATABASE_URL`:** if the platform still injects a stale Neon URL (`...neon.tech...`, auth fails), `dotenv` does **not** override it. Prefer `with-db.mjs` when a provisioned agent branch exists; otherwise use a login shell (provision injects bashrc) or prefix commands with the local URL. If you see `Authentication failed against the database server` or an unexpected `neon.tech` host without a provisioned agent branch, unset/override `DATABASE_URL`.
+- Provision passes the verified branch URLs explicitly to migrations, and the auth fixture guard refuses a stale URL that points outside the verified branch.
 - Schema is already applied on the snapshot DB. After pulling schema changes without a Neon agent branch, run `pnpm prisma:generate` then `pnpm prisma:migrate:deploy`. To inspect local: `PGPASSWORD=sokosumi psql -h localhost -U sokosumi -d core`.
 
 ### `.env` files (gitignored, snapshot-persisted)

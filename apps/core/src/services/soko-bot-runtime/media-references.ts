@@ -1,7 +1,10 @@
 import { FileSourceKind } from "@sokosumi/database";
 import {
   type GoogleDisplayImageRole,
+  socialPostAcceptedFormats,
   socialPostMediaKindForMime,
+  socialPostProviderLabel,
+  socialPostVideoOnlyProviders,
 } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { GOOGLE_DISPLAY_IMAGE_MIME_TYPES } from "@/lib/ads/campaigns";
@@ -18,6 +21,18 @@ import {
 import { dataRoomRefusal } from "./drive-reading";
 import { type SocialMediaInput, type SocialMediaRef } from "./media-models";
 import { type RuntimeOperations } from "./operations";
+
+/**
+ * What to attach in place of an image no network carries. The destination is
+ * not known yet, and a PNG is refused where posts take only video.
+ */
+function pngAdvice(): string {
+  const videoOnly = socialPostVideoOnlyProviders().map(socialPostProviderLabel);
+  const except = videoOnly.length
+    ? ` For ${videoOnly.join(" or ")}, which take only video, attach a video instead.`
+    : "";
+  return `For a network that takes images, make a PNG copy of this image and attach that copy's fileId instead.${except}`;
+}
 
 /**
  * Social media given as `{ fileId }` becomes the Drive reference the Social
@@ -50,7 +65,7 @@ export async function resolveSocialMedia(
       const kind = socialPostMediaKindForMime(mimeType);
       if (!kind)
         throw new SokoBotRuntimeValidationError(
-          `"${file.displayName}" is not an image or video a Social post can carry`,
+          `"${file.displayName}" (${mimeType || "unknown type"}) is not a file a Social post can carry. Posts take ${socialPostAcceptedFormats()}.${mimeType.startsWith("image/") ? ` ${pngAdvice()}` : ""}`,
         );
       const fileUrl = await publicDriveUrl(file.sourceId);
       if (!fileUrl)

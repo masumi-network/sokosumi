@@ -64,6 +64,7 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   agentId: string;
   agentName: string;
   agentStatus: null | string;
+  isPreprodJob?: boolean;
   jobBlockchainIdentifier: null | string;
   jobId: string;
   network: string;

@@ -20,12 +20,14 @@ import {
   saveStudioPairwisePick as coreSaveStudioPairwisePick,
   setStudioAssetFeedback as coreSetStudioAssetFeedback,
   suggestTaskTags as coreSuggestTaskTags,
+  updateStudioBrandAssets as coreUpdateStudioBrandAssets,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
   type SaveStudioBrandLook,
   type SaveStudioPairwisePick,
   type SetStudioAssetFeedbackData,
   type StudioProductCatalog,
+  type UpdateStudioBrandAssets,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
@@ -266,7 +268,9 @@ import {
   getAdminInvoice as coreGetAdminInvoice,
   getAdminMatchedChannel as coreGetAdminMatchedChannel,
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
+  getAdminOrganizationPreprodAccess as coreGetAdminOrganizationPreprodAccess,
   getAdminTask as coreGetAdminTask,
+  getAdminUserPreprodAccess as coreGetAdminUserPreprodAccess,
   getAgents as coreGetAgents,
   getAgentsById as coreGetAgentsById,
   getAgentsByIdInputSchema as coreGetAgentsByIdInputSchema,
@@ -612,6 +616,8 @@ import {
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   searchChatSkills as coreSearchChatSkills,
+  setAdminOrganizationPreprodAccess as coreSetAdminOrganizationPreprodAccess,
+  setAdminUserPreprodAccess as coreSetAdminUserPreprodAccess,
   setProjectCompetitorChecks as coreSetProjectCompetitorChecks,
   startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
@@ -2967,6 +2973,72 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /** Null when Core has no such target (404). */
+  async function getAdminUserPreprodAccess(id: string) {
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminUserPreprodAccess({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Preprod access",
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
+  }
+
+  async function setAdminUserPreprodAccess(
+    id: string,
+    body: { enabled: boolean; reason: string },
+  ) {
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminUserPreprodAccess({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to change Preprod access",
+    );
+    return result.data;
+  }
+
+  /** Null when Core has no such target (404). */
+  async function getAdminOrganizationPreprodAccess(slug: string) {
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminOrganizationPreprodAccess({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch Preprod access",
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
+  }
+
+  async function setAdminOrganizationPreprodAccess(
+    slug: string,
+    body: { enabled: boolean; reason: string },
+  ) {
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminOrganizationPreprodAccess({
+          client,
+          path: { slug },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to change Preprod access",
+    );
+    return result.data;
+  }
+
   async function listAdminOrganizations(query: {
     query?: string;
     cursor?: string;
@@ -4309,6 +4381,17 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreSaveStudioBrandCopy({ client, path: { id }, body }),
       "Failed to save Studio brand copy",
+    );
+  }
+
+  async function updateStudioBrandAssets(
+    id: string,
+    body: UpdateStudioBrandAssets,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreUpdateStudioBrandAssets({ client, path: { id }, body }),
+      "Failed to update Studio brand images",
     );
   }
 
@@ -7432,6 +7515,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     getDeveloperOwnedCoworkerTask,
     searchAdminOrganizations,
     getAdminOrganizationBySlug,
+    getAdminUserPreprodAccess,
+    setAdminUserPreprodAccess,
+    getAdminOrganizationPreprodAccess,
+    setAdminOrganizationPreprodAccess,
     listAdminOrganizations,
     listAdminOrganizationMembers,
     listAdminMatchedChannels,
@@ -7597,6 +7684,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioModelScoreboard,
     saveStudioAdHeadline,
     saveStudioBrandCopy,
+    updateStudioBrandAssets,
     saveStudioBrandLook,
     uploadStudioProjectLogo,
     findStudioWebsiteLogo,

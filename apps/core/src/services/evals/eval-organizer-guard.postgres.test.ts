@@ -4,6 +4,7 @@ import { CMO_PRODUCTION_TURN_PREFIX } from "@sokosumi/soko-bot";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
+import { evalEnvironment } from "@/lib/evals/eval-environment";
 import { STRATEGY_TURN_PREFIX } from "@/services/marketing-strategy.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
@@ -87,7 +88,8 @@ async function stored(
       status: "RUNNING",
       suites: ["cmo"],
       caseIds: [caseId],
-      environment: "local",
+      // The tick picks only runs of this Core's environment.
+      environment: evalEnvironment(),
       repeats: 1,
       startedAt,
     },

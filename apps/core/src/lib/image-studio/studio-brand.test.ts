@@ -201,6 +201,7 @@ describe("readStudioBrandKit", () => {
       ),
     );
     await expect(readStudioBrandKit("project-1")).resolves.toEqual({
+      assets: [],
       logo,
       studioLogoPosition: "top-left",
       colors: ["#a33421"],

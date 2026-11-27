@@ -17,6 +17,8 @@ export interface SeoRunDay {
   issues: number | null;
   /** The newest check of the day that tested page rules: the check the page shows when this day is picked. */
   check: string | null;
+  /** The newest check of the day of any kind: a day without a page check compares it. */
+  latest: string;
   selected: boolean;
   /** A monitor started a check of the day. */
   scheduled: boolean;
@@ -49,6 +51,7 @@ export function seoRunDays(
         at: run.at,
         issues: null,
         check: null,
+        latest: run.observationId,
         selected: false,
         scheduled: false,
         inRange: false,
@@ -79,6 +82,18 @@ export function seoRunDays(
     days: all.filter((entry, index) => index < SEO_RUN_DAYS || entry.selected),
     /** The end date is the pick of an older run, not a date the reader set in the date fields. */
     picked: Boolean(selected && !selected.newest && selected.day === to),
+    /**
+     * The newest page check between the two dates, also on a day the row does not show: a range compares it. A range
+     * without one compares its newest check of any kind.
+     */
+    rangeCheck: (() => {
+      const inside = all.filter(
+        (entry) => (!from || entry.day >= from) && (!to || entry.day <= to),
+      );
+      return (
+        inside.find((entry) => entry.check)?.check ?? inside[0]?.latest ?? null
+      );
+    })(),
     /** Every day with a check, newest first: the calendar under "Other dates" marks them. */
     checkDays: all.map((entry) => entry.day),
   };
@@ -96,6 +111,31 @@ export function seoRunCountDays(days: Pick<SeoRunDay, "day" | "issues">[]) {
       shown.add(entry.day);
   });
   return shown.size > 1 ? shown : new Set<string>();
+}
+
+/**
+ * The newest page check observed inside the days of a stop: after the day before it, up to its own day (no end on the
+ * newest stop). It reads the runs, not the events, so a date filter that drops the save event of an older check keeps
+ * the stop on the same check.
+ */
+export function seoStopRuleCheck(
+  workspace: Pick<ProjectSeoWorkspace, "runs">,
+  after: string | null,
+  through: string | null,
+) {
+  return (workspace.runs ?? [])
+    .filter((run) => {
+      const day = new Date(run.observedAt).toISOString().slice(0, 10);
+      return (
+        isSeoRuleCheck(run.kind) &&
+        (after === null || day > after) &&
+        (through === null || day <= through)
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.observedAt).getTime() - new Date(a.observedAt).getTime(),
+    )[0]?.observationId;
 }
 
 /**

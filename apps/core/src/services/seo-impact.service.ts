@@ -4,6 +4,7 @@ import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { auditPerformancePage } from "@/lib/seo/audit-performance-pages";
 import { impactWindow } from "@/lib/seo/impact-window";
 import { GSC_INSPECT_TOOL } from "@/lib/seo/native-gsc-inspection";
 import { withDeadline } from "@/lib/with-deadline";
@@ -66,7 +67,7 @@ interface WaitingRow {
 }
 
 type Inspection =
-  | { crawledAt: Date; property: string }
+  | { crawledAt: Date; property: string; measuredUrl: string }
   | {
       reason: SeoImpactReason;
       property: string | null;
@@ -162,7 +163,7 @@ function once<T>(
 }
 
 /** The Search Console connection of the Project's Cuso. */
-async function projectAccount(
+export async function projectAccount(
   projectId: string,
 ): Promise<ComposioIntegrationAccount | SeoImpactReason> {
   const cuso = await prisma.sokoBot.findFirst({
@@ -235,7 +236,13 @@ async function inspectRow(
     const crawledAt = page.lastCrawlTime ? new Date(page.lastCrawlTime) : null;
     // Google reports only its last crawl: one before the change says nothing about it.
     return crawledAt && crawledAt > row.changedAt
-      ? { crawledAt, property }
+      ? {
+          crawledAt,
+          property,
+          // As the audit measures a page: its own URL, or the www alias Google confirms.
+          measuredUrl: auditPerformancePage(property, row.pageUrl, page)
+            .measuredUrl,
+        }
       : { reason: "not_crawled_yet", property };
   } catch (error) {
     warnInspectionFailed(row.projectId, "url_inspection", error);
@@ -283,6 +290,7 @@ async function applyInspection(
         property: inspection.property,
         lastInspectedAt: now,
         crawledAt: inspection.crawledAt,
+        measuredUrl: inspection.measuredUrl,
         windowStart: new Date(`${window.windowStart}T00:00:00Z`),
         windowEnd: new Date(`${window.windowEnd}T00:00:00Z`),
       },

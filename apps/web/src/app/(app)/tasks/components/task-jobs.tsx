@@ -1,11 +1,10 @@
 import type { JobSummary } from "@sokosumi/core-client";
 import { SokosumiJobStatus } from "@sokosumi/core-client";
-import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import Link from "next/link";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
-import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { jobStatusChannelName } from "@/lib/ably/job-status-channel";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
@@ -54,11 +53,7 @@ export function TaskJobs({
         };
         const href = `/agents/${job.agentId}/jobs/${job.id}`;
         const channelName = userId
-          ? makeAgentJobsChannelName(
-              job.agentId,
-              userId,
-              getRealtimeChannelEnvironment(),
-            )
+          ? jobStatusChannelName(job.workspace.id, userId)
           : null;
 
         const statusBadge = channelName ? (

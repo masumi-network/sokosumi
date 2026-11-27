@@ -1,3 +1,4 @@
+import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
@@ -238,4 +239,56 @@ it("exports public strategy alternatives and evidence without transferring unrel
     "Public catalog capture",
   ]);
   expect(exported.rows[1]?.at(-1)).toBeNull();
+});
+
+it("adds the opening draft columns only when an action has a checked draft", () => {
+  const action: ProjectSeoAction = {
+    id: "o11",
+    observationId: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+    pageUrl: "https://shop.example/widget",
+    findingIds: [],
+    title: "Say what the page offers first",
+    why: "The opening does not name the product.",
+    effort: "low",
+    expectedEffect: "Visitors see the offer first.",
+    edit: null,
+    kind: "fix",
+    status: "recommended",
+    taskId: null,
+    evidence: [],
+  };
+  const devices = ["mobile" as const, "desktop" as const];
+  const heldBack = {
+    ...action,
+    bodyDraft: { target: "opening" as const, devices, heldBack: "Names Acme." },
+  };
+  const plain = seoActionsExport([action, heldBack], t);
+  expect(plain.header).not.toContain("Suggested opening");
+  const drafted = seoActionsExport(
+    [
+      {
+        ...action,
+        bodyDraft: {
+          target: "opening",
+          devices: ["mobile"],
+          before: "Widgets.",
+          after: "Example Corp makes widgets.",
+        },
+      },
+      heldBack,
+    ],
+    t,
+  );
+  const at = drafted.header.indexOf("Current opening");
+  expect(drafted.header.slice(at, at + 3)).toEqual([
+    "Current opening",
+    "Suggested opening",
+    "Devices",
+  ]);
+  expect(drafted.rows[0]?.slice(at, at + 3)).toEqual([
+    "Widgets.",
+    "Example Corp makes widgets.",
+    "mobile",
+  ]);
+  expect(drafted.rows[1]?.slice(at, at + 3)).toEqual([null, null, null]);
 });

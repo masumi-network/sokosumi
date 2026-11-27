@@ -118,6 +118,7 @@ export type SharedTableName =
   | "passkey"
   | "polar_order"
   | "polar_subscription"
+  | "preprod_access_change"
   | "project"
   | "project_ad_account"
   | "project_ad_connection"

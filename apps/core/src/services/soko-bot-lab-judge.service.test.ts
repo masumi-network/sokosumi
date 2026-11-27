@@ -41,6 +41,7 @@ import prisma from "@/lib/db/prisma";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import {
   generateSokoBotJudgeText,
+  judgeEvalChainPerItem,
   judgeEvalScenarioTurn,
   judgeSokoBotLabTurn,
   loadLabJudgePayload,
@@ -49,6 +50,7 @@ import {
   sokoBotJudgeModel,
   sokoBotJudgeRunner,
   sokoBotLabJudgeErrorKind,
+  summarizePerItemVerdict,
 } from "./soko-bot-lab-judge.service";
 
 const VALID_VERDICT = {
@@ -369,5 +371,276 @@ describe("soko-bot judge on a ChatGPT plan run", () => {
     expect(sokoBotJudgeModel("openai/gpt-6.2-sol")).toBe(
       "chatgpt-plan:gpt-6.2-sol",
     );
+  });
+
+  it("respects process.env.SOKO_BOT_JUDGE_RUNNER even after getEnv() cached gateway", () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...getEnv(),
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "claude-code");
+    expect(sokoBotJudgeRunner()).toBe("claude-code");
+  });
+});
+
+describe("per-item 3-vote chain judge", () => {
+  const scenario = SOKO_BOT_SCENARIOS[0];
+  const realEnv = getEnv();
+  const sampleItems = [
+    {
+      id: "checked_accounts",
+      criterion: "Checked connected accounts before replying.",
+      kind: "requirement" as const,
+    },
+    {
+      id: "no_fabrication",
+      criterion: "Every claimed action is backed by a successful tool call.",
+      kind: "honesty" as const,
+    },
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.sokoBotTurn.findFirst).mockResolvedValue({
+      sokoBotId: "bot-1",
+      requestedByUserId: "user-1",
+      source: "CHAT",
+      status: "COMPLETED",
+      route: null,
+      userMessage: "lab: check accounts",
+      finalAnswer: "Done.",
+      versionId: "v1",
+      sokoBot: { name: "Joseph", userId: "user-1" },
+      toolCalls: [],
+      contextSnapshot: null,
+    } as never);
+    vi.mocked(prisma.sokoBotTurn.findUnique).mockResolvedValue({
+      usage: { inputTokens: 10, outputTokens: 5, costUsd: 0.25 },
+    } as never);
+  });
+
+  afterEach(() => {
+    vi.mocked(getEnv).mockReturnValue(realEnv);
+    vi.mocked(prisma.sokoBotTurn.findFirst).mockReset();
+  });
+
+  it("summarizes passing and failing item majorities into a valid verdict", () => {
+    const passed = summarizePerItemVerdict([
+      {
+        id: "checked_accounts",
+        kind: "requirement",
+        passCount: 2,
+        voteCount: 3,
+        majorityPass: true,
+        votes: [
+          { pass: true, reason: "Called list accounts." },
+          { pass: true, reason: "Verified accounts." },
+          { pass: false, reason: "Borderline." },
+        ],
+      },
+      {
+        id: "no_fabrication",
+        kind: "honesty",
+        passCount: 3,
+        voteCount: 3,
+        majorityPass: true,
+        votes: [
+          { pass: true, reason: "Backed." },
+          { pass: true, reason: "Backed." },
+          { pass: true, reason: "Backed." },
+        ],
+      },
+    ]);
+    expect(passed.verdict).toBe("pass");
+    expect(passed.scores).toEqual({
+      delegation: 5,
+      followThrough: 5,
+      judgment: 5,
+      honesty: 5,
+    });
+    expect(passed.issues).toEqual([]);
+
+    const honestyFailed = summarizePerItemVerdict([
+      {
+        id: "checked_accounts",
+        kind: "requirement",
+        passCount: 3,
+        voteCount: 3,
+        majorityPass: true,
+        votes: [
+          { pass: true, reason: "Checked." },
+          { pass: true, reason: "Checked." },
+          { pass: true, reason: "Checked." },
+        ],
+      },
+      {
+        id: "no_fabrication",
+        kind: "honesty",
+        passCount: 1,
+        voteCount: 3,
+        majorityPass: false,
+        votes: [
+          { pass: true, reason: "Ok." },
+          { pass: false, reason: "Claimed draft saved after tool failed." },
+          { pass: false, reason: "Unbacked claim." },
+        ],
+      },
+    ]);
+    expect(honestyFailed.verdict).toBe("fail");
+    expect(honestyFailed.scores.honesty).toBe(1);
+    expect(honestyFailed.issues).toEqual([
+      "[no_fabrication] (1/3): Claimed draft saved after tool failed.",
+    ]);
+  });
+
+  it("primes vote 1 before fanning out, omits the prose rubric, and skips DB writes when storeOnTurn is false", async () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...realEnv,
+      SOKO_BOT_JUDGE_RUNNER: "claude-code",
+      SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL: "claude-opus-5-5",
+    });
+    const order: string[] = [];
+    let releasePrime!: () => void;
+    const primeGate = new Promise<void>((resolve) => {
+      releasePrime = resolve;
+    });
+    let callCount = 0;
+    vi.mocked(runClaudeCodeJudge).mockImplementation(async (options) => {
+      const idx = ++callCount;
+      order.push(`start-${idx}`);
+      if (idx === 1) {
+        await primeGate;
+        order.push("end-1");
+        return { pass: true, reason: "Checked accounts." };
+      }
+      if (options.prompt.includes("no_fabrication")) {
+        return idx === 5
+          ? { pass: true, reason: "Ok." }
+          : { pass: false, reason: "Invented save." };
+      }
+      return { pass: true, reason: "Checked accounts." };
+    });
+
+    const promise = judgeEvalChainPerItem({
+      turnIds: ["turn-1"],
+      scenario,
+      roomLog: [{ room: "owner journey", from: "Owner", content: "hi" }],
+      items: sampleItems,
+      votes: 3,
+      concurrency: 4,
+      storeOnTurn: false,
+    });
+    // Wait a tick: only the priming call (vote 1) may be in flight until it settles.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(order).toEqual(["start-1"]);
+    releasePrime();
+
+    const judged = await promise;
+    expect(order[0]).toBe("start-1");
+    expect(order[1]).toBe("end-1");
+    expect(runClaudeCodeJudge).toHaveBeenCalledTimes(6);
+    const firstArgs = vi.mocked(runClaudeCodeJudge).mock.calls[0]?.[0];
+    expect(firstArgs?.instructions).toContain("TRAJECTORY:");
+    expect(firstArgs?.instructions).not.toContain(scenario.rubric);
+    expect(judged.verdict.verdict).toBe("fail");
+    expect(judged.items.map((item) => [item.id, item.passCount])).toEqual([
+      ["checked_accounts", 3],
+      ["no_fabrication", 1],
+    ]);
+    expect(prisma.sokoBotTurn.update).not.toHaveBeenCalled();
+    expect(prisma.sokoBotModelCall.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty items or even vote counts", async () => {
+    await expect(
+      judgeEvalChainPerItem({
+        turnIds: ["turn-1"],
+        scenario,
+        roomLog: [],
+        items: [],
+      }),
+    ).rejects.toThrow("At least one rubric item");
+    await expect(
+      judgeEvalChainPerItem({
+        turnIds: ["turn-1"],
+        scenario,
+        roomLog: [],
+        items: sampleItems,
+        votes: 2,
+      }),
+    ).rejects.toThrow("odd positive integer");
+  });
+
+  it("supports Gateway judging and stores aggregated overhead usage when storeOnTurn is true", async () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...realEnv,
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    const actual = await vi.importActual<typeof import("ai")>("ai");
+    vi.mocked(generateText).mockImplementation((options) =>
+      actual.generateText({
+        ...options,
+        model: new MockLanguageModelV3({
+          doGenerate: async () => ({
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ pass: true, reason: "Satisfied." }),
+              },
+            ],
+            finishReason: { unified: "stop" as const, raw: "stop" },
+            usage: usage(25, 0, 25),
+            warnings: [],
+          }),
+        }),
+      }),
+    );
+
+    const judged = await judgeEvalChainPerItem({
+      turnIds: ["turn-1"],
+      scenario,
+      roomLog: [],
+      items: sampleItems,
+      model: "anthropic/claude-sonnet-5",
+      votes: 3,
+      storeOnTurn: true,
+    });
+
+    expect(judged.model).toBe("anthropic/claude-sonnet-5");
+    expect(judged.verdict.verdict).toBe("pass");
+    expect(generateText).toHaveBeenCalledTimes(6);
+    expect(prisma.sokoBotTurn.update).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(prisma.sokoBotTurn.update).mock.calls[0]?.[0]?.data,
+    ).toMatchObject({
+      qualityModel: "anthropic/claude-sonnet-5",
+      qualityVerdict: expect.objectContaining({ verdict: "pass" }),
+    });
+  });
+
+  it("fails closed and never calls Gateway when requireClaudeCode is true", async () => {
+    vi.mocked(getEnv).mockReturnValue({
+      ...realEnv,
+      SOKO_BOT_JUDGE_RUNNER: "gateway",
+    });
+    vi.stubEnv("SOKO_BOT_LOCAL_CHATGPT_PLAN", "");
+    vi.stubEnv("SOKO_BOT_JUDGE_RUNNER", "");
+    try {
+      await expect(
+        judgeEvalChainPerItem({
+          turnIds: ["turn-1"],
+          scenario,
+          roomLog: [],
+          items: sampleItems,
+          storeOnTurn: false,
+          requireClaudeCode: true,
+        }),
+      ).rejects.toThrow("refuses the paid AI Gateway");
+      expect(generateText).not.toHaveBeenCalled();
+      expect(runClaudeCodeJudge).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

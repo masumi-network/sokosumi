@@ -24,6 +24,7 @@ import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { actionInputHash } from "@/lib/soko-bot/action-receipts";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import { recordModelCall } from "@/lib/soko-bot/model-calls";
 import {
@@ -154,6 +155,7 @@ function logFor(claims: TurnTokenClaims): RuntimeEventLog {
  * call's failure.
  */
 function turnInactive(error: unknown) {
+  if (error instanceof DetachedNetworkRefusal) return error;
   return conflict(
     error instanceof Error ? error.message : "Turn is not active",
     {

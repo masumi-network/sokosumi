@@ -11,6 +11,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
+import { networkStamp } from "@/helpers/preprod-control";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
 import { buildSokoBotReaderTaskWhere } from "@/helpers/task-visibility";
@@ -137,7 +138,7 @@ export async function updateAssignedTask(
     });
     await tx.sokoBotDelegation.create({
       data: {
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
@@ -327,7 +328,7 @@ export async function replyToTask(
     const status = nextStatus ?? task.status;
     await tx.sokoBotDelegation.create({
       data: {
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",
