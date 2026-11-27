@@ -21,6 +21,8 @@ export const SEO_EVIDENCE_ORDER = [
   { id: "desc" },
 ] satisfies Prisma.ProjectSeoObservationOrderByWithRelationInput[];
 export const SEO_ARTIFACT_MAX_BYTES = 2 * 1024 * 1024;
+/** A crawl continuation's Report holds its crawl's examples and up to 15 full page audits: a worst case at the bot's caps is about 2.4 MB. */
+export const SEO_CRAWL_NEXT_MAX_BYTES = 8 * 1024 * 1024;
 export const SEO_ARTIFACT_TIMEOUT_MS = 20_000;
 export const sha256 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");

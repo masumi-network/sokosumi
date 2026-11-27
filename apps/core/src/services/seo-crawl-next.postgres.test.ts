@@ -529,6 +529,58 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     ).toBe(1);
   });
 
+  it("imports a paid continuation's Report past a page audit's size limit, up to its own", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    await setBalance(100n);
+    const analysis = await requestSeoCrawlNext(actor, request());
+    const taskId = analysis.taskId!;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "COMPLETED" },
+    });
+    // The crawl's examples and 15 page audits make a Report of some MB: here, text the import ignores.
+    const report = (bytes: number) =>
+      JSON.stringify({
+        kind: "crawl_next",
+        request: { url: SITE, continues: AUDIT_CRAWL },
+        crawl: {
+          snapshotId: NEXT_CRAWL,
+          request: { url: SITE },
+          crawl: { fetched: 500, read: 480, stop: "page cap" },
+        },
+        head: { skipped: [] },
+        pages: [],
+        padding: "x".repeat(bytes),
+      });
+    const upload = async (body: string) => {
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId,
+          name: `seo-report-${taskId}.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${taskId}/${randomUUID()}.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      return importProjectSeoAudit(
+        actor,
+        { taskId, fileId: file.id },
+        { fetchImpl: async () => new Response(body) },
+      );
+    };
+    await expect(upload(report(9 * 1024 * 1024))).rejects.toMatchObject({
+      message: "The SEO report has an invalid size",
+    });
+    expect(await upload(report(3 * 1024 * 1024))).toMatchObject({
+      kind: "crawl_next",
+    });
+  });
+
   it("offers and sells no continuation through the audit of a CMO Project", async () => {
     await storeCrawl(
       "audit_full",

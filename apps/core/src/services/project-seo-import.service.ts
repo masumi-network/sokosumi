@@ -43,6 +43,7 @@ import {
   requireSeoOwner,
   SEO_ARTIFACT_MAX_BYTES,
   SEO_ARTIFACT_TIMEOUT_MS,
+  SEO_CRAWL_NEXT_MAX_BYTES,
   type SeoMutationHooks,
   seoOwnerData,
   seoOwnerUnique,
@@ -99,6 +100,11 @@ async function requireSourceFile(
     },
   });
   const file = task?.files[0];
+  // A paid continuation's Report is larger than a page audit's: the cap must not refuse what was charged.
+  const maxBytes =
+    analysis?.kind === "crawl_next"
+      ? SEO_CRAWL_NEXT_MAX_BYTES
+      : SEO_ARTIFACT_MAX_BYTES;
   if (
     !task?.assigneeId ||
     !file ||
@@ -113,18 +119,15 @@ async function requireSourceFile(
     throw notFound(
       "A completed public SEO report from this Task's Coworker is required",
     );
-  if (
-    file.size === null ||
-    file.size <= 0n ||
-    file.size > BigInt(SEO_ARTIFACT_MAX_BYTES)
-  )
+  if (file.size === null || file.size <= 0n || file.size > BigInt(maxBytes))
     throw badRequest("The SEO report has an invalid size");
-  return { task, file, fileUrl: file.fileUrl, analysis };
+  return { task, file, fileUrl: file.fileUrl, analysis, maxBytes };
 }
 
 async function readSeoArtifact(
   url: string,
   fetchImpl: typeof fetch,
+  maxBytes: number,
 ): Promise<string> {
   const response = await fetchImpl(url, {
     redirect: "error",
@@ -134,7 +137,7 @@ async function readSeoArtifact(
   if (!response.ok || !response.body)
     throw unprocessableEntity("The SEO report file is not available yet");
   const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > SEO_ARTIFACT_MAX_BYTES)
+  if (Number.isFinite(declared) && declared > maxBytes)
     throw badRequest("The SEO report exceeds the import limit");
   const reader = response.body.getReader(),
     chunks: Uint8Array[] = [];
@@ -144,7 +147,7 @@ async function readSeoArtifact(
       const next = await reader.read();
       if (next.done) break;
       length += next.value.byteLength;
-      if (length > SEO_ARTIFACT_MAX_BYTES)
+      if (length > maxBytes)
         throw badRequest("The SEO report exceeds the import limit");
       chunks.push(next.value);
     }
@@ -198,7 +201,7 @@ export async function importProjectSeoAudit(
   },
   options: SeoMutationHooks & { fetchImpl?: typeof fetch } = {},
 ) {
-  const { task, file, fileUrl, analysis } = await requireSourceFile(
+  const { task, file, fileUrl, analysis, maxBytes } = await requireSourceFile(
     actor,
     input,
   );
@@ -231,7 +234,11 @@ export async function importProjectSeoAudit(
       await options.authorize?.(tx);
       return commitSeoMutation(tx, existing, options);
     }, "The report import changed. Please retry.");
-  const body = await readSeoArtifact(fileUrl, options.fetchImpl ?? fetch);
+  const body = await readSeoArtifact(
+    fileUrl,
+    options.fetchImpl ?? fetch,
+    maxBytes,
+  );
   const artifactHash = sha256(body);
   if (recover && existing?.artifactHash !== artifactHash)
     throw conflict("The source report changed after it was imported");
