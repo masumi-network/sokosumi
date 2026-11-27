@@ -595,21 +595,28 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     }
 
     // A Cuso's month makes its pictures under the owner's name: they never
-    // count against the picture the owner asks for in chat.
-    const recent = input.forCmoMonth
-      ? 0
-      : await tx.projectImageJob.count({
-          where: {
-            requestedByUserId: input.userId,
-            createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
-            NOT: [
-              {
-                idempotencyKey: { startsWith: `${CMO_MONTH_JOB_KEY_PREFIX}:` },
-              },
-              { idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` } },
-            ],
-          },
-        });
+    // count against the picture the owner asks for in chat. A benchmark
+    // lane's pictures are the media stub's, which spend nothing, and its one
+    // owner makes every journey's pictures back to back.
+    const recent =
+      input.forCmoMonth || (await isEvalWorkspace(input.workspaceId))
+        ? 0
+        : await tx.projectImageJob.count({
+            where: {
+              requestedByUserId: input.userId,
+              createdAt: { gte: new Date(Date.now() - SPEND_WINDOW_MS) },
+              NOT: [
+                {
+                  idempotencyKey: {
+                    startsWith: `${CMO_MONTH_JOB_KEY_PREFIX}:`,
+                  },
+                },
+                {
+                  idempotencyKey: { startsWith: `${VIDEO_SHAPE_KEY_PREFIX}:` },
+                },
+              ],
+            },
+          });
     if (recent >= LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR) {
       throw tooManyRequests(
         `You can start at most ${LIMITS.IMAGE_STUDIO_GENERATIONS_PER_USER_PER_HOUR} image generations per hour.`,
