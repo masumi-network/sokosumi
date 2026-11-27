@@ -9,6 +9,7 @@ import {
   decideCompletionWithJev,
   inspectDraft,
   receiptToRuntimeEventData,
+  selectBoundedReceipts,
 } from "./completion-decider";
 import type { evaluateWithJev, JevAnswer } from "./jev";
 
@@ -85,11 +86,12 @@ describe("completion-decider (experiment E3)", () => {
   });
 
   describe("host menu pre-filtering", () => {
-    it("skips Jev entirely when already bounced, silent, waiting on others, or without tools", async () => {
+    it("skips Jev entirely when already bounced, quiet-wake silent, waiting on others, or without tools", async () => {
       const evaluate = mockJev({});
       for (const [reason, patch] of [
         ["already_bounced", { alreadyBounced: true }],
-        ["silent_draft", { draft: "Nothing to add." }],
+        ["silent_draft", { turnSource: "EVENT", draft: "Nothing to add." }],
+        ["silent_draft", { turnSource: "SCHEDULE", draft: "Nothing to add." }],
         ["waiting_on_others", { waitingOnOthers: true }],
         ["no_tools", { availableWriteTools: [], availableReadToolCount: 0 }],
       ] as const) {
@@ -103,6 +105,54 @@ describe("completion-decider (experiment E3)", () => {
         expect(result.receipt.fallback).toBe(false);
       }
       expect(evaluate).not.toHaveBeenCalled();
+    });
+
+    it("keeps an explicitly requested CHAT reply and unfinished local step when the draft is silent", async () => {
+      const steps = [
+        {
+          id: "s1",
+          step: "Read the minutes and reply to the owner",
+          status: "in_progress" as const,
+        },
+      ];
+      const evaluate = mockJev({
+        decision: {
+          type: "choice",
+          choice: "abstain",
+          probabilities: { abstain: 1 },
+        },
+      });
+      const result = await decideCompletionWithJev(
+        makeCtx({
+          request: "Read the minutes and tell me who took notes.",
+          draft: "Nothing to add.",
+          hasPlanLoop: true,
+          plan: { revision: 1, requestId: "r", steps },
+          openSteps: steps,
+        }),
+        { evaluate },
+      );
+      expect(evaluate).toHaveBeenCalledTimes(1);
+      expect(result.action !== "finish" || result.usePlanLoopFallback).toBe(
+        true,
+      );
+      expect(result.receipt.fallback).toBe(true);
+      expect(result.receipt.fallbackPolicy).toBe("plan_loop_done_check");
+
+      // A quiet EVENT wake with open plan steps is also evaluated rather than silently dropped.
+      const wakeResult = await decideCompletionWithJev(
+        makeCtx({
+          turnSource: "EVENT",
+          isFollowUpWake: true,
+          draft: "Nothing to add.",
+          hasPlanLoop: true,
+          plan: { revision: 1, requestId: "r", steps },
+          openSteps: steps,
+        }),
+        { evaluate },
+      );
+      expect(wakeResult.usePlanLoopFallback).toBe(true);
+      expect(wakeResult.receipt.validation).toBe("abstained");
     });
 
     it("still checks when waitingOnOthers is true but a local step is in_progress", () => {
@@ -491,6 +541,172 @@ describe("completion-decider (experiment E3)", () => {
       expect(borderline.action).toBe("finish");
       expect(borderline.receipt.validation).toBe("low_confidence");
       expect(borderline.receipt.fallback).toBe(true);
+    });
+
+    it("does not count an off-menu or missing target as a successful named continuation", async () => {
+      const steps = [
+        { id: "s1", step: "Read the minutes", status: "pending" as const },
+        { id: "s2", step: "Draft the response", status: "pending" as const },
+      ];
+      for (const includeTarget of [true, false]) {
+        const result = await decideCompletionWithJev(
+          makeCtx({
+            hasPlanLoop: true,
+            openSteps: steps,
+            plan: { requestId: "r", revision: 1, steps },
+          }),
+          {
+            evaluate: mockJev({
+              decision: {
+                type: "choice",
+                choice: "continue",
+                probabilities: { continue: 1 },
+              },
+              ...(includeTarget
+                ? {
+                    target: {
+                      type: "choice",
+                      choice: "gap:unread_context",
+                      probabilities: { "gap:unread_context": 1 },
+                    },
+                  }
+                : {}),
+            }),
+          },
+        );
+        expect(result.receipt.targetCandidates).toEqual(["step:s1", "step:s2"]);
+        expect(result.receipt.validation).toBe("invalid");
+        expect(result.receipt.fallback).toBe(true);
+        expect(result.receipt.chosenTarget).toBeNull();
+        expect(result.receipt.bounced).toBe(false);
+        expect(result.usePlanLoopFallback).toBe(true);
+      }
+
+      // Same rejection when the gap menu is offered (no open plan steps).
+      for (const bogusTarget of ["step:s1", null]) {
+        const result = await decideCompletionWithJev(makeCtx(), {
+          evaluate: mockJev({
+            decision: {
+              type: "choice",
+              choice: "continue",
+              probabilities: { continue: 1 },
+            },
+            ...(bogusTarget
+              ? {
+                  target: {
+                    type: "choice",
+                    choice: bogusTarget,
+                    probabilities: { [bogusTarget]: 1 },
+                  },
+                }
+              : {}),
+          }),
+        });
+        expect(result.receipt.validation).toBe("invalid");
+        expect(result.receipt.fallback).toBe(true);
+        expect(result.receipt.fallbackPolicy).toBe("finish");
+        expect(result.receipt.chosenTarget).toBeNull();
+        expect(result.action).toBe("finish");
+      }
+    });
+
+    it("preserves unresolved writes ahead of twenty later confirmed writes and summarizes overflow", () => {
+      const ctx = makeCtx({
+        receipts: [
+          {
+            capability: "publish_social_post",
+            label: "first post",
+            outcome: "unconfirmed",
+          },
+          ...Array.from({ length: 20 }, (_, i) => ({
+            capability: "upload_file",
+            label: `file ${i}`,
+            outcome: "done" as const,
+          })),
+        ],
+      });
+      const state = buildCompletionState(ctx) as Record<string, unknown>;
+      expect(JSON.stringify(state)).toContain("unconfirmed");
+      expect(state.coreWriteReceipts).toHaveLength(20);
+      expect(
+        (state.coreWriteReceipts as Array<Record<string, unknown>>)[0],
+      ).toEqual(
+        expect.objectContaining({
+          capability: "publish_social_post",
+          outcome: "unconfirmed",
+        }),
+      );
+      expect(state.coreWriteReceiptsOverflow).toEqual({
+        totalReceipts: 21,
+        shownReceipts: 20,
+        omittedDoneCount: 1,
+        omittedUnresolvedCount: 0,
+        omittedByCapability: { upload_file: 1 },
+      });
+
+      // Bounce prompt keeps unresolved receipts ahead of confirmed ones and notes overflow.
+      const prompt = buildCompletionBouncePrompt({
+        ctx,
+        decision: {
+          receipt: {
+            stage: "completion",
+            policyVersion: COMPLETION_DECIDER_POLICY_VERSION,
+            mode: "completion_decider",
+            candidates: ["finish", "continue", "ask_owner", "abstain"],
+            targetCandidates: ["gap:unsettled_receipt"],
+            choice: "continue",
+            chosenTarget: "gap:unsettled_receipt",
+            abstained: false,
+            probabilities: { continue: 0.9 },
+            targetProbabilities: { "gap:unsettled_receipt": 0.9 },
+            validation: "valid",
+            validationDetail: null,
+            fallback: false,
+            fallbackPolicy: null,
+            outcome: "continue",
+            bounced: true,
+            latencyMs: 10,
+            costUsd: 0,
+            stateSummary: {
+              hasPlan: false,
+              openStepCount: 0,
+              receiptCount: 21,
+              waitingOnOthers: false,
+              ownerBlocker: false,
+              draftAsksOwner: false,
+              turnSource: "CHAT",
+              isFollowUpWake: false,
+            },
+          },
+          action: "continue",
+          namedStep: null,
+          continueGap: "unsettled_receipt",
+          usePlanLoopFallback: false,
+        },
+        openStepsText: "",
+        savedNoteText: "",
+      });
+      expect(prompt).toContain(
+        "publish_social_post (first post): Core could not confirm",
+      );
+      expect(prompt).toContain("11 earlier confirmed save(s) omitted above.");
+
+      // When unresolved receipts themselves exceed limit, prioritize unconfirmed > not done > started.
+      const overflowUnresolved = selectBoundedReceipts(
+        [
+          { capability: "a", label: "1", outcome: "started" },
+          { capability: "b", label: "2", outcome: "not done" },
+          { capability: "c", label: "3", outcome: "unconfirmed" },
+          { capability: "d", label: "4", outcome: "done" },
+        ],
+        2,
+      );
+      expect(overflowUnresolved.shown.map((r) => r.outcome)).toEqual([
+        "not done",
+        "unconfirmed",
+      ]);
+      expect(overflowUnresolved.omittedDoneCount).toBe(1);
+      expect(overflowUnresolved.omittedUnresolvedCount).toBe(1);
     });
 
     it("bounds request, rootRequest, and draft fields in Jev state", () => {

@@ -497,18 +497,18 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
   it("treats FAILED/UNKNOWN external effects (incl. paid investor_warm_paths) as unconfirmed and keeps refusals open when a retry is UNKNOWN", async () => {
     mocks.findTurn.mockResolvedValue(baseTurn());
     mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
-    // Returned in desc order (newest first), as Prisma queries it.
+    // Returned in chronological (asc) order, as Prisma queries it.
     mocks.findToolCalls.mockResolvedValue([
       {
         turnId: "turn-1",
-        capability: "create_social_post",
-        input: {},
-        status: "COMPLETED",
+        capability: "investor_warm_paths",
+        input: { research: true },
+        status: "FAILED",
         disposition: "UNKNOWN",
         targetId: null,
         result: null,
-        errorKind: null,
-        errorDetail: null,
+        errorKind: "timeout",
+        errorDetail: "Timed out after dispatch",
       },
       {
         turnId: "turn-1",
@@ -523,14 +523,14 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
       },
       {
         turnId: "turn-1",
-        capability: "investor_warm_paths",
-        input: { research: true },
-        status: "FAILED",
+        capability: "create_social_post",
+        input: {},
+        status: "COMPLETED",
         disposition: "UNKNOWN",
         targetId: null,
         result: null,
-        errorKind: "timeout",
-        errorDetail: "Timed out after dispatch",
+        errorKind: null,
+        errorDetail: null,
       },
     ]);
     mocks.evaluateWithJev.mockResolvedValue({
@@ -582,6 +582,104 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
     expect(jevCall.state.readToolsUsed).toEqual([]);
     expect(jevCall.state.unresolvedCoreRefusals).toEqual([
       expect.objectContaining({ capability: "create_social_post" }),
+    ]);
+  });
+
+  it("reads the full call set without a 100-call cap and preserves an early unconfirmed publish behind 105 reads and 20 uploads", async () => {
+    mocks.findTurn.mockResolvedValue(baseTurn());
+    mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
+    mocks.findToolCalls.mockResolvedValue([
+      {
+        turnId: "turn-1",
+        capability: "publish_social_post",
+        input: {},
+        status: "FAILED",
+        disposition: "UNKNOWN",
+        targetId: "post-1",
+        result: null,
+        errorKind: "timeout",
+        errorDetail: "Provider response lost",
+      },
+      ...Array.from({ length: 105 }, () => ({
+        turnId: "turn-1",
+        capability: "read_file",
+        input: {},
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        targetId: null,
+        result: {},
+        errorKind: null,
+        errorDetail: null,
+      })),
+      ...Array.from({ length: 20 }, (_, i) => ({
+        turnId: "turn-1",
+        capability: "upload_file",
+        input: {},
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        targetId: `file-${i}`,
+        result: { filename: `file-${i}.md` },
+        errorKind: null,
+        errorDetail: null,
+      })),
+    ]);
+    mocks.evaluateWithJev.mockResolvedValue({
+      answers: new Map([
+        [
+          "decision",
+          {
+            type: "choice",
+            choice: "finish",
+            probabilities: {
+              finish: 0.9,
+              continue: 0.05,
+              ask_owner: 0.03,
+              abstain: 0.02,
+            },
+          },
+        ],
+      ]),
+      costUsd: 0.00004,
+    });
+
+    await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Uploaded the files.",
+    });
+
+    expect(mocks.findToolCalls).toHaveBeenCalledWith(
+      expect.not.objectContaining({ take: expect.anything() }),
+    );
+    const jevCall = mocks.evaluateWithJev.mock.calls[0]?.[0] as {
+      state: {
+        coreWriteReceipts: Array<{ capability: string; outcome: string }>;
+        coreWriteReceiptsOverflow: {
+          totalReceipts: number;
+          shownReceipts: number;
+          omittedDoneCount: number;
+          omittedUnresolvedCount: number;
+        };
+        readToolsUsed: Array<{ capability: string; completedCount: number }>;
+      };
+    };
+    expect(jevCall.state.coreWriteReceipts).toHaveLength(20);
+    expect(jevCall.state.coreWriteReceipts[0]).toEqual(
+      expect.objectContaining({
+        capability: "publish_social_post",
+        outcome: "unconfirmed",
+      }),
+    );
+    expect(jevCall.state.coreWriteReceiptsOverflow).toEqual(
+      expect.objectContaining({
+        totalReceipts: 21,
+        shownReceipts: 20,
+        omittedDoneCount: 1,
+        omittedUnresolvedCount: 0,
+      }),
+    );
+    expect(jevCall.state.readToolsUsed).toEqual([
+      expect.objectContaining({ capability: "read_file", completedCount: 105 }),
     ]);
   });
 });

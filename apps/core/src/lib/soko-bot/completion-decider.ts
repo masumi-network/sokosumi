@@ -169,7 +169,7 @@ const DECISION_CRITERIA: Record<CompletionDecisionOption, string> = {
   finish:
     "The reply can go to the owner now: every requested deliverable or change is backed by Core receipts (even if the plan was not updated yet), OR the request was a read-only question, greeting, status lookup, explanation, refusal, deferral, or discussion requiring no writes (including when read tools already answered the question), OR the remaining work is waiting on an active delegation, watch, or background run, OR a requested account or resource is unavailable and the reply explains that clearly.",
   continue:
-    "The owner (or a completed delegation follow-up) asked for concrete work or workspace reads that are still clearly undone or unverified: Core's receipts do not show the requested change or deliverable yet, OR the assistant asked a generic question without first calling available read tools to check workspace state, OR a change tool failed, returned unconfirmed, or left a media job running without waiting on it, OR any independent clear part of a multi-part request can still be completed now without waiting on the owner's answer to another part.",
+    "The owner (or a completed delegation follow-up) asked for concrete work or workspace reads that are still clearly undone or unverified: Core's receipts do not show the requested change or deliverable yet, OR the draft is silent/empty even though the owner asked for an answer or work, OR the assistant asked a generic question without first calling available read tools to check workspace state, OR a change tool failed, returned unconfirmed, or left a media job running without waiting on it, OR any independent clear part of a multi-part request can still be completed now without waiting on the owner's answer to another part.",
   ask_owner:
     "EVERY remaining uncompleted part is genuinely blocked on an owner decision, approval, missing account, or choice that workspace tools cannot settle (such as picking among multiple matching destinations or an unstated strategic direction), with NO independent clear step left that could be completed first. Pick this when the draft already asks that concrete question, or when an unresolved Core refusal or pending decision requires the owner's input before acting.",
   abstain:
@@ -296,9 +296,84 @@ export function buildCompletionQuestions(ctx: CompletionDeciderContext): {
   return { candidates, targetCandidates, questions };
 }
 
+const UNRESOLVED_PRIORITY: Record<CompletionReceiptOutcome, number> = {
+  unconfirmed: 0,
+  "not done": 1,
+  started: 2,
+  done: 3,
+};
+
+/**
+ * Selects up to `limit` receipts while preserving unresolved effects
+ * (`unconfirmed`, `not done`, `started`) ahead of confirmed `done` examples,
+ * returning chronological order plus overflow counts for anything omitted.
+ */
+export function selectBoundedReceipts(
+  receipts: readonly CompletionReceiptSummary[],
+  limit: number,
+): {
+  shown: CompletionReceiptSummary[];
+  omittedDoneCount: number;
+  omittedUnresolvedCount: number;
+  omittedByCapability: Record<string, number>;
+} {
+  if (receipts.length <= limit) {
+    return {
+      shown: [...receipts],
+      omittedDoneCount: 0,
+      omittedUnresolvedCount: 0,
+      omittedByCapability: {},
+    };
+  }
+  const indexed = receipts.map((receipt, index) => ({ receipt, index }));
+  const unresolved = indexed.filter((item) => item.receipt.outcome !== "done");
+  const confirmed = indexed.filter((item) => item.receipt.outcome === "done");
+
+  // Keep highest-risk unresolved receipts first (unconfirmed > not done > started,
+  // newest first on ties), then fill remaining slots with newest confirmed saves.
+  const rankedUnresolved = [...unresolved].sort(
+    (left, right) =>
+      UNRESOLVED_PRIORITY[left.receipt.outcome] -
+        UNRESOLVED_PRIORITY[right.receipt.outcome] || right.index - left.index,
+  );
+  const keptUnresolved = rankedUnresolved.slice(0, limit);
+  const remainingSlots = Math.max(0, limit - keptUnresolved.length);
+  const keptConfirmed =
+    remainingSlots > 0 ? confirmed.slice(-remainingSlots) : [];
+
+  const keptIndices = new Set([
+    ...keptUnresolved.map((item) => item.index),
+    ...keptConfirmed.map((item) => item.index),
+  ]);
+  const shown = indexed
+    .filter((item) => keptIndices.has(item.index))
+    .map((item) => item.receipt);
+
+  let omittedDoneCount = 0;
+  let omittedUnresolvedCount = 0;
+  const omittedByCapability: Record<string, number> = {};
+  for (const item of indexed) {
+    if (keptIndices.has(item.index)) continue;
+    if (item.receipt.outcome === "done") omittedDoneCount += 1;
+    else omittedUnresolvedCount += 1;
+    omittedByCapability[item.receipt.capability] =
+      (omittedByCapability[item.receipt.capability] ?? 0) + 1;
+  }
+
+  return {
+    shown,
+    omittedDoneCount,
+    omittedUnresolvedCount,
+    omittedByCapability,
+  };
+}
+
 /** Compact, bounded state handed to Jev so calls stay fast and replayable. */
 export function buildCompletionState(ctx: CompletionDeciderContext): JevState {
   const draft = inspectDraft(ctx.draft);
+  const bounded = selectBoundedReceipts(ctx.receipts, MAX_RECEIPTS_IN_STATE);
+  const omittedTotal =
+    bounded.omittedDoneCount + bounded.omittedUnresolvedCount;
   return {
     turnSource: ctx.turnSource,
     isFollowUpWake: ctx.isFollowUpWake,
@@ -313,7 +388,11 @@ export function buildCompletionState(ctx: CompletionDeciderContext): JevState {
       : {}),
     draftKind: draft.kind,
     draftAsksQuestion: draft.asksOwner,
-    draftReply: draft.text.slice(0, MAX_DRAFT_CHARS),
+    draftReply: (
+      draft.text ||
+      ctx.draft.trim() ||
+      "(silent — empty reply)"
+    ).slice(0, MAX_DRAFT_CHARS),
     plan: ctx.plan
       ? {
           revision: ctx.plan.revision,
@@ -326,19 +405,28 @@ export function buildCompletionState(ctx: CompletionDeciderContext): JevState {
           })),
         }
       : null,
-    coreWriteReceipts: ctx.receipts
-      .slice(-MAX_RECEIPTS_IN_STATE)
-      .map((receipt) => ({
-        capability: receipt.capability,
-        outcome: receipt.outcome,
-        ...(receipt.label ? { label: receipt.label } : {}),
-        ...(receipt.errorKind ? { errorKind: receipt.errorKind } : {}),
-        ...(receipt.errorDetail
-          ? {
-              errorDetail: receipt.errorDetail.slice(0, MAX_ERROR_DETAIL_CHARS),
-            }
-          : {}),
-      })),
+    coreWriteReceipts: bounded.shown.map((receipt) => ({
+      capability: receipt.capability,
+      outcome: receipt.outcome,
+      ...(receipt.label ? { label: receipt.label } : {}),
+      ...(receipt.errorKind ? { errorKind: receipt.errorKind } : {}),
+      ...(receipt.errorDetail
+        ? {
+            errorDetail: receipt.errorDetail.slice(0, MAX_ERROR_DETAIL_CHARS),
+          }
+        : {}),
+    })),
+    ...(omittedTotal > 0
+      ? {
+          coreWriteReceiptsOverflow: {
+            totalReceipts: ctx.receipts.length,
+            shownReceipts: bounded.shown.length,
+            omittedDoneCount: bounded.omittedDoneCount,
+            omittedUnresolvedCount: bounded.omittedUnresolvedCount,
+            omittedByCapability: bounded.omittedByCapability,
+          },
+        }
+      : {}),
     readToolsUsed: ctx.readCalls.slice(0, 20).map((read) => ({
       capability: read.capability,
       completedCount: read.completedCount,
@@ -372,12 +460,13 @@ function makeFallback(
   >,
   recheckWaitingOnOthers: boolean,
   recheckOpenCount: number,
+  recheckHasInProgress = hasLocalInProgressStep(ctx.openSteps),
 ): CompletionDecisionResult {
   const usePlanLoopFallback =
     ctx.hasPlanLoop &&
     !ctx.alreadyBounced &&
     recheckOpenCount > 0 &&
-    !(recheckWaitingOnOthers && !hasLocalInProgressStep(ctx.openSteps));
+    !(recheckWaitingOnOthers && !recheckHasInProgress);
   return {
     receipt: {
       ...base,
@@ -435,10 +524,14 @@ export async function decideCompletionWithJev(
     isFollowUpWake: ctx.isFollowUpWake,
   };
 
-  // Host pre-filter: skip Jev entirely when the host cannot bounce.
+  // Host pre-filter: skip Jev when the host cannot bounce. Only a quiet wake
+  // (EVENT/SCHEDULE) with no open plan steps may exit silently; a foreground
+  // owner CHAT or any turn with open steps must still be evaluated.
+  const quietWakeSilent =
+    draft.silent && ctx.turnSource !== "CHAT" && ctx.openSteps.length === 0;
   const prefilterReason = ctx.alreadyBounced
     ? "already_bounced"
-    : draft.silent
+    : quietWakeSilent
       ? "silent_draft"
       : ctx.waitingOnOthers && !hasLocalInProgressStep(ctx.openSteps)
         ? "waiting_on_others"
@@ -739,6 +832,22 @@ export async function decideCompletionWithJev(
     );
   }
 
+  if (!rawChosenTarget || !targetCandidates.includes(rawChosenTarget)) {
+    return makeFallback(
+      ctx,
+      {
+        ...baseReceipt,
+        chosenTarget: null,
+        validation: "invalid",
+        validationDetail: rawChosenTarget
+          ? `off_menu_target:${rawChosenTarget}`
+          : "missing_target",
+      },
+      ctx.waitingOnOthers,
+      ctx.openSteps.length,
+    );
+  }
+
   let namedStep: PlanStep | null = null;
   let continueGap: CompletionContinueGap | null = null;
   if (rawChosenTarget?.startsWith("step:")) {
@@ -749,6 +858,7 @@ export async function decideCompletionWithJev(
         ctx,
         {
           ...baseReceipt,
+          chosenTarget: null,
           validation: "invalid",
           validationDetail: `unknown_step_target:${stepId}`,
         },
@@ -760,10 +870,31 @@ export async function decideCompletionWithJev(
     const gap = rawChosenTarget.slice("gap:".length);
     if ((COMPLETION_CONTINUE_GAPS as readonly string[]).includes(gap)) {
       continueGap = gap as CompletionContinueGap;
+    } else {
+      return makeFallback(
+        ctx,
+        {
+          ...baseReceipt,
+          chosenTarget: null,
+          validation: "invalid",
+          validationDetail: `unknown_gap_target:${gap}`,
+        },
+        ctx.waitingOnOthers,
+        ctx.openSteps.length,
+      );
     }
-  } else if (ctx.openSteps.length > 0) {
-    // target question missing despite open steps: pick first open step only if valid
-    namedStep = ctx.openSteps[0] ?? null;
+  } else {
+    return makeFallback(
+      ctx,
+      {
+        ...baseReceipt,
+        chosenTarget: null,
+        validation: "invalid",
+        validationDetail: "missing_target",
+      },
+      ctx.waitingOnOthers,
+      ctx.openSteps.length,
+    );
   }
 
   // Keel host re-check right before acting: reject stale picks.
@@ -806,6 +937,7 @@ export async function decideCompletionWithJev(
         },
         true,
         freshOpenCount,
+        false,
       );
     }
     if (
@@ -867,14 +999,25 @@ function compactReceiptsNote(
   receipts: readonly CompletionReceiptSummary[],
 ): string {
   if (!receipts.length) return "";
-  const lines = receipts
-    .slice(-10)
+  const bounded = selectBoundedReceipts(receipts, 10);
+  const lines = bounded.shown
     .map(
       (receipt) =>
         `- ${receipt.capability}${receipt.label ? ` (${receipt.label})` : ""}: ${RECEIPT_OUTCOME_WORDS[receipt.outcome]}`,
     )
     .join("\n");
-  return `Core's receipts for this request so far:\n${lines}\nDo not repeat any save marked done. Never repeat an unconfirmed external action blind: read back whether it happened first. For work marked started, wait for it instead of starting it again.\n`;
+  const overflowParts = [
+    bounded.omittedDoneCount > 0
+      ? `${bounded.omittedDoneCount} earlier confirmed save(s)`
+      : null,
+    bounded.omittedUnresolvedCount > 0
+      ? `${bounded.omittedUnresolvedCount} additional unresolved call(s)`
+      : null,
+  ].filter(Boolean);
+  const overflowLine = overflowParts.length
+    ? `(${overflowParts.join(" and ")} omitted above.)\n`
+    : "";
+  return `Core's receipts for this request so far:\n${lines}\n${overflowLine}Do not repeat any save marked done. Never repeat an unconfirmed external action blind: read back whether it happened first. For work marked started, wait for it instead of starting it again.\n`;
 }
 
 /** Builds the single bounce prompt handed back to the agent on continue / ask_owner_bounce. */

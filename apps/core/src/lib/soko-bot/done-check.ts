@@ -353,7 +353,7 @@ async function savesSincePlan(
       targetId: true,
       result: true,
     },
-    take: 20,
+    ...(includeFailed ? {} : { take: 20 }),
   });
   return Promise.all(
     calls.map(async (call) => ({
@@ -434,14 +434,15 @@ async function completionEvidence(
   unresolvedRefusals: CompletionRefusalSummary[];
 }> {
   const writes = changeTools();
-  const [rawCalls, pendingDecisionCount] = await Promise.all([
+  const [calls, pendingDecisionCount] = await Promise.all([
     prisma.sokoBotToolCall.findMany({
       where: {
         turnId: { in: [...turnIds] },
         status: { in: ["COMPLETED", "FAILED"] },
       },
-      // Read the newest calls so long chains never drop recent writes or refusals.
-      orderBy: { createdAt: "desc" },
+      // Read the complete settled call set for this request so reads never
+      // evict earlier writes and unresolved receipts are never dropped.
+      orderBy: { createdAt: "asc" },
       select: {
         turnId: true,
         capability: true,
@@ -453,13 +454,11 @@ async function completionEvidence(
         errorKind: true,
         errorDetail: true,
       },
-      take: 100,
     }),
     prisma.sokoBotPendingDecision.count({
       where: { turnId, status: "PENDING" },
     }),
   ]);
-  const calls = [...rawCalls].reverse();
 
   const isChangeCall = (call: (typeof calls)[number]) =>
     writes.has(call.capability) ||
@@ -468,7 +467,7 @@ async function completionEvidence(
 
   const writeCalls = calls.filter(isChangeCall);
   const receipts: CompletionReceiptSummary[] = await Promise.all(
-    writeCalls.slice(-20).map(async (call) => ({
+    writeCalls.map(async (call) => ({
       capability: call.capability,
       label: receiptLabel(call.targetId, call.result),
       outcome: await receiptOutcome(call),
