@@ -2212,7 +2212,43 @@ describe("authoritative action responses", () => {
     ).not.toHaveProperty("replyCheck");
   });
 
-  it("never appends a canned clarification question after confirmed work ran", async () => {
+  it("preserves a structured time question when an independent draft is confirmed", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_social_post", targetId: "post-one" }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "CLARIFY",
+      message: null,
+      question: "TIME",
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toContain("Created social post.");
+    expect(result.answerText).toContain("When should this happen?");
+  });
+
+  it("preserves a requested target clarification after a refused action", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "update_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+    ]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "CLARIFY",
+      message: null,
+      question: "TARGET",
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toContain("Which task or item do you mean?");
+  });
+
+  it("never appends a generic DETAILS question after confirmed work completed cleanly", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({ capability: "create_social_post", targetId: "post-one" }),
     ]);

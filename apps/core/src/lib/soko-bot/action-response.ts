@@ -762,14 +762,21 @@ export async function buildActionResponse(
     savedCmoRecord ??= await cmoSavedRecord(tx, turnId, await isCmo());
     return savedCmoRecord;
   };
-  const hadConfirmedWork =
-    calls.length > 0 || reportedByCard || (await hasCmoSavedRecord());
-  // Never append a canned clarification question after work already ran or
-  // after the claim check cut/held the bot's own words.
+  const workCompletedCleanly =
+    unfulfilledActions.length === 0 &&
+    (appliedReceiptIds.length > 0 ||
+      reportedByCard ||
+      (await hasCmoSavedRecord()));
+  // Suppress the generic DETAILS fallback once work completed cleanly, and
+  // suppress any canned question when the claim check cut/held the message.
+  // Specific questions (TIME, TARGET, SCOPE, APPROVAL) and questions after
+  // refused/unfulfilled work stay intact so the owner can unblock the rest.
+  const suppressQuestion =
+    Boolean(narrative?.replyCheck) ||
+    (narrative?.question === "DETAILS" && workCompletedCleanly);
   const question =
     !message &&
-    !narrative?.replyCheck &&
-    !hadConfirmedWork &&
+    !suppressQuestion &&
     narrative?.kind === "CLARIFY" &&
     narrative.question
       ? QUESTIONS[narrative.question]

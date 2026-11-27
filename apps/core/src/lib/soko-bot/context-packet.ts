@@ -151,7 +151,7 @@ export function triggerHints(input: BuildContextPacketInput): string[] {
       : []),
     ...(input.capturedPreference
       ? [
-          `Saved to your memory's preferences from this message: "${input.capturedPreference}". Carry out any action or update requested in this message (including updating existing or upcoming items it affects), then tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
+          `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
         ]
       : (signals?.statesPreference ?? 0) >= LIKELY_SIGNAL
         ? ["The message may state a lasting preference."]
