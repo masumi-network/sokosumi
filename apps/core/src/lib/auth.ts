@@ -35,6 +35,7 @@ import {
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
+import { z } from "zod";
 import { stripeClient, stripe as stripeSdk } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import {
@@ -42,6 +43,7 @@ import {
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
+  isExplicitPreprod,
   isProductionEnvironment,
 } from "@/config/env";
 import { sendEmailInBackground } from "@/helpers/background-email";
@@ -114,6 +116,10 @@ import {
   betterAuthLogger,
   captureBetterAuthOAuthErrorURL,
 } from "./evlog-library-logs";
+import {
+  networkFromUserApiKeyPrefix,
+  USER_API_KEY_PREFIXES,
+} from "./user-api-key";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -123,6 +129,12 @@ const ORGANIZATION_SEATS_CHANGE_NOT_ALLOWED =
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
+const userApiKeyPrefix = isExplicitPreprod(env)
+  ? undefined
+  : USER_API_KEY_PREFIXES.mainnet;
+const apiKeyListBody = z.looseObject({
+  apiKeys: z.array(z.looseObject({ prefix: z.string().nullable() })),
+});
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const mcpResource = mcpResourceIdentifier(betterAuthBaseUrl);
@@ -390,6 +402,17 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
+      if (
+        ctx.path === "/api-key/create" &&
+        typeof ctx.body === "object" &&
+        ctx.body !== null &&
+        Object.hasOwn(ctx.body, "prefix")
+      ) {
+        throw new APIError("BAD_REQUEST", {
+          message: "The API key prefix is set by the server.",
+        });
+      }
+
       if (ctx.path === "/update-user") {
         await validateUpdatedUserName(ctx);
       }
@@ -397,6 +420,19 @@ export const auth = betterAuth({
       return applyOAuthClientPolicy(ctx, mcpResource);
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/api-key/list") {
+        const list = apiKeyListBody.safeParse(ctx.context.returned);
+        if (list.success) {
+          return ctx.json({
+            ...list.data,
+            apiKeys: list.data.apiKeys.map((key) => ({
+              ...key,
+              network: networkFromUserApiKeyPrefix(key.prefix),
+            })),
+          });
+        }
+      }
+
       if (ctx.path === "/organization/leave") {
         const organizationId = ctx.body?.organizationId;
         const userId = ctx.context.session?.user.id;
@@ -616,6 +652,10 @@ export const auth = betterAuth({
     apiKey({
       configId: "default",
       references: "user",
+      defaultPrefix: userApiKeyPrefix,
+      startingCharactersConfig: {
+        charactersLength: (userApiKeyPrefix?.length ?? 0) + 6,
+      },
       rateLimit: {
         enabled: true,
         // The plugin measures timeWindow in milliseconds; TIME is a seconds

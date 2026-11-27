@@ -326,6 +326,8 @@ vi.mock("@/config/env", async (importOriginal) => ({
   getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
   getBetterAuthPublicBaseUrl: () => getBetterAuthPublicBaseUrlMock(),
   getWebAppBaseUrl: () => getWebAppBaseUrlMock(),
+  isExplicitPreprod: (await importOriginal<typeof import("@/config/env")>())
+    .isExplicitPreprod,
   isProductionEnvironment: (
     await importOriginal<typeof import("@/config/env")>()
   ).isProductionEnvironment,
@@ -1052,6 +1054,32 @@ describe("core auth config", () => {
       maxRequests: 100,
     });
   });
+
+  it.each([
+    ["Mainnet", "Mainnet", "soko_mainnet_", 19],
+    ["Preprod", "Preprod", undefined, 6],
+    [undefined, "Preprod", "soko_mainnet_", 19],
+  ] as const)(
+    "configures User key minting with NETWORK=%s",
+    async (deployment, parsedNetwork, defaultPrefix, charactersLength) => {
+      vi.stubEnv("NETWORK", deployment);
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NETWORK: parsedNetwork,
+      });
+      try {
+        await import("./auth");
+        expect(apiKeyPluginMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            defaultPrefix,
+            startingCharactersConfig: { charactersLength },
+          }),
+        );
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
 
   it("keeps branch previews out of production trustedOrigins", async () => {
     getEnvMock.mockReturnValue({
