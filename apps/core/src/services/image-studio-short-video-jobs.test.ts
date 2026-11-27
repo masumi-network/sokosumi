@@ -185,11 +185,15 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
 
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   createShortVideoJob,
   reconcileJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as NetworkScope;
 
 /** 130 characters: quoted at 10 seconds. */
 const SCRIPT = `${"Stop scrolling. ".repeat(8)}ok`;
@@ -449,7 +453,11 @@ describe("a short's music arriving", () => {
       durationSeconds: 9.2,
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+    );
 
     expect(downloadMediaMock).toHaveBeenCalledWith(
       "https://v3b.fal.media/files/music.wav",
@@ -494,7 +502,11 @@ describe("a short's music arriving", () => {
       durationSeconds: 9.2,
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+    );
 
     expect(editShortVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -511,7 +523,11 @@ describe("a short's music arriving", () => {
     editShortVideoMock.mockRejectedValue(new Error("ffmpeg exited 1"));
     const logged = expectCoreLog("warn", "Could not put a short together");
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav");
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+    );
 
     expect(jobUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -551,11 +567,16 @@ describe("delivering a short with other shapes", () => {
       return { count: 1 };
     });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav", {
-      // What a provider reports is the clip's size, not the edit's.
-      width: 1080,
-      height: 1920,
-    });
+    await settleWithMedia(
+      scope,
+      "job-1",
+      "https://v3b.fal.media/files/music.wav",
+      {
+        // What a provider reports is the clip's size, not the edit's.
+        width: 1080,
+        height: 1920,
+      },
+    );
 
     expect(assetCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -582,7 +603,7 @@ describe("delivering a short with other shapes", () => {
     jobCreateManyMock.mockRejectedValue(new Error("connection reset"));
 
     await expect(
-      settleWithMedia("job-1", "https://v3b.fal.media/files/music.wav"),
+      settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/music.wav"),
     ).rejects.toThrow("connection reset");
     // The asset and its charge were in the same transaction, which rolled back:
     // the job has no asset, so the next reconcile settles it again.
@@ -675,7 +696,7 @@ describe("a short in several shapes", () => {
     });
     putMock.mockRejectedValue(new Error("stop at the upload"));
 
-    await reconcileJob("job-2");
+    await reconcileJob(scope, "job-2");
 
     expect(fetchQueueResultMock).toHaveBeenCalledWith({
       model: "fal-ai/lyria2",
@@ -704,7 +725,7 @@ describe("a short in several shapes", () => {
             },
     );
 
-    await reconcileJob("job-2");
+    await reconcileJob(scope, "job-2");
 
     expect(fetchQueueResultMock).not.toHaveBeenCalled();
     expect(jobUpdateManyMock).toHaveBeenCalledWith(

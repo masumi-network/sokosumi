@@ -18,13 +18,15 @@ export default function mount(app: Hono) {
       IMAGE_JOBS_SYNC_LOCK_KEY,
       async (context) => {
         const result = await reconcileStaleJobs({
+          scope: context.scope,
           olderThanMs: STALE_AFTER_MS,
           limit: BATCH,
         });
         const folders = await moveLegacyStudioFolderTasks(5);
         context.log.set({ result: { ...result, folders } });
       },
-      { errorDetail: "safe-fields" },
+      // Image Studio is Mainnet only.
+      { errorDetail: "safe-fields", network: "mainnet" },
     );
   });
 }

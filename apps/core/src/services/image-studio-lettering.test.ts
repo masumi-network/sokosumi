@@ -128,6 +128,7 @@ vi.mock("@/lib/db/transaction", () => ({
     run((await import("@/lib/db/prisma")).default),
 }));
 
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   getImageCatalog,
   imageModel,
@@ -141,6 +142,9 @@ import {
   failImageJob,
   settleWithMedia,
 } from "./image-studio-jobs.service";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as NetworkScope;
 
 const SETTINGS = {
   aspectRatio: "1:1",
@@ -282,7 +286,7 @@ describe("optional two-step lettering", () => {
       letteringQuoteCents: convertCreditsToCents(second),
       chargedCents: convertCreditsToCents(first),
     });
-    await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+    await settleWithMedia(scope, "job-1", "https://v3.fal.media/backdrop.png");
     expect(jobs).toHaveLength(2);
     expect(jobs[1]).toMatchObject({
       lettering: "ideogram",
@@ -292,7 +296,7 @@ describe("optional two-step lettering", () => {
 
   it("still buys one generation when overlay is requested explicitly", async () => {
     await createImageJob({ ...INPUT, lettering: "overlay" });
-    await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+    await settleWithMedia(scope, "job-1", "https://v3.fal.media/backdrop.png");
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.lettering).toBe("overlay");
     expect(jobs[0]?.letteringQuoteCents).toBeUndefined();
@@ -321,7 +325,7 @@ describe("optional two-step lettering", () => {
       "Preserve text printed on the product and its packaging",
     );
 
-    await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+    await settleWithMedia(scope, "job-1", "https://v3.fal.media/backdrop.png");
     expect(assets[0]).not.toHaveProperty("headline");
     expect(jobs[1]).toMatchObject({
       kind: "EDIT",
@@ -353,7 +357,7 @@ describe("optional two-step lettering", () => {
     );
     expect(payload.input.prompt).not.toContain("leave marketing text out");
 
-    await settleWithMedia("job-2", "https://v3.fal.media/lettered.png");
+    await settleWithMedia(scope, "job-2", "https://v3.fal.media/lettered.png");
     expect(mocks.charge.mock.calls.map(([input]) => input.cents)).toEqual([
       convertCreditsToCents(first),
       convertCreditsToCents(second),
@@ -372,8 +376,8 @@ describe("optional two-step lettering", () => {
 
   it("never enqueues lettering after a first-step failure", async () => {
     await createImageJob({ ...INPUT, lettering: "ideogram" });
-    await failImageJob("job-1", "provider_error");
-    await settleWithMedia("job-1", "https://v3.fal.media/no-result.png");
+    await failImageJob(scope, "job-1", "provider_error");
+    await settleWithMedia(scope, "job-1", "https://v3.fal.media/no-result.png");
     expect(jobs).toHaveLength(1);
     expect(assets).toHaveLength(0);
     expect(mocks.submit).toHaveBeenCalledTimes(1);
@@ -391,7 +395,11 @@ describe("optional two-step lettering", () => {
       "2026-11-16T12:00:00Z",
     );
     try {
-      await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+      await settleWithMedia(
+        scope,
+        "job-1",
+        "https://v3.fal.media/backdrop.png",
+      );
       expect(assets).toHaveLength(1);
       expect(jobs[0]?.status).toBe("SUCCEEDED");
       expect(jobs[1]).toMatchObject({
@@ -411,8 +419,8 @@ describe("optional two-step lettering", () => {
 
   it("keeps the delivered backdrop and its charge when lettering fails", async () => {
     await createImageJob({ ...INPUT, lettering: "ideogram" });
-    await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
-    await failImageJob("job-2", "provider_error");
+    await settleWithMedia(scope, "job-1", "https://v3.fal.media/backdrop.png");
+    await failImageJob(scope, "job-2", "provider_error");
     expect(assets).toHaveLength(1);
     expect(jobs[1]?.status).toBe("FAILED");
     expect(jobs[0]?.lettering).toBe("ideogram");
@@ -442,7 +450,11 @@ describe("optional two-step lettering", () => {
           organizationId: null,
         },
       });
-      await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+      await settleWithMedia(
+        scope,
+        "job-1",
+        "https://v3.fal.media/backdrop.png",
+      );
       expect(mocks.compose).toHaveBeenCalledTimes(1);
       expect(mocks.upload).toHaveBeenCalledWith(
         expect.objectContaining({ bytes: COMPOSITE_BYTES }),
@@ -473,7 +485,11 @@ describe("optional two-step lettering", () => {
           referenceFileIds: ["photo-1"],
           referenceFileActor: { kind, userId: "user-1", organizationId: null },
         });
-        await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
+        await settleWithMedia(
+          scope,
+          "job-1",
+          "https://v3.fal.media/backdrop.png",
+        );
         expect(mocks.compose).toHaveBeenCalledTimes(1);
       } finally {
         vi.unstubAllGlobals();
@@ -518,8 +534,12 @@ describe("optional two-step lettering", () => {
           organizationId: null,
         },
       });
-      await settleWithMedia("job-1", "https://v3.fal.media/backdrop.png");
-      await failImageJob("job-2", "provider_error");
+      await settleWithMedia(
+        scope,
+        "job-1",
+        "https://v3.fal.media/backdrop.png",
+      );
+      await failImageJob(scope, "job-2", "provider_error");
       const backdropId = String(assets[0]?.id);
       await createImageJob({
         ...INPUT,
@@ -544,7 +564,11 @@ describe("optional two-step lettering", () => {
       expect(mocks.upload).toHaveBeenLastCalledWith(
         expect.objectContaining({ fileName: "headline-mask.png" }),
       );
-      await settleWithMedia("job-3", "https://v3.fal.media/lettered.png");
+      await settleWithMedia(
+        scope,
+        "job-3",
+        "https://v3.fal.media/lettered.png",
+      );
       expect(mocks.compose).toHaveBeenCalledTimes(1);
       expect(jobs).toHaveLength(3);
     } finally {
@@ -561,7 +585,7 @@ describe("optional two-step lettering", () => {
       throw new Error("process interrupted after durable enqueue");
     });
     await expect(
-      settleWithMedia("job-1", "https://v3.fal.media/backdrop.png"),
+      settleWithMedia(scope, "job-1", "https://v3.fal.media/backdrop.png"),
     ).rejects.toThrow("process interrupted");
     expect(jobs).toHaveLength(2);
     expect(jobs[1]?.submitAttempts).toEqual({ increment: 1 });

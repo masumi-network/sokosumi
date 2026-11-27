@@ -106,6 +106,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
@@ -116,6 +117,9 @@ import {
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
 import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
+
+/** The charge's Network, handed down as the entry point would. */
+const scope = { network: "mainnet" } as NetworkScope;
 
 /** The default model's generate endpoint, from the catalog. */
 const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
@@ -171,7 +175,7 @@ describe("a reconcile that never reached the provider", () => {
       message: "socket hang up",
     });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     // The whole point: a transport blip used to write FAILED, after which
     // every later reconcile and the provider's own callback skipped the job,
@@ -191,7 +195,7 @@ describe("a reconcile that never reached the provider", () => {
     jobFindUniqueMock.mockResolvedValue(queuedJob());
     fetchQueueStatusMock.mockResolvedValue({ kind: "not_found" });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     expect(jobUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -208,7 +212,7 @@ describe("completion when the requester has lost access", () => {
       Object.assign(new Error("not found"), { status: 404 }),
     );
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     // No download, no blob write, no version — the three things that used to
     // happen for a user who had been removed from the organization.
@@ -230,7 +234,7 @@ describe("completion when the requester has lost access", () => {
     });
     downloadMediaMock.mockRejectedValue(new Error("stop here"));
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     expect(requireProjectAccessForUserMock).toHaveBeenCalledWith({
       projectId: "project-1",
@@ -255,6 +259,7 @@ describe("cancellation", () => {
     prisma.projectImageJob.findFirst = vi.fn().mockResolvedValue(queuedJob());
 
     const result = await requestCancel({
+      scope,
       jobId: "job-1",
       projectId: "project-1",
       workspaceId: "workspace-1",
@@ -287,7 +292,7 @@ describe("cancellation", () => {
     });
     downloadMediaMock.mockRejectedValue(new Error("stop after the decision"));
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     // Reaching the download at all is the assertion: the job was not treated
     // as over because somebody asked for it to stop.
@@ -306,7 +311,7 @@ describe("a download that fails after the provider produced the image", () => {
     downloadMediaMock.mockRejectedValue(new Error("connection reset"));
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     // The image exists and has been paid for. Marking the job FAILED here
     // offered the person a "free-looking" retry that buys a second one.
@@ -337,7 +342,7 @@ describe("the unreachable grace period", () => {
       statusUnreachableSince: new Date(Date.now() - 60_000),
     });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     expect(written.some((data) => data.status === "FAILED")).toBe(false);
@@ -357,7 +362,7 @@ describe("the unreachable grace period", () => {
       statusUnreachableSince: new Date(Date.now() - 7 * 60 * 60 * 1000),
     });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     // Never FAILED: FAILED advertises a free retry, and this request was sent.
@@ -379,7 +384,7 @@ describe("an access check that cannot answer", () => {
     );
     jobUpdateMock.mockResolvedValue({ statusUnreachableSince: new Date() });
 
-    await settleWithMedia("job-1", "https://v3b.fal.media/files/a.png");
+    await settleWithMedia(scope, "job-1", "https://v3b.fal.media/files/a.png");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     expect(written.some((data) => data.status === "ORPHANED")).toBe(false);
@@ -396,7 +401,7 @@ describe("a cancellation the provider has since forgotten", () => {
     );
     fetchQueueStatusMock.mockResolvedValue({ kind: "not_found" });
 
-    await reconcileJob("job-1");
+    await reconcileJob(scope, "job-1");
 
     const written = jobUpdateManyMock.mock.calls.map((call) => call[0].data);
     expect(written.some((data) => data.status === "CANCELED")).toBe(true);
@@ -580,7 +585,7 @@ describe("several failing jobs in one request", () => {
       ]);
     jobFindUniqueMock.mockResolvedValue(null);
 
-    await inRequest(() => reconcileProjectJobs("project-1"));
+    await inRequest(() => reconcileProjectJobs(scope, "project-1"));
 
     expect(prisma.projectImageJob.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -614,7 +619,7 @@ describe("several failing jobs in one request", () => {
         Promise.reject(prismaError(where.id === "job-a" ? "P2024" : "P2034")),
     );
 
-    await inRequest(() => reconcileProjectJobs("project-1"));
+    await inRequest(() => reconcileProjectJobs(scope, "project-1"));
 
     expect(warnings[1]?.event.imageJobs).toEqual([
       {
