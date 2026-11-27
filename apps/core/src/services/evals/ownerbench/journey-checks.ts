@@ -9,6 +9,20 @@ const ZONE = "Europe/Berlin";
 const DOW_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 /** The weekdays (0 = Sunday) a five-field cron's day-of-week field allows. */
+/**
+ * Whether a cron runs on exactly these weekdays, every week: every day of the
+ * month and every month. "0 8 1 * *" has every weekday in its weekday field
+ * but runs on the 1st only.
+ */
+export function runsOnDays(cron: string, days: readonly number[]): boolean {
+  const [, , dayOfMonth, month] = cron.trim().split(/\s+/);
+  return (
+    (dayOfMonth === "*" || dayOfMonth === "?") &&
+    month === "*" &&
+    cronDays(cron).join() === [...days].sort().join()
+  );
+}
+
 export function cronDays(cron: string): number[] {
   const field = cron.trim().split(/\s+/)[4] ?? "*";
   if (field === "*" || field === "?") return [0, 1, 2, 3, 4, 5, 6];
@@ -154,11 +168,8 @@ async function scheduleCheck(
   );
   if (avoided.length)
     problems.push(`prompt still says /${avoided.join("/, /")}/`);
-  if (outcome.days) {
-    const days = cronDays(latest.cronExpression);
-    if (days.join() !== [...outcome.days].sort().join())
-      problems.push(`days ${days.join(",")}`);
-  }
+  if (outcome.days && !runsOnDays(latest.cronExpression, outcome.days))
+    problems.push(`recurrence "${latest.cronExpression}"`);
   const time = cronTime(latest.cronExpression);
   if (outcome.hour !== undefined && time?.hour !== outcome.hour)
     problems.push(`hour ${time?.hour ?? "?"}`);
@@ -187,17 +198,9 @@ async function scheduleCheck(
     : [];
   // A Coworker's part counts only when it runs on the days the owner asked
   // for: a weekly delivery is not the daily hand-off.
-  const onTheDays = coworkerParts.filter((part) => {
-    if (!outcome.days) return true;
-    // The whole recurrence: every day of the month and every month, on the
-    // asked weekdays. "0 8 1 * *" runs on the 1st only, not daily.
-    const [, , dayOfMonth, month] = part.expr.trim().split(/\s+/);
-    return (
-      dayOfMonth === "*" &&
-      month === "*" &&
-      cronDays(part.expr).join() === [...outcome.days].sort().join()
-    );
-  });
+  const onTheDays = coworkerParts.filter(
+    (part) => !outcome.days || runsOnDays(part.expr, outcome.days),
+  );
   const prompt = matchesAll(
     [
       latest.prompt,

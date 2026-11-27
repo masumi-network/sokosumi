@@ -173,16 +173,31 @@ console.log(
     ? "\nThe run holds held-out journeys: share only ownerbench-compare's totals, never `sokosumi evals show` output."
     : `\nDetails: sokosumi evals show ${run.id} --markdown --api-url <this Core>`,
 );
-if (values["json-out"]) await writeReport(run.id, values["json-out"]);
-await prisma.$disconnect();
 // A caller may swallow the refused request (best-effort notifications do),
-// so the run itself reports it: under enforce, any attempt fails the run.
+// so the run itself carries it: under enforce, any attempt marks the stored
+// run invalid before its report is written, so no later export, comparison
+// or re-judge can use it, and the process fails.
+let refused = false;
 if (guardMode === "record" || guardMode === "enforce") {
   const { outboundAttempts } = await import("@/lib/evals/outbound-guard");
   const hosts = [...new Set(outboundAttempts().map((attempt) => attempt.host))];
   console.log(
     `\nOutbound guard (${guardMode}): ${outboundAttempts().length} call(s) to non-allowed hosts${hosts.length ? `: ${hosts.join(", ")}` : ""}`,
   );
-  if (guardMode === "enforce" && hosts.length) process.exit(3);
+  if (guardMode === "enforce" && hosts.length) {
+    refused = true;
+    const { INVALID_RUN_PREFIX } = await import(
+      "@/services/evals/ownerbench/parity"
+    );
+    await prisma.evalRun.update({
+      where: { id: run.id },
+      data: {
+        status: "CANCELLED",
+        label: `${INVALID_RUN_PREFIX} the outbound guard refused ${outboundAttempts().length} call(s) to ${hosts.join(", ")}`,
+      },
+    });
+  }
 }
-process.exit(0);
+if (values["json-out"]) await writeReport(run.id, values["json-out"]);
+await prisma.$disconnect();
+process.exit(refused ? 3 : 0);

@@ -779,7 +779,56 @@ function makesGood(
   if (READ_VERB.test(later.capability)) return false;
   if (later.capability !== call.capability) return false;
   const target = callTarget(call.input);
-  return target !== "" && callTarget(later.input) === target;
+  return (
+    target !== "" &&
+    callTarget(later.input) === target &&
+    carriesRequestedChange(call.input, later.input)
+  );
+}
+
+/** Fields that name the item, not the change asked of it. */
+const TARGET_KEYS = new Set([
+  "scheduleId",
+  "scheduleName",
+  "postId",
+  "taskId",
+  "jobId",
+  "issueId",
+  "contactId",
+  "tableId",
+  "fileId",
+  "id",
+  "projectId",
+]);
+
+/** Free text a retry may reword (a shorter post, a fixed brief): present, not equal. */
+const REWORDABLE_KEYS = new Set([
+  "text",
+  "content",
+  "prompt",
+  "description",
+  "comment",
+  "body",
+  "message",
+  "brief",
+  "note",
+]);
+
+/**
+ * Whether the later call asks for the change the refused call asked for:
+ * every field the refused call set is set again, with the same value unless
+ * it is free text. A rename, a disable or another time after a refused move
+ * to 16:00 is different work.
+ */
+function carriesRequestedChange(asked: unknown, done: unknown): boolean {
+  const before = (asked ?? {}) as Record<string, unknown>;
+  const after = (done ?? {}) as Record<string, unknown>;
+  return Object.entries(before).every(([key, value]) => {
+    if (TARGET_KEYS.has(key) || value === undefined) return true;
+    if (!(key in after)) return false;
+    if (REWORDABLE_KEYS.has(key)) return true;
+    return JSON.stringify(after[key]) === JSON.stringify(value);
+  });
 }
 
 /**

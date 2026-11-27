@@ -150,4 +150,67 @@ describe("a split daily brief", () => {
       expect(result.pass).toBe(pass);
     },
   );
+
+  it("requires the owner's own scheduled part to run daily as well", async () => {
+    const now = new Date("2026-09-01T12:00:00Z");
+    db.sokoBotSchedule.findMany.mockResolvedValue([
+      {
+        id: "local",
+        enabled: true,
+        cronExpression: "0 9 1 * *",
+        timezone: "UTC",
+        runOnce: false,
+        prompt: "Turn the depot counts into a chart",
+      },
+    ]);
+    db.taskSchedule.findMany.mockResolvedValue([
+      {
+        name: "Collect counts",
+        description: "Prepare a new inventory count",
+        expr: "0 8 * * *",
+        assignee: { name: "Analyst" },
+      },
+    ]);
+    const result = await outcomeCheck(
+      {
+        kind: "schedule",
+        label: "New inventory count and chart every day",
+        days: [0, 1, 2, 3, 4, 5, 6],
+        withTaskSchedules: true,
+        promptMatches: ["analyst", "inventory", "chart"],
+      },
+      {
+        lane: { workspaceId: "workspace" },
+        botId: "bot",
+        memo: {},
+        stepStartedAt: now,
+        journeyStartedAt: now,
+        toolCalls: [],
+      } as unknown as Parameters<typeof outcomeCheck>[1],
+    );
+    expect(result.pass).toBe(false);
+  });
+});
+
+describe("a refused change, then another call on the same schedule", () => {
+  it.each([
+    ["renaming the schedule", { name: "New label" }, false],
+    ["disabling the schedule", { enabled: false }, false],
+    ["moving to a different hour", { cronExpression: "0 19 * * *" }, false],
+    ["retrying the requested time", { cronExpression: "0 16 * * *" }, true],
+  ])("scores %s", async (_reason, change, recovers) => {
+    const scheduleId = "eeb40ab5-3ac9-4a52-9453-18d2a6c1eddc";
+    const call = { turnId: "turn", capability: "update_schedule" };
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      {
+        ...call,
+        status: "FAILED",
+        input: { scheduleId, cronExpression: "0 16 * * *" },
+      },
+      { ...call, status: "COMPLETED", input: { scheduleId, ...change } },
+    ]);
+    const result = await failedCallsByRecovery(["turn"], {});
+    expect(result.recovered).toEqual(recovers ? ["update_schedule"] : []);
+    expect(result.unrecovered).toEqual(recovers ? [] : ["update_schedule"]);
+  });
 });

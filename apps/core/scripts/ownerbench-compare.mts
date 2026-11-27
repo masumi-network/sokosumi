@@ -15,7 +15,10 @@ import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { holdoutJourneys } from "../src/services/evals/ownerbench/holdout";
 import { OWNER_JOURNEYS } from "../src/services/evals/ownerbench/journeys";
-import type { ParityReport } from "../src/services/evals/ownerbench/parity";
+import {
+  invalidRunReason,
+  type ParityReport,
+} from "../src/services/evals/ownerbench/parity";
 import {
   tokenCoverage,
   type VersionDelta,
@@ -33,8 +36,15 @@ if (!baselinePath || !candidatePath) {
   );
   process.exit(1);
 }
-const read = async (path: string) =>
-  JSON.parse(await readFile(path, "utf8")) as ParityReport;
+const read = async (path: string) => {
+  const report = JSON.parse(await readFile(path, "utf8")) as ParityReport;
+  const invalid = invalidRunReason(report);
+  if (invalid) {
+    console.error(`${path} is not a valid run (${invalid}); not compared.`);
+    process.exit(2);
+  }
+  return report;
+};
 const sets = versionDeltaBySet(
   await read(baselinePath),
   await read(candidatePath),
