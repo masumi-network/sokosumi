@@ -165,6 +165,18 @@ const created = {
   creditCostIds: [] as string[],
 };
 const agents = { paid: "", free: "" };
+/**
+ * Credit costs another file on this database left behind, set aside while
+ * this file runs: every Agent read lists the units that have a cost, so one
+ * more unit is another statement than `origin/main` recorded.
+ */
+let setAsideCreditCosts: Array<{
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  unit: string;
+  centsPerUnit: bigint;
+}> = [];
 
 const inputSchema = {
   input_data: [{ id: "prompt", type: InputType.STRING, name: "prompt" }],
@@ -357,12 +369,16 @@ async function createAgents() {
   const scope = createNetworkScope("mainnet");
   const costId = randomUUID();
   created.creditCostIds.push(costId);
+  setAsideCreditCosts = await db.creditCost.findMany();
   await scope.netTransaction(async (tx) => {
     // shortcut: the unit trigger calls `public.canonical_credit_cost_unit`,
     // which the split layout moved to `shared`; drop this line with ticket 19.
     if (onSplitLayout) {
       await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
     }
+    await tx.creditCost.deleteMany({
+      where: { id: { in: setAsideCreditCosts.map((cost) => cost.id) } },
+    });
     await tx.creditCost.create({
       data: { id: costId, unit: "lovelace", centsPerUnit: CENTS_PER_LOVELACE },
     });
@@ -914,6 +930,13 @@ describe.skipIf(!enabled)(
       await db.creditCost.deleteMany({
         where: { id: { in: created.creditCostIds } },
       });
+      await createNetworkScope("mainnet").netTransaction(async (tx) => {
+        // See `createAgents`: the unit trigger on the split layout.
+        if (onSplitLayout) {
+          await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+        }
+        await tx.creditCost.createMany({ data: setAsideCreditCosts });
+      }, "Fixture conflict");
       await prisma.task.deleteMany({ where: { id: { in: created.taskIds } } });
       await prisma.sokoBot.deleteMany({
         where: { id: { in: created.sokoBotIds } },
