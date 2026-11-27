@@ -58,7 +58,10 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
+import {
+  EVAL_CONNECTED_ACCOUNT_PREFIX,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
@@ -743,7 +746,8 @@ async function attemptPublish(
   const ownTikTokApp =
     provider === "tiktok" &&
     !!post.socialConnection &&
-    !getZernioAccountId(post.socialConnection.composioConnectedAccountId);
+    !getZernioAccountId(post.socialConnection.composioConnectedAccountId) &&
+    !isEvalSocialAccount(post.socialConnection.composioConnectedAccountId);
   let closedMessage = disabledProvider
     ? socialProviderUnavailableMessage(
         disabledProvider,

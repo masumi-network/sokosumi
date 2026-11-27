@@ -57,6 +57,16 @@ export const EVAL_POST_METRICS = {
 /** What a stand-in network reports for the account itself. */
 export const EVAL_ACCOUNT_FOLLOWERS = 850;
 
+/** What a stand-in TikTok account allows, in getZernioTikTokCreatorInfo's shape. */
+export const EVAL_TIKTOK_CREATOR_INFO = {
+  creator_nickname: "evalbrand",
+  privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+  comment_disabled: false,
+  duet_disabled: false,
+  stitch_disabled: false,
+  max_video_post_duration_sec: 600,
+};
+
 /** The id a stand-in network gives a post or reply, stable for its input. */
 export function evalExternalId(kind: string, key: string): string {
   return `eval-${kind}-${key}`;

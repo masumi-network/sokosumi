@@ -152,6 +152,15 @@ describe("the network clients", () => {
         body: { accountId: STAND_IN },
       }),
     ).rejects.toThrow(EvalExternalCallError);
+    await expect(
+      zernioRequest("/posts", {
+        method: "POST",
+        body: {
+          content: "Launch day.",
+          platforms: [{ platform: "tiktok", accountId: STAND_IN }],
+        },
+      }),
+    ).rejects.toThrow(EvalExternalCallError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

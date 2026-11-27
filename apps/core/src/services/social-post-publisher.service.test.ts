@@ -2099,6 +2099,41 @@ describe("social post publisher service", () => {
     vi.unstubAllEnvs();
   });
 
+  it("hands an eval stand-in TikTok post to the adapter, with no Zernio key", async () => {
+    vi.stubEnv("ZERNIO_API_KEY", "");
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        provider: "tiktok",
+        media: [CLIP_REF],
+        project: {
+          ...duePost.project,
+          workspace: {
+            ...duePost.project.workspace,
+            organization: { slug: "sokosumi-evals-3" },
+          },
+        },
+        socialConnection: {
+          ...activeConnection,
+          provider: "tiktok",
+          composioConnectedAccountId: "eval:3:tiktok",
+        },
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(publishXPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "tiktok",
+        connectedAccountId: "eval:3:tiktok",
+      }),
+    );
+    vi.unstubAllEnvs();
+  });
+
   it.each(DISABLED_PROVIDERS)(
     "keeps a due %s post and fails it with the coming-soon reason",
     async (provider, label) => {
