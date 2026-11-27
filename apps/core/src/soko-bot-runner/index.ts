@@ -132,10 +132,10 @@ const base = `${coreUrl}/v1/soko-bot-runtime/turns/${turnId}`;
 
 /** Aborted as soon as Core says the turn is no longer active. */
 const stopped = new AbortController();
+const PREPROD_WAIT_EXPIRED = Symbol("Preprod retry wait expired");
 
-function stopsTurn(kind: string | undefined): boolean {
+function stopsForPreprod(kind: string | undefined): boolean {
   return (
-    kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE ||
     kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE ||
     kind === CORE_API_ERROR_KINDS.PREPROD_OFF
   );
@@ -150,7 +150,12 @@ function stopsTurn(kind: string | undefined): boolean {
  */
 function isInactive(error: unknown): boolean {
   if (stopped.signal.aborted) return true;
-  if (error instanceof CoreRejected) return stopsTurn(error.kind);
+  if (error instanceof CoreRejected) {
+    return (
+      error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE ||
+      stopsForPreprod(error.kind)
+    );
+  }
   return (error as { statusCode?: unknown } | null)?.statusCode === 409;
 }
 
@@ -179,7 +184,7 @@ async function fetchCore(input: RequestInfo | URL, init: RequestInit) {
         .clone()
         .json()
         .catch(() => ({}));
-      if ((status === 403 || status === 409) && stopsTurn(error?.kind)) {
+      if ((status === 403 || status === 409) && stopsForPreprod(error?.kind)) {
         stopped.abort();
       }
       if (
@@ -195,7 +200,8 @@ async function fetchCore(input: RequestInfo | URL, init: RequestInit) {
     }
   } catch (error) {
     // A refusal that outlasted the callback leaves the turn for reconciliation.
-    if (waitingForPreprod && init.signal?.aborted) stopped.abort();
+    if (waitingForPreprod && init.signal?.aborted)
+      stopped.abort(PREPROD_WAIT_EXPIRED);
     throw error;
   }
 }
@@ -519,7 +525,13 @@ async function main(): Promise<void> {
   try {
     start = await callCore<TurnStart>("/start", {});
   } catch (error) {
-    if (isInactive(error)) process.exit(0);
+    // Core also reports ordinary preparation failures as an inactive turn.
+    if (
+      stopped.signal.reason === PREPROD_WAIT_EXPIRED ||
+      (error instanceof CoreRejected && stopsForPreprod(error.kind))
+    ) {
+      process.exit(0);
+    }
     // On the sandbox's stdout, which nothing reads (no NODE_ENV there, so
     // evlog prints it pretty); the supervisor's failure report carries the
     // diagnostic to Core instead.

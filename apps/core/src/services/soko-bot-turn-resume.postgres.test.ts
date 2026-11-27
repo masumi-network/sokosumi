@@ -748,6 +748,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     sessionId: string,
     options?: {
       respond?: (path: string) => Promise<Response | undefined>;
+      realStart?: boolean;
       shortCallbackTimeout?: boolean;
     },
   ) {
@@ -758,6 +759,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       expiresAt: Date.now() + 60_000,
     });
     const paths: string[] = [];
+    const statuses: number[] = [];
     const prefix = `/v1/soko-bot-runtime/turns/${turnId}`;
     const server = serve({
       port: 0,
@@ -765,7 +767,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       async fetch(request) {
         const path = new URL(request.url).pathname.slice(prefix.length);
         paths.push(path);
-        if (path === "/start")
+        if (path === "/start" && !options?.realStart)
           return Response.json({
             system: "Answer the user",
             message: "Hello",
@@ -774,9 +776,9 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
             deadlineAt: new Date(Date.now() + 60_000).toISOString(),
             maxSteps: 1,
           });
-        return (
+        const response =
           (await options?.respond?.(path)) ??
-          routes.fetch(
+          (await routes.fetch(
             new Request(`http://localhost/turns/${turnId}${path}`, {
               method: request.method,
               body: await request.text(),
@@ -785,8 +787,9 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
                 [SOKO_BOT_TURN_TOKEN_HEADER]: token,
               },
             }),
-          )
-        );
+          ));
+        statuses.push(response.status);
+        return response;
       },
     });
     await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -834,8 +837,93 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
         });
       },
     );
-    return { ...result, paths };
+    return { ...result, paths, statuses };
   }
+
+  it.skipIf(onSplitLayout)(
+    "reports a Mainnet startup failure once and records the failed outcome",
+    async () => {
+      await control("open", "8");
+      const { bot, turn, sessionId } = await seed("mainnet", {
+        attached: true,
+      });
+      await prisma.sokoBot.update({
+        where: { id: bot.id },
+        data: { eveSessionId: sessionId },
+      });
+      const context = vi
+        .spyOn(runtime, "getContext")
+        .mockRejectedValueOnce(new Error("context store hiccup"));
+      onTestFinished(() => context.mockRestore());
+      const sandbox = await import("@/lib/soko-bot/sandbox/sandbox-runtime");
+      const stopSandbox = vi
+        .spyOn(sandbox, "stopTurnSandbox")
+        .mockResolvedValue();
+      onTestFinished(() => stopSandbox.mockRestore());
+      expectCoreLog("error", "A Soko Bot turn could not start in its sandbox");
+
+      const recorder = recordStatements();
+      const result = await runRunner(turn.id, sessionId, {
+        realStart: true,
+      }).finally(() => recorder.restore());
+      await Promise.all(background.splice(0));
+
+      expect(recorder.statements.flat()).not.toContain(keys[0]);
+      expect(recorder.statements.flat()).not.toContain(keys[1]);
+      expect(context).toHaveBeenCalledTimes(1);
+      expect(result.paths).toEqual(["/start", "/fail"]);
+      expect(result.statuses).toEqual([409, 200]);
+      expect(result.code, result.output).toBe(1);
+      const events = await prisma.sokoBotRuntimeEvent.findMany({
+        where: { turnId: turn.id },
+        orderBy: { startIndex: "asc" },
+        select: { type: true, data: true },
+      });
+      expect(events.map(({ type }) => type)).toEqual([
+        "session.started",
+        "turn.started",
+        "message.received",
+        "turn.failed",
+        "session.waiting",
+      ]);
+      expect(events[3]?.data).toMatchObject({
+        code: "runner_exited",
+        message: expect.stringContaining("Core answered 409"),
+      });
+      expect(await loadTurn(turn.id)).toMatchObject({
+        status: "RUNNING",
+        leaseToken: expect.not.stringMatching(/^fixture$/),
+      });
+    },
+    30_000,
+  );
+
+  it.skipIf(!onSplitLayout).each([
+    { state: "off", pause: "open", generation: "7", status: 403 },
+    { state: "stale", pause: "open", generation: "8", status: 409 },
+    { state: "paused", pause: "paused", generation: "7", status: 503 },
+  ])(
+    "stops cleanly when Preprod is $state at startup",
+    async (scenario) => {
+      flag.on = scenario.state !== "off";
+      onTestFinished(() => {
+        flag.on = true;
+      });
+      await control(scenario.pause, scenario.generation);
+      const { turn, sessionId } = await seed("preprod", { attached: true });
+
+      const result = await runRunner(turn.id, sessionId, {
+        realStart: true,
+        shortCallbackTimeout: scenario.state === "paused",
+      });
+      await Promise.all(background.splice(0));
+
+      expect(result.paths).toEqual(["/start"]);
+      expect(result.statuses).toEqual([scenario.status]);
+      expect(result.code, result.output).toBe(0);
+    },
+    30_000,
+  );
 
   it.skipIf(!onSplitLayout)(
     "stops the runner on a model gateway Preprod off refusal",
