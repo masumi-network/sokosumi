@@ -7,7 +7,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
-import { outcomeCheck } from "./journey-checks";
+import { outcomeCheck, runsOnDays } from "./journey-checks";
 import { failedCallsByRecovery } from "./journey-runner";
 
 const failedEdit = {
@@ -189,6 +189,50 @@ describe("a split daily brief", () => {
       } as unknown as Parameters<typeof outcomeCheck>[1],
     );
     expect(result.pass).toBe(false);
+  });
+});
+
+describe("what Core schedules daily", () => {
+  const every = [0, 1, 2, 3, 4, 5, 6];
+  it.each([
+    "0 8 * * *",
+    "0 8 */1 * *",
+    "0 8 * * 0-6",
+    "0 8 * * 0,1,2,3,4,5,6",
+    "30 7,19 * * *",
+  ])("counts %s as daily", (cron) => {
+    expect(runsOnDays(cron, every)).toBe(true);
+  });
+  it.each(["0 8 1 * *", "0 8 * * 1-5", "0 8 */2 * *"])(
+    "does not count %s as daily",
+    (cron) => {
+      expect(runsOnDays(cron, every)).toBe(false);
+    },
+  );
+  it("reads weekday schedules the same way", () => {
+    expect(runsOnDays("30 8 * * 1,4", [1, 4])).toBe(true);
+    expect(runsOnDays("30 8 * * 1", [1, 4])).toBe(false);
+  });
+});
+
+describe("a refused prompt edit, then another prompt on the same schedule", () => {
+  it.each([
+    ["Summarize incoming invoices.", true],
+    ["Write a birthday greeting.", false],
+  ])("counts %s as the same request: %s", async (prompt, recovered) => {
+    const scheduleId = "eeb40ab5-3ac9-4a52-9453-18d2a6c1eddc";
+    const shared = { turnId: "turn", capability: "update_schedule" };
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      {
+        ...shared,
+        status: "FAILED",
+        input: { scheduleId, prompt: "Summarize incoming invoices." },
+      },
+      { ...shared, status: "COMPLETED", input: { scheduleId, prompt } },
+    ]);
+    const result = await failedCallsByRecovery(["turn"], {});
+    expect(result.recovered).toEqual(recovered ? ["update_schedule"] : []);
+    expect(result.unrecovered).toEqual(recovered ? [] : ["update_schedule"]);
   });
 });
 

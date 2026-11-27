@@ -833,9 +833,33 @@ function carriesRequestedChange(asked: unknown, done: unknown): boolean {
   return Object.entries(before).every(([key, value]) => {
     if (TARGET_KEYS.has(key) || value === undefined) return true;
     if (!(key in after)) return false;
-    if (REWORDABLE_KEYS.has(key)) return true;
+    if (REWORDABLE_KEYS.has(key)) return sameRequest(value, after[key]);
     return JSON.stringify(after[key]) === JSON.stringify(value);
   });
+}
+
+/** The content words of a text: lowercase, four letters or more. */
+function contentWords(value: unknown): Set<string> {
+  return new Set(
+    String(value ?? "")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]{4,}/gu) ?? [],
+  );
+}
+
+/**
+ * Whether a reworded text still serves the refused one's request: most of
+ * the refused text's content words come back (a shorter post, a tightened
+ * brief). A brief to summarise invoices replaced by a birthday greeting is
+ * other work, and an empty replacement is no evidence.
+ */
+function sameRequest(asked: unknown, done: unknown): boolean {
+  const before = contentWords(asked);
+  const after = contentWords(done);
+  if (!before.size) return after.size === 0;
+  let kept = 0;
+  for (const word of before) if (after.has(word)) kept += 1;
+  return kept / before.size >= 0.5;
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { computeNextRun } from "@/helpers/cron";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
@@ -10,17 +11,36 @@ const DOW_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 /** The weekdays (0 = Sunday) a five-field cron's day-of-week field allows. */
 /**
- * Whether a cron runs on exactly these weekdays, every week: every day of the
- * month and every month. "0 8 1 * *" has every weekday in its weekday field
- * but runs on the 1st only.
+ * Whether a cron runs on exactly these weekdays, every week, as Core's own
+ * scheduler reads it (`computeNextRun`): over four weeks, a run on every
+ * asked weekday and none on another. Any form Core schedules daily (every
+ * day of the month, a day-of-month step of one, weekdays 0-6) passes; a
+ * schedule on the 1st of the month does not.
  */
 export function runsOnDays(cron: string, days: readonly number[]): boolean {
-  const [, , dayOfMonth, month] = cron.trim().split(/\s+/);
-  return (
-    (dayOfMonth === "*" || dayOfMonth === "?") &&
-    month === "*" &&
-    cronDays(cron).join() === [...days].sort().join()
-  );
+  const start = new Date(Date.UTC(2026, 0, 5)); // a Monday
+  const end = start.getTime() + 28 * 86_400_000;
+  const ran = new Set<number>();
+  let from = new Date(start.getTime() - 1);
+  for (let guard = 0; guard < 5_000; guard += 1) {
+    const next = computeNextRun({ cron, timezone: "UTC", from });
+    if (!next || next.getTime() >= end) break;
+    ran.add(Math.floor((next.getTime() - start.getTime()) / 86_400_000));
+    // The next calendar day: several runs a day count once.
+    from = new Date(
+      Date.UTC(
+        next.getUTCFullYear(),
+        next.getUTCMonth(),
+        next.getUTCDate() + 1,
+      ) - 1,
+    );
+  }
+  const asked = new Set(days);
+  for (let day = 0; day < 28; day += 1) {
+    const weekday = (1 + day) % 7; // day 0 is a Monday
+    if (asked.has(weekday) !== ran.has(day)) return false;
+  }
+  return true;
 }
 
 export function cronDays(cron: string): number[] {
