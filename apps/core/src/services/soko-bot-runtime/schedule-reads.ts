@@ -242,6 +242,8 @@ export async function listSchedules(
   return {
     botSchedules: bots.schedules,
     taskSchedules: tasks.schedules,
+    visibility:
+      "Includes your schedules, shared workspace schedules, and Task Schedules you can see. Other workspace members' personal bot schedules are private and are not shown here.",
     ...(bots.more || tasks.more
       ? { more: "Only the first 40 of a kind: narrow with query." }
       : {}),
