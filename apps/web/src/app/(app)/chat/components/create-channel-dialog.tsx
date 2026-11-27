@@ -3,8 +3,13 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState, useTransition } from "react";
-import { flushSync } from "react-dom";
+import {
+  type ReactNode,
+  useCallback,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { createChannelAction } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
@@ -66,7 +71,18 @@ export function CreateChannelDialog({
   const tChannels = useTranslations("App.Channels");
   const tVisibility = useTranslations("App.Channels.Visibility");
   const inFlightRef = useRef(false);
-  const slugInputRef = useRef<HTMLInputElement>(null);
+  // Set when a create-time conflict sends the person back to fix the link.
+  const focusLinkRef = useRef(false);
+  // The Link field mounts in place of the control that opened it (Change link,
+  // or Create after a conflict), so it takes focus when that control's focus
+  // was dropped, or when a conflict asked for it.
+  const linkInputRef = useCallback((input: HTMLInputElement | null) => {
+    if (!input) return;
+    if (focusLinkRef.current || document.activeElement === document.body) {
+      focusLinkRef.current = false;
+      input.focus();
+    }
+  }, []);
   const [open, setOpen] = useState(false);
   const { roster, rosterLoaded, rosterError, loadRoster, resetRoster } =
     useChatComposeRoster();
@@ -78,6 +94,14 @@ export function CreateChannelDialog({
     createStepSlug,
   );
   const [isPending, startTransition] = useTransition();
+  // Core said this link was taken on create; the recheck must not hide it.
+  const [conflictSlug, setConflictSlug] = useState<string | null>(null);
+  // While a new link is checked, the field keeps the last answer's shape
+  // instead of closing and reopening on every keystroke.
+  const [settled, setSettled] = useState(availability);
+  if (availability !== "unknown" && availability !== settled) {
+    setSettled(availability);
+  }
 
   const {
     members,
@@ -89,26 +113,35 @@ export function CreateChannelDialog({
     canCreateExternal,
     hasOrganization,
   } = roster;
-  const slugFieldError =
-    wizard.step === "create"
-      ? availability === "taken"
-        ? t("slugTaken")
-        : availability === "error"
-          ? t("slugCheckFailed")
-          : availability === "invalid" &&
-              (wizard.slugDirty || wizard.name.trim().length > 0)
-            ? t("slugInvalid")
-            : null
-      : null;
+  const linkConflict = wizard.step === "create" && wizard.slug === conflictSlug;
+  function linkError(state: typeof availability): string | null {
+    if (wizard.step !== "create") return null;
+    if (linkConflict || state === "taken") return t("slugTaken");
+    if (state === "error") return t("slugCheckFailed");
+    if (
+      // The check calls an empty link invalid; a stale answer for a typed one is not.
+      state === "invalid" &&
+      wizard.slug === "" &&
+      (wizard.slugDirty || wizard.name.trim().length > 0)
+    ) {
+      return t("slugInvalid");
+    }
+    return null;
+  }
+  const slugFieldError = linkError(availability);
+  const canAdvance = !linkConflict && canCreateChannel(wizard, availability);
   // The link field opens when the person asks, or when the derived link can't be used.
   const showLinkField =
-    wizard.step === "create" && (wizard.slugDirty || slugFieldError !== null);
+    wizard.step === "create" &&
+    (wizard.slugDirty ||
+      linkError(availability === "unknown" ? settled : availability) !== null);
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
 
   function resetDialog() {
     setWizard(createInitialWizard());
     setAvailability("invalid");
+    setConflictSlug(null);
     resetRoster();
   }
 
@@ -135,7 +168,7 @@ export function CreateChannelDialog({
       wizard.step !== "create" ||
       isPending ||
       membersLoadFailed ||
-      !canCreateChannel(wizard, availability)
+      !canAdvance
     ) {
       return;
     }
@@ -169,6 +202,8 @@ export function CreateChannelDialog({
         inFlightRef.current = false;
         if (result.error.code === CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN) {
           setAvailability("taken");
+          setConflictSlug(wizard.slug);
+          focusLinkRef.current = true;
           setWizard(backToCreate(wizard));
           return;
         }
@@ -318,13 +353,13 @@ export function CreateChannelDialog({
                           </span>
                         ),
                       })}{" "}
+                      {availability === "unknown"
+                        ? t("slugChecking")
+                        : t("linkPermanent")}{" "}
                       <button
                         type="button"
-                        onClick={() => {
-                          // The button leaves with the help line; focus follows the link field.
-                          flushSync(() => setWizard(editLink(wizard)));
-                          slugInputRef.current?.focus();
-                        }}
+                        // The button leaves with the help line; the Link field takes focus as it mounts.
+                        onClick={() => setWizard(editLink(wizard))}
                         className="text-foreground py-1 underline underline-offset-4"
                       >
                         {t("changeLink")}
@@ -347,7 +382,7 @@ export function CreateChannelDialog({
                     #
                   </span>
                   <Input
-                    ref={slugInputRef}
+                    ref={linkInputRef}
                     id="create-channel-slug"
                     value={wizard.slug}
                     onChange={(event) =>
@@ -568,7 +603,7 @@ export function CreateChannelDialog({
             <Button
               type="button"
               variant="primary"
-              disabled={isPending || !canCreateChannel(wizard, availability)}
+              disabled={isPending || !canAdvance}
               onClick={handleAdvanceToPeople}
             >
               {t("next")}

@@ -1,5 +1,6 @@
 import type { ChatRoom, Member } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateChannelDialog } from "./create-channel-dialog";
@@ -251,5 +252,90 @@ describe("CreateChannelDialog", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("slugInvalid");
     expect(screen.getByLabelText("slugLabel")).toHaveValue("");
+  });
+
+  it("says the link is being checked while the check runs", async () => {
+    checkChannelSlugAvailabilityActionMock.mockImplementation(
+      () => new Promise(() => {}),
+    );
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await user.type(await screen.findByLabelText("nameLabel"), "Launch");
+
+    expect(screen.getByLabelText("nameLabel")).toHaveAccessibleDescription(
+      /slugChecking/,
+    );
+    expect(screen.getByRole("button", { name: "changeLink" })).toBeVisible();
+  });
+
+  it("moves focus to Link when a pending check finds the link taken while Change link has focus", async () => {
+    let settle: (value: unknown) => void = () => {};
+    checkChannelSlugAvailabilityActionMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await user.type(await screen.findByLabelText("nameLabel"), "Launch");
+    await waitFor(() =>
+      expect(checkChannelSlugAvailabilityActionMock).toHaveBeenCalled(),
+    );
+    screen.getByRole("button", { name: "changeLink" }).focus();
+    await act(async () => settle({ ok: true, value: { status: "taken" } }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("slugTaken");
+    expect(screen.getByLabelText("slugLabel")).toHaveFocus();
+  });
+
+  it("keeps the Link field open while a new name is checked", async () => {
+    checkChannelSlugAvailabilityActionMock
+      .mockResolvedValueOnce({ ok: true, value: { status: "taken" } })
+      .mockImplementation(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    const name = await screen.findByLabelText("nameLabel");
+    await user.type(name, "Launch");
+    await screen.findByRole("alert");
+    await user.type(name, " plans");
+
+    expect(screen.getByLabelText("slugLabel")).toHaveValue("launch-plans");
+    expect(name).toHaveFocus();
+  });
+
+  it("keeps a create-time conflict on Link and focuses it while the recheck is pending", async () => {
+    checkChannelSlugAvailabilityActionMock
+      .mockResolvedValueOnce({ ok: true, value: { status: "free" } })
+      .mockImplementation(() => new Promise(() => {}));
+    createChannelActionMock.mockResolvedValue({
+      ok: false,
+      error: {
+        code: CORE_API_ERROR_KINDS.CHANNEL_SLUG_TAKEN,
+        message: "taken",
+      },
+    });
+    const user = userEvent.setup();
+    render(<CreateChannelDialog />);
+
+    await user.click(screen.getByRole("button", { name: "createChannel" }));
+    await user.type(await screen.findByLabelText("nameLabel"), "Launch");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "next" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "next" }));
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("slugTaken");
+    const link = screen.getByLabelText("slugLabel");
+    expect(link).toHaveValue("launch");
+    expect(link).toHaveFocus();
+    expect(screen.getByRole("button", { name: "next" })).toBeDisabled();
   });
 });
