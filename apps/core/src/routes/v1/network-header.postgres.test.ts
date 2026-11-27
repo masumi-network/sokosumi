@@ -536,21 +536,37 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         ];
         const units = ["lovelace", `eip155:84532/erc20:${asset}`];
         const { prisma } = loaded;
-        const existingUnits = (
-          await prisma.creditCost.findMany({ where: { unit: { in: units } } })
-        ).map((cost) => cost.unit);
-        const newUnits = units.filter((unit) => !existingUnits.includes(unit));
-        await prisma.syncMetadata.deleteMany({
-          where: { key: { in: readiness.map((row) => row.key) } },
+        const keys = readiness.map((row) => row.key);
+        // What the fixture finds is kept and put back; what it creates, it
+        // removes. Setup runs inside the same try, so a partial setup is
+        // undone too.
+        const kept = await prisma.syncMetadata.findMany({
+          where: { key: { in: keys } },
         });
-        await prisma.syncMetadata.createMany({
-          data: readiness.map((row) => ({ ...row, lastSyncedAt: now })),
-        });
-        await prisma.creditCost.createMany({
-          data: newUnits.map((unit) => ({ unit, centsPerUnit: 10n ** 10n })),
-        });
-        const pricingIds: string[] = [];
+        const created = {
+          units: [] as string[],
+          agentIds: [] as string[],
+          pricingIds: [] as string[],
+          fixedPricingIds: [] as string[],
+          unitValueIds: [] as string[],
+        };
         try {
+          for (const row of readiness) {
+            await prisma.syncMetadata.upsert({
+              where: { key: row.key },
+              create: { ...row, lastSyncedAt: now },
+              update: { cursorId: row.cursorId, lastSyncedAt: now },
+            });
+          }
+          const existingUnits = (
+            await prisma.creditCost.findMany({ where: { unit: { in: units } } })
+          ).map((cost) => cost.unit);
+          for (const unit of units.filter((u) => !existingUnits.includes(u))) {
+            await prisma.creditCost.create({
+              data: { unit, centsPerUnit: 10n ** 10n },
+            });
+            created.units.push(unit);
+          }
           const v2 = await prisma.agent.create({
             data: {
               ...seed,
@@ -582,7 +598,22 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
               },
             },
           });
-          pricingIds.push(v2.pricingId);
+          created.agentIds.push(v2.id);
+          created.pricingIds.push(v2.pricingId);
+          const fixed = await prisma.agentPricing.findUniqueOrThrow({
+            where: { id: v2.pricingId },
+            select: {
+              fixedPricing: {
+                select: { id: true, amounts: { select: { id: true } } },
+              },
+            },
+          });
+          if (fixed.fixedPricing) {
+            created.fixedPricingIds.push(fixed.fixedPricing.id);
+            created.unitValueIds.push(
+              ...fixed.fixedPricing.amounts.map((amount) => amount.id),
+            );
+          }
           await prisma.userAgentRating.create({
             data: { userId: optedIn.id, agentId: v2.id, rating: 4 },
           });
@@ -614,7 +645,8 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
               },
             },
           });
-          pricingIds.push(x402.pricingId);
+          created.agentIds.push(x402.id);
+          created.pricingIds.push(x402.pricingId);
 
           const answers: Record<string, unknown> = {};
           for (const path of [
@@ -637,18 +669,35 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
           }
           expect(answers).toEqual(OLD_PREPROD_CATALOG);
         } finally {
+          // Ratings, payment sources and their amounts go with the Agent.
           await prisma.agent.deleteMany({
-            where: { id: { in: [ids.v2, ids.x402] } },
+            where: { id: { in: created.agentIds } },
           });
           await prisma.agentPricing.deleteMany({
-            where: { id: { in: pricingIds } },
+            where: { id: { in: created.pricingIds } },
+          });
+          await prisma.unitValue.deleteMany({
+            where: { id: { in: created.unitValueIds } },
+          });
+          await prisma.agentFixedPricing.deleteMany({
+            where: { id: { in: created.fixedPricingIds } },
           });
           await prisma.creditCost.deleteMany({
-            where: { unit: { in: newUnits } },
+            where: { unit: { in: created.units } },
           });
           await prisma.syncMetadata.deleteMany({
-            where: { key: { in: readiness.map((row) => row.key) } },
+            where: {
+              key: {
+                in: keys.filter((key) => !kept.some((r) => r.key === key)),
+              },
+            },
           });
+          for (const row of kept) {
+            await prisma.syncMetadata.update({
+              where: { key: row.key },
+              data: row,
+            });
+          }
         }
       },
     );
