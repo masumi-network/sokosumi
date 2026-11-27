@@ -139,6 +139,8 @@ export function replayInput(
   return {
     ...verificationInput(overrides.accepts),
     readySources: overrides.readySources ?? READY_SOURCES,
+    // The request may use the stored payment's Network.
+    requireNetwork: async () => undefined,
   };
 }
 
