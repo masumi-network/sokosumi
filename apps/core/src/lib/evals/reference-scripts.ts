@@ -179,7 +179,8 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         ],
       },
       {
-        match: "The Sokosumi one.",
+        // "The Sokosumi one." before the journey named the account Core's way.
+        match: "The Sokosumi",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
           async (_results, { turnId }) => [
