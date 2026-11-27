@@ -681,7 +681,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
       },
       {
         kind: "owner",
-        message: "The @sokosumi one.",
+        message: "The Sokosumi one.",
         expect: {
           anyTools: ["create_social_post"],
           forbiddenTools: ["publish_social_post"],
@@ -850,7 +850,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
       {
         kind: "owner",
         message:
-          'I put our launch one-pager in Files ("Typed memory launch"). Turn it into 3 posts for @sokosumi on X spread over next week. Drafts only, I\'ll approve.',
+          'I put our launch one-pager in Files ("Typed memory launch"). Turn it into 3 X posts for Sokosumi spread over next week. Drafts only, I\'ll approve.',
         expect: {
           anyTools: ["read_file"],
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
