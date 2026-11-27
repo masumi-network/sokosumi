@@ -91,9 +91,11 @@ export async function SeoImpactTable({
     });
 
   const count = (value: number) => (
-    <span className="ml-1.5 tabular-nums opacity-70">{value}</span>
+    <span className="ml-1.5 tabular-nums">{value}</span>
   );
-  const allStates = verdicts.counts.reduce((sum, item) => sum + item.count, 0);
+  // A Core deploy that lags Web sends no counts yet.
+  const counts = verdicts.counts ?? [];
+  const allStates = counts.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <div className="space-y-4">
@@ -130,7 +132,7 @@ export async function SeoImpactTable({
                 </>
               ),
             },
-            ...verdicts.counts.map((item) => ({
+            ...counts.map((item) => ({
               key: item.state,
               href: filterHref(filters, { state: item.state }),
               current: item.state === filters.state,
