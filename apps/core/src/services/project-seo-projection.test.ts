@@ -961,6 +961,86 @@ describe("stored SEO workspace projections", () => {
     );
   });
 
+  it("keeps a fix through a later pass, a fix on another device, and a check after the period", () => {
+    const input = fixture();
+    const base = parsePublicSeoArtifact(legacyReport());
+    const page = base.findings[0].pageUrl;
+    const row = (device: "desktop" | "mobile", result: "fired" | "pass") => ({
+      rowId: "title",
+      pageUrl: page,
+      device,
+      result,
+    });
+    const finding = (device: "desktop" | "mobile" | null) => ({
+      ...(base.findings[0] as object),
+      id: "finding:title",
+      rowId: "title",
+      device,
+    });
+    const check = (
+      checks: ReturnType<typeof row>[],
+      findings: ReturnType<typeof finding>[],
+      at: string,
+      fixes = 0,
+    ) =>
+      observation(
+        input,
+        {
+          ...base,
+          checks,
+          findings,
+          actions: fixes
+            ? [
+                {
+                  ...(base.actions[0] as object),
+                  id: "1",
+                  findingIds: ["finding:title"],
+                },
+              ]
+            : [],
+        } as PublicSeoPayload,
+        at,
+      );
+    const ids = () => projectSeoProjection(input).actions.map(({ id }) => id);
+    // Fail, pass, pass: the second pass reads no open issue, and the first one still ended the proposal.
+    input.observations = [
+      check([row("desktop", "pass")], [], "2026-11-05T12:00:00Z"),
+      check([row("desktop", "pass")], [], "2026-11-03T12:00:00Z"),
+      check(
+        [row("desktop", "fired")],
+        [finding(null)],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(ids()).toEqual([]);
+    // A period that ends before the passes shows the proposal its checks still hold.
+    input.query = { to: "2026-11-02" };
+    expect(ids()).toEqual(["1"]);
+    input.query = {};
+    // A fix for mobile is not tested again by checks that read desktop only.
+    input.observations = [
+      check([row("desktop", "pass")], [], "2026-11-05T12:00:00Z"),
+      check(
+        [row("desktop", "fired")],
+        [finding("desktop")],
+        "2026-11-03T12:00:00Z",
+      ),
+      check(
+        [row("mobile", "fired")],
+        [finding("mobile")],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(
+      projectSeoProjection(input).actions.map(({ id, lastCheckResult }) => ({
+        id,
+        lastCheckResult,
+      })),
+    ).toEqual([{ id: "1", lastCheckResult: undefined }]);
+  });
+
   it("replaces an unlinked recommendation when a later check proposes its own fix for the finding", () => {
     const { input, original } = actionFixture();
     const linked = input.actionTasks;

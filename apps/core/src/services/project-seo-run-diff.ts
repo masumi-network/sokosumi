@@ -228,7 +228,7 @@ export function compareSeoRuns(
     notCheckedBefore = 0;
   if (!reason) {
     for (const [key, issue] of after.open) {
-      results.set(key, "failing");
+      results.set(key, { result: "failing" });
       if (before.open.has(key)) stillOpen.push(issue);
       // New only where the earlier check read the rule on a device that fails now and found no issue there:
       // a pass beside a row that fired on the same device is no clear result.
@@ -291,7 +291,8 @@ export function compareSeoRuns(
         !after.failed.has(key)
       ) {
         fixed.push(issue);
-        results.set(key, "fixed");
+        // The devices the later check read the rule on: a fix for another device is not answered by it.
+        results.set(key, { result: "fixed", devices: read });
       } else notCheckedAgain += 1;
     }
   }
@@ -331,7 +332,10 @@ export function compareSeoRuns(
 }
 
 /** The result of each issue a comparison counts, by its `issueKey`. */
-export type SeoIssueResults = Map<string, "failing" | "fixed">;
+export type SeoIssueResults = Map<
+  string,
+  { result: "failing" } | { result: "fixed"; devices: Set<string | null> }
+>;
 
 /** The checks that test the rules of a page. */
 const PAGE_RULE_KINDS = new Set(["page_check", "audit_lite", "audit_full"]);
@@ -467,8 +471,10 @@ export function withSeoRunDiffs<T extends { observationId: string }>(
 type Action = ProjectSeoWorkspace["actions"][number];
 
 /**
- * Each fix with the result of its issues in the newest page check, where that check is compared with the one before
- * it. A proposal that check fixed leaves, as one an exact later pass ends: the fixed count of the comparison names it.
+ * Each fix with the result of its issues in the page checks after its own, each compared with the one before it. For
+ * each issue the newest such check that answers it decides: it fails there, it is fixed on the device the fix names,
+ * or it is fixed on other devices only, which leaves the fix untested. A proposal whose issues are all fixed leaves, as one an exact later pass ends: the
+ * fixed count of that comparison names it. `shown` limits the checks to the selected period.
  */
 export function withSeoLastCheckResults(
   actions: Action[],
@@ -477,26 +483,45 @@ export function withSeoLastCheckResults(
     observedAt: string;
     issueResults?: SeoIssueResults;
   }>,
-  issuesOf: (action: Action) => string[] | undefined,
+  workOf: (
+    action: Action,
+  ) =>
+    | { issues: { key: string; device: string | null }[]; observedAt: Date }
+    | undefined,
+  shown: (observedAt: Date) => boolean,
 ) {
-  const newest = runs
-    .filter((run) => PAGE_RULE_KINDS.has(run.kind))
-    .reduce<(typeof runs)[number] | undefined>(
-      (last, run) => (!last || run.observedAt > last.observedAt ? run : last),
-      undefined,
-    );
-  const results = newest?.issueResults;
-  if (!results) return actions;
+  const compared = runs
+    .filter(
+      (run) =>
+        PAGE_RULE_KINDS.has(run.kind) &&
+        run.issueResults &&
+        shown(new Date(run.observedAt)),
+    )
+    .sort((a, b) => b.observedAt.localeCompare(a.observedAt));
+  if (!compared.length) return actions;
   return actions.flatMap((action) => {
-    const issues = issuesOf(action);
-    const read = issues?.map((key) => results.get(key));
-    const result: Action["lastCheckResult"] = !read?.length
-      ? undefined
-      : read.includes("failing")
-        ? "failing"
-        : read.every((item) => item === "fixed")
+    const work = workOf(action);
+    if (!work?.issues.length) return [action];
+    const later = compared.filter(
+      (run) => new Date(run.observedAt) > work.observedAt,
+    );
+    const read = work.issues.map(({ key, device }) => {
+      for (const run of later) {
+        const answer = run.issueResults?.get(key);
+        if (!answer) continue;
+        if (answer.result === "failing") return "failing";
+        // Fixed on other devices only: this check did not test the fix again, and an older one is out of date.
+        return device === null || answer.devices.has(device)
           ? "fixed"
           : undefined;
+      }
+      return undefined;
+    });
+    const result: Action["lastCheckResult"] = read.includes("failing")
+      ? "failing"
+      : read.every((item) => item === "fixed")
+        ? "fixed"
+        : undefined;
     if (!result) return [action];
     if (result === "fixed" && action.status === "recommended") return [];
     return [{ ...action, lastCheckResult: result }];

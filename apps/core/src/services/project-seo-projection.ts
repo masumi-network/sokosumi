@@ -499,7 +499,9 @@ export function projectSeoProjection(
       fixWork.set(action, {
         work: [...identities].sort().join("\n"),
         issues: fixed.flatMap((finding) =>
-          finding ? [issueKey(data, finding)] : [],
+          finding
+            ? [{ key: issueKey(data, finding), device: finding.device }]
+            : [],
         ),
         observedAt: row.observedAt,
         live,
@@ -639,7 +641,8 @@ export function projectSeoProjection(
     actions: withSeoLastCheckResults(
       actions,
       runRows,
-      (action) => fixWork.get(action)?.issues,
+      (action) => fixWork.get(action),
+      (observedAt) => matchesSeoPeriod(observedAt, query),
     ),
     metrics,
     searchQueries: search.searchQueries,

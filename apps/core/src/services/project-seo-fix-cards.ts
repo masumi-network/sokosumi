@@ -5,7 +5,12 @@ type Action = ProjectSeoWorkspace["actions"][number];
 /** Per fix action: the findings it fixes as one key, its issues, the time of its check, and whether a Task still works on it. */
 export type SeoFixWork = Map<
   Action,
-  { work: string; issues: string[]; observedAt: Date; live: boolean }
+  {
+    work: string;
+    issues: { key: string; device: string | null }[];
+    observedAt: Date;
+    live: boolean;
+  }
 >;
 
 /** Leaves one card per issue in `actions`, and moves the Tasks of the cards that leave to the cards that stay. */
