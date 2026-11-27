@@ -71,7 +71,7 @@ export type SeoSerpMarker =
     };
 
 /** A page URL as Core keys it: the fragment does not name another page. */
-function pageKey(url: string) {
+export function seoPageKey(url: string) {
   const parsed = new URL(url);
   parsed.hash = "";
   return parsed.href;
@@ -109,7 +109,7 @@ export function seoSerpMarkers(
   const lead = reads[0];
   if (!lead || !serpHistory) return [];
   const key = normalizeQuery(lead.keyword);
-  const page = lead.pageUrl === null ? null : pageKey(lead.pageUrl);
+  const page = lead.pageUrl === null ? null : seoPageKey(lead.pageUrl);
   const pageHost = page === null ? null : noDot(seoHost(page));
   return serpHistory
     .filter(
@@ -130,7 +130,7 @@ export function seoSerpMarkers(
         const ai = point.aiOverview;
         const checked = point.pages.flatMap((index) => {
           const url = series.pageUrls[index];
-          return url === undefined ? [] : [pageKey(url)];
+          return url === undefined ? [] : [seoPageKey(url)];
         });
         const checkedHosts = new Set(checked.map((url) => noDot(seoHost(url))));
         const featuredHost = point.featured?.domain
