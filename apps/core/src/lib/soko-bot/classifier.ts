@@ -545,24 +545,20 @@ function routedClassification(
     if (confirmation >= MIN_CONFIRMATION_CONFIDENCE) {
       const [selected] = pendingIntents;
       if (pendingIntents.length === 1 && selected) {
-        const effectiveRoute = selected.requiresApproval
-          ? "CLARIFY"
-          : selected.route;
-        if (availableRoutes && !availableRoutes.includes(effectiveRoute)) {
+        if (availableRoutes && !availableRoutes.includes(selected.route)) {
           return {
             ...baseClassification(
               "CLARIFY",
-              selected.desiredOutcome,
-              `Jev: confirmed proposal route ${effectiveRoute} is no longer available; reads only.`,
+              message,
+              `Jev: confirmed proposal route ${selected.route} is no longer available; defined fallback.`,
               0,
             ),
-            selectedIntentId: selected.id,
-            candidateTaskIds: [...(selected.targetIds ?? [])],
-            continuation: "CONTINUE",
-            requiresApproval: selected.requiresApproval,
             abstained: true,
           };
         }
+        const effectiveRoute = selected.requiresApproval
+          ? "CLARIFY"
+          : selected.route;
         return {
           ...baseClassification(
             effectiveRoute,

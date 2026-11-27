@@ -6,6 +6,7 @@ import {
 import { loadSokoBotPersona } from "@/helpers/soko-bot-owner";
 import prisma from "@/lib/db/prisma";
 import { PRESET_VERSION } from "@/lib/soko-bot/classifier";
+import { effectiveWorkRouteForPreload } from "@/lib/soko-bot/route-preload";
 import { packetForModel } from "@/lib/soko-bot/turn-model-context";
 import { ONBOARDING_TURN_PREFIX } from "@/services/cmo-cuso.service";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
@@ -14,14 +15,6 @@ import {
   SokoBotRuntimeAuthorizationError,
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
-
-const WORK_SKILL_ROUTES = new Set([
-  "DELEGATE_TASK",
-  "HIRE_AGENT",
-  "MANAGE_WORK",
-  "MIXED",
-]);
-const MIN_WORK_SKILL_PRELOAD_CONFIDENCE = 0.25;
 
 /**
  * Whether a turn is a foreground human chat turn (typed by an owner or
@@ -46,31 +39,20 @@ export function isForegroundHumanChatTurn(
   );
 }
 
-function workRouteFromClassification(classification: unknown): string | null {
-  if (!classification || typeof classification !== "object") return null;
-  const record = classification as {
-    unsureRoute?: unknown;
-    rawRoute?: unknown;
-    workConfidence?: unknown;
-    classifierFailed?: unknown;
-  };
-  if (
-    typeof record.unsureRoute === "string" &&
-    WORK_SKILL_ROUTES.has(record.unsureRoute)
-  )
-    return record.unsureRoute;
-  if (
-    typeof record.rawRoute === "string" &&
-    WORK_SKILL_ROUTES.has(record.rawRoute)
-  )
-    return record.rawRoute;
-  if (
-    record.classifierFailed === true ||
-    (typeof record.workConfidence === "number" &&
-      record.workConfidence >= MIN_WORK_SKILL_PRELOAD_CONFIDENCE)
-  )
-    return "MANAGE_WORK";
-  return null;
+function workRouteFromClassification(
+  route: string | null,
+  classification: unknown,
+): string | null {
+  const record =
+    classification && typeof classification === "object"
+      ? (classification as {
+          unsureRoute?: unknown;
+          rawRoute?: unknown;
+          workConfidence?: unknown;
+          classifierFailed?: unknown;
+        })
+      : {};
+  return effectiveWorkRouteForPreload({ route, ...record });
 }
 
 /** Owner-installed skills, advertised by Eve as load-on-demand skills. */
@@ -114,10 +96,10 @@ export function skillOccasions(
       ? [kind, "onboarding"]
       : [kind];
   if (options?.routeSteering && options?.foregroundHumanChat) {
-    const workRoute =
-      turn.route && WORK_SKILL_ROUTES.has(turn.route)
-        ? turn.route
-        : workRouteFromClassification(turn.classification);
+    const workRoute = workRouteFromClassification(
+      turn.route,
+      turn.classification,
+    );
     return workRoute ? [workRoute] : [];
   }
   return [

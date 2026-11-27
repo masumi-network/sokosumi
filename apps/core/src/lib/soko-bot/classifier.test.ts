@@ -853,8 +853,30 @@ describe("failing closed", () => {
       route: "CLARIFY",
       confidence: 0,
       abstained: true,
-      selectedIntentId: "intent-stale",
     });
+    expect(stale.classification.selectedIntentId).toBeUndefined();
+    expect(stale.classification.continuation).toBeUndefined();
+  });
+
+  it("leaves an approval-gated proposal pending when its route is unavailable", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("DIRECT_RESPONSE", { confirmsPending: 0.96 })),
+    ).classify("Yes, go ahead", {
+      ...EMPTY_CONTEXT,
+      availableRoutes: ["DIRECT_RESPONSE", "CLARIFY"],
+      pendingIntents: [
+        {
+          id: "needs-approval",
+          desiredOutcome: "Carry out the proposed hire",
+          route: "HIRE_AGENT",
+          requiresApproval: true,
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        },
+      ],
+    });
+    expect(result.classification.abstained).toBe(true);
+    expect(result.classification.selectedIntentId).toBeUndefined();
+    expect(result.classification.continuation).toBeUndefined();
   });
 
   it("marks classifierFailed and abstained when Jev fails with a menu", async () => {

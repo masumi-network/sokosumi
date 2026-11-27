@@ -25,6 +25,10 @@ import {
   type ContextPacketReaderInput,
   contextPacketScope,
 } from "./context-packet-scope";
+import {
+  classificationForPacketSizing,
+  WORK_PRELOAD_ROUTES,
+} from "./route-preload";
 import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
@@ -114,6 +118,8 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   referencedTaskIds?: readonly string[];
   /** A person typed this turn: it holds every tool, and the route is a guess. */
   personAsked?: boolean;
+  /** E1 route steering: carry work preload signal into packet sizing without changing trigger.route. */
+  routeSteering?: boolean;
   /** The lasting preference saved from this message before the turn. */
   capturedPreference?: string | null;
   /** The message as the classifier read it: Cuso's organizer picks from it. */
@@ -591,16 +597,23 @@ export class ContextPacketBuilder {
       projectId: input.sharedScope?.projectId,
       tx: prisma,
     });
+    const sizing = classificationForPacketSizing(input);
     // Only routes that can hire carry the marketplace; the count still goes in.
-    const hiring = MARKETPLACE_ROUTES.has(input.classification.route);
+    const hiring = MARKETPLACE_ROUTES.has(sizing.route);
     const agentsPromise = listHireableAgents(hiring ? LIMITS.agents : 0);
 
     const scope = contextPacketScope(input);
     const { askedByKind } = scope;
     // The bot can list Tasks itself; a message about something else leaves
-    // their room to the conversation.
+    // their room to the conversation. Under E1 routeSteering, a split work
+    // vote keeps the full board allowance instead of shrinking as off-topic.
+    const preloadWorkBoard =
+      input.routeSteering === true &&
+      input.personAsked === true &&
+      WORK_PRELOAD_ROUTES.has(sizing.route);
     const taskLimit =
       input.personAsked &&
+      !preloadWorkBoard &&
       (input.classification.signals?.aboutTasks ?? 1) < UNLIKELY_SIGNAL
         ? OFF_TOPIC_TASKS
         : LIMITS.tasks;
