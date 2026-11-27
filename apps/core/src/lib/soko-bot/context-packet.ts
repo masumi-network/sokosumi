@@ -13,6 +13,8 @@ import { DAY_MS } from "@/config/constants";
 import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
+import { searchForBot } from "@/lib/agent-catalog/bot";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
 import {
@@ -20,7 +22,6 @@ import {
   getBrandBrain,
   parseBrandBrain,
 } from "@/services/brand-brain.service";
-import { listHireableAgents } from "./agent-search";
 import {
   type ContextPacketReaderInput,
   contextPacketScope,
@@ -107,6 +108,7 @@ interface ProjectStatusJob {
 }
 
 export interface BuildContextPacketInput extends ContextPacketReaderInput {
+  networkScope: NetworkScope;
   source: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
   /** Tells a CMO rhythm or production run (approved strategy) from other turns. */
   clientTurnId?: string;
@@ -595,7 +597,10 @@ export class ContextPacketBuilder {
     });
     // Only routes that can hire carry the marketplace; the count still goes in.
     const hiring = MARKETPLACE_ROUTES.has(input.classification.route);
-    const agentsPromise = listHireableAgents(hiring ? LIMITS.agents : 0);
+    const agentsPromise = searchForBot(
+      input.networkScope,
+      hiring ? LIMITS.agents : 0,
+    );
 
     const scope = contextPacketScope(input);
     const { askedByKind } = scope;

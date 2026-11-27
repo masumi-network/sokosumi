@@ -40,8 +40,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     creditCost: {
       findMany: creditCostFindManyMock,
     },
@@ -51,8 +51,9 @@ vi.mock("@/lib/db/prisma", () => ({
     syncMetadata: {
       findUnique: syncMetadataFindUniqueMock,
     },
-  },
-}));
+  };
+  return { default: client, networkPrisma: () => client };
+});
 
 const { default: categoriesRouter } = await import("./index");
 

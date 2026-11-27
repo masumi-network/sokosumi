@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireAvailableAgentOrThrow } from "@/helpers/agent";
 import {
   doesUserHaveFinishedJobWithAgent,
   upsertUserAgentReview,
@@ -9,7 +8,7 @@ import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-bi
 import { forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { created, successResponseSchema } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { requireAvailableAgent } from "@/lib/agent-catalog/availability";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -62,8 +61,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { rating, comment } = c.req.valid("json");
 
-    const review = await prisma.$transaction(async (tx) => {
-      await requireAvailableAgentOrThrow(id, tx);
+    const scope = c.var.networkScope;
+    const review = await scope.netTransaction(async (tx) => {
+      await requireAvailableAgent(scope, id, tx);
 
       const hasFinishedJob = await doesUserHaveFinishedJobWithAgent(
         userContext.userId,
@@ -84,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         comment ?? null,
         tx,
       );
-    });
+    }, "Could not save agent rating due to a concurrent update");
 
     return created(c, agentMyReviewSchema.parse(review));
   });

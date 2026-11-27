@@ -8,8 +8,17 @@
  */
 import { randomUUID } from "node:crypto";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { jsonInput } from "@/helpers/prisma-json";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
@@ -863,8 +872,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       credits: 4,
     };
     const blockchainIdentifier = `sokosumi-evals-${agent.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    const db = createNetworkScope("mainnet").networkDb;
     const read = () =>
-      prisma.agent.findMany({
+      db.agent.findMany({
         where: { blockchainIdentifier },
         select: {
           id: true,
@@ -879,7 +889,38 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           },
         },
       });
-    await Promise.all([seedAgent(agent), seedAgent(agent), seedAgent(agent)]);
+    const rateWhere = { unit: "sokosumi-evals-credit" };
+    const existingRate = await db.creditCost.findUnique({ where: rateWhere });
+    let createdRate: { id: string } | null = null;
+    onTestFinished(async () => {
+      const [fixture] = await read();
+      if (fixture) {
+        await db.agent.delete({ where: { id: fixture.id } });
+        await db.agentPricing.delete({ where: { id: fixture.pricingId } });
+        const fixed = fixture.pricing.fixedPricing;
+        if (fixed) {
+          await db.unitValue.deleteMany({
+            where: { agentFixedPricingId: fixed.id },
+          });
+          await db.agentFixedPricing.delete({ where: { id: fixed.id } });
+        }
+      }
+      if (createdRate)
+        await db.creditCost.delete({ where: { id: createdRate.id } });
+    });
+    // All three writers must finish before taking ownership of a newly seeded rate.
+    const seeds = await Promise.allSettled([
+      seedAgent(agent),
+      seedAgent(agent),
+      seedAgent(agent),
+    ]);
+    if (!existingRate) {
+      createdRate = await db.creditCost.findUnique({
+        where: rateWhere,
+        select: { id: true },
+      });
+    }
+    for (const seed of seeds) if (seed.status === "rejected") throw seed.reason;
     const [made, ...extra] = await read();
     expect(extra).toEqual([]);
     expect(made?.pricing.fixedPricing?.amounts).toEqual([
@@ -891,17 +932,6 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     expect(refreshed?.pricing.fixedPricing?.amounts).toEqual([
       { amount: convertCreditsToCents(6) },
     ]);
-    const fixedId = refreshed?.pricing.fixedPricing?.id;
-    await prisma.agent.deleteMany({ where: { blockchainIdentifier } });
-    await prisma.agentPricing.deleteMany({
-      where: { id: refreshed?.pricingId },
-    });
-    if (fixedId) {
-      await prisma.unitValue.deleteMany({
-        where: { agentFixedPricingId: fixedId },
-      });
-      await prisma.agentFixedPricing.deleteMany({ where: { id: fixedId } });
-    }
   });
 
   it("seats the journey's own bot in the teammate room", async () => {
@@ -1147,6 +1177,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       taskIds: string[];
     }> {
       const built = await new ContextPacketBuilder().build({
+        networkScope: createNetworkScope("mainnet"),
         userId,
         sokoBotId: botId,
         workspaceId,

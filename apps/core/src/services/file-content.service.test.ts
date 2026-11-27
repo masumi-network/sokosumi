@@ -112,6 +112,18 @@ describe("contentDispositionFor", () => {
     expect(value).toContain(encodeURIComponent("繰越.txt"));
   });
 
+  it("percent-encodes the characters RFC 5987 leaves out of a value", () => {
+    expect(contentDispositionFor("Anna's (draft)*.pdf", false)).toBe(
+      `attachment; filename="Anna's (draft)*.pdf"; filename*=UTF-8''Anna%27s%20%28draft%29%2A.pdf`,
+    );
+  });
+
+  it("encodes a name holding a lone surrogate instead of throwing", () => {
+    const value = contentDispositionFor("a\uD800b.pdf", false);
+
+    expect(value).toContain("filename*=UTF-8''a%EF%BF%BDb.pdf");
+  });
+
   it("never emits an empty plain filename", () => {
     // Built rather than written as escapes: the formatter rewrites literal
     // control-character escapes in source, so writing them here would leave

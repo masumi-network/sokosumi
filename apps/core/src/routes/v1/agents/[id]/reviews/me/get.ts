@@ -1,16 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import {
-  buildAvailableAgentWhereClause,
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-} from "@/helpers/agent";
 import { getUserAgentReview } from "@/helpers/agent-rating";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { requireAvailableAgent } from "@/lib/agent-catalog/availability";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -51,24 +45,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const creditCosts = await getCreditCostsOrThrow(prisma);
-    const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
+    const scope = c.var.networkScope;
+    await requireAvailableAgent(scope, id);
 
-    const agent = await prisma.agent.findFirst({
-      where: {
-        id,
-        ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!agent) {
-      throw notFound("Agent not found");
-    }
-
-    const review = await getUserAgentReview(id, userContext.userId, prisma);
+    const review = await getUserAgentReview(
+      id,
+      userContext.userId,
+      scope.networkDb,
+    );
 
     return ok(c, agentMyReviewResponseSchema.parse(review));
   });

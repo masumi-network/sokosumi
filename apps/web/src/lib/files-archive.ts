@@ -68,12 +68,18 @@ function safeFolderPath(folder: string): string {
 
 /** Saves zip bytes as `<name>.zip` through the browser's download. */
 export function saveZip(data: ArrayBuffer, name: string): void {
-  const url = URL.createObjectURL(
+  saveBlob(
     new Blob([data], { type: "application/zip" }),
+    `${safeFileName(name, "files")}.zip`,
   );
+}
+
+/** Saves a blob as `fileName` through the browser's download. */
+export function saveBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${safeFileName(name, "files")}.zip`;
+  link.download = fileName;
   link.click();
   // Allow the browser to begin saving before releasing the blob.
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);

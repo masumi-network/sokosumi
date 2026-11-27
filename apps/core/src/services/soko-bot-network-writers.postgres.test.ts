@@ -22,7 +22,7 @@ import {
   PREPROD_GENERATION_KEY,
   PREPROD_PAUSE_KEY,
 } from "@/helpers/preprod-control";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import * as networkScopes from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import * as transactions from "@/lib/db/transaction";
 import type { EnvVariables } from "@/lib/hono";
@@ -209,7 +209,8 @@ async function seedHireDecision(status: "PENDING" | "PROCESSING" = "PENDING") {
   const fixture = await seedBot();
   const { userId, workspaceId, bot } = fixture;
   const turn = await seedLiveTurn(fixture, ["hire_agent", "provide_job_input"]);
-  const { networkDb, networkTable } = createNetworkScope("mainnet");
+  const { networkDb, networkTable } =
+    networkScopes.createNetworkScope("mainnet");
   const agent = await networkDb.agent.create({
     data: {
       blockchainIdentifier: randomUUID(),
@@ -350,6 +351,13 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
         });
       onTestFinished(() => session.mockRestore());
       if (network === "preprod") {
+        // This writer fixture bypasses admission on the public layout. Its
+        // catalog reads use the same public tables as its other reads.
+        const catalogScope = networkScopes.createNetworkScope("mainnet");
+        const scope = vi
+          .spyOn(networkScopes, "createNetworkScope")
+          .mockReturnValueOnce(catalogScope);
+        onTestFinished(() => scope.mockRestore());
         // A Preprod turn starts only while Preprod is open (ticket 24).
         await prisma.syncMetadata.upsert({
           where: { key: PREPROD_PAUSE_KEY },

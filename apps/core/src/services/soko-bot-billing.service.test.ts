@@ -15,7 +15,7 @@ const {
   usageFindUniqueMock,
   turnFindFirstMock,
   turnFindManyMock,
-  transactionCreateMock,
+  recordSpendMock,
 } = vi.hoisted(() => ({
   balanceMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
@@ -31,8 +31,10 @@ const {
   usageFindUniqueMock: vi.fn(),
   turnFindFirstMock: vi.fn(),
   turnFindManyMock: vi.fn(),
-  transactionCreateMock: vi.fn(),
+  recordSpendMock: vi.fn(),
 }));
+/** The transaction `serializableTransaction` last opened. */
+const opened = vi.hoisted(() => ({ tx: undefined as unknown }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -49,8 +51,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
-  serializableTransaction: (run: (tx: unknown) => unknown) =>
-    run(transactionClient()),
+  serializableTransaction: (run: (tx: unknown) => unknown) => {
+    opened.tx = transactionClient();
+    return run(opened.tx);
+  },
 }));
 vi.mock("@/services/cmo-billing.service", () => ({
   isCusoInFreeHiring: freeHiringMock,
@@ -62,11 +66,20 @@ vi.mock("@/services/soko-bot-chat.service", () => ({
 vi.mock("@sokosumi/database/helpers", () => ({
   hasAssignedOrganizationSeat: hasSeatMock,
 }));
-vi.mock("@sokosumi/database/repositories", () => ({
+vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
+  InsufficientBalanceError: (
+    await importOriginal<typeof import("@sokosumi/database/repositories")>()
+  ).InsufficientBalanceError,
   creditBucketRepository: {
     getBalance: balanceMock,
+    // The charge reads the balance of a named Network, through `spend`.
+    getNetworkBalance: (network: string, ...rest: unknown[]) =>
+      network === "mainnet"
+        ? balanceMock(...rest)
+        : Promise.reject(new Error(`Not Mainnet: ${network}`)),
     getOrganizationPoolBalance: poolBalanceMock,
     prepareConsumption: prepareConsumptionMock,
+    recordSpend: recordSpendMock,
   },
 }));
 
@@ -86,6 +99,12 @@ import {
 
 const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000001";
 
+/** The debit was written once, on `tx`: the caller's open transaction. */
+function expectDebitOn(tx: unknown) {
+  expect(recordSpendMock).toHaveBeenCalledTimes(1);
+  expect(recordSpendMock.mock.calls[0]?.[2]).toBe(tx);
+}
+
 function transactionClient() {
   return {
     sokoBot: { findUnique: botFindUniqueMock },
@@ -93,7 +112,6 @@ function transactionClient() {
       create: usageCreateMock,
       findUnique: usageFindUniqueMock,
     },
-    transaction: { create: transactionCreateMock },
   };
 }
 
@@ -193,8 +211,9 @@ describe("Soko Bot billing", () => {
     prepareConsumptionMock.mockResolvedValue([
       { bucketId: "bucket_1", amount: expected },
     ]);
-    transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+    recordSpendMock.mockResolvedValue("transaction_1");
     usageCreateMock.mockResolvedValue({ id: "usage_1" });
+    const tx = transactionClient();
 
     const result = await recordSokoBotTurnUsage(
       {
@@ -203,7 +222,7 @@ describe("Soko Bot billing", () => {
         userId: "user_1",
         costUsdMicros: 1_000_000n,
       },
-      transactionClient() as never,
+      tx as never,
     );
 
     expect(result).toEqual({
@@ -213,15 +232,16 @@ describe("Soko Bot billing", () => {
       organizationId: null,
       cusoProjectId: null,
     });
-    expect(transactionCreateMock).toHaveBeenCalledWith(
+    expect(recordSpendMock).toHaveBeenCalledWith(
+      "mainnet",
       expect.objectContaining({
-        data: expect.objectContaining({
-          amount: -expected,
-          organizationId: null,
-          userId: "user_1",
-        }),
+        cents: expected,
+        organizationId: null,
+        userId: "user_1",
       }),
+      expect.anything(),
     );
+    expectDebitOn(tx);
     expect(usageCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -257,7 +277,7 @@ describe("Soko Bot billing", () => {
       organizationId: "org_1",
       cusoProjectId: null,
     });
-    expect(transactionCreateMock).not.toHaveBeenCalled();
+    expect(recordSpendMock).not.toHaveBeenCalled();
   });
 
   it("charges a check outside a turn its metered cost, without the turn minimum", async () => {
@@ -271,7 +291,7 @@ describe("Soko Bot billing", () => {
     prepareConsumptionMock.mockResolvedValue([
       { bucketId: "bucket_1", amount: expected },
     ]);
-    transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+    recordSpendMock.mockResolvedValue("transaction_1");
 
     const result = await recordSokoBotCheckUsage({
       sokoBotId: SOKO_BOT_ID,
@@ -280,6 +300,7 @@ describe("Soko Bot billing", () => {
     });
 
     expect(result.chargedCents).toBe(expected);
+    expectDebitOn(opened.tx);
     expect(usageCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -306,7 +327,8 @@ describe("Soko Bot billing", () => {
       prepareConsumptionMock.mockResolvedValue([
         { bucketId: "bucket_org", amount: expected },
       ]);
-      transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+      recordSpendMock.mockResolvedValue("transaction_1");
+      const tx = transactionClient();
 
       const result = await recordSokoBotTurnUsage(
         {
@@ -315,7 +337,7 @@ describe("Soko Bot billing", () => {
           userId: "user_1",
           costUsdMicros: 1_000_000n,
         },
-        transactionClient() as never,
+        tx as never,
       );
 
       // The wallet it drew on, so the low-balance check reads the same one.
@@ -334,11 +356,12 @@ describe("Soko Bot billing", () => {
         expect.anything(),
         { projectId: null },
       );
-      expect(transactionCreateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ organizationId: "org_1" }),
-        }),
+      expect(recordSpendMock).toHaveBeenCalledWith(
+        "mainnet",
+        expect.objectContaining({ organizationId: "org_1" }),
+        expect.anything(),
       );
+      expectDebitOn(tx);
       expect(usageCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ organizationId: "org_1" }),
@@ -527,7 +550,7 @@ describe("Soko Bot billing", () => {
       prepareConsumptionMock.mockResolvedValue([
         { bucketId: "bucket_org", amount: expected },
       ]);
-      transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+      recordSpendMock.mockResolvedValue("transaction_1");
       const input = {
         turnId: "turn_1",
         sokoBotId: SOKO_BOT_ID,
@@ -535,7 +558,8 @@ describe("Soko Bot billing", () => {
         costUsdMicros: 1_000_000n,
       };
 
-      await recordSokoBotTurnUsage(input, transactionClient() as never);
+      const tx = transactionClient();
+      await recordSokoBotTurnUsage(input, tx as never);
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
         "mainnet",
         "user_2",
@@ -544,14 +568,15 @@ describe("Soko Bot billing", () => {
         expect.anything(),
         { projectId: null },
       );
-      expect(transactionCreateMock).toHaveBeenCalledWith(
+      expect(recordSpendMock).toHaveBeenCalledWith(
+        "mainnet",
         expect.objectContaining({
-          data: expect.objectContaining({
-            userId: "user_2",
-            organizationId: "org_1",
-          }),
+          userId: "user_2",
+          organizationId: "org_1",
         }),
+        expect.anything(),
       );
+      expectDebitOn(tx);
 
       vi.clearAllMocks();
       usageFindUniqueMock.mockResolvedValue(null);
@@ -565,7 +590,7 @@ describe("Soko Bot billing", () => {
         organizationId: "org_1",
         cusoProjectId: null,
       });
-      expect(transactionCreateMock).not.toHaveBeenCalled();
+      expect(recordSpendMock).not.toHaveBeenCalled();
       expect(poolBalanceMock).not.toHaveBeenCalled();
     });
   });
@@ -584,7 +609,7 @@ describe("Soko Bot billing", () => {
         },
       });
       usageFindUniqueMock.mockResolvedValue(null);
-      transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+      recordSpendMock.mockResolvedValue("transaction_1");
     });
 
     it("charges a turn and caps it at the balance of his Project", async () => {
@@ -593,6 +618,7 @@ describe("Soko Bot billing", () => {
       prepareConsumptionMock.mockResolvedValue([
         { bucketId: "bucket_project", amount: balance },
       ]);
+      const tx = transactionClient();
 
       const result = await recordSokoBotTurnUsage(
         {
@@ -601,10 +627,11 @@ describe("Soko Bot billing", () => {
           userId: null,
           costUsdMicros: 1_000_000n,
         },
-        transactionClient() as never,
+        tx as never,
       );
 
       expect(result).toMatchObject({ chargedCents: balance, shortfall: true });
+      expectDebitOn(tx);
       expect(balanceMock).toHaveBeenCalledWith(
         null,
         "org_1",
@@ -645,6 +672,7 @@ describe("Soko Bot billing", () => {
         expect.anything(),
         scope,
       );
+      expectDebitOn(opened.tx);
     });
 
     it("gates his turn on the balance of his Project", async () => {
@@ -747,7 +775,7 @@ describe("Soko Bot billing", () => {
         organizationId: null,
         cusoProjectId: PROJECT_ID,
       });
-      expect(transactionCreateMock).not.toHaveBeenCalled();
+      expect(recordSpendMock).not.toHaveBeenCalled();
       expect(usageCreateMock).not.toHaveBeenCalled();
     });
 
