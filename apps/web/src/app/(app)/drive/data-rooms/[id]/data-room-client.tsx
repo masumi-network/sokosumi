@@ -68,33 +68,28 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
 
   if (query.isError)
     return (
-      <div role="alert">
-        <EmptyState
-          icon={LockKeyhole}
-          title={t("loadFailed")}
-          description={t("loadFailedDescription")}
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button
-                asChild
-                variant="outline"
-                className="min-h-11 md:min-h-10"
-              >
-                <Link href="/drive?view=workspace">
-                  <ArrowLeft aria-hidden />
-                  {t("backToFiles")}
-                </Link>
-              </Button>
-              <Button
-                className="min-h-11 md:min-h-10"
-                onClick={() => void query.refetch()}
-              >
-                {t("retry")}
-              </Button>
-            </div>
-          }
-        />
-      </div>
+      <EmptyState
+        messageRole="alert"
+        icon={LockKeyhole}
+        title={t("loadFailed")}
+        description={t("loadFailedDescription")}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild variant="outline" className="min-h-11 md:min-h-10">
+              <Link href="/drive?view=workspace">
+                <ArrowLeft aria-hidden />
+                {t("backToFiles")}
+              </Link>
+            </Button>
+            <Button
+              className="min-h-11 md:min-h-10"
+              onClick={() => void query.refetch()}
+            >
+              {t("retry")}
+            </Button>
+          </div>
+        }
+      />
     );
   if (!query.data)
     return (

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -48,6 +48,10 @@ it("says a table from another workspace is gone at once, with a way back", async
   // Asking again cannot bring it back, so nothing offers to.
   expect(screen.queryByRole("button", { name: "retry" })).toBeNull();
   expect(get).toHaveBeenCalledTimes(1);
+  // The live region carries the message only; the way back sits outside it.
+  const alert = screen.getByRole("alert");
+  expect(within(alert).getByText("openFailed")).toBeTruthy();
+  expect(within(alert).queryByRole("link")).toBeNull();
 });
 
 it("offers a retry beside the way back when the request itself failed", async () => {
@@ -56,4 +60,5 @@ it("offers a retry beside the way back when the request itself failed", async ()
 
   expect(await screen.findByRole("button", { name: "retry" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "backToFiles" })).toBeTruthy();
+  expect(within(screen.getByRole("alert")).queryByRole("button")).toBeNull();
 });

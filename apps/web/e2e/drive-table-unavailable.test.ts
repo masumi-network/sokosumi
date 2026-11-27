@@ -29,31 +29,46 @@ async function shot(page: Page, size: string, step: string) {
   });
 }
 
-/** Opens the workspace menu wherever this width puts it. */
-async function openWorkspaceMenu(page: Page, current: string) {
-  const rail = page.getByRole("button", { name: "Switch organisation" });
-  if (await rail.isVisible()) return rail.click();
+/** The workspace switcher this width shows: the rail icon or the sidebar row. */
+async function workspaceTrigger(page: Page) {
   const show = page.getByRole("button", { name: "Show sidebar" });
-  if (await show.isVisible()) await show.click();
-  await page.getByRole("button", { name: current, exact: true }).click();
+  const rail = page.getByRole("button", { name: "Switch organisation" });
+  if (!(await rail.isVisible()) && (await show.isVisible())) await show.click();
+  return page
+    .getByTestId("workspace-switcher-chrome")
+    .filter({ visible: true })
+    .getByRole("button")
+    .first();
 }
 
-/** Switches workspace and waits until the menu names the new one. */
-async function switchWorkspace(page: Page, from: string, to: string) {
-  await openWorkspaceMenu(page, from);
+/**
+ * Picks a workspace, then waits until the switch has landed: the menu lists
+ * "Invite members" only while an organization is active. Fails if it never
+ * lands, so later steps never run in the wrong workspace.
+ */
+async function switchWorkspace(
+  page: Page,
+  to: string,
+  toOrganization: boolean,
+) {
+  await (await workspaceTrigger(page)).click();
   await page.getByRole("menuitem", { name: new RegExp(`^${to}\\b`) }).click();
   await page.getByRole("menu").waitFor({ state: "hidden" });
-  // Wait for the switch to land: the menu then lists the new workspace first.
   for (let attempt = 0; attempt < 20; attempt++) {
+    const trigger = await workspaceTrigger(page);
+    if (await trigger.isEnabled()) {
+      await trigger.click();
+      const menu = page.getByRole("menu");
+      await menu.waitFor();
+      const organizationActive = await menu
+        .getByRole("menuitem", { name: "Invite members" })
+        .isVisible();
+      await page.keyboard.press("Escape");
+      await menu.waitFor({ state: "hidden" });
+      if (organizationActive === toOrganization) break;
+    }
+    assert.ok(attempt < 19, `workspace switch to ${to} never landed`);
     await page.waitForTimeout(1_000);
-    const trigger = page.getByRole("button", { name: to, exact: true });
-    if (await trigger.isVisible()) break;
-    if (
-      await page
-        .getByRole("button", { name: "Switch organisation" })
-        .isVisible()
-    )
-      break;
   }
   // On a phone the sidebar is a sheet over the page; close it.
   const sheet = page.getByRole("dialog");
@@ -101,7 +116,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       // A second workspace, free, so the table can belong to the other one.
       await page.goto(`${BASE_URL}/drive?view=tables`);
       await page.getByRole("tab", { name: "Tables", selected: true }).waitFor();
-      await openWorkspaceMenu(page, "Personal");
+      await (await workspaceTrigger(page)).click();
       await page.getByRole("menuitem", { name: "Create workspace" }).click();
       const setup = page.getByRole("dialog", { name: "Create organization" });
       await setup.getByRole("textbox", { name: "Name" }).fill(ORGANIZATION);
@@ -113,27 +128,14 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await setup.getByRole("button", { name: "Finish setup" }).click();
       await setup.getByRole("button", { name: "Go to workspace" }).click();
       await setup.waitFor({ state: "hidden" });
-      await switchWorkspace(page, ORGANIZATION, "Personal");
+      await switchWorkspace(page, "Personal", false);
 
       await page.goto(`${BASE_URL}/drive?view=tables`);
       await page.getByRole("tab", { name: "Tables", selected: true }).waitFor();
-      await shot(page, size, "0-tables");
-      // The page can remount once the switched session lands; open the
-      // dialog again until the table is created.
+      await page.getByRole("button", { name: "New table" }).click();
       const create = page.getByRole("dialog", { name: "New table" });
-      for (let attempt = 0; attempt < 5; attempt++) {
-        if (!(await create.isVisible())) {
-          await page.getByRole("button", { name: "New table" }).click();
-        }
-        await create.getByRole("textbox", { name: "Title" }).fill("E2E prices");
-        const created = await create
-          .getByRole("button", { name: "Create table" })
-          .click({ timeout: 5_000 })
-          .then(() => page.waitForURL(/\/drive\/tables\//, { timeout: 10_000 }))
-          .then(() => true)
-          .catch(() => false);
-        if (created) break;
-      }
+      await create.getByRole("textbox", { name: "Title" }).fill("E2E prices");
+      await create.getByRole("button", { name: "Create table" }).click();
       await page.waitForURL(/\/drive\/tables\//);
       await page.getByRole("heading", { name: "E2E prices" }).waitFor();
 
@@ -150,7 +152,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.keyboard.press("Escape");
       await archive.waitFor({ state: "hidden" });
 
-      await switchWorkspace(page, "Personal", ORGANIZATION);
+      await switchWorkspace(page, ORGANIZATION, true);
       const startedAt = Date.now();
       await page
         .getByRole("heading", { name: "Can't open this table" })

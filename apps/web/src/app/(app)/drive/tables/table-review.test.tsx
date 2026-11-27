@@ -655,6 +655,12 @@ it("R1: table archive retry preserves pre-poll metadata and intent", async () =>
   f.tableVersion = 2;
   f.tableArchived = new Date();
   view.rerender(<TableEditor id={f.column.tableId} />);
+  // Polling now says archived, but the open dialog still means Archive, and
+  // only Retry can send it again.
+  const confirm = screen.getByRole("button", { name: "archive" });
+  expect(confirm.hasAttribute("disabled")).toBe(true);
+  expect(screen.queryByRole("button", { name: "restore" })).toBeNull();
+  expect(screen.getByText("archiveDescription")).toBeTruthy();
   fireEvent.click(screen.getAllByRole("button", { name: "retry" })[0]);
   await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
   expect(f.update.mock.calls[1]).toEqual(f.update.mock.calls[0]);

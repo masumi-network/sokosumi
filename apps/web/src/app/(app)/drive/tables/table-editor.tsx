@@ -285,36 +285,31 @@ export function TableEditor({ id }: { id: string }) {
     );
   if (!table.data)
     return (
-      <div role="alert">
-        <EmptyState
-          icon={Table2}
-          title={t("openFailed")}
-          description={tableError(table.error, t)}
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
+      <EmptyState
+        messageRole="alert"
+        icon={Table2}
+        title={t("openFailed")}
+        description={tableError(table.error, t)}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild variant="outline" className="min-h-11 md:min-h-10">
+              <Link href="/drive?view=tables">
+                <ArrowLeft aria-hidden />
+                {t("backToFiles")}
+              </Link>
+            </Button>
+            {/* Only a failed request is worth repeating. */}
+            {!isTableRejection(table.error) && (
               <Button
-                asChild
-                variant="outline"
                 className="min-h-11 md:min-h-10"
+                onClick={() => void table.refetch()}
               >
-                <Link href="/drive?view=tables">
-                  <ArrowLeft aria-hidden />
-                  {t("backToFiles")}
-                </Link>
+                {t("retry")}
               </Button>
-              {/* Only a failed request is worth repeating. */}
-              {!isTableRejection(table.error) && (
-                <Button
-                  className="min-h-11 md:min-h-10"
-                  onClick={() => void table.refetch()}
-                >
-                  {t("retry")}
-                </Button>
-              )}
-            </div>
-          }
-        />
-      </div>
+            )}
+          </div>
+        }
+      />
     );
   const view = table.data.views.find((view) => view.id === viewId);
   return (
@@ -380,6 +375,9 @@ function TableWorkspace({
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
+  // What the archive dialog was opened to do. Polling can change
+  // `archivedAt` while the dialog is open; the dialog keeps its action.
+  const [archiving, setArchiving] = useState(true);
   const [historyCursor, setHistoryCursor] = useState<string>();
   const [historyCell, setHistoryCell] = useState<{
     rowId?: string;
@@ -870,7 +868,12 @@ function TableWorkspace({
                 {t("showArchivedRows")}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setDialog("archive")}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setArchiving(!table.archivedAt);
+                  setDialog("archive");
+                }}
+              >
                 {table.archivedAt ? t("restore") : t("archive")}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -1573,9 +1576,9 @@ function TableWorkspace({
                     ? t("askAgent")
                     : dialog === "rename"
                       ? t("rename")
-                      : table.archivedAt
-                        ? t("restore")
-                        : t("archive")}
+                      : archiving
+                        ? t("archive")
+                        : t("restore")}
             </DialogTitle>
             <DialogDescription>
               {dialog === "enrich"
@@ -1583,11 +1586,7 @@ function TableWorkspace({
                 : dialog === "history"
                   ? t("historyDescription")
                   : dialog === "archive"
-                    ? t(
-                        table.archivedAt
-                          ? "restoreDescription"
-                          : "archiveDescription",
-                      )
+                    ? t(archiving ? "archiveDescription" : "restoreDescription")
                     : t("tableSettings")}
             </DialogDescription>
           </DialogHeader>
@@ -1974,7 +1973,12 @@ function TableWorkspace({
           {dialog !== "history" && (
             <DialogFooter>
               <Button
-                disabled={dialog === "enrich" && !!taskId}
+                disabled={
+                  (dialog === "enrich" && !!taskId) ||
+                  // An unresolved archive or restore is only ever retried as
+                  // sent; polling must not turn it into the opposite action.
+                  (dialog === "archive" && retrySlot === "archive")
+                }
                 loading={pending}
                 onClick={() =>
                   void run(
@@ -2010,7 +2014,7 @@ function TableWorkspace({
                           "archive",
                           {
                             version: table.version,
-                            archived: !table.archivedAt,
+                            archived: archiving,
                           },
                           (body) => dataTableService.update(table.id, body),
                         );
@@ -2065,7 +2069,7 @@ function TableWorkspace({
                 {dialog === "enrich"
                   ? t("createTask")
                   : dialog === "archive"
-                    ? t(table.archivedAt ? "restore" : "archive")
+                    ? t(archiving ? "archive" : "restore")
                     : t("save")}
               </Button>
             </DialogFooter>
