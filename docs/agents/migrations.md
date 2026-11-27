@@ -15,6 +15,8 @@ Export both `DATABASE_URL` and `DATABASE_URL_UNPOOLED` as the printed URL (`post
 
 Deploy to a Neon database over its direct URL (`DATABASE_URL_UNPOOLED`, the host without `-pooler`). Through the pooler, Prisma's migration advisory lock can outlive the run and block every later deploy on that database.
 
+GitHub preview provisioning verifies both URLs against the preview branch's read-write endpoint before writing them to Vercel, and Prisma's Preview preflight checks that they name the same endpoint, database and role.
+
 To build a database that matches `main`, move the branch's new folders out of `prisma/migrations`, deploy, then move them back and deploy again. `prisma.config.ts` pins `migrations.path`, so `--schema` pointed at another tree still applies the branch's migrations. Check the migration count in the deploy log, and `git status --porcelain prisma/migrations` after the restore.
 
 The same server runs a Core `*.postgres.test.ts` locally: from `apps/core`, `RUN_DATABASE_INTEGRATION_TESTS=true pnpm exec vitest run <file>` with the URL exported. A race test needs several connections and proves itself only in CI's real PostgreSQL.

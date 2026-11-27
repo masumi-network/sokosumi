@@ -1,4 +1,5 @@
 import {
+  assertBranchConnectionUrls,
   assertPreviewBranchResettable,
   createBranch,
   deleteBranch,
@@ -253,6 +254,7 @@ async function provisionPreviewResources(
       throw new Error("Preview branch has an unexpected parent");
     await refreshBranchExpiration(config, branch.id, { expiresAt });
     const urls = await getBranchConnectionUrls(config, branch.id);
+    await assertBranchConnectionUrls(config, branch, urls);
     const values = {
       DATABASE_URL: urls.databaseUrl,
       DATABASE_URL_UNPOOLED: urls.databaseUrlUnpooled,
