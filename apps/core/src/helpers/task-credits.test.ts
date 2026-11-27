@@ -60,7 +60,13 @@ describe("createTaskEventTransaction", () => {
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
       "preprod",
-      { userId: "user_1", organizationId: null, cents: 500n, consumptions },
+      {
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -89,7 +95,13 @@ describe("createTaskEventTransaction", () => {
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
       "preprod",
-      { userId: "user_1", organizationId: "org_1", cents: 500n, consumptions },
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -121,7 +133,13 @@ describe("createTaskEventTransaction", () => {
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
       "preprod",
-      { userId: null, organizationId: null, cents: 500n, consumptions },
+      {
+        userId: null,
+        organizationId: null,
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });

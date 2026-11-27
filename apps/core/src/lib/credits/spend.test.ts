@@ -51,6 +51,7 @@ describe("spend in full", () => {
     expect(spent).toEqual({
       outcome: "charged",
       transactionId: "debit-1",
+      createdAt: expect.any(Date),
       quotedCents: 100n,
       chargedCents: 100n,
       shortfall: false,
@@ -66,9 +67,17 @@ describe("spend in full", () => {
     // The buckets and their order are the repository's, written as chosen.
     expect(record).toHaveBeenCalledExactlyOnceWith(
       "mainnet",
-      { userId: null, organizationId: "org-1", cents: 100n, consumptions },
+      {
+        userId: null,
+        organizationId: "org-1",
+        cents: 100n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
+    // The debit's time is the one returned, for the caller's receipt.
+    expect(spent.createdAt).toBe(record.mock.calls[0]?.[1].createdAt);
     // The same transaction, not one that only looks like it.
     expect(prepare.mock.calls[0]?.[4]).toBe(tx);
     expect(record.mock.calls[0]?.[2]).toBe(tx);
@@ -91,6 +100,7 @@ describe("spend in full", () => {
     expect(spent).toEqual({
       outcome: "not_charged",
       transactionId: null,
+      createdAt: null,
       quotedCents: 100n,
       chargedCents: 0n,
       shortfall: true,
@@ -134,13 +144,20 @@ describe("spend in full or zero", () => {
     expect(spent).toEqual({
       outcome: "recorded_zero",
       transactionId: "debit-1",
+      createdAt: expect.any(Date),
       quotedCents: 0n,
       chargedCents: 0n,
       shortfall: false,
     });
     expect(record).toHaveBeenCalledExactlyOnceWith(
       "mainnet",
-      { userId: null, organizationId: "org-1", cents: 0n, consumptions: [] },
+      {
+        userId: null,
+        organizationId: "org-1",
+        cents: 0n,
+        consumptions: [],
+        createdAt: expect.any(Date),
+      },
       tx,
     );
     expect(prepare).not.toHaveBeenCalled();
@@ -182,6 +199,7 @@ describe("spend up to the balance", () => {
     expect(spent).toEqual({
       outcome: "partly_charged",
       transactionId: "debit-1",
+      createdAt: expect.any(Date),
       quotedCents: 120n,
       chargedCents: 90n,
       shortfall: true,
@@ -204,6 +222,7 @@ describe("spend up to the balance", () => {
     expect(await spend(input)).toEqual({
       outcome: "charged",
       transactionId: "debit-1",
+      createdAt: expect.any(Date),
       quotedCents: 120n,
       chargedCents: 120n,
       shortfall: false,
@@ -218,6 +237,7 @@ describe("spend up to the balance", () => {
     expect(await spend(input)).toEqual({
       outcome: "not_charged",
       transactionId: null,
+      createdAt: null,
       quotedCents: 120n,
       chargedCents: 0n,
       shortfall: true,

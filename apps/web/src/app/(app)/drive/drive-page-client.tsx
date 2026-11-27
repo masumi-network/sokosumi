@@ -258,6 +258,12 @@ function DrivePageWorkspace({
   });
   const [uploading, setUploading] = useState(false);
   const uploadBusyRef = useRef(false);
+  /**
+   * The empty state's New folder, which opened the dialog. The dialog has no
+   * Radix trigger, so focus goes back here by hand; a created folder replaces
+   * the empty state, so then it goes to the catalog's search field.
+   */
+  const folderDialogOpenerRef = useRef<HTMLElement | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [filesViewMode, setFilesViewMode] =
     useState<FilesViewMode>(defaultFilesViewMode);
@@ -2158,6 +2164,35 @@ function DrivePageWorkspace({
           dataRoomPaths={dataRoomsQuery.data?.map((room) => room.folderPath)}
           onShareFile={setShareItem}
           onMoveFiles={openMoveFilesDialog}
+          // The header's Upload and New folder, again where an empty folder
+          // leaves the eye. Same handlers, so they land in the folder shown.
+          emptyActions={
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                disabled={uploading}
+                onClick={openFilePicker}
+              >
+                <Upload className="size-4" aria-hidden />
+                {t("uploadButton")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={(event) => {
+                  folderDialogOpenerRef.current = event.currentTarget;
+                  openCreateFolderDialog();
+                }}
+              >
+                <FolderPlus className="size-4" aria-hidden />
+                {t("emptyNewFolder")}
+              </Button>
+            </>
+          }
         />
       ) : null}
 
@@ -2258,7 +2293,18 @@ function DrivePageWorkspace({
           }
         }}
       >
-        <DialogContent>
+        <DialogContent
+          onCloseAutoFocus={(event) => {
+            const opener = folderDialogOpenerRef.current;
+            if (!opener) return;
+            folderDialogOpenerRef.current = null;
+            event.preventDefault();
+            (opener.isConnected
+              ? opener
+              : document.querySelector<HTMLElement>('form[role="search"] input')
+            )?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("createFolderDialogTitle")}</DialogTitle>
             <DialogDescription>
