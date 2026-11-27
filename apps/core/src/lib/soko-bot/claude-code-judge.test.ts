@@ -116,4 +116,65 @@ describe("runClaudeCodeJudge", () => {
     cliAnswers(Object.assign(new Error("killed"), { killed: true }), "");
     await expect(judge()).rejects.toThrow("timed out after 90000 ms");
   });
+
+  it("forwards a custom jsonSchema when supplied", async () => {
+    const customSchema = JSON.stringify({
+      type: "object",
+      required: ["pass", "reason"],
+    });
+    cliAnswers(
+      null,
+      JSON.stringify({ structured_output: { pass: true, reason: "ok" } }),
+    );
+    await expect(
+      runClaudeCodeJudge({
+        model: "claude-opus-5-5",
+        instructions: "grade item",
+        prompt: "item 1",
+        timeoutMs: 90_000,
+        jsonSchema: customSchema,
+      }),
+    ).resolves.toEqual({ pass: true, reason: "ok" });
+    const [, args] = vi.mocked(execFile).mock.calls[0] ?? [];
+    expect(args?.[(args?.indexOf("--json-schema") ?? 0) + 1]).toBe(
+      customSchema,
+    );
+  });
+
+  it("writes large system prompts to a temp file and deletes it even on failure", async () => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    let capturedPath: string | null = null;
+    let capturedContent = "";
+    vi.mocked(execFile).mockImplementation(((
+      _file: string,
+      args: string[],
+      _options: unknown,
+      callback: ExecCallback,
+    ) => {
+      const idx = args.indexOf("--system-prompt-file");
+      capturedPath = idx >= 0 ? (args[idx + 1] ?? null) : null;
+      if (capturedPath) capturedContent = readFileSync(capturedPath, "utf8");
+      queueMicrotask(() =>
+        callback(
+          Object.assign(new Error("Command failed"), { code: 1 }),
+          "",
+          "boom",
+        ),
+      );
+      return { stdin: { end: stdinEnd } };
+    }) as unknown as typeof execFile);
+
+    const bigPrompt = "x".repeat(190_000);
+    await expect(
+      runClaudeCodeJudge({
+        model: "claude-opus-5-5",
+        instructions: bigPrompt,
+        prompt: "item",
+        timeoutMs: 90_000,
+      }),
+    ).rejects.toThrow("boom");
+    expect(capturedPath).toBeTruthy();
+    expect(capturedContent).toBe(bigPrompt);
+    expect(capturedPath && existsSync(capturedPath)).toBe(false);
+  });
 });
