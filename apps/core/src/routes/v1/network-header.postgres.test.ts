@@ -84,6 +84,11 @@ const ORIGIN = "https://example.com";
  */
 const SETUP_TIMEOUT = 60_000;
 const HEADER = "X-Sokosumi-Network";
+/**
+ * A test that sends many requests: under a second here alone, past Vitest's
+ * 5 s default once on a loaded machine, as CI's runner can be.
+ */
+const MANY_REQUESTS = 30_000;
 /** An origin Core's CORS allows (`resolveCorsAllowOrigin`). */
 const BROWSER = "https://app.sokosumi.com";
 
@@ -793,7 +798,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       },
     );
 
-    it("reads for a Mainnet request what it read before this ticket", async () => {
+    it("reads for a Mainnet request what it read before this ticket", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       // `/v1/users/me` for a session in its personal workspace: 4 statements,
       // counted on both layouts with ticket 58's literal Mainnet scope in the
       // middleware. An access-flag read on a Mainnet request adds one.
@@ -840,7 +847,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       }
     });
 
-    it("answers a key or token without the header as with mainnet, and every key as an old one", async () => {
+    it("answers a key or token without the header as with mainnet, and every key as an old one", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       for (const path of fixedPaths(admin.id)) {
         let oldKey: Answer | undefined;
         for (const [name, credential] of bearers) {
@@ -871,7 +880,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       expect(mainnet).toEqual(none);
     });
 
-    it("serves shared data to preprod as without the header, reading nothing more", async () => {
+    it("serves shared data to preprod as without the header, reading nothing more", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       for (const who of [plain, optedIn, admin]) {
         for (const path of sharedPaths(who.id)) {
           await warm(path, who.cookie);
@@ -897,7 +908,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       }
     });
 
-    it("refuses Network data to preprod with preprod_off, before any read", async () => {
+    it("refuses Network data to preprod with preprod_off, before any read", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const anonymous = await call(loaded, "/v1/agents", {
         [HEADER]: "preprod",
       });
@@ -1192,7 +1205,9 @@ describe.runIf(enabled && onSplitLayout)(
       ).toEqual(allowed("preprod"));
     });
 
-    it("opens the Preprod catalog to the callers that have access, and only to them", async () => {
+    it("opens the Preprod catalog to the callers that have access, and only to them", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const cases: [string, Record<string, string>, unknown][] = [
         ["anonymous", {}, refused],
         ["an admin's session", { cookie: admin.cookie }, allowed("preprod")],
@@ -1323,7 +1338,9 @@ describe.runIf(enabled && onSplitLayout)(
       }
     });
 
-    it("lists a Preprod key's own Network, and refuses it where the header names Mainnet", async () => {
+    it("lists a Preprod key's own Network, and refuses it where the header names Mainnet", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const cases: [string, Record<string, string>, unknown][] = [
         ["an admin's", await key(admin, "soko_preprod_"), allowed("preprod")],
         [
@@ -1491,7 +1508,9 @@ describe.runIf(enabled && onSplitLayout)(
       ]);
     });
 
-    it("gives an authenticated router the scope of a key or token", async () => {
+    it("gives an authenticated router the scope of a key or token", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
       const { errorHandler } = await import("@/helpers/error-handler");
       const probe = new OpenAPIHonoWithAuth();
@@ -1545,7 +1564,9 @@ describe.runIf(enabled && onSplitLayout)(
       }
     });
 
-    it("serves shared data to a key the header contradicts as without the header", async () => {
+    it("serves shared data to a key the header contradicts as without the header", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       for (const [caller, headers, header] of [
         ["an old key", await key(optedIn, null), "preprod"],
         ["a Preprod key", await key(optedIn, "soko_preprod_"), "mainnet"],
@@ -1604,7 +1625,9 @@ describe.runIf(enabled && onSplitLayout)(
       }
     });
 
-    it("reads the access flag once, only for a Preprod request that needs it", async () => {
+    it("reads the access flag once, only for a Preprod request that needs it", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const reads = async (headers: Record<string, string>) => {
         await call(loaded, "/v1/users/me", headers);
         await call(loaded, "/v1/users/me", headers);
