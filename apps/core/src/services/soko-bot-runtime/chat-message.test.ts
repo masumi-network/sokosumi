@@ -53,7 +53,11 @@ vi.mock("../soko-bot-runtime.service", () => ({
   SokoBotRuntimeValidationError: class extends Error {},
 }));
 
-import { resolveRecipient, sendMessage } from "./chat-message";
+import {
+  resolveRecipient,
+  sendMessage,
+  unknownPersonRefusal,
+} from "./chat-message";
 
 const runtime = {
   findCoworkers: vi.fn(),
@@ -70,6 +74,7 @@ const authorized = (turn: Record<string, unknown> = {}, extra = {}) =>
       sokoBotId: "bot-1",
       workspaceId: "ws-1",
       actingUserId: "robin",
+      requestedByUserId: "robin",
       chainDepth: 0,
       source: "CHAT",
       ...turn,
@@ -115,6 +120,154 @@ beforeEach(() => {
   });
   runtime.postChat.mockResolvedValue({ roomId: "launch", messageId: "m-2" });
   runtime.openDirectChat.mockResolvedValue({ roomId: "dm", messageId: "m-3" });
+});
+
+describe("unknownPersonRefusal", () => {
+  const withTools = (capabilities: string[]) =>
+    authorized({}, { grant: { capabilities } });
+
+  it("gives a next step the version has: v33 has ask_coworker, not send_message", async () => {
+    const {
+      applyVersionCapabilities,
+      getSokoBotVersion,
+      SOKO_BOT_CAPABILITIES,
+    } = await import("@sokosumi/soko-bot");
+    const capabilities = applyVersionCapabilities(
+      getSokoBotVersion("v33"),
+      SOKO_BOT_CAPABILITIES,
+    );
+    expect(capabilities).not.toContain("send_message");
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      withTools([...capabilities]),
+      "Mira",
+    );
+    expect(refusal).not.toContain("send_message");
+    expect(refusal).toContain("Ask it with ask_coworker instead.");
+  });
+
+  it("points a room to post_chat, and to the owner when no tool reaches it", async () => {
+    expect(
+      await unknownPersonRefusal(
+        runtime as never,
+        withTools(["open_direct_chat", "post_chat"]),
+        "#Launch team",
+      ),
+    ).toMatch(/#Launch team \(room\).*Post there with post_chat instead\./);
+    expect(
+      await unknownPersonRefusal(
+        runtime as never,
+        withTools(["open_direct_chat"]),
+        "Juno",
+      ),
+    ).toMatch(/Tell the owner you would reach it there\.$/);
+  });
+
+  it("names a room only to someone in it (Neon/Codex: requester visibility)", async () => {
+    // The bot is in #Launch team; the person asking is not.
+    db.chatRoom.findMany
+      .mockResolvedValueOnce([
+        { id: "launch", name: "Launch team", groupName: null },
+      ])
+      .mockResolvedValueOnce([]);
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      authorized(
+        { askedByUserId: "hannah" },
+        { grant: { capabilities: ["open_direct_chat", "post_chat"] } },
+      ),
+      "#Launch team",
+    );
+    expect(refusal).not.toContain("Launch team (room)");
+    expect(refusal).toMatch(/^No member of this organization matches/);
+    expect(db.chatRoom.findMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["launch"] },
+        userMembers: { some: { userId: "hannah" } },
+      },
+      select: { id: true },
+    });
+  });
+
+  it("tells a teammate on a personal bot nothing of its Coworkers, assistants or rooms (Neon)", async () => {
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      authorized(
+        { askedByUserId: "hannah" },
+        {
+          askedByKind: "TEAMMATE",
+          grant: {
+            capabilities: ["open_direct_chat", "send_message", "ask_coworker"],
+          },
+        },
+      ),
+      "Mira",
+    );
+    expect(refusal).not.toMatch(
+      /Coworker|assistant|room|send_message|ask_coworker/,
+    );
+    expect(refusal).toMatch(/^No member of this organization matches "Mira"/);
+    // No search of the bot's Coworkers, assistants or rooms for the name.
+    expect(runtime.findCoworkers).not.toHaveBeenCalledWith(
+      expect.anything(),
+      "Mira",
+    );
+  });
+
+  it("tells another assistant's request nothing of the bot's directory", async () => {
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      authorized(
+        {},
+        { askedByKind: "ASSISTANT", grant: { capabilities: ["send_message"] } },
+      ),
+      "Mira",
+    );
+    expect(refusal).not.toContain("send_message");
+  });
+
+  it("asks which recipient was meant when a Coworker and an assistant share a name", async () => {
+    db.sokoBot.findMany.mockResolvedValueOnce([
+      {
+        id: "bot-two",
+        name: "Mira",
+        userId: "hannah",
+        user: { name: "Hannah Weber" },
+      },
+    ]);
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      withTools(["open_direct_chat", "ask_coworker", "post_chat"]),
+      "Mira",
+    );
+    expect(refusal).toBe(
+      '"Mira" is not a member of this organization; it could be Mira (Coworker), or Mira (Hannah Weber\'s assistant). Ask the owner which one they mean.',
+    );
+  });
+
+  it("sends a Coworker, an assistant or a room to send_message", async () => {
+    const refuse = (person: string) =>
+      unknownPersonRefusal(
+        runtime as never,
+        withTools(["open_direct_chat", "send_message"]),
+        person,
+      );
+    expect(await refuse("Mira")).toBe(
+      '"Mira" is Mira (Coworker), not a member of this organization. Write to it with send_message instead.',
+    );
+    expect(await refuse("Juno")).toMatch(
+      /"Juno" is Juno \(Hannah Weber's assistant\).*send_message/,
+    );
+    expect(await refuse("#Launch team")).toMatch(/#Launch team \(room\)/);
+  });
+
+  it("lists the members when nobody by that name is here", async () => {
+    expect(
+      await unknownPersonRefusal(runtime as never, withTools([]), "Nina"),
+    ).toBe(
+      'No member of this organization matches "Nina". Members: Hannah Weber. If it is none of them, ask the owner who they mean.',
+    );
+  });
 });
 
 describe("resolveRecipient", () => {

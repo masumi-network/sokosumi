@@ -254,6 +254,93 @@ export async function resolveRecipient(
   );
 }
 
+/**
+ * Why open_direct_chat found nobody, and what to do instead: a Coworker,
+ * assistant or room by that name is reached with send_message, and anyone
+ * else gets the members it could have meant.
+ */
+export async function unknownPersonRefusal(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  person: string,
+): Promise<string> {
+  // A request that may not message others (a teammate on a personal bot)
+  // learns nothing of the bot's Coworkers, assistants or rooms.
+  const found = mayMessageOthers(authorized)
+    ? matching(
+        await directory(runtime, authorized, searchWords(person)),
+        person,
+      ).filter((recipient) => recipient.kind !== "person")
+    : [];
+  // The directory is the bot's: a room is named only to someone in it.
+  const visibleRooms = await roomsVisibleTo(
+    authorized.turn.askedByUserId ?? authorized.turn.requestedByUserId,
+    found.flatMap((recipient) =>
+      recipient.kind === "room" ? [recipient.roomId] : [],
+    ),
+  );
+  const notPeople = found.filter(
+    (recipient) =>
+      recipient.kind !== "room" || visibleRooms.has(recipient.roomId),
+  );
+  // With two candidates, any tool would pick one of them for the owner.
+  if (notPeople.length > 1)
+    return `"${person}" is not a member of this organization; it could be ${notPeople.map(describe).join(", or ")}. Ask the owner which one they mean.`;
+  if (notPeople.length === 1)
+    return `"${person}" is ${describe(notPeople[0]!)}, not a member of this organization. ${
+      mayMessageOthers(authorized)
+        ? reachInstead(notPeople[0]!.kind, authorized.grant.capabilities)
+        : "Tell the person who asked that you would reach it there."
+    }`;
+  const people = (await directory(runtime, authorized)).filter(
+    (recipient) => recipient.kind === "person",
+  );
+  return `No member of this organization matches "${person}". ${
+    people.length
+      ? `Members: ${people
+          .slice(0, 30)
+          .map((p) => p.name)
+          .join("; ")}.`
+      : "There are no other members."
+  } If it is none of them, ask the owner who they mean.`;
+}
+
+/** Who may have the bot message others: sendMessage's own rule. */
+function mayMessageOthers(authorized: AuthorizedSokoBotRuntime): boolean {
+  return (
+    authorized.askedByKind !== "ASSISTANT" &&
+    (Boolean(authorized.reader.sharedScope) ||
+      authorized.askedByKind === "OWNER")
+  );
+}
+
+/** The rooms among `roomIds` the person asking is in; none for nobody. */
+async function roomsVisibleTo(
+  userId: string | null | undefined,
+  roomIds: string[],
+): Promise<Set<string>> {
+  if (!userId || roomIds.length === 0) return new Set();
+  const rooms = await prisma.chatRoom.findMany({
+    where: { id: { in: roomIds }, userMembers: { some: { userId } } },
+    select: { id: true },
+  });
+  return new Set(rooms.map((room) => room.id));
+}
+
+/** How to reach a recipient that is not a person, with a tool this turn has. */
+function reachInstead(
+  kind: SokoBotRecipient["kind"],
+  tools: readonly string[],
+): string {
+  if (tools.includes("send_message"))
+    return "Write to it with send_message instead.";
+  if (kind === "coworker" && tools.includes("ask_coworker"))
+    return "Ask it with ask_coworker instead.";
+  if (kind === "room" && tools.includes("post_chat"))
+    return "Post there with post_chat instead.";
+  return "Tell the owner you would reach it there.";
+}
+
 const ANSWER_DAYS = 30;
 
 /** The latest answer each recipient gave the bot in the last 30 days, so it does not ask again. */
