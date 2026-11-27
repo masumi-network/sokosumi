@@ -23,7 +23,7 @@ import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError, emitCoreWarning } from "@/lib/evlog";
-import { isPreprodOn, type Network } from "@/lib/network";
+import { isPreprodOn, JOB_SYNC_NETWORK, type Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sourceImportService } from "@/services/source-import.service";
 
@@ -53,9 +53,6 @@ export const JOB_SYNC_TRANSACTION_OPTIONS = {
   maxWait: 5000,
   timeout: 20_000,
 } as const;
-
-// shortcut: Job sync uses Mainnet until ticket 23 gives the cron its Network.
-const JOB_SYNC_NETWORK = "mainnet" satisfies Network;
 
 function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
   switch (jobStatus) {
@@ -147,6 +144,7 @@ export async function dispatchJobFailureNotification(
       );
     }
 
+    // An unset Preprod email list also disables alerts to the Agent author.
     const stakeholderEmails = (
       isPreprodJob
         ? env.PREPROD_JOB_FAILURE_NOTIFICATION_EMAILS

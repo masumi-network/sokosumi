@@ -14,6 +14,9 @@ export type Network = TableNetwork;
 // Detached Soko Bot work runs on Mainnet until tickets 24 and 30 carry provenance.
 export const DETACHED_SOKO_BOT_NETWORK = "mainnet" satisfies Network;
 
+// The job sync runs on Mainnet until ticket 23 gives it the Job's Network.
+export const JOB_SYNC_NETWORK = "mainnet" satisfies Network;
+
 export const NETWORKS = [
   "mainnet",
   "preprod",
