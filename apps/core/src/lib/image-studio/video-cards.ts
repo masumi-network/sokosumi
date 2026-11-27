@@ -206,9 +206,8 @@ export async function renderVideoCards(
   let timedOut = false;
   let closeBrowser: (() => Promise<void>) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const work = async (
-    fallback: string,
-  ): Promise<Uint8Array[] | "too_long" | null> => {
+  const work = async (): Promise<Uint8Array[] | "too_long" | null> => {
+    const fallback = await fallbackFontRule();
     return await withBrowser(async (browser) => {
       closeBrowser = () => browser.close();
       const pngs: Uint8Array[] = [];
@@ -260,20 +259,9 @@ export async function renderVideoCards(
     );
     return null;
   };
-  // The font's first download is not drawing time: it stays out of the budget.
-  let fallback: string;
-  try {
-    fallback = await fallbackFontRule();
-  } catch (error) {
-    return failed(
-      "Could not draw a video's cards",
-      "The caption font could not be loaded",
-      error,
-    );
-  }
   try {
     const result = await Promise.race([
-      work(fallback).catch((error: unknown) =>
+      work().catch((error: unknown) =>
         timedOut
           ? null
           : failed(

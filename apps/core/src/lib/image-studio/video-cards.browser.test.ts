@@ -20,6 +20,14 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/ffmpeg", async () => {
+  const { cardFontDir } = await import("@/test/card-font");
+  return {
+    CAPTION_FONT_FAMILY: "Montserrat Black",
+    captionFontsDir: cardFontDir,
+  };
+});
+
 import { renderVideoCards, type VideoCard } from "./video-cards";
 import { VIDEO_LAYOUTS } from "./video-layout";
 
