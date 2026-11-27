@@ -40,6 +40,7 @@ import { cmoV24 } from "./cmo-v24.js";
 import { cmoV25 } from "./cmo-v25.js";
 import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
 import { readsContextOnDemand } from "./context-on-demand-skills.js";
+import { v40E12 } from "./e12-test-versions.js";
 import {
   skillIndexSection,
   splitSkillsForTurn,
@@ -134,6 +135,7 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v38,
   v39,
   v40,
+  v40E12,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
