@@ -1,16 +1,16 @@
 {
   "sql": [
-    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE \"public\".\"Agent\".\"id\" IN ($1,$2,$3) OFFSET $4",
+    "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) OFFSET $4) AS \"sub\"",
     "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1,$2,$3) OFFSET $4",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE \"public\".\"Agent\".\"id\" IN ($1,$2,$3) OFFSET $4",
     "SELECT \"public\".\"apikey\".\"id\", \"public\".\"apikey\".\"configId\", \"public\".\"apikey\".\"name\", \"public\".\"apikey\".\"start\", \"public\".\"apikey\".\"prefix\", \"public\".\"apikey\".\"key\", \"public\".\"apikey\".\"referenceId\", \"public\".\"apikey\".\"refillInterval\", \"public\".\"apikey\".\"refillAmount\", \"public\".\"apikey\".\"lastRefillAt\", \"public\".\"apikey\".\"enabled\", \"public\".\"apikey\".\"rateLimitEnabled\", \"public\".\"apikey\".\"rateLimitTimeWindow\", \"public\".\"apikey\".\"rateLimitMax\", \"public\".\"apikey\".\"requestCount\", \"public\".\"apikey\".\"remaining\", \"public\".\"apikey\".\"lastRequest\", \"public\".\"apikey\".\"expiresAt\", \"public\".\"apikey\".\"createdAt\", \"public\".\"apikey\".\"updatedAt\", \"public\".\"apikey\".\"permissions\", \"public\".\"apikey\".\"metadata\" FROM \"public\".\"apikey\" WHERE \"public\".\"apikey\".\"key\" = $1 LIMIT $2 OFFSET $3",
     "SELECT \"public\".\"user\".\"id\", \"public\".\"user\".\"role\", \"public\".\"user\".\"banned\", \"public\".\"user\".\"banExpires\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
-    "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) OFFSET $4) AS \"sub\"",
     "SELECT a.id FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ORDER BY COALESCE(o.name, a.name) ASC, a.id ASC LIMIT $3",
     "UPDATE \"public\".\"apikey\" SET \"lastRequest\" = $1 WHERE (\"public\".\"apikey\".\"id\" = $2 AND 1=1) RETURNING \"public\".\"apikey\".\"id\", \"public\".\"apikey\".\"configId\", \"public\".\"apikey\".\"name\", \"public\".\"apikey\".\"start\", \"public\".\"apikey\".\"prefix\", \"public\".\"apikey\".\"key\", \"public\".\"apikey\".\"referenceId\", \"public\".\"apikey\".\"refillInterval\", \"public\".\"apikey\".\"refillAmount\", \"public\".\"apikey\".\"lastRefillAt\", \"public\".\"apikey\".\"enabled\", \"public\".\"apikey\".\"rateLimitEnabled\", \"public\".\"apikey\".\"rateLimitTimeWindow\", \"public\".\"apikey\".\"rateLimitMax\", \"public\".\"apikey\".\"requestCount\", \"public\".\"apikey\".\"remaining\", \"public\".\"apikey\".\"lastRequest\", \"public\".\"apikey\".\"expiresAt\", \"public\".\"apikey\".\"createdAt\", \"public\".\"apikey\".\"updatedAt\", \"public\".\"apikey\".\"permissions\", \"public\".\"apikey\".\"metadata\"",
     "UPDATE \"public\".\"apikey\" SET \"updatedAt\" = $1 WHERE (\"public\".\"apikey\".\"id\" = $2 AND 1=1) RETURNING \"public\".\"apikey\".\"id\", \"public\".\"apikey\".\"configId\", \"public\".\"apikey\".\"name\", \"public\".\"apikey\".\"start\", \"public\".\"apikey\".\"prefix\", \"public\".\"apikey\".\"key\", \"public\".\"apikey\".\"referenceId\", \"public\".\"apikey\".\"refillInterval\", \"public\".\"apikey\".\"refillAmount\", \"public\".\"apikey\".\"lastRefillAt\", \"public\".\"apikey\".\"enabled\", \"public\".\"apikey\".\"rateLimitEnabled\", \"public\".\"apikey\".\"rateLimitTimeWindow\", \"public\".\"apikey\".\"rateLimitMax\", \"public\".\"apikey\".\"requestCount\", \"public\".\"apikey\".\"remaining\", \"public\".\"apikey\".\"lastRequest\", \"public\".\"apikey\".\"expiresAt\", \"public\".\"apikey\".\"createdAt\", \"public\".\"apikey\".\"updatedAt\", \"public\".\"apikey\".\"permissions\", \"public\".\"apikey\".\"metadata\"",
     "WITH ordered AS ( SELECT a.id, ROW_NUMBER() OVER ( ORDER BY COALESCE(o.name, a.name) ASC, a.id ASC ) AS rn FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ) SELECT id FROM ordered WHERE rn > (SELECT rn FROM ordered WHERE id = $3) ORDER BY rn LIMIT $4",
-    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE \"public\".\"Agent\".\"id\" IN ($1) OFFSET $2",
     "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE \"public\".\"Agent\".\"id\" IN ($1) OFFSET $2",
     "SELECT a.id FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ORDER BY COALESCE(o.name, a.name) DESC, a.id DESC LIMIT $3",
     "WITH ordered AS ( SELECT a.id, ROW_NUMBER() OVER ( ORDER BY COALESCE(o.name, a.name) DESC, a.id DESC ) AS rn FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ) SELECT id FROM ordered WHERE rn > (SELECT rn FROM ordered WHERE id = $3) ORDER BY rn LIMIT $4",
     "BEGIN",
@@ -35,8 +35,8 @@
     "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND \"public\".\"Agent\".\"status\" = CAST($4::text AS \"public\".\"AgentStatus\")) OFFSET $5) AS \"sub\"",
     "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND \"public\".\"Agent\".\"status\" = CAST($4::text AS \"public\".\"AgentStatus\")) ORDER BY \"public\".\"Agent\".\"createdAt\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $5 OFFSET $6",
     "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1,$2) OFFSET $3",
-    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
     "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" = $1 OFFSET $2",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
     "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"agentId\" = $1 ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $2",
     "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"metadataOverrideId\" IN ($1) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $2",
     "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t0\".\"A\" AS \"AgentTag@Agent\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentTag\" AS \"t0\" ON \"t0\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t0\".\"A\" = $1) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $2",
@@ -74,10 +74,10 @@
     "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t1\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t1\" ON \"t1\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t1\".\"A\" IN (NULL)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $1",
     "DELETE FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" = $1",
     "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE (\"public\".\"CreditCost\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
-    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($13) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $14 OFFSET $15",
     "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN (NULL) OFFSET $1",
     "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN (NULL) OFFSET $1",
     "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($13) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $14 OFFSET $15",
     "SELECT \"public\".\"Category\".\"id\", \"public\".\"Category\".\"createdAt\", \"public\".\"Category\".\"updatedAt\", \"public\".\"Category\".\"name\", \"public\".\"Category\".\"slug\", \"public\".\"Category\".\"description\", \"public\".\"Category\".\"image\", \"public\".\"Category\".\"icon\", \"public\".\"Category\".\"styles\", \"public\".\"Category\".\"priority\", \"t5\".\"A\" AS \"AgentCategory@Agent\" FROM \"public\".\"Category\" INNER JOIN \"public\".\"_AgentCategory\" AS \"t5\" ON \"t5\".\"B\" = \"public\".\"Category\".\"id\" WHERE (1=1 AND \"t5\".\"A\" IN (NULL)) ORDER BY \"public\".\"Category\".\"priority\" ASC, \"public\".\"Category\".\"name\" ASC OFFSET $1",
     "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1",
     "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"agentId\" IN (NULL) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $1",
@@ -87,21 +87,21 @@
     "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
     "SELECT \"public\".\"vendor_grant\".\"id\" FROM \"public\".\"vendor_grant\" WHERE ((\"public\".\"vendor_grant\".\"vendorId\" = $1 AND \"public\".\"vendor_grant\".\"workspaceId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
     "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"createdAt\", \"public\".\"workspace\".\"updatedAt\", \"public\".\"workspace\".\"calendarRevision\", \"public\".\"workspace\".\"userId\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE (\"public\".\"workspace\".\"userId\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
-    "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN (NULL)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $4",
     "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN (NULL)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $4",
     "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE (\"public\".\"CreditCost\".\"unit\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
     "INSERT INTO \"public\".\"CreditCost\" (\"id\",\"createdAt\",\"updatedAt\",\"unit\",\"centsPerUnit\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\"",
     "ROLLBACK",
-    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17",
+    "SELECT AVG(EXTRACT(EPOCH FROM (completed_event.\"createdAt\" - j.\"createdAt\"))) as avg_duration_seconds FROM \"public\".\"Job\" j INNER JOIN LATERAL ( SELECT js.\"createdAt\" FROM \"public\".\"jobEvent\" js WHERE js.\"jobId\" = j.id AND js.\"status\" = 'COMPLETED'::\"public\".\"AgentJobStatus\" ORDER BY js.\"createdAt\" DESC LIMIT 1 ) completed_event ON true WHERE j.\"agentId\" = $1 AND j.\"createdAt\" >= $2",
+    "SELECT COUNT(\"rating\") AS \"_count$rating\", AVG(\"rating\") AS \"_avg$rating\" FROM (SELECT \"public\".\"UserAgentRating\".\"rating\" FROM \"public\".\"UserAgentRating\" WHERE (\"public\".\"UserAgentRating\".\"agentId\" = $1 AND \"public\".\"UserAgentRating\".\"isHidden\" = $2) OFFSET $3) AS \"sub\"",
     "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2",
     "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2",
     "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17",
     "SELECT \"public\".\"Category\".\"id\", \"public\".\"Category\".\"createdAt\", \"public\".\"Category\".\"updatedAt\", \"public\".\"Category\".\"name\", \"public\".\"Category\".\"slug\", \"public\".\"Category\".\"description\", \"public\".\"Category\".\"image\", \"public\".\"Category\".\"icon\", \"public\".\"Category\".\"styles\", \"public\".\"Category\".\"priority\", \"t5\".\"A\" AS \"AgentCategory@Agent\" FROM \"public\".\"Category\" INNER JOIN \"public\".\"_AgentCategory\" AS \"t5\" ON \"t5\".\"B\" = \"public\".\"Category\".\"id\" WHERE (1=1 AND \"t5\".\"A\" IN ($1)) ORDER BY \"public\".\"Category\".\"priority\" ASC, \"public\".\"Category\".\"name\" ASC OFFSET $2",
     "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"agentId\" IN ($1) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $2",
     "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t6\".\"A\" AS \"AgentTag@Agent\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentTag\" AS \"t6\" ON \"t6\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t6\".\"A\" IN ($1)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $2",
     "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
-    "SELECT AVG(EXTRACT(EPOCH FROM (completed_event.\"createdAt\" - j.\"createdAt\"))) as avg_duration_seconds FROM \"public\".\"Job\" j INNER JOIN LATERAL ( SELECT js.\"createdAt\" FROM \"public\".\"jobEvent\" js WHERE js.\"jobId\" = j.id AND js.\"status\" = 'COMPLETED'::\"public\".\"AgentJobStatus\" ORDER BY js.\"createdAt\" DESC LIMIT 1 ) completed_event ON true WHERE j.\"agentId\" = $1 AND j.\"createdAt\" >= $2",
-    "SELECT COUNT(\"rating\") AS \"_count$rating\", AVG(\"rating\") AS \"_avg$rating\" FROM (SELECT \"public\".\"UserAgentRating\".\"rating\" FROM \"public\".\"UserAgentRating\" WHERE (\"public\".\"UserAgentRating\".\"agentId\" = $1 AND \"public\".\"UserAgentRating\".\"isHidden\" = $2) OFFSET $3) AS \"sub\"",
     "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5",
     "UPDATE \"public\".\"CreditCost\" SET \"centsPerUnit\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"CreditCost\".\"id\" = $3 AND 1=1) RETURNING \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\"",
     "DELETE FROM \"public\".\"CreditCost\" WHERE (\"public\".\"CreditCost\".\"id\" = $1 AND 1=1) RETURNING \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\""
@@ -113,14 +113,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [5, 1],
-        [6, 1],
-        [7, 1]
+        [0, ["adm", "adm", "adm", "0"]],
+        [1, ["adm-a", "adm-b", "adm-d", "0"]],
+        [2, ["adm-a", "adm-d", "adm-b", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [5, ["%adm%", null, 3]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -129,14 +129,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [6, 1],
-        [7, 1],
-        [8, 1]
+        [0, ["adm", "adm", "adm", "0"]],
+        [1, ["adm-b", "adm-c", "adm-e", "0"]],
+        [2, ["adm-b", "adm-c", "adm-e", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]],
+        [8, ["%adm%", null, "adm-d", 3]]
       ]
     },
     {
@@ -145,14 +145,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [9, 1],
-        [10, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [6, 1],
-        [7, 1],
-        [8, 1]
+        [0, ["adm", "adm", "adm", "0"]],
+        [9, ["adm-e", "0"]],
+        [10, ["adm-e", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]],
+        [8, ["%adm%", null, "adm-c", 3]]
       ]
     },
     {
@@ -161,14 +161,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [11, 1],
-        [6, 1],
-        [7, 1]
+        [0, ["adm", "adm", "adm", "0"]],
+        [1, ["adm-b", "adm-c", "adm-e", "0"]],
+        [2, ["adm-e", "adm-c", "adm-b", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [11, ["%adm%", null, 3]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -177,14 +177,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [6, 1],
-        [7, 1],
-        [12, 1]
+        [0, ["adm", "adm", "adm", "0"]],
+        [1, ["adm-a", "adm-b", "adm-d", "0"]],
+        [2, ["adm-b", "adm-d", "adm-a", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]],
+        [12, ["%adm%", null, "adm-c", 3]]
       ]
     },
     {
@@ -193,14 +193,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [9, 1],
-        [10, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [6, 1],
-        [7, 1],
-        [12, 1]
+        [0, ["adm", "adm", "adm", "0"]],
+        [9, ["adm-a", "0"]],
+        [10, ["adm-a", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]],
+        [12, ["%adm%", null, "adm-d", 3]]
       ]
     },
     {
@@ -212,11 +212,16 @@
           [13, []],
           [14, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-d", "adm-b", "adm-e", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -227,11 +232,16 @@
           [13, []],
           [16, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
           [1, ["adm-e", "adm-c", "adm-a", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -241,12 +251,17 @@
         [
           [13, []],
           [16, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
-          [10, ["adm-a", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [9, ["adm-a", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -257,11 +272,16 @@
           [13, []],
           [17, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-a", "adm-c", "adm-e", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -272,11 +292,16 @@
           [13, []],
           [18, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
           [1, ["adm-e", "adm-b", "adm-d", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -286,12 +311,17 @@
         [
           [13, []],
           [18, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
-          [10, ["adm-d", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [9, ["adm-d", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -302,11 +332,16 @@
           [13, []],
           [19, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-a", "adm-c", "adm-b", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -317,11 +352,16 @@
           [13, []],
           [20, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "0"]],
           [21, ["0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -332,11 +372,16 @@
           [13, []],
           [22, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-e", "adm-d", "adm-b", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -347,11 +392,16 @@
           [13, []],
           [23, ["adm", "adm", "adm", "adm-d", "adm-d", "adm-d", "0"]],
           [21, ["0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -362,11 +412,16 @@
           [13, []],
           [24, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-a", "adm-b", "adm-e", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -377,11 +432,16 @@
           [13, []],
           [25, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
           [1, ["adm-e", "adm-c", "adm-d", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -391,12 +451,17 @@
         [
           [13, []],
           [25, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
-          [10, ["adm-d", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [9, ["adm-d", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -407,11 +472,16 @@
           [13, []],
           [26, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-d", "adm-c", "adm-e", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -422,11 +492,16 @@
           [13, []],
           [27, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
           [1, ["adm-e", "adm-b", "adm-a", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -436,12 +511,17 @@
         [
           [13, []],
           [27, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
-          [10, ["adm-a", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [9, ["adm-a", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -452,11 +532,16 @@
           [13, []],
           [28, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-a", "adm-b", "adm-c", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -467,11 +552,16 @@
           [13, []],
           [29, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
           [1, ["adm-c", "adm-d", "adm-e", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -481,12 +571,17 @@
         [
           [13, []],
           [29, ["adm", "adm", "adm", "adm-d", "adm-d", "adm-d", "3", "1"]],
-          [10, ["adm-e", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [9, ["adm-e", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -497,11 +592,16 @@
           [13, []],
           [30, ["adm", "adm", "adm", "3", "0"]],
           [1, ["adm-e", "adm-d", "adm-c", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -512,11 +612,16 @@
           [13, []],
           [31, ["adm", "adm", "adm", "adm-d", "adm-d", "adm-d", "3", "1"]],
           [1, ["adm-c", "adm-b", "adm-a", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -526,12 +631,17 @@
         [
           [13, []],
           [31, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
-          [10, ["adm-a", "0"]],
-          [4, ["adm", "adm", "adm", "0"]],
+          [9, ["adm-a", "0"]],
+          [0, ["adm", "adm", "adm", "0"]],
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -539,14 +649,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [0, 1],
-        [1, 1],
-        [2, 1],
-        [3, 1],
-        [32, 1],
-        [5, 1],
-        [6, 1],
-        [7, 1]
+        [32, ["adm", "adm", "adm", "ONLINE", "0"]],
+        [1, ["adm-a", "adm-b", "adm-e", "0"]],
+        [2, ["adm-a", "adm-b", "adm-e", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [5, ["%adm%", "ONLINE", 21]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -562,7 +672,12 @@
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -570,14 +685,14 @@
       "count": 8,
       "transactions": [],
       "outside": [
-        [9, 1],
-        [10, 1],
-        [2, 1],
-        [3, 1],
-        [4, 1],
-        [5, 1],
-        [6, 1],
-        [7, 1]
+        [0, ["adm Delta", "adm Delta", "adm Delta", "0"]],
+        [9, ["adm-c", "0"]],
+        [10, ["adm-c", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [5, ["%adm Delta%", null, 21]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -585,7 +700,14 @@
       "body": "{\"data\":[],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-none\",\"limit\":20,\"total\":5,\"nextCursor\":null}}}",
       "count": 6,
       "transactions": [],
-      "outside": [[2, 1], [3, 1], [4, 1], [6, 1], [7, 1], [8, 1]]
+      "outside": [
+        [0, ["adm", "adm", "adm", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]],
+        [8, ["%adm%", null, "adm-none", 21]]
+      ]
     },
     {
       "status": 200,
@@ -593,16 +715,16 @@
       "count": 10,
       "transactions": [],
       "outside": [
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [38, 1],
-        [39, 1],
-        [40, 1],
-        [2, 1],
-        [3, 1],
-        [6, 1],
-        [7, 1]
+        [35, ["adm-a", "0"]],
+        [36, ["adm-a", "1", "0"]],
+        [37, ["adm-a", "0"]],
+        [38, ["adm-a-override", "0"]],
+        [39, ["adm-a", "0"]],
+        [40, ["adm-a-override", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -610,7 +732,13 @@
       "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/admin/agents/adm-none\",\"method\":\"GET\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[35, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [36, ["adm-none", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -698,17 +826,17 @@
         ]
       ],
       "outside": [
-        [58, 1],
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [38, 1],
-        [39, 1],
-        [40, 1],
-        [2, 1],
-        [3, 1],
-        [6, 1],
-        [7, 1]
+        [35, ["adm-b", "0"]],
+        [58, ["adm-b", "1", "0"]],
+        [36, ["adm-b", "1", "0"]],
+        [37, ["adm-b", "0"]],
+        [38, ["<id 1>", "0"]],
+        [39, ["adm-b", "0"]],
+        [40, ["<id 1>", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -790,17 +918,17 @@
         ]
       ],
       "outside": [
-        [58, 1],
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [38, 1],
-        [39, 1],
-        [40, 1],
-        [2, 1],
-        [3, 1],
-        [6, 1],
-        [7, 1]
+        [35, ["adm-b", "0"]],
+        [58, ["adm-b", "1", "0"]],
+        [36, ["adm-b", "1", "0"]],
+        [37, ["adm-b", "0"]],
+        [38, ["<id 1>", "0"]],
+        [39, ["adm-b", "0"]],
+        [40, ["<id 1>", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -829,17 +957,17 @@
         ]
       ],
       "outside": [
-        [58, 1],
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [38, 1],
-        [39, 1],
-        [40, 1],
-        [2, 1],
-        [3, 1],
-        [6, 1],
-        [7, 1]
+        [35, ["adm-b", "0"]],
+        [58, ["adm-b", "1", "0"]],
+        [36, ["adm-b", "1", "0"]],
+        [37, ["adm-b", "0"]],
+        [38, ["<id 1>", "0"]],
+        [39, ["adm-b", "0"]],
+        [40, ["<id 1>", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -870,17 +998,17 @@
         ]
       ],
       "outside": [
-        [58, 1],
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [70, 1],
-        [39, 1],
-        [71, 1],
-        [2, 1],
-        [3, 1],
-        [6, 1],
-        [7, 1]
+        [35, ["adm-b", "0"]],
+        [58, ["adm-b", "1", "0"]],
+        [36, ["adm-b", "1", "0"]],
+        [37, ["adm-b", "0"]],
+        [70, ["0"]],
+        [39, ["adm-b", "0"]],
+        [71, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -888,7 +1016,13 @@
       "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/admin/agents/adm-none/metadata-override\",\"method\":\"PATCH\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[58, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [58, ["adm-none", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
@@ -896,18 +1030,18 @@
       "count": 12,
       "transactions": [],
       "outside": [
-        [72, 1],
-        [58, 1],
-        [35, 1],
-        [36, 1],
-        [37, 1],
-        [70, 1],
-        [39, 1],
-        [71, 1],
-        [2, 1],
-        [3, 1],
-        [6, 1],
-        [7, 1]
+        [72, ["adm-a"]],
+        [35, ["adm-a", "0"]],
+        [58, ["adm-a", "1", "0"]],
+        [36, ["adm-a", "1", "0"]],
+        [37, ["adm-a", "0"]],
+        [70, ["0"]],
+        [39, ["adm-a", "0"]],
+        [71, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -915,14 +1049,26 @@
       "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/admin/agents/adm-none/metadata-override\",\"method\":\"DELETE\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[58, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [58, ["adm-none", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 404,
       "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/adm-none\",\"method\":\"GET\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [73, ["adm-none", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 404,
@@ -930,24 +1076,43 @@
       "count": 18,
       "transactions": [],
       "outside": [
-        [74, 1],
-        [75, 1],
-        [76, 1],
-        [77, 1],
-        [78, 1],
-        [79, 1],
-        [80, 1],
-        [70, 1],
-        [81, 1],
-        [82, 1],
-        [83, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [85, 1],
-        [86, 1],
-        [6, 1],
-        [7, 1]
+        [74, ["0"]],
+        [75, ["0"]],
+        [76, ["0"]],
+        [
+          77,
+          [
+            "adm-a",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admother",
+            "1",
+            "0"
+          ]
+        ],
+        [78, ["0"]],
+        [79, ["0"]],
+        [80, ["0"]],
+        [70, ["0"]],
+        [81, ["0"]],
+        [82, ["0"]],
+        [83, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [85, ["<id 11>", "<workspace>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -956,23 +1121,42 @@
       "count": 17,
       "transactions": [],
       "outside": [
-        [74, 1],
-        [75, 1],
-        [76, 1],
-        [77, 1],
-        [78, 1],
-        [79, 1],
-        [80, 1],
-        [70, 1],
-        [81, 1],
-        [82, 1],
-        [83, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [6, 1],
-        [7, 1]
+        [74, ["0"]],
+        [75, ["0"]],
+        [76, ["0"]],
+        [
+          77,
+          [
+            "adm-b",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admother",
+            "1",
+            "0"
+          ]
+        ],
+        [78, ["0"]],
+        [79, ["0"]],
+        [80, ["0"]],
+        [70, ["0"]],
+        [81, ["0"]],
+        [82, ["0"]],
+        [83, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -981,20 +1165,464 @@
       "count": 14,
       "transactions": [],
       "outside": [
-        [74, 1],
-        [75, 1],
-        [76, 1],
-        [87, 1],
-        [88, 1],
-        [77, 1],
-        [79, 1],
-        [83, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [6, 1],
-        [7, 1]
+        [74, ["0"]],
+        [75, ["0"]],
+        [87, ["0"]],
+        [88, ["Cardano", "Mainnet", "Web3CardanoV2", "0"]],
+        [76, ["0"]],
+        [
+          77,
+          [
+            "adm-a",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admother",
+            "1",
+            "0"
+          ]
+        ],
+        [79, ["0"]],
+        [83, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 201,
+      "body": "{\"data\":{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 8,
+      "transactions": [
+        [
+          [13, []],
+          [89, ["admunit", "1", "0"]],
+          [
+            90,
+            [
+              "<id 12>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "admunit",
+              "200000"
+            ]
+          ],
+          [15, []]
+        ]
+      ],
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    "admunit",
+    {
+      "status": 409,
+      "body": "{\"error\":\"Conflict\",\"message\":\"Unit already exists\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs\",\"method\":\"POST\"}}",
+      "count": 7,
+      "transactions": [[[13, []], [89, ["admunit", "1", "0"]], [91, []]]],
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [73, ["<id 12>", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "[{\"id\":\"<id 13>\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"unit\":\"admother\",\"creditsPerUnit\":1e-10},{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002}]",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [79, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-a\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Zeta\",\"image\":null,\"icon\":null,\"credits\":60,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, ["adm-a", "2026-08-29 11:00:00"]],
+        [93, ["adm-a", false, "0"]],
+        [94, ["adm-a-fixed", "0"]],
+        [95, ["adm-a", "0"]],
+        [96, ["adm-a-pricing", "0"]],
+        [
+          97,
+          [
+            "adm-a",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admunit",
+            "admother",
+            "admunit",
+            "1",
+            "0"
+          ]
+        ],
+        [98, ["adm-a", "0"]],
+        [79, ["0"]],
+        [99, ["adm-a", "0"]],
+        [70, ["0"]],
+        [100, ["adm-a", "0"]],
+        [82, ["0"]],
+        [101, ["adm-a-fixed", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-b\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Beta\",\"image\":null,\"icon\":null,\"credits\":100,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, ["adm-b", "2026-08-29 11:00:00"]],
+        [93, ["adm-b", false, "0"]],
+        [94, ["adm-b-fixed", "0"]],
+        [95, ["adm-b", "0"]],
+        [96, ["adm-b-pricing", "0"]],
+        [
+          97,
+          [
+            "adm-b",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admunit",
+            "admother",
+            "admunit",
+            "1",
+            "0"
+          ]
+        ],
+        [98, ["adm-b", "0"]],
+        [79, ["0"]],
+        [99, ["adm-b", "0"]],
+        [70, ["0"]],
+        [100, ["adm-b", "0"]],
+        [82, ["0"]],
+        [101, ["adm-b-fixed", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 400,
+      "body": "{\"error\":\"BadRequest\",\"message\":\"Credit cost exceeds maximum accepted credits\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a/jobs\",\"method\":\"POST\"}}",
+      "count": 14,
+      "transactions": [],
+      "outside": [
+        [94, ["adm-a-fixed", "0"]],
+        [95, ["adm-a", "0"]],
+        [87, ["0"]],
+        [102, ["Cardano", "Mainnet", "Web3CardanoV2", "adm-a", "0"]],
+        [96, ["adm-a-pricing", "0"]],
+        [
+          97,
+          [
+            "adm-a",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admunit",
+            "admother",
+            "admunit",
+            "1",
+            "0"
+          ]
+        ],
+        [79, ["0"]],
+        [101, ["adm-a-fixed", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00005},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 6,
+      "transactions": [],
+      "outside": [
+        [73, ["<id 12>", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [103, ["500000", "2026-11-27 12:00:00", "<id 12>"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-a\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Zeta\",\"image\":null,\"icon\":null,\"credits\":150,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, ["adm-a", "2026-08-29 11:00:00"]],
+        [93, ["adm-a", false, "0"]],
+        [94, ["adm-a-fixed", "0"]],
+        [95, ["adm-a", "0"]],
+        [96, ["adm-a-pricing", "0"]],
+        [
+          97,
+          [
+            "adm-a",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admunit",
+            "admother",
+            "admunit",
+            "1",
+            "0"
+          ]
+        ],
+        [98, ["adm-a", "0"]],
+        [79, ["0"]],
+        [99, ["adm-a", "0"]],
+        [70, ["0"]],
+        [100, ["adm-a", "0"]],
+        [82, ["0"]],
+        [101, ["adm-a-fixed", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-b\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Beta\",\"image\":null,\"icon\":null,\"credits\":250,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, ["adm-b", "2026-08-29 11:00:00"]],
+        [93, ["adm-b", false, "0"]],
+        [94, ["adm-b-fixed", "0"]],
+        [95, ["adm-b", "0"]],
+        [96, ["adm-b-pricing", "0"]],
+        [
+          97,
+          [
+            "adm-b",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admunit",
+            "admother",
+            "admunit",
+            "1",
+            "0"
+          ]
+        ],
+        [98, ["adm-b", "0"]],
+        [79, ["0"]],
+        [99, ["adm-b", "0"]],
+        [70, ["0"]],
+        [100, ["adm-b", "0"]],
+        [82, ["0"]],
+        [101, ["adm-b-fixed", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/adm-none\",\"method\":\"PATCH\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [73, ["adm-none", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00005},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [104, ["<id 12>"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/<id 12>\",\"method\":\"DELETE\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [104, ["<id 12>"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/<id 12>\",\"method\":\"GET\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [73, ["<id 12>", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "[{\"id\":\"<id 13>\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"unit\":\"admother\",\"creditsPerUnit\":1e-10}]",
+      "count": 5,
+      "transactions": [],
+      "outside": [
+        [79, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a\",\"method\":\"GET\"}}",
+      "count": 17,
+      "transactions": [],
+      "outside": [
+        [74, ["0"]],
+        [75, ["0"]],
+        [76, ["0"]],
+        [
+          77,
+          [
+            "adm-a",
+            "ONLINE",
+            true,
+            "STANDARD",
+            "WEB3_CARDANO_V1",
+            "NONE",
+            "WEB3_CARDANO_V2",
+            "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b",
+            "UNKNOWN",
+            "FREE",
+            "FIXED",
+            "admother",
+            "admother",
+            "1",
+            "0"
+          ]
+        ],
+        [78, ["0"]],
+        [79, ["0"]],
+        [80, ["0"]],
+        [70, ["0"]],
+        [81, ["0"]],
+        [82, ["0"]],
+        [83, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [84, ["cardano-v2-rail-readiness", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [86, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -1018,97 +1646,37 @@
           [15, []]
         ]
       ],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
-    },
-    "admunit",
-    {
-      "status": 409,
-      "body": "{\"error\":\"Conflict\",\"message\":\"Unit already exists\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs\",\"method\":\"POST\"}}",
-      "count": 7,
-      "transactions": [[[13, []], [89, ["admunit", "1", "0"]], [91, []]]],
-      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 200,
       "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
-    },
-    {
-      "status": 200,
-      "body": "{\"data\":{\"id\":\"adm-a\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Zeta\",\"image\":null,\"icon\":null,\"credits\":60,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
-      "count": 19,
-      "transactions": [],
       "outside": [
-        [92, 1],
-        [93, 1],
-        [94, 1],
-        [95, 1],
-        [96, 1],
-        [79, 1],
-        [97, 1],
-        [70, 1],
-        [98, 1],
-        [82, 1],
-        [99, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [100, 1],
-        [101, 1],
-        [6, 1],
-        [7, 1]
+        [73, ["<id 11>", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
       "status": 200,
-      "body": "{\"data\":{\"id\":\"adm-b\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Beta\",\"image\":null,\"icon\":null,\"credits\":100,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
-      "count": 19,
+      "body": "[{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"unit\":\"admother\",\"creditsPerUnit\":1e-10},{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002}]",
+      "count": 5,
       "transactions": [],
       "outside": [
-        [92, 1],
-        [93, 1],
-        [94, 1],
-        [95, 1],
-        [96, 1],
-        [79, 1],
-        [97, 1],
-        [70, 1],
-        [98, 1],
-        [82, 1],
-        [99, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [100, 1],
-        [101, 1],
-        [6, 1],
-        [7, 1]
-      ]
-    },
-    {
-      "status": 400,
-      "body": "{\"error\":\"BadRequest\",\"message\":\"Credit cost exceeds maximum accepted credits\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a/jobs\",\"method\":\"POST\"}}",
-      "count": 14,
-      "transactions": [],
-      "outside": [
-        [92, 1],
-        [93, 1],
-        [94, 1],
-        [102, 1],
-        [88, 1],
-        [95, 1],
-        [79, 1],
-        [99, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [6, 1],
-        [7, 1]
+        [79, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     },
     {
@@ -1116,113 +1684,65 @@
       "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00005},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
       "count": 6,
       "transactions": [],
-      "outside": [[73, 1], [2, 1], [3, 1], [103, 1], [6, 1], [7, 1]]
-    },
-    {
-      "status": 200,
-      "body": "{\"data\":{\"id\":\"adm-a\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Zeta\",\"image\":null,\"icon\":null,\"credits\":150,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
-      "count": 19,
-      "transactions": [],
       "outside": [
-        [92, 1],
-        [93, 1],
-        [94, 1],
-        [95, 1],
-        [96, 1],
-        [79, 1],
-        [97, 1],
-        [70, 1],
-        [98, 1],
-        [82, 1],
-        [99, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [100, 1],
-        [101, 1],
-        [6, 1],
-        [7, 1]
+        [73, ["<id 11>", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [103, ["500000", "2026-11-27 12:00:00", "<id 11>"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
-    },
-    {
-      "status": 200,
-      "body": "{\"data\":{\"id\":\"adm-b\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Beta\",\"image\":null,\"icon\":null,\"credits\":250,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
-      "count": 19,
-      "transactions": [],
-      "outside": [
-        [92, 1],
-        [93, 1],
-        [94, 1],
-        [95, 1],
-        [96, 1],
-        [79, 1],
-        [97, 1],
-        [70, 1],
-        [98, 1],
-        [82, 1],
-        [99, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [100, 1],
-        [101, 1],
-        [6, 1],
-        [7, 1]
-      ]
-    },
-    {
-      "status": 404,
-      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/adm-none\",\"method\":\"PATCH\"}}",
-      "count": 5,
-      "transactions": [],
-      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
     },
     {
       "status": 200,
       "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00005},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[104, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [104, ["<id 11>"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 404,
       "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/<id 11>\",\"method\":\"DELETE\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[104, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [104, ["<id 11>"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
       "status": 404,
       "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/<id 11>\",\"method\":\"GET\"}}",
       "count": 5,
       "transactions": [],
-      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+      "outside": [
+        [73, ["<id 11>", "1", "0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
+      ]
     },
     {
-      "status": 404,
-      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a\",\"method\":\"GET\"}}",
-      "count": 17,
+      "status": 200,
+      "body": "[{\"id\":\"<id 12>\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"unit\":\"admother\",\"creditsPerUnit\":1e-10}]",
+      "count": 5,
       "transactions": [],
       "outside": [
-        [74, 1],
-        [75, 1],
-        [76, 1],
-        [77, 1],
-        [78, 1],
-        [79, 1],
-        [80, 1],
-        [70, 1],
-        [81, 1],
-        [82, 1],
-        [83, 1],
-        [2, 1],
-        [84, 1],
-        [3, 1],
-        [86, 1],
-        [6, 1],
-        [7, 1]
+        [79, ["0"]],
+        [3, ["<api key hash>", "1", "0"]],
+        [4, ["<admin>", "1", "0"]],
+        [6, ["2026-11-27 12:00:00", "<api key>"]],
+        [7, ["2026-11-27 12:00:00", "<api key>"]]
       ]
     }
   ],
@@ -1280,18 +1800,20 @@
     "rate create stored unit/absent": 48,
     "rate duplicate/absent": 49,
     "rate read/absent": 50,
-    "first rate detail a/absent": 51,
-    "first rate detail b/absent": 52,
-    "first rate hire under the price/absent": 53,
-    "rate update/absent": 54,
-    "updated rate detail a/absent": 55,
-    "updated rate detail b/absent": 56,
-    "updated rate hire under the price/absent": 53,
-    "rate update missing/absent": 57,
-    "rate delete/absent": 58,
-    "rate delete again/absent": 59,
-    "rate read deleted/absent": 60,
-    "deleted rate detail a/absent": 61,
+    "rate list/absent": 51,
+    "first rate detail a/absent": 52,
+    "first rate detail b/absent": 53,
+    "first rate hire under the price/absent": 54,
+    "rate update/absent": 55,
+    "updated rate detail a/absent": 56,
+    "updated rate detail b/absent": 57,
+    "updated rate hire under the price/absent": 54,
+    "rate update missing/absent": 58,
+    "rate delete/absent": 59,
+    "rate delete again/absent": 60,
+    "rate read deleted/absent": 61,
+    "rate list after delete/absent": 62,
+    "deleted rate detail a/absent": 63,
     "deleted rate detail b/absent": 45,
     "deleted rate hire under the price/absent": 46,
     "list displayName asc page 1/mainnet": 0,
@@ -1340,25 +1862,27 @@
     "delete override again/mainnet": 41,
     "delete override missing/mainnet": 42,
     "rate missing/mainnet": 43,
-    "no rate detail a/mainnet": 61,
+    "no rate detail a/mainnet": 63,
     "no rate detail b/mainnet": 45,
     "no rate hire under the price/mainnet": 46,
-    "rate create/mainnet": 47,
+    "rate create/mainnet": 64,
     "rate create stored unit/mainnet": 48,
     "rate duplicate/mainnet": 49,
-    "rate read/mainnet": 50,
-    "first rate detail a/mainnet": 51,
-    "first rate detail b/mainnet": 52,
-    "first rate hire under the price/mainnet": 53,
-    "rate update/mainnet": 54,
-    "updated rate detail a/mainnet": 55,
-    "updated rate detail b/mainnet": 56,
-    "updated rate hire under the price/mainnet": 53,
-    "rate update missing/mainnet": 57,
-    "rate delete/mainnet": 58,
-    "rate delete again/mainnet": 59,
-    "rate read deleted/mainnet": 60,
-    "deleted rate detail a/mainnet": 61,
+    "rate read/mainnet": 65,
+    "rate list/mainnet": 66,
+    "first rate detail a/mainnet": 52,
+    "first rate detail b/mainnet": 53,
+    "first rate hire under the price/mainnet": 54,
+    "rate update/mainnet": 67,
+    "updated rate detail a/mainnet": 56,
+    "updated rate detail b/mainnet": 57,
+    "updated rate hire under the price/mainnet": 54,
+    "rate update missing/mainnet": 58,
+    "rate delete/mainnet": 68,
+    "rate delete again/mainnet": 69,
+    "rate read deleted/mainnet": 70,
+    "rate list after delete/mainnet": 71,
+    "deleted rate detail a/mainnet": 63,
     "deleted rate detail b/mainnet": 45,
     "deleted rate hire under the price/mainnet": 46
   }

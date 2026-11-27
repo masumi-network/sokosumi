@@ -6,12 +6,12 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
-import { afterAll, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { observing, statements } from "@/test/spend-comparison";
-import { onSplitLayout } from "@/test/split-layout";
+import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 import {
   createApiKey,
   createCoreApp,
@@ -43,15 +43,57 @@ vi.mock("@vercel/functions", async (load) => {
     },
   };
 });
+const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
+
+/**
+ * Every row of every table of this run's schemas, each as its JSON, sorted.
+ * Read on a connection of its own, outside Core's observed pool.
+ */
+async function everyRow() {
+  const { Client } = await import("pg");
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  try {
+    const schemas = [...new Set(Object.values(testSchemaNames()))];
+    const { rows: tables } = await client.query<{
+      table_schema: string;
+      table_name: string;
+    }>(
+      `SELECT table_schema, table_name FROM information_schema.tables
+       WHERE table_type = 'BASE TABLE' AND table_schema = ANY($1)
+       ORDER BY table_schema, table_name`,
+      [schemas],
+    );
+    const rows: Record<string, string[]> = {};
+    for (const { table_schema: schema, table_name: table } of tables) {
+      // Identifiers cannot be bound; both come from the catalog above.
+      const name = `"${schema.replace(/"/g, '""')}"."${table.replace(/"/g, '""')}"`;
+      const result = await client.query<{ row: string }>(
+        `SELECT to_jsonb(t)::text AS row FROM ${name} t`,
+      );
+      rows[`${schema}.${table}`] = result.rows.map(({ row }) => row).sort();
+    }
+    return rows;
+  } finally {
+    await client.end();
+  }
+}
+
+// Taken before the file's first write; every table, all columns, must be
+// as it was when the file ends.
+let before: Awaited<ReturnType<typeof everyRow>> | undefined;
+beforeAll(async () => {
+  if (enabled) before = await everyRow();
+}, 60_000);
 afterAll(async () => {
   await Promise.all(state.pools.map((pool) => pool.end()));
-});
+  if (before) expect(await everyRow()).toEqual(before);
+}, 60_000);
 
 const clock = new Date("2026-11-27T12:00:00.000Z");
 const createdAt = new Date("2026-11-25T01:02:03.456Z");
 const laterAt = new Date("2026-11-25T09:00:00.000Z");
 const updatedAt = new Date("2026-11-26T04:05:06.789Z");
-const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
 const recording = process.env.RECORD_ADMIN_CATALOG_BASE === "true";
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 
@@ -84,12 +126,15 @@ async function scenario(
   const records: Record<string, unknown> = {};
   const createdRates: string[] = [];
   const tagNames = [`${prefix}-tag-z`, `${prefix}-tag-a`];
+  const createdTags: string[] = [];
 
   async function call(
     label: string,
     method: string,
     path: string,
     body?: unknown,
+    // The rate list holds every rate of the database: keep this run's rows.
+    own?: (row: { unit: string }) => boolean,
   ) {
     const { outcome, log } = await observing(async () => {
       const response = await app.request(path, {
@@ -106,12 +151,30 @@ async function scenario(
       return { status: response.status, body: text };
     });
     if ("threw" in outcome) throw new Error(JSON.stringify(outcome.threw));
-    const grouped = statements(log);
+    // Every request reads at least its bearer: an empty log is a broken
+    // recorder, never an answer.
+    expect(log.length, label).toBeGreaterThan(0);
+    // Each statement with its values, as sent; only the schema names of the
+    // split layout are written as today's.
+    const grouped = statements(log, { asSent: true });
+    const plainSql = ({ sql, values }: { sql: string; values: unknown[] }) => ({
+      sql: sql.replace(/"(shared|mainnet)"\./g, '"public".'),
+      values,
+    });
+    const answer = own
+      ? (() => {
+          const parsed = JSON.parse(outcome.body) as {
+            data: { unit: string }[];
+          };
+          return JSON.stringify(parsed.data.filter(own));
+        })()
+      : outcome.body;
     records[label] = {
-      ...outcome,
+      status: outcome.status,
+      body: answer,
       count: log.length,
-      transactions: grouped.transactions,
-      outside: grouped.outsideTransactions,
+      transactions: grouped.transactions.map((tx) => tx.map(plainSql)),
+      outside: grouped.outsideTransactions.map(plainSql),
     };
     return JSON.parse(outcome.body) as {
       data?: unknown;
@@ -191,7 +254,12 @@ async function scenario(
       // Never an empty rate table, whatever other files left: an Agent
       // without a rate for its unit is then unavailable, not a 500.
       const other = await tx.creditCost.create({
-        data: { unit: `${prefix}other`, centsPerUnit: 1n },
+        data: {
+          unit: `${prefix}other`,
+          centsPerUnit: 1n,
+          createdAt,
+          updatedAt,
+        },
       });
       createdRates.push(other.id);
     }, "Fixture conflict");
@@ -270,6 +338,12 @@ async function scenario(
       },
     );
     await exampleOutputFacts("patch create", firstOutputs);
+    for (const tag of await scope.networkDb.tag.findMany({
+      where: { name: { in: tagNames } },
+      select: { id: true },
+    })) {
+      createdTags.push(tag.id);
+    }
     const secondOutputs = ["b", "c", "a", "d"];
     await call(
       "patch replace",
@@ -365,6 +439,8 @@ async function scenario(
       creditsPerUnit: 1,
     });
     await call("rate read", "GET", `/v1/credit-costs/${rateId}`);
+    const ownUnits = (row: { unit: string }) => row.unit.startsWith(prefix);
+    await call("rate list", "GET", "/v1/credit-costs", undefined, ownUnits);
     // 3 and 5 units at 20 credits a unit: 60 and 100. The hire refuses 59.
     await prices("first rate", 59);
     await call("rate update", "PATCH", `/v1/credit-costs/${rateId}`, {
@@ -383,16 +459,33 @@ async function scenario(
     await call("rate delete", "DELETE", `/v1/credit-costs/${rateId}`);
     await call("rate delete again", "DELETE", `/v1/credit-costs/${rateId}`);
     await call("rate read deleted", "GET", `/v1/credit-costs/${rateId}`);
+    await call(
+      "rate list after delete",
+      "GET",
+      "/v1/credit-costs",
+      undefined,
+      ownUnits,
+    );
     await prices("deleted rate", 149);
   } finally {
     vi.useRealTimers();
     const ids = fixtures.map(([suffix]) => agentId(suffix));
+    const priced = fixtures
+      .filter((fixture) => fixture[5])
+      .map(([suffix]) => agentId(suffix));
     await scope.netTransaction(async (tx) => {
+      // The override and its example outputs go with their Agent.
       await tx.agent.deleteMany({ where: { id: { in: ids } } });
       await tx.agentPricing.deleteMany({
         where: { id: { in: ids.map((id) => `${id}-pricing`) } },
       });
-      await tx.tag.deleteMany({ where: { name: { in: tagNames } } });
+      await tx.unitValue.deleteMany({
+        where: { id: { in: priced.map((id) => `${id}-amount`) } },
+      });
+      await tx.agentFixedPricing.deleteMany({
+        where: { id: { in: priced.map((id) => `${id}-fixed`) } },
+      });
+      await tx.tag.deleteMany({ where: { id: { in: createdTags } } });
       await tx.creditCost.deleteMany({ where: { id: { in: createdRates } } });
     }, "Fixture conflict");
   }
@@ -417,7 +510,7 @@ function named(records: unknown, labels: Map<string, string>) {
 
 interface Recorded {
   transactions?: { sql: string; values: unknown[] }[][];
-  outside?: Record<string, number>;
+  outside?: { sql: string; values: unknown[] }[];
 }
 
 /**
@@ -443,9 +536,18 @@ function interned(runs: Record<string, unknown>) {
               transactions: value.transactions?.map((tx) =>
                 tx.map((s) => [at(sql, s.sql), s.values]),
               ),
-              outside: Object.entries(value.outside ?? {}).map(
-                ([text, count]) => [at(sql, text), count],
-              ),
+              // Statements outside a transaction can run side by side: each
+              // with its values, as a multiset.
+              outside: (value.outside ?? [])
+                .map((s) => JSON.stringify([s.sql, s.values]))
+                .sort()
+                .map((text) => {
+                  const [statement, values] = JSON.parse(text) as [
+                    string,
+                    unknown[],
+                  ];
+                  return [at(sql, statement), values];
+                }),
             }
           : value;
       calls[`${label}/${header}`] = at(results, JSON.stringify(record));
@@ -463,7 +565,7 @@ function resolved({ sql, results, calls }: Interned) {
     Object.entries(calls).map(([label, index]) => {
       const record = results[index] as {
         transactions?: [number, unknown][][];
-        outside?: [number, number][];
+        outside?: [number, unknown][];
       };
       return [
         label,
@@ -473,7 +575,10 @@ function resolved({ sql, results, calls }: Interned) {
             transactions: record.transactions.map((tx) =>
               tx.map(([text, values]) => [sql[text], values]),
             ),
-            outside: record.outside?.map(([text, count]) => [sql[text], count]),
+            outside: record.outside?.map(([text, values]) => [
+              sql[text],
+              values,
+            ]),
           }),
         },
       ];
@@ -573,6 +678,7 @@ it.skipIf(!enabled || onSplitLayout)(
     const app = createCoreApp();
     const admin = await createPasswordUser("Admin catalog refusal", "admin");
     const prefix = `adm${randomUUID().slice(0, 8)}`;
+    let rateId: string | undefined;
     try {
       await createPersonalWorkspace(admin.id);
       const token = await createApiKey(admin.id);
@@ -592,6 +698,7 @@ it.skipIf(!enabled || onSplitLayout)(
       const rate = await scope.networkDb.creditCost.create({
         data: { unit: `${prefix}unit`, centsPerUnit: 7n },
       });
+      rateId = rate.id;
       const requests: [string, string, unknown?][] = [
         ["GET", `/v1/admin/agents?q=${prefix}&sortBy=displayName`],
         ["GET", `/v1/admin/agents?q=${prefix}&sortBy=createdAt`],
@@ -640,9 +747,11 @@ it.skipIf(!enabled || onSplitLayout)(
       await scope.networkDb.agentPricing.deleteMany({
         where: { id: `${prefix}-pricing` },
       });
-      await scope.networkDb.creditCost.deleteMany({
-        where: { unit: { startsWith: prefix } },
-      });
+      if (rateId) {
+        await scope.networkDb.creditCost.deleteMany({
+          where: { id: rateId },
+        });
+      }
       await scope.sharedDb.apikey.deleteMany({
         where: { referenceId: admin.id },
       });
