@@ -1,0 +1,5980 @@
+{
+  "NETWORK=Mainnet, Task events": {
+    "credits, no header": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 1,
+          "comment": "charged",
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 22,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "credits, mainnet": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 1,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 21,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "credits, preprod": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Preprod is switched off",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 11,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a comment, preprod": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": null,
+          "credits": null,
+          "comment": "shared",
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 17,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment, no header": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 2,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment that names the deployment's NETWORK": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 2,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment that names the deployment's NETWORK, mainnet": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 2,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment that names the other NETWORK": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Key: masumiPayment.PaymentSource.network - PaymentSource.network must match server network (Mainnet)",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 4,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment, preprod": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Preprod is switched off",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 12,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the first Masumi payment again": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "A task payment with this blockchainIdentifier already exists",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 17,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "credits over the balance": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Insufficient balance",
+        "kind": "insufficient_balance",
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": null,
+          "credits": 1000000,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": "OUT_OF_CREDITS"
+        },
+        "attemptedCredits": 1000000,
+        "requestedStatus": null,
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 20,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Mainnet",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": "OUT_OF_CREDITS",
+            "cents": "10000000000000000",
+            "network": null,
+            "transactionId": null,
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "OUT_OF_CREDITS"
+          }
+        ]
+      }
+    }
+  },
+  "NETWORK=Mainnet, usage": {
+    "usage, no header": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<first>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 25,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<usage owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the same key again": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<first>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 9,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the same key with other credits": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "Idempotency key already used with different parameters",
+        "meta": {
+          "path": "/v1/coworkers/me/usage",
+          "method": "POST"
+        }
+      },
+      "statements": 9,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "usage, mainnet": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<second>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<usage owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            },
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<second>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the second key again, preprod": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<second>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 9,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            },
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<second>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "usage over the balance": {
+      "status": 400,
+      "body": {
+        "error": "BadRequest",
+        "message": "Insufficient balance: tried to consume 10000000000000000 but only 32580000000000 available",
+        "meta": {
+          "path": "/v1/coworkers/me/usage",
+          "method": "POST"
+        }
+      },
+      "statements": 13,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            },
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<second>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    }
+  },
+  "NETWORK=Mainnet, x402 payments": {
+    "a payment the node refuses, no header": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "The payment node refused the forwarded 402 (status 400): fixture refusal. Credits were refunded; re-fetch the 402 and retry with a new idempotencyKey.",
+        "kind": "x402_pay_refused",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 43,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<x402 owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [
+        {
+          "evmWalletId": "fixture-wallet",
+          "preferredNetwork": "eip155:8453",
+          "preferredAsset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+        }
+      ],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the refused key again": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "This idempotencyKey was consumed by a failed x402 payment: node_refused_payload. Its charge was refunded; use a new idempotencyKey for a new payment intent.",
+        "kind": "x402_payment_key_consumed",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 7,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a payment whose answer is lost, mainnet": {
+      "status": 502,
+      "body": {
+        "error": "BadGateway",
+        "message": "x402 sign outcome unknown: the payment node's signed result could not be verified against the charge. The charge is held on a pending record; retry with the SAME idempotencyKey to re-run the sign.",
+        "kind": "x402_pay_outcome_unknown",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 25,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<x402 owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [
+        {
+          "evmWalletId": "fixture-wallet",
+          "preferredNetwork": "eip155:8453",
+          "preferredAsset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+        }
+      ],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the lost key again, refused": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "Another request is already signing this x402 payment. Wait for it to finish, then retry with the SAME idempotencyKey; a new key would charge twice.",
+        "kind": "x402_payment_key_in_flight",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 17,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a payment, preprod": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Preprod is switched off",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 19,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a body that is no 402": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Unparseable x402 402 payload: ✖ Invalid input: expected number, received undefined\n  → at x402Version\n✖ Invalid input: expected array, received undefined\n  → at accepts",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 4,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    }
+  },
+  "NETWORK=Preprod, Task events": {
+    "credits, no header": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 1,
+          "comment": "charged",
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 22,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "credits, mainnet": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 1,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 21,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "credits, preprod": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Preprod is switched off",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 11,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a comment, preprod": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": null,
+          "credits": null,
+          "comment": "shared",
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 17,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment, no header": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 2,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment that names the deployment's NETWORK": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 2,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment that names the deployment's NETWORK, mainnet": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": "<id>",
+          "credits": 2,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": null
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<events owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment that names the other NETWORK": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Key: masumiPayment.PaymentSource.network - PaymentSource.network must match server network (Preprod)",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 4,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a Masumi payment, preprod": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Preprod is switched off",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 12,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the first Masumi payment again": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "A task payment with this blockchainIdentifier already exists",
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 17,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "credits over the balance": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Insufficient balance",
+        "kind": "insufficient_balance",
+        "data": {
+          "id": "<id>",
+          "taskId": "<task>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "actor": {
+            "type": "coworker",
+            "id": "<coworker>",
+            "coworker": {
+              "id": "<coworker>",
+              "name": "Fixture",
+              "image": null,
+              "slug": "<coworker slug>"
+            }
+          },
+          "userId": null,
+          "coworkerId": "<coworker>",
+          "coworker": {
+            "id": "<coworker>",
+            "name": "Fixture",
+            "image": null,
+            "slug": "<coworker slug>"
+          },
+          "sokoBotId": null,
+          "transactionId": null,
+          "credits": 1000000,
+          "comment": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "origin": "SOKOSUMI",
+          "status": "OUT_OF_CREDITS"
+        },
+        "attemptedCredits": 1000000,
+        "requestedStatus": null,
+        "meta": {
+          "path": "/v1/tasks/<task>/events",
+          "method": "POST"
+        }
+      },
+      "statements": 20,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<first payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment>"
+            },
+            {
+              "network": "Preprod",
+              "status": "PENDING",
+              "blockchainIdentifier": "<named payment with header>"
+            }
+          ],
+          "x402Payments": [],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": "charged"
+          },
+          {
+            "status": null,
+            "cents": "10000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": null,
+            "network": null,
+            "transactionId": null,
+            "comment": "shared"
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": "OUT_OF_CREDITS",
+            "cents": "10000000000000000",
+            "network": null,
+            "transactionId": null,
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "OUT_OF_CREDITS"
+          }
+        ]
+      }
+    }
+  },
+  "NETWORK=Preprod, usage": {
+    "usage, no header": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<first>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 25,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<usage owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the same key again": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<first>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 9,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the same key with other credits": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "Idempotency key already used with different parameters",
+        "meta": {
+          "path": "/v1/coworkers/me/usage",
+          "method": "POST"
+        }
+      },
+      "statements": 9,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "usage, mainnet": {
+      "status": 201,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<second>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 23,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<usage owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            },
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<second>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the second key again, preprod": {
+      "status": 200,
+      "body": {
+        "data": {
+          "id": "<id>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "<second>",
+          "referenceId": null,
+          "coworkerId": "<coworker>",
+          "userId": "<usage owner>",
+          "organizationId": null,
+          "credits": 1,
+          "transactionId": "<id>"
+        },
+        "meta": {}
+      },
+      "statements": 9,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            },
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<second>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "usage over the balance": {
+      "status": 400,
+      "body": {
+        "error": "BadRequest",
+        "message": "Insufficient balance: tried to consume 10000000000000000 but only 32580000000000 available",
+        "meta": {
+          "path": "/v1/coworkers/me/usage",
+          "method": "POST"
+        }
+      },
+      "statements": 13,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "-10000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "10000000000"
+            },
+            {
+              "amount": "10000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            }
+          ],
+          "claims": [],
+          "x402Payments": [],
+          "usage": [
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<first>",
+              "referenceId": null,
+              "organizationId": null
+            },
+            {
+              "cents": "10000000000",
+              "idempotencyKey": "<second>",
+              "referenceId": null,
+              "organizationId": null
+            }
+          ]
+        },
+        "events": [],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    }
+  },
+  "NETWORK=Preprod, x402 payments": {
+    "a payment the node refuses, no header": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "The payment node refused the forwarded 402 (status 400): fixture refusal. Credits were refunded; re-fetch the 402 and retry with a new idempotencyKey.",
+        "kind": "x402_pay_refused",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 43,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<x402 owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [
+        {
+          "evmWalletId": "fixture-wallet",
+          "preferredNetwork": "eip155:84532",
+          "preferredAsset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+        }
+      ],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the refused key again": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "This idempotencyKey was consumed by a failed x402 payment: node_refused_payload. Its charge was refunded; use a new idempotencyKey for a new payment intent.",
+        "kind": "x402_payment_key_consumed",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 7,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a payment whose answer is lost, mainnet": {
+      "status": 502,
+      "body": {
+        "error": "BadGateway",
+        "message": "x402 sign outcome unknown: the payment node's signed result could not be verified against the charge. The charge is held on a pending record; retry with the SAME idempotencyKey to re-run the sign.",
+        "kind": "x402_pay_outcome_unknown",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 25,
+      "lowBalanceAlerts": [
+        {
+          "userId": "<x402 owner>",
+          "organizationId": null
+        }
+      ],
+      "nodeSigns": [
+        {
+          "evmWalletId": "fixture-wallet",
+          "preferredNetwork": "eip155:84532",
+          "preferredAsset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+        }
+      ],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the lost key again, refused": {
+      "status": 409,
+      "body": {
+        "error": "Conflict",
+        "message": "Another request is already signing this x402 payment. Wait for it to finish, then retry with the SAME idempotencyKey; a new key would charge twice.",
+        "kind": "x402_payment_key_in_flight",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 17,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a payment, preprod": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Preprod is switched off",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 19,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "a body that is no 402": {
+      "status": 422,
+      "body": {
+        "error": "UnprocessableEntity",
+        "message": "Unparseable x402 402 payload: ✖ Invalid input: expected number, received undefined\n  → at x402Version\n✖ Invalid input: expected array, received undefined\n  → at accepts",
+        "meta": {
+          "path": "/v1/tasks/<task>/x402-payments",
+          "method": "POST"
+        }
+      },
+      "statements": 4,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "PENDING",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    }
+  }
+}
