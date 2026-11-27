@@ -129,7 +129,7 @@ it("keeps the mobile drawer open across section selections", () => {
   fireEvent.click(screen.getByRole("button", { name: "Open drawer" }));
   fireEvent.click(screen.getByRole("button", { name: "groups.marketing" }));
   expect(screen.getByRole("dialog")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "backToRooms" }));
+  fireEvent.click(screen.getByRole("button", { name: "backToChats" }));
   expect(screen.getByRole("dialog")).toBeVisible();
   expect(screen.getByText("Room list")).toBeVisible();
 });
