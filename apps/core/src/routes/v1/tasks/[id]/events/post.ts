@@ -155,6 +155,8 @@ function mountTaskEventRoute(
         task =
           (await requireNativeSeoWorkerAccess(authContext, taskId, tx)) ?? task;
       const isAgent = isAgentAuthContext(authContext);
+      const requestsCharge =
+        isAgent && (masumiPayment != null || (credits != null && credits > 0));
 
       if (!isCancelOnlyWrite) {
         if (isAgent) {
@@ -260,10 +262,7 @@ function mountTaskEventRoute(
       let pausedForInsufficientBalance = false;
       let chargedNetwork: Network | undefined;
 
-      if (
-        isAgent &&
-        (masumiPayment != null || (credits != null && credits > 0))
-      ) {
+      if (requestsCharge) {
         const namedNetwork = masumiPayment?.PaymentSource?.network;
         const scope = await paymentScope(c, {
           payloadNetwork: namedNetwork && NETWORK_BY_NAME[namedNetwork],
@@ -405,7 +404,11 @@ function mountTaskEventRoute(
       }
 
       return {
-        event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
+        event: await mapCreatedTaskEventForResponse(
+          tx,
+          createdEvent.id,
+          requestsCharge,
+        ),
         addedParticipantUserIds,
         userId: task.ownerId,
         organizationId: task.organizationId,
