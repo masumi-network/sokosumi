@@ -189,10 +189,15 @@ async function createPaidJob(
   if (spent.shortfall) {
     throw new InsufficientBalanceError(cost.cents, spent.availableCents);
   }
-  const { transactionId } = spent;
+  // The debit's time is the Job's, its first event's and its input's: one
+  // nested create gave all four one instant, and the history reads the Job's
+  // spend at it.
+  const { transactionId, createdAt } = spent;
+  const at = { createdAt, updatedAt: createdAt };
 
   const job = await tx.job.create({
     data: {
+      ...at,
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
       agent: { connect: { id: input.agentId } },
@@ -210,11 +215,13 @@ async function createPaidJob(
       }),
       events: {
         create: {
+          ...at,
           status: AgentJobStatus.INITIATED,
           result: null,
           inputSchema: inputSchemaSnapshot,
           input: {
             create: {
+              ...at,
               input: JSON.stringify(input.inputData),
               inputHash: agentJobResponse.input_hash,
             },

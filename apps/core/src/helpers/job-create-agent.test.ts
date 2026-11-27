@@ -481,11 +481,23 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           organizationId: "org_1",
           cents: BigInt(5),
           consumptions: [],
+          createdAt: expect.any(Date),
         },
         expect.anything(),
       );
       const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
       expect(data.transaction).toEqual({ connect: { id: "debit_1" } });
+      // The debit's time is the Job's, its first event's and its input's.
+      const debitTime =
+        creditBucketRecordSpendMock.mock.calls[0]?.[1].createdAt;
+      expect([
+        data.createdAt,
+        data.updatedAt,
+        data.events.create.createdAt,
+        data.events.create.updatedAt,
+        data.events.create.input.create.createdAt,
+        data.events.create.input.create.updatedAt,
+      ]).toEqual(Array(6).fill(debitTime));
       expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
         userId: "user_1",
         organizationId: "org_1",
@@ -533,6 +545,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         organizationId: "org_1",
         cents: BigInt(5),
         consumptions: [],
+        createdAt: expect.any(Date),
       },
       expect.anything(),
     );
