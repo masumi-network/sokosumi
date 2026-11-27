@@ -875,6 +875,249 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     expect(await debits()).toBe(before + 1);
   });
 
+  it("stores the first valid cost detail beside the receipt, drops an invalid one, and never changes the charge", async () => {
+    const expectedContext = {
+      ownerId: userId,
+      organizationId: null,
+      workspaceId,
+    };
+    const fullAuditCost = {
+      version: 1,
+      gatewayMicroUsd: 4_000_000,
+      directModelMicroUsd: 500_000,
+      dataForSeoMicroUsd: 1_499_999,
+      otherApiMicroUsd: 2,
+    };
+    const detail = {
+      version: 1,
+      models: [
+        {
+          model: "openai/gpt-5",
+          provider: "openai",
+          calls: 3,
+          microUsd: 4_000_000,
+        },
+        // A surrogate pair is storable text and must not drop the detail.
+        {
+          model: `local-${String.fromCodePoint(0x1f50d)}`,
+          provider: null,
+          calls: 1,
+          microUsd: null,
+        },
+      ],
+      dataForSeo: [
+        {
+          endpoint: "/v3/serp/google/organic/task_post",
+          reads: 2,
+          microUsd: 1_499_999,
+        },
+      ],
+      steps: [
+        {
+          step: "other",
+          modelMicroUsd: 4_500_000,
+          dataForSeoMicroUsd: 1_499_999,
+          otherApiMicroUsd: 2,
+        },
+      ],
+    };
+    const settlement = {
+      status: "COMPLETED",
+      expectedContext,
+      credits: 901,
+      fullAuditCost,
+    };
+    const charges = async (taskId: string) => {
+      const events = await prisma.taskEvent.findMany({
+        where: { taskId, transactionId: { not: null } },
+        select: { transactionId: true },
+      });
+      return networkDatabase().transaction.findMany({
+        where: { id: { in: events.map((event) => event.transactionId!) } },
+        select: { amount: true },
+      });
+    };
+    const oneCharge = [{ amount: -901n * CREDIT }];
+    const storedRequest = async (taskId: string) =>
+      (await prisma.projectSeoAnalysis.findUniqueOrThrow({ where: { taskId } }))
+        .request as Record<string, unknown>;
+    async function runningAudit() {
+      await setBalance(1500n);
+      const taskId = (await requestProjectSeoAnalysis(actor, fullAudit()))
+        .taskId!;
+      const app = createTaskScheduleTestApp(
+        mountTaskEvents,
+        { actor: "coworker", coworkerId, vendorId },
+        null,
+      );
+      const post = (body: Record<string, unknown>) =>
+        app.request(
+          `http://localhost/${taskId}/events/seo-settlement-v1`,
+          jsonRequest("POST", body),
+        );
+      expect(
+        (
+          await app.request(
+            `http://localhost/${taskId}/events/context-v1`,
+            jsonRequest("POST", { status: "RUNNING", expectedContext }),
+          )
+        ).status,
+      ).toBe(201);
+      return { taskId, post };
+    }
+    const readBilling = async () => {
+      const response = await createTaskScheduleTestApp(
+        mountAdminSeoAlerts,
+        { ...vars.authContext, role: "admin" },
+        vars.workspaceContext,
+      ).request("http://localhost/seo-alerts?view=billing");
+      expect(response.status).toBe(200);
+      return (await response.json()).data.billing as Record<string, unknown>[];
+    };
+
+    // A detail sent while credits are short is kept, and a later different detail does not replace it.
+    const first = await runningAudit();
+    await setBalance(750n);
+    expect(
+      (await first.post({ ...settlement, fullAuditCostDetail: detail })).status,
+    ).toBe(422);
+    expect(await storedRequest(first.taskId)).toMatchObject({
+      pendingFullAuditCost: fullAuditCost,
+      fullAuditCostDetail: detail,
+    });
+    await setBalance(1500n);
+    await prisma.task.update({
+      where: { id: first.taskId },
+      data: { status: "CREDITS_TOPPED_UP" },
+    });
+    const later = { ...detail, models: [] };
+    expect(
+      (await first.post({ ...settlement, fullAuditCostDetail: later })).status,
+    ).toBe(201);
+    expect(await charges(first.taskId)).toEqual(oneCharge);
+    const settled = await storedRequest(first.taskId);
+    expect(settled).toMatchObject({
+      fullAuditCost,
+      fullAuditCostDetail: detail,
+    });
+    expect(settled).not.toHaveProperty("pendingFullAuditCost");
+    expect(await readBilling()).toContainEqual(
+      expect.objectContaining({
+        taskId: first.taskId,
+        status: "settled",
+        cost: fullAuditCost,
+        costDetail: detail,
+      }),
+    );
+
+    // A stored detail that no longer parses reads as absent.
+    await prisma.projectSeoAnalysis.update({
+      where: { taskId: first.taskId },
+      data: { request: { ...settled, fullAuditCostDetail: { version: 2 } } },
+    });
+    expect(await readBilling()).toContainEqual(
+      expect.objectContaining({
+        taskId: first.taskId,
+        status: "settled",
+        costDetail: null,
+      }),
+    );
+
+    // An unverified row withholds the detail with its cost.
+    await prisma.projectSeoAnalysis.update({
+      where: { taskId: first.taskId },
+      data: {
+        request: {
+          ...settled,
+          fullAuditCost: { ...fullAuditCost, gatewayMicroUsd: 9_000_000 },
+        },
+      },
+    });
+    expect(await readBilling()).toContainEqual(
+      expect.objectContaining({
+        taskId: first.taskId,
+        status: "unverified",
+        cost: null,
+        costDetail: null,
+      }),
+    );
+
+    const invalid = [
+      { ...detail, note: "extra key" },
+      {
+        ...detail,
+        dataForSeo: Array.from({ length: 201 }, () => detail.dataForSeo[0]),
+      },
+      // PostgreSQL jsonb rejects NUL and an unpaired surrogate, which would roll back the charge.
+      {
+        ...detail,
+        models: [
+          { ...detail.models[0], provider: `a${String.fromCharCode(0)}b` },
+        ],
+      },
+      {
+        ...detail,
+        steps: [{ ...detail.steps[0], step: String.fromCharCode(0xd800) }],
+      },
+      {
+        ...detail,
+        dataForSeo: [{ ...detail.dataForSeo[0], microUsd: 1_000_000_000_001 }],
+      },
+    ];
+    for (const fullAuditCostDetail of invalid) {
+      const audit = await runningAudit();
+      expect(
+        (await audit.post({ ...settlement, fullAuditCostDetail })).status,
+      ).toBe(201);
+      expect(await charges(audit.taskId)).toEqual(oneCharge);
+      const stored = await storedRequest(audit.taskId);
+      expect(stored).toHaveProperty("fullAuditCost", fullAuditCost);
+      expect(stored).not.toHaveProperty("fullAuditCostDetail");
+      expect(await readBilling()).toContainEqual(
+        expect.objectContaining({
+          taskId: audit.taskId,
+          status: "settled",
+          costDetail: null,
+        }),
+      );
+    }
+  });
+
+  it("refuses a charge on a free page check", async () => {
+    await setBalance(100n);
+    const created = await requestProjectSeoAnalysis(
+      actor,
+      requestSeoAnalysisSchema.parse({
+        kind: "page_check",
+        pageIds: [pageId],
+        countryCode: "US",
+        languageCode: "en",
+        maxProviderCalls: 0,
+        idempotencyKey: randomUUID(),
+      }),
+    );
+    const app = createTaskScheduleTestApp(
+      mountTaskEvents,
+      { actor: "coworker", coworkerId, vendorId },
+      null,
+    );
+    const post = (body: Record<string, unknown>) =>
+      app.request(
+        `http://localhost/${created.taskId}/events`,
+        jsonRequest("POST", body),
+      );
+    const debits = () =>
+      networkDatabase().transaction.count({
+        where: { userId, amount: { lt: 0 } },
+      });
+    const before = await debits();
+    const charged = await post({ credits: 5 });
+    expect(charged.status).toBe(422);
+    expect(await debits()).toBe(before);
+    // The free check still finishes without a charge.
+    expect((await post({ status: "COMPLETED" })).status).toBe(201);
+  });
+
   it("checks the frozen 750-credit price again before provider work", async () => {
     await setBalance(750n);
     const created = await requestProjectSeoAnalysis(actor, fullAudit());

@@ -19,19 +19,24 @@ import {
   SEO_MARKER_KINDS,
   type SeoChartMarker,
   type SeoMarkerKind,
+  type SeoTrendPoint,
   seoChartEvents,
   seoTrendModel,
 } from "./seo-trend-model";
 
 interface SeoTrendChartProps {
   report?: boolean;
-  points: ProjectSeoMetric["points"];
+  points: SeoTrendPoint[];
   unit: ProjectSeoMetric["unit"];
   /** What the chart shows: "Search clicks". */
   label: string;
   formatValue: (value: number) => string;
   /** Text for a day without a measurement. */
   unavailable: string;
+  /** Text for a read that did not find the page in its `top` results (a point with `outside`). */
+  outsideLabel?: (top: number | null) => string;
+  /** First and last day of the x axis, when another chart beside this one shares it. */
+  domain?: { from: string; to: string };
   /** Events on the site, drawn as a dashed line and an icon on their day. */
   markers?: SeoChartMarker[];
   /** The points are single reads: a line joins neighbouring reads (seoTrendModel `joinReads`). */
@@ -67,6 +72,8 @@ export function SeoTrendChart({
   label,
   formatValue,
   unavailable,
+  outsideLabel,
+  domain,
   markers,
   joinReads,
   positionNote,
@@ -87,6 +94,7 @@ export function SeoTrendChart({
     markers,
     joinReads,
     seoChartEvents(series),
+    domain,
   );
   const last = points.length - 1;
   const day = (date: string) =>
@@ -95,8 +103,15 @@ export function SeoTrendChart({
       day: "numeric",
       timeZone: "UTC",
     });
-  const value = (point: { value: number | null }) =>
-    point.value === null ? unavailable : formatValue(point.value);
+  const value = (point: {
+    value: number | null;
+    outside?: SeoTrendPoint["outside"] | null;
+  }) =>
+    point.value !== null
+      ? formatValue(point.value)
+      : point.outside && outsideLabel
+        ? outsideLabel(point.outside.top)
+        : unavailable;
   const fullDay = (date: string) =>
     format.dateTime(new Date(`${date}T12:00:00Z`), {
       dateStyle: "medium",
@@ -247,17 +262,20 @@ export function SeoTrendChart({
                   height={100}
                 />
               ))}
-              {model.ticks.map((tick) => (
-                <line
-                  key={tick.value}
-                  className="stroke-border"
-                  vectorEffect="non-scaling-stroke"
-                  x1={0}
-                  x2={100}
-                  y1={tick.y}
-                  y2={tick.y}
-                />
-              ))}
+              {/* The dashed line of the band stands for the grid line under it. */}
+              {model.ticks
+                .filter((tick) => tick.y !== model.outsideFrom)
+                .map((tick) => (
+                  <line
+                    key={tick.value}
+                    className="stroke-border"
+                    vectorEffect="non-scaling-stroke"
+                    x1={0}
+                    x2={100}
+                    y1={tick.y}
+                    y2={tick.y}
+                  />
+                ))}
               {model.bars
                 ? model.points.map((point, index) =>
                     point.y === null ? null : point.value === 0 ? (
@@ -316,6 +334,19 @@ export function SeoTrendChart({
                   />
                 ),
               )}
+              {model.outsideFrom === null ? null : (
+                // Under this line a mark is a read that did not find the page: it has no position.
+                <line
+                  data-testid="seo-trend-outside-line"
+                  className="stroke-border"
+                  vectorEffect="non-scaling-stroke"
+                  strokeDasharray="2 3"
+                  x1={0}
+                  x2={100}
+                  y1={model.outsideFrom}
+                  y2={model.outsideFrom}
+                />
+              )}
               {focus && !model.bars ? (
                 <line
                   className="stroke-muted-foreground"
@@ -328,8 +359,26 @@ export function SeoTrendChart({
               ) : null}
             </svg>
             {model.points.map((point, index) =>
+              point.outside ? (
+                // Hollow, also when chosen: a read, but not a position.
+                <span
+                  key={`outside:${point.date}`}
+                  aria-hidden
+                  data-testid="seo-trend-outside"
+                  className={cn(
+                    "bg-background pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2",
+                    index === active
+                      ? "border-foreground"
+                      : "border-muted-foreground",
+                  )}
+                  style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                />
+              ) : null,
+            )}
+            {model.points.map((point, index) =>
               !model.bars &&
               point.y !== null &&
+              !point.outside &&
               (model.dots.includes(index) || index === active) ? (
                 <span
                   key={point.date}
@@ -373,24 +422,25 @@ export function SeoTrendChart({
             aria-hidden
             className="text-muted-foreground relative h-4 text-xs tabular-nums"
           >
-            {labelled.map((index) => {
-              const x = model.points[index].x;
-              return (
-                <span
-                  key={index}
-                  className="absolute whitespace-nowrap"
-                  style={
-                    x > 50
-                      ? { right: `${100 - x}%` }
-                      : x < 50
-                        ? { left: `${x}%` }
-                        : { left: "50%", transform: "translateX(-50%)" }
-                  }
-                >
-                  {day(model.points[index].date)}
-                </span>
-              );
-            })}
+            {(model.axis ?? labelled.map((index) => model.points[index])).map(
+              ({ x, date }) => {
+                return (
+                  <span
+                    key={date}
+                    className="absolute whitespace-nowrap"
+                    style={
+                      x > 50
+                        ? { right: `${100 - x}%` }
+                        : x < 50
+                          ? { left: `${x}%` }
+                          : { left: "50%", transform: "translateX(-50%)" }
+                    }
+                  >
+                    {day(date)}
+                  </span>
+                );
+              },
+            )}
           </div>
         </div>
       </div>
@@ -430,8 +480,7 @@ export function SeoTrendChart({
             </li>
           ))}
           {/* Past the last known update the chart can miss one, so the date shows; otherwise only a screen reader hears it. */}
-          {model.updatesAsOf &&
-          (points.at(-1)?.date ?? "") > model.updatesAsOf ? (
+          {model.updatesAsOf && model.end > model.updatesAsOf ? (
             <li>
               {t("googleUpdatesAsOf", { day: fullDay(model.updatesAsOf) })}
             </li>

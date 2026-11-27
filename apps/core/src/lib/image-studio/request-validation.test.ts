@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
+import {
+  createImageJobRequestSchema,
+  createTalkingVideoJobRequestSchema,
+} from "@/schemas/project-image-studio.schema";
 
 import {
   describeImageStudioRefusal,
@@ -21,6 +24,8 @@ function refuse(body: unknown) {
   if (result.success) throw new Error("expected the schema to refuse this");
   return describeImageStudioRefusal(result.error);
 }
+
+const FILE_ID = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e8f";
 
 const VALID = {
   prompt: "a calm product shot",
@@ -87,13 +92,58 @@ describe("describeImageStudioRefusal", () => {
     );
   });
 
-  it("falls back without naming an internal field for a client bug", () => {
-    // A missing idempotency key is a client mistake, and the field name is no use
-    // to whoever reads the toast.
+  // SOKD-481: agents guessed seven presenter shapes and never learned which field was wrong.
+  it("names the field and what to send for a client mistake", () => {
     const refusal = refuse({ prompt: "a cup" });
     expect(refusal.kind).toBe(IMAGE_STUDIO_REQUEST_ERROR_KINDS.invalidRequest);
-    expect(refusal.message).toBe("The studio could not read this request.");
-    expect(refusal.message).not.toMatch(/idempotency/i);
+    expect(refusal.message).toBe(
+      "The studio could not read this request: idempotencyKey is required.",
+    );
+  });
+
+  it.each([
+    [{ driveFileId: FILE_ID }, 'presenter.kind must be "stock" or "file".'],
+    [
+      { kind: "drive", fileId: FILE_ID },
+      'presenter.kind must be "stock" or "file".',
+    ],
+    [{ kind: "file", fileId: FILE_ID }, "presenter.consent must be true."],
+    [
+      { kind: "file", fileId: "photo", consent: true },
+      "presenter.fileId must be a UUID.",
+    ],
+    [undefined, "presenter is required."],
+    ["Anna", "presenter must be an object."],
+  ])(
+    "tells an agent which presenter field to fix: %j",
+    (presenter, expected) => {
+      const result = createTalkingVideoJobRequestSchema.safeParse({
+        script: "Hi, this is an e2e test.",
+        idempotencyKey: "key-abcdefgh",
+        presenter,
+      });
+      if (result.success) throw new Error("expected the schema to refuse this");
+      const refusal = describeImageStudioRefusal(result.error);
+      expect(refusal.kind).toBe(
+        IMAGE_STUDIO_REQUEST_ERROR_KINDS.invalidRequest,
+      );
+      expect(refusal.message).toBe(
+        `The studio could not read this request: ${expected}`,
+      );
+    },
+  );
+
+  it("names the body itself when it is not an object", () => {
+    expect(refuse(null).message).toBe(
+      "The studio could not read this request: the body must be an object.",
+    );
+  });
+
+  it("names the setting the studio does not offer and the values it does", () => {
+    const refusal = refuse({ ...VALID, settings: { resolution: "4K" } });
+    expect(refusal.message).toBe(
+      'The studio does not offer one of these settings: settings.resolution must be "0.5K", "1K" or "2K".',
+    );
   });
 
   it("never leaks Zod's wording for anything the schema can refuse", () => {

@@ -1,11 +1,14 @@
 import type { Prisma } from "@sokosumi/database";
 import { conflict, notFound } from "@/helpers/error";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { searchConsoleSettledEnd } from "@/lib/seo/native-statistics";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
 import { requireLockedSeoOwner } from "./project-seo-store";
+import { collectSeoAuditPageSeries } from "./seo-audit-page-series";
 import { assertAuditSearchConsoleCurrent } from "./seo-audit-search-console";
 import { readApprovedSeoTaskPages } from "./seo-task-audit-context";
 
@@ -38,6 +41,7 @@ export async function readAuditSearchConsoleBinding(
       workspaceId: true,
       organizationId: true,
       projectId: true,
+      archivedAt: true,
     },
   });
   if (
@@ -59,6 +63,8 @@ export async function readAuditSearchConsoleBinding(
     requester &&
     (requester.sokoBotId ||
       task.status !== "COMPLETED" ||
+      // An archived audit Task leaves the workspace, so its report takes no new Google reads.
+      task.archivedAt ||
       requester.userId !== actor.userId ||
       requester.workspaceId !== actor.workspaceId ||
       requester.organizationId !== actor.organizationId ||
@@ -98,6 +104,13 @@ export async function collectSeoAuditPerformance(
     return;
   }
   const { actor, access, pages, period } = binding;
+  const authorize = async (tx: Prisma.TransactionClient) => {
+    const current = await readAuditSearchConsoleBinding(tx, taskId, requester);
+    if (JSON.stringify(current) !== JSON.stringify(binding))
+      throw conflict(
+        "The approved audit changed during statistics collection.",
+      );
+  };
   await syncProjectSeoStatistics(
     actor,
     {
@@ -109,19 +122,7 @@ export async function collectSeoAuditPerformance(
       searchType: "web",
       automatic: true,
     },
-    {
-      authorize: async (tx) => {
-        const current = await readAuditSearchConsoleBinding(
-          tx,
-          taskId,
-          requester,
-        );
-        if (JSON.stringify(current) !== JSON.stringify(binding))
-          throw conflict(
-            "The approved audit changed during statistics collection.",
-          );
-      },
-    },
+    { authorize },
     {
       taskId,
       connectionVersion: access.connectionVersion,
@@ -138,6 +139,17 @@ export async function collectSeoAuditPerformance(
       ...(access.includeSitemaps && { includeSitemaps: true }),
       pageUrls: pages.map((page) => page.url),
     },
+  );
+  // The impact of a done action needs each page alone. A failure here must not fail the audit's own statistics.
+  await collectSeoAuditPageSeries(taskId, binding, authorize).catch((error) =>
+    recordCoreWarning(
+      { operation: "seo_audit_page_series", taskId },
+      {
+        message: "Could not store the audit pages' daily Search Console rows",
+        why: "The per-page read or its write did not finish.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    ),
   );
   return pages.map((page) => page.id);
 }

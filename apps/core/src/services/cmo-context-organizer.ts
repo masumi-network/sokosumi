@@ -8,6 +8,7 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import { planUsesJevStandIn } from "@/lib/plan-jev";
 import { askJev } from "@/lib/soko-bot/jev";
 import { compactBrandBrain } from "@/services/brand-brain.service";
 import type {
@@ -74,6 +75,17 @@ const PICK_BUDGET_BYTES: Record<CmoTurnKind, number> = {
 const MAX_JEV_ITEMS = 6;
 /** Jev answers in about 350 ms; past this the turn goes on without it. */
 const JEV_TIMEOUT_MS = 4_000;
+/**
+ * The plan's stand-in is a full model on a shared plan, not Jev: at 4 s every
+ * chat turn of one plan benchmark fell back to the default context.
+ */
+const PLAN_JEV_TIMEOUT_MS = 45_000;
+
+export function organizerJevTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  return planUsesJevStandIn(env) ? PLAN_JEV_TIMEOUT_MS : JEV_TIMEOUT_MS;
+}
 /** Jev's "yes" a topic needs to be picked. */
 const JEV_PICK_AT = 0.5;
 /** Calendar weeks the map lists, from today. */
@@ -936,7 +948,7 @@ export async function organizeCmoContext(input: {
           ),
           ...(input.highlights ? { change: CHANGE_TOPIC } : {}),
         },
-        timeoutMs: JEV_TIMEOUT_MS,
+        timeoutMs: organizerJevTimeoutMs(),
       });
       jev = { ms: Date.now() - started, asked: candidates.length };
       if (input.highlights)

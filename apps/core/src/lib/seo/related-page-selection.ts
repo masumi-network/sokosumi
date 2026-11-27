@@ -270,6 +270,7 @@ export function originalSeoAuditPacket(value: unknown) {
   const {
     searchConsoleAccess: _access,
     fullAuditCost: _cost,
+    fullAuditCostDetail: _costDetail,
     pendingFullAuditCost: _pendingCost,
     fullAuditBillingContext: _billing,
     ...request

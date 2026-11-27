@@ -47,6 +47,7 @@ const envDefaults: Record<string, string> = {
   INSTANCE_ID: "test-instance-id",
   SHOW_AGENTS_BY_DEFAULT: "true",
   MAINTENANCE_MODE: "false",
+  SEO_IMPACT_TRACKING_ENABLED: "false",
   COMPOSIO_X_AUTH_CONFIG_ID: "test-composio-x-auth-config-id",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
   ABLY_SUBSCRIBE_ONLY_KEY: "local-test-subscribe",

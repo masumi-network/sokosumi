@@ -12,6 +12,7 @@ import {
   creditsPerShortVideoCents,
   creditsPerTalkingVideoCents,
   resolveUserUploadContentType,
+  SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH,
   SHORT_VIDEO_MAX_PICTURES,
   talkingVideoQuotedSeconds,
   VIDEO_RECIPES,
@@ -169,6 +170,8 @@ export function TikTokStudio({
   );
   const [hookLine, setHookLine] = useState("");
   const hookLineId = useId();
+  const [launchDate, setLaunchDate] = useState("");
+  const launchDateId = useId();
   const [script, setScript] = useState("");
   const [presenterId, setPresenterId] = useState(
     catalog.presenters[0]?.id ?? OWN_PHOTO,
@@ -255,7 +258,9 @@ export function TikTokStudio({
       : short
         ? pictureIds.length === 0 && !hasWebsite
           ? t("picturesMissing")
-          : null
+          : short === "launch" && !launchDate.trim()
+            ? t("launchDateMissing")
+            : null
         : ownPhoto && !photo
           ? t("photoMissing")
           : ownPhoto && !consent
@@ -358,6 +363,8 @@ export function TikTokStudio({
             format: short,
             script: trimmed,
             hookLine: spoken ? hookLine.trim() || undefined : undefined,
+            launchDate:
+              short === "launch" ? launchDate.trim() || undefined : undefined,
             voice,
             languageCode,
             pictureAssetIds: pictureIds,
@@ -732,6 +739,29 @@ export function TikTokStudio({
                 id={`${hookLineId}-hint`}
               >
                 {t("hookLineHint")}
+              </p>
+            </div>
+          ) : null}
+          {short === "launch" ? (
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label htmlFor={launchDateId}>{t("launchDate")}</Label>
+              <Input
+                aria-describedby={`${launchDateId}-hint`}
+                disabled={readOnly}
+                id={launchDateId}
+                maxLength={SHORT_VIDEO_LAUNCH_DATE_MAX_LENGTH}
+                onChange={(event) =>
+                  edit(() => setLaunchDate(event.target.value))
+                }
+                placeholder={t("launchDatePlaceholder")}
+                required
+                value={launchDate}
+              />
+              <p
+                className="text-muted-foreground text-xs"
+                id={`${launchDateId}-hint`}
+              >
+                {t("launchDateHint")}
               </p>
             </div>
           ) : null}

@@ -13,11 +13,8 @@ export function testSchemaNames() {
 
 /**
  * Runs a test fixture's writes in one transaction whose search path holds this
- * run's schemas (shared, then Mainnet). Some trigger bodies still name a table
- * without its schema (ticket 19): creating or deleting an Organization or a
- * Project fires them, and on the split layout they would not find
- * `calendar_invalidation_outbox` or `project_default_identifier`. Test fixtures
- * only; production SQL names its schemas.
+ * run's schemas (shared, then Mainnet). Test fixtures only; production SQL
+ * names its schemas.
  */
 export async function withFixtureSchemas<T>(
   run: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -33,6 +30,20 @@ export async function withFixtureSchemas<T>(
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL search_path TO ${path}`);
     return run(tx);
+  });
+}
+
+class Rollback extends Error {}
+
+/** Always roll back the fixture transaction and propagate test failures. */
+export async function rolledBack(
+  run: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<void> {
+  await withFixtureSchemas(async (tx) => {
+    await run(tx);
+    throw new Rollback();
+  }).catch((error) => {
+    if (!(error instanceof Rollback)) throw error;
   });
 }
 

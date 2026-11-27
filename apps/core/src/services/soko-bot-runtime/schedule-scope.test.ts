@@ -11,7 +11,6 @@ import {
   attenuateForChildWork,
   mintTurnOwnerAuthority,
 } from "@/lib/soko-bot/owner-authority";
-import { briefAsksToEnd } from "@/lib/soko-bot/schedule-brief";
 import {
   disableScheduleIfCountLimitMet,
   recordCompletedScheduleRun,
@@ -20,6 +19,7 @@ import {
 import {
   requireScheduledRunMayEnd,
   resolveBotScheduleAuthority,
+  resolveRequestedScheduleCapabilities,
   resolveUiScheduleAuthority,
 } from "./schedule-scope";
 
@@ -235,41 +235,6 @@ function authorizedTurn(
     },
   };
 }
-
-describe("briefAsksToEnd", () => {
-  it.each([
-    "Check SOK-12 every morning. Delete this schedule once Mira is done.",
-    "Remind me about the invoice; remove the reminder when it is paid.",
-    "Stop the check-ins when the launch ships.",
-    "Prüfe täglich den Stand und lösche den Zeitplan, sobald es fertig ist.",
-    "Delete this weekly schedule after the launch.",
-    // The verb split around the noun (Codex round 15).
-    "Turn this schedule off once the invoice is paid.",
-    "Schalte den Zeitplan ab, wenn alles erledigt ist.",
-    // A negation elsewhere does not cancel a real ask.
-    "Don't ping Hannah on weekends. Delete this schedule once the launch ships.",
-  ])("reads an ask to end: %s", (brief) => {
-    expect(briefAsksToEnd(brief)).toBe(true);
-  });
-
-  it.each([
-    "Every Friday: summarize the week's Tasks and post the report.",
-    "Check the board and tell me what is stuck.",
-    "Stop me if I overspend on ads.",
-    // Negated: these forbid ending the schedule (Neon round 6).
-    "Never delete this schedule, even when the board is quiet.",
-    "Do not turn off this schedule.",
-    "Don't remove the reminder until I say so.",
-    "Lösche diesen Zeitplan nicht.",
-    "Never turn this schedule off.",
-    // "End" here is about Tasks, and the reminders are only listed.
-    "Report the Tasks that end today and list upcoming reminders.",
-    "Stop by the board, then check the follow-ups.",
-    "Diesen Zeitplan niemals beenden; entferne keine Erinnerung.",
-  ])("reads no ask to end: %s", (brief) => {
-    expect(briefAsksToEnd(brief)).toBe(false);
-  });
-});
 
 describe("requireScheduledRunMayEnd", () => {
   const refused = /doesn't delete or switch off schedules/;
@@ -1306,5 +1271,153 @@ describe("resolveUiScheduleAuthority", () => {
         existingAuthority: chatSchedule,
       }),
     ).toThrow(OwnerAuthorityError);
+  });
+});
+
+describe("resolveRequestedScheduleCapabilities and capability-aware authority edits", () => {
+  const baseContext = {
+    scheduleId: OWN,
+    sokoBotId: BOT_ID,
+    workspaceId: WORKSPACE_ID,
+    existingAuthority: null as OwnerAuthority | null,
+    botProjectId: null as string | null,
+    botVersionId: "v36" as string | null,
+    sharedBot: false,
+  };
+
+  it("bounds explicit schedule capabilities by the authoring turn's grant and deduplicates", () => {
+    expect(
+      resolveRequestedScheduleCapabilities(undefined, [
+        "read_table",
+        "write_table_rows",
+        "create_schedule",
+      ]),
+    ).toEqual(["read_table", "write_table_rows", "create_schedule"]);
+
+    expect(
+      resolveRequestedScheduleCapabilities(
+        ["read_table", "read_table"],
+        ["read_table", "write_table_rows", "create_schedule"],
+      ),
+    ).toEqual(["read_table"]);
+
+    expect(() =>
+      resolveRequestedScheduleCapabilities(
+        ["read_table", "write_table_rows"],
+        ["read_table", "create_schedule"],
+      ),
+    ).toThrow(/write_table_rows/);
+
+    // Unknown tool names are also refused by the grant bound (schema stays compact without a 186-tool enum).
+    expect(() =>
+      resolveRequestedScheduleCapabilities(
+        ["nonexistent_tool"],
+        ["read_table", "create_schedule"],
+      ),
+    ).toThrow(/nonexistent_tool/);
+  });
+
+  it("keeps create_schedule and update_schedule JSON schemas compact without listing all 186 tool names", async () => {
+    const { z } = await import("zod");
+    const {
+      sokoBotCreateScheduleInputSchema,
+      sokoBotUpdateScheduleInputSchema,
+    } = await import("@sokosumi/soko-bot");
+    const createJson = z.toJSONSchema(sokoBotCreateScheduleInputSchema) as {
+      properties?: { capabilities?: { items?: { enum?: unknown } } };
+    };
+    const updateJson = z.toJSONSchema(sokoBotUpdateScheduleInputSchema) as {
+      properties?: { capabilities?: { items?: { enum?: unknown } } };
+    };
+    expect(createJson.properties?.capabilities?.items?.enum).toBeUndefined();
+    expect(updateJson.properties?.capabilities?.items?.enum).toBeUndefined();
+    expect(
+      Buffer.byteLength(
+        JSON.stringify(createJson.properties?.capabilities),
+        "utf8",
+      ),
+    ).toBeLessThan(250);
+    expect(
+      Buffer.byteLength(
+        JSON.stringify(updateJson.properties?.capabilities),
+        "utf8",
+      ),
+    ).toBeLessThan(250);
+    expect(
+      sokoBotUpdateScheduleInputSchema.safeParse({
+        scheduleId: OWN,
+        prompt: "New prompt",
+        capabilities: ["read_table"],
+        keepCapabilities: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("upgrades system/legacy authority on capability edits only from direct top-level owner chat", () => {
+    const systemAuthority = attenuateForChildWork(
+      mintTurnOwnerAuthority({
+        turn: {
+          id: LATER_TURN_ID,
+          sokoBotId: BOT_ID,
+          workspaceId: WORKSPACE_ID,
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: ROOT_TURN_ID,
+          chainDepth: 0,
+          askedByUserId: null,
+          requestedByUserId: OWNER_ID,
+        },
+        actingUserId: OWNER_ID,
+        askedByKind: "OWNER",
+      }),
+      "schedule",
+      { versionId: "v36", scheduleId: OWN },
+    );
+    const bgTurn = authorizedTurn({
+      id: LATER_TURN_ID,
+      parentTurnId: ROOT_TURN_ID,
+      botProjectId: null,
+    });
+    const directOwnerTurn = authorizedTurn({
+      id: ROOT_TURN_ID,
+      parentTurnId: null,
+      botProjectId: null,
+    });
+
+    // Background run editing capabilities on a system schedule cannot upgrade authority.
+    expect(
+      resolveBotScheduleAuthority(
+        bgTurn,
+        { capabilities: ["read_table", "write_table_rows"] },
+        { isUpdate: true },
+      )({ ...baseContext, existingAuthority: systemAuthority }),
+    ).toBeUndefined();
+
+    // Background run editing capabilities on a legacy null schedule initializes read_only system authority.
+    expect(
+      resolveBotScheduleAuthority(
+        bgTurn,
+        { capabilities: ["read_table", "write_table_rows"] },
+        { isUpdate: true },
+      )({ ...baseContext, existingAuthority: null }),
+    ).toMatchObject({
+      origin: "system",
+      scope: "read_only",
+      socialMode: "none",
+    });
+
+    // Direct top-level owner chat editing capabilities on a system schedule upgrades to owner_writes.
+    expect(
+      resolveBotScheduleAuthority(
+        directOwnerTurn,
+        { capabilities: ["read_table", "write_table_rows"] },
+        { isUpdate: true },
+      )({ ...baseContext, existingAuthority: systemAuthority }),
+    ).toMatchObject({
+      origin: "owner_chat",
+      ownerUserId: OWNER_ID,
+      scope: "owner_writes",
+      socialMode: "draft_only",
+    });
   });
 });

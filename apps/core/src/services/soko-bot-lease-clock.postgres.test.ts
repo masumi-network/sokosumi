@@ -264,6 +264,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
 
   function startInput() {
     return {
+      network: "mainnet",
       userId,
       workspaceId,
       clientTurnId: randomUUID(),
@@ -327,6 +328,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     await skewApplicationClock(MINUTE);
 
     const { turnId } = await control.startTurn({
+      network: "mainnet",
       userId,
       workspaceId,
       clientTurnId: randomUUID(),

@@ -2,8 +2,10 @@
  * Screenshots every view in the host harness: the default and fullscreen
  * fixtures, and those marked `allWidths`, in light and dark at 320, 402 and
  * 768px; every other fixture (loading, empty, error, ...) at 402px; and the
- * first control focused from the keyboard. A fixture's `play` steps (fill a
- * field, click a button) run before its shot. Build first.
+ * first control focused from the keyboard; and the default fixture at 402px
+ * after the host switches its theme while the view is open. A fixture's
+ * `play` steps (fill a field, click a button) run before its shot. A shot
+ * fails when the view did not load Inter. Build first.
  *
  *   node scripts/screenshots.ts [outDir]
  *
@@ -25,16 +27,33 @@ const STATE_WIDTH = 402;
 const ALL_WIDTHS = new Set(["default", "fullscreen"]);
 const STATES = new Set(["loading", "empty", "error", "approval"]);
 
-const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) =>
-  Object.entries(fixtures).flatMap(
+const shots = Object.entries(FIXTURES).flatMap(([view, fixtures]) => [
+  ...Object.entries(fixtures).flatMap(
     ([fixture, { allWidths, play = [], step }]) =>
       THEMES.flatMap((theme) =>
         (ALL_WIDTHS.has(fixture) || allWidths ? WIDTHS : [STATE_WIDTH]).map(
-          (width) => ({ view, fixture, theme, width, play, step }),
+          (width) => ({
+            view,
+            fixture,
+            theme,
+            width,
+            play,
+            step,
+            retheme: false,
+          }),
         ),
       ),
   ),
-);
+  ...THEMES.map((theme) => ({
+    view,
+    fixture: "default",
+    theme,
+    width: STATE_WIDTH,
+    play: [],
+    step: undefined,
+    retheme: true,
+  })),
+]);
 
 mkdirSync(outDir, { recursive: true });
 const server = await createServer({
@@ -50,7 +69,7 @@ const browser = await chromium.launch({
 });
 
 try {
-  for (const { view, fixture, theme, width, play, step } of shots) {
+  for (const { view, fixture, theme, width, play, step, retheme } of shots) {
     const page = await browser.newPage({
       viewport: { width, height: 900 },
       colorScheme: theme,
@@ -63,7 +82,9 @@ try {
       if (message.type() === "error") errors.push(message.text());
     });
 
-    await page.goto(`${origin}?view=${view}&fixture=${fixture}&theme=${theme}`);
+    await page.goto(
+      `${origin}?view=${view}&fixture=${fixture}&theme=${theme}${retheme ? "&retheme" : ""}`,
+    );
     const expected = STATES.has(fixture) ? fixture : "ready";
     await page
       .frameLocator("iframe")
@@ -97,16 +118,33 @@ try {
         current = await height();
       }
     }
+    // Inter is embedded and loaded from bytes, under the spec's default CSP.
+    const viewFrame = page.frames().find((frame) => frame !== page.mainFrame());
+    const inter = await viewFrame?.evaluate(async () => {
+      await document.fonts.ready;
+      return document.fonts.check('500 14px "Sokosumi Inter"', "Ag");
+    });
+    if (!inter) errors.push("Inter did not load");
+    if (retheme) {
+      const next = theme === "dark" ? "light" : "dark";
+      await page
+        .frameLocator("iframe")
+        .locator(`html[data-theme="${next}"]`)
+        .waitFor({ state: "attached" });
+    }
     if (errors.length > 0) {
       throw new Error(`${view}/${fixture}/${theme}: ${errors.join("; ")}`);
     }
 
-    const file = join(outDir, `${view}-${fixture}-${theme}-${width}.png`);
+    const name = retheme
+      ? `${view}-retheme-${theme}-to-${theme === "dark" ? "light" : "dark"}`
+      : `${view}-${fixture}-${theme}`;
+    const file = join(outDir, `${name}-${width}.png`);
     await page.locator("iframe").screenshot({ path: file });
     console.log(file);
 
     // Keyboard reach: Tab into the view and show the focused control.
-    if (fixture === "default" && width === STATE_WIDTH) {
+    if (fixture === "default" && width === STATE_WIDTH && !retheme) {
       await page.locator("iframe").focus();
       await page.keyboard.press("Tab");
       const focused = join(outDir, `${view}-focus-${theme}-${width}.png`);

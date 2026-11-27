@@ -14,6 +14,7 @@ import {
   forgetEvalWorkspaces,
 } from "@/lib/evals/eval-guard";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { ensureA2aWorld } from "../eval-a2a";
@@ -253,6 +254,7 @@ async function seedWorkspaceSchedules(
     const { botId, userId } = bots[schedule.who];
     const row = await prisma.sokoBotSchedule.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         sokoBotId: botId,
         requestedByUserId: userId,
         workspaceId: lane.workspaceId,

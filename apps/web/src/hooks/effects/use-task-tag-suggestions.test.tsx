@@ -144,6 +144,19 @@ describe("draft tag suggestions", () => {
     expect(suggestTaskTags).toHaveBeenCalledOnce();
   });
 
+  it("sends no full audit request line", async () => {
+    renderHook(useTaskTagSuggestions, {
+      initialProps: {
+        ...defaults,
+        description: `${description}\nseo_audit: {"markupBps":2000}`,
+      },
+    });
+    await advance(1200);
+    expect(suggestTaskTags).toHaveBeenCalledOnce();
+    const body = JSON.parse(String(suggestTaskTags.mock.calls[0][1]?.body));
+    expect(body.description).toBe(description);
+  });
+
   it("ignores stale responses and serializes the next changed input after cooldown", async () => {
     let resolve!: (value: Response) => void;
     vi.mocked(suggestTaskTags).mockImplementationOnce(

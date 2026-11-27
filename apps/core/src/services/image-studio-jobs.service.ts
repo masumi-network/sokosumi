@@ -1469,6 +1469,8 @@ export interface CreateShortVideoJobInput {
   script: string;
   /** The words over the first seconds; omitted, they are written from the script. */
   hookLine?: string | null;
+  /** A launch's real date, as its card shows it. */
+  launchDate?: string;
   voice: string;
   /** ISO 639-1 language of the script. */
   languageCode: string;
@@ -1513,6 +1515,12 @@ export async function createShortVideoJob(input: CreateShortVideoJobInput) {
     throw unprocessableEntity("A website tour needs the Project's website.", {
       kind: "invalid_video_settings",
     });
+  const launchDate =
+    input.format === "launch" ? input.launchDate?.trim() || null : null;
+  if (input.format === "launch" && !launchDate)
+    throw unprocessableEntity("A launch needs the date of what it announces.", {
+      kind: "invalid_video_settings",
+    });
   if (posesAsCustomerTestimonial(input.script))
     throw unprocessableEntity(TALKING_VIDEO_TESTIMONIAL_MESSAGE, {
       kind: "talking_video_testimonial",
@@ -1544,6 +1552,7 @@ export async function createShortVideoJob(input: CreateShortVideoJobInput) {
     music: true,
     musicRequestId: null,
     format: input.format,
+    ...(launchDate ? { launchDate } : {}),
     picturePathnames: [],
     ...wantedShapes(input.format, input.shapes),
   };
@@ -3026,10 +3035,17 @@ async function makeShortVideo(
       .then((project) => (project ? loadTalkingVideoEndCard(project) : null)),
     loadStudioBrand(job.projectId),
   ]);
-  const colour = (brand.look?.colors ?? brand.designColors ?? []).find(
-    (value) => /^#[0-9a-f]{6}$/i.test(value),
-  );
+  const colors = brand.look?.colors ?? brand.designColors ?? [];
+  const colour = colors.find((value) => /^#[0-9a-f]{6}$/i.test(value));
   const edited = await editShortVideo({
+    ...(settings.format === "launch" && settings.launchDate
+      ? {
+          launch: {
+            date: settings.launchDate,
+            brand: { colors, font: brand.look?.fonts[0] ?? null },
+          },
+        }
+      : {}),
     shape: settings.shape,
     format: settings.format!,
     words: settings.words,

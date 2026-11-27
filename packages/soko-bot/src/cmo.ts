@@ -292,7 +292,7 @@ function normalizeStrategyChannels(value: unknown): unknown {
  * well inside one model answer.
  */
 const cmoStrategySaveSchema = marketingStrategyPlanSchema
-  .omit({ monthWriter: true })
+  .omit({ monthWriter: true, applyLog: true })
   .partial();
 export type CmoStrategySave = z.input<typeof cmoStrategySaveSchema>;
 

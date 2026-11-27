@@ -186,6 +186,16 @@ const includeSubtasksQuerySchema = z
     example: "true",
   });
 
+const includeDescriptionQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .openapi({
+    param: { name: "includeDescription", in: "query" },
+    description:
+      "false sends each Task's `description` as null, for a list of many Tasks such as a board. A description can be long; read one with GET /tasks/{id}. Defaults to true.",
+    example: "false",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -215,6 +225,7 @@ const query = z
     archived: archivedQuerySchema,
     parentTaskId: parentTaskIdQuerySchema,
     includeSubtasks: includeSubtasksQuerySchema,
+    includeDescription: includeDescriptionQuerySchema,
     unansweredMention: unansweredMentionQuerySchema,
     assigneeId: z
       .string()
@@ -291,6 +302,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeSokoBotId,
       assigneeUserId,
       dueOnTo,
+      includeDescription,
       includeSubtasks,
       parentTaskId,
       projectId,
@@ -559,6 +571,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ? searchTaskList({
           search: queryParams.search,
           workspaceId: c.var.workspaceContext?.workspaceId,
+          rawReaderCoworkerId: isCoworkerAuthContext(authContext)
+            ? authContext.coworkerId
+            : null,
           where,
           take: takePlusOne,
           cursor,
@@ -594,6 +609,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { openSubtasks, ...item } = mapTaskListItem(task, authContext);
       return {
         ...item,
+        ...(includeDescription === "false" ? { description: null } : {}),
         // Sub-task names go to people only: a coworker or a Soko Bot can
         // read a Task without being able to read each of its sub-tasks.
         ...(mentionViewerId ? { openSubtasks } : {}),

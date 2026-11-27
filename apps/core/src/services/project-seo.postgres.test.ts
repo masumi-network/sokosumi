@@ -15,7 +15,10 @@ import { getEnv } from "@/config/env";
 import { forbidden } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { reportObject } from "@/helpers/project-seo-public-report";
-import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
+import {
+  parsePublicSeoArtifact,
+  publicSeoPayloadSchema,
+} from "@/helpers/project-seo-report";
 import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -74,9 +77,16 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
+import { seoRankPoints } from "./project-seo-rank-points";
+import { backfillSeoRankPoints } from "./project-seo-rank-points-backfill";
+import { loadSeoRankPoints } from "./project-seo-rank-sources";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
 import { acknowledgeSeoReview } from "./seo-action-reviews";
 import { getSeoBrief } from "./seo-audit-brief.service";
+import {
+  connectionVersion,
+  resolveSeoStatisticsIntegration,
+} from "./seo-connections.service";
 import {
   changeTaskScheduleState,
   createTaskSchedule,
@@ -2568,6 +2578,19 @@ describe.skipIf(!enabled)(
         { taskId: task.id, fileId: file.id },
         { fetchImpl: async () => new Response(body) },
       );
+      // The import copies the audit's position reads into the rank point table, in the same transaction.
+      const points = await prisma.projectSeoRankPoint.findMany({
+        where: { observationId: observation.id },
+      });
+      expect(points.length).toBeGreaterThan(0);
+      expect(points.map((point) => point.key).sort()).toEqual(
+        seoRankPoints(
+          observation.id,
+          publicSeoPayloadSchema.parse(observation.payload),
+        )
+          .map((point) => point.key)
+          .sort(),
+      );
       const workspace = await getProjectSeoWorkspace(owner);
       const plan = workspace.observations[0]?.auditPlan;
       expect(plan).toMatchObject({
@@ -3014,7 +3037,176 @@ describe.skipIf(!enabled)(
       ]);
     });
 
-    it("reads the rank history only from rankings and audit_lite results", async () => {
+    it("reads the rank points of the period, and says when the load left older ones out", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-period",
+        relationship: "primary",
+      });
+      const older = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-09-01T09:00:00.000Z", { position: 9 }),
+      );
+      const newest = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-11-01T09:00:00.000Z", { position: 2 }),
+      );
+      const read = async (query: { from?: string }) => {
+        const row = (
+          await getProjectSeoWorkspace(actor, { pageId: page.id, ...query })
+        ).keywords.find((item) => item.observationId === newest.id);
+        return [
+          row?.positionHistory?.map((point) => point.observationId),
+          row?.positionHistoryCut,
+        ];
+      };
+      expect(await read({})).toEqual([[older.id, newest.id], false]);
+      expect(await read({ from: "2026-11-01" })).toEqual([[newest.id], false]);
+      // Another owner's public result of the same keyword and page gives this owner no point.
+      const stranger = await prisma.project.create({
+        data: { workspaceId, name: "Rank point stranger" },
+      });
+      const key = (
+        await prisma.projectSeoRankPoint.findFirstOrThrow({
+          where: { observationId: newest.id },
+        })
+      ).key;
+      const foreign = await prisma.projectSeoObservation.create({
+        data: {
+          projectId: stranger.id,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [],
+          artifactHash: "rank-period",
+          payload: {},
+          observedAt: new Date("2026-10-01T09:00:00.000Z"),
+        },
+      });
+      await prisma.projectSeoRankPoint.create({
+        data: {
+          observationId: foreign.id,
+          key,
+          observedAt: foreign.observedAt,
+          position: 1,
+          positionStatus: "ranked",
+        },
+      });
+      // A member's private result of this owner gives no point either.
+      const privateResult = await prisma.projectSeoObservation.create({
+        data: {
+          projectId,
+          ownerId: actor.userId,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "rank-period-private",
+          payload: {},
+          observedAt: new Date("2026-10-02T09:00:00.000Z"),
+        },
+      });
+      await prisma.projectSeoRankPoint.create({
+        data: {
+          observationId: privateResult.id,
+          key,
+          observedAt: privateResult.observedAt,
+          position: 1,
+          positionStatus: "ranked",
+        },
+      });
+      expect(await read({})).toEqual([[older.id, newest.id], false]);
+      // Another key with many reads takes no place of this key: each key has its own limit.
+      const busy = await prisma.projectSeoObservation.createManyAndReturn({
+        data: Array.from({ length: 3 }, (_, day) => ({
+          projectId,
+          source: "seo_coworker",
+          kind: "rankings",
+          sourceKey: randomUUID(),
+          pageIds: [page.id],
+          artifactHash: "rank-period-busy",
+          payload: {},
+          observedAt: new Date(`2026-11-0${day + 2}T09:00:00.000Z`),
+        })),
+      });
+      await prisma.projectSeoRankPoint.createMany({
+        data: busy.map((row) => ({
+          observationId: row.id,
+          key: "busy",
+          observedAt: row.observedAt,
+          position: 1,
+          positionStatus: "ranked",
+        })),
+      });
+      const load = async (perKey: number) =>
+        (await loadSeoRankPoints(actor, [key, "busy"], {}, perKey))
+          .filter((row) => row.key === key)
+          .map((row) => [row.observationId, row.observedAt]);
+      // The newest point and one more, which says that older ones exist.
+      expect(await load(1)).toEqual(
+        expect.arrayContaining([
+          [newest.id, newest.observedAt],
+          [older.id, older.observedAt],
+        ]),
+      );
+      expect(await load(2)).toHaveLength(2);
+      // Of 3 reads, the 2 newest.
+      expect(
+        (await loadSeoRankPoints(actor, ["busy"], {}, 1))
+          .map((row) => row.observationId)
+          .sort(),
+      ).toEqual([busy[1].id, busy[2].id].sort());
+    });
+
+    it("backfills the rank points of a result stored before the import wrote them, once", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/rank-backfill",
+        relationship: "primary",
+      });
+      const stored = await storeResult(
+        page.id,
+        rankingsPayload(page.url, "2026-10-04T09:00:00.000Z", { position: 4 }),
+        { points: false },
+      );
+      const points = () =>
+        prisma.projectSeoRankPoint.findMany({
+          where: { observationId: stored.id },
+          select: { position: true, positionStatus: true, observedAt: true },
+        });
+      expect(await points()).toEqual([]);
+      // The run reads every result of the database, so only this result's own points are compared.
+      expect(
+        (await backfillSeoRankPoints({ dryRun: true })).points,
+      ).toBeGreaterThanOrEqual(1);
+      expect(await points()).toEqual([]);
+      await backfillSeoRankPoints();
+      expect(await points()).toEqual([
+        {
+          position: 4,
+          positionStatus: "ranked",
+          observedAt: new Date("2026-10-04T09:00:00.000Z"),
+        },
+      ]);
+      // A second run leaves the point as it is.
+      await backfillSeoRankPoints();
+      expect(await points()).toHaveLength(1);
+      // The payload accepts a count above the 32-bit range. The point keeps it.
+      const wide = rankingsPayload(page.url, "2026-10-05T09:00:00.000Z");
+      Object.assign(wide.keywords[0], {
+        position: null,
+        positionStatus: "not_in_range",
+        checkedResults: 2 ** 31,
+      });
+      const deep = await storeResult(page.id, wide, { points: false });
+      await backfillSeoRankPoints();
+      expect(
+        await prisma.projectSeoRankPoint.findMany({
+          where: { observationId: deep.id },
+          select: { checkedResults: true },
+        }),
+      ).toEqual([{ checkedResults: 2 ** 31 }]);
+    });
+
+    it("reads the rank history from every result kind that reads positions, and from no other", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/rank-kinds",
         relationship: "primary",
@@ -3057,14 +3249,21 @@ describe.skipIf(!enabled)(
       expect(
         read?.positionHistory?.map((point) => point.observationId),
       ).toEqual([lite.id, rankings.id]);
-      // The full audit's own keyword rows exist, without a history.
+      // A full audit's position reads are points of its own keyword rows. Its payload is never loaded for them.
       const fullRows = workspace.keywords.filter(
         (item) => item.observationId === full.id,
       );
-      expect(fullRows.length).toBeGreaterThan(0);
-      expect(fullRows.map((item) => item.positionHistory)).toEqual(
-        fullRows.map(() => undefined),
+      const answered = fullRows.filter(
+        (item) => item.positionStatus !== "unavailable",
       );
+      expect(answered.length).toBeGreaterThan(0);
+      for (const item of fullRows)
+        expect(
+          item.positionHistory?.map((point) => point.observationId),
+        ).toEqual(
+          item.positionStatus === "unavailable" ? undefined : [full.id],
+        );
+      // The page check claims a position for the same keyword. Its kind reads none, so it gives no point.
       expect(
         workspace.serpHistory?.flatMap((series) =>
           series.points.map((point) => point.observationId),
@@ -3255,6 +3454,179 @@ describe.skipIf(!enabled)(
       expect(week?.site).toBeGreaterThan(0);
       expect(week?.others).toBeGreaterThan(0);
     });
+
+    it("shows an audit's Search Console snapshot, property-wide data included, to a colleague for a public Task only, and offers the retry to the requester only", async () => {
+      const organizationId = randomUUID();
+      const sharedWorkspaceId = randomUUID();
+      const sharedProjectId = randomUUID();
+      await prisma.organization.create({
+        data: {
+          id: organizationId,
+          name: "Shared SEO",
+          slug: `shared-seo-${organizationId}`,
+          createdAt: now,
+          members: {
+            create: [userId, otherId].map((id) => ({
+              userId: id,
+              role: "member",
+              seatAssignedAt: now,
+            })),
+          },
+          workspace: { create: { id: sharedWorkspaceId } },
+        },
+      });
+      try {
+        await prisma.project.create({
+          data: {
+            id: sharedProjectId,
+            workspaceId: sharedWorkspaceId,
+            name: "Shared SEO project",
+          },
+        });
+        const requester: SeoActor = {
+          owner: { kind: "project", id: sharedProjectId },
+          workspaceId: sharedWorkspaceId,
+          organizationId,
+          userId,
+        };
+        const page = await addProjectSeoPage(requester, {
+          url: "https://example.test/shared-audit",
+          relationship: "primary",
+        });
+        // A retry reads Google through the connection the audit approved.
+        await prisma.seoConnection.create({
+          data: {
+            workspaceId: sharedWorkspaceId,
+            userId,
+            provider: "search_console",
+            status: "ACTIVE",
+            composioAccountId: randomUUID(),
+            entityId: randomUUID(),
+          },
+        });
+        const approved = connectionVersion(
+          (await resolveSeoStatisticsIntegration(requester, "search_console"))!,
+        );
+        const audits: Record<"PUBLIC" | "PRIVATE", string> = {
+          PUBLIC: "",
+          PRIVATE: "",
+        };
+        for (const visibility of ["PUBLIC", "PRIVATE"] as const) {
+          const task = await prisma.task.create({
+            data: {
+              name: `${visibility} audit`,
+              ownerId: userId,
+              workspaceId: sharedWorkspaceId,
+              projectId: sharedProjectId,
+              status: "COMPLETED",
+              visibility,
+              assigneeId: coworkerId,
+            },
+          });
+          audits[visibility] = task.id;
+          await prisma.projectSeoAnalysis.create({
+            data: {
+              projectId: sharedProjectId,
+              idempotencyKey: randomUUID(),
+              requestHash: "shared-audit",
+              kind: "audit_full",
+              status: "completed",
+              taskId: task.id,
+              pageIds: [page.id],
+              request: {
+                searchConsoleAccess: {
+                  propertyId: "sc-domain:example.test",
+                  connectionVersion: approved,
+                },
+              },
+              requestedBy: userId,
+            },
+          });
+          // Stored as the requester's private row. The audit Task decides who reads it.
+          await prisma.projectSeoObservation.create({
+            data: {
+              projectId: sharedProjectId,
+              source: "search_console",
+              kind: AUDIT_PERFORMANCE_KIND,
+              sourceKey: randomUUID(),
+              sourceTaskId: task.id,
+              ownerId: userId,
+              visibility: "PRIVATE",
+              pageIds: [page.id],
+              artifactHash: "shared-audit",
+              observedAt: now,
+              payload: {
+                ...metrics([page.url]),
+                provider: "search_console",
+                propertyId: "sc-domain:example.test",
+                auditPropertyTotals: {
+                  clicks: 900,
+                  impressions: 9000,
+                  ctr: 0.1,
+                  averagePosition: 7,
+                },
+                auditMeasuredPages: [
+                  {
+                    pageUrl: page.url,
+                    measuredUrl: page.url,
+                    basis: "selected",
+                  },
+                ],
+              },
+            },
+          });
+        }
+        const read = async (reader: string) => {
+          const workspace = await getProjectSeoWorkspace(
+            { ...requester, userId: reader },
+            {},
+            { includeAuditPerformance: true },
+          );
+          return {
+            snapshots: workspace.auditSearchConsole
+              ?.map((row) => row.taskId)
+              .sort(),
+            retry: workspace.auditSearchConsoleRetryTaskIds?.toSorted(),
+            propertyClicks: workspace.auditSearchConsole?.map(
+              (row) => row.propertyTotals?.clicks,
+            ),
+          };
+        };
+        expect(await read(userId)).toEqual({
+          snapshots: [audits.PUBLIC, audits.PRIVATE].sort(),
+          retry: [audits.PUBLIC, audits.PRIVATE].sort(),
+          propertyClicks: [900, 900],
+        });
+        // Property-wide data is shared with the audit Task; the retry stays with the requester.
+        expect(await read(otherId)).toEqual({
+          snapshots: [audits.PUBLIC],
+          retry: [],
+          propertyClicks: [900],
+        });
+        // An archived audit Task leaves the workspace, so its snapshot leaves with it.
+        await prisma.task.update({
+          where: { id: audits.PUBLIC },
+          data: { archivedAt: now },
+        });
+        expect(await read(otherId)).toEqual({
+          snapshots: [],
+          retry: [],
+          propertyClicks: [],
+        });
+        // The retry candidates leave out the archived audit too.
+        expect(await read(userId)).toEqual({
+          snapshots: [audits.PRIVATE],
+          retry: [audits.PRIVATE],
+          propertyClicks: [900],
+        });
+      } finally {
+        await prisma.task.deleteMany({
+          where: { workspaceId: sharedWorkspaceId },
+        });
+        await prisma.workspace.deleteMany({ where: { id: sharedWorkspaceId } });
+        await prisma.organization.deleteMany({ where: { id: organizationId } });
+      }
+    });
   },
 );
 
@@ -3318,12 +3690,13 @@ function rankingsPayload(
 }
 
 /** Stores a public result of the test project for one page. */
-function storeResult(
+async function storeResult(
   pageId: string,
   payload: ReturnType<typeof parsePublicSeoArtifact>,
-  extra: { ownerId?: string } = {},
+  extra: { ownerId?: string; points?: false } = {},
 ) {
-  return prisma.projectSeoObservation.create({
+  const { points, ...data } = extra;
+  const stored = await prisma.projectSeoObservation.create({
     data: {
       projectId,
       source: "seo_coworker",
@@ -3333,7 +3706,13 @@ function storeResult(
       artifactHash: "rank-history",
       payload,
       observedAt: new Date(payload.observedAt),
-      ...extra,
+      ...data,
     },
   });
+  // As the import does for a public result.
+  if (points !== false && !data.ownerId)
+    await prisma.projectSeoRankPoint.createMany({
+      data: seoRankPoints(stored.id, payload),
+    });
+  return stored;
 }

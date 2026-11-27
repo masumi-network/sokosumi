@@ -23,7 +23,7 @@ export type SeoRankDetail = {
   result: SeoRankResult;
   /** Search Console's average position for the lead keyword: when it counts, it leads (seo-bot ticket 69). */
   searchConsole: SeoRankResult | null;
-  /** Whether the AI Overview cites the page; null when the results showed no AI Overview. */
+  /** Whether the AI Overview cites the page; null when the results showed none or the citation is not determined. */
   aiOverviewCites: boolean | null;
   others: SeoRankKeyword[];
 };

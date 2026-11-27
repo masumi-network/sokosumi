@@ -32,6 +32,9 @@ export function ProjectsFilter({
   return (
     <PageQuerySearchField
       inHeader
+      // Fill the wrapped toolbar row next to New project on a tablet; from
+      // the toolbar's own breakpoint the field keeps its fixed width.
+      className="sm:max-w-none"
       placeholder={labels.placeholder}
       clearLabel={labels.clear}
       startTransition={startTransition}

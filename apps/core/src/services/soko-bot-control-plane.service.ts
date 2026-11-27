@@ -91,6 +91,7 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   sokoBotActingUserId,
@@ -2645,7 +2646,7 @@ export class SokoBotControlPlane {
           }
         : classification.classification,
     );
-    const routeCapabilities = (
+    const routed = (
       personAsked
         ? SOKO_BOT_CAPABILITIES
         : input.presetRoute?.capabilities
@@ -2661,6 +2662,12 @@ export class SokoBotControlPlane {
           capability,
         ),
     );
+    // Core keeps a planLoop version's plan and shows it to every turn of the
+    // request, so each of them can update it, with or without a sandbox.
+    const routeCapabilities =
+      version.planLoop && !routed.includes("update_plan")
+        ? [...routed, "update_plan" as const]
+        : routed;
     const newsletterAvailable =
       routeCapabilities.some(isSokoBotNewsletterCapability) &&
       (await isNewsletterDraftAvailable({
@@ -2888,6 +2895,7 @@ export class SokoBotControlPlane {
         });
         const created = await tx.sokoBotTurn.create({
           data: {
+            network: input.network,
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,
@@ -5263,6 +5271,7 @@ export class SokoBotControlPlane {
           boundReplayTurnId,
         );
         retry = await this.startTurn({
+          network: DETACHED_SOKO_BOT_NETWORK,
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
             systemKey: scheduleRun.schedule.systemKey,

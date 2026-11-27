@@ -1,4 +1,6 @@
+import { sokoBotFollowUpAllowsSchema } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 
 const {
   metadataUpsertMock,
@@ -15,9 +17,11 @@ const {
   memberFindManyMock,
   toolCallFindFirstMock,
   turnFindManyMock,
+  scheduleFindManyMock,
 } = vi.hoisted(() => ({
   toolCallFindFirstMock: vi.fn(),
   turnFindManyMock: vi.fn(),
+  scheduleFindManyMock: vi.fn(),
   botFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   metadataUpsertMock: vi.fn(),
@@ -52,6 +56,7 @@ vi.mock("@/lib/db/prisma", () => ({
     member: { findMany: memberFindManyMock },
     sokoBotToolCall: { findFirst: toolCallFindFirstMock },
     sokoBotTurn: { findMany: turnFindManyMock },
+    sokoBotSchedule: { findMany: scheduleFindManyMock },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
       update: delegationUpdateMock,
@@ -1194,6 +1199,131 @@ describe("SokoBotEventsSyncService", () => {
       await new SokoBotEventsSyncService().syncDelegatedWork(input);
       expect(capabilitiesOfWake()).toBeUndefined();
     });
+
+    it("preserves follow-up capabilities for matching project-scoped delegations and Project Cuso handoffs, and drops mismatched Projects", async () => {
+      const projectAuthority = {
+        version: 1,
+        grantId: "grant-proj-1",
+        origin: "owner_chat",
+        sokoBotId: "bot_1",
+        workspaceId: "ws_1",
+        ownerUserId: "user_1",
+        rootTurnId: "turn_1",
+        targetScope: { kind: "project", projectId: "proj_1" },
+        scope: "draft_and_workspace",
+        socialMode: "draft_only",
+        stopRule: { mode: "never" },
+      };
+      const base = plannedDelegation("d1", "COMPLETED", draftPlan);
+      // Personal bot delegation scoped to proj_1 on a Task in proj_1 -> keeps drafting/media tools.
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: projectAuthority,
+          task: { ...base.task, projectId: "proj_1" },
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+
+      // Same authority attached to a Task in a different Project -> drops inherited tools.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: projectAuthority,
+          task: { ...base.task, projectId: "proj_other" },
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toBeUndefined();
+
+      // Project Cuso shared bot (`userId: null`, `projectId: "proj_cmo"`) handoff keeps tools.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          authority: {
+            ...projectAuthority,
+            targetScope: { kind: "project", projectId: "proj_cmo" },
+            socialMode: "full",
+          },
+          task: { ...base.task, projectId: null },
+          turn: {
+            ...ownerChat,
+            versionId: "cmo-v24",
+            sokoBot: { userId: null, projectId: "proj_cmo" },
+          },
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+    });
+
+    it("preserves public fractional followUpAllows (e.g. 5.5 credits) through authority derivation and wake preparation", async () => {
+      const publicAllows = sokoBotFollowUpAllowsSchema.parse({
+        images: 2,
+        maxCredits: 5.5,
+      });
+      const derivedAuthority = await deriveDelegationAuthority(
+        {
+          id: "turn_1",
+          sokoBotId: "bot_1",
+          workspaceId: "ws_1",
+          versionId: "v36",
+          source: "CHAT",
+          parentTurnId: null,
+          askedByUserId: null,
+          requestedByUserId: "user_1",
+          actingUserId: "user_1",
+          chainDepth: 0,
+        },
+        { followUpAllows: publicAllows },
+      );
+      expect(derivedAuthority.limits?.maxMediaCredits).toBe(5.5);
+
+      const base = plannedDelegation("d_frac", "COMPLETED", draftPlan);
+      // 1. Persisted authority with fractional 5.5-credit cap wakes cleanly.
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          followUpAllows: publicAllows,
+          authority: derivedAuthority,
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+      expect(startTurnMock.mock.calls[0]![0].message).toContain(
+        "at most 2 images and 5.5 credits on media",
+      );
+
+      // 2. Legacy pre-migration row (`authority: null`) with 5.5 credits also wakes cleanly.
+      startTurnMock.mockClear();
+      delegationFindManyMock.mockResolvedValue([
+        {
+          ...base,
+          followUpAllows: publicAllows,
+          authority: null,
+          turn: ownerChat,
+        },
+      ]);
+      await new SokoBotEventsSyncService().syncDelegatedWork(input);
+      expect(capabilitiesOfWake()).toEqual(
+        expect.arrayContaining(["create_social_post", "generate_image"]),
+      );
+      expect(startTurnMock.mock.calls[0]![0].message).toContain(
+        "at most 2 images and 5.5 credits on media",
+      );
+    });
   });
 
   it("never repeats a plan another turn already carried out", async () => {
@@ -1405,5 +1535,129 @@ describe("SokoBotEventsSyncService", () => {
     expect(
       buildEventMessage([{ ...base, kind: "JOB", to: "FAILED" }]),
     ).toContain('your plan "Next step." will not run');
+  });
+
+  it("revokes delegation follow-up capabilities and media allowances when its schedule is disabled/deleted or root turn is cancelled", async () => {
+    const SCHED_ID = "01960000-0000-7000-8000-000000000601";
+    const ROOT_ID = "01960000-0000-7000-8000-000000000602";
+    const baseAuthority = {
+      version: 1,
+      grantId: "del-sched-rev-1",
+      origin: "owner_chat",
+      sokoBotId: "bot_1",
+      workspaceId: "ws_1",
+      ownerUserId: "user_1",
+      rootTurnId: ROOT_ID,
+      scheduleId: SCHED_ID,
+      targetScope: { kind: "workspace" },
+      scope: "draft_and_workspace",
+      socialMode: "draft_only",
+      limits: {
+        grantId: "del-sched-rev-1",
+        period: "per_occurrence",
+        images: 1,
+        maxMediaCredits: 10,
+      },
+      stopRule: { mode: "never" },
+    };
+    const makeDelegation = (id: string) => ({
+      ...plannedDelegation(
+        id,
+        "COMPLETED",
+        "Make a hero image and draft post.",
+      ),
+      authority: baseAuthority,
+      followUpAllows: { images: 1, maxCredits: 10 },
+      turn: {
+        ...turn,
+        id: ROOT_ID,
+        source: "SCHEDULE",
+        chainDepth: 0,
+        askedByUserId: null,
+        capabilityNames: ["generate_image", "create_social_post", "list_tasks"],
+        sokoBot: { userId: "user_1" },
+      },
+    });
+
+    // 1. Enabled schedule + live root -> preserves follow-up presetRoute and media allowance.
+    delegationFindManyMock.mockResolvedValueOnce([makeDelegation("d-live")]);
+    scheduleFindManyMock.mockResolvedValueOnce([
+      {
+        id: SCHED_ID,
+        sokoBotId: "bot_1",
+        enabled: true,
+        runOnce: false,
+        lastRunAt: null,
+      },
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const liveCall = startTurnMock.mock.calls[0]![0];
+    expect(liveCall.presetRoute?.capabilities).toEqual(
+      expect.arrayContaining(["generate_image", "create_social_post"]),
+    );
+    expect(liveCall.message).toContain("at most 1 image");
+
+    // 2. Disabled recurring schedule -> strips presetRoute capabilities and media allowance.
+    startTurnMock.mockClear();
+    delegationFindManyMock.mockResolvedValueOnce([makeDelegation("d-paused")]);
+    scheduleFindManyMock.mockResolvedValueOnce([
+      {
+        id: SCHED_ID,
+        sokoBotId: "bot_1",
+        enabled: false,
+        runOnce: false,
+        lastRunAt: new Date("2026-10-23T10:00:00Z"),
+      },
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const pausedCall = startTurnMock.mock.calls[0]![0];
+    expect(pausedCall.presetRoute?.capabilities).toBeUndefined();
+    expect(pausedCall.message).not.toContain("at most 1 image");
+
+    // 3. Cancelled rootTurnId -> strips presetRoute capabilities and media allowance.
+    startTurnMock.mockClear();
+    delegationFindManyMock.mockResolvedValueOnce([
+      makeDelegation("d-cancelled"),
+    ]);
+    scheduleFindManyMock.mockResolvedValueOnce([
+      {
+        id: SCHED_ID,
+        sokoBotId: "bot_1",
+        enabled: true,
+        runOnce: false,
+        lastRunAt: null,
+      },
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([
+      { id: ROOT_ID, sokoBotId: "bot_1" },
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const cancelledCall = startTurnMock.mock.calls[0]![0];
+    expect(cancelledCall.presetRoute?.capabilities).toBeUndefined();
+    expect(cancelledCall.message).not.toContain("at most 1 image");
+
+    // 4. Spent one-time schedule (`runOnce: true, lastRunAt != null`) stays authorized.
+    startTurnMock.mockClear();
+    delegationFindManyMock.mockResolvedValueOnce([
+      makeDelegation("d-spent-once"),
+    ]);
+    scheduleFindManyMock.mockResolvedValueOnce([
+      {
+        id: SCHED_ID,
+        sokoBotId: "bot_1",
+        enabled: false,
+        runOnce: true,
+        lastRunAt: new Date("2026-10-23T10:00:00Z"),
+      },
+    ]);
+    turnFindManyMock.mockResolvedValueOnce([]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    const spentOnceCall = startTurnMock.mock.calls[0]![0];
+    expect(spentOnceCall.presetRoute?.capabilities).toEqual(
+      expect.arrayContaining(["generate_image", "create_social_post"]),
+    );
+    expect(spentOnceCall.message).toContain("at most 1 image");
   });
 });

@@ -2,6 +2,7 @@ import { Channel, type TaskStatus } from "@sokosumi/database";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
@@ -126,6 +127,7 @@ export async function simulateSokoBotTaskEvent(input: {
   let started: Awaited<ReturnType<typeof sokoBotControlPlane.startTurn>>;
   try {
     started = await sokoBotControlPlane.startTurn({
+      network: DETACHED_SOKO_BOT_NETWORK,
       userId: input.userId,
       workspaceId: input.workspaceId,
       // `lab:` keeps it out of the owner's proactive allowance, which is for

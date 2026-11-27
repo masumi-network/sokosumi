@@ -175,7 +175,11 @@ function BrandSetup({
       <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
         {t("title")}
       </h2>
-      <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
+      {/* A status: the wizard has already moved focus to Open project. */}
+      <p
+        role="status"
+        className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance"
+      >
         {isBusy
           ? t("fetching")
           : brand.status === "failed"

@@ -171,6 +171,11 @@ export const seoSettlementFields = z.object({
   credits: z.number().int().positive(),
   expectedContext: taskWorkerContextSchema,
   fullAuditCost: seoFullAuditCostSchema,
+  // Display only. Core applies seoFullAuditCostDetailSchema itself and drops an invalid detail, so it never fails a settlement.
+  fullAuditCostDetail: z.unknown().optional().openapi({
+    description:
+      "Optional display-only cost breakdown (SeoFullAuditCostDetail). An invalid detail is not stored and does not change the charge.",
+  }),
 });
 
 export function createTaskEventRequestSchema(

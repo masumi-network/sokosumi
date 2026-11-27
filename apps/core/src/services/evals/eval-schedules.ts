@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DAY_MS } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import type { LabScenario } from "@/services/soko-bot-lab-scenario.service";
 import { ensureA2aWorld } from "./eval-a2a";
 import type { EvalLaneRecord } from "./eval-lanes.service";
@@ -91,6 +92,7 @@ async function prepareMoveCase(lane: EvalLaneRecord): Promise<void> {
   });
   await prisma.sokoBotSchedule.create({
     data: {
+      network: DETACHED_SOKO_BOT_NETWORK,
       sokoBotId: lane.sokoBotId,
       workspaceId: lane.workspaceId,
       requestedByUserId: lane.userId,
@@ -130,6 +132,7 @@ export async function prepareSchedulesCase(
   ) =>
     prisma.sokoBotSchedule.create({
       data: {
+        network: DETACHED_SOKO_BOT_NETWORK,
         sokoBotId: lane.sokoBotId,
         workspaceId: lane.workspaceId,
         requestedByUserId,

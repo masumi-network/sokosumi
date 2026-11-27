@@ -81,6 +81,9 @@ test("parseTask maps live Core Task fields onto CLI names", () => {
       coworkerName: "ignored-name",
       credits: 5,
       totalCredits: 99,
+      dueOn: "2026-11-25",
+      parentTaskId: "tsk-0",
+      archivedAt: null,
       jobs: [{ id: "job-1", agentId: "agent-1" }],
       events: [{ id: "evt-1" }],
     }),
@@ -99,6 +102,9 @@ test("parseTask maps live Core Task fields onto CLI names", () => {
       coworkerId: "cow-1",
       coworkerName: "Ops Agent",
       assigneeUserId: null,
+      dueOn: "2026-11-25",
+      parentTaskId: "tsk-0",
+      archivedAt: null,
       jobs: [
         {
           id: "job-1",

@@ -9,12 +9,6 @@ import type {
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import {
-  createParser,
-  parseAsString,
-  parseAsStringLiteral,
-  useQueryStates,
-} from "nuqs";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -23,7 +17,6 @@ import {
   seoLoadRecovery,
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
-import { type SeoTab, seoTab } from "@/app/seo/seo-query";
 import { useLatestRef } from "@/hooks/effects/use-latest-ref";
 import { useSeoWorkspaceSessionGuard } from "@/hooks/effects/use-seo-workspace-session-guard";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
@@ -40,21 +33,15 @@ import { canSetBriefPage, type SeoSetupGoalChoice } from "./seo-brief-model";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
-import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
-import { seoFilterDayValid, seoSameSelection } from "./seo-workspace-selection";
+import { seoSameSelection } from "./seo-workspace-selection";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoBrief, useSeoGoalSuggestion } from "./use-seo-brief";
 import { useSeoConnectionStatus } from "./use-seo-connection";
+import { useSeoFilters } from "./use-seo-filters";
 
 export { seoSameSelection } from "./seo-workspace-selection";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
-
-// Old tab names in saved links open the tab that now holds their content.
-const parseAsSeoTab = createParser<SeoTab>({
-  parse: seoTab,
-  serialize: (tab) => tab,
-});
 
 export type SeoDialog =
   | "brief"
@@ -83,51 +70,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     identity: string;
   } | null>(null);
   const nextChatDraftId = useRef(0);
-  const [urlFilters, setUrlFilters] = useQueryStates({
-    tab: parseAsSeoTab.withDefault("agent"),
-    pageId: parseAsString,
-    scopeId: parseAsString,
-    from: parseAsString,
-    to: parseAsString,
-    channel: parseAsStringLiteral(SEO_TRAFFIC_CHANNELS),
-    searchType: parseAsStringLiteral(SEO_SEARCH_TYPES),
-  });
-  // The search type and the channel are Traffic controls: every other tab reads web search in every
-  // channel, and leaving Traffic clears both. A channel kept there hid organic Search Console data.
-  const filters =
-    urlFilters.tab === "traffic"
-      ? urlFilters
-      : { ...urlFilters, searchType: null, channel: null };
-  const setFilters: typeof setUrlFilters = (values, options) => {
-    if (
-      typeof values !== "function" &&
-      values?.tab &&
-      values.tab !== "actions"
-    ) {
-      setShownAction(null);
-    }
-    return setUrlFilters(
-      typeof values !== "function" && values?.tab && values.tab !== "traffic"
-        ? { ...values, searchType: null, channel: null }
-        : values,
-      options,
-    );
-  };
-  const query = new URLSearchParams();
-  for (const key of [
-    "pageId",
-    "scopeId",
-    "from",
-    "to",
-    "channel",
-    "searchType",
-  ] as const) {
-    if (filters[key]) query.set(key, filters[key]);
-  }
-  // A day in another form, or an end before the start: Core refuses both, so the page reads nothing and says why.
-  const invalidDates =
-    [filters.from, filters.to].some((day) => day && !seoFilterDayValid(day)) ||
-    Boolean(filters.from && filters.to && filters.from > filters.to);
+  const { filters, setFilters, query, invalidDates } = useSeoFilters(() =>
+    setShownAction(null),
+  );
   const initialQuery = useRef(query.toString());
   const identity = JSON.stringify([
     session?.session.activeOrganizationId,
@@ -673,6 +618,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     setupHistoryError:
       needsSetupHistory && setupHistory.isError && !setupHistory.data,
     retrySetupHistory: () => setupHistory.refetch(),
+    refresh: refetchForViewer,
     skipGoogleSetup,
     viewerKey: identity,
     openChat,

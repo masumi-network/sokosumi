@@ -16,6 +16,10 @@ export interface Task {
   coworkerId: string | null;
   coworkerName: string | null;
   assigneeUserId: string | null;
+  /** Calendar date, YYYY-MM-DD. */
+  dueOn: string | null;
+  parentTaskId: string | null;
+  archivedAt: string | null;
   jobs: AgentJob[];
   totalCredits: number | null;
   events: unknown[];
@@ -45,6 +49,9 @@ export function parseTask(input: unknown): Task {
     coworkerId: nullableString(value.assigneeId),
     coworkerName: assigneeCoworkerName(value.assignee),
     assigneeUserId: nullableString(value.assigneeUserId),
+    dueOn: nullableString(value.dueOn),
+    parentTaskId: nullableString(value.parentTaskId),
+    archivedAt: nullableString(value.archivedAt),
     jobs: jobs.map(parseAgentJob),
     totalCredits: nullableNumber(value.credits),
     events: Array.isArray(value.events) ? value.events : [],

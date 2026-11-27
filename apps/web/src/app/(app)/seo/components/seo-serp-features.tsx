@@ -10,6 +10,8 @@ import { SeoDate } from "./seo-shared";
 
 /** A mark that names the reader's own page: the one that matters in a row of marks. */
 const OWN = "text-foreground font-medium";
+/** Cited sites a row names before "+N more": the table keeps one short row per check. */
+const SHOWN_SOURCES = 3;
 
 /**
  * What the search results showed on each paid check of a keyword, newest first: AI Overview, featured snippet,
@@ -23,7 +25,9 @@ export function SeoSerpFeatures({ marks }: { marks: SeoSerpMarker[] }) {
   return (
     <section lang="en" className="min-w-0 space-y-1">
       <h4 className="text-sm font-semibold">{t("title")}</h4>
-      <p className="text-muted-foreground text-xs">{t("note")}</p>
+      <p className="text-muted-foreground text-xs">
+        {t("note")} {t("aiNote")}
+      </p>
       <div className="max-h-64 overflow-auto">
         <table className="w-full text-xs">
           <thead className="text-muted-foreground text-left">
@@ -69,6 +73,29 @@ export function SeoSerpFeatures({ marks }: { marks: SeoSerpMarker[] }) {
                       )}
                     >
                       {t(`ai.${mark.aiOverview}`)}
+                      {mark.aiSources.length ? (
+                        // Phone rows stay one line: the sources show from the sm breakpoint up.
+                        <span className="text-muted-foreground block font-normal max-sm:hidden">
+                          {t("aiSources")}:{" "}
+                          {mark.aiSources
+                            .slice(0, SHOWN_SOURCES)
+                            .map((source, index) => (
+                              <span key={source.domain}>
+                                {index ? ", " : null}
+                                {source.own ? (
+                                  <span className={OWN}>
+                                    {t("ownSource", { domain: source.domain })}
+                                  </span>
+                                ) : (
+                                  source.domain
+                                )}
+                              </span>
+                            ))}
+                          {mark.aiSources.length > SHOWN_SOURCES
+                            ? ` ${t("moreSources", { count: mark.aiSources.length - SHOWN_SOURCES })}`
+                            : null}
+                        </span>
+                      ) : null}
                     </td>
                     <td
                       className={cn(

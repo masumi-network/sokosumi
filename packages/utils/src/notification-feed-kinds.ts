@@ -65,6 +65,10 @@ export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
 export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
   "notifications.coworkerAccess.pending";
 
+/** A critical SEO alert for platform admins. News: it opens the admin alert list. */
+export const SEO_ADMIN_CRITICAL_MESSAGE_KEY =
+  "Notifications.System.seoAdminCritical";
+
 /**
  * Keys the Needs you view can hold. The key says the row asked; whether it is
  * still asking is Core's to decide from the record.

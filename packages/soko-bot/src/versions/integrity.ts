@@ -52,12 +52,14 @@ function missingTools(
   label: string,
   skills: readonly string[],
   tools: ReadonlySet<string>,
+  scanNames: boolean,
 ): string[] {
   const problems: string[] = [];
   for (const id of skills) {
     for (const tool of SKILL_INDEX[id]?.requiresTools ?? [])
       if (!tools.has(tool))
         problems.push(`${label}: ${id} requires ${tool}, not offered`);
+    if (!scanNames) continue;
     const content = SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content;
     for (const tool of namedTools(content ?? ""))
       if (!tools.has(tool) && !(tool in NAMED_WITHOUT_OFFER))
@@ -93,18 +95,46 @@ export function versionIntegrityProblems(
     if (!SOKO_BOT_SKILLS.some((skill) => skill.id === id))
       problems.push(`${id} is not a skill`);
   }
-  if (!version.skillsOnDemand) return problems;
+  const onDemand = version.skillsOnDemand === true;
+  problems.push(
+    ...missingTools(
+      "every turn",
+      version.skills,
+      new Set(everyTurnTools),
+      onDemand,
+    ),
+  );
+  const applied = profiles.filter((each) => each.appliesTo(version));
+  if (!onDemand) {
+    // Every skill is in the system prompt, so every profile needs them all.
+    for (const profile of applied)
+      problems.push(
+        ...missingTools(
+          profile.id,
+          version.skills,
+          new Set(profile.tools),
+          false,
+        ),
+      );
+    return problems;
+  }
   for (const id of version.skills)
     if (!SKILL_INDEX[id]?.useWhen) problems.push(`${id} has no index line`);
-  problems.push(
-    ...missingTools("every turn", version.skills, new Set(everyTurnTools)),
-  );
-  for (const profile of profiles.filter((each) => each.appliesTo(version)))
+  for (const [label, tools] of [
+    ["every turn", everyTurnTools] as const,
+    ...applied.map((profile) => [profile.id, profile.tools] as const),
+  ])
+    if (!tools.includes("read_skill"))
+      problems.push(
+        `${label}: read_skill not offered, the index cannot be read`,
+      );
+  for (const profile of applied)
     problems.push(
       ...missingTools(
         profile.id,
         carriedOn(version, profile.occasion),
         new Set(profile.tools),
+        true,
       ),
     );
   return problems;

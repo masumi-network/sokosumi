@@ -28,7 +28,8 @@ const NOT_COUNTED = new Set([
 ]);
 
 /**
- * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "undetermined": an
+ * "not_checked": the read did not ask for AI Overviews. It never reads as "no AI Overview". "site_cited": the AI
+ * Overview cites a page on a checked page's site, and not the checked page or not provably. "undetermined": an
  * AI Overview shows, no reference matches the page by URL and a Google-wrapped reference has no known domain or a
  * domain on the page's host (not determined).
  * "cited" names the row's page: the check read that page alone. A check of several pages cites one of them
@@ -39,6 +40,8 @@ export type SeoAiOverviewMark =
   | "cited"
   | "cited_checked"
   | "other_page"
+  | "site_cited"
+  | "site_cited_checked"
   | "shown"
   | "undetermined"
   | "absent"
@@ -57,6 +60,8 @@ export type SeoSerpMarker =
       observationId: string;
       suspect: false;
       aiOverview: SeoAiOverviewMark;
+      /** The sites the AI Overview cites, once each; `own` is a checked page's site, listed first. */
+      aiSources: { domain: string; own: boolean }[];
       featured: "owned" | "checked_site" | "other" | "none";
       /** The People also ask box: an answer links the page's site, it shows, or it does not. */
       peopleAlsoAsk: "owned" | "checked_site" | "shown" | "none";
@@ -71,6 +76,23 @@ function pageKey(url: string) {
   parsed.hash = "";
   return parsed.href;
 }
+
+// A host name with a dot and a letter-first last label: "Reddit", "2026" and "editor@a.test" name no site.
+const SOURCE_HOST = /^(?:[\p{L}\p{M}\p{N}_-]+\.)+\p{L}[\p{L}\p{M}\p{N}-]*\.?$/u;
+/** A host as the citation marks compare it: a trailing dot names the same site. */
+const noDot = (host: string) => host.replace(/\.$/, "");
+/** A stored cited source as a site, or none when the value names no host. No URL.canParse: Safari 16.4 lacks it. */
+const sourceHost = (source: string) => {
+  const web = /^https?:\/\//i.test(source);
+  if (!web && !SOURCE_HOST.test(source)) return [];
+  try {
+    // The parsed host has the form the checked pages have (lower case, punycode).
+    const host = new URL(web ? source : `https://${source}`).hostname;
+    return SOURCE_HOST.test(host) ? [noDot(host.replace(/^www\./, ""))] : [];
+  } catch {
+    return [];
+  }
+};
 
 /**
  * What the SERP showed for a keyword row group on each check, newest first, one entry per device read. A suspect
@@ -88,7 +110,7 @@ export function seoSerpMarkers(
   if (!lead || !serpHistory) return [];
   const key = normalizeQuery(lead.keyword);
   const page = lead.pageUrl === null ? null : pageKey(lead.pageUrl);
-  const pageHost = page === null ? null : seoHost(page);
+  const pageHost = page === null ? null : noDot(seoHost(page));
   return serpHistory
     .filter(
       (series) =>
@@ -110,10 +132,21 @@ export function seoSerpMarkers(
           const url = series.pageUrls[index];
           return url === undefined ? [] : [pageKey(url)];
         });
-        const checkedHosts = new Set(checked.map(seoHost));
+        const checkedHosts = new Set(checked.map((url) => noDot(seoHost(url))));
         const featuredHost = point.featured?.domain
           ? seoHost(`https://${point.featured.domain}`)
           : null;
+        // Older reads can hold "www." twins of a domain.
+        const aiSources = [
+          ...new Set((ai?.citedDomains ?? []).flatMap(sourceHost)),
+        ]
+          .map((domain) => ({ domain, own: checkedHosts.has(domain) }))
+          .sort((a, b) => Number(b.own) - Number(a.own));
+        // siteCited covers every checked page's site: it names the row's site only when no other site can be meant.
+        const rowSiteCited =
+          pageHost !== null &&
+          (checkedHosts.size === 1 ||
+            aiSources.some((source) => source.domain === pageHost));
         return {
           date,
           device: series.device,
@@ -125,13 +158,18 @@ export function seoSerpMarkers(
               ? "absent"
               : page !== null && !checked.includes(page)
                 ? "other_page"
-                : ai.pageCited === null
-                  ? "undetermined"
-                  : !ai.pageCited
-                    ? "shown"
-                    : page !== null && checked.length === 1
-                      ? "cited"
-                      : "cited_checked",
+                : ai.pageCited !== true && ai.siteCited === true
+                  ? rowSiteCited
+                    ? "site_cited"
+                    : "site_cited_checked"
+                  : ai.pageCited === null
+                    ? "undetermined"
+                    : !ai.pageCited
+                      ? "shown"
+                      : page !== null && checked.length === 1
+                        ? "cited"
+                        : "cited_checked",
+          aiSources,
           featured: !point.featured
             ? "none"
             : pageHost !== null && featuredHost !== null

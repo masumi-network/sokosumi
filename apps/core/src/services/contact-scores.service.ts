@@ -45,7 +45,7 @@ export async function refreshContactFamiliarity(
       ? PrismaRaw.sql`s."contactId" = ${scope.contactId}::uuid`
       : PrismaRaw.sql`s."workspaceId" = ${scope.workspaceId}::uuid`;
   await tx.$executeRaw`
-    UPDATE ${sharedTable("contact_score")} s SET familiarity = 0, "updatedAt" = now()
+    UPDATE ${sharedTable("contact_score")} s SET familiarity = 0, "updatedAt" = now() AT TIME ZONE 'UTC'
     WHERE ${reset} AND s.familiarity <> 0 AND NOT EXISTS (
       SELECT 1 FROM ${sharedTable("contact_interaction")} i
       WHERE i."contactId" = s."contactId" AND i."userId" = s."userId"
@@ -58,13 +58,13 @@ export async function refreshContactFamiliarity(
           0.45 * least(1, ln(1 + count(*)) / ln(31))
         + 0.30 * least(1, 2.0 * count(*) FILTER (WHERE i.direction IN ('IN', 'BOTH')) / count(*))
         + 0.25 * least(1, count(*) FILTER (WHERE i.channel IN ('MEETING', 'CALL')) / 3.0)
-      ) * (0.35 + 0.65 * exp(-greatest(0, extract(epoch FROM (now() - max(i."occurredAt")))) / 86400 / 180)))::int,
-      now()
+      ) * (0.35 + 0.65 * exp(-greatest(0, extract(epoch FROM ((now() AT TIME ZONE 'UTC') - max(i."occurredAt")))) / 86400 / 180)))::int,
+      now() AT TIME ZONE 'UTC'
     FROM ${sharedTable("contact_interaction")} i
     WHERE ${where} AND i."userId" IS NOT NULL
     GROUP BY i."workspaceId", i."contactId", i."userId"
     ON CONFLICT ("contactId", "userId")
-    DO UPDATE SET familiarity = EXCLUDED.familiarity, "updatedAt" = now()
+    DO UPDATE SET familiarity = EXCLUDED.familiarity, "updatedAt" = now() AT TIME ZONE 'UTC'
     WHERE contact_score.familiarity IS DISTINCT FROM EXCLUDED.familiarity
   `;
 }

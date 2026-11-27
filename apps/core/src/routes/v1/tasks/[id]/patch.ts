@@ -6,6 +6,7 @@ import {
   isTaskEditableStatus,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
+  splitSeoTaskRequest,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
@@ -444,9 +445,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const preservedBrandUrl = parseTaskContextFromDescription(
           task.description ?? "",
         ).selection.brandUrl;
-        nextDescription = await resolveTaskDescriptionWithContext({
+        // The stored request line is JSON for the SEO worker: link removal
+        // and the attachment check read only the prose around it.
+        const { prose, join } = splitSeoTaskRequest(proseSource);
+        const resolvedProse = await resolveTaskDescriptionWithContext({
           context,
-          description: removeTaskContextAttachmentLinks(proseSource) || null,
+          description: removeTaskContextAttachmentLinks(prose) || null,
           organizationId: task.organizationId,
           ownerId: task.ownerId ?? userContext.userId,
           actorUserId: userContext.userId,
@@ -454,6 +458,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           preservedBrandUrl,
           tx,
         });
+        nextDescription = join(resolvedProse ?? "") || null;
         if (!nextDescription?.trim()) {
           throw unprocessableEntity(
             "Description required when Context resolves to no attachments",

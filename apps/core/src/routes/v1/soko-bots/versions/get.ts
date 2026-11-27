@@ -25,8 +25,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(listVersionsRoute, async (c) => {
     const auth = requireUserAuthContext(c.var.authContext);
     // Authored drafts carry a console-internal system prompt and have not been
-    // promoted, so only platform admins — who run the lab — see the full list.
-    const versions = hasAdminRole(auth.role)
+    // promoted, so only platform admins — who run the lab — see the full list
+    // and the composed prompt (about 28 KB per version, too big for an agent).
+    const isAdmin = hasAdminRole(auth.role);
+    const versions = isAdmin
       ? await listSokoBotVersions()
       : await listSelectableSokoBotVersions(auth.userId);
     return ok(
@@ -51,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
         capabilities: version.capabilities ? [...version.capabilities] : null,
         inferenceRegion: version.inferenceRegion ?? null,
-        systemPrompt: composeSystemPrompt(version),
+        ...(isAdmin && { systemPrompt: composeSystemPrompt(version) }),
       })),
     );
   });

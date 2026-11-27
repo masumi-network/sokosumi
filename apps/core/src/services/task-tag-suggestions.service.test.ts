@@ -187,6 +187,21 @@ describe("suggestion spend protection", () => {
       message: "Tag suggestions are temporarily unavailable",
     });
   });
+  it("sends the classifier no full audit request line", async () => {
+    const withLine = {
+      ...input,
+      description: `${input.description}\nseo_audit: {"markupBps":2000}`,
+    };
+    const { receipt } = await suggestTaskTags(scope, withLine);
+    expect(mocks.classify).toHaveBeenCalledWith(
+      input.name,
+      input.description,
+      expect.anything(),
+      expect.anything(),
+    );
+    // The Web composer sends the redacted text; the created Task keeps the line.
+    expect(verifyTaskTagReceipt(receipt, scope, input)).toEqual(["research"]);
+  });
 });
 
 describe("create-time cached suggestions", () => {

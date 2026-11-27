@@ -286,9 +286,23 @@ describe("DELETE /chats/rooms/{id}", () => {
     expect(await response.text()).toMatch(/cannot be permanently deleted/);
     expect(sokoBotFindUniqueMock).toHaveBeenCalledWith({
       where: { sharedRoomId: ROOM_ID },
-      select: { id: true },
+      select: { id: true, deletedAt: true },
     });
     expect(roomDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  // SOKD-487: deleting the bot archives its room; the owner can then remove it.
+  it("deletes the archived room of a deleted shared Soko Bot", async () => {
+    roomFindFirstMock.mockResolvedValue(archivedRoom());
+    sokoBotFindUniqueMock.mockResolvedValue({
+      id: "shared-bot",
+      deletedAt: new Date("2026-11-26T14:00:00.000Z"),
+    });
+
+    const response = await permanentlyDelete();
+
+    expect(response.status).toBe(204);
+    expect(roomDeleteManyMock).toHaveBeenCalled();
   });
 
   it("refuses to delete a direct room", async () => {

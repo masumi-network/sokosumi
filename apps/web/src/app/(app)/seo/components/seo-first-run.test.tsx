@@ -806,7 +806,8 @@ describe("SEO audit first run", () => {
     const setup = screen.getByTestId("seo-setup");
     const steps = within(setup).getAllByRole("listitem");
     expect(within(steps[2]).getByText(copy.setup.checkFailed)).toBeVisible();
-    expect(primaryButtons(setup)).toEqual(["Run full audit"]);
+    // A failed free first check offers the free check again, also for a paid workspace.
+    expect(primaryButtons(setup)).toEqual(["Run page check"]);
     expect(steps[2]).toHaveAttribute("aria-current", "step");
   });
 

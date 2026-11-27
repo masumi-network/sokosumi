@@ -4,6 +4,7 @@ import { withTurnSkills } from "@/services/chat-message-skills.service";
 import { withActiveBackgroundRuns } from "./active-background-runs";
 import { cmoReplyLanguageFor } from "./cmo-reply-language";
 import { evaluationContext } from "./evaluation-dispatch";
+import { type ChainPlan, planRecital, withChainPlan } from "./request-chain";
 
 /**
  * A German stand-up earlier in the chat turned English questions into German
@@ -154,18 +155,33 @@ export async function modelContextParts(
 
 /**
  * The turn's message as the model reads it, after the preamble a version
- * with a cached system prompt sends here (packet, persona, preloads).
+ * with a cached system prompt sends here (packet, persona, preloads). On a
+ * planLoop version a later turn of the request ends with its plan.
  */
 export async function modelUserMessage(
-  turn: { turnId: string; meetingPrep: boolean; preamble?: string },
+  turn: {
+    turnId: string;
+    meetingPrep: boolean;
+    preamble?: string;
+    planLoop?: boolean;
+    /** The request's plan as the turn was prepared with it; read when absent. */
+    requestPlan?: ChainPlan | null;
+  },
   message: string,
   replyLanguage: string | null,
 ): Promise<string> {
   const preamble = turn.preamble ? `${turn.preamble}\n\n` : "";
   if (turn.meetingPrep) return `${preamble}${message}`;
-  const text = await withActiveBackgroundRuns(
+  const asked = await withActiveBackgroundRuns(
     turn.turnId,
     await withTurnSkills(turn.turnId, message),
   );
+  const text = !turn.planLoop
+    ? asked
+    : turn.requestPlan === undefined
+      ? await withChainPlan(turn.turnId, asked)
+      : turn.requestPlan
+        ? `${asked}\n\n${planRecital(turn.requestPlan)}`
+        : asked;
   return `${preamble}${replyLanguage ? `${text}\n\n${replyLanguage}` : text}`;
 }

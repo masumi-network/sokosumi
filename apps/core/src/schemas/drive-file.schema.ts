@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
   normalizeDriveFolderPath,
+  strictBody,
   validateDriveFolderPath,
 } from "@sokosumi/utils";
 
@@ -439,23 +440,38 @@ export const moveDriveItemRequestSchema = z
 /**
  * Link a Google Sheet into Drive by its share link.
  */
-export const linkDriveGoogleSheetRequestSchema = z
-  .object({
-    url: z.string().min(1).max(2_000).openapi({
-      example:
-        "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
-      description:
-        "The sheet's address. Its sharing must be 'Anyone with the link can view'.",
-    }),
-    scope: driveFileScopeSchema,
-    organizationId: z.string().optional().openapi({
-      description: "Organization ID (required when scope=org)",
-    }),
-    folder: z.string().max(1_000).optional().openapi({
-      example: "Finance",
-      description: "Folder to put the copy in; the Drive root when omitted",
-    }),
-  })
+// Strict: `folderPath`, the name every other Drive write uses, was dropped and
+// the copy landed at the root (SOKD-485). Both names are taken now.
+export const linkDriveGoogleSheetRequestSchema = strictBody({
+  url: z.string().min(1).max(2_000).openapi({
+    example:
+      "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit",
+    description:
+      "The sheet's address. Its sharing must be 'Anyone with the link can view'.",
+  }),
+  scope: driveFileScopeSchema,
+  organizationId: z.string().optional().openapi({
+    description: "Organization ID (required when scope=org)",
+  }),
+  folder: z.string().max(1_000).optional().openapi({
+    example: "Finance",
+    description: "Folder to put the copy in; the Drive root when omitted",
+  }),
+  folderPath: z.string().max(1_000).optional().openapi({
+    example: "Finance",
+    description: "The same as `folder`, as other Drive writes name it.",
+  }),
+})
+  .refine(
+    (body) =>
+      body.folder === undefined ||
+      body.folderPath === undefined ||
+      body.folder === body.folderPath,
+    {
+      path: ["folderPath"],
+      message: "Send folder or folderPath, not two different folders.",
+    },
+  )
   .openapi("LinkDriveGoogleSheetRequest");
 
 /**

@@ -15,6 +15,12 @@ model Notification {
   isRead             Boolean          @default(false)
   readAt             DateTime?
   createdAt          DateTime         @default(now())
+  /// "mainnet" or "preprod": the Network of the Job this row points
+  /// at. Null when it points at none, or on a row written before the column
+  /// or by a release that does not know it. The check
+  /// `notification_network_check` holds the two values; it lives in SQL only,
+  /// because Prisma cannot express CHECKs.
+  network            String?
 
   /// Whether this notification is shown in the app at all: the Notification
   /// Center for a feed kind, the in-app toast for a browser-only one. Decided
@@ -43,6 +49,8 @@ model Notification {
   publishNextAttemptAt DateTime?
 
   @@unique([userId, kind, referenceId, eventId, messageKey])
+  @@unique([network, userId, kind, referenceId, eventId, messageKey], map: "notification_network_dedupe_key")
+  @@unique([userId, kind, referenceId, eventId, messageKey], map: "notification_untagged_dedupe_key", where: { network: null })
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, isRead])
   @@index([userId, workspaceId])

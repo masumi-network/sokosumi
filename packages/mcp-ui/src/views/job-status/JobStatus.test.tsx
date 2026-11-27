@@ -15,7 +15,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { JOB } from "../../../harness/fixtures.ts";
 import { Shell } from "../../shell/Shell.tsx";
-import { JobResult, JobStatus } from "./JobStatus.tsx";
+import { foldResult, JobResult, JobStatus } from "./JobStatus.tsx";
 
 /** A fake host that answers the view's tool calls with `answer`. */
 async function openJob(
@@ -150,11 +150,13 @@ describe("JobStatus", () => {
     expect(sent.calls).not.toHaveBeenCalled();
   });
 
-  it("shows a completed Job's result as plain text", async () => {
+  it("renders a completed Job's result as Markdown, with record HTML as text", async () => {
     await openJob(JOB.completed);
 
     const result = screen.getByRole("region", { name: "Result" });
-    expect(result.textContent).toContain("# DACH pricing summary");
+    expect(
+      within(result).getByRole("heading", { name: "DACH pricing summary" }),
+    ).toBeTruthy();
     expect(result.textContent).toContain(
       '<script>alert("record text stays text")</script>',
     );
@@ -579,5 +581,17 @@ describe("JobStatus", () => {
       ).toBeTruthy();
       expect(sent.calls).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("foldResult", () => {
+  it("cuts a long result at a paragraph break", () => {
+    const text = `${"a".repeat(800)}\n\n${"b".repeat(800)}`;
+    expect(foldResult(text)).toBe(`${"a".repeat(800)}…`);
+  });
+
+  it("never leaves a code fence open", () => {
+    const text = `intro\n\n\`\`\`\n${"x\n".repeat(1000)}\`\`\``;
+    expect(foldResult(text)).toBe("intro…");
   });
 });

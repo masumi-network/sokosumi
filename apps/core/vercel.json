@@ -82,6 +82,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/sync/admin-seo-alerts",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/sync/chat-room-guest-invitations-expire",
       "schedule": "0 3 * * *"
     },
@@ -136,6 +140,10 @@
     {
       "path": "/sync/competitors",
       "schedule": "20 * * * *"
+    },
+    {
+      "path": "/sync/seo-impact",
+      "schedule": "15 6 * * *"
     },
     {
       "path": "/sync/polar-yearly-grants",

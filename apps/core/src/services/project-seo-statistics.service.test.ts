@@ -18,6 +18,7 @@ const state = vi.hoisted(() => {
     at,
     member: true,
     closing: false,
+    taskArchivedAt: null as Date | null,
     integrationActive: true,
     accountRevision: 0,
     auditAccess: null as {
@@ -149,6 +150,7 @@ vi.mock("@/lib/db/prisma", () => {
       }: {
         where: {
           kind?: string;
+          sourceTaskId?: string;
           pageIds?: { hasSome: string[] };
           AND?: [
             { payload: { equals: string } },
@@ -185,6 +187,15 @@ vi.mock("@/lib/db/prisma", () => {
                 where.pageIds?.hasSome.some((id) =>
                   (row.pageIds as string[]).includes(id),
                 ),
+            ) ?? null
+          );
+        // An audit's own rows: its performance snapshot and its pages' daily series.
+        if (where.sourceTaskId)
+          return (
+            state.observations.find(
+              (row) =>
+                row.kind === where.kind &&
+                row.sourceTaskId === where.sourceTaskId,
             ) ?? null
           );
         if (!where.AND) return null; // No brand terms saved.
@@ -231,7 +242,16 @@ vi.mock("@/lib/db/prisma", () => {
     projectSeoKeyword: { findMany: async () => state.keywords },
     projectSeoCompetitor: { findMany: async () => [] },
     projectSeoAnalysis: {
-      findMany: async () => [],
+      // A retry check reads the audit's approved connection.
+      findMany: async ({ where }: { where?: { taskId?: { in: string[] } } }) =>
+        where?.taskId?.in.includes("audit-task")
+          ? [
+              {
+                taskId: "audit-task",
+                request: { searchConsoleAccess: state.auditAccess },
+              },
+            ]
+          : [],
       findUnique: async () => ({
         kind: "audit_full",
         requestedBy: "owner",
@@ -252,6 +272,7 @@ vi.mock("@/lib/db/prisma", () => {
         workspaceId: "workspace",
         projectId: state.projectId,
         organizationId: null,
+        archivedAt: state.taskArchivedAt,
       }),
     },
     $executeRaw: async () => 1,
@@ -480,6 +501,7 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-01-20T12:00:00Z"));
   state.member = true;
   state.closing = false;
+  state.taskArchivedAt = null;
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
   state.accountRevision = 0;
@@ -1141,6 +1163,25 @@ describe("Search Console query rows", () => {
     };
   }
 
+  it("reads nothing from Google when the requester refreshes an archived audit Task", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(integration!),
+    };
+    state.answer = gsc({ rows: [] });
+    state.taskArchivedAt = new Date("2026-01-15T00:00:00Z");
+    await expect(
+      collectSeoAuditPerformance("audit-task", owner, true),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(state.reads).toHaveLength(0);
+  });
+
   it("recovers property-wide totals for an old private audit without changing its filtered page metrics", async () => {
     const owner = { ...actor, sokoBotId: undefined };
     state.auditPageUrls = [state.pageUrl];
@@ -1696,7 +1737,11 @@ describe("Search Console query rows", () => {
           }
         : healthy(slug, args);
     await collectSeoAuditPerformance("audit-task");
-    expect(state.observations).toHaveLength(1);
+    // The snapshot, then each verified page's daily rows for the impact of a done action.
+    expect(state.observations.map((row) => row.kind)).toEqual([
+      "audit_search_performance",
+      "audit_page_search_series",
+    ]);
     expect(state.observations[0]).toMatchObject({
       kind: "audit_search_performance",
       visibility: "PRIVATE",
@@ -1751,7 +1796,8 @@ describe("Search Console query rows", () => {
     }
     const reads = state.reads.length;
     await collectSeoAuditPerformance("audit-task");
-    expect(state.observations).toHaveLength(1);
+    // A second run reads Google again for neither row.
+    expect(state.observations).toHaveLength(2);
     expect(state.reads).toHaveLength(reads);
     expect(
       (await readAuditPerformanceSummaries(actor, ["audit-task"]))
@@ -2504,6 +2550,24 @@ describe("Search Console query rows", () => {
       keywordSeries: series,
     });
     expect(workspace.searchQueries?.keywordSeries).toEqual(series);
+  });
+
+  it("stores the keywords past the first 25 apart and hands the workspace one series", async () => {
+    for (let index = 0; index < 26; index++)
+      state.keywords.push(saved(`kw ${String(index).padStart(2, "0")}`));
+    state.answer = gsc({ rows: [] }, { rows: [] });
+    const workspace = await syncProjectSeoStatistics(actor, gscInput);
+    expect(seriesRead()).toHaveLength(2);
+    const payload = state.observations[0].payload as {
+      keywordSeries: { keywords: unknown[] };
+      keywordSeriesMore: { keyword: string }[];
+    };
+    // A build from before 50 keywords refuses more than 25 in the series itself.
+    expect(payload.keywordSeries.keywords).toHaveLength(25);
+    expect(payload.keywordSeriesMore.map((entry) => entry.keyword)).toEqual([
+      "kw 25",
+    ]);
+    expect(workspace.searchQueries?.keywordSeries?.keywords).toHaveLength(26);
   });
 
   it("reads each keyword country apart and drops the series when one read fails", async () => {

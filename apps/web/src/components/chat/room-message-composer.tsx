@@ -275,7 +275,12 @@ function RoomComposerSendButton({
       type="button"
       variant="primary"
       size="icon"
-      className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+      // Nothing to send: a neutral ring, not a faded Iris disc. The view's
+      // one accent stays for the moment Send can act.
+      className={cn(
+        ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+        "disabled:border-input disabled:text-disabled-foreground disabled:bg-transparent disabled:opacity-100",
+      )}
       disabled={sendBlocked}
       loading={isSending}
       aria-label={ariaLabel}

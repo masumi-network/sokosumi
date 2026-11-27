@@ -12,9 +12,9 @@ import { spawn } from "node:child_process";
 import {
   type CmoShortFormTool,
   SOKO_BOT_TOOL_DESCRIPTIONS,
-  SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_TURN_TOKEN_HEADER,
   type SokoBotCapability,
+  sokoBotToolInputSchema,
 } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { createGateway, stepCountIs, type ToolSet, tool } from "ai";
@@ -80,6 +80,12 @@ interface TurnStart {
   shortForms?: CmoShortFormTool[];
   /** The packet and persona, ahead of each part's message (cmo-v24 on). */
   preamble?: string;
+  /** Core runs update_plan for the whole request; an older Core sends none. */
+  planLoop?: boolean;
+  /** The turn starts with a plan from earlier in its request. */
+  planInherited?: boolean;
+  /** Tools whose completed call Core records as a change (planLoop). */
+  changeTools?: string[];
   /** The provider's prompt cache key for this system and tool set. */
   cacheKey?: string | null;
   /** The key once the full save tools replace their short forms. */
@@ -264,6 +270,8 @@ function buildTools(
     forSubagent: boolean;
     /** Descriptions written for this bot, where they differ. */
     descriptions?: Partial<Record<SokoBotCapability, string>>;
+    /** Core keeps the plan, so update_plan goes to Core. */
+    planLoop?: boolean;
   },
 ): ToolSet {
   const tools: ToolSet = {};
@@ -298,12 +306,15 @@ function buildTools(
 
   for (const capability of capabilities) {
     if (options.forSubagent && !subagentAllowed.has(capability)) continue;
-    const runLocal = local[capability];
+    const runLocal =
+      capability === "update_plan" && options.planLoop
+        ? undefined
+        : local[capability];
     tools[capability] = tool({
       description:
         options.descriptions?.[capability] ??
         SOKO_BOT_TOOL_DESCRIPTIONS[capability],
-      inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
+      inputSchema: sokoBotToolInputSchema(capability, options),
       async execute(input: unknown, callOptions: { toolCallId: string }) {
         // What the sandbox returns reaches the model here, not through
         // Core's runTurnTool, so it is fitted here too.
@@ -496,6 +507,7 @@ async function main(): Promise<void> {
     const tools = buildTools(start.capabilities, gateway, start.model, {
       forSubagent: false,
       descriptions: start.toolDescriptions,
+      planLoop: start.planLoop,
     });
     const deadline = Date.now() + budgetMs;
     const message = await withPartHandOvers(
@@ -532,6 +544,19 @@ async function main(): Promise<void> {
       shortForms: start.shortForms ?? [],
       cacheKey: start.cacheKey,
       fullCacheKey: start.fullCacheKey,
+      ...(start.planLoop
+        ? {
+            plan: {
+              inherited: start.planInherited === true,
+              doneCheck: async (draft: string) =>
+                (await callCore<{ note: string | null }>("/plan", { draft }))
+                  .note,
+              openSteps: async () =>
+                (await callCore<{ note: string | null }>("/plan", {})).note,
+              changeTools: new Set(start.changeTools ?? []),
+            },
+          }
+        : {}),
     });
     await callCore("/complete", { text, finishReason });
   } catch (error) {

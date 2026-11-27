@@ -1,4 +1,4 @@
-import type { TaskFile } from "@sokosumi/core-client";
+import type { ProjectSeoWorkspace, TaskFile } from "@sokosumi/core-client";
 import {
   QueryClient,
   QueryClientProvider,
@@ -69,12 +69,14 @@ function reportFile(
   };
 }
 
+let client: QueryClient;
 function openRuns(
   sameMinute = false,
   withEvidence = false,
   eligible: string[] = [],
   marketFile?: string,
   expired = false,
+  colleague = false,
 ) {
   const data = seoTestWorkspace();
   data.observations = [
@@ -136,6 +138,7 @@ function openRuns(
     data.auditSearchConsole = [
       {
         taskId: "newer",
+        ...(!colleague && { requester: true }),
         ...(expired && { propertyDataExpired: true }),
         propertyId: "sc-domain:example.com",
         from: new Date("2026-10-01"),
@@ -236,12 +239,12 @@ function openRuns(
   render(
     <QueryClientProvider
       client={
-        new QueryClient({
+        (client = new QueryClient({
           defaultOptions: {
             queries: { gcTime: Number.POSITIVE_INFINITY },
             mutations: { gcTime: Number.POSITIVE_INFINITY },
           },
-        })
+        }))
       }
     >
       <NextIntlClientProvider
@@ -397,6 +400,21 @@ describe("SEO report file versions", () => {
     expect(
       dialog.getByRole("link", { name: "https://example.com/shop" }),
     ).toBeVisible();
+  });
+
+  it("offers no property load to a colleague, who cannot read Google for the requester", async () => {
+    getTaskById.mockImplementation(async (id: string) => task(id, []));
+    const user = openRuns(false, true, [], undefined, false, true);
+    await openConsole(user);
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(
+      dialog.getByRole("row", { name: "Search clicks 0 1" }),
+    ).toBeVisible();
+    expect(
+      dialog.queryByRole("button", {
+        name: "Load property totals and page insights",
+      }),
+    ).toBeNull();
   });
 
   it("keeps saved results readable when property recovery has expired", async () => {
@@ -594,6 +612,65 @@ describe("SEO report file versions", () => {
     await user.click(screen.getByRole("combobox", { name: "Check" }));
     await user.click(await screen.findByRole("option", { name: /Page check/ }));
     expect(screen.getByText("sc-domain:example.com")).toBeVisible();
+  });
+
+  it("reads a view again after a recovery whose response does not hold the view's done action", async () => {
+    const recovered = seoTestWorkspace();
+    recovered.auditSearchConsoleRetryTaskIds = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          ...recovered,
+          auditSearchConsole: [
+            {
+              taskId: "older",
+              propertyId: "sc-domain:recovered.example",
+              from: "2026-09-01",
+              to: "2026-09-28",
+              pageUrls: ["https://recovered.example/"],
+              measuredPages: [],
+              coverage: "complete",
+              clicks: 3,
+              impressions: 30,
+              ctr: 0.1,
+              averagePosition: 2,
+              previous: null,
+              queries: { rows: [], truncated: false },
+              opportunities: [],
+            },
+          ],
+        }),
+      ),
+    );
+    getTaskById.mockImplementation(async (id: string) => task(id, []));
+    const user = openRuns(false, true, ["older"]);
+    const [view] = client.getQueryCache().getAll();
+    // A filter of this view shows a done action the recovery response leaves out.
+    client.setQueryData<ProjectSeoWorkspace>(
+      view.queryKey,
+      (cached) =>
+        cached && {
+          ...cached,
+          actions: [
+            {
+              observationId: "filtered",
+              id: "done",
+              completedAt: new Date("2026-09-10"),
+            } as ProjectSeoWorkspace["actions"][number],
+          ],
+        },
+    );
+    await openConsole(user);
+    await user.click(screen.getByRole("combobox", { name: "Check" }));
+    await user.click(await screen.findByRole("option", { name: /Full audit/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Recover Search Console results" }),
+    );
+    expect(
+      await screen.findByText("sc-domain:recovered.example"),
+    ).toBeVisible();
+    expect(view.state.isInvalidated).toBe(true);
   });
 
   it("opens each same-day run's delivered formats on demand, and can recover a missing observation", async () => {

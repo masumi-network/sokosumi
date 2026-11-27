@@ -115,6 +115,8 @@ export interface SokoBotActionContext {
     /** The model chosen for this turn at its start (`turn-model.ts`). */
     modelId?: string | null;
     source: string | null;
+    /** Idempotency key for this turn (e.g. `watch:<id>`, `schedule:<id>:<slot>`, `admin-retry:<id>:<op>`). */
+    clientTurnId?: string | null;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth: number;
     intentId?: string | null;

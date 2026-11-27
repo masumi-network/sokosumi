@@ -8,6 +8,7 @@ import type {
 import { type TaskLink, TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
+  hasSeoTaskRequest,
   isTaskArchivableStatus,
   isTaskEditableStatus,
   type TaskAssigneeKind,
@@ -289,8 +290,18 @@ export function useTaskDetailActions({
     [taskLinks],
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
+  // A focused SEO check starts only from its audit: the global executor refuses
+  // a Repeat of its `seo_job:` line, and a Duplicate would carry it into a new
+  // Task, so the menu offers neither.
+  const focusedSeoCheck =
+    taskBlueprint !== undefined &&
+    hasSeoTaskRequest(taskBlueprint.description, "seo_job");
+  const canRepeat = taskBlueprint !== undefined && !focusedSeoCheck;
+  const canDuplicate =
+    taskBlueprint !== undefined && newTaskWizard !== null && !focusedSeoCheck;
   const hasOverflowMenuActions =
-    taskBlueprint !== undefined ||
+    canRepeat ||
+    canDuplicate ||
     sendToChat !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
@@ -561,9 +572,10 @@ export function useTaskDetailActions({
     chatRooms,
     setChatRooms,
     isChatRoomsLoading,
-    newTaskWizard,
     handleDuplicate,
     handleRepeat,
+    canRepeat,
+    canDuplicate,
     handleSendToChat,
     canMutateTask,
     statusActions,

@@ -395,7 +395,7 @@ test("unknown command usage comes from the command catalog", async () => {
   });
 });
 
-test("unknown subcommands fail inside the command module", async () => {
+test("unknown subcommands say so and list the group's commands", async () => {
   const unknownUsage = formatUnknownCommandUsage();
   const unusedClient = {
     get: async <T>(): Promise<T> => {
@@ -415,19 +415,18 @@ test("unknown subcommands fail inside the command module", async () => {
     },
   };
   const cases = [
-    { argv: ["agents", "bogus"], message: /Unknown agents subcommand: bogus/ },
-    {
-      argv: ["coworkers", "bogus"],
-      message: /Unknown coworkers subcommand: bogus/,
-    },
-    { argv: ["tasks", "bogus"], message: /Unknown tasks subcommand: bogus/ },
-    { argv: ["jobs", "bogus"], message: /Unknown jobs subcommand: bogus/ },
-    { argv: ["vendors", "bogus"], message: /Usage: sokosumi vendors me/ },
-    {
-      argv: ["workspaces", "bogus"],
-      message: /Usage: sokosumi workspaces list/,
-    },
-  ] as const;
+    "agents",
+    "coworkers",
+    "tasks",
+    "jobs",
+    "vendors",
+    "workspaces",
+  ].map((group) => ({
+    argv: [group, "bogus"],
+    message: new RegExp(
+      `Unknown command: sokosumi ${group} bogus\\. ${group} commands: [a-z]`,
+    ),
+  }));
 
   for (const testCase of cases) {
     const output: string[] = [];
@@ -1037,11 +1036,6 @@ test("dispatches discover JSON without opening a TUI", async () => {
 
 const newCommandCases = [
   { argv: ["vendors", "me"], path: "/v1/vendors/me", key: "vendors" },
-  {
-    argv: ["workspaces", "list"],
-    path: "/v1/users/me/organizations",
-    key: "workspaces",
-  },
 ] as const;
 
 test("dispatches new read commands through their exact Core routes", async () => {
@@ -1075,15 +1069,7 @@ test("dispatches new read commands through their exact Core routes", async () =>
     assert.deepEqual(paths, [testCase.path]);
     assert.equal(output.length, 1);
     const parsed = JSON.parse(output[0]!) as Record<string, { id: string }[]>;
-    if (testCase.key === "workspaces") {
-      assert.equal(
-        (parsed[testCase.key]?.[0] as { organizationId?: string })
-          ?.organizationId,
-        testCase.key + "-1",
-      );
-    } else {
-      assert.equal(parsed[testCase.key]?.[0]?.id, testCase.key + "-1");
-    }
+    assert.equal(parsed[testCase.key]?.[0]?.id, testCase.key + "-1");
   }
 });
 

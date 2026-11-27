@@ -11,7 +11,9 @@ import invoicesRouter from "./invoices/index.js";
 import matchedChannelsRouter from "./matched-channels/index.js";
 import organizationsRouter from "./organizations/index.js";
 import searchRouter from "./search/index.js";
+import mountSeoActionImpact from "./seo-action-impact/get.js";
 import mountSeoAlerts from "./seo-alerts/get.js";
+import mountSeoImpact from "./seo-impact/get.js";
 import sokoBotsRouter from "./soko-bots/index.js";
 import taskPaymentClaimsRouter from "./task-payment-claims/index.js";
 import taskX402PaymentsRouter from "./task-x402-payments/index.js";
@@ -32,6 +34,8 @@ const app = new OpenAPIHonoWithAuth();
 
 app.use("*", requireAdmin);
 mountSeoAlerts(app);
+mountSeoActionImpact(app);
+mountSeoImpact(app);
 app.route("/agents", agentsRouter);
 app.route("/badge-campaigns", badgeCampaignsRouter);
 app.route("/search", searchRouter);

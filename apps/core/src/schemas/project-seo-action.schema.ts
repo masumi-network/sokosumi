@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { publicExplorationText, publicExplorationUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { seoActionImpactSchema } from "./seo-action-impact.schema";
 import { seoIdSchema, seoUrlSchema } from "./seo-page.schema";
 
 export const MAX_RANKED_DECISIONS = 5;
@@ -239,6 +240,8 @@ export const seoActionSchema = z
     completedAt: dateTimeSchema.optional(),
     /** When the last check that shows every finding of the fix gone ran; it can come before completedAt. Set on a verified fix. */
     verifiedAt: dateTimeSchema.optional(),
+    /** Set for the human who requested the audits, once an audit read this page's daily Search Console rows alone. */
+    impact: seoActionImpactSchema.optional(),
     /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
     kind: z.enum(["fix", "opportunity"]),
     evidence: z.array(z.string()),

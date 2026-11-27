@@ -3,7 +3,6 @@ import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   SOKO_BOT_CAPABILITIES,
-  SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import {
@@ -12,6 +11,13 @@ import {
   presetClassificationResult,
   storedWriteScope,
 } from "./classifier";
+import {
+  capabilitiesForDelegationFollowUp,
+  DELEGATION_EVENT_TURN_PREFIX,
+  intersectScheduleRouteCapabilities,
+} from "./owner-authority";
+
+export { DELEGATION_EVENT_TURN_PREFIX };
 
 const MEETING_PREP_REASON = "Meeting prep: brief the owner, change nothing.";
 
@@ -31,42 +37,17 @@ function withMailFiling(preset: PresetRoute): PresetRoute {
   };
 }
 
-/** Turns Core starts when delegated work changes (`sokoBotEventClientTurnId`). */
-export const DELEGATION_EVENT_TURN_PREFIX = "event:";
-
-/**
- * What a follow-up never inherits from the owner's request: anything that
- * reaches other people or the owner's connected accounts, hiring, sending,
- * runs and deletions. It acts on a result nobody has read yet; those wait for
- * the owner's next message. A post it makes stays a draft (`social.ts`).
- */
-const NOT_INHERITED_BY_FOLLOW_UPS = new Set<string>([
-  ...SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
-  "hire_agent",
-  "provide_job_input",
-  "send_email_draft",
-  "start_background_run",
-  "stop_background_run",
-]);
-
 /**
  * The delegation event route plus the writes of the owner's request that
- * attached the follow-up, as schedules and watches inherit their writer's
- * tools. "Research this, then prepare a post for me to approve" came back
- * with the research to a turn that could not draft the post (owner
- * benchmark, 2026-11-26).
+ * attached the follow-up, filtered through `OwnerAuthority`
+ * (`draft_and_workspace` + `draft_only` ceiling: never inherits outward sends,
+ * hiring, runs, deletions, or sandbox). A post it makes stays a draft (`social.ts`).
  */
 export function inheritedFollowUpRoute(
   ownerGranted: readonly string[],
 ): PresetRoute {
   const preset = SYSTEM_TURN_ROUTES.events;
-  const inherited = ownerGranted.filter(
-    (name): name is SokoBotCapability =>
-      isSokoBotCapability(name) &&
-      !isSokoBotSandboxCapability(name) &&
-      !NOT_INHERITED_BY_FOLLOW_UPS.has(name) &&
-      !/^(delete|remove)_/.test(name),
-  );
+  const inherited = capabilitiesForDelegationFollowUp(ownerGranted);
   if (!inherited.length) return preset;
   return {
     ...preset,
@@ -317,6 +298,60 @@ export function inheritedScheduleRoute(
     reason: "Schedule run, with the tools of whoever wrote it.",
     capabilities,
     sandbox: capabilities.some(isSokoBotSandboxCapability),
+  };
+}
+
+export interface ScheduleAuthorityRouteInput {
+  id: string;
+  sokoBotId: string;
+  workspaceId: string;
+  capabilityNames: readonly string[];
+  authority: unknown;
+  actingUserId: string | null;
+  botUserId: string | null;
+  botProjectId: string | null;
+  botVersionId: string | null;
+  revoked?: boolean;
+  now?: Date;
+}
+
+/**
+ * Computes the route for a user- or bot-created schedule run, intersecting its
+ * stored capabilities with persisted `SokoBotSchedule.authority`. Legacy rows
+ * (`authority == null`) preserve `inheritedScheduleRoute`; non-null expired,
+ * revoked, mismatched, or malformed authorities fail closed without falling
+ * back to `PERSON_SCHEDULE_CAPABILITIES`.
+ */
+export function scheduleAuthorityRoute(
+  input: ScheduleAuthorityRouteInput,
+): PresetRoute {
+  if (input.authority === null || input.authority === undefined) {
+    return inheritedScheduleRoute(input.capabilityNames);
+  }
+  const stored = input.capabilityNames.filter(isSokoBotCapability);
+  const baseCapabilities = stored.length
+    ? stored
+    : PERSON_SCHEDULE_CAPABILITIES;
+  const result = intersectScheduleRouteCapabilities({
+    scheduleId: input.id,
+    sokoBotId: input.sokoBotId,
+    workspaceId: input.workspaceId,
+    authority: input.authority,
+    actingUserId: input.actingUserId,
+    botUserId: input.botUserId,
+    botProjectId: input.botProjectId,
+    botVersionId: input.botVersionId,
+    offeredCapabilities: baseCapabilities,
+    ...(input.revoked ? { revoked: true } : {}),
+    now: input.now,
+  });
+  return {
+    route: "DELEGATE_TASK",
+    reason: result.effective
+      ? "Schedule run, intersected with its persisted owner authority."
+      : `Schedule run restricted by persisted owner authority (${result.denialReason ?? "denied"}).`,
+    capabilities: result.capabilities,
+    sandbox: result.capabilities.some(isSokoBotSandboxCapability),
   };
 }
 

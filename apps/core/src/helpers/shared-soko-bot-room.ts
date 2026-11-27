@@ -7,7 +7,9 @@ import type prisma from "@/lib/db/prisma";
  * A shared Soko Bot's room lives as long as the bot row does: the member join
  * trigger only reaches an unarchived room, and guests are not team members.
  * Room changes that would break that are refused while any bot (live,
- * archived or tombstoned) names the room as its `sharedRoomId`.
+ * archived or tombstoned) names the room as its `sharedRoomId`. Once the bot
+ * is deleted it cannot come back, so its room may be archived and deleted
+ * like any other channel (SOKD-487).
  */
 const SHARED_SOKO_BOT_ROOM_REFUSALS = {
   archive:
@@ -28,9 +30,11 @@ export async function assertNotSharedSokoBotRoom(
 ): Promise<void> {
   const bot = await client.sokoBot.findUnique({
     where: { sharedRoomId: roomId },
-    select: { id: true },
+    select: { id: true, deletedAt: true },
   });
-  if (bot) {
+  const retired =
+    bot?.deletedAt != null && (change === "archive" || change === "delete");
+  if (bot && !retired) {
     throw badRequest(SHARED_SOKO_BOT_ROOM_REFUSALS[change]);
   }
 }

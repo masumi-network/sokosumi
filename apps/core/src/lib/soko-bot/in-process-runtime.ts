@@ -13,8 +13,8 @@ import {
   type RuntimeTurnInput,
   type RuntimeTurnRef,
   SOKO_BOT_TOOL_DESCRIPTIONS,
-  SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotRuntime,
+  sokoBotToolInputSchema,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { type ToolSet, tool } from "ai";
@@ -46,6 +46,7 @@ import {
 } from "@/lib/soko-bot/turn-model-context";
 import { runTurnLoop, type TurnLoopInput } from "@/soko-bot-runner/loop";
 import { runCoreWebTool } from "./core-web-tools";
+import { evaluateTurnDoneCheck, openStepsNote } from "./done-check";
 import {
   evaluationBinding,
   evaluationHistory,
@@ -55,6 +56,7 @@ import {
 import { estimateInputTokens, turnTokenBudget } from "./turn-budget";
 import {
   announceTurn,
+  changeTools,
   closeTurn,
   failTurn,
   finishTurn,
@@ -163,7 +165,7 @@ async function runTurn(
         description:
           turn.toolDescriptions[capability] ??
           SOKO_BOT_TOOL_DESCRIPTIONS[capability],
-        inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
+        inputSchema: sokoBotToolInputSchema(capability, turn),
         async execute(
           toolInput: unknown,
           options: { toolCallId: string; abortSignal?: AbortSignal },
@@ -306,6 +308,21 @@ async function runTurn(
         message: userMessage,
         cacheKey: turn.cacheKey,
         fullCacheKey: turn.fullCacheKey,
+        ...(turn.planLoop
+          ? {
+              plan: {
+                inherited: turn.planInherited,
+                doneCheck: (draft: string) =>
+                  evaluateTurnDoneCheck({
+                    turnId: input.turnId,
+                    sessionId,
+                    draft,
+                  }),
+                openSteps: () => openStepsNote(input.turnId),
+                changeTools: changeTools(),
+              },
+            }
+          : {}),
       },
       callModel,
     );
