@@ -4,6 +4,7 @@ import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
+import { MarkdownDownloadMenu } from "@/app/drive/components/markdown-download-menu";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import Markdown from "@/components/markdown";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
@@ -174,6 +175,7 @@ export function DriveFilePreview({
   const { isVideo, isAudio } = classifyFilePreview(source, displayName, type);
 
   const text = useDriveFilePreviewText(isText, source);
+  const downloadUrl = contentUrl({ resourceId, store, download: true });
 
   const actions = (
     <div className="flex flex-wrap gap-2">
@@ -183,15 +185,20 @@ export function DriveFilePreview({
           {t("previewOpen")}
         </a>
       </Button>
-      <Button asChild variant="outline" size="sm">
-        <a
-          href={contentUrl({ resourceId, store, download: true })}
-          download={displayName}
-        >
-          <Download className="size-4" />
-          {t("previewDownload")}
-        </a>
-      </Button>
+      {rendersAsMarkdown(type) ? (
+        <MarkdownDownloadMenu
+          url={source}
+          downloadUrl={downloadUrl}
+          fileName={displayName}
+        />
+      ) : (
+        <Button asChild variant="outline" size="sm">
+          <a href={downloadUrl} download={displayName}>
+            <Download className="size-4" />
+            {t("previewDownload")}
+          </a>
+        </Button>
+      )}
     </div>
   );
 

@@ -11023,6 +11023,7 @@
         "previewHeading": "Vorschau",
         "previewOpen": "Öffnen",
         "previewDownload": "Herunterladen",
+        "previewDownloadOriginal": "Originaldatei",
         "previewLoading": "Vorschau wird geladen",
         "previewUnavailable": "Diese Vorschau konnte nicht geladen werden. Der Download funktioniert weiterhin.",
         "previewNotRenderable": "Keine Inline-Vorschau für diesen Dateityp. Öffne sie in einem Tab oder lade sie herunter.",

@@ -137,12 +137,22 @@ const EXPORT_TOASTS = {
   docx: { pending: "exportingDocx", failed: "exportDocxError" },
 } as const;
 
-/** Exports markdown as PDF or Word, with a toast while it runs and one when it fails. */
-export function useExportMarkdownFile(markdown: string, fileName: string) {
+/**
+ * Exports markdown as PDF or Word, with a toast while it runs and one when it fails.
+ * `markdown` may be a reader, for a file whose text is only fetched on export.
+ */
+export function useExportMarkdownFile(
+  markdown: string | (() => Promise<string>),
+  fileName: string,
+) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   return async (format: "pdf" | "docx") => {
     const id = toast.loading(t(EXPORT_TOASTS[format].pending));
-    if (!(await exportMarkdownFile(format, markdown, fileName)))
+    const text =
+      typeof markdown === "string"
+        ? markdown
+        : await markdown().catch(() => null);
+    if (text === null || !(await exportMarkdownFile(format, text, fileName)))
       toast.error(t(EXPORT_TOASTS[format].failed));
     toast.dismiss(id);
   };

@@ -11023,6 +11023,7 @@
         "previewHeading": "Preview",
         "previewOpen": "Open",
         "previewDownload": "Download",
+        "previewDownloadOriginal": "Original file",
         "previewLoading": "Loading preview",
         "previewUnavailable": "This preview could not be loaded. The download still works.",
         "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it.",

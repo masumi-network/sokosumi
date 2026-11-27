@@ -27,6 +27,8 @@ import {
 interface DocumentViewerProps {
   /** Shown above the document, such as where a file comes from. */
   banner?: ReactNode;
+  /** Takes the place of the Download button, such as a menu of formats. */
+  download?: ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   url: string;
@@ -246,8 +248,10 @@ function DocumentViewerContent({
   kind,
   mediaType,
   banner,
+  download,
 }: {
   banner?: ReactNode;
+  download?: ReactNode;
   url: string;
   fileName: string;
   kind: DocumentPreviewKind;
@@ -285,22 +289,24 @@ function DocumentViewerContent({
               <span className="hidden sm:inline">{t("openInNewTab")}</span>
             </a>
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="icon"
-            className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
-          >
-            <a
-              download={fileName}
-              href={url}
-              aria-label={t("download")}
-              title={t("download")}
+          {download ?? (
+            <Button
+              asChild
+              variant="outline"
+              size="icon"
+              className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
             >
-              <Download className="size-3.5" aria-hidden />
-              <span className="hidden sm:inline">{t("download")}</span>
-            </a>
-          </Button>
+              <a
+                download={fileName}
+                href={url}
+                aria-label={t("download")}
+                title={t("download")}
+              >
+                <Download className="size-3.5" aria-hidden />
+                <span className="hidden sm:inline">{t("download")}</span>
+              </a>
+            </Button>
+          )}
           <DialogClose asChild>
             <Button
               type="button"
@@ -344,6 +350,7 @@ export function DocumentViewer({
   mediaType,
   className,
   banner,
+  download,
 }: DocumentViewerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -362,6 +369,7 @@ export function DocumentViewer({
           kind={kind}
           mediaType={mediaType}
           banner={banner}
+          download={download}
         />
       </DialogContent>
     </Dialog>
