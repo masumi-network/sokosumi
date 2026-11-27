@@ -847,18 +847,44 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     level: "medium",
     title: "Three X drafts from a PDF in Files",
     intent:
-      "Ingest the owner's own PDF: read it, use its facts, spread three drafts over next week on Sokosumi's X.",
+      "Ingest the owner's own PDF and draft three X posts from its facts. Two X accounts are connected and the owner names neither exactly, so the bot asks once which one, changes nothing, then drafts on the account the owner picks.",
     prepare: ["launch-one-pager-pdf"],
     steps: [
       {
         kind: "owner",
         message:
           'I put our launch one-pager in Files ("Typed memory launch"). Turn it into 3 X posts for Sokosumi spread over next week. Drafts only, I\'ll approve.',
+        // "for Sokosumi" names no account exactly (Core: an @handle, id or
+        // whole Project name), and two X accounts fit: ask, don't guess. A
+        // draft Core refuses is how its account question opens.
         expect: {
-          anyTools: ["read_file"],
+          asksQuestion: true,
+          forbiddenTools: ["publish_social_post", "schedule_social_post"],
+          allowFailedTools: ["create_social_post"],
+        },
+        outcomes: [
+          {
+            kind: "noPosts",
+            label: "Nothing drafted before the owner chose",
+            project: "Sokosumi Marketing",
+          },
+          {
+            kind: "noPosts",
+            label: "Nothing on Padierfind",
+            project: "Padierfind",
+          },
+          NEVER_SENT,
+        ],
+      },
+      {
+        kind: "owner",
+        message: "The Sokosumi one.",
+        expect: {
+          anyTools: ["create_social_post"],
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
         },
         outcomes: [
+          // Over the journey: the bot may read the file before or after asking.
           { kind: "readSeededFile", label: "Reads the one-pager" },
           {
             kind: "posts",
@@ -870,11 +896,16 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             draftsOnly: true,
             textMatches: ["memory", "replaced|dated|date|dream"],
           },
+          {
+            kind: "noPosts",
+            label: "Nothing on Padierfind",
+            project: "Padierfind",
+          },
           NEVER_SENT,
         ],
       },
     ],
-    rubric: `The bot finds the file by name, reads it, and writes three different X posts that use its facts (typed memory, dated entries, "Replaced", nightly dreaming) without inventing any. They stay drafts with intended days next week, and the owner gets one short list: post, intended day, link to approve. ${BAR}`,
+    rubric: `Turn 1: Sokosumi Marketing's and Padierfind's X accounts are both connected and the owner named neither exactly, so the bot asks one short question naming both and drafts nothing (finding and reading the file first is fine). Turn 2: on the owner's pick, the bot writes three different X posts on that account that use the file's facts (typed memory, dated entries, "Replaced", nightly dreaming) without inventing any. They stay drafts with intended days next week, and the owner gets one short list: post, intended day, link to approve. ${BAR}`,
   },
   {
     id: "owner-site-to-newsletter",
