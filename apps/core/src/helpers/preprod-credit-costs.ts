@@ -1,11 +1,4 @@
-import type { NetworkScope } from "@/lib/db/network-scope";
-import { requireNetworkOn } from "@/lib/network";
-
-/**
- * A scope the type checker knows is Preprod's. A Mainnet scope is a type
- * error here, and `seedPreprodCreditCosts` refuses it at run time too.
- */
-export type PreprodScope = NetworkScope & { readonly network: "preprod" };
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 /**
  * Preprod's rates. `centsPerUnit` is cents per SMALLEST unit (`agent-cost.ts`
@@ -25,26 +18,27 @@ export const PREPROD_CREDIT_COSTS = [
 
 /**
  * Writes `PREPROD_CREDIT_COSTS` into Preprod's `CreditCost` table, and only
- * there. Called by the wipe-and-rebuild of Preprod (ticket 41) after it has
- * redeployed the schema; nothing calls it yet. Safe to run again: a row that
- * exists is left as it is, so an admin's later edit survives.
+ * there. Meant to run after the Preprod schema has been rebuilt; nothing calls
+ * it yet. It takes no scope: it builds Preprod's from the one factory, so no
+ * caller can hand it another Network's client. The factory refuses while
+ * Preprod is off (on today's layout Preprod's table is Mainnet's), before any
+ * statement. Safe to run again: only rows that are missing are inserted (the
+ * conflict handling stays for a concurrent run), so an admin's later edit
+ * survives.
  */
-export async function seedPreprodCreditCosts(
-  scope: PreprodScope,
-): Promise<void> {
-  // A refusing scope throws on this read by itself.
-  const { network } = scope;
-  if (network !== "preprod") {
-    throw new Error(`Preprod's rates cannot be seeded on ${String(network)}`);
-  }
-  // On today's layout Preprod's table is Mainnet's: refuse while Preprod is off.
-  requireNetworkOn(network);
-  await scope.netTransaction(
-    (tx) =>
-      tx.creditCost.createMany({
-        data: PREPROD_CREDIT_COSTS.map((cost) => ({ ...cost })),
-        skipDuplicates: true,
-      }),
-    "Preprod's rates changed while they were seeded",
-  );
+export async function seedPreprodCreditCosts(): Promise<void> {
+  const scope = createNetworkScope("preprod");
+  await scope.netTransaction(async (tx) => {
+    const existing = await tx.creditCost.findMany({
+      where: { unit: { in: PREPROD_CREDIT_COSTS.map(({ unit }) => unit) } },
+      select: { unit: true },
+    });
+    const have = new Set(existing.map(({ unit }) => unit));
+    const missing = PREPROD_CREDIT_COSTS.filter(({ unit }) => !have.has(unit));
+    if (missing.length === 0) return;
+    await tx.creditCost.createMany({
+      data: missing.map((cost) => ({ ...cost })),
+      skipDuplicates: true,
+    });
+  }, "Preprod's rates changed while they were seeded");
 }
