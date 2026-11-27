@@ -471,17 +471,27 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
       select: { archivedAt: true },
     });
     expect(after.archivedAt).not.toBeNull();
+    // Whichever of the rhythm insert and the close wins, the rhythms land.
+    expect(
+      await prisma.sokoBotSchedule.count({
+        where: { sokoBotId: bot.id, systemKey: { not: null } },
+      }),
+    ).toBeGreaterThan(0);
   }, 30000);
 
   // The close locks the workspace, then the bot; the schedule insert's
   // foreign keys lock the bot, then the workspace. Postgres aborts the
-  // insert, which is no failure: the bot is archived or the next tick retries.
-  it("creates no warning when a schedule insert deadlocks with a close", async () => {
+  // insert, which retries once the close commits: the archived bot keeps its
+  // rhythms, as it does when the insert commits before the close.
+  it("retries a schedule insert that deadlocks with a close", async () => {
     const bot = await createSharedSokoBot({
       callerUserId: fixture.member,
       workspaceId: fixture.workspace,
       projectId: null,
       name: "Deadlock bot",
+    });
+    const rhythms = await prisma.sokoBotSchedule.count({
+      where: { sokoBotId: bot.id, systemKey: { not: null } },
     });
     await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: bot.id } });
     if (!url) throw new Error("Missing integration database");
@@ -490,23 +500,42 @@ describe.skipIf(!enabled)("shared Soko Bot creation against PostgreSQL", () => {
     });
     let ensured: Promise<void> | undefined;
     try {
-      await client.$transaction(
-        async (tx) => {
-          await tx.$executeRawUnsafe(
-            `SELECT id FROM ${sharedTable("workspace").sql} WHERE id = '${fixture.workspace}' FOR UPDATE`,
-          );
-          ensured = ensureSystemSchedules(bot);
-          await waitForLockWait("%insert into%soko_bot_schedule%");
-          await tx.$executeRawUnsafe(
-            `SELECT 1 FROM ${sharedTable("soko_bot").sql} WHERE id = '${bot.id}' FOR UPDATE`,
-          );
-        },
-        { timeout: 20000 },
-      );
+      try {
+        await client.$transaction(
+          async (tx) => {
+            await tx.$executeRawUnsafe(
+              `SELECT id FROM ${sharedTable("workspace").sql} WHERE id = '${fixture.workspace}' FOR UPDATE`,
+            );
+            ensured = ensureSystemSchedules(bot);
+            await waitForLockWait("%insert into%soko_bot_schedule%");
+            await tx.$executeRawUnsafe(
+              `SELECT 1 FROM ${sharedTable("soko_bot").sql} WHERE id = '${bot.id}' FOR UPDATE`,
+            );
+            // What the close writes before it commits.
+            await tx.$executeRawUnsafe(
+              `UPDATE ${sharedTable("soko_bot").sql} SET "archivedAt" = now(), status = 'PAUSED' WHERE id = '${bot.id}'`,
+            );
+          },
+          { timeout: 20000 },
+        );
+      } finally {
+        await ensured;
+      }
     } finally {
-      await ensured;
       await client.$disconnect();
     }
+
+    const after = await prisma.sokoBot.findUniqueOrThrow({
+      where: { id: bot.id },
+      select: { archivedAt: true },
+    });
+    expect(after.archivedAt).not.toBeNull();
+    expect(rhythms).toBeGreaterThan(0);
+    expect(
+      await prisma.sokoBotSchedule.count({
+        where: { sokoBotId: bot.id, systemKey: { not: null } },
+      }),
+    ).toBe(rhythms);
   }, 30000);
 
   // Close locks the workspace, then the Project. A create that wrote the

@@ -454,6 +454,8 @@ function transactionClient() {
     sokoBotSchedule: {
       count: scheduleCountMock,
       update: scheduleUpdateMock,
+      // A built-in rhythm insert runs in its own retried transaction.
+      create: vi.fn().mockResolvedValue({}),
     },
     sokoBotScheduleRun: {
       findUnique: scheduleRunFindUniqueMock,
