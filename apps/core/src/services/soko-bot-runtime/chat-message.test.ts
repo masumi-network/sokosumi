@@ -189,7 +189,7 @@ describe("unknownPersonRefusal", () => {
     });
   });
 
-  it("suggests no tool a teammate's request may not use on a personal bot", async () => {
+  it("tells a teammate on a personal bot nothing of its Coworkers, assistants or rooms (Neon)", async () => {
     const refusal = await unknownPersonRefusal(
       runtime as never,
       authorized(
@@ -203,9 +203,27 @@ describe("unknownPersonRefusal", () => {
       ),
       "Mira",
     );
-    expect(refusal).toBe(
-      '"Mira" is Mira (Coworker), not a member of this organization. Tell the person who asked that you would reach it there.',
+    expect(refusal).not.toMatch(
+      /Coworker|assistant|room|send_message|ask_coworker/,
     );
+    expect(refusal).toMatch(/^No member of this organization matches "Mira"/);
+    // No search of the bot's Coworkers, assistants or rooms for the name.
+    expect(runtime.findCoworkers).not.toHaveBeenCalledWith(
+      expect.anything(),
+      "Mira",
+    );
+  });
+
+  it("tells another assistant's request nothing of the bot's directory", async () => {
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      authorized(
+        {},
+        { askedByKind: "ASSISTANT", grant: { capabilities: ["send_message"] } },
+      ),
+      "Mira",
+    );
+    expect(refusal).not.toContain("send_message");
   });
 
   it("asks which recipient was meant when a Coworker and an assistant share a name", async () => {

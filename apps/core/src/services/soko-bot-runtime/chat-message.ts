@@ -264,10 +264,14 @@ export async function unknownPersonRefusal(
   authorized: AuthorizedSokoBotRuntime,
   person: string,
 ): Promise<string> {
-  const found = matching(
-    await directory(runtime, authorized, searchWords(person)),
-    person,
-  ).filter((recipient) => recipient.kind !== "person");
+  // A request that may not message others (a teammate on a personal bot)
+  // learns nothing of the bot's Coworkers, assistants or rooms.
+  const found = mayMessageOthers(authorized)
+    ? matching(
+        await directory(runtime, authorized, searchWords(person)),
+        person,
+      ).filter((recipient) => recipient.kind !== "person")
+    : [];
   // The directory is the bot's: a room is named only to someone in it.
   const visibleRooms = await roomsVisibleTo(
     authorized.turn.askedByUserId ?? authorized.turn.requestedByUserId,
