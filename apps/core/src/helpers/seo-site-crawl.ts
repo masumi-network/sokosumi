@@ -205,6 +205,15 @@ const cut = (text: string) =>
   text.length > MAX_TEXT
     ? `${text.slice(0, MAX_TEXT - 1).toWellFormed()}…`
     : text;
+/**
+ * The gap of each continuation's link checks. A link to a page an earlier crawl read has no status in this crawl,
+ * and the bot counts it in no total, so broken links and redirect chains stay undecided (web GAP_CHECKS).
+ */
+const EARLIER_LINKS_GAP = {
+  item: "Broken internal links",
+  reason:
+    "the crawl went on from an earlier crawl and holds none of its pages, so a link to a page an earlier crawl read was not judged",
+};
 /** The gap item of the duplicate check, which Sokosumi words from the bot's count. */
 const DUPLICATES_GAP = "Duplicate titles";
 /** The gap item of the pages whose script the crawl did not run, which Sokosumi words from the bot's count. */
@@ -290,7 +299,7 @@ export function readCrawlNext(
   return readSection(crawl, {
     startUrl: url,
     continues,
-    gaps: readGaps(crawl?.couldNotSee, ""),
+    gaps: [EARLIER_LINKS_GAP, ...readGaps(crawl?.couldNotSee, "")],
     deepAudit,
   });
 }

@@ -633,6 +633,11 @@ describe("imported crawl continuation", () => {
       item: "Orphan pages",
       reason: "earlier crawls' links decide",
     });
+    // A link to an earlier crawl's page has no status here: the link checks stay undecided.
+    expect(crawl.gaps).toContainEqual({
+      item: "Broken internal links",
+      reason: expect.stringContaining("earlier crawl read was not judged"),
+    });
     expect(crawl.deepAudit).toEqual({
       pages: [
         {
