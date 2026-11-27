@@ -65,6 +65,7 @@ const {
   toolCallCreateMock,
   toolCallFindUniqueMock,
   toolCallUpdateManyMock,
+  toolCallFindManyMock,
   toolCallUpdateMock,
   transactionTaskFindFirstMock,
   transactionTaskCountMock,
@@ -188,6 +189,8 @@ const {
   },
   files: {
     taskFileUpsert: vi.fn(),
+    taskFileFindFirst: vi.fn(),
+    blobFindFirst: vi.fn(),
     resourceFindUnique: vi.fn(),
     resourceFindFirst: vi.fn(),
     del: vi.fn(),
@@ -211,6 +214,7 @@ const {
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
+  toolCallFindManyMock: vi.fn(),
   toolCallUpdateMock: vi.fn(),
   transactionTaskFindFirstMock: vi.fn(),
   transactionTaskCountMock: vi.fn(),
@@ -570,7 +574,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: files.resourceFindUnique,
       findFirst: files.resourceFindFirst,
     },
-    taskFile: { upsert: files.taskFileUpsert },
+    taskFile: {
+      upsert: files.taskFileUpsert,
+      findFirst: files.taskFileFindFirst,
+    },
+    blob: { findFirst: files.blobFindFirst },
     dataRoom: { findMany: files.rooms },
     contact: { findUniqueOrThrow: research.contactName },
     projectImageAsset: { findFirst: images.assetFindFirst },
@@ -639,6 +647,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: toolCallFindUniqueMock,
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
+      findMany: toolCallFindManyMock,
     },
     agent: { findFirst: agentFindFirstMock },
     coworker: { findMany: coworkerFindManyMock },
@@ -14521,6 +14530,166 @@ describe("Drive file tools", () => {
         }),
       ).rejects.toThrow("not a file attached in a Sokosumi chat");
       expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("gives the fileId of a Files link instead of copying it", async () => {
+      files.resourceFindFirst.mockResolvedValueOnce({ id: "file-3" });
+      files.loadLive.mockResolvedValueOnce([
+        { id: "file-3", displayName: "Launch photo.png" },
+      ]);
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "x.png",
+          attachmentUrl:
+            "https://abc.public.blob.vercel-storage.com/drive/organizations/org-1/Launch%20photo.png",
+        }),
+      ).rejects.toThrow(
+        '"Launch photo.png" is already in Files as fileId file-3. Use that fileId; it needs no upload.',
+      );
+      expect(files.resourceFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            sourceId: "drive/organizations/org-1/Launch photo.png",
+          }),
+        }),
+      );
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    describe("a Task's result file", () => {
+      const taskUrl =
+        "https://abc.public.blob.vercel-storage.com/tasks/0f8e2b7c-1a2b-4c3d-8e9f-0a1b2c3d4e5f/report.png";
+      const turned = {
+        ...chatAuthorized,
+        turn: { ...chatAuthorized.turn, id: SCOPE.turnId },
+      };
+      beforeEach(() => {
+        files.resourceFindFirst.mockResolvedValue(null);
+        files.head.mockImplementation(async (pathname: string) => {
+          if (pathname.startsWith("drive/"))
+            throw new files.BlobNotFoundError("missing");
+          return { url: taskUrl, size: 4, contentType: "image/png" };
+        });
+      });
+
+      const taskId = "01a0f500-0000-7000-8000-00000000a001";
+      const jobId = "01a0f500-0000-7000-8000-00000000b001";
+      /** Status reads this turn, each with the record its result showed. */
+      const readsByTool = (
+        reads: Record<string, { input: unknown; shown: string | null }[]>,
+      ) =>
+        toolCallFindManyMock.mockImplementation(
+          async ({ where }: { where: { capability: string } }) =>
+            (reads[where.capability] ?? []).map(({ input, shown }) => ({
+              input,
+              result: shown === null ? null : { id: shown },
+            })),
+        );
+      afterEach(() => {
+        toolCallFindManyMock.mockReset();
+        files.taskFileFindFirst.mockReset();
+        files.blobFindFirst.mockReset();
+      });
+
+      it("is copied when it is a ready file of a Task read this turn", async () => {
+        readsByTool({
+          get_task_status: [{ input: { taskId }, shown: taskId }],
+        });
+        files.taskFileFindFirst.mockResolvedValue({ id: "tf-1" });
+        await expect(
+          service["uploadFile"](turned as never, {
+            filename: "report.png",
+            attachmentUrl: taskUrl,
+          }),
+        ).resolves.toMatchObject({ id: "file-7", filename: "report.png" });
+        expect(files.taskFileFindFirst).toHaveBeenCalledWith({
+          where: {
+            status: "READY",
+            fileUrl: taskUrl,
+            task: {
+              AND: [
+                { id: { in: [taskId] }, workspaceId: SCOPE.workspaceId },
+                { archivedAt: null },
+                // The turn's reader rules, exactly as get_task_status applies them.
+                expect.any(Object),
+              ],
+            },
+          },
+          select: { id: true },
+        });
+        expect(files.blobFindFirst).not.toHaveBeenCalled();
+        expect(files.put).toHaveBeenCalled();
+      });
+
+      it("is copied when it is a ready output of a Job read this turn", async () => {
+        readsByTool({ get_job_status: [{ input: { jobId }, shown: jobId }] });
+        files.blobFindFirst.mockResolvedValue({ id: "blob-1" });
+        await expect(
+          service["uploadFile"](turned as never, {
+            filename: "report.png",
+            attachmentUrl: taskUrl,
+          }),
+        ).resolves.toMatchObject({ id: "file-7" });
+        expect(files.blobFindFirst).toHaveBeenCalledWith({
+          where: {
+            status: "READY",
+            fileUrl: taskUrl,
+            event: {
+              job: {
+                AND: [
+                  { id: { in: [jobId] }, workspaceId: SCOPE.workspaceId },
+                  expect.objectContaining({ ownerId: SCOPE.userId }),
+                ],
+              },
+            },
+          },
+          select: { id: true },
+        });
+      });
+
+      it("is refused when the status read showed nothing, so access was not proved", async () => {
+        readsByTool({
+          get_task_status: [{ input: { taskId }, shown: null }],
+          get_job_status: [{ input: { jobId }, shown: "another-job" }],
+        });
+        await expect(
+          service["uploadFile"](turned as never, {
+            filename: "report.png",
+            attachmentUrl: taskUrl,
+          }),
+        ).rejects.toThrow(/get_task_status in this turn/);
+        expect(files.taskFileFindFirst).not.toHaveBeenCalled();
+        expect(files.blobFindFirst).not.toHaveBeenCalled();
+        expect(files.put).not.toHaveBeenCalled();
+      });
+
+      it("is refused when the read Task has no such ready file, even if its text names the link", async () => {
+        readsByTool({
+          get_task_status: [{ input: { taskId }, shown: taskId }],
+        });
+        files.taskFileFindFirst.mockResolvedValue(null);
+        await expect(
+          service["uploadFile"](turned as never, {
+            filename: "report.png",
+            attachmentUrl: taskUrl,
+          }),
+        ).rejects.toThrow(
+          /get_task_status in this turn.*fileId from list_files/,
+        );
+        expect(files.put).not.toHaveBeenCalled();
+      });
+
+      it("is refused without any Task or Job read this turn", async () => {
+        readsByTool({});
+        await expect(
+          service["uploadFile"](turned as never, {
+            filename: "report.png",
+            attachmentUrl: taskUrl,
+          }),
+        ).rejects.toThrow(/get_task_status in this turn/);
+        expect(files.taskFileFindFirst).not.toHaveBeenCalled();
+        expect(files.blobFindFirst).not.toHaveBeenCalled();
+      });
     });
 
     it("refuses an attachment from a room the bot is not in", async () => {
