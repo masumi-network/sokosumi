@@ -159,6 +159,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
   ) {
     return prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         sokoBotId: botId,
         requestedByUserId: userId,
         workspaceId,
@@ -762,6 +763,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         async (input) => {
           const turn = await prisma.sokoBotTurn.create({
             data: {
+              network: "mainnet",
               sokoBotId: botId,
               requestedByUserId: userId,
               workspaceId,
@@ -1005,6 +1007,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       ) =>
         prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             requestedByUserId: userId,
             workspaceId,
@@ -1374,6 +1377,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
     it("resolves production admin-retry:<uuid>:<op> chains on PostgreSQL without UUID syntax errors for chat and event turns", async () => {
       const failedChat = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1388,6 +1392,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const chatRetry = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1402,6 +1407,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const failedEvent = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1416,6 +1422,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const eventRetry = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1430,6 +1437,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const eventRetryChained = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1444,6 +1452,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const malformedRetry = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1544,6 +1553,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       );
       const originChat = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1564,6 +1574,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const finishedRun = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -1624,6 +1635,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
           );
           const turn = await prisma.sokoBotTurn.create({
             data: {
+              network: "mainnet",
               sokoBotId: botId,
               requestedByUserId: userId,
               workspaceId,
@@ -1755,6 +1767,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         });
         const turn = await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             requestedByUserId: userId,
             workspaceId,
@@ -1808,6 +1821,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             capturedCapabilities = input.presetRoute?.capabilities ?? [];
             const turn = await prisma.sokoBotTurn.create({
               data: {
+                network: "mainnet",
                 sokoBotId: botId,
                 requestedByUserId: userId,
                 workspaceId,
@@ -2256,6 +2270,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
             };
             const turn = await prisma.sokoBotTurn.create({
               data: {
+                network: "mainnet",
                 sokoBotId: targetBotId,
                 requestedByUserId: input.userId,
                 workspaceId: targetWorkspaceId,
@@ -2302,6 +2317,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const directChat = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -2358,6 +2374,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       // prompt on its stored tools, in either spelling; timing still changes.
       const narrowTurn = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -2429,6 +2446,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       //      with write_table_rows.
       const bgBroadTurn = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -2624,6 +2642,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       // - refused when explicitly declaring publish_social_post even with allowScheduledPosts: true.
       const directSocialChat = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -3102,6 +3121,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
 
         const cusoBroadTurn = await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: cusoBotId,
             requestedByUserId: teammateId,
             askedByUserId: teammateId,
@@ -3222,6 +3242,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
     it("enforces SokoBotWatch social authority and watch/schedule media limits across occurrences and admin retries on PostgreSQL", async () => {
       const rootChatTurn = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           requestedByUserId: userId,
           workspaceId,
@@ -3333,6 +3354,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       ) =>
         prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             requestedByUserId: userId,
             workspaceId,
@@ -3861,6 +3883,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       ) =>
         prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             workspaceId,
             requestedByUserId: userId,
@@ -4431,6 +4454,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       const createSpentOneTimeWithDelegation = async (name: string) => {
         const rootChat = await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             workspaceId,
             requestedByUserId: userId,
@@ -4486,6 +4510,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         });
         const schedTurn = await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             workspaceId,
             requestedByUserId: userId,
@@ -4561,6 +4586,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const insideWake = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4616,6 +4642,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const pastWake = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4673,6 +4700,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const deletedWake = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4705,6 +4733,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const cancelledWake = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4734,6 +4763,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       //    once Task B settles; an owner-paused watcher stays revoked.
       const watchRoot = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4806,6 +4836,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const watchedSchedTurn = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4888,6 +4919,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const taskBWake = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -4987,6 +5019,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       });
       const taskB2Wake = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: botId,
           workspaceId,
           requestedByUserId: userId,
@@ -5089,6 +5122,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         });
         const raceSchedTurn = await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             workspaceId,
             requestedByUserId: userId,
@@ -5193,6 +5227,7 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
         });
         const raceWake = await prisma.sokoBotTurn.create({
           data: {
+            network: "mainnet",
             sokoBotId: botId,
             workspaceId,
             requestedByUserId: userId,
