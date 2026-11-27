@@ -96,16 +96,32 @@ export interface Statement {
  * sent, with the values bound. Statements outside a transaction can run side
  * by side, so they are counted per text. On the split layout the schema names
  * differ and are written as today's.
+ *
+ * `asSent` keeps every schema name as sent, and keeps each statement outside
+ * a transaction with its values, in the order sent: the caller makes them
+ * plain and sorts them.
  */
-export function statements(log: readonly SentStatement[]) {
+export function statements(
+  log: readonly SentStatement[],
+  options?: { asSent?: false },
+): { transactions: Statement[][]; outsideTransactions: Record<string, number> };
+export function statements(
+  log: readonly SentStatement[],
+  options: { asSent: true },
+): { transactions: Statement[][]; outsideTransactions: Statement[] };
+export function statements(
+  log: readonly SentStatement[],
+  { asSent = false }: { asSent?: boolean } = {},
+) {
   const open = new Map<number, Statement[]>();
   const transactions: Statement[][] = [];
   const outside = new Map<string, number>();
+  const outsideAsSent: Statement[] = [];
   for (const { connection, text, values } of log) {
-    const sql = text
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/"(shared|mainnet)"\./g, '"public".');
+    const collapsed = text.replace(/\s+/g, " ").trim();
+    const sql = asSent
+      ? collapsed
+      : collapsed.replace(/"(shared|mainnet)"\./g, '"public".');
     const transaction = open.get(connection);
     if (/^BEGIN\b/i.test(sql)) {
       const started = [{ sql, values }];
@@ -114,15 +130,19 @@ export function statements(log: readonly SentStatement[]) {
     } else if (transaction) {
       transaction.push({ sql, values });
       if (/^(COMMIT|ROLLBACK)\b/i.test(sql)) open.delete(connection);
+    } else if (asSent) {
+      outsideAsSent.push({ sql, values });
     } else {
       outside.set(sql, (outside.get(sql) ?? 0) + 1);
     }
   }
   return {
     transactions,
-    outsideTransactions: Object.fromEntries(
-      [...outside].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-    ),
+    outsideTransactions: asSent
+      ? outsideAsSent
+      : Object.fromEntries(
+          [...outside].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+        ),
   };
 }
 

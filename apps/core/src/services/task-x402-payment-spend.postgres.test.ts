@@ -3,14 +3,17 @@
  * PostgreSQL, over HTTP with a real Coworker key, on a deployment whose
  * `NETWORK` is Mainnet and on one whose `NETWORK` is Preprod (the old
  * Preprod), Preprod off. For each case: the answer, whom the low-balance alert
- * was asked for, what the payment node was asked to sign and what was
+ * was asked for, the demand the payment node was asked to sign and what was
  * committed when it was asked, every credit row, Task, event, payment and
  * audit row left, and the statements PostgreSQL received, with each
  * transaction's boundaries and isolation level. Two payments that spend the
  * same credits at once are run in both orders.
  *
- * The payment charges through the Task writer (`helpers/task-credits.ts`), so
- * its debit is the credits module's `spend`. All of it is compared with
+ * The payment's debit goes through the Task writer (`helpers/task-credits.ts`),
+ * so it is the credits module's `spend`. Its refund after a node refusal and
+ * its low-balance alert do not: they move with the credits module's refund
+ * and balance readers (pull requests 8 and 9), and are recorded here as they
+ * are. All of it is compared with
  * `task-x402-payment-spend.base.json`, which this file wrote while it ran on
  * `origin/main`'s code:
  * RECORD_TASK_X402_SPEND_BASE=true RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/services/task-x402-payment-spend.postgres.test.ts
@@ -317,6 +320,9 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
       labels.set(row.id, "<coworker>");
       labels.set(row.slug, "<coworker slug>");
       labels.set(vendorId, "<vendor>");
+      // The key's hash is bound in the authentication read.
+      const { hashApiKey } = await import("@/lib/coworker-api-key");
+      labels.set(await hashApiKey(token), "<coworker key hash>");
       coworker = { id: row.id, token };
       return coworker;
     },
@@ -539,8 +545,42 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
             }),
           };
         },
-        /** The node's answer with a real EIP-3009 authorization, which Core verifies. */
-        async signed() {
+        /**
+         * The node's answer with a real EIP-3009 authorization, which Core
+         * verifies. It signs only the demand the Agent asked: one entry, on
+         * the wallet, chain and asset of the deployment's ready source.
+         * Anything else is refused, as the node refuses a 402 it cannot sign.
+         */
+        async signed(request: unknown) {
+          const asked = request as {
+            evmWalletId?: unknown;
+            paymentRequired?: { x402Version?: unknown; accepts?: unknown };
+            preferredNetwork?: unknown;
+            preferredAsset?: unknown;
+          };
+          const expected = {
+            evmWalletId: "fixture-wallet",
+            paymentRequired: { x402Version: 2, accepts: [accepted(PAY_TO)] },
+            preferredNetwork: caip2Network,
+            preferredAsset: asset,
+          };
+          const forwarded = {
+            evmWalletId: asked.evmWalletId,
+            paymentRequired: {
+              x402Version: asked.paymentRequired?.x402Version,
+              accepts: asked.paymentRequired?.accepts,
+            },
+            preferredNetwork: asked.preferredNetwork,
+            preferredAsset: asked.preferredAsset,
+          };
+          if (JSON.stringify(forwarded) !== JSON.stringify(expected)) {
+            return err({
+              kind: "refused" as const,
+              status: 400,
+              message: "fixture: not the demand the Agent asked",
+              nodeMessage: "fixture: not the demand the Agent asked",
+            });
+          }
           const nonce = `0x${randomBytes(32).toString("hex")}` as const;
           labels.set(nonce, "<nonce>");
           const validBefore = Math.floor(Date.now() / 1000) + 60;
@@ -651,6 +691,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           select: {
             id: true,
+            createdAt: true,
             taskId: true,
             status: true,
             comment: true,
@@ -752,10 +793,12 @@ function interleaved(
 ) {
   return transactions
     .map((transaction) => plain(transaction, labels))
-    .sort((a, b) => {
-      const [x, y] = [JSON.stringify(a), JSON.stringify(b)];
-      return x < y ? -1 : x > y ? 1 : 0;
-    });
+    .sort(byJson);
+}
+
+function byJson(a: unknown, b: unknown) {
+  const [x, y] = [JSON.stringify(a), JSON.stringify(b)];
+  return x < y ? -1 : x > y ? 1 : 0;
 }
 
 /** A case of several requests: each step under its own key, in order. */
@@ -813,8 +856,26 @@ async function observe(
     expect(times.map((time) => time.getTime())).toEqual(
       times.map(() => debit.createdAt.getTime()),
     );
+    // The receipts are written after the debit, in the same transaction: its
+    // charge event, then the payment row, each no earlier than the one before.
+    // shortcut: on origin/main the debit reads its own clock and its
+    // consumption ids are independent UUID v7s, so only this order holds; the
+    // shared writer's fix (`mrosberghaus/c2-writer-order`) tightens it to one
+    // shared time and consumption ids in allocation order.
+    const receipts = [
+      ...left.events.filter((event) => event.transactionId === debit.id),
+      ...left.payments.filter((payment) => payment.transactionId === debit.id),
+    ];
+    const receiptTimes = [debit, ...receipts].map((row) =>
+      row.createdAt.getTime(),
+    );
+    expect(receiptTimes).toEqual([...receiptTimes].sort((a, b) => a - b));
   }
-  const sent = statements(log);
+  const sent = statements(log, { asSent: true });
+  // Made plain one by one and sorted: work beside the request can interleave.
+  const outsideTransactions = sent.outsideTransactions
+    .map((statement) => plain(statement, world.labels))
+    .sort(byJson);
   return plain(
     {
       answer,
@@ -828,15 +889,16 @@ async function observe(
           preferredNetwork: request.preferredNetwork,
           preferredAsset: request.preferredAsset,
           paymentIdentifier: request.paymentIdentifier,
+          paymentRequired: request.paymentRequired,
         };
       }),
       committedAtSigning: signing,
-      statements: options.interleaved
-        ? {
-            transactions: interleaved(sent.transactions, world.labels),
-            outsideTransactions: sent.outsideTransactions,
-          }
-        : sent,
+      statements: {
+        transactions: options.interleaved
+          ? interleaved(sent.transactions, world.labels)
+          : sent.transactions,
+        outsideTransactions,
+      },
       rows: left,
     },
     world.labels,
@@ -938,7 +1000,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           const taskId = await world.task(payer, "paying person's Task");
           const agent = await world.x402Agent("Agent", deploymentNetwork);
           const body = agent.pay("fresh");
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
 
           const fresh = await observe(loaded, world, () =>
             pay(loaded, world, taskId, body),
@@ -963,7 +1027,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           const payer = await world.organization("Owner's Organization");
           const taskId = await world.task(payer, "Organization Task");
           const agent = await world.x402Agent("Agent", deploymentNetwork);
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
 
           base.expectAsOnBase(
             key("an Owner in an Organization"),
@@ -993,7 +1059,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
             pay(loaded, world, taskId, body),
           );
           await agent.expireLeases();
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
           const pendingReplay = await observe(loaded, world, () =>
             pay(loaded, world, taskId, body),
           );
@@ -1042,7 +1110,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           const taskId = await world.task(payer, "rolled back person's Task");
           const agent = await world.x402Agent("Agent", deploymentNetwork);
           const body = agent.pay("rolled back");
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
 
           const failed = await observe(loaded, world, () => {
             outside.failAfterCharge = true;
@@ -1072,7 +1142,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
             "Agent on the other chain",
             otherChain,
           );
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
 
           const answers = {
             otherPayTo: await observe(loaded, world, () =>
@@ -1114,7 +1186,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
             "COMPLETED",
           );
           const agent = await world.x402Agent("Agent", deploymentNetwork);
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
 
           const paused = await observe(loaded, world, () =>
             pay(loaded, world, running, agent.pay("short")),
@@ -1167,7 +1241,9 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           };
           const projects = { first: payer.projectId, second: second.projectId };
           const agent = await world.x402Agent("Agent", deploymentNetwork);
-          outside.payX402.mockImplementation(() => agent.signed());
+          outside.payX402.mockImplementation((request) =>
+            agent.signed(request),
+          );
           const loser = winner === "first" ? "second" : "first";
           const gates = Object.fromEntries(
             (["first", "second"] as const).map((name) => {
@@ -1201,12 +1277,25 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
                   first: pay(loaded, world, tasks.first, bodies.first),
                   second: pay(loaded, world, tasks.second, bodies.second),
                 };
-                // Both have chosen the same buckets and written their debit.
-                await Promise.all([gates.first.atGate, gates.second.atGate]);
-                gates[winner].release();
-                const won = await answers[winner];
-                gates[loser].release();
-                return { [winner]: won, [loser]: await answers[loser] };
+                try {
+                  // Both have chosen the same buckets and written their debit,
+                  // or one ended before it: then the comparison shows that.
+                  await Promise.all(
+                    (["first", "second"] as const).map((name) =>
+                      Promise.race([gates[name].atGate, answers[name]]),
+                    ),
+                  );
+                  gates[winner].release();
+                  const won = await answers[winner];
+                  gates[loser].release();
+                  return { [winner]: won, [loser]: await answers[loser] };
+                } finally {
+                  // Nothing stays held or running past the case's cleanup.
+                  gates.first.release();
+                  gates.second.release();
+                  outside.held.clear();
+                  await Promise.allSettled([answers.first, answers.second]);
+                }
               },
               { interleaved: true },
             ),
