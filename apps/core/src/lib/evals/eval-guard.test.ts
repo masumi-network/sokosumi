@@ -60,11 +60,28 @@ describe("isEvalWorkspaceNow", () => {
         cusoProjectId: null,
       },
     ]);
+    // Warm the cache, as any eval check in this process does.
+    await expect(isEvalWorkspace("ws-lane-1")).resolves.toBe(true);
     laneFindUnique.mockClear();
     await expect(isEvalWorkspaceNow(lanes, "ws-lane-1")).resolves.toBe(true);
     expect(laneFindUnique).not.toHaveBeenCalled();
     laneFindUnique.mockResolvedValueOnce(null);
     await expect(isEvalWorkspaceNow(lanes, "ws-customer")).resolves.toBe(false);
+  });
+
+  it("with a cold cache, reads only through the transaction it was given (Codex)", async () => {
+    forgetEvalWorkspaces();
+    laneFindMany.mockClear();
+    const txFindUnique = vi.fn().mockResolvedValue({ lane: 3 });
+    const tx = { evalLane: { findUnique: txFindUnique } } as never;
+    await expect(isEvalWorkspaceNow(tx, "ws-lane-3")).resolves.toBe(true);
+    expect(txFindUnique).toHaveBeenCalledWith({
+      where: { workspaceId: "ws-lane-3" },
+      select: { lane: true },
+    });
+    // No second connection: the shared prisma client was never queried.
+    expect(laneFindMany).not.toHaveBeenCalled();
+    expect(laneFindUnique).not.toHaveBeenCalled();
   });
 });
 

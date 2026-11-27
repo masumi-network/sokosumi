@@ -21,6 +21,11 @@ let cache: {
   cusoProjectIds: Set<string>;
 } | null = null;
 
+/** The lanes cached in this process, if still fresh; never a query. */
+function cachedLanes(): NonNullable<typeof cache> | null {
+  return cache && Date.now() - cache.at <= CACHE_MS ? cache : null;
+}
+
 async function evalLanes(): Promise<NonNullable<typeof cache> | null> {
   // A Prisma double without the eval tables (unit tests) has no lanes.
   if (typeof prisma.evalLane?.findMany !== "function") return null;
@@ -63,14 +68,14 @@ export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
 export async function isEvalOrganizationNow(
   organizationId: string,
 ): Promise<boolean> {
-  if (await isEvalOrganization(organizationId)) return true;
+  if (cachedLanes()?.organizationIds.has(organizationId)) return true;
   if (typeof prisma.evalLane?.findFirst !== "function") return false;
   const lane = await prisma.evalLane.findFirst({
     where: { organizationId },
     select: { lane: true },
   });
   if (lane) forgetEvalWorkspaces();
-  return lane !== null;
+  return Boolean(lane);
 }
 
 /** A lane's organization: its chat rooms belong to the eval world too. */
@@ -92,14 +97,16 @@ export async function isEvalWorkspaceNow(
   db: Pick<typeof prisma, "evalLane">,
   workspaceId: string,
 ): Promise<boolean> {
-  if (await isEvalWorkspace(workspaceId)) return true;
+  // Only a cache already warm: loading it here would take a second
+  // connection while the caller holds a transaction (Codex, 7c43aa0830).
+  if (cachedLanes()?.workspaceIds.has(workspaceId)) return true;
   if (typeof db.evalLane?.findUnique !== "function") return false;
   const lane = await db.evalLane.findUnique({
     where: { workspaceId },
     select: { lane: true },
   });
   if (lane) forgetEvalWorkspaces();
-  return lane !== null;
+  return Boolean(lane);
 }
 
 /**
