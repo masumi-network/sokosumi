@@ -2,6 +2,7 @@ import { FileSourceKind } from "@sokosumi/database";
 import {
   buildOrganizationDriveFolderPrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  isVercelBlobPublicHost,
   parseChatRoomFileUrl,
   resolveUserUploadContentType,
   socialPostMediaKindForMime,
@@ -24,6 +25,7 @@ import {
   reserveDriveUploadResource,
   tombstoneDriveUploadResource,
 } from "@/services/file-catalog.service";
+import { loadLiveResources } from "@/services/file-search.service";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRefusedUnsentError,
@@ -259,10 +261,7 @@ export async function saveChatAttachment(
   },
 ) {
   const file = parseChatRoomFileUrl(input.url);
-  if (!file)
-    throw new SokoBotRefusedUnsentError(
-      "That link is not a file attached in a Sokosumi chat",
-    );
+  if (!file) return saveLinkedSokosumiFile(runtime, authorized, input);
   const room = await runtime.requireChatMembership(authorized, file.roomId);
   const posted = await prisma.chatRoomMessage.findFirst({
     where: {
@@ -287,6 +286,86 @@ export async function saveChatAttachment(
     throw new SokoBotRefusedUnsentError(
       "That attachment was not posted in a chat you and your owner are in",
     );
+  return copyBlobToDrive(runtime, authorized, input);
+}
+
+/** Read tools whose results hand the bot links to a Task's result files. */
+const TASK_FILE_SOURCES = ["get_task_status", "get_job_status"];
+
+/**
+ * A Sokosumi link that is not a chat attachment. A file already in Files
+ * needs no upload, so the bot gets its fileId. A Task's result file is
+ * copied only when Core itself gave this turn the link, through an
+ * authorized Task read: a link from a web page or an email never qualifies.
+ */
+async function saveLinkedSokosumiFile(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  input: { filename: string; url: string; overwrite?: boolean; folder: string },
+) {
+  const url = sokosumiBlobUrl(input.url);
+  if (url) {
+    const drive = await runtime.ownerDrive(authorized);
+    const indexed = await prisma.fileResource.findFirst({
+      where: {
+        workspaceId: drive.key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceId: decodedPath(url),
+      },
+      select: { id: true },
+    });
+    const [inFiles] = indexed
+      ? await loadLiveResources({
+          workspaceId: drive.key.workspaceId,
+          actor: drive.actor,
+          resourceIds: [indexed.id],
+        })
+      : [];
+    if (inFiles)
+      throw new SokoBotRefusedUnsentError(
+        `"${inFiles.displayName}" is already in Files as fileId ${inFiles.id}. Use that fileId; it needs no upload.`,
+      );
+    const reads = await prisma.sokoBotToolCall.findMany({
+      where: {
+        turnId: authorized.turn.id,
+        capability: { in: TASK_FILE_SOURCES },
+        status: "COMPLETED",
+      },
+      select: { result: true },
+    });
+    if (reads.some((read) => JSON.stringify(read.result).includes(input.url)))
+      return copyBlobToDrive(runtime, authorized, input);
+  }
+  throw new SokoBotRefusedUnsentError(
+    "That link is not a file attached in a Sokosumi chat, in Files, or among the results of a Task you read with get_task_status in this turn. For a file in Files, use its fileId from list_files.",
+  );
+}
+
+function sokosumiBlobUrl(link: string): URL | null {
+  try {
+    const url = new URL(link);
+    return url.protocol === "https:" && isVercelBlobPublicHost(url.hostname)
+      ? url
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function decodedPath(url: URL): string {
+  const path = url.pathname.replace(/^\/+/, "");
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
+async function copyBlobToDrive(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  input: { filename: string; url: string; overwrite?: boolean; folder: string },
+) {
   const meta = await head(input.url);
   if (meta.size > CHAT_ROOM_FILE_MAX_SIZE_BYTES)
     throw new SokoBotRefusedUnsentError("That attachment is too large");
