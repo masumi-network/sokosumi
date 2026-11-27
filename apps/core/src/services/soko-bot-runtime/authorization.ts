@@ -15,6 +15,7 @@ import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   DetachedNetworkRefusal,
   detachedNetworkScope,
+  turnProvenance,
 } from "@/lib/soko-bot/detached-network";
 import { isStoredMeetingPrep } from "@/lib/soko-bot/system-routes";
 import {
@@ -258,6 +259,7 @@ export async function authorize(
 
   return {
     scope,
+    provenance: turnProvenance(turn),
     grant,
     ...(meetingPrep ? { meetingPrep: true as const } : {}),
     toolCallLimit: sokoBotToolCallLimit(turn),

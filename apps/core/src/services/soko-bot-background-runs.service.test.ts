@@ -29,6 +29,7 @@ import {
 } from "./soko-bot-background-runs.service";
 
 const authorized = {
+  provenance: { network: "mainnet" },
   turn: {
     id: "parent-turn",
     sokoBotId: "bot",
@@ -99,6 +100,24 @@ describe("background runs", () => {
     ]);
     expect(input.presetRoute.sandbox).toBe(true);
     expect(reconcileTurn).toHaveBeenCalledWith("run-1", undefined, "lease");
+  });
+
+  it("passes the admitted Preprod generation to the child turn", async () => {
+    findUniqueOrThrow.mockResolvedValue(ownerParent);
+    startTurn.mockResolvedValue({ turnId: "run-1", status: "RUNNING" });
+    await startBackgroundRun(
+      {
+        ...authorized,
+        provenance: { network: "preprod", expectedPreprodGeneration: 3 },
+      },
+      { title: "t", brief: "b" },
+    );
+    expect(startTurn).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        network: "preprod",
+        expectedPreprodGeneration: 3,
+      }),
+    );
   });
 
   it("refuses a run started from a run or from a teammate", async () => {

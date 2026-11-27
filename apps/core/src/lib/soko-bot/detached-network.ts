@@ -5,28 +5,23 @@ import { createNetworkScope } from "@/lib/db/network-scope";
 import type { DbClient } from "@/lib/db/prisma";
 import { isPreprodOn, type Network, requireNetwork } from "@/lib/network";
 
-const refusals = {
-  preprod_off: [403, "Preprod is switched off"],
-  preprod_paused: [503, "Preprod is paused; try again later"],
-  preprod_control_unavailable: [
-    503,
-    "Preprod's state could not be read; try again later",
-  ],
-  soko_bot_network_stale: [
-    409,
-    "This work belongs to a different Network or Preprod generation",
-  ],
-} as const;
+import { DetachedNetworkRefusal } from "./detached-network-refusal";
 
-export class DetachedNetworkRefusal extends HTTPException {
-  constructor(readonly kind: keyof typeof refusals) {
-    const [status, message] = refusals[kind];
-    super(status, { message, cause: { kind, reportToSentry: false } });
-  }
+export { DetachedNetworkRefusal } from "./detached-network-refusal";
 
-  get final() {
-    return this.kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE;
-  }
+export interface DetachedTurnProvenance {
+  network: Network;
+  expectedPreprodGeneration?: number | null;
+}
+
+export function turnProvenance(row: {
+  network: string | null;
+  preprodGeneration: number | null;
+}): DetachedTurnProvenance {
+  const network = requireNetwork(row.network);
+  return network === "preprod"
+    ? { network, expectedPreprodGeneration: row.preprodGeneration }
+    : { network };
 }
 
 /** A writer can refuse a Preprod turn after pickup. */
@@ -48,7 +43,7 @@ export function isTemporaryDetachedRefusal(
 }
 
 export function requireDetachedTurnProvenance(
-  expected: { network: Network; expectedPreprodGeneration?: number | null },
+  expected: DetachedTurnProvenance,
   stored: { network: string | null; preprodGeneration?: number | null },
 ): void {
   if (
@@ -62,13 +57,14 @@ export function requireDetachedTurnProvenance(
   }
 }
 
-/** The read of both control keys is the resume point for Preprod work. */
-export async function detachedNetworkScope(
-  row: {
-    network: string | null;
-    preprodGeneration: number | null;
-  },
-  db?: DbClient,
+type DetachedNetworkSource = {
+  network: string | null;
+  preprodGeneration: number | null;
+};
+
+async function resumeDetachedNetwork(
+  row: DetachedNetworkSource,
+  readControl: () => ReturnType<typeof readPreprodControl>,
 ) {
   if (row.network === null) {
     throw new DetachedNetworkRefusal(
@@ -80,7 +76,7 @@ export async function detachedNetworkScope(
     if (!isPreprodOn()) {
       throw new DetachedNetworkRefusal(CORE_API_ERROR_KINDS.PREPROD_OFF);
     }
-    const control = await readPreprodControl(db);
+    const control = await readControl();
     if (control.state === "unavailable") {
       throw new DetachedNetworkRefusal(
         CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
@@ -96,4 +92,24 @@ export async function detachedNetworkScope(
     }
   }
   return createNetworkScope(network);
+}
+
+/** The read of both control keys is the resume point for Preprod work. */
+export function detachedNetworkScope(
+  row: DetachedNetworkSource,
+  db?: DbClient,
+) {
+  return resumeDetachedNetwork(row, () => readPreprodControl(db));
+}
+
+/** Check control on the first Preprod candidate. Admitted writes still stamp. */
+export function detachedNetworkScopeForTick() {
+  let control: ReturnType<typeof readPreprodControl> | undefined;
+  return {
+    resume: (row: DetachedNetworkSource) =>
+      resumeDetachedNetwork(row, () => (control ??= readPreprodControl())),
+    invalidate() {
+      control = undefined;
+    },
+  };
 }

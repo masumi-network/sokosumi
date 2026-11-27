@@ -65,6 +65,7 @@ function authorized(
   overrides: { versionId?: string; askedByKind?: string } = {},
 ): AuthorizedSokoBotRuntime {
   return {
+    provenance: { network: "mainnet" },
     turn: {
       id: "turn-1",
       sokoBotId: "bot-1",

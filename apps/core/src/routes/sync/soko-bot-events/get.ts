@@ -21,7 +21,10 @@ export default function mount(app: Hono) {
         // The tick's own minute, not the minute the Task interest step
         // reaches: its overdue sweep runs on quarter-hour ticks.
         const tickStartedAt = new Date();
-        const adopted = await adoptCoworkerSpawnedTasks();
+        const adopted = await adoptCoworkerSpawnedTasks(
+          tickStartedAt,
+          context.shouldContinue,
+        );
         context.log.set({ result: { adopted } });
         const watches = await syncSokoBotWatches({
           shouldContinue: context.shouldContinue,
