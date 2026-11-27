@@ -80,6 +80,13 @@ export interface SokoBotVersion {
    */
   cmoOwnerAudience?: true;
   /**
+   * Core prepares live fitting candidates from its own records before the bot
+   * asks (1 candidate: use it and say which; several: ask once and change
+   * nothing; none: say what is missing) and checks `project_selection` against
+   * those records. Omitted on all live, control, and loop-only versions.
+   */
+  askPolicy?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

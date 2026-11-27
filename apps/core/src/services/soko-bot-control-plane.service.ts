@@ -117,6 +117,7 @@ import {
   redactAdminPresentation,
 } from "@/lib/soko-bot/admin-action-record";
 import { SOKO_BOT_HIREABLE_AGENT_WHERE } from "@/lib/soko-bot/agent-search";
+import { prepareAskPolicyHints } from "@/lib/soko-bot/ask-policy-candidates";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
 import {
   type ClassificationResult,
@@ -2843,17 +2844,36 @@ export class SokoBotControlPlane {
             turnCreatedAt: new Date(),
           })
         : null;
+    const sharedScope = sokoBotSharedScopeOf(bot);
+    const askPolicyHints =
+      version.askPolicy &&
+      (input.source ?? "CHAT") === "CHAT" &&
+      personAsked &&
+      !input.background &&
+      !input.chat?.askedByBot &&
+      (input.chat?.chainDepth ?? 0) === 0 &&
+      (sharedScope !== null || !askedByTeammate)
+        ? await prepareAskPolicyHints({
+            workspaceId: input.workspaceId,
+            projectId: sharedScope?.projectId ?? null,
+            message: input.chat?.said ?? input.chat?.classifyMessage ?? message,
+            hasOpenAccountQuestion: Boolean(accountQuestion),
+          })
+        : [];
     const context = await this.contextBuilder.build({
       userId: input.userId,
       sokoBotId: bot.id,
-      sharedScope: sokoBotSharedScopeOf(bot),
+      sharedScope,
       ...(cmoProjectOwner ? { cmoProjectOwner: true } : {}),
       workspaceId: input.workspaceId,
       source: input.source ?? "CHAT",
       clientTurnId,
       classification: classification.classification,
       personAsked,
-      extraHints: accountQuestion ? [accountQuestionHint(accountQuestion)] : [],
+      extraHints: [
+        ...(accountQuestion ? [accountQuestionHint(accountQuestion)] : []),
+        ...askPolicyHints,
+      ],
       routeSteering: version.routeSteering === true,
       capturedPreference,
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
