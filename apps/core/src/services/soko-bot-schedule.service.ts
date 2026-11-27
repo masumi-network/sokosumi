@@ -33,6 +33,7 @@ import {
   nextEffectiveRun,
   type ScheduleRunChange,
 } from "@/lib/soko-bot/schedule-run-changes";
+import { storedScheduleCapabilities } from "@/lib/soko-bot/system-routes";
 import { RUN_HORIZON_MS } from "@/services/task-schedule-runs.service";
 
 const MIN_SCHEDULE_INTERVAL_MS = 60_000;
@@ -226,6 +227,12 @@ export interface UpdateSokoBotScheduleInput {
   capabilityNames?: readonly string[];
   /** True when the caller explicitly declared the job's required tool list. */
   explicitCapabilities?: boolean;
+  /**
+   * The editing turn's tools, when a bot edits. A new prompt on the stored
+   * tools needs every one of them: a narrower turn must not rewrite what a
+   * wider job does.
+   */
+  editorCapabilities?: readonly string[];
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
   /**
@@ -601,6 +608,21 @@ export async function updateSokoBotSchedule(
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is a built-in rhythm: only its time, timezone and on/off change. For another job, create a schedule of its own, and pause this one if it should stop.`,
     );
+  if (
+    input.editorCapabilities &&
+    input.capabilityNames === undefined &&
+    input.prompt !== undefined &&
+    input.prompt.trim() !== schedule.prompt
+  ) {
+    const editor = new Set(input.editorCapabilities);
+    const missing = storedScheduleCapabilities(schedule.capabilityNames).filter(
+      (capability) => !editor.has(capability),
+    );
+    if (missing.length > 0)
+      throw new SokoBotScheduleValidationError(
+        `"${schedule.name}" runs with tools this turn does not have (${missing.slice(0, 8).join(", ")}${missing.length > 8 ? ", …" : ""}), so this turn cannot change its prompt on them. Pass capabilities with only the tools the new job needs from your own, or leave the prompt for the owner to change in chat.`,
+      );
+  }
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
