@@ -58,7 +58,6 @@ apps/core/src/services/agent-sync.service.ts
 apps/core/src/services/chat-result-preview.service.ts
 apps/core/src/services/cmo-billing.service.ts
 apps/core/src/services/cmo-chat-work.service.ts
-apps/core/src/services/competitor-check.service.ts
 apps/core/src/services/invoice-admin.service.ts
 apps/core/src/services/job-purchase-diff.service.ts
 apps/core/src/services/job-refund.ts

@@ -1,5 +1,8 @@
 import type { CompetitorPageKind, Prisma } from "@sokosumi/database";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
+import {
+  creditBucketRepository,
+  InsufficientBalanceError,
+} from "@sokosumi/database/repositories";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { z } from "zod";
 
@@ -32,6 +35,8 @@ import {
 } from "@/lib/competitors/page-read";
 import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { bareHost } from "@/lib/competitors/text";
+import { spend } from "@/lib/credits/spend";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalWorkspace } from "@/lib/evals/eval-guard";
@@ -562,6 +567,8 @@ export function competitorCheckUnfunded(
 export function chargeProjectCompetitorCheck(
   projectId: string,
 ): ChargeCompetitorCheck {
+  // A Mainnet-only feature names its Network.
+  const scope = createNetworkScope("mainnet");
   return ({ id, credits }) => {
     const expectedCents = convertCreditsToCents(credits);
     return serializableTransaction(async (tx) => {
@@ -588,28 +595,25 @@ export function chargeProjectCompetitorCheck(
         { projectId },
       );
       if (balance < expectedCents) return { chargedCents: 0n, shortfall: true };
-      const consumptions = await creditBucketRepository.prepareConsumption(
-        "mainnet",
-        userId,
-        organizationId,
-        expectedCents,
+      const spent = await spend({
+        scope,
         tx,
-        { projectId },
-      );
-      const transaction = await tx.transaction.create({
-        data: {
-          amount: -expectedCents,
-          userId,
-          organizationId,
-          creditConsumptions: { createMany: { data: consumptions } },
-        },
-        select: { id: true },
+        payer: { userId, organizationId, projectId },
+        quotedCents: expectedCents,
       });
+      // The balance covered the price, so only credits that went since then
+      // can fall short: the check fails and is run again later.
+      if (spent.shortfall) {
+        throw new InsufficientBalanceError(expectedCents, spent.availableCents);
+      }
       await tx.competitorCheck.update({
         where: { id },
-        data: { transactionId: transaction.id, chargedCents: expectedCents },
+        data: {
+          transactionId: spent.transactionId,
+          chargedCents: spent.chargedCents,
+        },
       });
-      return { chargedCents: expectedCents, shortfall: false };
+      return { chargedCents: spent.chargedCents, shortfall: false };
     }, "Credits changed while charging this check; try again.");
   };
 }

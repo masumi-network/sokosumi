@@ -9,6 +9,11 @@
  * charge moved into the credits module:
  * RECORD_COMPETITOR_CHECK_SPEND_BASE=true RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/services/competitor-check-spend.postgres.test.ts
  * Without `RECORD_COMPETITOR_CHECK_SPEND_BASE` the same command compares.
+ *
+ * It needs the database to itself, as CI gives each worker its own
+ * (`POSTGRES_TEST_DATABASE_PER_WORKER`): another file's Serializable
+ * transaction on the same database can make the charge retry, and a retry is
+ * a second transaction in the statements.
  */
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";

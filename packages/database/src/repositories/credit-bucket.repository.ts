@@ -21,11 +21,15 @@ export interface Consumption {
 }
 
 export class InsufficientBalanceError extends Error {
+  /** What the buckets could cover, in cents. */
+  readonly available: bigint;
+
   constructor(cents: bigint, available: bigint) {
     super(
       `Insufficient balance: tried to consume ${cents} but only ${available} available`,
     );
     this.name = "InsufficientBalanceError";
+    this.available = available;
   }
 }
 
