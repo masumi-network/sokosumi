@@ -377,7 +377,14 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true]
+      "timesWithinTheCall": [true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket expiring first of funded person>",
+          "<bucket expiring later of funded person>"
+        ]
+      ],
+      "receiptsNotBeforeTheirDebit": [true]
     }
   },
   "a Project bot of an Organization, a turn funded in full": {
@@ -726,6 +733,13 @@
       ],
       "consumptions": [
         {
+          "id": "<id 2>",
+          "createdAt": "<time>",
+          "amount": "500000000000",
+          "bucketId": "<bucket Project credits of funded Organization>",
+          "transactionId": "<id 1>"
+        },
+        {
           "id": "<id 3>",
           "createdAt": "<time>",
           "amount": "1000000000000",
@@ -737,13 +751,6 @@
           "createdAt": "<time>",
           "amount": "500000000000",
           "bucketId": "<bucket pool later of funded Organization>",
-          "transactionId": "<id 1>"
-        },
-        {
-          "id": "<id 2>",
-          "createdAt": "<time>",
-          "amount": "500000000000",
-          "bucketId": "<bucket Project credits of funded Organization>",
           "transactionId": "<id 1>"
         }
       ],
@@ -882,7 +889,15 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true, true]
+      "timesWithinTheCall": [true, true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket Project credits of funded Organization>",
+          "<bucket pool soon of funded Organization>",
+          "<bucket pool later of funded Organization>"
+        ]
+      ],
+      "receiptsNotBeforeTheirDebit": [true]
     }
   },
   "a person, a turn funded in part": {
@@ -1279,7 +1294,14 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true]
+      "timesWithinTheCall": [true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket expiring first of short person>",
+          "<bucket expiring later of short person>"
+        ]
+      ],
+      "receiptsNotBeforeTheirDebit": [true]
     }
   },
   "a person, an empty wallet": {
@@ -1549,7 +1571,9 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": [],
+      "receiptsNotBeforeTheirDebit": []
     }
   },
   "a person, credits gone after the balance read": {
@@ -1754,7 +1778,9 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": [],
+      "receiptsNotBeforeTheirDebit": []
     }
   },
   "a person, the settlement fails after its debit": {
@@ -2040,7 +2066,9 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": [],
+      "receiptsNotBeforeTheirDebit": []
     }
   },
   "a person, a stale Preprod turn": {
@@ -2233,7 +2261,9 @@
     },
     "debit": {
       "uuidVersions": [],
-      "timesWithinTheCall": []
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": [],
+      "receiptsNotBeforeTheirDebit": []
     }
   },
   "a Project bot of an Organization, a check": {
@@ -2526,7 +2556,11 @@
     },
     "debit": {
       "uuidVersions": ["7", "7"],
-      "timesWithinTheCall": [true, true, true]
+      "timesWithinTheCall": [true, true, true],
+      "bucketsInIdOrder": [
+        ["<bucket Project credits of checked Organization>"]
+      ],
+      "receiptsNotBeforeTheirDebit": [true]
     }
   },
   "a person, a check charged before": {
@@ -2680,7 +2714,9 @@
     },
     "debit": {
       "uuidVersions": ["7", "7"],
-      "timesWithinTheCall": [false, false, false]
+      "timesWithinTheCall": [false, false, false],
+      "bucketsInIdOrder": [["<bucket only bucket of replaying person>"]],
+      "receiptsNotBeforeTheirDebit": [true]
     }
   },
   "a person, two turns race, the first created holds": {
@@ -3403,7 +3439,12 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true, true, true]
+      "timesWithinTheCall": [true, true, true, true, true, true],
+      "bucketsInIdOrder": [
+        ["<bucket only bucket of first holds>"],
+        ["<bucket only bucket of first holds>"]
+      ],
+      "receiptsNotBeforeTheirDebit": [true, true]
     }
   },
   "a person, two turns race, the second created holds": {
@@ -4126,7 +4167,866 @@
     },
     "debit": {
       "uuidVersions": ["7", "7", "7", "7"],
-      "timesWithinTheCall": [true, true, true, true, true, true]
+      "timesWithinTheCall": [true, true, true, true, true, true],
+      "bucketsInIdOrder": [
+        ["<bucket only bucket of second holds>"],
+        ["<bucket only bucket of second holds>"]
+      ],
+      "receiptsNotBeforeTheirDebit": [true, true]
+    }
+  },
+  "a person, a check without a price": {
+    "result": {
+      "chargedCents": "0",
+      "expectedCents": "0",
+      "shortfall": false,
+      "organizationId": null,
+      "cusoProjectId": null
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<unpriced person's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<unpriced person's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<unpriced person's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<unpriced person's workspace>", "0"]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": {}
+    },
+    "rows": {
+      "buckets": [
+        {
+          "id": "<bucket only bucket of unpriced person>",
+          "amount": "30000000000",
+          "projectId": null,
+          "consumptions": []
+        }
+      ],
+      "transactions": [],
+      "consumptions": [],
+      "usage": [],
+      "turns": [],
+      "bot": {
+        "id": "<unpriced person's bot>",
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "archivedAt": null,
+        "deletedAt": null,
+        "userId": "<unpriced person>",
+        "projectId": null,
+        "createdByUserId": null,
+        "sharedRoomId": null,
+        "workspaceId": "<unpriced person's workspace>",
+        "ingestTimezone": "Europe/Berlin",
+        "sandboxSetupCommands": [],
+        "followWholeBoard": true,
+        "joinsTeamStandup": false,
+        "leftTeamStandupAt": null,
+        "proactivePaused": false,
+        "proactiveDailyLimit": 20,
+        "mailAutoRead": false,
+        "lastBriefingAt": null,
+        "avatarImageUrl": null,
+        "avatarCode": null,
+        "name": null,
+        "avatarSeed": null,
+        "versionId": null,
+        "personalityTone": null,
+        "personalityDetail": null,
+        "personalityStyle": null,
+        "status": "IDLE",
+        "adminPausedAt": null,
+        "eveSessionId": null,
+        "runtimeVersion": null,
+        "runtimeDeployment": null,
+        "lastSandboxId": null,
+        "lastSandboxStatus": null,
+        "memoryVersion": 0,
+        "memoryHash": null,
+        "lastActivityAt": null,
+        "lastTurnAt": null,
+        "lastSucceededAt": null,
+        "lastFailedAt": null,
+        "consecutiveTurnFailures": 0,
+        "lastPolledAt": null,
+        "lastInboxMessageAt": null,
+        "lastSeenInboxAt": null,
+        "consecutivePollErrors": 0
+      },
+      "notifications": []
+    },
+    "debit": {
+      "uuidVersions": [],
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": [],
+      "receiptsNotBeforeTheirDebit": []
+    }
+  },
+  "a person, a check charged in part before": {
+    "result": {
+      "chargedCents": "15000000000",
+      "expectedCents": "30000000000",
+      "shortfall": true,
+      "organizationId": null,
+      "cusoProjectId": null
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<short replaying person's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<short replaying person's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<short replaying person's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<short replaying person's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot_usage\".\"id\", \"public\".\"soko_bot_usage\".\"cents\", \"public\".\"soko_bot_usage\".\"organizationId\" FROM \"public\".\"soko_bot_usage\" WHERE ((\"public\".\"soko_bot_usage\".\"sokoBotId\" = $1 AND \"public\".\"soko_bot_usage\".\"idempotencyKey\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<short replaying person's bot>",
+              "soko-bot-usage-spend-short-replay",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": {}
+    },
+    "rows": {
+      "buckets": [
+        {
+          "id": "<bucket only bucket of short replaying person>",
+          "amount": "15000000000",
+          "projectId": null,
+          "consumptions": [
+            {
+              "amount": "15000000000",
+              "transactionId": "<id 1>"
+            }
+          ]
+        }
+      ],
+      "transactions": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "-15000000000",
+          "userId": "<short replaying person>",
+          "organizationId": null
+        }
+      ],
+      "consumptions": [
+        {
+          "id": "<id 2>",
+          "createdAt": "<time>",
+          "amount": "15000000000",
+          "bucketId": "<bucket only bucket of short replaying person>",
+          "transactionId": "<id 1>"
+        }
+      ],
+      "usage": [
+        {
+          "id": "<id 3>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "soko-bot-usage-spend-short-replay",
+          "referenceId": null,
+          "sokoBotId": "<short replaying person's bot>",
+          "userId": "<short replaying person>",
+          "organizationId": null,
+          "cents": "15000000000",
+          "transactionId": "<id 1>"
+        }
+      ],
+      "turns": [],
+      "bot": {
+        "id": "<short replaying person's bot>",
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "archivedAt": null,
+        "deletedAt": null,
+        "userId": "<short replaying person>",
+        "projectId": null,
+        "createdByUserId": null,
+        "sharedRoomId": null,
+        "workspaceId": "<short replaying person's workspace>",
+        "ingestTimezone": "Europe/Berlin",
+        "sandboxSetupCommands": [],
+        "followWholeBoard": true,
+        "joinsTeamStandup": false,
+        "leftTeamStandupAt": null,
+        "proactivePaused": false,
+        "proactiveDailyLimit": 20,
+        "mailAutoRead": false,
+        "lastBriefingAt": null,
+        "avatarImageUrl": null,
+        "avatarCode": null,
+        "name": null,
+        "avatarSeed": null,
+        "versionId": null,
+        "personalityTone": null,
+        "personalityDetail": null,
+        "personalityStyle": null,
+        "status": "IDLE",
+        "adminPausedAt": null,
+        "eveSessionId": null,
+        "runtimeVersion": null,
+        "runtimeDeployment": null,
+        "lastSandboxId": null,
+        "lastSandboxStatus": null,
+        "memoryVersion": 0,
+        "memoryHash": null,
+        "lastActivityAt": null,
+        "lastTurnAt": null,
+        "lastSucceededAt": null,
+        "lastFailedAt": null,
+        "consecutiveTurnFailures": 0,
+        "lastPolledAt": null,
+        "lastInboxMessageAt": null,
+        "lastSeenInboxAt": null,
+        "consecutivePollErrors": 0
+      },
+      "notifications": []
+    },
+    "debit": {
+      "uuidVersions": ["7", "7"],
+      "timesWithinTheCall": [false, false, false],
+      "bucketsInIdOrder": [["<bucket only bucket of short replaying person>"]],
+      "receiptsNotBeforeTheirDebit": [true]
+    }
+  },
+  "a Cuso in free hiring, a check": {
+    "result": {
+      "chargedCents": "0",
+      "expectedCents": "30000000000",
+      "shortfall": false,
+      "organizationId": null,
+      "cusoProjectId": "<free hiring Organization's Project>"
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<free hiring Organization's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<free hiring Organization's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\" FROM \"public\".\"soko_bot\" LEFT JOIN \"public\".\"project\" AS \"j0\" ON (\"j0\".\"id\") = (\"public\".\"soko_bot\".\"projectId\") WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND \"public\".\"soko_bot\".\"versionId\" IN ($2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) AND \"public\".\"soko_bot\".\"userId\" IS NULL AND \"public\".\"soko_bot\".\"projectId\" IS NOT NULL AND \"public\".\"soko_bot\".\"deletedAt\" IS NULL AND \"public\".\"soko_bot\".\"archivedAt\" IS NULL AND (NOT EXISTS(SELECT \"t1\".\"projectId\" FROM \"public\".\"polar_subscription\" AS \"t1\" WHERE (1=1 AND (\"j0\".\"id\") = (\"t1\".\"projectId\") AND \"t1\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t2\".\"projectId\" FROM \"public\".\"credit_bucket\" AS \"t2\" WHERE (\"t2\".\"referenceType\" = CAST($27::text AS \"public\".\"CreditBucketReferenceType\") AND (\"j0\".\"id\") = (\"t2\".\"projectId\") AND \"t2\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t3\".\"projectId\" FROM \"public\".\"marketing_strategy\" AS \"t3\" WHERE (\"t3\".\"approvedAt\" IS NOT NULL AND (\"j0\".\"id\") = (\"t3\".\"projectId\") AND \"t3\".\"projectId\" IS NOT NULL)) AND (\"j0\".\"id\" IS NOT NULL))) LIMIT $28 OFFSET $29",
+            "values": [
+              "<free hiring Organization's bot>",
+              "cmo-v1",
+              "cmo-v2",
+              "cmo-v3",
+              "cmo-v4",
+              "cmo-v5",
+              "cmo-v6",
+              "cmo-v7",
+              "cmo-v8",
+              "cmo-v9",
+              "cmo-v10",
+              "cmo-v11",
+              "cmo-v12",
+              "cmo-v13",
+              "cmo-v14",
+              "cmo-v15",
+              "cmo-v20",
+              "cmo-v21",
+              "cmo-v22",
+              "cmo-v23",
+              "cmo-v24",
+              "cmo-v25",
+              "cmo-v1-qwen37-flash",
+              "cmo-v1-gpt-oss-20b",
+              "cmo-v1-deepseek-v4-flash",
+              "cmo-v1-gemini-25-flash-lite",
+              "CMO_TESTER_CREDITS",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<free hiring Organization's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<free hiring Organization's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\" FROM \"public\".\"soko_bot\" LEFT JOIN \"public\".\"project\" AS \"j0\" ON (\"j0\".\"id\") = (\"public\".\"soko_bot\".\"projectId\") WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND \"public\".\"soko_bot\".\"versionId\" IN ($2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) AND \"public\".\"soko_bot\".\"userId\" IS NULL AND \"public\".\"soko_bot\".\"projectId\" IS NOT NULL AND \"public\".\"soko_bot\".\"deletedAt\" IS NULL AND \"public\".\"soko_bot\".\"archivedAt\" IS NULL AND (NOT EXISTS(SELECT \"t1\".\"projectId\" FROM \"public\".\"polar_subscription\" AS \"t1\" WHERE (1=1 AND (\"j0\".\"id\") = (\"t1\".\"projectId\") AND \"t1\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t2\".\"projectId\" FROM \"public\".\"credit_bucket\" AS \"t2\" WHERE (\"t2\".\"referenceType\" = CAST($27::text AS \"public\".\"CreditBucketReferenceType\") AND (\"j0\".\"id\") = (\"t2\".\"projectId\") AND \"t2\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t3\".\"projectId\" FROM \"public\".\"marketing_strategy\" AS \"t3\" WHERE (\"t3\".\"approvedAt\" IS NOT NULL AND (\"j0\".\"id\") = (\"t3\".\"projectId\") AND \"t3\".\"projectId\" IS NOT NULL)) AND (\"j0\".\"id\" IS NOT NULL))) LIMIT $28 OFFSET $29",
+            "values": [
+              "<free hiring Organization's bot>",
+              "cmo-v1",
+              "cmo-v2",
+              "cmo-v3",
+              "cmo-v4",
+              "cmo-v5",
+              "cmo-v6",
+              "cmo-v7",
+              "cmo-v8",
+              "cmo-v9",
+              "cmo-v10",
+              "cmo-v11",
+              "cmo-v12",
+              "cmo-v13",
+              "cmo-v14",
+              "cmo-v15",
+              "cmo-v20",
+              "cmo-v21",
+              "cmo-v22",
+              "cmo-v23",
+              "cmo-v24",
+              "cmo-v25",
+              "cmo-v1-qwen37-flash",
+              "cmo-v1-gpt-oss-20b",
+              "cmo-v1-deepseek-v4-flash",
+              "cmo-v1-gemini-25-flash-lite",
+              "CMO_TESTER_CREDITS",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot_usage\".\"id\", \"public\".\"soko_bot_usage\".\"cents\", \"public\".\"soko_bot_usage\".\"organizationId\" FROM \"public\".\"soko_bot_usage\" WHERE ((\"public\".\"soko_bot_usage\".\"sokoBotId\" = $1 AND \"public\".\"soko_bot_usage\".\"idempotencyKey\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<free hiring Organization's bot>",
+              "soko-bot-usage-spend-free-hiring",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": {}
+    },
+    "rows": {
+      "buckets": [
+        {
+          "id": "<bucket pool soon of free hiring Organization>",
+          "amount": "1000000000000",
+          "projectId": null,
+          "consumptions": []
+        },
+        {
+          "id": "<bucket pool later of free hiring Organization>",
+          "amount": "2000000000000",
+          "projectId": null,
+          "consumptions": []
+        },
+        {
+          "id": "<bucket Project credits of free hiring Organization>",
+          "amount": "500000000000",
+          "projectId": "<free hiring Organization's Project>",
+          "consumptions": []
+        }
+      ],
+      "transactions": [],
+      "consumptions": [],
+      "usage": [],
+      "turns": [],
+      "bot": {
+        "id": "<free hiring Organization's bot>",
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "archivedAt": null,
+        "deletedAt": null,
+        "userId": null,
+        "projectId": "<free hiring Organization's Project>",
+        "createdByUserId": null,
+        "sharedRoomId": null,
+        "workspaceId": "<free hiring Organization's workspace>",
+        "ingestTimezone": "Europe/Berlin",
+        "sandboxSetupCommands": [],
+        "followWholeBoard": true,
+        "joinsTeamStandup": false,
+        "leftTeamStandupAt": null,
+        "proactivePaused": false,
+        "proactiveDailyLimit": 20,
+        "mailAutoRead": false,
+        "lastBriefingAt": null,
+        "avatarImageUrl": null,
+        "avatarCode": null,
+        "name": null,
+        "avatarSeed": null,
+        "versionId": "cmo-v1",
+        "personalityTone": null,
+        "personalityDetail": null,
+        "personalityStyle": null,
+        "status": "IDLE",
+        "adminPausedAt": null,
+        "eveSessionId": null,
+        "runtimeVersion": null,
+        "runtimeDeployment": null,
+        "lastSandboxId": null,
+        "lastSandboxStatus": null,
+        "memoryVersion": 0,
+        "memoryHash": null,
+        "lastActivityAt": null,
+        "lastTurnAt": null,
+        "lastSucceededAt": null,
+        "lastFailedAt": null,
+        "consecutiveTurnFailures": 0,
+        "lastPolledAt": null,
+        "lastInboxMessageAt": null,
+        "lastSeenInboxAt": null,
+        "consecutivePollErrors": 0
+      },
+      "notifications": []
+    },
+    "debit": {
+      "uuidVersions": [],
+      "timesWithinTheCall": [],
+      "bucketsInIdOrder": [],
+      "receiptsNotBeforeTheirDebit": []
+    }
+  },
+  "a paid Cuso, a check": {
+    "result": {
+      "chargedCents": "1000000000000",
+      "expectedCents": "1000000000000",
+      "shortfall": false,
+      "organizationId": "<paid Cuso Organization>",
+      "cusoProjectId": "<paid Cuso Organization's Project>"
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<paid Cuso Organization's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<paid Cuso Organization's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\" FROM \"public\".\"soko_bot\" LEFT JOIN \"public\".\"project\" AS \"j0\" ON (\"j0\".\"id\") = (\"public\".\"soko_bot\".\"projectId\") WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND \"public\".\"soko_bot\".\"versionId\" IN ($2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) AND \"public\".\"soko_bot\".\"userId\" IS NULL AND \"public\".\"soko_bot\".\"projectId\" IS NOT NULL AND \"public\".\"soko_bot\".\"deletedAt\" IS NULL AND \"public\".\"soko_bot\".\"archivedAt\" IS NULL AND (NOT EXISTS(SELECT \"t1\".\"projectId\" FROM \"public\".\"polar_subscription\" AS \"t1\" WHERE (1=1 AND (\"j0\".\"id\") = (\"t1\".\"projectId\") AND \"t1\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t2\".\"projectId\" FROM \"public\".\"credit_bucket\" AS \"t2\" WHERE (\"t2\".\"referenceType\" = CAST($27::text AS \"public\".\"CreditBucketReferenceType\") AND (\"j0\".\"id\") = (\"t2\".\"projectId\") AND \"t2\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t3\".\"projectId\" FROM \"public\".\"marketing_strategy\" AS \"t3\" WHERE (\"t3\".\"approvedAt\" IS NOT NULL AND (\"j0\".\"id\") = (\"t3\".\"projectId\") AND \"t3\".\"projectId\" IS NOT NULL)) AND (\"j0\".\"id\" IS NOT NULL))) LIMIT $28 OFFSET $29",
+            "values": [
+              "<paid Cuso Organization's bot>",
+              "cmo-v1",
+              "cmo-v2",
+              "cmo-v3",
+              "cmo-v4",
+              "cmo-v5",
+              "cmo-v6",
+              "cmo-v7",
+              "cmo-v8",
+              "cmo-v9",
+              "cmo-v10",
+              "cmo-v11",
+              "cmo-v12",
+              "cmo-v13",
+              "cmo-v14",
+              "cmo-v15",
+              "cmo-v20",
+              "cmo-v21",
+              "cmo-v22",
+              "cmo-v23",
+              "cmo-v24",
+              "cmo-v25",
+              "cmo-v1-qwen37-flash",
+              "cmo-v1-gpt-oss-20b",
+              "cmo-v1-deepseek-v4-flash",
+              "cmo-v1-gemini-25-flash-lite",
+              "CMO_TESTER_CREDITS",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\", \"public\".\"soko_bot\".\"userId\", \"public\".\"soko_bot\".\"projectId\", \"public\".\"soko_bot\".\"versionId\", \"public\".\"soko_bot\".\"workspaceId\" FROM \"public\".\"soko_bot\" WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<paid Cuso Organization's bot>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE \"public\".\"workspace\".\"id\" = $1 OFFSET $2",
+            "values": ["<paid Cuso Organization's workspace>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot\".\"id\" FROM \"public\".\"soko_bot\" LEFT JOIN \"public\".\"project\" AS \"j0\" ON (\"j0\".\"id\") = (\"public\".\"soko_bot\".\"projectId\") WHERE (\"public\".\"soko_bot\".\"id\" = $1 AND \"public\".\"soko_bot\".\"versionId\" IN ($2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) AND \"public\".\"soko_bot\".\"userId\" IS NULL AND \"public\".\"soko_bot\".\"projectId\" IS NOT NULL AND \"public\".\"soko_bot\".\"deletedAt\" IS NULL AND \"public\".\"soko_bot\".\"archivedAt\" IS NULL AND (NOT EXISTS(SELECT \"t1\".\"projectId\" FROM \"public\".\"polar_subscription\" AS \"t1\" WHERE (1=1 AND (\"j0\".\"id\") = (\"t1\".\"projectId\") AND \"t1\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t2\".\"projectId\" FROM \"public\".\"credit_bucket\" AS \"t2\" WHERE (\"t2\".\"referenceType\" = CAST($27::text AS \"public\".\"CreditBucketReferenceType\") AND (\"j0\".\"id\") = (\"t2\".\"projectId\") AND \"t2\".\"projectId\" IS NOT NULL)) AND NOT EXISTS(SELECT \"t3\".\"projectId\" FROM \"public\".\"marketing_strategy\" AS \"t3\" WHERE (\"t3\".\"approvedAt\" IS NOT NULL AND (\"j0\".\"id\") = (\"t3\".\"projectId\") AND \"t3\".\"projectId\" IS NOT NULL)) AND (\"j0\".\"id\" IS NOT NULL))) LIMIT $28 OFFSET $29",
+            "values": [
+              "<paid Cuso Organization's bot>",
+              "cmo-v1",
+              "cmo-v2",
+              "cmo-v3",
+              "cmo-v4",
+              "cmo-v5",
+              "cmo-v6",
+              "cmo-v7",
+              "cmo-v8",
+              "cmo-v9",
+              "cmo-v10",
+              "cmo-v11",
+              "cmo-v12",
+              "cmo-v13",
+              "cmo-v14",
+              "cmo-v15",
+              "cmo-v20",
+              "cmo-v21",
+              "cmo-v22",
+              "cmo-v23",
+              "cmo-v24",
+              "cmo-v25",
+              "cmo-v1-qwen37-flash",
+              "cmo-v1-gpt-oss-20b",
+              "cmo-v1-deepseek-v4-flash",
+              "cmo-v1-gemini-25-flash-lite",
+              "CMO_TESTER_CREDITS",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"soko_bot_usage\".\"id\", \"public\".\"soko_bot_usage\".\"cents\", \"public\".\"soko_bot_usage\".\"organizationId\" FROM \"public\".\"soko_bot_usage\" WHERE ((\"public\".\"soko_bot_usage\".\"sokoBotId\" = $1 AND \"public\".\"soko_bot_usage\".\"idempotencyKey\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "<paid Cuso Organization's bot>",
+              "soko-bot-usage-spend-paid-cuso",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<paid Cuso Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<paid Cuso Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND (\"public\".\"subscription\".\"periodStart\" IS NULL OR \"public\".\"subscription\".\"periodStart\" <= $6)) ORDER BY \"public\".\"subscription\".\"periodEnd\"DESC NULLS LAST, \"public\".\"subscription\".\"updatedAt\" DESC LIMIT $7 OFFSET $8",
+            "values": [
+              "<paid Cuso Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount ) SELECT COALESCE(SUM(available), 0)::bigint AS balance FROM bucket_avail",
+            "values": [
+              "<paid Cuso Organization>",
+              "<paid Cuso Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"enterprise_contract\".\"id\", \"public\".\"enterprise_contract\".\"createdAt\", \"public\".\"enterprise_contract\".\"updatedAt\", \"public\".\"enterprise_contract\".\"organizationId\", \"public\".\"enterprise_contract\".\"status\"::text, \"public\".\"enterprise_contract\".\"periodCount\", \"public\".\"enterprise_contract\".\"activatedAt\", \"public\".\"enterprise_contract\".\"canceledAt\", \"public\".\"enterprise_contract\".\"seats\", \"public\".\"enterprise_contract\".\"centsPerMonth\", \"public\".\"enterprise_contract\".\"oneTimeCents\", \"public\".\"enterprise_contract\".\"oneTimeExpiresAt\", \"public\".\"enterprise_contract\".\"paymentReference\", \"public\".\"enterprise_contract\".\"notes\", \"public\".\"enterprise_contract\".\"externalReference\" FROM \"public\".\"enterprise_contract\" WHERE (\"public\".\"enterprise_contract\".\"organizationId\" = $1 AND \"public\".\"enterprise_contract\".\"status\" = CAST($2::text AS \"public\".\"EnterpriseContractStatus\") AND \"public\".\"enterprise_contract\".\"activatedAt\" IS NOT NULL) ORDER BY \"public\".\"enterprise_contract\".\"updatedAt\" DESC LIMIT $3 OFFSET $4",
+            "values": ["<paid Cuso Organization>", "active", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND \"public\".\"subscription\".\"periodStart\" <= $6 AND \"public\".\"subscription\".\"periodEnd\" > $7) ORDER BY \"public\".\"subscription\".\"updatedAt\" DESC OFFSET $8",
+            "values": [
+              "<paid Cuso Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "<time>",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"subscription\".\"id\", \"public\".\"subscription\".\"createdAt\", \"public\".\"subscription\".\"updatedAt\", \"public\".\"subscription\".\"plan\", \"public\".\"subscription\".\"referenceId\", \"public\".\"subscription\".\"stripeCustomerId\", \"public\".\"subscription\".\"stripeSubscriptionId\", \"public\".\"subscription\".\"status\", \"public\".\"subscription\".\"periodStart\", \"public\".\"subscription\".\"periodEnd\", \"public\".\"subscription\".\"trialStart\", \"public\".\"subscription\".\"trialEnd\", \"public\".\"subscription\".\"cancelAtPeriodEnd\", \"public\".\"subscription\".\"cancelAt\", \"public\".\"subscription\".\"canceledAt\", \"public\".\"subscription\".\"endedAt\", \"public\".\"subscription\".\"seats\", \"public\".\"subscription\".\"billingInterval\", \"public\".\"subscription\".\"stripeScheduleId\" FROM \"public\".\"subscription\" WHERE (\"public\".\"subscription\".\"referenceId\" = $1 AND \"public\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND (\"public\".\"subscription\".\"periodStart\" IS NULL OR \"public\".\"subscription\".\"periodStart\" <= $6)) ORDER BY \"public\".\"subscription\".\"periodEnd\"DESC NULLS LAST, \"public\".\"subscription\".\"updatedAt\" DESC LIMIT $7 OFFSET $8",
+            "values": [
+              "<paid Cuso Organization>",
+              "active",
+              "trialing",
+              "past_due",
+              "unpaid",
+              "<time>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "WITH bucket_avail AS ( SELECT cb.id, cb.amount, (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"organizationId\" = $1 AND (cb.\"projectId\" IS NULL OR cb.\"projectId\" = $2) AND ( cb.\"referenceType\" IS NULL OR ( cb.\"referenceType\" = $3 AND cb.\"userId\" IS NULL ) OR ( cb.\"referenceType\" IS DISTINCT FROM $4 AND cb.\"referenceType\" IS DISTINCT FROM $5 AND cb.\"referenceType\" IS DISTINCT FROM $6 ) ) AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $7) AND (cb.\"activatesAt\" IS NULL OR cb.\"activatesAt\" <= $8) GROUP BY cb.id, cb.amount, cb.\"expiresAt\", cb.\"createdAt\", cb.\"projectId\" HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ), ordered AS ( SELECT id, amount, available, \"expiresAt\", \"createdAt\", \"projectId\", SUM(available) OVER ( ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC ) AS running_total FROM bucket_avail ) SELECT id, available FROM ordered WHERE running_total - available < $9 ORDER BY (\"projectId\" IS NULL) ASC, \"expiresAt\" ASC NULLS LAST, amount ASC, \"createdAt\" ASC, id ASC",
+            "values": [
+              "<paid Cuso Organization>",
+              "<paid Cuso Organization's Project>",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
+              "<time>",
+              "<time>",
+              "1000000000000"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "-1000000000000",
+              null,
+              "<paid Cuso Organization>"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10)",
+            "values": [
+              "<id 2>",
+              "<time>",
+              "500000000000",
+              "<bucket Project credits of paid Cuso Organization>",
+              "<id 1>",
+              "<id 3>",
+              "<time>",
+              "500000000000",
+              "<bucket pool soon of paid Cuso Organization>",
+              "<id 1>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"soko_bot_usage\" (\"id\",\"createdAt\",\"updatedAt\",\"idempotencyKey\",\"referenceId\",\"sokoBotId\",\"userId\",\"organizationId\",\"cents\",\"transactionId\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING \"public\".\"soko_bot_usage\".\"id\", \"public\".\"soko_bot_usage\".\"createdAt\", \"public\".\"soko_bot_usage\".\"updatedAt\", \"public\".\"soko_bot_usage\".\"idempotencyKey\", \"public\".\"soko_bot_usage\".\"referenceId\", \"public\".\"soko_bot_usage\".\"sokoBotId\", \"public\".\"soko_bot_usage\".\"userId\", \"public\".\"soko_bot_usage\".\"organizationId\", \"public\".\"soko_bot_usage\".\"cents\", \"public\".\"soko_bot_usage\".\"transactionId\"",
+            "values": [
+              "<id 4>",
+              "<time>",
+              "<time>",
+              "soko-bot-usage-spend-paid-cuso",
+              null,
+              "<paid Cuso Organization's bot>",
+              null,
+              "<paid Cuso Organization>",
+              "1000000000000",
+              "<id 1>"
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": {}
+    },
+    "rows": {
+      "buckets": [
+        {
+          "id": "<bucket pool soon of paid Cuso Organization>",
+          "amount": "1000000000000",
+          "projectId": null,
+          "consumptions": [
+            {
+              "amount": "500000000000",
+              "transactionId": "<id 1>"
+            }
+          ]
+        },
+        {
+          "id": "<bucket pool later of paid Cuso Organization>",
+          "amount": "2000000000000",
+          "projectId": null,
+          "consumptions": []
+        },
+        {
+          "id": "<bucket Project credits of paid Cuso Organization>",
+          "amount": "500000000000",
+          "projectId": "<paid Cuso Organization's Project>",
+          "consumptions": [
+            {
+              "amount": "500000000000",
+              "transactionId": "<id 1>"
+            }
+          ]
+        }
+      ],
+      "transactions": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "-1000000000000",
+          "userId": null,
+          "organizationId": "<paid Cuso Organization>"
+        }
+      ],
+      "consumptions": [
+        {
+          "id": "<id 2>",
+          "createdAt": "<time>",
+          "amount": "500000000000",
+          "bucketId": "<bucket Project credits of paid Cuso Organization>",
+          "transactionId": "<id 1>"
+        },
+        {
+          "id": "<id 3>",
+          "createdAt": "<time>",
+          "amount": "500000000000",
+          "bucketId": "<bucket pool soon of paid Cuso Organization>",
+          "transactionId": "<id 1>"
+        }
+      ],
+      "usage": [
+        {
+          "id": "<id 4>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "idempotencyKey": "soko-bot-usage-spend-paid-cuso",
+          "referenceId": null,
+          "sokoBotId": "<paid Cuso Organization's bot>",
+          "userId": null,
+          "organizationId": "<paid Cuso Organization>",
+          "cents": "1000000000000",
+          "transactionId": "<id 1>"
+        }
+      ],
+      "turns": [],
+      "bot": {
+        "id": "<paid Cuso Organization's bot>",
+        "createdAt": "<time>",
+        "updatedAt": "<time>",
+        "archivedAt": null,
+        "deletedAt": null,
+        "userId": null,
+        "projectId": "<paid Cuso Organization's Project>",
+        "createdByUserId": null,
+        "sharedRoomId": null,
+        "workspaceId": "<paid Cuso Organization's workspace>",
+        "ingestTimezone": "Europe/Berlin",
+        "sandboxSetupCommands": [],
+        "followWholeBoard": true,
+        "joinsTeamStandup": false,
+        "leftTeamStandupAt": null,
+        "proactivePaused": false,
+        "proactiveDailyLimit": 20,
+        "mailAutoRead": false,
+        "lastBriefingAt": null,
+        "avatarImageUrl": null,
+        "avatarCode": null,
+        "name": null,
+        "avatarSeed": null,
+        "versionId": "cmo-v1",
+        "personalityTone": null,
+        "personalityDetail": null,
+        "personalityStyle": null,
+        "status": "IDLE",
+        "adminPausedAt": null,
+        "eveSessionId": null,
+        "runtimeVersion": null,
+        "runtimeDeployment": null,
+        "lastSandboxId": null,
+        "lastSandboxStatus": null,
+        "memoryVersion": 0,
+        "memoryHash": null,
+        "lastActivityAt": null,
+        "lastTurnAt": null,
+        "lastSucceededAt": null,
+        "lastFailedAt": null,
+        "consecutiveTurnFailures": 0,
+        "lastPolledAt": null,
+        "lastInboxMessageAt": null,
+        "lastSeenInboxAt": null,
+        "consecutivePollErrors": 0
+      },
+      "notifications": []
+    },
+    "debit": {
+      "uuidVersions": ["7", "7", "7"],
+      "timesWithinTheCall": [true, true, true, true],
+      "bucketsInIdOrder": [
+        [
+          "<bucket Project credits of paid Cuso Organization>",
+          "<bucket pool soon of paid Cuso Organization>"
+        ]
+      ],
+      "receiptsNotBeforeTheirDebit": [true]
     }
   }
 }

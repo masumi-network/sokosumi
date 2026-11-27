@@ -18,9 +18,12 @@
  * transaction on the same database can make a settlement retry, and a retry
  * is a second transaction in the statements.
  *
- * On the split layout every case but the stale Preprod turn stops at the
- * usage check, before any debit: `chargeSokoBotUsage` reads `soko_bot_usage`
- * through the shared client. `origin/main` stops at the same statement.
+ * On the split layout every case that charges stops at the usage check,
+ * before any debit: `chargeSokoBotUsage` reads `soko_bot_usage` through the
+ * shared client (a Cuso's check, before it, at his free-hiring read).
+ * `origin/main` stops at the same statement. There each such case checks
+ * that stop (`expectStoppedAtTheUsageCheck`), and the stale Preprod turn and
+ * the check without a price, which stop before, are compared as here.
  *
  * What runs after a settlement commits and is not the payer's, the delivery
  * of the turn and the log of its route, does nothing here; the low-balance
@@ -74,8 +77,9 @@ vi.mock("@/lib/soko-bot/route-outcome", async (importOriginal) => ({
   logSokoBotRouteOutcome: async () => undefined,
 }));
 
-import type { Prisma } from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
@@ -94,6 +98,7 @@ import {
   statements,
   thrown,
 } from "@/test/spend-comparison";
+import { onSplitLayout } from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -178,7 +183,12 @@ async function createUser(name: string): Promise<string> {
 async function grant(
   name: string,
   owner: BilledTo,
-  bucket: { cents: bigint; expiresInDays: number; projectId?: string },
+  bucket: {
+    cents: bigint;
+    expiresInDays: number;
+    projectId?: string;
+    referenceType?: CreditBucketReferenceType;
+  },
 ): Promise<string> {
   const created = await mainnet().transaction.create({
     data: {
@@ -190,6 +200,7 @@ async function grant(
           ...owner,
           expiresAt: new Date(Date.now() + bucket.expiresInDays * DAY),
           ...(bucket.projectId && { projectId: bucket.projectId }),
+          ...(bucket.referenceType && { referenceType: bucket.referenceType }),
         },
       },
     },
@@ -204,7 +215,12 @@ async function grant(
 
 async function bot(
   name: string,
-  data: { userId: string | null; workspaceId: string; projectId?: string },
+  data: {
+    userId: string | null;
+    workspaceId: string;
+    projectId?: string;
+    versionId?: string;
+  },
 ): Promise<string> {
   const { id } = await prisma.sokoBot.create({ data, select: { id: true } });
   botIds.push(id);
@@ -243,9 +259,14 @@ async function person(
 /**
  * A seated member of an Organization with a Project's shared bot, and
  * Project credits beside the pool: the Project's credits pay first, then the
- * pool, soonest expiry first.
+ * pool, soonest expiry first. As `cuso`, the bot is the Project's Cuso: in
+ * free hiring while nobody paid for him, paid when the Project's credits are
+ * his Tester credits (ADR 0068).
  */
-async function organization(name: string): Promise<Payer> {
+async function organization(
+  name: string,
+  cuso?: "in free hiring" | "paid",
+): Promise<Payer> {
   const userId = await createUser(`${name}'s member`);
   const organizationId = randomUUID();
   const workspaceId = randomUUID();
@@ -285,6 +306,9 @@ async function organization(name: string): Promise<Payer> {
       cents: PRICE / 4n,
       expiresInDays: 40,
       projectId: project.id,
+      ...(cuso === "paid" && {
+        referenceType: CreditBucketReferenceType.CMO_TESTER_CREDITS,
+      }),
     }),
   ];
   return {
@@ -294,6 +318,7 @@ async function organization(name: string): Promise<Payer> {
       userId: null,
       workspaceId,
       projectId: project.id,
+      ...(cuso && { versionId: CMO_SOKO_BOT_VERSION_IDS[0] }),
     }),
     bucketIds,
   };
@@ -356,11 +381,13 @@ async function rows(payer: Payer) {
       where: { ...payer.billedTo, amount: { lt: 0n } },
       orderBy: { id: "asc" },
     }),
+    // In the order the history reader takes a debit's first consumption.
     consumptions: await db.creditConsumption.findMany({
       where: { transaction: payer.billedTo },
-      orderBy: [{ transactionId: "asc" }, { bucket: { expiresAt: "asc" } }],
+      orderBy: [{ transactionId: "asc" }, { createdAt: "asc" }, { id: "asc" }],
     }),
-    usage: await prisma.sokoBotUsage.findMany({
+    // A Network table: on the split layout it is Mainnet's, not the shared one.
+    usage: await db.sokoBotUsage.findMany({
       where,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
@@ -407,6 +434,34 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
       times.map(() => debit.createdAt.getTime()),
     );
   }
+  const sent = statements(log);
+  // Also before `plain` renumbers the ids: a debit's consumptions sort by id
+  // in the order its write bound the buckets, which is the order they paid
+  // in, so the history reader names the Project of the bucket that paid
+  // first (`transaction-history.ts`).
+  const bucketsInIdOrder = left.transactions.map((debit) =>
+    left.consumptions
+      .filter((consumption) => consumption.transactionId === debit.id)
+      .map((consumption) => consumption.bucketId),
+  );
+  // A debit written before the call was held to it when it was written.
+  expect(bucketsInIdOrder).toEqual(
+    left.transactions.map(
+      (debit, at) =>
+        bucketsAsBound(sent.transactions, debit.id) ?? bucketsInIdOrder[at],
+    ),
+  );
+  // And a receipt is never older than its debit: it is written after it.
+  const debitTime = new Map(
+    left.transactions.map((debit) => [debit.id, debit.createdAt.getTime()]),
+  );
+  const receiptsNotBeforeTheirDebit = left.usage.map((usage) => {
+    const debitAt = usage.transactionId
+      ? debitTime.get(usage.transactionId)
+      : undefined;
+    return debitAt !== undefined && usage.createdAt.getTime() >= debitAt;
+  });
+  expect(receiptsNotBeforeTheirDebit).not.toContain(false);
   const debitRows = [...left.transactions, ...left.consumptions];
   const debitTimes = [
     ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),
@@ -415,19 +470,43 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
   return plain(
     {
       result: outcome,
-      statements: statements(log),
+      statements: sent,
       rows: left,
-      // What `plain` hides of the debit's rows: the kind of id, and that
-      // their times are this call's.
+      // What `plain` hides of the debit's rows: the kind of id, that their
+      // times are this call's, the order of a debit's consumption ids and
+      // how a receipt's time relates to its debit's.
       debit: {
         uuidVersions: debitRows.map((row) => row.id.charAt(14)),
         timesWithinTheCall: debitTimes.map(
           (time) => time.getTime() >= started && time.getTime() <= ended,
         ),
+        bucketsInIdOrder,
+        receiptsNotBeforeTheirDebit,
       },
     },
     labels,
   );
+}
+
+/**
+ * The buckets a debit's consumption insert bound, in the order it bound
+ * them: Prisma's on `origin/main` (five values a row), `recordSpend`'s now
+ * (an array of bucket ids). Null for a debit written before the call.
+ */
+function bucketsAsBound(
+  transactions: readonly Statement[][],
+  debitId: string,
+): unknown[] | null {
+  for (const { sql, values } of transactions.flat()) {
+    if (!sql.startsWith('INSERT INTO "public"."credit_consumption" ')) continue;
+    if (values[1] === debitId && Array.isArray(values[4])) return values[4];
+    const rows = Array.from({ length: values.length / 5 }, (_unused, row) =>
+      values.slice(row * 5, row * 5 + 5),
+    );
+    if (rows.some((row) => row[4] === debitId))
+      return rows.filter((row) => row[4] === debitId).map((row) => row[3]);
+  }
+  return null;
 }
 
 function settled(result: PromiseSettledResult<unknown>) {
@@ -500,8 +579,10 @@ async function race(name: string, holding: 0 | 1) {
           const first = control.expireTurn(turns[holding]);
           const firstEnded = Promise.allSettled([first]);
           outcomes = firstEnded;
-          // A settlement that fails before its bucket choice ends the wait.
+          // A settlement that fails before its bucket choice ends the wait,
+          // and the race: the second would hold at the gate in its place.
           await Promise.race([chosen.opened, firstEnded]);
+          if (prepared === 0) return (await firstEnded).map(settled);
           const second = control.expireTurn(turns[holding === 0 ? 1 : 0]);
           const both = Promise.allSettled([first, second]);
           outcomes = both;
@@ -549,6 +630,58 @@ function withTheCancelledDebitInsert(
   });
 }
 
+const USAGE_READ = /^SELECT .* FROM "public"\."soko_bot_usage" /;
+/** Whether a Cuso is in free hiring: it reads his Project's credit buckets. */
+const FREE_HIRING_READ = /^SELECT .*"public"\."credit_bucket"/;
+
+/**
+ * What a call that reaches the usage check does on the split layout: it
+ * stops there, before any debit, and rolls back. `chargeSokoBotUsage` reads
+ * `soko_bot_usage`, a Mainnet table, through the shared client until ticket
+ * 30 moves it; `origin/main` stops at the same statement. Every call that
+ * charges is held to this, so a new charge that fails there cannot hide the
+ * stale Preprod turn's comparison, which runs on both layouts. A Cuso's
+ * call stops before, at `stopsAt`: whether he is in free hiring reads his
+ * Project's credit buckets through the shared client too.
+ */
+function expectStoppedAtTheUsageCheck(
+  observed: unknown,
+  stopsAt = USAGE_READ,
+): void {
+  const { rows, statements: sent } = observed as {
+    rows: { transactions: unknown[]; usage: unknown[] };
+    statements: { transactions: Statement[][] };
+  };
+  expect({ debits: rows.transactions, usage: rows.usage }).toEqual({
+    debits: [],
+    usage: [],
+  });
+  const attempts = sent.transactions.filter((transaction) =>
+    transaction.some(({ sql }) => stopsAt.test(sql)),
+  );
+  expect(attempts.length).toBeGreaterThan(0);
+  for (const transaction of attempts) {
+    expect(transaction.map(({ sql }) => sql).slice(-2)).toEqual([
+      expect.stringMatching(stopsAt),
+      "ROLLBACK",
+    ]);
+  }
+  expect(
+    sent.transactions.flat().filter(({ sql }) => DEBIT_INSERT.test(sql)),
+  ).toEqual([]);
+}
+
+/** A case that charges: as on `origin/main`, or on the split layout, stopped. */
+function expectAsOnMain(
+  key: string,
+  observed: unknown,
+  rewrite?: (transactions: Statement[][]) => Statement[][],
+  stopsAt?: RegExp,
+): void {
+  if (onSplitLayout) expectStoppedAtTheUsageCheck(observed, stopsAt);
+  else expectAsOnBase(key, observed, rewrite);
+}
+
 describe.skipIf(!enabled)(
   "the Soko Bot's debit, as on origin/main (PostgreSQL)",
   () => {
@@ -565,7 +698,7 @@ describe.skipIf(!enabled)(
       await prisma.notification.deleteMany({
         where: { userId: { in: userIds } },
       });
-      await prisma.sokoBotUsage.deleteMany({
+      await mainnet().sokoBotUsage.deleteMany({
         where: { sokoBotId: { in: botIds } },
       });
       await prisma.sokoBotTurn.deleteMany({
@@ -601,7 +734,7 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "funded");
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, a turn funded in full",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -615,7 +748,7 @@ describe.skipIf(!enabled)(
         const payer = await organization("funded Organization");
         const turnId = await turn(payer, "Organization");
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a Project bot of an Organization, a turn funded in full",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -632,7 +765,7 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "partial");
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, a turn funded in part",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -646,7 +779,7 @@ describe.skipIf(!enabled)(
         const payer = await person("empty person", []);
         const turnId = await turn(payer, "empty");
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, an empty wallet",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -662,7 +795,7 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "drained");
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, credits gone after the balance read",
           await aroundTheBucketChoice(
             async (prepare, args) => {
@@ -689,11 +822,15 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "rolled back");
         failAfterTheDebit.armed = true;
-
-        expectAsOnBase(
-          "a person, the settlement fails after its debit",
-          await observe(payer, () => plane().expireTurn(turnId)),
-        );
+        try {
+          expectAsOnMain(
+            "a person, the settlement fails after its debit",
+            await observe(payer, () => plane().expireTurn(turnId)),
+          );
+        } finally {
+          // On the split layout the settlement stops before the debit.
+          failAfterTheDebit.armed = false;
+        }
       },
       CASE_TIMEOUT,
     );
@@ -706,6 +843,7 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "stale Preprod", "preprod");
 
+        // Settled before any usage check: compared on both layouts.
         expectAsOnBase(
           "a person, a stale Preprod turn",
           await observe(payer, () => plane().finishStaleTurn(turnId)),
@@ -719,7 +857,7 @@ describe.skipIf(!enabled)(
       async () => {
         const payer = await organization("checked Organization");
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a Project bot of an Organization, a check",
           await observe(payer, () =>
             chargeSokoBotCredits({
@@ -745,6 +883,10 @@ describe.skipIf(!enabled)(
             key: "soko-bot-usage-spend-replay",
             credits: CHECK_CREDITS,
           });
+        if (onSplitLayout) {
+          expectStoppedAtTheUsageCheck(await observe(payer, check));
+          return;
+        }
         await check();
         // The first charge's times lie before the observed call, also in
         // milliseconds: the debit's times are read against the call's.
@@ -752,7 +894,7 @@ describe.skipIf(!enabled)(
         while (Date.now() <= charged)
           await new Promise((resolve) => setTimeout(resolve, 1));
 
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, a check charged before",
           await observe(payer, check),
         );
@@ -763,7 +905,7 @@ describe.skipIf(!enabled)(
     it(
       "charges two turns racing for the same credits, the second created settling first",
       async () => {
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, two turns race, the first created holds",
           await race("first holds", 0),
           withTheCancelledDebitInsert,
@@ -775,10 +917,108 @@ describe.skipIf(!enabled)(
     it(
       "charges two turns racing for the same credits, the first created settling first",
       async () => {
-        expectAsOnBase(
+        expectAsOnMain(
           "a person, two turns race, the second created holds",
           await race("second holds", 1),
           withTheCancelledDebitInsert,
+        );
+      },
+      CASE_TIMEOUT,
+    );
+
+    it(
+      "charges nothing for a check without a price, before any usage check",
+      async () => {
+        const payer = await person("unpriced person", [
+          { name: "only bucket", cents: CHECK_PRICE, expiresInDays: 20 },
+        ]);
+
+        // Returns before the usage check: compared on both layouts.
+        expectAsOnBase(
+          "a person, a check without a price",
+          await observe(payer, () =>
+            chargeSokoBotCredits({
+              sokoBotId: payer.botId,
+              key: "soko-bot-usage-spend-unpriced",
+              credits: 0,
+            }),
+          ),
+        );
+      },
+      CASE_TIMEOUT,
+    );
+
+    it(
+      "answers a check charged in part before with its shortfall, without charging again",
+      async () => {
+        const payer = await person("short replaying person", [
+          { name: "only bucket", cents: CHECK_PRICE / 2n, expiresInDays: 20 },
+        ]);
+        const check = () =>
+          chargeSokoBotCredits({
+            sokoBotId: payer.botId,
+            key: "soko-bot-usage-spend-short-replay",
+            credits: CHECK_CREDITS,
+          });
+        if (onSplitLayout) {
+          expectStoppedAtTheUsageCheck(await observe(payer, check));
+          return;
+        }
+        await check();
+        // As in the replay above: the first charge's times lie before the call.
+        const charged = Date.now();
+        while (Date.now() <= charged)
+          await new Promise((resolve) => setTimeout(resolve, 1));
+
+        expectAsOnMain(
+          "a person, a check charged in part before",
+          await observe(payer, check),
+        );
+      },
+      CASE_TIMEOUT,
+    );
+
+    it(
+      "charges nothing for a check of a Cuso in free hiring",
+      async () => {
+        const payer = await organization(
+          "free hiring Organization",
+          "in free hiring",
+        );
+
+        expectAsOnMain(
+          "a Cuso in free hiring, a check",
+          await observe(payer, () =>
+            chargeSokoBotCredits({
+              sokoBotId: payer.botId,
+              key: "soko-bot-usage-spend-free-hiring",
+              credits: CHECK_CREDITS,
+            }),
+          ),
+          undefined,
+          FREE_HIRING_READ,
+        );
+      },
+      CASE_TIMEOUT,
+    );
+
+    it(
+      "charges a paid Cuso's check to his Tester credits, then the pool",
+      async () => {
+        const payer = await organization("paid Cuso Organization", "paid");
+
+        expectAsOnMain(
+          "a paid Cuso, a check",
+          await observe(payer, () =>
+            chargeSokoBotCredits({
+              sokoBotId: payer.botId,
+              key: "soko-bot-usage-spend-paid-cuso",
+              // More than his Tester credits: the pool pays the rest.
+              credits: 100,
+            }),
+          ),
+          undefined,
+          FREE_HIRING_READ,
         );
       },
       CASE_TIMEOUT,
