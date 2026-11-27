@@ -101,7 +101,7 @@ interface Answer {
   statements: number;
 }
 
-/** One request; the body without `meta`, which carries a time and an id. */
+/** One request; `meta` without the time and the request id it carries. */
 async function call(
   loaded: Loaded,
   path: string,
@@ -117,9 +117,275 @@ async function call(
   }
   const statements = sent.statements - before;
   const body = text ? (JSON.parse(text) as Record<string, unknown>) : null;
-  if (body && typeof body === "object") delete body.meta;
+  const meta = body?.meta as Record<string, unknown> | undefined;
+  if (meta) {
+    delete meta.timestamp;
+    delete meta.requestId;
+  }
   return { status: response.status, body, statements };
 }
+
+/**
+ * The old Preprod's catalog for the fixture of "answers the old Preprod's paid
+ * catalog as before this ticket": recorded by that test on 2026-11-27 with
+ * `apps/core/src`'s catalog, middleware, router and helper files taken from
+ * `origin/main` at e6a0d5e60, before this ticket. Rows, order, pagination
+ * and statement counts; the free Agent's id, name and times are normalized.
+ */
+const OLD_PREPROD_CATALOG = {
+  "/v1/agents?limit=2": {
+    status: 200,
+    body: {
+      data: [
+        {
+          id: "n20-old-preprod-v2",
+          createdAt: "2026-11-25T12:00:00.000Z",
+          updatedAt: "2026-11-25T12:00:00.000Z",
+          name: "Paid Cardano V2",
+          image: null,
+          icon: null,
+          credits: 2,
+          summary: null,
+          description: "Paid Cardano fixture",
+          metrics: {
+            executions: {
+              count: 9,
+              averageTime: null,
+            },
+            ratings: {
+              total: 1,
+              average: 4,
+            },
+          },
+          author: {
+            name: null,
+            image: null,
+            organization: null,
+            email: null,
+            other: null,
+          },
+          legal: {
+            privacyPolicy: null,
+            terms: null,
+            dpa: null,
+            other: null,
+          },
+          categories: [],
+          kind: "cardano",
+        },
+        {
+          id: "n20-old-preprod-x402",
+          specification: "bazaar",
+          name: "Paid x402",
+          description: "Paid x402 fixture",
+          image: null,
+          x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+          openApiSpecUrl: null,
+          kind: "x402",
+          pricingType: "fixed",
+          isPayable: true,
+          paymentSources: [
+            {
+              caip2Network: "eip155:84532",
+              asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+              decimals: 6,
+              payTo: "0x1111111111111111111111111111111111111111",
+              amount: "2000000",
+              credits: 2,
+            },
+          ],
+        },
+      ],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 2,
+          total: 3,
+          nextCursor: "n20-old-preprod-x402",
+        },
+      },
+    },
+    statements: 15,
+  },
+  "/v1/agents?limit=2&cursor=n20-old-preprod-x402": {
+    status: 200,
+    body: {
+      data: [
+        {
+          id: "free-agent",
+          createdAt: "free",
+          updatedAt: "free",
+          name: "free agent",
+          image: null,
+          icon: null,
+          credits: 0,
+          summary: null,
+          description: "Fixture",
+          metrics: {
+            executions: {
+              count: 0,
+              averageTime: null,
+            },
+            ratings: {
+              total: 0,
+              average: null,
+            },
+          },
+          author: {
+            name: null,
+            image: null,
+            organization: null,
+            email: null,
+            other: null,
+          },
+          legal: {
+            privacyPolicy: null,
+            terms: null,
+            dpa: null,
+            other: null,
+          },
+          categories: [],
+          kind: "cardano",
+        },
+      ],
+      meta: {
+        pagination: {
+          cursor: "n20-old-preprod-x402",
+          limit: 2,
+          total: 3,
+          nextCursor: null,
+        },
+      },
+    },
+    statements: 15,
+  },
+  "/v1/agents?kind=cardano": {
+    status: 200,
+    body: {
+      data: [
+        {
+          id: "n20-old-preprod-v2",
+          createdAt: "2026-11-25T12:00:00.000Z",
+          updatedAt: "2026-11-25T12:00:00.000Z",
+          name: "Paid Cardano V2",
+          image: null,
+          icon: null,
+          credits: 2,
+          summary: null,
+          description: "Paid Cardano fixture",
+          metrics: {
+            executions: {
+              count: 9,
+              averageTime: null,
+            },
+            ratings: {
+              total: 1,
+              average: 4,
+            },
+          },
+          author: {
+            name: null,
+            image: null,
+            organization: null,
+            email: null,
+            other: null,
+          },
+          legal: {
+            privacyPolicy: null,
+            terms: null,
+            dpa: null,
+            other: null,
+          },
+          categories: [],
+          kind: "cardano",
+        },
+        {
+          id: "free-agent",
+          createdAt: "free",
+          updatedAt: "free",
+          name: "free agent",
+          image: null,
+          icon: null,
+          credits: 0,
+          summary: null,
+          description: "Fixture",
+          metrics: {
+            executions: {
+              count: 0,
+              averageTime: null,
+            },
+            ratings: {
+              total: 0,
+              average: null,
+            },
+          },
+          author: {
+            name: null,
+            image: null,
+            organization: null,
+            email: null,
+            other: null,
+          },
+          legal: {
+            privacyPolicy: null,
+            terms: null,
+            dpa: null,
+            other: null,
+          },
+          categories: [],
+          kind: "cardano",
+        },
+      ],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 20,
+          total: 2,
+          nextCursor: null,
+        },
+      },
+    },
+    statements: 13,
+  },
+  "/v1/agents?kind=x402&limit=2": {
+    status: 200,
+    body: {
+      data: [
+        {
+          id: "n20-old-preprod-x402",
+          specification: "bazaar",
+          name: "Paid x402",
+          description: "Paid x402 fixture",
+          image: null,
+          x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+          openApiSpecUrl: null,
+          kind: "x402",
+          pricingType: "fixed",
+          isPayable: true,
+          paymentSources: [
+            {
+              caip2Network: "eip155:84532",
+              asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+              decimals: 6,
+              payTo: "0x1111111111111111111111111111111111111111",
+              amount: "2000000",
+              credits: 2,
+            },
+          ],
+        },
+      ],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 2,
+          total: 1,
+          nextCursor: null,
+        },
+      },
+    },
+    statements: 14,
+  },
+};
 
 afterAll(async () => {
   vi.unstubAllEnvs();
@@ -226,6 +492,166 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         ...(onSplitLayout ? [] : [`/v1/agents/${catalog.agentId}`, "/v1/jobs"]),
       ];
     }
+
+    // The old Preprod: `NETWORK` is Preprod, Preprod off, one schema. Its
+    // paid catalog keeps the deployment's `NETWORK` in the V2 and x402
+    // filters (decision 9), so it must answer as before this ticket.
+    it.runIf(deploymentNetwork === "Preprod" && !onSplitLayout)(
+      "answers the old Preprod's paid catalog as before this ticket",
+      async () => {
+        const ids = { v2: "n20-old-preprod-v2", x402: "n20-old-preprod-x402" };
+        const v2Policy = "a".repeat(56);
+        const v2Address = "addr_test1_n20";
+        const asset = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+        const payTo = "0x1111111111111111111111111111111111111111";
+        const now = new Date("2026-11-25T12:00:00.000Z");
+        const seed = {
+          lastUptimeCheck: now,
+          uptimeCount: 1,
+          uptimeCheckCount: 1,
+          createdAt: now,
+          updatedAt: now,
+          isShown: true,
+          apiBaseUrl: "https://agent.example.com",
+        };
+        const readiness = [
+          {
+            key: "cardano-v2-rail-readiness",
+            cursorId: JSON.stringify([
+              { policyId: v2Policy, smartContractAddress: v2Address },
+            ]),
+          },
+          {
+            key: "x402-buy-side-readiness",
+            cursorId: JSON.stringify([
+              {
+                caip2Network: "eip155:84532",
+                asset,
+                decimals: 6,
+                evmWalletId: "n20-wallet",
+                evmWalletAddress: payTo,
+              },
+            ]),
+          },
+        ];
+        const units = ["lovelace", `eip155:84532/erc20:${asset}`];
+        const { prisma } = loaded;
+        const existingUnits = (
+          await prisma.creditCost.findMany({ where: { unit: { in: units } } })
+        ).map((cost) => cost.unit);
+        const newUnits = units.filter((unit) => !existingUnits.includes(unit));
+        await prisma.syncMetadata.deleteMany({
+          where: { key: { in: readiness.map((row) => row.key) } },
+        });
+        await prisma.syncMetadata.createMany({
+          data: readiness.map((row) => ({ ...row, lastSyncedAt: now })),
+        });
+        await prisma.creditCost.createMany({
+          data: newUnits.map((unit) => ({ unit, centsPerUnit: 10n ** 10n })),
+        });
+        const pricingIds: string[] = [];
+        try {
+          const v2 = await prisma.agent.create({
+            data: {
+              ...seed,
+              id: ids.v2,
+              blockchainIdentifier: `${v2Policy}123456`,
+              name: "Paid Cardano V2",
+              description: "Paid Cardano fixture",
+              jobCount: 9,
+              paymentType: "WEB3_CARDANO_V2",
+              pricing: {
+                create: {
+                  pricingType: "FIXED",
+                  fixedPricing: {
+                    create: {
+                      amounts: { create: { unit: "lovelace", amount: 2n } },
+                    },
+                  },
+                },
+              },
+              paymentSources: {
+                create: {
+                  sourceIndex: 0,
+                  chain: "Cardano",
+                  network: "Preprod",
+                  paymentSourceType: "Web3CardanoV2",
+                  address: v2Address,
+                  pricingType: "FIXED",
+                },
+              },
+            },
+          });
+          pricingIds.push(v2.pricingId);
+          await prisma.userAgentRating.create({
+            data: { userId: optedIn.id, agentId: v2.id, rating: 4 },
+          });
+          const x402 = await prisma.agent.create({
+            data: {
+              ...seed,
+              id: ids.x402,
+              blockchainIdentifier: "n20-old-preprod-x402-identifier",
+              apiBaseUrl: null,
+              type: "X402",
+              name: "Paid x402",
+              description: "Paid x402 fixture",
+              jobCount: 8,
+              x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+              pricing: { create: { pricingType: "UNKNOWN" } },
+              paymentSources: {
+                create: {
+                  sourceIndex: 0,
+                  chain: "EVM",
+                  network: "eip155:84532",
+                  scheme: "exact",
+                  payTo,
+                  address: asset,
+                  pricingType: "FIXED",
+                  amounts: {
+                    create: { unit: asset, amount: 2_000_000n, decimals: 6 },
+                  },
+                },
+              },
+            },
+          });
+          pricingIds.push(x402.pricingId);
+
+          const answers: Record<string, unknown> = {};
+          for (const path of [
+            "/v1/agents?limit=2",
+            `/v1/agents?limit=2&cursor=${ids.x402}`,
+            "/v1/agents?kind=cardano",
+            "/v1/agents?kind=x402&limit=2",
+          ]) {
+            await call(loaded, path, {});
+            const answer = await call(loaded, path, {});
+            // The free fixture Agent's id, name and times are random.
+            const free = JSON.stringify(answer)
+              .replaceAll(catalog.agentId, "free-agent")
+              .replaceAll(agentName, "free agent");
+            answers[path] = JSON.parse(free, (key, value) =>
+              value?.id === "free-agent"
+                ? { ...value, createdAt: "free", updatedAt: "free" }
+                : value,
+            );
+          }
+          expect(answers).toEqual(OLD_PREPROD_CATALOG);
+        } finally {
+          await prisma.agent.deleteMany({
+            where: { id: { in: [ids.v2, ids.x402] } },
+          });
+          await prisma.agentPricing.deleteMany({
+            where: { id: { in: pricingIds } },
+          });
+          await prisma.creditCost.deleteMany({
+            where: { unit: { in: newUnits } },
+          });
+          await prisma.syncMetadata.deleteMany({
+            where: { key: { in: readiness.map((row) => row.key) } },
+          });
+        }
+      },
+    );
 
     it("reads for a Mainnet request what it read before this ticket", async () => {
       // `/v1/users/me` for a session in its personal workspace: 4 statements,
