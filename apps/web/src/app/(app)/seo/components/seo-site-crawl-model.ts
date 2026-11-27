@@ -137,9 +137,9 @@ const GAP_CHECKS: {
     item: (item) => item === "Some sitemap URLs",
   },
   {
-    // The shell pages the crawl did not render. The caveat about pages that are no shell is about no group:
-    // it stays in otherGaps.
-    check: ["javascript"],
+    // A crawl that ran no script did not render a shell page either: one may hold the only link to a broken URL or
+    // to the start of a chain. The caveat about pages that are no shell is about no group: it stays in otherGaps.
+    check: ["javascript", "brokenLinks", "redirectChains"],
     item: (item) => item === "Links that only JavaScript adds",
   },
   {

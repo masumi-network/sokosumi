@@ -324,6 +324,12 @@ describe("site crawl ledger", () => {
       { item: `robots.txt of ${SITE}`, reason: "it did not load" },
     ]);
     expect(row(crawl, "javascript")).toMatchObject({ reasons: ["no render"] });
+    // A crawl that ran no script may have missed a link to a broken URL or a chain.
+    for (const check of ["brokenLinks", "redirectChains"] as const)
+      expect(row(crawl, check)).toMatchObject({
+        state: "not determined",
+        reasons: ["no render"],
+      });
   });
 
   it("keeps why a site was not crawled, and shows nothing for a report without a crawl", () => {
