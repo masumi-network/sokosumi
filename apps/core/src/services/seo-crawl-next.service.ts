@@ -41,8 +41,10 @@ const PAGE_URLS = z.array(z.string());
 const RETRY = "The crawl request changed. Retry with the same key.";
 /**
  * How long a completed continuation's Report may take to arrive. Until it does, the chain still ends at its parent,
- * so a second request would buy the same pages again. Past this, Sokosumi takes the Report as lost.
+ * so a second request would buy the same pages again. Past both, Sokosumi takes the Report as lost. The first is
+ * Web's wait for a check that does not end (SEO_CHECK_STALE_MS), so Web shows no trigger that Core refuses.
  */
+const CHECK_WAIT_MS = 3 * 60 * 60_000;
 const REPORT_WAIT_MS = 15 * 60_000;
 
 export function isSeoCrawlNextEnabled(): boolean {
@@ -86,24 +88,46 @@ async function readCrawlTip(
   return tip && root ? { ...tip, rootId: root.id } : null;
 }
 
+/**
+ * Whether the full audit is in the evidence the workspace loads for these pages, with a place left for the
+ * continuation's own row: a full audit past it has no ledger to show the result in.
+ */
+async function rootInLedger(
+  tx: Pick<Prisma.TransactionClient, "projectSeoObservation">,
+  actor: Pick<SeoActor, "owner">,
+  pageIds: string[],
+  rootId: string,
+) {
+  const rows = await tx.projectSeoObservation.findMany({
+    where: {
+      ...seoOwnerWhere(actor),
+      ownerId: null,
+      pageIds: { hasSome: pageIds },
+    },
+    orderBy: SEO_EVIDENCE_ORDER,
+    take: SEO_WORKSPACE_EVIDENCE_LIMIT - 1,
+    select: { id: true },
+  });
+  return rows.some((row) => row.id === rootId);
+}
+
 /** The workspace projection's dispatch inputs: what the SEO check service runs here, and the crawl a continuation goes on from. */
 export async function seoDispatchInputs(
   actor: SeoActor,
   executor: Awaited<ReturnType<typeof findSeoAnalysisExecutor>>,
-  visiblePages: readonly { url: string }[],
-  /** The evidence the workspace loaded: the crawl ledger shows only these rows. */
-  loaded: readonly { id: string }[],
+  /** The pages the view shows. */
+  scope: { pages: readonly { url: string }[]; pageIds: string[] },
 ) {
   const tip =
     executor?.canUsePaidSearchData && isSeoCrawlNextEnabled()
       ? await readCrawlTip(prisma, actor)
       : null;
   // The continuation's Task and result link only to its start page: a view without that page could not show them.
-  // A full audit past the loaded history has no ledger to show the result in.
   const shown =
     tip &&
-    visiblePages.some((page) => page.url === normalizeSeoUrl(tip.startUrl)) &&
-    loaded.some((row) => row.id === tip.rootId);
+    scope.pages.some((page) => page.url === normalizeSeoUrl(tip.startUrl)) &&
+    !(await crawlArriving(prisma, actor)) &&
+    (await rootInLedger(prisma, actor, scope.pageIds, tip.rootId));
   return {
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
@@ -144,7 +168,10 @@ export async function requestSeoCrawlNext(
       return commitSeoMutation(tx, previous, hooks);
     }
     await requireNoActiveSeoAnalysis(tx, actor);
-    await requireNoArrivingCrawl(tx, actor);
+    if (await crawlArriving(tx, actor))
+      throw conflict(
+        "The last crawl of the next pages has not arrived yet. Wait until it shows, then start the next one.",
+      );
     const tip = await readCrawlTip(tx, actor);
     if (!tip)
       throw conflict(
@@ -186,18 +213,7 @@ export async function requestSeoCrawlNext(
       throw conflict(
         "The crawl's start page is no longer in this audit. Add it again to go on with the crawl.",
       );
-    // As the workspace loads its evidence: a full audit past it has no ledger to show the result in.
-    const loaded = await tx.projectSeoObservation.findMany({
-      where: {
-        ...seoOwnerWhere(actor),
-        ownerId: null,
-        pageIds: { hasSome: scope.pageIds },
-      },
-      orderBy: SEO_EVIDENCE_ORDER,
-      take: SEO_WORKSPACE_EVIDENCE_LIMIT,
-      select: { id: true },
-    });
-    if (!loaded.some((row) => row.id === tip.rootId))
+    if (!(await rootInLedger(tx, actor, scope.pageIds, tip.rootId)))
       throw conflict(
         "The crawl's full audit is older than the history Sokosumi shows. Run a new full audit to crawl further.",
       );
@@ -259,11 +275,12 @@ export async function requestSeoCrawlNext(
   }, RETRY);
 }
 
-/** Refuses while a completed continuation's Report has not imported: its crawl is not yet the chain's tip. */
-async function requireNoArrivingCrawl(
-  tx: Prisma.TransactionClient,
+/** Whether a completed continuation's Report has not imported yet: its crawl is not yet the chain's tip. */
+async function crawlArriving(
+  tx: Pick<Prisma.TransactionClient, "projectSeoAnalysis" | "task">,
   actor: Pick<SeoActor, "owner">,
 ) {
+  const now = Date.now();
   const waiting = await tx.projectSeoAnalysis.findMany({
     where: {
       ...seoOwnerWhere(actor),
@@ -272,20 +289,23 @@ async function requireNoArrivingCrawl(
       status: { not: "completed" },
       taskId: { not: null },
     },
-    select: { taskId: true },
+    select: { taskId: true, createdAt: true },
   });
+  const young = new Set(
+    waiting.flatMap((row) =>
+      row.taskId && row.createdAt.getTime() > now - CHECK_WAIT_MS
+        ? [row.taskId]
+        : [],
+    ),
+  );
   const taskIds = waiting.flatMap((row) => (row.taskId ? [row.taskId] : []));
-  if (!taskIds.length) return;
-  const arriving = await tx.task.count({
-    where: {
-      id: { in: taskIds },
-      status: "COMPLETED",
-      archivedAt: null,
-      updatedAt: { gt: new Date(Date.now() - REPORT_WAIT_MS) },
-    },
+  if (!taskIds.length) return false;
+  const completed = await tx.task.findMany({
+    where: { id: { in: taskIds }, status: "COMPLETED", archivedAt: null },
+    select: { id: true, updatedAt: true },
   });
-  if (arriving)
-    throw conflict(
-      "The last crawl of the next pages has not arrived yet. Wait until it shows, then start the next one.",
-    );
+  return completed.some(
+    (task) =>
+      young.has(task.id) || task.updatedAt.getTime() > now - REPORT_WAIT_MS,
+  );
 }

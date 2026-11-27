@@ -291,8 +291,8 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       where: { id: first.taskId! },
       data: { status: "COMPLETED" },
     });
-    // The chain still ends at the audit's crawl, as the Report has not arrived.
-    expect(await continueFrom()).toBe(AUDIT_CRAWL);
+    // The chain still ends at the audit's crawl, as the Report has not arrived: no offer, and no sale.
+    expect(await continueFrom()).toBeNull();
     await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
       status: 409,
       message: expect.stringContaining("has not arrived yet"),
@@ -302,18 +302,39 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       where: { id: first.id },
       data: { status: "failed", failureReason: "rejected" },
     });
+    expect(await continueFrom()).toBeNull();
     await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
       status: 409,
       message: expect.stringContaining("has not arrived yet"),
     });
-    // A Report that never arrives stops blocking: the balance check is next.
+    // Web waits three hours for a check that does not end, and Core waits as long.
     await prisma.task.update({
       where: { id: first.taskId! },
       data: { updatedAt: new Date(Date.now() - 16 * 60_000) },
     });
+    await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("has not arrived yet"),
+    });
+    // A Report that never arrives stops blocking: the offer is back, and the balance check is next.
+    await prisma.projectSeoAnalysis.update({
+      where: { id: first.id },
+      data: { createdAt: new Date(Date.now() - 4 * 60 * 60_000) },
+    });
+    expect(await continueFrom()).toBe(AUDIT_CRAWL);
     await setBalance(99n);
     await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
       status: 422,
+    });
+    // A Task that ended late still gets its time for the Report.
+    await prisma.task.update({
+      where: { id: first.taskId! },
+      data: { updatedAt: new Date() },
+    });
+    expect(await continueFrom()).toBeNull();
+    await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("has not arrived yet"),
     });
   });
 
@@ -345,19 +366,27 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       new Date("2026-11-01"),
     );
     await setBalance(100n);
-    // Newer evidence of the same page: crawls of another chain, as many as the workspace loads.
-    await Promise.all(
-      Array.from({ length: SEO_WORKSPACE_EVIDENCE_LIMIT }, (_, i) =>
-        storeCrawl(
-          "crawl_next",
-          {
-            snapshotId: i.toString(16).padStart(64, "0"),
-            continues: "f".repeat(64),
-            stop: "page cap",
-          },
-          new Date("2026-11-02"),
+    // Newer evidence of the same page: crawls of another chain.
+    const newer = (from: number, to: number) =>
+      Promise.all(
+        Array.from({ length: to - from }, (_, i) =>
+          storeCrawl(
+            "crawl_next",
+            {
+              snapshotId: (from + i).toString(16).padStart(64, "0"),
+              continues: "f".repeat(64),
+              stop: "page cap",
+            },
+            new Date("2026-11-02"),
+          ),
         ),
-      ),
+      );
+    // The continuation's own row must still leave the full audit in the history the workspace loads.
+    await newer(0, SEO_WORKSPACE_EVIDENCE_LIMIT - 2);
+    expect(await continueFrom()).toBe(AUDIT_CRAWL);
+    await newer(
+      SEO_WORKSPACE_EVIDENCE_LIMIT - 2,
+      SEO_WORKSPACE_EVIDENCE_LIMIT - 1,
     );
     expect(await continueFrom()).toBeNull();
     await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
