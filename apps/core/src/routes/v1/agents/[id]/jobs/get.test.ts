@@ -31,10 +31,8 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 
 // Sibling route (GET /{id}/reviews) dependencies, used by the
 // "gate does not spread" test.
-vi.mock("@/helpers/agent", () => ({
-  buildAvailableAgentWhereClause: vi.fn(() => ({})),
-  getCardanoV2ReadySources: vi.fn(),
-  getCreditCostsOrThrow: vi.fn(),
+vi.mock("@/lib/agent-catalog/availability", () => ({
+  requireAvailableAgent: vi.fn().mockResolvedValue(undefined),
 }));
 
 const { agentRatingMock, prismaMock } = vi.hoisted(() => ({
@@ -51,7 +49,10 @@ const { agentRatingMock, prismaMock } = vi.hoisted(() => ({
 
 vi.mock("@/helpers/agent-rating", () => agentRatingMock);
 
-vi.mock("@/lib/db/prisma", () => ({ default: prismaMock }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: prismaMock,
+  networkPrisma: () => prismaMock,
+}));
 
 vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
   const actual =

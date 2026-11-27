@@ -14,18 +14,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  doesUserHaveFinishedJobWithAgentMock,
-  prismaTransactionMock,
-  requireAvailableAgentOrThrowMock,
-} = vi.hoisted(() => ({
-  doesUserHaveFinishedJobWithAgentMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-  requireAvailableAgentOrThrowMock: vi.fn(),
-}));
+const { doesUserHaveFinishedJobWithAgentMock, requireAvailableAgentMock } =
+  vi.hoisted(() => ({
+    doesUserHaveFinishedJobWithAgentMock: vi.fn(),
+    requireAvailableAgentMock: vi.fn(),
+  }));
 
-vi.mock("@/helpers/agent", () => ({
-  requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
+vi.mock("@/lib/agent-catalog/availability", () => ({
+  requireAvailableAgent: requireAvailableAgentMock,
 }));
 
 vi.mock("@/helpers/agent-rating", () => ({
@@ -33,9 +29,8 @@ vi.mock("@/helpers/agent-rating", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    $transaction: prismaTransactionMock,
-  },
+  default: {},
+  networkPrisma: () => ({}),
 }));
 
 function createApp(
@@ -63,10 +58,7 @@ describe("GET /agents/{id}/ratings/eligibility", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    requireAvailableAgentOrThrowMock.mockResolvedValue(undefined);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({});
-    });
+    requireAvailableAgentMock.mockResolvedValue(undefined);
   });
 
   it("reports eligibility when the caller has a finished job", async () => {
@@ -79,6 +71,10 @@ describe("GET /agents/{id}/ratings/eligibility", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(requireAvailableAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      "agent_123",
+    );
     expect(body.data).toEqual({ eligible: true });
   });
 
@@ -96,9 +92,7 @@ describe("GET /agents/{id}/ratings/eligibility", () => {
   });
 
   it("returns 404 when the agent is not available", async () => {
-    requireAvailableAgentOrThrowMock.mockRejectedValue(
-      notFound("Agent not found"),
-    );
+    requireAvailableAgentMock.mockRejectedValue(notFound("Agent not found"));
 
     const app = createApp();
     const response = await app.request(

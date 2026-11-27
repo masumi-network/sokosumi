@@ -10,7 +10,6 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import {
-  buildAvailableAgentWhereClause,
   getCardanoV2ReadySources as readCardanoReadiness,
   getCreditCostsOrThrow as readRequiredRates,
 } from "@/lib/agent-catalog/availability";
@@ -18,7 +17,7 @@ import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { Network } from "@/lib/network";
 
-import { notFound, unprocessableEntity } from "./error";
+import { unprocessableEntity } from "./error";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
@@ -178,30 +177,6 @@ export const getCardanoV2ReadySources = (
   // shortcut: callers off the Network scope read Mainnet's row; they pass their scope's Network when they move to it.
   network: Network = "mainnet",
 ) => readCardanoReadiness(tx, network);
-
-/**
- * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
- * throwing a 404 otherwise. Centralizes the availability existence check shared
- * by the agent rating sub-resource handlers (rating upsert and eligibility).
- */
-export const requireAvailableAgentOrThrow = async (
-  agentId: string,
-  tx: Prisma.TransactionClient,
-): Promise<void> => {
-  const creditCosts = await getCreditCostsOrThrow(tx);
-  const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
-  const agent = await tx.agent.findFirst({
-    where: {
-      id: agentId,
-      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-    },
-    select: { id: true },
-  });
-
-  if (!agent) {
-    throw notFound("Agent not found");
-  }
-};
 
 export const calculateAverageExecutionTime = async (
   agentId: string,

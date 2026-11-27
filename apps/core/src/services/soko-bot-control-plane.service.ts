@@ -2603,7 +2603,9 @@ export class SokoBotControlPlane {
             },
           })
         : null;
+    const networkScope = createNetworkScope(input.network);
     const classifierContext = await loadClassificationContext(
+      networkScope,
       sokoBotTurnReader(
         input.userId,
         askedByTeammate ? "TEAMMATE" : "OWNER",
@@ -2862,6 +2864,7 @@ export class SokoBotControlPlane {
           })
         : null;
     const context = await this.contextBuilder.build({
+      networkScope,
       userId: input.userId,
       sokoBotId: bot.id,
       sharedScope: sokoBotSharedScopeOf(bot),
