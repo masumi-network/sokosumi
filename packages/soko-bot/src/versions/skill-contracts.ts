@@ -54,39 +54,6 @@ export function isFrozenVersion(version: Pick<SokoBotVersion, "id">): boolean {
  * finding AND on any stale key left behind once a fix lands.
  */
 export const KNOWN_LIVE_CONTRACT_DRIFT: Readonly<Record<string, string>> = {
-  // Check 1b: v35-v37 (`messaging: "send_message"`) still reference removed
-  // `post_chat` / `ask_coworker` in `result-cards` and three tool descriptions.
-  "check1b:v35:skill:result-cards:post_chat":
-    "result-cards names post_chat on send_message version (fix PR 2)",
-  "check1b:v36:skill:result-cards:post_chat":
-    "result-cards names post_chat on send_message version (fix PR 2)",
-  "check1b:v37:skill:result-cards:post_chat":
-    "result-cards names post_chat on send_message version (fix PR 2)",
-  "check1b:v35:desc:create_schedule:post_chat":
-    "create_schedule desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v36:desc:create_schedule:post_chat":
-    "create_schedule desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v37:desc:create_schedule:post_chat":
-    "create_schedule desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v35:desc:preview_result:post_chat":
-    "preview_result desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v36:desc:preview_result:post_chat":
-    "preview_result desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v37:desc:preview_result:post_chat":
-    "preview_result desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v35:desc:wait_for:ask_coworker":
-    "wait_for desc names ask_coworker on send_message version (fix PR 2)",
-  "check1b:v36:desc:wait_for:ask_coworker":
-    "wait_for desc names ask_coworker on send_message version (fix PR 2)",
-  "check1b:v37:desc:wait_for:ask_coworker":
-    "wait_for desc names ask_coworker on send_message version (fix PR 2)",
-  "check1b:v35:desc:wait_for:post_chat":
-    "wait_for desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v36:desc:wait_for:post_chat":
-    "wait_for desc names post_chat on send_message version (fix PR 2)",
-  "check1b:v37:desc:wait_for:post_chat":
-    "wait_for desc names post_chat on send_message version (fix PR 2)",
-
   // Check 1b: cmo-v24 (`skillsOnDemand`) drops `read_writing_skill` in favor
   // of `read_skill`; skillIndexSection currently bridges the alias.
   "check1b:cmo-v24:systemPrompt:read_writing_skill":
@@ -150,14 +117,8 @@ export const KNOWN_LIVE_CONTRACT_DRIFT: Readonly<Record<string, string>> = {
     "cusoToolDescription(wait_for) names find_integrations (fix PR 3)",
 
   // Check 4: Universal rules vs partial schema coverage
-  "check4:result-cards-no-card-boundary:skill:result-cards":
-    "result-cards does not yet state that writes outside its listed kinds have no card (fix PR 2)",
-  "check4:result-cards-no-card-boundary:desc:preview_result":
-    "preview_result description does not yet state that unlisted writes have no card (fix PR 2)",
   "check4:cuso-no-preview-card:skill:cmo-launch-video":
     "cmo-launch-video asks Cuso to show a preview card although Cuso lacks preview_result (fix PR 3)",
-  "check4:generate-image-constraints-exposed:schema:generate_image":
-    "generate_image JSON schema omits allowed aspect ratios and headline styleReferenceId rule (fix PR 2)",
 };
 
 /** Tool-like snake_case verb prefixes used to spot misspelled/removed tool names in backticks. */

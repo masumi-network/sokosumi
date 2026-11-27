@@ -223,14 +223,50 @@ export const SHARED_SOKO_BOT_GUIDANCE = [
   'You have no owner: every member of the team can ask you for help. Wherever these instructions, tool results or packets say "the owner" or "your owner", that means the member who asked you in a turn a member started, and the team in a turn you started yourself (a schedule, a Task event or mail). There is no owner\'s chat: you speak in your shared room, where every member can read what you write.',
 ].join("\n");
 
+/** Description rewrites for `messaging: "send_message"` versions that drop `post_chat` and `ask_coworker`. */
+const SEND_MESSAGE_DESCRIPTION_REWRITES: Readonly<
+  Partial<Record<SokoBotCapability, readonly (readonly [string, string])[]>>
+> = {
+  create_schedule: [
+    ["posting in a chat (post_chat)", "messaging a chat (send_message)"],
+  ],
+  preview_result: [
+    [
+      "Use post_chat resultReferences for another authorized chat.",
+      "Use send_message resultReferences for another authorized chat.",
+    ],
+  ],
+  wait_for: [
+    [
+      "the next answer in a chat room (chat_reply, its roomId, for example after ask_coworker)",
+      "the next answer in a chat room (chat_reply, its roomId)",
+    ],
+    [
+      "never post_chat it into another room",
+      "never send_message it into another room",
+    ],
+  ],
+};
+
 /** A tool's description as this version's bot reads it. */
 export function sokoBotToolDescription(
   capability: SokoBotCapability,
-  version: Pick<SokoBotVersion, "texts">,
+  version: Pick<SokoBotVersion, "texts" | "messaging">,
 ): string {
-  return version.texts === "cmo"
-    ? cusoToolDescription(capability)
-    : SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+  const base =
+    version.texts === "cmo"
+      ? cusoToolDescription(capability)
+      : SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+  if (version.messaging !== "send_message") return base;
+  const swaps = SEND_MESSAGE_DESCRIPTION_REWRITES[capability];
+  if (!swaps) return base;
+  return swaps.reduce((text, [from, to]) => {
+    if (!text.includes(from))
+      throw new Error(
+        `send_message description rewrite for ${capability} no longer finds: ${from}`,
+      );
+    return text.replaceAll(from, to);
+  }, base);
 }
 
 /** Who the bot is told it is, ahead of its operating instructions. */
@@ -326,7 +362,11 @@ export function composeTurnPreamble(
     .join("\n\n");
 }
 
-const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+const RESULT_CARD_SKILLS = new Set([
+  "chat-result-previews",
+  "result-cards",
+  "result-cards-messaging",
+]);
 
 /** Whether the version teaches the bot to attach result cards. */
 export function versionShowsResultCards(

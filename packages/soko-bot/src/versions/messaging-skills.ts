@@ -20,12 +20,30 @@ const compactCoworkers = COMPACT_SOKO_BOT_SKILLS.find(
 if (!compactCoworkers?.content.includes(ASK_FIRST_V29))
   throw new Error("v35 expects v29's ask-a-Coworker-first section");
 
+const RESULT_CARDS_SHARE_V29 =
+  "To share cards into a room the owner asked you to post in, call `post_chat` with `resultReferences`.";
+const RESULT_CARDS_SHARE_V35 =
+  "To share cards into a room the owner asked you to post in, call `send_message` with `resultReferences`.";
+const compactResultCards = COMPACT_SOKO_BOT_SKILLS.find(
+  (skill) => skill.id === "result-cards",
+);
+if (!compactResultCards?.content.includes(RESULT_CARDS_SHARE_V29))
+  throw new Error("v35 expects v29's result-cards room-sharing rule");
+
 /** v35: everyone is reached with send_message, and an exchange is one job. */
 export const MESSAGING_SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
     ...compactCoworkers,
     id: "coworkers-and-agents-messaging",
     content: compactCoworkers.content.replace(ASK_FIRST_V29, ASK_FIRST),
+  },
+  {
+    ...compactResultCards,
+    id: "result-cards-messaging",
+    content: compactResultCards.content.replace(
+      RESULT_CARDS_SHARE_V29,
+      RESULT_CARDS_SHARE_V35,
+    ),
   },
   {
     id: "conversations",

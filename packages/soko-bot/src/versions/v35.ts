@@ -28,7 +28,9 @@ export const v35: SokoBotVersion = {
     ...v33.skills.map((skill) =>
       skill === "coworkers-and-agents"
         ? "coworkers-and-agents-messaging"
-        : skill,
+        : skill === "result-cards"
+          ? "result-cards-messaging"
+          : skill,
     ),
     "conversations",
   ],
