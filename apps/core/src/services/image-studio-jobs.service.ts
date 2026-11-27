@@ -39,7 +39,7 @@ import {
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
 import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
@@ -2447,11 +2447,14 @@ export async function sweepStalledSubmissions(
  * Safe to call from a webhook, a status read, or the cron sweep. Settlement is
  * keyed on the job row, so concurrent callers converge on one asset.
  */
-export async function reconcileJob(jobId: string): Promise<void> {
+export async function reconcileJob(
+  scope: MainnetScope,
+  jobId: string,
+): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({ where: { id: jobId } });
   if (!job) return;
   if (isVideoShapeJob(job)) {
-    await settleVideoShapeJob(job);
+    await settleVideoShapeJob(scope, job);
     return;
   }
   // Without a provider request id there is nothing to ask about.
@@ -2518,7 +2521,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
       if (job.cancelRequestedAt) {
         // A cancelled caption step leaves the presenter's video, which fal
         // has already made and billed: keep it, as a finished image is kept.
-        if (await deliverUncaptionedTalkingVideo(job.id)) return;
+        if (await deliverUncaptionedTalkingVideo(scope, job.id)) return;
         await prisma.projectImageJob.updateMany({
           where: {
             id: job.id,
@@ -2533,10 +2536,10 @@ export async function reconcileJob(jobId: string): Promise<void> {
         });
         return;
       }
-      await failImageJob(job.id, "provider_lost_request");
+      await failImageJob(scope, job.id, "provider_lost_request");
       return;
     case "error":
-      await failImageJob(job.id, "provider_error", status.message);
+      await failImageJob(scope, job.id, "provider_error", status.message);
       return;
     case "completed":
       break;
@@ -2554,7 +2557,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   if (result.kind === "error") {
     // A verdict, so the dependency answered and there are no bytes to come.
     await noteReachable(job.id, "result");
-    await failImageJob(job.id, "provider_error", result.message);
+    await failImageJob(scope, job.id, "provider_error", result.message);
     return;
   }
   // Deliberately *not* cleared here. Getting the image's address is half of
@@ -2566,7 +2569,13 @@ export async function reconcileJob(jobId: string): Promise<void> {
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
   const produced = result.media[0]!;
-  await settleWithMedia(job.id, produced.url, produced, job.falRequestId);
+  await settleWithMedia(
+    scope,
+    job.id,
+    produced.url,
+    produced,
+    job.falRequestId,
+  );
 }
 
 /**
@@ -2747,12 +2756,14 @@ async function noteReachable(
  * place that has to remember about money, and it did not.
  */
 export async function failImageJob(
+  /** The charge's Network: delivering a talking video without captions charges. */
+  scope: MainnetScope,
   jobId: string,
   reason: ImageJobFailureReason,
   /** The provider's own words. Logged, never shown. */
   providerDetail?: string,
 ): Promise<void> {
-  if (await deliverUncaptionedTalkingVideo(jobId)) return;
+  if (await deliverUncaptionedTalkingVideo(scope, jobId)) return;
   await markImageJobFailed(jobId, reason, providerDetail);
 }
 
@@ -2853,6 +2864,8 @@ type StudioMediaInfo = Pick<FalMedia, "width" | "height"> &
  * a poll arriving together produce one asset and one of them loses the insert.
  */
 export async function settleWithMedia(
+  /** The charge's Network. */
+  scope: MainnetScope,
   jobId: string,
   sourceUrl: string,
   mediaInfo?: StudioMediaInfo,
@@ -2860,7 +2873,7 @@ export async function settleWithMedia(
   requestId?: string,
 ): Promise<void> {
   if (await startTalkingVideoSecondStep(jobId, sourceUrl, requestId)) return;
-  await storeMedia(jobId, sourceUrl, mediaInfo);
+  await storeMedia(scope, jobId, sourceUrl, mediaInfo);
   nudgeCmoMonth(jobId);
 }
 
@@ -2945,7 +2958,10 @@ function onlyEdited(talking: TalkingVideoSettings): boolean {
  * A talking video whose caption step failed is still a video the studio paid
  * for: deliver it as its presenter model made it. True when it was handled.
  */
-async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
+async function deliverUncaptionedTalkingVideo(
+  scope: MainnetScope,
+  jobId: string,
+): Promise<boolean> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
     select: { kind: true, pendingMediaUrl: true },
@@ -2963,7 +2979,7 @@ async function deliverUncaptionedTalkingVideo(jobId: string): Promise<boolean> {
       fix: "The video was kept as its presenter model made it. If this repeats, check the caption endpoint and its input.",
     },
   );
-  await storeMedia(jobId, job.pendingMediaUrl);
+  await storeMedia(scope, jobId, job.pendingMediaUrl);
   nudgeCmoMonth(jobId);
   return true;
 }
@@ -3095,6 +3111,7 @@ function loggableMediaType(contentType: string | null | undefined): string {
  * a poll arriving together produce one asset and one of them loses the insert.
  */
 async function storeMedia(
+  scope: MainnetScope,
   jobId: string,
   sourceUrl: string,
   /**
@@ -3281,7 +3298,7 @@ async function storeMedia(
       vectorSource = downloaded.bytes;
       downloaded = { bytes, contentType: "image/png" };
     } catch {
-      await failImageJob(job.id, "invalid_vector_image");
+      await failImageJob(scope, job.id, "invalid_vector_image");
       return;
     }
   }
@@ -3309,7 +3326,7 @@ async function storeMedia(
         },
       );
       await releaseSettlementLease(job.id, lease);
-      await failImageJob(job.id, "unknown");
+      await failImageJob(scope, job.id, "unknown");
       return;
     }
   } else if (talking && !edits && onlyEdited(talking)) {
@@ -3439,7 +3456,7 @@ async function storeMedia(
         (error instanceof DriveFileDownloadError &&
           error.reason !== "unavailable")
       ) {
-        await failImageJob(job.id, "product_cutout_unavailable");
+        await failImageJob(scope, job.id, "product_cutout_unavailable");
       } else {
         await noteUnreachable(
           job.id,
@@ -3576,6 +3593,7 @@ async function storeMedia(
   };
   try {
     delivered = await insertAsset({
+      scope,
       job: {
         id: job.id,
         projectId: project.id,
@@ -3786,10 +3804,13 @@ export async function requestVideoShape(
  * result (presenter clip, cut-out or music) is read again and edited in this
  * job's shape. A source that did not deliver takes its shapes with it.
  */
-async function settleVideoShapeJob(job: {
-  id: string;
-  settings: Prisma.JsonValue;
-}): Promise<void> {
+async function settleVideoShapeJob(
+  scope: MainnetScope,
+  job: {
+    id: string;
+    settings: Prisma.JsonValue;
+  },
+): Promise<void> {
   const { sourceJobId } = readTalkingVideoSettings(job.settings);
   if (!sourceJobId) return;
   const source = await prisma.projectImageJob.findUnique({
@@ -3828,13 +3849,14 @@ async function settleVideoShapeJob(job: {
     // The source's last request was an optional step (its cut-out) that
     // failed; it was delivered from its presenter clip, and so is this.
     if (source.pendingMediaUrl)
-      await storeMedia(job.id, source.pendingMediaUrl);
+      await storeMedia(scope, job.id, source.pendingMediaUrl);
     else await markImageJobFailed(job.id, "provider_error", result.message);
     // Either way the month moves on: with this cut, or with the source.
     nudgeCmoMonth(job.id);
     return;
   }
   await storeMedia(
+    scope,
     job.id,
     result.media[0]!.url,
     undefined,
@@ -3859,6 +3881,8 @@ async function settleVideoShapeJob(job: {
  * job, the person is charged once.
  */
 async function insertAsset(input: {
+  /** The Network the charge is taken on. */
+  scope: MainnetScope;
   job: {
     id: string;
     projectId: string;
@@ -3953,7 +3977,7 @@ async function insertAsset(input: {
           organizationId: input.job.organizationId,
           projectId: input.job.projectId,
           cents: chargedCents,
-          scope: createNetworkScope("mainnet"),
+          scope: input.scope,
           tx,
         });
       } catch (error) {
@@ -4114,7 +4138,10 @@ function isUniqueViolation(error: unknown): boolean {
  *
  * Bounded on purpose: a handful of provider reads per page load, never a scan.
  */
-export async function reconcileProjectJobs(projectId: string): Promise<void> {
+export async function reconcileProjectJobs(
+  scope: MainnetScope,
+  projectId: string,
+): Promise<void> {
   await sweepStalledSubmissions(new Date(), { projectId });
   // Deployments without a reachable webhook settle here, so this is also where
   // a reservation stranded by a crashed request gets picked back up.
@@ -4144,7 +4171,7 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   // burst of provider reads from one page load buys nothing.
   for (const job of [...pending, ...shape]) {
     try {
-      await reconcileJob(job.id);
+      await reconcileJob(scope, job.id);
     } catch (error) {
       // Provider reads and settlement errors can quote the prompt.
       // An array: evlog appends it, so each failed job keeps its own entry
@@ -4174,6 +4201,7 @@ const WORKSPACE_RECONCILE_PROJECTS = 5;
  * once. The cron sweep catches whatever this leaves.
  */
 export async function reconcileWorkspaceJobs(
+  scope: MainnetScope,
   workspaceId: string,
 ): Promise<void> {
   const projects = await prisma.projectImageJob.findMany({
@@ -4186,7 +4214,7 @@ export async function reconcileWorkspaceJobs(
     select: { projectId: true },
   });
   for (const { projectId } of projects) {
-    await reconcileProjectJobs(projectId);
+    await reconcileProjectJobs(scope, projectId);
   }
 }
 
@@ -4197,6 +4225,7 @@ export async function reconcileWorkspaceJobs(
  * `reconcileProjectJobs` exists as well.
  */
 export async function reconcileStaleJobs(options: {
+  scope: MainnetScope;
   olderThanMs: number;
   limit: number;
 }): Promise<{
@@ -4210,7 +4239,7 @@ export async function reconcileStaleJobs(options: {
   // Reservations whose process died before it reached fal. Provably unsent,
   // so finishing them costs nothing that was not already intended.
   const recovery = await recoverUnclaimedReservations();
-  const cancelled = await finaliseCancellations(options.limit);
+  const cancelled = await finaliseCancellations(options.scope, options.limit);
   const stale = await prisma.projectImageJob.findMany({
     where: {
       ...recoverableSelection(),
@@ -4225,7 +4254,7 @@ export async function reconcileStaleJobs(options: {
   let reconciled = 0;
   for (const job of [...stale, ...shape]) {
     try {
-      await reconcileJob(job.id);
+      await reconcileJob(options.scope, job.id);
       reconciled += 1;
     } catch (error) {
       recordCoreWarning(
@@ -4258,6 +4287,7 @@ export async function reconcileStaleJobs(options: {
  * we write says "we asked", and the UI says the same.
  */
 export async function requestCancel(options: {
+  scope: MainnetScope;
   jobId: string;
   projectId: string;
   workspaceId: string;
@@ -4295,7 +4325,7 @@ export async function requestCancel(options: {
 
   if (outcome === "already_finished") {
     // Nothing to cancel; let the normal reconcile collect the result.
-    await reconcileJob(job.id).catch(() => {});
+    await reconcileJob(options.scope, job.id).catch(() => {});
   }
 
   return { accepted: outcome === "accepted" };
@@ -4309,7 +4339,10 @@ export async function requestCancel(options: {
  * writes CANCELED, and by then the provider has already said there is no
  * result coming.
  */
-async function finaliseCancellations(limit: number): Promise<number> {
+async function finaliseCancellations(
+  scope: MainnetScope,
+  limit: number,
+): Promise<number> {
   const requested = await prisma.projectImageJob.findMany({
     where: {
       cancelRequestedAt: { not: null },
@@ -4336,7 +4369,7 @@ async function finaliseCancellations(limit: number): Promise<number> {
     // Unreachable says nothing; leave it for the next pass.
     if (status.kind === "unreachable") continue;
     if (status.kind === "not_found") {
-      if (await deliverUncaptionedTalkingVideo(job.id)) continue;
+      if (await deliverUncaptionedTalkingVideo(scope, job.id)) continue;
       const settled = await prisma.projectImageJob.updateMany({
         where: {
           id: job.id,
@@ -4356,7 +4389,7 @@ async function finaliseCancellations(limit: number): Promise<number> {
     }
     // Still queued, running, or finished: the ordinary reconcile handles it,
     // including keeping an image that arrived despite the cancellation.
-    await reconcileJob(job.id).catch(() => {});
+    await reconcileJob(scope, job.id).catch(() => {});
   }
   return finalised;
 }

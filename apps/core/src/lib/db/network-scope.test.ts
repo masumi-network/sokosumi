@@ -123,6 +123,27 @@ describe("createNetworkScope", () => {
   });
 });
 
+describe("assertMainnetScope", () => {
+  it("passes Mainnet's scope and throws for any other", async () => {
+    const {
+      assertMainnetScope,
+      createNetworkScope,
+      createRefusedNetworkScope,
+    } = await import("./network-scope");
+    const refusal = new Error("refused");
+
+    expect(() =>
+      assertMainnetScope(createNetworkScope("mainnet")),
+    ).not.toThrow();
+    expect(() =>
+      assertMainnetScope({ network: "preprod" } as NetworkScope),
+    ).toThrow("Expected the Mainnet scope, got preprod's");
+    expect(() =>
+      assertMainnetScope(createRefusedNetworkScope(refusal)),
+    ).toThrow(refusal);
+  });
+});
+
 describe("createRefusedNetworkScope", () => {
   it("throws the refusal on every Network member and serves the shared side", async () => {
     const { createRefusedNetworkScope } = await import("./network-scope");
