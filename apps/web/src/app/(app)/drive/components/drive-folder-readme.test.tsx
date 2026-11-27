@@ -1,120 +1,175 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { FileResource } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DriveFilePreviewTextState } from "@/hooks/effects/use-drive-file-preview-text";
+const { fetchFolderReadme } = vi.hoisted(() => ({
+  fetchFolderReadme: vi.fn(),
+}));
 
-let textState: DriveFilePreviewTextState = { kind: "loading" };
-const readSources: string[] = [];
+vi.mock("@/lib/utils/file-search.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/utils/file-search.client")>()),
+  fetchFolderReadme,
+}));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-}));
-vi.mock("@/components/markdown", () => ({
-  default: ({ children }: { children: string }) => <div>{children}</div>,
-}));
-vi.mock("@/hooks/effects/use-drive-file-preview-text", () => ({
-  useDriveFilePreviewText: (_isText: boolean, source: string) => {
-    readSources.push(source);
-    return textState;
-  },
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    values ? `${key}:${values.name}` : key,
 }));
 
-const { DriveFolderReadme, findFolderReadme, isLongReadme } = await import(
-  "./drive-folder-readme"
-);
+import { DriveFolderReadme } from "./drive-folder-readme";
 
-const file = (displayName: string, sizeBytes: number | null = 100) => ({
-  id: `id-${displayName}`,
-  displayName,
-  mimeType: null,
-  sizeBytes,
-});
+const README_FILE = {
+  id: "res_readme",
+  displayName: "README.md",
+  mimeType: "text/markdown",
+  sizeBytes: 100,
+  pathname: "drive/orgs/org-1/Client work/README.md",
+} as unknown as FileResource;
 
-describe("findFolderReadme", () => {
-  it("finds README.md in any case", () => {
-    expect(
-      findFolderReadme([file("notes.md"), file("ReadMe.MD")])?.displayName,
-    ).toBe("ReadMe.MD");
+const LONG_README = [
+  "# Client work",
+  "",
+  "Everything for client projects lives here.",
+  "",
+  "## Where things go",
+  "",
+  ...Array.from({ length: 14 }, (_, i) => `- Rule ${i + 1}`),
+  "",
+  "See the [team handbook](https://handbook.example/rules).",
+].join("\n");
+
+function renderCard(text: string, onOpen = vi.fn()) {
+  fetchFolderReadme.mockResolvedValue(README_FILE);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response(text)),
+  );
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
   });
-
-  it("ignores other names and READMEs too big to preview", () => {
-    expect(findFolderReadme([file("README.txt"), file("readme")])).toBeNull();
-    expect(findFolderReadme([file("README.md", 600 * 1024)])).toBeNull();
-  });
-
-  it("accepts a README whose size is unknown", () => {
-    expect(findFolderReadme([file("README.md", null)])).not.toBeNull();
-  });
-});
-
-describe("isLongReadme", () => {
-  it("clamps only long text", () => {
-    expect(isLongReadme("# Contracts\nSigned ones go in /signed.")).toBe(false);
-    expect(isLongReadme("line\n".repeat(20))).toBe(true);
-    expect(isLongReadme("x".repeat(700))).toBe(true);
-  });
-});
+  render(
+    <QueryClientProvider client={client}>
+      <DriveFolderReadme
+        store={{ scope: "org", organizationId: "org-1" }}
+        folder="Client work"
+        onOpen={onOpen}
+      />
+    </QueryClientProvider>,
+  );
+  return onOpen;
+}
 
 describe("DriveFolderReadme", () => {
   beforeEach(() => {
-    readSources.length = 0;
+    fetchFolderReadme.mockReset();
   });
 
-  const renderCard = (onOpen = vi.fn()) =>
-    render(
-      <DriveFolderReadme
-        file={file("README.md")}
-        store={{ scope: "org", organizationId: "org-1" }}
-        onOpen={onOpen}
-      />,
-    );
-
-  it("renders nothing while loading or when the file cannot load", () => {
-    textState = { kind: "loading" };
-    const { container, rerender } = renderCard();
-    expect(container).toBeEmptyDOMElement();
-
-    textState = { kind: "failed" };
-    rerender(
-      <DriveFolderReadme
-        file={file("README.md")}
-        store={{ scope: "org", organizationId: "org-1" }}
-        onOpen={vi.fn()}
-      />,
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("reads the README through the authorized content route", () => {
-    textState = { kind: "loading" };
-    renderCard();
-    expect(readSources[0]).toBe(
-      "/api/drive/files/id-README.md/content?scope=org&organizationId=org-1",
-    );
-  });
-
-  it("shows the README with Open, and no Show more for short text", () => {
-    textState = { kind: "ready", text: "Signed contracts go in /signed." };
-    const onOpen = vi.fn();
-    renderCard(onOpen);
+  it("looks the README up for the browsed folder and reads it through the authorized route", async () => {
+    renderCard("Signed contracts go in /signed.");
 
     expect(
-      screen.getByRole("region", { name: "readmeLabel" }),
+      await screen.findByRole("region", { name: "readmeLabel" }),
     ).toHaveTextContent("Signed contracts go in /signed.");
-    expect(screen.queryByText("readmeShowMore")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "previewOpen" }));
-    expect(onOpen).toHaveBeenCalledOnce();
+    expect(fetchFolderReadme).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: "Client work" }),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/drive/files/res_readme/content?scope=org&organizationId=org-1",
+      expect.anything(),
+    );
+    expect(screen.queryByRole("button", { name: "readmeShowMore" })).toBeNull();
   });
 
-  it("clamps long text and expands it on Show more", () => {
-    textState = { kind: "ready", text: "line\n".repeat(20) };
-    renderCard();
+  it("renders nothing when the folder has no README", async () => {
+    fetchFolderReadme.mockResolvedValue(null);
+    const client = new QueryClient();
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <DriveFolderReadme store={{ scope: "me" }} folder="" onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    await vi.waitFor(() => expect(fetchFolderReadme).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+  });
 
-    const toggle = screen.getByRole("button", { name: "readmeShowMore" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(toggle);
+  it("opens the README file in the viewer", async () => {
+    const onOpen = renderCard("Short.");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "previewOpen" }),
+    );
+    expect(onOpen).toHaveBeenCalledWith(README_FILE);
+  });
+
+  it("keeps a link below the excerpt out of the tab order until Show more", async () => {
+    const user = userEvent.setup();
+    renderCard(LONG_README);
+
+    const more = await screen.findByRole("button", { name: "readmeShowMore" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "team handbook" })).toBeNull();
+
+    // Tab from Open goes straight to Show more: nothing hidden in between.
+    screen.getByRole("button", { name: "previewOpen" }).focus();
+    await user.tab();
+    expect(more).toHaveFocus();
+
+    await user.click(more);
+    expect(screen.getByRole("link", { name: "team handbook" })).toBeVisible();
     expect(
       screen.getByRole("button", { name: "readmeShowLess" }),
     ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("never cuts the excerpt inside a code fence", async () => {
+    renderCard(
+      [
+        "Intro.",
+        "",
+        "```",
+        ...Array.from({ length: 20 }, (_, i) => `line ${i}`),
+        "```",
+      ].join("\n"),
+    );
+    const card = await screen.findByRole("region", { name: "readmeLabel" });
+    expect(card).toHaveTextContent("Intro.");
+    expect(card).not.toHaveTextContent("line 0");
+  });
+
+  it("turns images and media into links instead of loading them", async () => {
+    renderCard(
+      [
+        "![Team logo](https://media.example/logo.png)",
+        "",
+        '<video src="https://media.example/intro.mp4"></video>',
+        "",
+        '<audio src="https://media.example/hello.mp3"></audio>',
+      ].join("\n"),
+    );
+    const card = await screen.findByRole("region", { name: "readmeLabel" });
+
+    expect(card.querySelector("img, video, audio, source")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "readmeMediaNamed:Team logo" }),
+    ).toHaveAttribute("href", "https://media.example/logo.png");
+    expect(screen.getAllByRole("link", { name: "readmeMedia" })).toHaveLength(
+      2,
+    );
+  });
+
+  it("puts README headings under the card's own heading", async () => {
+    renderCard("# Client work\n\n## Naming\n\nText.");
+    await screen.findByRole("region", { name: "readmeLabel" });
+
+    expect(
+      screen.getByRole("heading", { name: "README.md", level: 2 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Client work", level: 3 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Naming", level: 4 }),
+    ).toBeInTheDocument();
   });
 });

@@ -1,50 +1,131 @@
 "use client";
 
+import type { FileResource } from "@sokosumi/core-client";
 import { FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { type ComponentPropsWithoutRef, useId, useMemo, useState } from "react";
+import type { Components } from "react-markdown";
 
 import {
   contentUrl,
   MAX_TEXT_PREVIEW_BYTES,
 } from "@/app/drive/components/drive-file-preview";
-import type { DriveFileViewerFile } from "@/app/drive/components/drive-file-viewer";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { useDriveFilePreviewText } from "@/hooks/effects/use-drive-file-preview-text";
-import { cn } from "@/lib/utils";
-import type { FileStore } from "@/lib/utils/file-search.client";
+import {
+  type FileStore,
+  fetchFolderReadme,
+} from "@/lib/utils/file-search.client";
+import { driveQueryKeys, splitDriveQueryKey } from "@/queries/drive";
+import { useScopedQuery } from "@/queries/scoped-queries";
 
-/** The file a folder's README card shows: `README.md` in any case. */
-export function findFolderReadme<T extends DriveFileViewerFile>(
-  files: readonly T[],
-): T | null {
+const EXCERPT_CHARS = 600;
+const EXCERPT_LINES = 12;
+
+/**
+ * The opening of a long README, cut at a paragraph break, or null when the
+ * whole file is short enough to show. An excerpt rather than a clipped full
+ * body: a clip draws half a line, and links below the cut would still take
+ * keyboard focus and be read aloud while the card says it is collapsed.
+ */
+function excerptOf(text: string): string | null {
+  const lines = text.split("\n");
+  if (text.length <= EXCERPT_CHARS && lines.length <= EXCERPT_LINES) {
+    return null;
+  }
+
+  let end = 0;
+  let chars = 0;
+  while (end < lines.length && end < EXCERPT_LINES) {
+    chars += (lines[end]?.length ?? 0) + 1;
+    if (chars > EXCERPT_CHARS && end > 0) break;
+    end += 1;
+  }
+  const lastBreak = lines
+    .slice(0, end)
+    .findLastIndex((line) => line.trim() === "");
+  if (lastBreak > 0) end = lastBreak;
+
+  // Never stop inside a code fence: everything after it would render as code.
+  const fences = lines
+    .slice(0, end)
+    .flatMap((line, index) =>
+      line.trimStart().startsWith("```") ? [index] : [],
+    );
+  if (fences.length % 2 === 1) end = fences.at(-1) ?? end;
+
+  return lines.slice(0, end).join("\n").trimEnd();
+}
+
+/** A link in place of media, so the reader decides when a media host is called. */
+function MediaLink({ src, label }: { src: unknown; label: string }) {
+  if (typeof src !== "string" || src.length === 0) return null;
   return (
-    files.find(
-      (file) =>
-        file.displayName.toLowerCase() === "readme.md" &&
-        (file.sizeBytes == null || file.sizeBytes <= MAX_TEXT_PREVIEW_BYTES),
-    ) ?? null
+    <a href={src} target="_blank" rel="noopener noreferrer">
+      {label}
+    </a>
   );
 }
 
-/** Long enough that the card starts clamped, with Show more. */
-export function isLongReadme(text: string): boolean {
-  return text.length > 600 || text.split("\n").length > 12;
+/**
+ * README headings sit two levels under the card's own heading: a README `#`
+ * is not a page heading. Same tag, so the Markdown styles stay.
+ */
+function shiftedHeading(level: 1 | 2 | 3 | 4 | 5 | 6) {
+  const Tag = `h${level}` as const;
+  return function ShiftedHeading({
+    node: _node,
+    ...props
+  }: ComponentPropsWithoutRef<"h1"> & { node?: unknown }) {
+    return <Tag {...props} aria-level={Math.min(level + 2, 6)} />;
+  };
 }
 
 /**
  * A folder's `README.md`, rendered above its files, so whoever opens the
- * folder reads what goes where before they start. Read-only: the file stays
- * in the list, and Open shows it in the usual viewer. Nothing renders while it
- * loads or when it cannot load, so a folder never shows a broken card.
+ * folder reads what goes where before they start. Found by its own small
+ * read, not among the loaded rows, so a README past the first page shows too.
+ * Read-only: the file stays in the list and Open shows it in the viewer.
+ * Nothing renders while it loads or when it cannot load.
  */
 export function DriveFolderReadme({
+  store,
+  folder,
+  onOpen,
+}: {
+  store: FileStore;
+  folder: string;
+  onOpen: (file: FileResource) => void;
+}) {
+  const readmeQuery = useScopedQuery({
+    ...splitDriveQueryKey(driveQueryKeys.folderReadme(store, folder)),
+    queryFn: ({ signal }) => fetchFolderReadme({ store, folder, signal }),
+  });
+  const file = readmeQuery.data ?? null;
+  if (
+    !file ||
+    (file.sizeBytes != null && file.sizeBytes > MAX_TEXT_PREVIEW_BYTES)
+  ) {
+    return null;
+  }
+
+  return (
+    <ReadmeCard
+      key={file.id}
+      file={file}
+      store={store}
+      onOpen={() => onOpen(file)}
+    />
+  );
+}
+
+function ReadmeCard({
   file,
   store,
   onOpen,
 }: {
-  file: DriveFileViewerFile;
+  file: FileResource;
   store: FileStore;
   onOpen: () => void;
 }) {
@@ -55,14 +136,34 @@ export function DriveFolderReadme({
     true,
     contentUrl({ resourceId: file.id, store }),
   );
+  const components: Components = useMemo(
+    () => ({
+      img: ({ src, alt }) => (
+        <MediaLink
+          src={src}
+          label={alt ? t("readmeMediaNamed", { name: alt }) : t("readmeMedia")}
+        />
+      ),
+      video: ({ src }) => <MediaLink src={src} label={t("readmeMedia")} />,
+      audio: ({ src }) => <MediaLink src={src} label={t("readmeMedia")} />,
+      source: () => null,
+      h1: shiftedHeading(1),
+      h2: shiftedHeading(2),
+      h3: shiftedHeading(3),
+      h4: shiftedHeading(4),
+      h5: shiftedHeading(5),
+      h6: shiftedHeading(6),
+    }),
+    [t],
+  );
   if (text.kind !== "ready" || text.text.trim().length === 0) return null;
 
-  const clamped = isLongReadme(text.text) && !expanded;
+  const excerpt = excerptOf(text.text);
 
   return (
     <section
       aria-label={t("readmeLabel")}
-      className="bg-card-background flex flex-col gap-2 rounded-lg border p-4"
+      className="bg-card-background flex flex-col gap-3 rounded-lg border p-4"
       data-testid="drive-folder-readme"
     >
       <div className="flex items-center justify-between gap-2">
@@ -74,18 +175,20 @@ export function DriveFolderReadme({
           {t("previewOpen")}
         </Button>
       </div>
+      {/* White paper on the gray card, as the file viewer shows it. */}
       <div
         id={bodyId}
-        className={cn("min-w-0 text-sm", clamped && "max-h-48 overflow-hidden")}
+        className="bg-background min-w-0 rounded-md border px-4 py-3 text-sm"
       >
-        <Markdown>{text.text}</Markdown>
+        <Markdown components={components}>
+          {expanded || excerpt === null ? text.text : excerpt}
+        </Markdown>
       </div>
-      {isLongReadme(text.text) ? (
+      {excerpt !== null ? (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          // Pulled left by its own padding, so the label lines up with the text.
-          className="-ml-3 self-start"
+          className="self-start"
           aria-expanded={expanded}
           aria-controls={bodyId}
           onClick={() => setExpanded((value) => !value)}

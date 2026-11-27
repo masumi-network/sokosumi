@@ -11014,6 +11014,8 @@
         "readmeLabel": "About this folder",
         "readmeShowMore": "Show more",
         "readmeShowLess": "Show less",
+        "readmeMedia": "Open media",
+        "readmeMediaNamed": "Open media: {name}",
         "previewDownload": "Download",
         "previewLoading": "Loading preview",
         "previewUnavailable": "This preview could not be loaded. The download still works.",

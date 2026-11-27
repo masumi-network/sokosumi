@@ -30,6 +30,7 @@ const api = vi.hoisted(() => ({
   deleteFileCollection: vi.fn(),
   deleteDriveUploads: vi.fn(),
   decideSuggestion: vi.fn(),
+  fetchFolderReadme: vi.fn(),
 }));
 
 const listDriveItemsMock = vi.hoisted(() => vi.fn());
@@ -247,6 +248,7 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
       items: [],
       search: makeMeta(),
     } satisfies FileSearchPage);
+    api.fetchFolderReadme.mockResolvedValue(null);
   });
 
   it("removes deleted files from catalog and mounted DriveFilePicker on mixed-success bulk delete while GETs are held", async () => {
@@ -833,6 +835,10 @@ describe("DriveAllFilesPanel on the Drive cache", () => {
 });
 
 describe("DriveAllFilesPanel folder README", () => {
+  const readme = makeFile("res_readme", "README.md", {
+    mimeType: "text/markdown",
+  });
+
   beforeEach(() => {
     for (const fn of Object.values(api)) {
       fn.mockReset();
@@ -846,13 +852,15 @@ describe("DriveAllFilesPanel folder README", () => {
     api.fetchWorkspaceFolders.mockResolvedValue([]);
     api.fetchWorkspaceLabels.mockResolvedValue([] as WorkspaceLabel[]);
     api.fetchFileCollections.mockResolvedValue([] as FileCollection[]);
+    // Page one of a long folder, sorted by name: README.md is not on it.
     api.fetchFileSearchPage.mockResolvedValue({
       items: [
-        makeFile("res_readme", "README.md", { mimeType: "text/markdown" }),
-        makeFile("res_plan", "plan.pdf"),
+        makeFile("res_a", "a-brief.pdf"),
+        makeFile("res_b", "b-brief.pdf"),
       ],
-      search: makeMeta(),
+      search: makeMeta({ hasMore: true, nextCursor: "page-2" }),
     } satisfies FileSearchPage);
+    api.fetchFolderReadme.mockResolvedValue(readme);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("Signed contracts go in /signed.")),
@@ -863,18 +871,21 @@ describe("DriveAllFilesPanel folder README", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows the browsed folder's README above its files", async () => {
-    renderPanel();
+  it("shows the folder's README even when it is not on the first page of files", async () => {
+    renderPanel({ initialFolder: "Client work" });
 
     expect(
       await screen.findByRole("region", { name: "readmeLabel" }),
     ).toHaveTextContent("Signed contracts go in /signed.");
+    expect(api.fetchFolderReadme).toHaveBeenCalledWith(
+      expect.objectContaining({ store: orgA, folder: "Client work" }),
+    );
     expect(fetch).toHaveBeenCalledWith(
       "/api/drive/files/res_readme/content?scope=org&organizationId=org_a",
       expect.anything(),
     );
-    // The file itself stays in the list.
-    expect(screen.getAllByText("README.md").length).toBeGreaterThan(1);
+    // Only page one is loaded: the card does not depend on the list.
+    expect(screen.queryByRole("link", { name: "README.md" })).toBeNull();
   });
 
   it("hides the README while searching the whole workspace", async () => {

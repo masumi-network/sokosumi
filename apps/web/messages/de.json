@@ -11014,6 +11014,8 @@
         "readmeLabel": "Über diesen Ordner",
         "readmeShowMore": "Mehr anzeigen",
         "readmeShowLess": "Weniger anzeigen",
+        "readmeMedia": "Medium öffnen",
+        "readmeMediaNamed": "Medium öffnen: {name}",
         "previewDownload": "Herunterladen",
         "previewLoading": "Vorschau wird geladen",
         "previewUnavailable": "Diese Vorschau konnte nicht geladen werden. Der Download funktioniert weiterhin.",

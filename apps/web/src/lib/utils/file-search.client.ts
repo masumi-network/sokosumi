@@ -138,6 +138,40 @@ export async function fetchFileSearchPage(input: {
   return response.data.data;
 }
 
+/**
+ * The `README.md` filed directly in `folder` (the root when empty), any case,
+ * or null. One small read of its own, so a README sorted past the first page
+ * of a long folder is still found. The name sort keeps it deterministic: Core
+ * never reranks an explicit name sort, so this read calls no model, and its
+ * exact filename match comes first.
+ */
+export async function fetchFolderReadme(input: {
+  store: FileStore;
+  folder: string;
+  signal?: AbortSignal;
+}): Promise<FileResource | null> {
+  const response = await getDriveSearch({
+    client: getBrowserCoreClient(),
+    query: {
+      ...storeQuery(input.store),
+      q: "README.md",
+      folder: input.folder || undefined,
+      directOnly: "true",
+      sortBy: "name",
+      sortOrder: "asc",
+      limit: 5,
+    },
+    signal: input.signal,
+    throwOnError: true,
+  });
+
+  return (
+    response.data.data.items.find(
+      (item) => item.displayName.toLowerCase() === "readme.md",
+    ) ?? null
+  );
+}
+
 export async function fetchWorkspaceLabels(input: {
   store: FileStore;
   /**
