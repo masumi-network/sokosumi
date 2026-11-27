@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 /** A Chrome on this machine: GitHub's Ubuntu runners have one. */
 const { CHROME } = vi.hoisted(() => {
@@ -20,6 +20,7 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+import { captionFontsDir } from "@/lib/ffmpeg";
 import { renderVideoCards, type VideoCard } from "./video-cards";
 import { VIDEO_LAYOUTS } from "./video-layout";
 
@@ -47,6 +48,12 @@ async function drawnOutsideSafe(
 }
 
 describe.runIf(Boolean(CHROME))("video cards drawn by Chromium", () => {
+  // The real pinned font, fetched here so its one-time download is not drawing
+  // time: a card's 30 s budget starts only once the font is on disk.
+  beforeAll(async () => {
+    await captionFontsDir();
+  }, 120_000);
+
   const LONG: VideoCard[] = [
     {
       kind: "offer",
