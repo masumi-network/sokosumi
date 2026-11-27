@@ -488,4 +488,63 @@ describe("versionDelta", () => {
       versionDelta(base, report({ "owner-a": ["PASSED", 2, null] })).meetsBar,
     ).toBe(false);
   });
+
+  it("refuses to compare a holistic run against a per-item run, and compares matching per-item runs", () => {
+    const withMode = (mode?: "holistic" | "per-item"): ParityReport => ({
+      run: { environment: "mainnet" },
+      cases: [
+        {
+          caseId: "owner-a",
+          results: [
+            {
+              status: "PASSED",
+              output: {
+                ...(mode ? { judgeMode: mode } : {}),
+                score: { stepsPassed: 1 },
+                totals: {
+                  tokenTurns: 1,
+                  inputTokens: 100,
+                  inputTokensPerTurn: 100,
+                },
+              },
+            },
+          ],
+        },
+        {
+          caseId: "owner-holdout-a",
+          results: [1, 2, 3].map(() => ({
+            status: "PASSED",
+            output: {
+              ...(mode ? { judgeMode: mode } : {}),
+              score: { stepsPassed: 1 },
+              totals: {
+                tokenTurns: 1,
+                inputTokens: 100,
+                inputTokensPerTurn: 100,
+              },
+            },
+          })),
+        },
+      ],
+    });
+    const mismatched = versionDeltaBySet(
+      withMode(undefined),
+      withMode("per-item"),
+      ["owner-a"],
+      ["owner-holdout-a"],
+    );
+    expect(mismatched.environmentProblem).toContain(
+      "different judges (holistic vs per-item)",
+    );
+    expect(mismatched.meetsBar).toBe(false);
+
+    const matched = versionDeltaBySet(
+      withMode("per-item"),
+      withMode("per-item"),
+      ["owner-a"],
+      ["owner-holdout-a"],
+    );
+    expect(matched.environmentProblem).toBeNull();
+    expect(matched.meetsBar).toBe(true);
+  });
 });
