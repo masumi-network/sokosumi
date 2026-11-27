@@ -158,16 +158,14 @@ export function RoomOpenLoadingView(): React.ReactElement {
 
 function LoadingComposerControl({ icon: Icon }: { icon: LucideIcon }) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-      disabled
-      tabIndex={-1}
+    <span
       aria-hidden
+      className={cn(
+        ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+        "inline-flex shrink-0 items-center justify-center opacity-50",
+      )}
     >
-      <Icon aria-hidden />
-    </Button>
+      <Icon className="size-4" aria-hidden />
+    </span>
   );
 }
