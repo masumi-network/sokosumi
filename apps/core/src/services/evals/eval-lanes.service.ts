@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
-import { del } from "@vercel/blob";
 import { z } from "zod";
-import { getEnv } from "@/config/env";
 import { jsonInput } from "@/helpers/prisma-json";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
+import { driveDel } from "@/lib/drive-blob";
 import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   forgetEvalWorkspaces,
@@ -577,11 +576,9 @@ export type DeleteBlobs = (pathnames: string[]) => Promise<void>;
 /** Where a reset that could not delete a lane's blob keeps its pathname. */
 export const PENDING_BLOB_PREFIX = "eval-lane-blob-pending:";
 
-const deleteFromBlobStore: DeleteBlobs = async (pathnames) => {
-  const token = getEnv().BLOB_READ_WRITE_TOKEN;
-  // Without a store (a local run) there is no blob to leave behind.
-  if (token) await del(pathnames, { token });
-};
+// Every store the pathname may live in (a data room's private one too). With
+// no store configured it rejects, so the pathname stays pending.
+const deleteFromBlobStore: DeleteBlobs = (pathnames) => driveDel(pathnames);
 
 /** Up to three tries, 200 ms then 800 ms apart; whether one succeeded. */
 async function retried(work: () => Promise<void>): Promise<boolean> {

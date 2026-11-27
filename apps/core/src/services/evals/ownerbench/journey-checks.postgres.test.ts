@@ -49,6 +49,13 @@ vi.mock("@vercel/blob", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/blob")>()),
   del: vi.fn(async () => undefined),
 }));
+const driveDel = vi.hoisted(() =>
+  vi.fn<(pathnames: readonly string[]) => Promise<void>>(async () => undefined),
+);
+vi.mock("@/lib/drive-blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/drive-blob")>()),
+  driveDel,
+}));
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -1297,8 +1304,23 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
       expect(back).toHaveBeenCalledWith([second.sourceId]);
       expect(await pending()).toEqual([]);
+      // The default deletes through Drive's store routing; a store it can't
+      // reach (none configured) keeps the pathname pending, never clears it.
+      const third = await upload("routed.pdf");
+      driveDel.mockRejectedValue(new Error("Blob storage is not configured"));
+      expect(await clearEarlierCaseArtifacts(lane)).toEqual({
+        blobsPending: [third.sourceId],
+      });
+      expect(driveDel).toHaveBeenLastCalledWith([third.sourceId]);
+      expect(await pending()).toHaveLength(1);
+      driveDel.mockResolvedValue(undefined);
+      expect(await clearEarlierCaseArtifacts(lane)).toEqual({
+        blobsPending: [],
+      });
+      expect(driveDel).toHaveBeenLastCalledWith([third.sourceId]);
+      expect(await pending()).toEqual([]);
       await prisma.fileResource.deleteMany({
-        where: { id: { in: [first.id, second.id] } },
+        where: { id: { in: [first.id, second.id, third.id] } },
       });
     }, 20_000);
 
