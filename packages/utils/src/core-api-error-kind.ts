@@ -50,6 +50,8 @@ export const CORE_API_ERROR_KINDS = {
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  /** A Coworker's payment names another Network than `X-Sokosumi-Network`. */
+  NETWORK_MISMATCH: "network_mismatch",
   /** `X-Sokosumi-Network` names no Network: only `mainnet` and `preprod` are. */
   NETWORK_UNKNOWN: "network_unknown",
   NEWSLETTER_APPROVAL_REQUIRED: "newsletter_approval_required",
