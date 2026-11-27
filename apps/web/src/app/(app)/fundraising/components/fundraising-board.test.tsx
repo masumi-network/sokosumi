@@ -156,7 +156,9 @@ describe("FundraisingBoard", () => {
       }),
     );
 
-    expect(screen.getByText("No reply · 30d")).toBeTruthy();
+    const label = screen.getByText("No reply · 30d");
+    // Table cells are nowrap; the narrow Last touch column must wrap the label instead of overflowing.
+    expect(label.parentElement?.className).toContain("whitespace-normal");
   });
 
   it("moves focus to Find investors when the last suggestion goes, and keeps a new batch folded", async () => {

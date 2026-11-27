@@ -359,7 +359,7 @@ export function ReplyChip({
       : null;
   if (plain)
     return (
-      <span className="text-muted-foreground flex items-start gap-1.5 text-xs">
+      <span className="text-muted-foreground flex items-start gap-1.5 text-xs whitespace-normal">
         <Dot className={cn("mt-1", REPLY_DOT[state])} />
         <span className="tabular-nums">
           {t(`replyStates.${state}`)}
