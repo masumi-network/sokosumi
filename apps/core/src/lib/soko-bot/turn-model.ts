@@ -107,13 +107,17 @@ const LIGHT_COMPLEXITY: ReadonlySet<string> = new Set(["SIMPLE", "NORMAL"]);
 /**
  * Provider options for how hard the model thinks: low for a chat turn Jev
  * reads as simple or normal on the version's own model. Every other turn
- * keeps the provider's default (medium).
+ * keeps the provider's default (medium), and so does the owner's own
+ * foreground chat on a version with `effortFloor`.
  */
 export function turnReasoningEffortOptions(input: {
-  version: Pick<SokoBotVersion, "model">;
+  version: Pick<SokoBotVersion, "model" | "effortFloor">;
   model: string;
   complexity: string | undefined;
+  /** A chat the owner asked for themselves, not a run, wake or schedule. */
+  ownerChat: boolean;
 }): { openai: { reasoningEffort: "low" } } | Record<string, never> {
+  if (input.version.effortFloor && input.ownerChat) return {};
   return input.model === input.version.model &&
     input.complexity !== undefined &&
     LIGHT_COMPLEXITY.has(input.complexity)

@@ -33,7 +33,7 @@ export const CMO_PLAYBOOKS: SokoBotSkill = {
 
 Your writing skills include playbooks for work outside the month's posts: landing, pricing and comparison pages, what to change on a page that does not sell, proof, email sequences, cold emails, press pitches, launches, offers, free downloads, referrals, being named in AI answers, and tightening copy. Each one's line in writingSkills says when to use it.
 
-- Before that work, read the playbook its line names with read_writing_skill, and brand-voice with it. Follow it for the rest of the turn.
+- Before that work, read the playbook its line names with read_skill, and brand-voice with it. Follow it for the rest of the turn.
 - Read only what the turn needs: one playbook, two at most. A social post, ad, newsletter issue or article keeps its own skill.
 - Facts, prices, offers and proof only from the Brand Brain, the site and the owner. What is missing becomes a short question to the owner, never a bracket left in the text.`,
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOwnerRequest } from "./owner-request";
+import { isForegroundOwnerChat, isOwnerRequest } from "./owner-request";
 
 const ownerChat = {
   source: "CHAT",
@@ -68,5 +68,29 @@ describe("isOwnerRequest", () => {
     expect(isOwnerRequest(schedule, { schedules: true })).toBe(true);
     expect(isOwnerRequest({ ...ownerChat, source: "EVENT" })).toBe(false);
     expect(isOwnerRequest({ ...ownerChat, source: "INGEST" })).toBe(false);
+  });
+});
+
+describe("isForegroundOwnerChat", () => {
+  it("is the owner's own chat turn, however its asker is recorded", () => {
+    expect(isForegroundOwnerChat(ownerChat)).toBe(true);
+    const { askedByUserId: _unset, ...withoutAsker } = ownerChat;
+    expect(isForegroundOwnerChat(withoutAsker)).toBe(true);
+  });
+
+  it("is not a background run of it, a schedule, a wake, a teammate or a chained bot", () => {
+    expect(
+      isForegroundOwnerChat({ ...ownerChat, parentTurnId: "parent" }),
+    ).toBe(false);
+    expect(isForegroundOwnerChat({ ...ownerChat, source: "SCHEDULE" })).toBe(
+      false,
+    );
+    expect(isForegroundOwnerChat({ ...ownerChat, source: "EVENT" })).toBe(
+      false,
+    );
+    expect(
+      isForegroundOwnerChat({ ...ownerChat, askedByUserId: "teammate" }),
+    ).toBe(false);
+    expect(isForegroundOwnerChat({ ...ownerChat, chainDepth: 1 })).toBe(false);
   });
 });

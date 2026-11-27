@@ -15,9 +15,34 @@ describe("turnReasoningEffortOptions", () => {
     ["NORMAL", "openai/strong", {}],
     [undefined, "openai/gpt-6-luna", {}],
   ])("%s on %s", (complexity, model, expected) => {
-    expect(turnReasoningEffortOptions({ version, model, complexity })).toEqual(
-      expected,
-    );
+    for (const ownerChat of [true, false])
+      expect(
+        turnReasoningEffortOptions({ version, model, complexity, ownerChat }),
+      ).toEqual(expected);
+  });
+
+  it("keeps the owner's own chat at the default effort on a version with effortFloor (E11)", () => {
+    const floored = { ...version, effortFloor: true as const };
+    const low = { openai: { reasoningEffort: "low" } };
+    for (const complexity of ["SIMPLE", "NORMAL"]) {
+      expect(
+        turnReasoningEffortOptions({
+          version: floored,
+          model: version.model,
+          complexity,
+          ownerChat: true,
+        }),
+      ).toEqual({});
+      // Runs, wakes, schedules and Core's own turns keep low.
+      expect(
+        turnReasoningEffortOptions({
+          version: floored,
+          model: version.model,
+          complexity,
+          ownerChat: false,
+        }),
+      ).toEqual(low);
+    }
   });
 });
 

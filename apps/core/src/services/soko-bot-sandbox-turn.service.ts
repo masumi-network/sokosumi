@@ -31,6 +31,7 @@ import {
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
+import { isForegroundOwnerChat } from "@/lib/soko-bot/owner-request";
 import {
   persistedToolResult,
   sanitizePersistedValue,
@@ -653,6 +654,7 @@ export async function proxySandboxModelCall(
     version,
     model,
     complexity: authorized.complexity,
+    ownerChat: isForegroundOwnerChat(authorized.turn),
   });
   const reasoning = {
     ...summary,

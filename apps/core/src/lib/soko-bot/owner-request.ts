@@ -19,6 +19,26 @@ export function ownerAskedIn(turn: OwnerRequestTurn): boolean {
 }
 
 /**
+ * The owner's own chat turn itself, in the foreground: not a background run
+ * of it, a wake, a schedule or anything Core started.
+ */
+export function isForegroundOwnerChat(
+  turn: Omit<OwnerRequestTurn, "askedByUserId"> & {
+    askedByUserId?: string | null;
+    parentTurnId?: string | null;
+  },
+): boolean {
+  return (
+    !turn.parentTurnId &&
+    isOwnerRequest({
+      ...turn,
+      askedByUserId: turn.askedByUserId ?? null,
+      parentTurnId: null,
+    })
+  );
+}
+
+/**
  * The owner's own request: their chat, however it was started, or a
  * background run whose parent was their chat. Core's own turns (a mail check,
  * an autonomous production event) can start runs too; those are not.

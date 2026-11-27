@@ -508,6 +508,25 @@ describe("cmoProductionMessage", () => {
     );
   });
 
+  it("names the writing skills by id on a small-context version (cmo-v26)", () => {
+    const calendar = [entry({ id: "a" })];
+    const input = {
+      businessName: "Acme",
+      strategy: strategy(calendar),
+      pending: calendar.map((item) => piece(item)),
+      connected: new Set<string>(),
+      attempt: 1,
+      topUp: false,
+    };
+    const full = cmoProductionMessage(input);
+    const byId = cmoProductionMessage({ ...input, skillsById: true });
+    expect(full).toContain('<skill id="linkedin">');
+    expect(byId).not.toContain("<skill id=");
+    expect(byId).toMatch(/Writing skills for this month's pieces: .*linkedin/);
+    expect(byId).toContain("read_skill");
+    expect(byId.length).toBeLessThan(full.length / 2);
+  });
+
   it("asks for a style on every picture, slides included, only where the reference library is set up", () => {
     const withPicture = [entry({ id: "a", format: "image" })];
     const input = {

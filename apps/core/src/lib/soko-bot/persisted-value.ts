@@ -127,6 +127,27 @@ export interface PersistedToolResultOptions {
 }
 
 /**
+ * The month writer's handed-back piece ids, kept whole when its receipt is
+ * cut: its next call reads them to move past those pieces.
+ */
+function handedBackIds(value: unknown): { handedBack?: string[] } {
+  const ids =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as { handedBack?: unknown }).handedBack
+      : undefined;
+  if (!Array.isArray(ids)) return {};
+  let remainingBytes = TOOL_RESULT_MAX_BYTES / 2;
+  const kept: string[] = [];
+  for (const id of ids) {
+    if (typeof id !== "string") continue;
+    remainingBytes -= Buffer.byteLength(JSON.stringify(id), "utf8") + 1;
+    if (remainingBytes < 0) break;
+    kept.push(id);
+  }
+  return { handedBack: kept };
+}
+
+/**
  * A tool input or result as stored on its row: sanitized, and at most 16 KB,
  * plus the addresses of one that had to be cut.
  */
@@ -162,6 +183,7 @@ export function persistedToolResult(
     ...(options?.canonicalInputHash
       ? { canonicalInputHash: options.canonicalInputHash }
       : {}),
+    ...(capability === "write_month_pieces" && handedBackIds(sanitized)),
   };
   const emptyWrapper = JSON.stringify({
     truncated: true,
@@ -174,6 +196,7 @@ export function persistedToolResult(
   );
   let wrapper = { truncated: true, ...kept, preview };
   while (
+    preview.length > 0 &&
     Buffer.byteLength(JSON.stringify(wrapper), "utf8") > TOOL_RESULT_MAX_BYTES
   ) {
     const excess =

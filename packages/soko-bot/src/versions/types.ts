@@ -44,6 +44,13 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * E11 (test versions only): a foreground chat turn the owner asked for
+   * themselves never runs below the provider's default reasoning effort
+   * (medium), even when Jev reads it as SIMPLE or NORMAL. Background runs,
+   * wakes, schedules and other Core-started turns keep low.
+   */
+  effortFloor?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

@@ -1,4 +1,8 @@
 import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "../policy.js";
+import {
+  CMO_PRODUCTION_TOOLS,
+  cmoCompactProduction,
+} from "./cmo-v26-skills.js";
 import { SKILL_INDEX, type SkillOccasion } from "./skill-index.js";
 import { SOKO_BOT_SKILLS } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
@@ -13,10 +17,27 @@ export interface TurnToolProfile {
   appliesTo: (version: SokoBotVersion) => boolean;
   occasion: SkillOccasion;
   tools: readonly SokoBotCapability[];
+  /** `skill:tool` pairs a carried skill may name off this set, with why. */
+  namedWithoutOffer?: Readonly<Record<string, string>>;
 }
 
 /** Profiles that narrow a version's tools on some turns; versions add theirs. */
-export const TURN_TOOL_PROFILES: TurnToolProfile[] = [];
+export const TURN_TOOL_PROFILES: TurnToolProfile[] = [
+  {
+    id: "compact production",
+    appliesTo: (version) => cmoCompactProduction(version.skills),
+    occasion: "production",
+    tools: CMO_PRODUCTION_TOOLS,
+    // Every-turn texts in the byte-stable system prompt; a production run
+    // makes the month and gets a plain refusal if it reaches for these.
+    namedWithoutOffer: {
+      "cmo-core-writes-strategy:write_strategy":
+        "strategy changes belong to chat and strategy turns",
+      "cmo-tool-highlights:save_brand_brain":
+        "Brand Brain saves belong to chat and brand turns",
+    },
+  },
+];
 
 /**
  * Tool names a skill text may name without the turn offering them, each with
@@ -53,6 +74,7 @@ function missingTools(
   skills: readonly string[],
   tools: ReadonlySet<string>,
   scanNames: boolean,
+  allowed: Readonly<Record<string, string>> = {},
 ): string[] {
   const problems: string[] = [];
   for (const id of skills) {
@@ -62,7 +84,11 @@ function missingTools(
     if (!scanNames) continue;
     const content = SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content;
     for (const tool of namedTools(content ?? ""))
-      if (!tools.has(tool) && !(tool in NAMED_WITHOUT_OFFER))
+      if (
+        !tools.has(tool) &&
+        !(tool in NAMED_WITHOUT_OFFER) &&
+        !(`${id}:${tool}` in allowed)
+      )
         problems.push(`${label}: ${id} names ${tool}, not offered`);
   }
   return problems;
@@ -135,6 +161,7 @@ export function versionIntegrityProblems(
         carriedOn(version, profile.occasion),
         new Set(profile.tools),
         true,
+        profile.namedWithoutOffer,
       ),
     );
   return problems;
