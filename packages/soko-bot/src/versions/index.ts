@@ -48,6 +48,14 @@ import {
   E1_SKILL_USE_WHEN_OVERRIDES,
 } from "./e1-prompts.js";
 import {
+  cmoV27E1,
+  cmoV27E1Route,
+  cmoV27E1V4,
+  v40E1,
+  v40E1Route,
+  v40E1V4,
+} from "./e1-test-versions.js";
+import {
   applyRouteSteeringPrompt,
   ROUTE_STEERING_ACT_OR_ASK_SECTION,
 } from "./route-steering.js";
@@ -145,6 +153,9 @@ export const SOKO_BOT_VERSIONS: readonly SokoBotVersion[] = [
   v38,
   v39,
   v40,
+  v40E1Route,
+  v40E1V4,
+  v40E1,
 ];
 export const DEFAULT_SOKO_BOT_VERSION_ID = "v34";
 
@@ -177,6 +188,9 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV25,
   cmoV26,
   cmoV27,
+  cmoV27E1Route,
+  cmoV27E1V4,
+  cmoV27E1,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
