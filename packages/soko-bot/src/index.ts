@@ -244,6 +244,7 @@ export {
 } from "./task-tool-contracts.js";
 export {
   isSokoBotDecisionTarget,
+  SOCIAL_POSTS_PER_BATCH,
   SOKO_BOT_NEWSLETTER_SUBSCRIBER_BATCH_MAX,
   SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
   SOKO_BOT_PLAN_STEP_STATUSES,
@@ -365,6 +366,11 @@ export {
   CMO_STRATEGY_STEP_SKILL,
   cmoWritesStrategyStep,
 } from "./versions/cmo-v25-skills.js";
+export {
+  CMO_COMPACT_PRODUCTION_SKILL,
+  CMO_PRODUCTION_TOOLS,
+  cmoCompactProduction,
+} from "./versions/cmo-v26-skills.js";
 export {
   CMO_VIDEO_SHAPES,
   CMO_VIDEO_SHAPES_SKILL,

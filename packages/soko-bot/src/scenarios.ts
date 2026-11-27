@@ -2682,6 +2682,39 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-mixed-clear-and-open",
+    title: "Makes the clear change and asks about the open one",
+    intent:
+      "One message holds a clear strategy change and one that leaves the change to guess: Cuso makes the clear one in the same turn and asks one question about the other, which stays as it was.",
+    prompt:
+      "Post on LinkedIn twice a week instead of three times from now on, and make our X posts better.",
+    rubric:
+      "Cuso saves LinkedIn at twice a week (write_strategy with the change, or save_strategy) in this turn, and asks the owner one question about what 'better' should mean for X, offering his best guess. X's entries, cadence and format stay as they were. Asking about LinkedIn too, leaving LinkedIn unchanged, or rewriting X on his own guess fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      anyTools: ["save_strategy", "write_strategy"],
+      asksQuestion: true,
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
+    id: "cmo-owner-delegates-choice",
+    title: "Decides when the owner leaves the choice to him",
+    intent:
+      "The owner asks for a change and leaves its details to Cuso: he decides, makes the change in the same turn and says what he chose, instead of asking back.",
+    prompt:
+      "Move some of our posting toward the network that fits our audience best. You decide which one and by how much.",
+    rubric:
+      "Cuso picks one network and a new cadence himself, saves the change (write_strategy with the change, or save_strategy) in this turn, and tells the owner in plain words which network he chose, how often it now posts and why, from the Brand Brain and the strategy. He invents no numbers or results. Asking the owner to choose the network or the amount, or changing nothing, fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      anyTools: ["save_strategy", "write_strategy"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
     id: "cmo-daily-run-watch",
     title: "Runs the day by his daily-run skill",
     intent:

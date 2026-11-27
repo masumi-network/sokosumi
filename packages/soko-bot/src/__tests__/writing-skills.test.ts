@@ -159,6 +159,6 @@ describe("writing skills", () => {
     expect(
       SOKO_BOT_SKILLS.find((skill) => skill.id === CMO_PLAYBOOKS_SKILL)
         ?.content,
-    ).toMatch(/read_writing_skill/);
+    ).toMatch(/\bread_skill\b/);
   });
 });
