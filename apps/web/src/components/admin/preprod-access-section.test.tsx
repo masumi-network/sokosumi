@@ -147,6 +147,23 @@ describe("PreprodAccessSection", () => {
     expect(within(dialog).getByText("Enter a reason.")).toBeInTheDocument();
   });
 
+  it("clears the reason error once a reason is typed", async () => {
+    const user = userEvent.setup();
+    renderSection(OFF_NO_HISTORY);
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
+    expect(within(dialog).getByText("Enter a reason.")).toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText("Reason"), "S");
+
+    expect(
+      within(dialog).queryByText("Enter a reason."),
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Reason")).not.toHaveAttribute(
+      "aria-invalid",
+    );
+  });
+
   it("calls the action with the target, the value and the trimmed reason, then shows the new state and record", async () => {
     setAdminPreprodAccessActionMock.mockResolvedValue({
       ok: true,

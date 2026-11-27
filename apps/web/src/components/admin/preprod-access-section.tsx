@@ -63,6 +63,13 @@ export function PreprodAccessSection({
     setFailure(null);
   }
 
+  function handleReasonChange(value: string) {
+    setReason(value);
+    if (value.trim()) {
+      setReasonError(undefined);
+    }
+  }
+
   function handleConfirm(enabled: boolean) {
     const trimmedReason = reason.trim();
     if (!trimmedReason) {
@@ -190,7 +197,7 @@ export function PreprodAccessSection({
                 label={t("dialog.reasonLabel")}
                 hint={t("dialog.reasonHint")}
                 value={reason}
-                onChange={setReason}
+                onChange={handleReasonChange}
                 error={reasonError}
               />
               {failure ? (
