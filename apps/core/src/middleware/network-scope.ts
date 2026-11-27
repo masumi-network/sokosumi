@@ -152,7 +152,7 @@ export async function preprodScopeFor(
 async function callerScope(
   c: Context,
   caller: AuthenticationContext | undefined,
-  access: AuthenticationContext | undefined = caller,
+  access: AuthenticationContext | undefined,
 ): Promise<NetworkScope> {
   const { network, sent } = namedNetwork(c);
   const keyNetwork =
@@ -183,7 +183,10 @@ export const networkScopeMiddleware = createMiddleware<{
   if (!c.var.networkScope) {
     // The one place an authenticated request names its Network; a public
     // route calls `publicRequestNetworkScope`.
-    c.set("networkScope", await callerScope(c, c.var.authContext));
+    c.set(
+      "networkScope",
+      await callerScope(c, c.var.authContext, c.var.authContext),
+    );
   }
   await next();
 });
@@ -220,6 +223,9 @@ export async function publicRequestNetworkScope(
  * one space, then any whitespace. The stored row's prefix decides once the key
  * verifies; the plugin writes the same prefix into a key's text and its row,
  * so for a key Core minted the two cannot differ.
+ * A longer caller-chosen prefix (before #8437) would match too: on a fork of
+ * production on 2026-11-27, none of 311 keys had a stored prefix or text
+ * starting with `soko_preprod_`, and Core has refused a caller's prefix since.
  */
 const PREPROD_KEY_BEARER = new RegExp(
   `^(?i:bearer) \\s*${USER_API_KEY_PREFIXES.preprod}`,

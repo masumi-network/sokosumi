@@ -1450,35 +1450,58 @@ describe.runIf(enabled && onSplitLayout)(
       }
     });
 
-    it("keeps a verified Preprod key's Network when its Organization refuses it", async () => {
-      const where = {
-        userId_organizationId: {
-          userId: outsider.id,
-          organizationId: optedInOrganization.id,
-        },
-      };
-      await loaded.prisma.member.create({
-        data: { ...where.userId_organizationId, role: "member" },
-      });
-      const headers = {
-        ...(await key(outsider, "soko_preprod_")),
-        ...slug(optedInOrganization),
-      };
-      try {
-        expect(await listed(headers)).toEqual(allowed("preprod"));
-        await loaded.prisma.member.delete({ where });
-        // The former member: never Mainnet's rows.
-        expect(await listed(headers)).toEqual(refused);
-        expect(await listed({ ...headers, [HEADER]: "preprod" })).toEqual(
-          refused,
-        );
-        expect(await listed({ ...headers, [HEADER]: "mainnet" })).toEqual(
-          mismatch,
-        );
-      } finally {
-        await loaded.prisma.member.deleteMany({
-          where: where.userId_organizationId,
+    it("keeps a verified Preprod key's Network when its Organization refuses it", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
+      // Without and with the person's own opt-in: the refused Workspace
+      // decides, not the personal one.
+      for (const who of [outsider, optedIn]) {
+        const where = {
+          userId_organizationId: {
+            userId: who.id,
+            organizationId: optedInOrganization.id,
+          },
+        };
+        await loaded.prisma.member.create({
+          data: { ...where.userId_organizationId, role: "member" },
         });
+        const preprodKey = {
+          ...(await key(who, "soko_preprod_")),
+          ...slug(optedInOrganization),
+        };
+        const named = [
+          { cookie: who.cookie, ...slug(optedInOrganization) },
+          {
+            ...bearer(await oauthToken(who.id)),
+            ...slug(optedInOrganization),
+          },
+        ].map((headers) => ({ ...headers, [HEADER]: "preprod" }));
+        try {
+          expect([who.id, await listed(preprodKey)]).toEqual([
+            who.id,
+            allowed("preprod"),
+          ]);
+          for (const headers of named) {
+            expect([who.id, await listed(headers)]).toEqual([
+              who.id,
+              allowed("preprod"),
+            ]);
+          }
+          await loaded.prisma.member.delete({ where });
+          // The former member: never Mainnet's rows, never Preprod's.
+          for (const [headers, expected] of [
+            [preprodKey, refused],
+            [{ ...preprodKey, [HEADER]: "preprod" }, refused],
+            [{ ...preprodKey, [HEADER]: "mainnet" }, mismatch],
+            ...named.map((headers) => [headers, refused] as const),
+          ] as const) {
+            expect([who.id, await listed(headers)]).toEqual([who.id, expected]);
+          }
+        } finally {
+          await loaded.prisma.member.deleteMany({
+            where: where.userId_organizationId,
+          });
+        }
       }
     });
 
