@@ -21,9 +21,10 @@ import {
   seoResearchCoverage,
   storedSeoChecklist,
 } from "@/schemas/seo-audit-coverage.schema";
-import { seoAuditFinalUrls } from "@/schemas/seo-page.schema";
 import { seoPageSpeed } from "@/schemas/seo-page-speed.schema";
+import { storedSiteSpeed } from "@/schemas/seo-site-speed.schema";
 import * as seoDecisions from "./project-seo-decisions";
+import { legacySeoReportSchema } from "./project-seo-legacy-report";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
   finiteReportNumber as numberAt,
@@ -35,7 +36,6 @@ import {
 import {
   difficulty,
   ESTIMATE_KEYS,
-  estimate,
   legacyReportKeywords,
   storedEstimate,
 } from "./project-seo-report-keywords";
@@ -60,7 +60,7 @@ import {
   seoTopicLaunch,
 } from "./seo-content-history";
 import { readPageMarketEvidence } from "./seo-page-market-evidence";
-import { readPageSpeed } from "./seo-page-speed";
+import { readableStoredPageSpeed, readPageSpeed } from "./seo-page-speed";
 import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
 import {
   readReviewSources,
@@ -70,6 +70,7 @@ import {
   pageResearchCoverage,
   siteResearchCoverage,
 } from "./seo-research-coverage";
+import { readableStoredSiteSpeed, readSiteSpeed } from "./seo-site-speed";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -132,7 +133,12 @@ const publicSeoPayload = z.object({
   researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
   pageMarketEvidence: seoPageMarketEvidence.optional(),
   publicSitemaps: publicSitemapList.optional().catch(undefined),
-  pageSpeed: seoPageSpeed.optional(),
+  pageSpeed: z.preprocess(readableStoredPageSpeed, seoPageSpeed.optional()),
+  /** A site audit's speed table. A stored row Core cannot read is dropped and counted; an unreadable table goes, not the audit. */
+  siteSpeed: z.preprocess(
+    readableStoredSiteSpeed,
+    storedSiteSpeed.optional().catch(undefined),
+  ),
   checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),
@@ -316,164 +322,6 @@ const partial = z
     gaps: z.array(z.object({ reason: text }).passthrough()).max(500),
   })
   .passthrough();
-// Two seasonal reviewers can each propose five searches. History can supply three further terms.
-const MAX_SEASONAL_IDEAS = 13;
-const legacy = z.object({
-  seasonalReview: z
-    .object({ insights: z.array(z.unknown()).max(MAX_SEASONAL_IDEAS) })
-    .optional()
-    .catch(undefined),
-  request: z.object({ url: seoUrlSchema }),
-  snapshotId: text,
-  rulebookVersion: text,
-  header: z.object({
-    capturedAt: observedAt,
-    finalUrl: seoAuditFinalUrls,
-    market: z.object({ country: text, language: text }).nullable(),
-    focusKeywords: z
-      .array(
-        z.object({
-          keyword: text,
-          volume: nullableNumber,
-          intent: text.nullable(),
-          position: z.object({
-            mobile: nullableNumber,
-            desktop: nullableNumber,
-          }),
-          positionNote: z.object({
-            mobile: text.nullable(),
-            desktop: text.nullable(),
-          }),
-          ...estimate,
-        }),
-      )
-      .max(500),
-  }),
-  findings: z
-    .array(
-      z.object({
-        id: text,
-        row: text,
-        name: text,
-        level: seoSeveritySchema,
-        devices: z.array(seoDeviceSchema),
-        evidence: z.array(text),
-      }),
-    )
-    .max(5000),
-  actions: z
-    .array(
-      z.object({
-        n: z.number().int(),
-        title: text,
-        why: text,
-        effort: z.enum(["low", "medium", "high"]),
-        whatToExpect: text,
-        findings: z.array(text),
-        edit: z
-          .object({ target: text, before: text.optional(), after: text })
-          .optional(),
-      }),
-    )
-    .max(100),
-  rankingData: z
-    .object({
-      competitors: z.array(
-        z
-          .object({
-            url: seoUrlSchema,
-            source: text,
-            rank: nullableNumber,
-            referringDomains: nullableNumber.optional(),
-          })
-          .passthrough(),
-      ),
-      page: z
-        .object({
-          ranked: z
-            .object({
-              rows: z.array(
-                z.object({
-                  keyword: text.nullable(),
-                  position: nullableNumber,
-                  volume: nullableNumber,
-                  difficulty,
-                  intent: text.nullable(),
-                }),
-              ),
-            })
-            .passthrough()
-            .nullable(),
-          summary: z
-            .object({
-              backlinks: nullableNumber,
-              referring_domains: nullableNumber,
-            })
-            .passthrough()
-            .nullable(),
-          referringDomains: nullableNumber,
-        })
-        .passthrough()
-        .optional(),
-      gaps: z
-        .array(z.object({ keyword: text, bestVolume: nullableNumber }))
-        .nullable()
-        .optional(),
-    })
-    .passthrough()
-    .nullable(),
-  // The Target keyword's own facts: its difficulty when no ranked or idea row holds the keyword.
-  keywordData: z
-    .object({
-      facts: z.object({
-        keyword: text.nullable(),
-        keyword_difficulty: difficulty,
-      }),
-    })
-    .nullable()
-    .optional()
-    .catch(null),
-  keywordOpportunities: z
-    .object({
-      editorialResearch: z
-        .object({
-          status: z.enum(["complete", "partial", "skipped"]),
-          proposed: z.number().int().nonnegative(),
-          checked: z.number().int().nonnegative(),
-          qualified: z.number().int().nonnegative(),
-        })
-        .optional()
-        .catch(undefined),
-      list: z.array(
-        z.object({
-          keyword: text,
-          volume: z.number().finite(),
-          difficulty,
-          position: nullableNumber,
-          intent: text.nullable(),
-          editorial: seoEditorialKeywordSchema.optional().catch(undefined),
-          ...estimate,
-        }),
-      ),
-    })
-    .passthrough()
-    .nullable()
-    .optional(),
-  checklist: z
-    .array(
-      z.object({
-        row: text,
-        device: seoDeviceSchema,
-        result: z.enum(["pass", "fired", "blocked", "not checked"]),
-        sourceReason: z.string().optional().catch(undefined),
-        detail: z.string().optional().catch(undefined),
-      }),
-    )
-    .max(10000),
-  couldNotSee: z.array(z.object({ item: text, reason: text })).max(1000),
-});
-/** The SEO bot's own Report JSON, as far as Core reads it. */
-export type LegacySeoReport = z.infer<typeof legacy>;
 /** Parse trusted artifact bytes, keeping an explicit projection rather than arbitrary report fields. */
 export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
   refusePrivateReport(raw);
@@ -518,6 +366,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       }),
     );
     const ranks = pages.flatMap((p) => p.reviewSources ?? []);
+    const pageSpeed = pages.flatMap((page) => page.pageSpeed ?? []);
     const decisions = seoDecisions.readWorkerDecisions(
       raw,
       eligible.map((page) => page.url),
@@ -528,7 +377,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       ...first,
       kind: "audit_full",
       pageUrls,
-      pageSpeed: pages.flatMap((page) => page.pageSpeed ?? []),
+      pageSpeed,
+      siteSpeed: readSiteSpeed(raw, pageUrls, pageSpeed),
       strategyDecisions: decisions,
       decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
         ? sources
@@ -621,7 +471,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       ...serpFields,
     });
   }
-  const parsed = legacy.safeParse(raw);
+  const parsed = legacySeoReportSchema.safeParse(raw);
   if (!parsed.success)
     throw badRequest("The SEO report does not match its supported format");
   const result = parsed.data,

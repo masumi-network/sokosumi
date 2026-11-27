@@ -12698,6 +12698,7 @@ export type ProjectSeoWorkspace = {
     siteEvidence?: ProjectSeoSiteEvidence | null;
     auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
+    siteSpeed?: ProjectSeoSiteSpeed | null;
     landingEngagementChange?: {
         propertyId: string;
         timeZone: string;
@@ -13160,6 +13161,13 @@ export type ProjectSeoObservation = {
                 first: Date;
                 last: Date;
             } | null;
+            history?: {
+                status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                weeks?: Array<string>;
+                lcp?: Array<number | null>;
+                inp?: Array<number | null>;
+                cls?: Array<number | null>;
+            };
         };
     }>;
     pageSpeedRecoveryFileId?: string;
@@ -13669,6 +13677,100 @@ export type ProjectSeoStrategy = {
     observedAt: Date;
     countryCode: string | null;
     languageCode: string | null;
+};
+
+export type ProjectSeoSiteSpeed = {
+    rows: Array<{
+        url: string;
+        audited: boolean;
+        group?: string;
+        cause?: 'action' | 'keyword' | 'template' | 'entry' | 'risk';
+        why?: string;
+        tier?: 'full' | 'reduced' | 'none';
+        check?: {
+            device: 'mobile' | 'desktop';
+            basis: 'crux-url' | 'crux-origin' | 'page-type' | 'default';
+            mix: {
+                level: 'url' | 'origin';
+                phone: number;
+                desktop: number;
+                tablet: number;
+                period: {
+                    first: string;
+                    last: string;
+                } | null;
+            } | null;
+            notChecked: 'deadline' | 'quota' | 'other' | null;
+        };
+        devices: Array<{
+            pageUrl: string;
+            testedUrl: string;
+            device: 'mobile' | 'desktop';
+            lab: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                median: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    tbt: number | null;
+                    si: number | null;
+                };
+                runs: number;
+                ok: number;
+                lighthouse: string | null;
+                pageSpeed?: {
+                    scores: {
+                        performance?: number;
+                        accessibility?: number;
+                        bestPractices?: number;
+                        seo?: number;
+                        agenticBrowsing?: number;
+                    };
+                    insights: Array<{
+                        id: string;
+                        title: string;
+                        detail: string;
+                        action: string;
+                    }>;
+                    measuredAt?: Date;
+                };
+            };
+            field: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                level: 'url' | 'origin' | 'normalized';
+                url: string;
+                p75: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    inp: number | null;
+                    ttfb: number | null;
+                };
+                period: {
+                    first: Date;
+                    last: Date;
+                } | null;
+                history?: {
+                    status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                    weeks?: Array<string>;
+                    lcp?: Array<number | null>;
+                    inp?: Array<number | null>;
+                    cls?: Array<number | null>;
+                };
+            };
+        }>;
+    }>;
+    dropped: number;
+    notChecked?: {
+        count: number;
+        reason: 'limit' | 'deadline' | 'quota' | 'other';
+    };
+    observationId: string;
+    observedAt: Date;
 };
 
 export type ProjectSeoSerpSeries = {
@@ -14684,6 +14786,10 @@ export type NotificationItem = {
      * When the notification was created
      */
     createdAt: Date;
+    /**
+     * Network of the Job the notification points at; null when it points at none
+     */
+    network: 'mainnet' | 'preprod' | null;
 };
 
 /**
@@ -19258,12 +19364,12 @@ export type ContextOrganizationId = string;
 export type SokosumiClient = string;
 
 /**
- * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. Operations on shared data are never refused because of the Network.
  */
 export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
 
 /**
- * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. Operations on shared data are never refused because of the Network.
  */
 export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
 
@@ -26928,7 +27034,7 @@ export type GetAgentsData = {
 
 export type GetAgentsErrors = {
     /**
-     * Forbidden. Only with `X-Sokosumi-Network: preprod`. Branch on `kind`: preprod_off (Preprod is switched off) or preprod_access_required (an anonymous caller, a credential other than a browser session, or a person without Preprod access in the workspace)
+     * Forbidden. Only for Preprod (`X-Sokosumi-Network: preprod`, or a Preprod API key) or a key the header contradicts. Branch on `kind`: preprod_off (Preprod is switched off), preprod_access_required (an anonymous caller, a Coworker or Soko Bot key, or a person without Preprod access in the workspace) or api_key_network_mismatch (an API key of the other Network than the header names)
      */
     403: {
         error: string;

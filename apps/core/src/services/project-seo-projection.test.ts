@@ -20,6 +20,7 @@ import { projectSeoProjection } from "./project-seo-projection";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
 const now = new Date("2026-11-01T12:00:00Z");
+const EXTRA_PAGE = "https://example.test/extra";
 function fixture(): Input {
   const projectId = randomUUID(),
     pageId = randomUUID();
@@ -514,6 +515,162 @@ describe("stored SEO workspace projections", () => {
       projectSeoProjection({ ...input, query: { from: "2026-11-04" } })
         .strategy,
     ).toBeNull();
+  });
+
+  it("shows the newest site audit's speed table, and none to a view that lacks one of its pages", () => {
+    const input = fixture();
+    expect(projectSeoProjection(input).siteSpeed).toBeNull();
+    const table = (url: string) =>
+      parsePublicSeoArtifact({
+        kind: "site",
+        rulebookVersion: "v",
+        pages: [legacyReport()],
+        speed: {
+          pages: [
+            { url: SEO_TEST_PAGE, n: 1, source: "audited", speed: null },
+            { url, n: null, source: "links", group: "/", speed: null },
+          ],
+          note: null,
+        },
+      });
+    const newest = observation(
+      input,
+      table("https://example.test/new"),
+      "2026-11-03T12:00:00Z",
+    );
+    input.observations = [
+      observation(
+        input,
+        parsePublicSeoArtifact(focusedReport()),
+        "2026-11-04T12:00:00Z",
+      ),
+      newest,
+      observation(
+        input,
+        table("https://example.test/old"),
+        "2026-11-01T12:00:00Z",
+      ),
+    ];
+    const shown = projectSeoProjection(input).siteSpeed;
+    expect(shown).toMatchObject({
+      observationId: newest.id,
+      observedAt: "2026-11-03T12:00:00.000Z",
+    });
+    expect(shown?.rows.map((row) => [row.url, row.audited])).toEqual([
+      [SEO_TEST_PAGE, true],
+      ["https://example.test/new", false],
+    ]);
+    // A newer full audit without a table hides the older table: its own page speed is the newest result.
+    input.observations.unshift(
+      observation(
+        input,
+        parsePublicSeoArtifact(legacyReport()),
+        "2026-11-05T12:00:00Z",
+      ),
+    );
+    expect(input.observations[0]?.kind).toBe("audit_full");
+    expect(projectSeoProjection(input).siteSpeed).toBeNull();
+  });
+
+  it("shows no speed table to a view that holds only some pages of the audit", () => {
+    const input = fixture();
+    const second = {
+      ...input.pages[0]!,
+      id: randomUUID(),
+      url: SEO_TEST_SECOND_PAGE,
+    };
+    input.pages.push(second);
+    const all = {
+      ...input.scope,
+      pageIds: input.pages.map((page) => page.id),
+      pages: input.pages,
+    };
+    const report = legacyReport();
+    const audit = observation(
+      { ...input, scope: all },
+      parsePublicSeoArtifact({
+        kind: "site",
+        rulebookVersion: "v",
+        pages: [report, { ...report, request: { url: second.url } }],
+        speed: {
+          pages: [{ url: EXTRA_PAGE, n: null, source: "links", speed: null }],
+          note: null,
+        },
+      }),
+      "2026-11-03T12:00:00Z",
+    );
+    const shown = (scope: Input["scope"]) =>
+      projectSeoProjection({ ...input, scope, observations: [audit] });
+    expect(shown(all).siteSpeed?.rows.map((row) => row.url)).toEqual([
+      EXTRA_PAGE,
+    ]);
+    // The audit is in the view of its first page: only the table is withheld.
+    const part = shown(input.scope);
+    expect(part.observations.map((item) => item.id)).toEqual([audit.id]);
+    expect(part.siteSpeed).toBeNull();
+  });
+
+  it("serves the weekly speed series on the newest audit only", () => {
+    const input = fixture();
+    const record = "d".repeat(64);
+    const ref = (kind: string) => ({
+      record: kind === "history" ? record : "e".repeat(64),
+      port: "crux",
+      request: {
+        port: "crux",
+        device: "mobile",
+        url: SEO_TEST_PAGE,
+        params: { kind, level: "url" },
+      },
+      outcome: { kind: "ok", status: 200 },
+    });
+    const audit = parsePublicSeoArtifact({
+      kind: "site",
+      rulebookVersion: "v",
+      pages: [
+        {
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                sourceRefs: [ref("record"), ref("history")],
+                history: {
+                  status: "comparable",
+                  sourceRecord: record,
+                  series: { lcp: [{ last: "2026-10-25", p75: 1300 }] },
+                },
+              },
+            },
+          },
+        },
+      ],
+      speed: {
+        pages: [{ url: SEO_TEST_PAGE, n: 1, source: "audited", speed: null }],
+        note: null,
+      },
+    });
+    input.observations = [
+      observation(input, audit, "2026-11-03T12:00:00Z"),
+      observation(input, audit, "2026-11-01T12:00:00Z"),
+    ];
+    const workspace = projectSeoProjection(input);
+    const series = { status: "comparable", weeks: ["2026-10-25"], lcp: [1300] };
+    expect(
+      workspace.observations.map((item) => item.pageSpeed?.[0]?.field),
+    ).toMatchObject([
+      { history: series },
+      { history: { status: "comparable" } },
+    ]);
+    expect(workspace.observations[1]?.pageSpeed?.[0]?.field).not.toHaveProperty(
+      "history.weeks",
+    );
+    expect(workspace.siteSpeed?.rows[0]?.devices[0]?.field).toMatchObject({
+      history: series,
+    });
   });
 
   it("retains measured site intent and a matching purpose opportunity only in the scope they describe", () => {

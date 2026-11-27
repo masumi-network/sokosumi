@@ -43,11 +43,14 @@ function jittered(delayMs: number): number {
  * nothing is ever retried: the route has no timeout of its own around the Core
  * read (`core.request.ts`), so it can hang past any of these deadlines.
  *
- * 9s sits above the route's own 8s session-read budget, so a slow but living
- * read is never killed for being slow, and below the smallest caller budget
- * (20s in `fetch-sidebar-room-collection.ts`) by enough for one full retry.
+ * 13s sits above the route's own 12s session-read budget
+ * (`CORE_AUTH_REQUEST_TIMEOUT_MS`), so a read slowed by a Core cold start is
+ * never killed for being slow, and below the chat reads' 20s budget
+ * (`fetch-sidebar-room-collection.ts`) by enough for one retry against a warm
+ * Core. The 10s callers (feature badges, skill search) end at their own
+ * deadline first; a cold Core outlasts them with or without a retry.
  */
-const ATTEMPT_STALL_TIMEOUT_MS = 9_000;
+const ATTEMPT_STALL_TIMEOUT_MS = 13_000;
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   // A signal that is already aborted never fires an `abort` event, so the

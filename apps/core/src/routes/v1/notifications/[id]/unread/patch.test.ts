@@ -73,6 +73,7 @@ function readRow(overrides: Record<string, unknown> = {}) {
     isRead: true,
     readAt: new Date("2026-06-16T15:00:00.000Z"),
     createdAt: new Date("2026-06-16T14:00:00.000Z"),
+    network: null,
     ...overrides,
   };
 }

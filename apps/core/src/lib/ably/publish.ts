@@ -18,6 +18,7 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import { recordCoreError } from "@/lib/evlog";
+import type { Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
@@ -61,6 +62,8 @@ interface NotificationEventData {
   isRead: boolean;
   readAt: string | null;
   createdAt: string;
+  /** Network of the Job the row points at; null when it points at none. */
+  network: Network | null;
   /**
    * Whether the app shows this at all: the Notification Center for a feed
    * kind, the in-app toast for a browser-only one. False when the reader
@@ -174,6 +177,8 @@ interface NotificationPushData
   messageParams: string;
   /** Omitted, not null, when the notification carries no metadata. */
   metadata?: string;
+  /** Omitted, not null, when the notification points at no Network. */
+  network?: Network;
   /** Decimal, because push data is a string-to-string map. Omitted when the
    * notification carries no count. */
   groupCount?: string;
@@ -228,6 +233,7 @@ function toNotificationPushData(
     ...(notification.metadata !== null && {
       metadata: JSON.stringify(notification.metadata),
     }),
+    ...(notification.network !== null && { network: notification.network }),
     ...(notification.groupCount !== undefined && {
       groupCount: String(notification.groupCount),
     }),

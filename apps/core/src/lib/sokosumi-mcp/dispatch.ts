@@ -5,6 +5,7 @@ import { requestId } from "hono/request-id";
 
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
+import { modelSeoWorkspace } from "@/helpers/seo-site-speed-model-view";
 import { tryUseLogger } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
@@ -167,7 +168,7 @@ async function toToolResult(
   if (response.ok) {
     const meta = body.meta as { pagination?: unknown } | undefined;
     return toolResult({
-      data: body.data ?? null,
+      data: modelSeoWorkspace(body.data ?? null),
       ...(meta?.pagination ? { pagination: meta.pagination } : {}),
     });
   }
