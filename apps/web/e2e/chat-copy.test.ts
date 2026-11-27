@@ -83,7 +83,11 @@ async function showChatList(page: Page, name: string) {
       () => false,
     ))
   ) {
-    await nav.getByRole("button", { name: /^Chats/ }).click();
+    // On a tablet the rail's Chats closes a panel it already shows.
+    const chatsRail = nav.getByRole("button", { name: /^Chats/ });
+    if ((await chatsRail.getAttribute("aria-pressed")) !== "true") {
+      await chatsRail.click();
+    }
   }
   await catchUp.waitFor();
 }
