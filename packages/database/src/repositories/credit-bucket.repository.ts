@@ -9,10 +9,9 @@ import {
   buildEnterprisePoolScopeSql,
   buildOrganizationPoolScopeSql,
   type CreditBucketProjectOption,
-  type CreditBucketScopeContext,
   creditBucketSpendOrderSql,
   resolveCreditBucketScopeContext,
-  resolveCreditBucketScopeContextInSql,
+  resolveCreditBucketScopeContextOn,
 } from "../helpers/credit-bucket-scope.js";
 import { netTable, sharedTable, type TableNetwork } from "../sql-tables.js";
 import type { CreditDb, RawSqlDb, SharedDb } from "../types/shared-db.js";
@@ -123,7 +122,12 @@ export const creditBucketRepository = {
     options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
     const now = new Date();
-    const scopeContext = await scopeContextOn(userId, organizationId, db, now);
+    const scopeContext = await resolveCreditBucketScopeContextOn(
+      userId,
+      organizationId,
+      db,
+      now,
+    );
     return await sumAvailableCents(
       buildCreditBucketScopeSql(scopeContext, options),
       now,
@@ -440,28 +444,6 @@ export const creditBucketRepository = {
   },
 };
 
-/** The scope context, read as the transaction's side can read it. */
-async function scopeContextOn(
-  userId: string | null,
-  organizationId: string | null,
-  db: CreditDb,
-  now: Date,
-): Promise<CreditBucketScopeContext> {
-  return "shared" in db
-    ? await resolveCreditBucketScopeContext(
-        userId,
-        organizationId,
-        db.shared,
-        now,
-      )
-    : await resolveCreditBucketScopeContextInSql(
-        userId,
-        organizationId,
-        db.network,
-        now,
-      );
-}
-
 function rawSqlOn(db: CreditDb): RawSqlDb {
   return "shared" in db ? db.shared : db.network;
 }
@@ -499,7 +481,12 @@ async function getFifoBucketsToCoverSpend(
   db: CreditDb,
   options: CreditBucketProjectOption,
 ): Promise<Array<{ id: string; available: bigint }>> {
-  const scopeContext = await scopeContextOn(userId, organizationId, db, now);
+  const scopeContext = await resolveCreditBucketScopeContextOn(
+    userId,
+    organizationId,
+    db,
+    now,
+  );
   const where = buildCreditBucketScopeSql(scopeContext, options);
   const spendOrder = creditBucketSpendOrderSql(options.projectId);
 

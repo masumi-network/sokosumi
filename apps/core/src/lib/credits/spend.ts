@@ -3,7 +3,6 @@ import {
   InsufficientBalanceError,
 } from "@sokosumi/database/repositories";
 
-import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 /** Whose credits a spend takes. */
@@ -93,31 +92,42 @@ export type SpendResult<Mode extends SpendMode = SpendMode> =
   SpendResults[Mode];
 
 /**
- * The spend failed before anything was written, while the balance or the
- * buckets were read, for a reason other than missing credits: `cause` holds
- * it. A caller that answers such a failure with its own status catches this
- * class. A failure of the write itself, and a transaction conflict at any
- * point, are thrown as they are.
+ * The errors a spend threw while it prepared, before it wrote anything. Kept
+ * beside the error, not on it and not around it: `spend` always throws the
+ * original error, so a caller that maps nothing, and the retry of
+ * `retriedTransaction` above it, see exactly what they saw before the debit
+ * moved here, a transaction conflict included.
  */
-export class SpendPreparationError extends Error {
-  constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : String(cause), { cause });
-    this.name = "SpendPreparationError";
-  }
+const failedInPreparation = new WeakSet<object>();
+
+/**
+ * True when `spend` threw this error before it wrote anything, while it read
+ * the balance or the buckets: any failure of that stage, a transaction
+ * conflict included. False for a failure of the write. A caller that answers
+ * a failed preparation with its own status asks this in its `catch`; the
+ * error itself is the original, to keep as the `cause`.
+ */
+export function spendFailedInPreparation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    failedInPreparation.has(error)
+  );
 }
 
-/** The reads before the write, with their failures told apart from a write's. */
+/** The reads before the write: a failure here is marked as one of this stage. */
 async function prepared<T>(read: () => Promise<T>): Promise<T> {
   try {
     return await read();
   } catch (error) {
     if (
-      error instanceof InsufficientBalanceError ||
-      isPrismaTransactionConflict(error)
+      typeof error === "object" &&
+      error !== null &&
+      !(error instanceof InsufficientBalanceError)
     ) {
-      throw error;
+      failedInPreparation.add(error);
     }
-    throw new SpendPreparationError(error);
+    throw error;
   }
 }
 

@@ -35,7 +35,7 @@ import {
 } from "@/lib/competitors/page-read";
 import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { bareHost } from "@/lib/competitors/text";
-import { SpendPreparationError, spend } from "@/lib/credits/spend";
+import { spend } from "@/lib/credits/spend";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -601,10 +601,6 @@ export function chargeProjectCompetitorCheck(
         payer: { userId, organizationId, projectId },
         quotedCents: expectedCents,
         mode: "in_full",
-      }).catch((error: unknown) => {
-        // A check answers no failure itself: it fails with the cause, as
-        // before the spend told a failed read from a failed write.
-        throw error instanceof SpendPreparationError ? error.cause : error;
       });
       // The balance covered the price, so only credits that went since then
       // can fall short: the check fails and is run again later.

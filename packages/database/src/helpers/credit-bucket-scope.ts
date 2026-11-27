@@ -6,7 +6,7 @@ import {
 } from "../generated/prisma/client.js";
 import { memberRepository } from "../repositories/member.repository.js";
 import { sharedTable, sharedType } from "../sql-tables.js";
-import type { RawSqlDb, SharedDb } from "../types/shared-db.js";
+import type { CreditDb, RawSqlDb, SharedDb } from "../types/shared-db.js";
 import { isEnterpriseContractConsumable } from "./enterprise-contract.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
 import { ACTIVE_SUBSCRIPTION_STATUSES } from "./subscription.js";
@@ -116,15 +116,47 @@ function memberPoolAccess(
 }
 
 /**
- * `resolveCreditBucketScopeContext` for a transaction of a Network side: the
- * same answer, with the shared plan and Seat rows read in raw SQL, because
- * that connection's models name the Network's schema. The reads repeat the
- * model reads' rules (`resolveOrganizationBillingPlan`, the active
- * subscription of `subscriptionRepository`, the member lookup); Core's
- * `lib/credits/spend-transaction-sides.postgres.test.ts` holds the two
- * together.
+ * The scope context on a transaction of either side. The caller names the
+ * side its transaction has and never picks a reading: this is the one place
+ * that does.
+ *
+ * THE TWO READINGS MUST STAY EQUAL. The shared side reads the plan and the
+ * Seat through models (`resolveCreditBucketScopeContext`); a Network side
+ * reads the same rows in raw SQL (`resolveCreditBucketScopeContextInSql`),
+ * because that connection's models name the Network's schema. A rule changed
+ * in one reading (which contract or subscription counts, what a Seat is) must
+ * be changed in the other. Core's
+ * `src/lib/credits/spend-transaction-sides.postgres.test.ts` proves they
+ * agree, on PostgreSQL, for each kind of plan and payer: add the new case
+ * there, and it fails for the copy that was missed.
  */
-export async function resolveCreditBucketScopeContextInSql(
+export async function resolveCreditBucketScopeContextOn(
+  userId: string | null,
+  organizationId: string | null,
+  db: CreditDb,
+  now: Date = new Date(),
+): Promise<CreditBucketScopeContext> {
+  return "shared" in db
+    ? await resolveCreditBucketScopeContext(
+        userId,
+        organizationId,
+        db.shared,
+        now,
+      )
+    : await resolveCreditBucketScopeContextInSql(
+        userId,
+        organizationId,
+        db.network,
+        now,
+      );
+}
+
+/**
+ * The raw SQL reading: it repeats the rules of `resolveOrganizationBillingPlan`,
+ * of the active subscription in `subscriptionRepository`, and of the member
+ * lookup. Reached only through `resolveCreditBucketScopeContextOn`.
+ */
+async function resolveCreditBucketScopeContextInSql(
   userId: string | null,
   organizationId: string | null,
   tx: RawSqlDb,

@@ -4,14 +4,16 @@ import {
 } from "@sokosumi/database/repositories";
 import { describe, expect, it, vi } from "vitest";
 
+import { unprocessableEntity } from "@/helpers/error";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
+import { retriedTransactionOn } from "@/lib/db/transaction";
 
 import {
   type SpendCharged,
   type SpendNotCharged,
-  SpendPreparationError,
   type SpendResult,
   spend,
+  spendFailedInPreparation,
 } from "./spend";
 
 const scope = { network: "mainnet" } as NetworkScope;
@@ -112,9 +114,18 @@ describe("spend in full", () => {
     const { prepare, record } = repository();
     prepare.mockRejectedValue(new Error("Cents to consume must be positive"));
 
-    await expect(
-      spend({ scope, tx: { shared }, payer, quotedCents: 0n, mode: "in_full" }),
-    ).rejects.toThrow(SpendPreparationError);
+    const thrown = await spend({
+      scope,
+      tx: { shared },
+      payer,
+      quotedCents: 0n,
+      mode: "in_full",
+    }).catch((error) => error);
+
+    expect(thrown).toMatchObject({
+      message: "Cents to consume must be positive",
+    });
+    expect(spendFailedInPreparation(thrown)).toBe(true);
     expect(record).not.toHaveBeenCalled();
   });
 });
@@ -238,47 +249,129 @@ describe("a spend that fails", () => {
     mode: "up_to_balance",
   } as const;
 
-  it("wraps a failure of the balance read or the bucket read, so a caller can answer it", async () => {
+  it("throws the original error at every stage, and says which stage it was", async () => {
     const { balance, prepare, record } = repository();
+
     balance.mockRejectedValueOnce(failure).mockResolvedValue(500n);
-
     const duringBalance = await spend(input).catch((error) => error);
-    prepare.mockRejectedValueOnce(failure);
+    const balanceStage = spendFailedInPreparation(duringBalance);
+    prepare.mockRejectedValueOnce(new Error("relation does not exist"));
     const duringBuckets = await spend(input).catch((error) => error);
-
-    for (const thrown of [duringBalance, duringBuckets]) {
-      expect(thrown).toBeInstanceOf(SpendPreparationError);
-      expect(thrown).toMatchObject({
-        message: "relation does not exist",
-        cause: failure,
-      });
-    }
     expect(record).not.toHaveBeenCalled();
+    // The same failure, thrown by the write this time.
+    const writeFailure = new Error("relation does not exist");
+    record.mockRejectedValueOnce(writeFailure);
+    const duringWrite = await spend(input).catch((error) => error);
+
+    expect(duringBalance).toBe(failure);
+    expect(duringBuckets).toMatchObject({ message: failure.message });
+    expect(duringWrite).toBe(writeFailure);
+    expect([
+      balanceStage,
+      spendFailedInPreparation(duringBuckets),
+      spendFailedInPreparation(duringWrite),
+    ]).toEqual([true, true, false]);
   });
 
-  it("throws the same failure as it is when the write fails", async () => {
-    const { balance, record } = repository();
-    balance.mockResolvedValue(500n);
-    record.mockRejectedValue(failure);
+  it("does not call missing credits a failure of the preparation", async () => {
+    const { prepare } = repository();
+    const missing = new InsufficientBalanceError(100n, 75n);
+    prepare.mockRejectedValue(missing);
 
-    const thrown = await spend(input).catch((error) => error);
+    await spend({ ...input, mode: "in_full" });
 
-    expect(thrown).toBe(failure);
-    expect(thrown).not.toBeInstanceOf(SpendPreparationError);
+    expect(spendFailedInPreparation(missing)).toBe(false);
+    expect(spendFailedInPreparation("not an error")).toBe(false);
   });
+});
 
-  it("leaves a transaction conflict as it is at every step, so the caller's retry sees it", async () => {
-    const conflict = Object.assign(new Error("could not serialize access"), {
-      code: "P2034",
+/**
+ * The same transaction conflict, in the preparation and in the write, under
+ * the repo's own retry (`retriedTransactionOn`), for the two kinds of caller
+ * the payers are: one that answers a failed preparation itself, as the Task
+ * writer (422) and Coworker usage (400) do, and one that maps nothing, as the
+ * competitor check.
+ */
+const CONFLICT_TEXT =
+  "Transaction failed due to a write conflict or a deadlock. Please retry your transaction";
+
+describe("a transaction conflict during a spend", () => {
+  const conflict = () =>
+    // Prisma's own conflict, known by its code. Its text names no SQLSTATE,
+    // so a 422 that repeats the text is not taken for a conflict again.
+    Object.assign(new Error(CONFLICT_TEXT), { code: "P2034" });
+  const input = {
+    scope,
+    tx: { shared },
+    payer,
+    quotedCents: 100n,
+    mode: "in_full",
+  } as const;
+
+  /** A caller's transaction on the retry helper, counting its attempts. */
+  async function underRetry(charge: () => Promise<unknown>) {
+    let attempts = 0;
+    const client = {
+      $transaction: async (callback: (tx: never) => Promise<unknown>) => {
+        attempts += 1;
+        return await callback(undefined as never);
+      },
+    } as unknown as Parameters<typeof retriedTransactionOn>[0];
+    vi.useFakeTimers();
+    const settled = retriedTransactionOn(client, charge, "try again").then(
+      (value): { value?: unknown; error?: unknown } => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    await vi.runAllTimersAsync();
+    return { ...(await settled), attempts };
+  }
+
+  const mapsNothing = () => spend(input);
+  const mapsThePreparation = () =>
+    spend(input).catch((error: unknown) => {
+      if (!spendFailedInPreparation(error)) throw error;
+      // As the Task writer on `origin/main`: the failure's text, as a 422.
+      throw unprocessableEntity(
+        error instanceof Error ? error.message : "The charge failed",
+      );
     });
-    const { balance, prepare, record } = repository();
 
-    balance.mockRejectedValueOnce(conflict).mockResolvedValue(500n);
-    expect(await spend(input).catch((error) => error)).toBe(conflict);
-    prepare.mockRejectedValueOnce(conflict);
-    expect(await spend(input).catch((error) => error)).toBe(conflict);
-    record.mockRejectedValueOnce(conflict);
-    expect(await spend(input).catch((error) => error)).toBe(conflict);
+  it("is retried, in either stage, for a caller that maps nothing", async () => {
+    const { prepare, record } = repository();
+
+    prepare.mockRejectedValueOnce(conflict());
+    const inPreparation = await underRetry(mapsNothing);
+    record.mockRejectedValueOnce(conflict());
+    const inTheWrite = await underRetry(mapsNothing);
+
+    expect(inPreparation).toMatchObject({
+      attempts: 2,
+      value: { outcome: "charged" },
+    });
+    expect(inTheWrite).toMatchObject({
+      attempts: 2,
+      value: { outcome: "charged" },
+    });
+  });
+
+  it("is the caller's own answer in the preparation, and is retried in the write, for a caller that maps the preparation", async () => {
+    const { prepare, record } = repository();
+
+    prepare.mockRejectedValueOnce(conflict());
+    const inPreparation = await underRetry(mapsThePreparation);
+    record.mockRejectedValueOnce(conflict());
+    const inTheWrite = await underRetry(mapsThePreparation);
+
+    // Answered once, as on `origin/main`: no second attempt.
+    expect(inPreparation.attempts).toBe(1);
+    expect(inPreparation.error).toMatchObject({
+      status: 422,
+      message: CONFLICT_TEXT,
+    });
+    expect(inTheWrite).toMatchObject({
+      attempts: 2,
+      value: { outcome: "charged" },
+    });
   });
 });
 
