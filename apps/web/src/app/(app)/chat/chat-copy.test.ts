@@ -29,24 +29,32 @@ function strings(value: unknown): string[] {
 
 describe("chat copy", () => {
   it.each(Object.keys(catalogs) as (keyof typeof catalogs)[])(
-    "%s: Catch up and tag notes say chat, not room",
+    "%s: Catch up, tag, pinned and assistant notes say chat, not room",
     (locale) => {
-      const signals = catalogs[locale].App.Channels.Signals;
-      expect(strings(signals).filter((s) => ROOM_WORD[locale].test(s))).toEqual(
+      const { App } = catalogs[locale];
+      const copy = [
+        App.Channels.Signals,
+        App.Channels.PinnedMessages.roomRequired,
+        App.Chat.SokoBot.chainRoomRate,
+      ];
+      expect(strings(copy).filter((s) => ROOM_WORD[locale].test(s))).toEqual(
         [],
       );
     },
   );
 
-  it.each(Object.keys(catalogs) as (keyof typeof catalogs)[])(
+  it.each([
+    ["en", "1 member", "3 members"],
+    ["de", "1 Mitglied", "3 Mitglieder"],
+    ["es", "1 miembro", "3 miembros"],
+  ] as const)(
     "%s: the add-everyone option counts one member in the singular",
-    (locale) => {
+    (locale, singular, plural) => {
       const t = translator(locale);
       const one = t("CreateWizard.addAll", { count: 1, organization: "Acme" });
       const many = t("CreateWizard.addAll", { count: 3, organization: "Acme" });
-      expect(one).toContain("1");
-      expect(one).not.toMatch(/1 (members|Mitglieder|miembros)/);
-      expect(many).toMatch(/3 (members|Mitglieder|miembros)/);
+      expect(one).toContain(`(${singular})`);
+      expect(many).toContain(`(${plural})`);
     },
   );
 
