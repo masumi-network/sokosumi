@@ -58,15 +58,15 @@ describe("fitToolResult", () => {
       expect(result.pagination.nextCursor).toBe("post-19");
     });
 
-    it("warns that an encoded cursor would skip the items left out", () => {
+    it("drops an encoded cursor that would skip the items left out", () => {
       const fitted = fitToolResult(
         "list_social_posts",
         page("opaque-cursor"),
       ) as Fitted;
       const shown = fitted.result.posts.length;
-      expect(fitted.result.pagination.nextCursor).toBe("opaque-cursor");
+      expect(fitted.result.pagination.nextCursor).toBeNull();
       expect(fitted.note).toContain(
-        `would skip the ones left out: ask again with limit ${shown}`,
+        `Ask again with limit ${shown} to page on without skipping any.`,
       );
     });
 
@@ -74,9 +74,40 @@ describe("fitToolResult", () => {
       const fitted = fitToolResult("list_social_posts", page(null)) as Fitted;
       const shown = fitted.result.posts.length;
       expect(fitted.result.pagination.nextCursor).toBeNull();
-      expect(fitted.note).toContain(
-        `Ask again with limit ${shown} to see the rest of this page.`,
-      );
+      expect(fitted.note).toContain(`Ask again with limit ${shown}`);
+    });
+
+    it("drops a top-level cursor too, as list_files returns it", () => {
+      // Codex on #8449: 20 files cut to 15 kept the cursor after file 20.
+      const result = {
+        hasMore: true,
+        nextCursor: "catalog-window-cursor",
+        files: Array.from({ length: 20 }, (_, i) => post(i)),
+      };
+      const fitted = fitToolResult("list_files", result) as {
+        result: { files: unknown[]; nextCursor: string | null };
+        note: string;
+      };
+      const shown = fitted.result.files.length;
+      expect(shown).toBeLessThan(20);
+      expect(fitted.result.nextCursor).toBeNull();
+      expect(fitted.note).toContain(`shows ${shown} of its 20 files.`);
+      expect(fitted.note).toContain(`Ask again with limit ${shown}`);
+      expect(result.nextCursor).toBe("catalog-window-cursor");
+    });
+
+    it("moves a top-level id cursor to the last item shown", () => {
+      const result = {
+        nextCursor: "post-19",
+        posts: Array.from({ length: 20 }, (_, i) => post(i)),
+      };
+      const fitted = fitToolResult("list_social_posts", result) as {
+        result: { posts: unknown[]; nextCursor: string };
+        note: string;
+      };
+      const shown = fitted.result.posts.length;
+      expect(fitted.result.nextCursor).toBe(`post-${shown - 1}`);
+      expect(fitted.note).toContain("nextCursor continues right after");
     });
   });
 

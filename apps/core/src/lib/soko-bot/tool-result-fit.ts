@@ -85,9 +85,14 @@ function pagingNote(
   omitted: Record<string, number>,
 ): string {
   if (!isRecord(original) || !isRecord(copy)) return "";
-  const pagination = copy.pagination;
-  const before = original.pagination;
-  if (!isRecord(pagination) || !isRecord(before)) return "";
+  // `{ items, pagination: { nextCursor } }` or `{ items, nextCursor }`.
+  const nested = isRecord(copy.pagination) && isRecord(original.pagination);
+  const pagination = nested ? (copy.pagination as Record<string, Json>) : copy;
+  const before = nested
+    ? (original.pagination as Record<string, Json>)
+    : original;
+  if (!("nextCursor" in before)) return "";
+  const field = nested ? "pagination.nextCursor" : "nextCursor";
   const cut = Object.keys(omitted).filter((key) => Array.isArray(copy[key]));
   const path =
     cut.find(
@@ -108,11 +113,12 @@ function pagingNote(
     typeof keptLast === "string"
   ) {
     pagination.nextCursor = keptLast;
-    return `${counted} pagination.nextCursor continues right after the last one shown.`;
+    return `${counted} ${field} continues right after the last one shown.`;
   }
-  if (before.nextCursor === null || before.nextCursor === undefined)
-    return `${counted} Ask again with limit ${shown} to see the rest of this page.`;
-  return `${counted} Paging on with pagination.nextCursor would skip the ones left out: ask again with limit ${shown} instead.`;
+  // A cursor that cannot be moved would skip the items left out, so it is
+  // not passed on: the same request with this limit returns a page that fits.
+  if (before.nextCursor != null) pagination.nextCursor = null;
+  return `${counted} Ask again with limit ${shown} to page on without skipping any.`;
 }
 
 /**
