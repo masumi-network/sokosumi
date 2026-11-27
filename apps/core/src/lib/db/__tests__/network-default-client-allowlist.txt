@@ -5,18 +5,14 @@ apps/core/src/helpers/admin-agent.ts
 apps/core/src/helpers/agent-rating.ts
 apps/core/src/helpers/agent.ts
 apps/core/src/helpers/billing-notifications.ts
-apps/core/src/helpers/calendar-erasure.ts
 apps/core/src/helpers/compensating-refund.ts
 apps/core/src/helpers/coworker-task-receipt.ts
 apps/core/src/helpers/cuso-low-credit-notification.ts
 apps/core/src/helpers/cuso-project-credits.ts
-apps/core/src/helpers/deletion-evaluate.ts
 apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
-apps/core/src/helpers/notification-feed.ts
 apps/core/src/helpers/project-needs-attention.ts
 apps/core/src/helpers/project-stats.ts
-apps/core/src/lib/seo/chat-billing.ts
 apps/core/src/lib/soko-bot/action-response.ts
 apps/core/src/lib/soko-bot/agent-search.ts
 apps/core/src/lib/soko-bot/classification-context.ts
@@ -60,7 +56,6 @@ apps/core/src/services/agent-sync.service.ts
 apps/core/src/services/chat-result-preview.service.ts
 apps/core/src/services/cmo-billing.service.ts
 apps/core/src/services/cmo-chat-work.service.ts
-apps/core/src/services/competitor-check.service.ts
 apps/core/src/services/invoice-admin.service.ts
 apps/core/src/services/job-purchase-diff.service.ts
 apps/core/src/services/job-refund.ts

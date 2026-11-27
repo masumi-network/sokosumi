@@ -202,6 +202,7 @@ async function setUpFixture(
   f.turnId = (
     await prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         sokoBotId: f.botId,
         requestedByUserId: f.userId,
         workspaceId: f.workspaceId,

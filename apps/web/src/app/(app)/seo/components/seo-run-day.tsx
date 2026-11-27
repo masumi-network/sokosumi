@@ -26,6 +26,8 @@ import {
   useSeoResultFormatter,
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
+import { SeoRunDiff } from "./seo-run-diff";
+import { seoRunDiffOf, seoStopCheckId } from "./seo-run-diff-model";
 import { SeoTimeline } from "./seo-timeline";
 import {
   type SeoStopNode,
@@ -52,6 +54,7 @@ export function SeoRunDayHover({
   onSelectDay,
   selectLabel,
   onDetails,
+  hasComparison = false,
   children,
 }: {
   workspace: ProjectSeoWorkspace;
@@ -67,6 +70,8 @@ export function SeoRunDayHover({
   onSelectDay?: () => void;
   selectLabel?: string;
   onDetails: () => void;
+  /** The stop compares a check, so its details have something to show also without events. */
+  hasComparison?: boolean;
   /** The stop button anchors both the hover preview and the interactive popover. */
   children: ReactNode;
 }) {
@@ -80,6 +85,7 @@ export function SeoRunDayHover({
   const newest = digest.newestCheck;
   const result = newest ? seoNodeResult(workspace, newest) : null;
   const coverage = newest?.observation?.coverage;
+  const hasDetails = nodes.length > 0 || hasComparison;
   const counts = [
     digest.checks ? report("runs.checks", { count: digest.checks }) : null,
     digest.failedChecks
@@ -142,7 +148,7 @@ export function SeoRunDayHover({
           <p className="text-muted-foreground text-sm">{t("runs.noEvents")}</p>
         )}
       </div>
-      {(nodes.length > 0 || onSelectDay) && (
+      {(hasDetails || onSelectDay) && (
         <div className="flex flex-wrap items-center gap-2 border-t p-2">
           {/* A stop of check requests alone has nothing to count: its details say what became of them. */}
           {counts.length ? (
@@ -163,7 +169,7 @@ export function SeoRunDayHover({
               {selectLabel}
             </Button>
           )}
-          {nodes.length > 0 && (
+          {hasDetails && (
             <Button
               variant="ghost"
               size="sm"
@@ -226,6 +232,7 @@ export function SeoRunDayDialog({
   title,
   description,
   nodes,
+  checkId,
   onClose,
   onCloseAutoFocus,
 }: {
@@ -236,10 +243,18 @@ export function SeoRunDayDialog({
   /** What the stop holds: since when, or up to when. */
   description: string;
   nodes: SeoStopNode[];
+  /** The check the stop counts its issues from. A stop without one compares its newest check. */
+  checkId?: string | null;
   onClose: () => void;
   /** Where focus goes when the dialog closes: it has no trigger of its own to go back to. */
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const diff = seoRunDiffOf(
+    workspace,
+    checkId ??
+      seoStopCheckId(nodes) ??
+      seoStopDigest(nodes).newestCheck?.observation?.id,
+  );
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -250,6 +265,7 @@ export function SeoRunDayDialog({
           <DialogTitle lang="en">{title}</DialogTitle>
           <DialogDescription lang="en">{description}</DialogDescription>
         </DialogHeader>
+        {diff ? <SeoRunDiff diff={diff} titled /> : null}
         <SeoTimeline workspace={workspace} nodes={nodes} />
       </DialogContent>
     </Dialog>

@@ -1,9 +1,5 @@
 import type { SokoBotTurnStatus } from "@sokosumi/database";
-import {
-  evaluateScenario,
-  type ScenarioCheck,
-  type SokoBotJudgeVerdict,
-} from "@sokosumi/soko-bot";
+import { evaluateScenario, type ScenarioCheck } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
@@ -11,6 +7,7 @@ import prisma from "@/lib/db/prisma";
 import { setEvalCoworkerScript } from "@/lib/evals/fake-coworker";
 import { recordCoreWarning } from "@/lib/evlog";
 import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
@@ -20,7 +17,6 @@ import {
   SOKO_EVENTS_SYNC_KEY,
   sokoBotEventsSyncService,
 } from "@/services/soko-bot-events-sync.service";
-import { judgeEvalChain } from "@/services/soko-bot-lab-judge.service";
 import { startLabScenarioTurn } from "@/services/soko-bot-lab-scenario.service";
 import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
@@ -50,6 +46,11 @@ import {
   type OwnerJourney,
   type StepExpect,
 } from "./journeys";
+import {
+  type JourneyJudgeOutcome,
+  journeyRoomLog,
+  judgeJourneyChain,
+} from "./per-item-judge";
 
 /** A wait on a chat reply or an app nobody will connect ends after this much quiet. */
 const QUIET_MS = 90_000;
@@ -188,7 +189,13 @@ async function askInRoom(
       roomId,
       senderUserId,
       content,
-      mentionsAsSource: { create: { sokoBotId: botId, coworkerId: null } },
+      mentionsAsSource: {
+        create: {
+          sokoBotId: botId,
+          coworkerId: null,
+          network: DETACHED_SOKO_BOT_NETWORK,
+        },
+      },
     },
     select: { mentionsAsSource: { select: { id: true } } },
   });
@@ -1541,25 +1548,14 @@ async function journeyOutcome(
     ...unreached,
   ];
   const score = journeyScore(journey, state.steps);
-  let judge: { verdict: SokoBotJudgeVerdict; model: string } | null = null;
+  let judge: JourneyJudgeOutcome | null = null;
   if (turnIds.length)
-    judge = await judgeEvalChain(
+    judge = await judgeJourneyChain({
+      journey,
       turnIds,
-      journeyJudgeScenario(journey),
-      state.steps.map((step) => ({
-        room: "owner journey",
-        from:
-          step.kind === "owner"
-            ? "Owner"
-            : step.kind === "teammate"
-              ? "Teammate (not the owner)"
-              : step.kind === "coworker"
-                ? "Task event"
-                : "Schedule",
-        content: step.label,
-      })),
-      context.judgeModel,
-    ).catch((error: unknown) => {
+      roomLog: journeyRoomLog(state.steps),
+      model: context.judgeModel,
+    }).catch((error: unknown) => {
       recordCoreWarning(
         { operation: "eval_tick" },
         {
@@ -1618,6 +1614,9 @@ async function journeyOutcome(
       level: journey.level,
       runtime: journeyRuntime(),
       jev: journeyJev(state),
+      ...(judge?.judgeMode === "per-item"
+        ? { judgeMode: "per-item", judgeItems: judge.judgeItems ?? [] }
+        : {}),
       score,
       totals,
       answer: state.steps.at(-1)?.answer ?? null,

@@ -10,10 +10,8 @@ import { databaseNow } from "@/lib/db/database-now";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { evalEnvironment } from "@/lib/evals/eval-environment";
-import {
-  EVAL_CONNECTED_ACCOUNT_PREFIX,
-  forgetEvalWorkspaces,
-} from "@/lib/evals/eval-guard";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { EVAL_AGENT_BASE_URL } from "@/lib/evals/fake-agent";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
 import { leaseNextFileIndexJob } from "@/lib/files/index-jobs";

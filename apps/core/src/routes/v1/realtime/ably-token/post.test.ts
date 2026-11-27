@@ -127,6 +127,7 @@ describe("POST /realtime/ably-token", () => {
         "workspace-org-a",
         "workspace-org-b",
       ],
+      preprodJobWorkspaceIds: [],
       clientInstanceId: "inst_abcd",
     });
 
@@ -162,6 +163,7 @@ describe("POST /realtime/ably-token", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: [],
+      preprodJobWorkspaceIds: [],
       clientInstanceId: "default00",
     });
   });

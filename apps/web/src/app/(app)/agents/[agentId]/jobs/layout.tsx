@@ -14,6 +14,7 @@ import { MarkAgentUnavailable } from "@/app/components/unavailable-agent.client"
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
+import { userService } from "@/lib/services/user.service";
 import { createUnavailableCoreAgent } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
@@ -108,9 +109,11 @@ async function JobLayoutInner({
 
   const disabled = !coreAgent;
 
-  const [agentJobsPage, canRate, existingRating, lastKnownName] =
+  const [agentJobsPage, workspaces, canRate, existingRating, lastKnownName] =
     await Promise.all([
       getCachedMyJobs(agentId),
+      // Read once per request, by the app frame too.
+      userService.getMyWorkspaces(),
       coreAgent
         ? agentService.canUserRateAgent(agentId)
         : Promise.resolve(false),
@@ -119,6 +122,16 @@ async function JobLayoutInner({
         : Promise.resolve(null),
       coreAgent ? Promise.resolve(null) : getLastKnownAgentName(agentId),
     ]);
+  // The Workspace of the rows Core returned. Only an empty list asks the
+  // session, which can name an Organization the user has left until it
+  // refreshes: then the channel is wrong or missing until a row arrives.
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  const workspaceId =
+    agentJobsPage.jobs[0]?.workspace.id ??
+    workspaces?.workspaces.find(
+      (workspace) => workspace.organizationId === activeOrganizationId,
+    )?.id ??
+    null;
   const agent =
     coreAgent ??
     createUnavailableCoreAgent(agentId, lastKnownName ?? t("unavailableAgent"));
@@ -158,6 +171,7 @@ async function JobLayoutInner({
                 jobsNextCursor={agentJobsPage.nextCursor}
                 userId={session.user.id}
                 agentId={agentId}
+                workspaceId={workspaceId}
                 header={
                   <JobsListHeader
                     agent={agent}

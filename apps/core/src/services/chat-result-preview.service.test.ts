@@ -1039,4 +1039,18 @@ describe("project selection previews", () => {
       { id: snapshot.data.id, state: "unavailable" },
     ]);
   });
+
+  it("ignores non-UUID projectIds without querying Prisma with invalid UUID syntax", async () => {
+    workspace.mockResolvedValue({
+      id: "workspace",
+      userId: "owner",
+      organizationId: null,
+    });
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "project_selection", projectIds: ["Acme Marketing"] },
+      actor,
+    });
+    expect(projects).not.toHaveBeenCalled();
+    expect(snapshot.data.projectOptions).toEqual([]);
+  });
 });

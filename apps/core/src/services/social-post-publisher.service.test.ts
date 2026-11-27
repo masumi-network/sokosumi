@@ -13,6 +13,7 @@ import {
 import { forbidden } from "@/helpers/error";
 import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
+import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
 import {
   causeMessage,
   coreLogEvents,
@@ -42,8 +43,12 @@ const {
   ssrfSafeFetchMock,
   resolveXSubscriptionTypeMock,
   recordAdEventsMock,
+  evalLaneFindManyMock,
+  evalLaneFindUniqueMock,
 } = vi.hoisted(() => ({
   publishingAccessMock: vi.fn(),
+  evalLaneFindManyMock: vi.fn(),
+  evalLaneFindUniqueMock: vi.fn(),
   attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
   attemptCreateMock: vi.fn(),
@@ -101,6 +106,10 @@ vi.mock("@/lib/db/prisma", () => ({
       update: attemptUpdateMock,
     },
     socialPostThreadPart: { update: threadPartUpdateMock },
+    evalLane: {
+      findMany: evalLaneFindManyMock,
+      findUnique: evalLaneFindUniqueMock,
+    },
   },
 }));
 
@@ -221,6 +230,8 @@ describe("social post publisher service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
+    evalLaneFindManyMock.mockResolvedValue([]);
+    evalLaneFindUniqueMock.mockResolvedValue(null);
     vi.setSystemTime(NOW);
     resolveXSubscriptionTypeMock.mockImplementation(
       async (connection) => connection.subscriptionType ?? null,
@@ -1592,6 +1603,22 @@ describe("social post publisher service", () => {
     expect(settleCall().data.status).not.toBe("PUBLISHING");
   });
 
+  it("never claims a post in an eval lane's workspace, whatever its account", async () => {
+    evalLaneFindManyMock.mockResolvedValue([{ workspaceId: "ws-eval-3" }]);
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(socialPostFindFirstMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: { notIn: ["ws-eval-3"] },
+        }),
+      }),
+    );
+  });
+
   it("claims a due post, publishes it, and records the attempt", async () => {
     const { publishDueSocialPosts } = await loadService();
 
@@ -1609,6 +1636,7 @@ describe("social post publisher service", () => {
       1,
       expect.objectContaining({
         where: {
+          workspaceId: { notIn: [] },
           NOT: {
             socialConnection: {
               is: { composioConnectedAccountId: { startsWith: "eval:" } },
@@ -2049,6 +2077,43 @@ describe("social post publisher service", () => {
     },
   );
 
+  it("publishes now in an eval lane's workspace only on a stand-in account, even a lane this process has not cached", async () => {
+    // The cached lane list (another process registered the lane) has none.
+    forgetEvalWorkspaces();
+    evalLaneFindManyMock.mockResolvedValue([]);
+    evalLaneFindUniqueMock.mockResolvedValue({ lane: 3 });
+    const draft = (composioConnectedAccountId: string) => ({
+      ...duePost,
+      status: "DRAFT",
+      socialConnection: { ...activeConnection, composioConnectedAccountId },
+    });
+    const input = {
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 1,
+    };
+    const { publishSocialPostNow } = await loadService();
+
+    socialPostFindFirstMock.mockReset().mockResolvedValue(draft("ca_real"));
+    await expect(publishSocialPostNow(input)).rejects.toMatchObject({
+      status: 409,
+      message: "An eval lane publishes only on its stand-in accounts",
+    });
+    expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    expect(publishXPostMock).not.toHaveBeenCalled();
+
+    socialPostFindFirstMock.mockReset().mockResolvedValue(draft("eval:3:x"));
+    await publishSocialPostNow(input).catch(() => undefined);
+    expect(publishXPostMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ connectedAccountId: "eval:3:x" }),
+    );
+    expect(evalLaneFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { workspaceId: WORKSPACE_ID } }),
+    );
+  });
+
   it("fails a due post on our own TikTok app outside utxo's workspace, unsent", async () => {
     vi.stubEnv("ZERNIO_API_KEY", "configured");
     socialPostFindFirstMock
@@ -2075,6 +2140,41 @@ describe("social post publisher service", () => {
         "This TikTok connection is no longer supported. Connect the account again.",
     });
     expect(publishXPostMock).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
+  it("hands an eval stand-in TikTok post to the adapter, with no Zernio key", async () => {
+    vi.stubEnv("ZERNIO_API_KEY", "");
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        provider: "tiktok",
+        media: [CLIP_REF],
+        project: {
+          ...duePost.project,
+          workspace: {
+            ...duePost.project.workspace,
+            organization: { slug: "sokosumi-evals-3" },
+          },
+        },
+        socialConnection: {
+          ...activeConnection,
+          provider: "tiktok",
+          composioConnectedAccountId: "eval:3:tiktok",
+        },
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(publishXPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "tiktok",
+        connectedAccountId: "eval:3:tiktok",
+      }),
+    );
     vi.unstubAllEnvs();
   });
 
@@ -2189,6 +2289,7 @@ describe("social post publisher service", () => {
         1,
         expect.objectContaining({
           where: {
+            workspaceId: { notIn: [] },
             NOT: {
               socialConnection: {
                 is: { composioConnectedAccountId: { startsWith: "eval:" } },

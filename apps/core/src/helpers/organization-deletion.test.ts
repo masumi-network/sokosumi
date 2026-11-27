@@ -10,7 +10,8 @@ const {
   deleteTaskFileIfOwnedMock,
   captureMessageMock,
   eraseWorkspaceCalendarDataMock,
-  evaluateOrganizationDeletionMock,
+  evaluateLockedOrganizationDeletionMock,
+  findForeignWorkspaceX402ChargeMock,
   lockCalendarErasureUserMock,
   lockWorkspaceCalendarForErasureMock,
   lockCalendarScopeMock,
@@ -20,7 +21,8 @@ const {
   deleteTaskFileIfOwnedMock: vi.fn(),
   captureMessageMock: vi.fn(),
   eraseWorkspaceCalendarDataMock: vi.fn(),
-  evaluateOrganizationDeletionMock: vi.fn(),
+  evaluateLockedOrganizationDeletionMock: vi.fn(),
+  findForeignWorkspaceX402ChargeMock: vi.fn(),
   lockCalendarErasureUserMock: vi.fn(),
   lockWorkspaceCalendarForErasureMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock("@/helpers/calendar-erasure", async (importOriginal) => {
   return {
     ...actual,
     eraseWorkspaceCalendarData: eraseWorkspaceCalendarDataMock,
+    findForeignWorkspaceX402Charge: findForeignWorkspaceX402ChargeMock,
     lockCalendarErasureUser: lockCalendarErasureUserMock,
     lockWorkspaceCalendarForErasure: lockWorkspaceCalendarForErasureMock,
   };
@@ -43,7 +46,7 @@ vi.mock("@/helpers/calendar-locks", () => ({
 }));
 
 vi.mock("@/helpers/deletion-evaluate", () => ({
-  evaluateOrganizationDeletion: evaluateOrganizationDeletionMock,
+  evaluateLockedOrganizationDeletion: evaluateLockedOrganizationDeletionMock,
   throwIfOrganizationDeletionBlocked: throwIfOrganizationDeletionBlockedMock,
 }));
 
@@ -55,15 +58,20 @@ vi.mock("@/lib/blob", () => ({
 }));
 vi.mock("@sentry/node", () => ({ captureMessage: captureMessageMock }));
 
+vi.mock("@/helpers/workspace-deletion-crossing-rules", () => ({
+  applyOrganizationRules: vi.fn(),
+  checkWorkspaceDeletion: vi.fn(),
+  refuseJobsInWorkspace: vi.fn(),
+  refuseOrganizationWorkspaceDeletion: vi.fn(),
+}));
+
 function createPrisma() {
   const queryRaw = vi.fn();
-  const paymentFindFirst = vi.fn().mockResolvedValue(null);
   const committed = vi.fn();
   const workspaceFindUnique = vi.fn();
   const organizationDeleteMany = vi.fn();
   const transaction = vi.fn(async (callback) => {
     const result = await callback({
-      taskX402Payment: { findFirst: paymentFindFirst },
       $queryRaw: queryRaw,
       workspace: { findUnique: workspaceFindUnique },
       organization: { deleteMany: organizationDeleteMany },
@@ -74,7 +82,6 @@ function createPrisma() {
 
   return {
     prisma: { $transaction: transaction },
-    paymentFindFirst,
     committed,
     queryRaw,
     workspaceFindUnique,
@@ -87,7 +94,8 @@ describe("prepareOrganizationForDeletion", () => {
     vi.clearAllMocks();
     lockCalendarErasureUserMock.mockResolvedValue(true);
     lockCalendarScopeMock.mockResolvedValue(true);
-    evaluateOrganizationDeletionMock.mockResolvedValue({ blockers: [] });
+    evaluateLockedOrganizationDeletionMock.mockResolvedValue({ blockers: [] });
+    findForeignWorkspaceX402ChargeMock.mockResolvedValue(undefined);
     eraseWorkspaceCalendarDataMock.mockResolvedValue({
       taskFiles: [],
       scheduledEmails: [],
@@ -125,7 +133,7 @@ describe("prepareOrganizationForDeletion", () => {
       "workspace-1",
       [],
     );
-    expect(evaluateOrganizationDeletionMock).toHaveBeenCalledWith(
+    expect(evaluateLockedOrganizationDeletionMock).toHaveBeenCalledWith(
       "org-1",
       "user-1",
       expect.any(Object),
@@ -143,7 +151,7 @@ describe("prepareOrganizationForDeletion", () => {
       queryRaw,
       workspaceFindUnique,
       lockCalendarScopeMock,
-      evaluateOrganizationDeletionMock,
+      evaluateLockedOrganizationDeletionMock,
       throwIfOrganizationDeletionBlockedMock,
       lockWorkspaceCalendarForErasureMock,
       eraseWorkspaceCalendarDataMock,
@@ -224,32 +232,24 @@ describe("prepareOrganizationForDeletion", () => {
   });
 
   it("preserves payment records charged to another user", async () => {
-    const {
-      prisma,
-      queryRaw,
-      workspaceFindUnique,
-      paymentFindFirst,
-      organizationDeleteMany,
-    } = createPrisma();
+    const { prisma, queryRaw, workspaceFindUnique, organizationDeleteMany } =
+      createPrisma();
     queryRaw.mockResolvedValue([{ id: "org-1", stripeCustomerId: null }]);
     workspaceFindUnique.mockResolvedValue({ id: "workspace-1" });
-    paymentFindFirst.mockResolvedValue({
+    findForeignWorkspaceX402ChargeMock.mockResolvedValue({
       id: "foreign-payment",
       taskId: "former-member-task",
-      transaction: { userId: "former-member" },
+      chargedUserId: "former-member",
     });
     await expect(
       prepareOrganizationForDeletion("org-1", "user-1", prisma as never),
     ).rejects.toMatchObject({
       body: { code: "TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH" },
     });
-    expect(paymentFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          task: { workspaceId: "workspace-1" },
-          transaction: { userId: { not: "user-1" } },
-        }),
-      }),
+    expect(findForeignWorkspaceX402ChargeMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "workspace-1",
+      "user-1",
     );
     expect(eraseWorkspaceCalendarDataMock).not.toHaveBeenCalled();
     expect(organizationDeleteMany).not.toHaveBeenCalled();

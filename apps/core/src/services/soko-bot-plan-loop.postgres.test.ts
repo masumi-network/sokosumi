@@ -131,6 +131,7 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
     const id = randomUUID();
     await prisma.sokoBotTurn.create({
       data: {
+        network: "mainnet",
         id,
         sokoBotId,
         workspaceId,

@@ -41,6 +41,7 @@ import {
   seoSerpSeriesSchema,
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
+import { seoRunDiffSchema } from "./project-seo-run-diff.schema";
 import { seoWorkspaceSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
@@ -635,6 +636,8 @@ export const seoRunSchema = z
     seconds: z.union([z.number().int().nonnegative(), z.null()]),
     /** The SEO monitor whose scheduled Run made this result. Null for a one-off check. */
     monitorId: z.union([seoIdSchema, z.null()]).optional(),
+    /** What this check changed against the earlier comparable check. Absent for the first check of its kind. */
+    runDiff: seoRunDiffSchema.optional(),
   })
   .openapi("ProjectSeoRun");
 export const seoJobSchema = z

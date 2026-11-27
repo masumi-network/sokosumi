@@ -56,6 +56,7 @@ interface StartGenerationParameters extends AuthenticatedRequest {
   settings: ProjectImageSettings;
   parentAssetId: string | null;
   referenceAssetIds: string[];
+  brandReferenceCount?: number;
   referenceFileIds?: string[];
   product?: StudioProductIdentity;
   batchId?: string;
@@ -121,7 +122,12 @@ export const startImageGeneration = withSession<
       settings: input.settings,
       referenceAssetIds: input.referenceAssetIds,
       ...(input.referenceFileIds?.length
-        ? { referenceFileIds: input.referenceFileIds }
+        ? {
+            referenceFileIds: input.referenceFileIds,
+            ...(input.brandReferenceCount
+              ? { brandReferenceCount: input.brandReferenceCount }
+              : {}),
+          }
         : {}),
       parentAssetId: input.parentAssetId,
       product: input.product,

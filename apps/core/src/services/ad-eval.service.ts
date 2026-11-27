@@ -124,7 +124,9 @@ async function evaluateSettledAd(jobId: string): Promise<void> {
     .toBuffer();
 
   let referenceImage: Uint8Array<ArrayBuffer> | undefined;
-  const photoId = asset.job.referenceFileIds.at(-1);
+  const photoId = asset.job.referenceFileIds
+    .slice(asset.job.brandReferenceCount)
+    .at(-1);
   if (photoId) {
     const { downloadStudioFileReference } = await import(
       "@/services/image-studio-jobs.service"

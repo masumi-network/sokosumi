@@ -14,6 +14,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { hasPreprodAccess } from "@/middleware/network-scope";
 import { notificationCountsSchema } from "@/schemas/notification.schema";
 
 const route = withOrganizationSlugHeaderParameter(
@@ -45,6 +46,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       resolvedNotificationFeedWhere(userContext.userId),
       findNeedsActionNotificationIds(userContext.userId, undefined, {
         exceptTasksIn: activeWorkspaceOf(userContext),
+        canReadPreprodJobs: () => hasPreprodAccess(c.var.authContext),
       }),
     ]);
 

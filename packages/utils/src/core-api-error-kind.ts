@@ -50,6 +50,8 @@ export const CORE_API_ERROR_KINDS = {
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
   MEMBER_NOT_FOUND: "member_not_found",
+  /** A Coworker's payment names another Network than `X-Sokosumi-Network`. */
+  NETWORK_MISMATCH: "network_mismatch",
   /** `X-Sokosumi-Network` names no Network: only `mainnet` and `preprod` are. */
   NETWORK_UNKNOWN: "network_unknown",
   NEWSLETTER_APPROVAL_REQUIRED: "newsletter_approval_required",
@@ -76,6 +78,8 @@ export const CORE_API_ERROR_KINDS = {
   PERSON_APPROVAL_REQUIRED: "person_approval_required",
   /** The request names Preprod, and Preprod is switched off on this deployment. */
   PREPROD_OFF: "preprod_off",
+  PREPROD_PAUSED: "preprod_paused",
+  PREPROD_CONTROL_UNAVAILABLE: "preprod_control_unavailable",
   /** The request names Preprod, and the caller has no Preprod access in this Workspace. */
   PREPROD_ACCESS_REQUIRED: "preprod_access_required",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
@@ -100,6 +104,7 @@ export const CORE_API_ERROR_KINDS = {
   SOCIAL_POST_REVISION_CONFLICT: "social_post_revision_conflict",
   /** A Soko Bot turn was cancelled, paused or expired; its runner stops. */
   SOKO_BOT_TURN_INACTIVE: "soko_bot_turn_inactive",
+  SOKO_BOT_NETWORK_STALE: "soko_bot_network_stale",
   SOCIAL_FACEBOOK_PAGE_REQUIRED: "social_facebook_page_required",
   SOCIAL_YOUTUBE_CHANNEL_REQUIRED: "social_youtube_channel_required",
   TASK_WORKSPACE_TAGS_CHANGED: "task_workspace_tags_changed",

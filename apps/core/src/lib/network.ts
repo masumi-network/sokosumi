@@ -1,4 +1,5 @@
 import type { TableNetwork } from "@sokosumi/database/sql-tables";
+import { hasAdminRole } from "@sokosumi/utils";
 import { createError } from "evlog";
 
 import { getEnv } from "@/config/env";
@@ -29,6 +30,12 @@ const _everyNetworkListed: Exclude<
   ? true
   : never = true;
 
+/** The Network a payload names in the spelling of the deployment's `NETWORK` (`PaymentSource.network`). */
+export const NETWORK_BY_NAME = {
+  Mainnet: "mainnet",
+  Preprod: "preprod",
+} as const satisfies Record<string, Network>;
+
 /**
  * Returns `value` as a Network, or throws. A missing or unknown Network is an
  * error, never a default: a value that slipped past the types must not reach
@@ -56,6 +63,25 @@ export function requireNetwork(value: unknown): Network {
  */
 export function isPreprodOn(): boolean {
   return getEnv().NETWORK_PREPROD_ENABLED;
+}
+
+/**
+ * Whether a user may use Preprod in one Workspace: the one copy of the rule.
+ * Never while Preprod is off. A platform admin always; otherwise the user's
+ * flag decides in their personal Workspace and the Organization's flag in an
+ * Organization Workspace. Reads nothing: the caller brings the flags it
+ * loaded, and has established that the Workspace is the user's own or that
+ * they are a member of its Organization.
+ */
+export function canUsePreprodInWorkspace(
+  user: { preprodEnabled?: boolean },
+  role: string | null | undefined,
+  /** `organization` is null for the personal Workspace. */
+  workspace: { organization: { preprodEnabled?: boolean } | null },
+): boolean {
+  if (!isPreprodOn()) return false;
+  if (hasAdminRole(role)) return true;
+  return (workspace.organization ?? user).preprodEnabled === true;
 }
 
 export function networksThatAreOn(): readonly Network[] {

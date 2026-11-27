@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { describe, expect, it } from "vitest";
 
 import { createNetworkScope } from "@/lib/db/network-scope";
@@ -6,6 +6,7 @@ import { createNetworkScope } from "@/lib/db/network-scope";
 import {
   type NetworkScopeVariables,
   networkScopeMiddleware,
+  paymentScope,
 } from "./network-scope";
 
 describe("networkScopeMiddleware", () => {
@@ -32,5 +33,16 @@ describe("networkScopeMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(await response.json()).toBe(true);
+  });
+});
+
+describe("paymentScope", () => {
+  it("does not compile on a public router's context (ADR 0081)", () => {
+    const billed = { userId: null, organizationId: null };
+    const onPublicRouter = (c: Context<{ Variables: { requestId: string } }>) =>
+      // @ts-expect-error a public router sets neither `networkScope` nor `authContext`
+      paymentScope(c, { billed, db: createNetworkScope("mainnet").sharedDb });
+
+    expect(onPublicRouter).toBeTypeOf("function");
   });
 });

@@ -213,6 +213,9 @@ export function seoActionsExport(
   });
   const hasReviews = actions.some((action) => action.followUpReview);
   const hasDecisions = actions.some((action) => action.decision);
+  const draftOf = (action: ProjectSeoAction) =>
+    action.bodyDraft && "after" in action.bodyDraft ? action.bodyDraft : null;
+  const hasDrafts = actions.some(draftOf);
   return {
     header: [
       t("export.action"),
@@ -224,6 +227,13 @@ export function seoActionsExport(
       t("actions.effect"),
       t("actions.before"),
       t("actions.after"),
+      ...(hasDrafts
+        ? [
+            t("actions.draftBefore"),
+            t("actions.draftAfter"),
+            t("analysis.devices"),
+          ]
+        : []),
       ...(hasReviews ? [t("actions.reviewAgain")] : []),
       ...(hasDecisions
         ? [
@@ -243,6 +253,16 @@ export function seoActionsExport(
       action.decision ? null : action.expectedEffect,
       action.edit?.before ?? null,
       action.edit?.after ?? null,
+      ...(hasDrafts
+        ? [
+            draftOf(action)?.before ?? null,
+            draftOf(action)?.after ?? null,
+            // A draft for one device must not be pasted into the other device's page.
+            draftOf(action)
+              ?.devices.map((device) => t("timeline.device", { device }))
+              .join(", ") ?? null,
+          ]
+        : []),
       ...(hasReviews
         ? [
             action.followUpReview

@@ -27,12 +27,14 @@ export function StudioProductPhotoControl({
   uploading,
   onUploadingChange,
   onPhotoChange,
+  addLabel,
   iconOnly = false,
 }: {
   photo: StudioProductPhoto | null;
   uploading: boolean;
   onUploadingChange: (uploading: boolean) => void;
   onPhotoChange: (photo: StudioProductPhoto | null) => void;
+  addLabel?: string;
   iconOnly?: boolean;
 }) {
   const t = useTranslations("App.Studio");
@@ -78,7 +80,7 @@ export function StudioProductPhotoControl({
     <div className="flex max-w-full min-w-0 shrink-0 items-center gap-1">
       <input
         accept={IMAGE_TYPES.join(",")}
-        aria-label={t("productPhoto")}
+        aria-label={addLabel ?? t("productPhoto")}
         className="hidden"
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
@@ -120,12 +122,16 @@ export function StudioProductPhotoControl({
               variant="ghost"
             >
               <ImagePlus aria-hidden />
-              <span className={iconOnly ? "sr-only" : "max-sm:sr-only"}>
-                {t("addProductPhoto")}
+              <span
+                className={
+                  iconOnly ? "sr-only" : addLabel ? undefined : "max-sm:sr-only"
+                }
+              >
+                {addLabel ?? t("addProductPhoto")}
               </span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{t("addProductPhoto")}</TooltipContent>
+          <TooltipContent>{addLabel ?? t("addProductPhoto")}</TooltipContent>
         </Tooltip>
       )}
     </div>

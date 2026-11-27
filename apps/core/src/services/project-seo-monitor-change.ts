@@ -57,6 +57,7 @@ export interface SeoMonitorRunResult {
 const identity = (pageUrl: string, ...parts: Array<string | null>) =>
   JSON.stringify([normalizeSeoUrl(pageUrl), ...parts]);
 
+/** The checks of a Run that gave a result, one per page, rule and device. */
 function checkResults(payload: PublicSeoPayload) {
   const results = new Map<string, PublicSeoPayload["checks"][number]>();
   for (const check of payload.checks)
@@ -91,6 +92,42 @@ function keywordsWith(
     if (!ranked.has(key)) ranked.set(key, row);
   }
   return ranked;
+}
+
+/** Why two Runs cannot be compared: they used another Market or another rulebook. Null when they can. */
+export function seoRunMismatch(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+): "market" | "rulebook" | null {
+  if (
+    before.countryCode !== after.countryCode ||
+    before.languageCode !== after.languageCode
+  )
+    return "market";
+  return before.rulebookVersion === after.rulebookVersion ? null : "rulebook";
+}
+
+/** Every position move beyond the noise band between two Runs, drops first. */
+export function seoRankMoves(
+  before: PublicSeoPayload,
+  after: PublicSeoPayload,
+) {
+  const earlierRanks = keywordsWith(before, "ranked");
+  const moves: Array<SeoMonitorChange["moves"][number] & { to: number }> = [];
+  for (const [key, row] of keywordsWith(after, "ranked")) {
+    const from = earlierRanks.get(key)?.position;
+    if (from == null || !isSeoRankMove(from, row.position!)) continue;
+    moves.push({
+      keyword: row.keyword,
+      pageUrl: row.pageUrl,
+      device: row.device,
+      from,
+      to: row.position!,
+    });
+  }
+  // Drops first: they are what the reader acts on.
+  moves.sort((a, b) => b.to - b.from - (a.to - a.from));
+  return moves;
 }
 
 const pageSet = (payload: PublicSeoPayload) =>
@@ -162,11 +199,7 @@ export function compareSeoMonitorRuns(
   };
   const before = previous.payload,
     after = latest.payload;
-  if (
-    before.countryCode !== after.countryCode ||
-    before.languageCode !== after.languageCode ||
-    before.rulebookVersion !== after.rulebookVersion
-  )
+  if (seoRunMismatch(before, after))
     return {
       ...base,
       comparable: false,
@@ -195,18 +228,7 @@ export function compareSeoMonitorRuns(
     });
   }
   const earlierRanks = keywordsWith(before, "ranked");
-  const moves: SeoMonitorChange["moves"] = [];
-  for (const [key, row] of keywordsWith(after, "ranked")) {
-    const from = earlierRanks.get(key)?.position;
-    if (from == null || !isSeoRankMove(from, row.position!)) continue;
-    moves.push({
-      keyword: row.keyword,
-      pageUrl: row.pageUrl,
-      device: row.device,
-      from,
-      to: row.position!,
-    });
-  }
+  const moves: SeoMonitorChange["moves"] = seoRankMoves(before, after);
   for (const [key, row] of keywordsWith(after, "not_in_range")) {
     const from = earlierRanks.get(key)?.position;
     if (

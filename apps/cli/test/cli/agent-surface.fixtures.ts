@@ -1165,6 +1165,16 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"copy":{"summary":"Lamps","tone":"Calm","audience":[],"approvedLines":[]},"version":null}',
     ],
   },
+  "PATCH /projects/{id}/image-studio/brand-kit/assets": {
+    argv: [
+      ...API,
+      "projects",
+      "image-studio-brand-assets-update",
+      "p-1",
+      "--input-json",
+      '{"remove":"11111111-1111-4111-8111-111111111111"}',
+    ],
+  },
   "PUT /projects/{id}/image-studio/brand-kit/look": {
     argv: [
       ...API,

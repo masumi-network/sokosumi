@@ -6967,8 +6967,14 @@ export type StudioAgentBrandContext = {
         goals: Array<string>;
         themes: Array<string>;
     };
+    assets?: Array<StudioProductPhoto>;
     colors?: Array<string>;
     fonts?: Array<string>;
+};
+
+export type StudioProductPhoto = {
+    id: string;
+    name: string;
 };
 
 export type StudioAgentAdHeadline = {
@@ -7153,6 +7159,7 @@ export type ProjectImageJob = {
     video: ProjectVideoSettings | null;
     talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     exportHeadline?: string;
     useProductCutout?: boolean;
@@ -12396,6 +12403,7 @@ export type StudioModelScoreboard = {
 
 export type StudioBrandKit = {
     logo: string | null;
+    assets?: Array<StudioProductPhoto>;
     studioLogoPosition?: StudioLogoPosition | null;
     colors: Array<string>;
     fonts: Array<string>;
@@ -12431,11 +12439,6 @@ export type StudioProduct = {
     photo?: StudioProductPhoto;
 };
 
-export type StudioProductPhoto = {
-    id: string;
-    name: string;
-};
-
 export type StudioWebsiteVisual = StudioBrandLook & {
     logo: string | null;
 };
@@ -12460,6 +12463,12 @@ export type StudioBrandCopy = {
     tone: string;
     audience: Array<string>;
     approvedLines: Array<string>;
+};
+
+export type UpdateStudioBrandAssets = {
+    add: StudioProductPhoto;
+} | {
+    remove: string;
 };
 
 export type StudioBrandLookState = {
@@ -12487,6 +12496,7 @@ export type CreateProjectImageJobRequest = {
     lettering?: 'overlay' | 'ideogram';
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     parentAssetId?: string | null;
     sessionId?: string | null;
@@ -13313,6 +13323,7 @@ export type ProjectSeoAction = {
         before: string | null;
         after: string;
     } | null;
+    bodyDraft?: ProjectSeoBodyDraft;
     decision?: {
         kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability' | 'open_strategy_opportunity';
         alternative: string;
@@ -13353,8 +13364,21 @@ export type ProjectSeoAction = {
     completedAt?: Date;
     verifiedAt?: Date;
     impact?: ProjectSeoActionImpact;
+    lastCheckResult?: 'failing' | 'fixed';
+    lastCheckAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
+};
+
+export type ProjectSeoBodyDraft = {
+    target: 'opening';
+    devices: Array<'mobile' | 'desktop'>;
+    heldBack: string;
+} | {
+    target: 'opening';
+    devices: Array<'mobile' | 'desktop'>;
+    before: string;
+    after: string;
 };
 
 export type ProjectSeoMetric = {
@@ -13834,6 +13858,58 @@ export type ProjectSeoRun = {
     issues: number | null;
     seconds: number | null;
     monitorId?: string | null;
+    runDiff?: ProjectSeoRunDiff;
+};
+
+export type ProjectSeoRunDiff = {
+    from: Date;
+    to: Date;
+    comparable: boolean;
+    reason?: 'market' | 'rulebook' | 'pages';
+    rulebookChange?: {
+        compared: number;
+        other: number;
+    };
+    new: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    newCount: number;
+    fixed: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    fixedCount: number;
+    stillOpen: Array<{
+        rowId: string;
+        title: string;
+        pageUrl: string;
+        device: 'mobile' | 'desktop' | null;
+        severity: 'critical' | 'major' | 'minor';
+    }>;
+    stillOpenCount: number;
+    notCheckedAgain: number;
+    notCheckedBefore: number;
+    numbers: {
+        issues: {
+            from: number | null;
+            to: number | null;
+        };
+        moves: Array<{
+            keyword: string;
+            pageUrl: string;
+            device: 'mobile' | 'desktop' | null;
+            from: number;
+            to: number;
+        }>;
+        moveCount: number;
+    };
 };
 
 export type ProjectSeoAnalysis = {
@@ -19310,12 +19386,12 @@ export type ContextOrganizationId = string;
 export type SokosumiClient = string;
 
 /**
- * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. Operations on shared data are never refused because of the Network.
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. While Preprod is switched on, a Coworker's payment (a Task event with `credits` or `masumiPayment`, an x402 payment, usage) is for the Network its payload names (`masumiPayment.PaymentSource.network`, or the 402's chain: Base is Mainnet, Base Sepolia is Preprod), else for the header's, else for Mainnet; a payload and a header that name different Networks get 400 with `kind: network_mismatch`, and a payment on Preprod needs the Preprod access of the billed party (the Organization the payment is billed to, else the billed user), else 403 with `kind: preprod_access_required`; while Preprod is off, a payload names no Network. Operations on shared data are never refused because of the Network.
  */
 export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
 
 /**
- * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. Operations on shared data are never refused because of the Network.
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace. While Preprod is switched on, a Preprod API key (`soko_preprod_`) is for Preprod without the header, and an API key whose Network the header contradicts gets 403 with `kind: api_key_network_mismatch` on Network data; while it is off, every API key is for Mainnet, as without a prefix. While Preprod is switched on, a Coworker's payment (a Task event with `credits` or `masumiPayment`, an x402 payment, usage) is for the Network its payload names (`masumiPayment.PaymentSource.network`, or the 402's chain: Base is Mainnet, Base Sepolia is Preprod), else for the header's, else for Mainnet; a payload and a header that name different Networks get 400 with `kind: network_mismatch`, and a payment on Preprod needs the Preprod access of the billed party (the Organization the payment is billed to, else the billed user), else 403 with `kind: preprod_access_required`; while Preprod is off, a payload names no Network. Operations on shared data are never refused because of the Network.
  */
 export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
 
@@ -80266,6 +80342,117 @@ export type ResearchStudioWebsiteDraftResponses = {
 };
 
 export type ResearchStudioWebsiteDraftResponse = ResearchStudioWebsiteDraftResponses[keyof ResearchStudioWebsiteDraftResponses];
+
+export type UpdateStudioBrandAssetsData = {
+    body: UpdateStudioBrandAssets;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/assets';
+};
+
+export type UpdateStudioBrandAssetsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid reference image or full brand kit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsError = UpdateStudioBrandAssetsErrors[keyof UpdateStudioBrandAssetsErrors];
+
+export type UpdateStudioBrandAssetsResponses = {
+    /**
+     * Updated brand images
+     */
+    200: {
+        data: Array<StudioProductPhoto>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsResponse = UpdateStudioBrandAssetsResponses[keyof UpdateStudioBrandAssetsResponses];
 
 export type SaveStudioBrandLookData = {
     body: SaveStudioBrandLook;
