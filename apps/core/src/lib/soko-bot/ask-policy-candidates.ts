@@ -2,8 +2,10 @@ import { socialPostProviderLabel } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import {
   containsExactName,
+  explicitSocialDestinations,
   mentionedSocialProviders,
   mentionsNewsletter,
+  type NamedProjectCandidate,
   namedProjectsIn,
   namedSocialDestinations,
   type SocialDestinationCandidate,
@@ -48,6 +50,27 @@ function formatCapped<T>(
   return extra > 0 ? `${shown}; and ${extra} more` : shown;
 }
 
+function formatProjects(projects: readonly NamedProjectCandidate[]): string {
+  return formatCapped(
+    projects,
+    (project) => `Project "${project.name}" (projectId ${project.id})`,
+  );
+}
+
+function explicitNewslettersIn(
+  message: string,
+  newsletters: readonly NewsletterCandidate[],
+): NewsletterCandidate[] {
+  const text = withoutQuotedCopy(message);
+  return newsletters.filter((newsletter) => {
+    if (text.includes(newsletter.id)) return true;
+    const newsletterName = newsletter.name.trim();
+    return (
+      newsletterName.length >= 3 && containsExactName(text, newsletterName)
+    );
+  });
+}
+
 function namedNewslettersIn(
   message: string,
   newsletters: readonly NewsletterCandidate[],
@@ -78,6 +101,9 @@ function openProjectWhereFor(workspaceId: string, projectId: string | null) {
 /**
  * Prepare live candidate verdicts from Core's own records before a foreground
  * chat turn begins (gated behind `SokoBotVersion.askPolicy`).
+ *
+ * Resolves any project explicitly named by the owner before counting eligible
+ * social/newsletter destinations so Core never substitutes an unrelated project.
  *
  * - 1 fitting candidate: use it directly and say which one.
  * - Several fitting candidates (none named): ask once, change nothing.
@@ -136,6 +162,12 @@ export async function prepareAskPolicyHints(
       : Promise.resolve([]),
   ]);
 
+  const namedProjects =
+    input.projectId === null
+      ? namedProjectsIn(input.message, openProjects)
+      : [];
+  const namedProjectIds = new Set(namedProjects.map((project) => project.id));
+
   const hints: string[] = [];
 
   for (const provider of providers) {
@@ -143,6 +175,49 @@ export async function prepareAskPolicyHints(
     const forProvider: SocialDestinationCandidate[] = socialConnections.filter(
       (connection) => connection.provider === provider,
     );
+    const explicitAccounts = explicitSocialDestinations(
+      input.message,
+      forProvider,
+    );
+
+    // Respect an explicitly named project constraint before counting candidates.
+    if (namedProjects.length > 0) {
+      const outsideNamed = explicitAccounts.filter(
+        (account) => !namedProjectIds.has(account.project.id),
+      );
+      if (outsideNamed.length > 0) {
+        hints.push(
+          `Core social records: the request names ${formatProjects(namedProjects)} alongside ${formatCapped(outsideNamed, socialDestinationLabel)} on a different project. Ask the owner once which project or account to use and make no social changes until they answer (ids are for tools; never show raw ids).`,
+        );
+        continue;
+      }
+      const inNamedProjects = forProvider.filter((connection) =>
+        namedProjectIds.has(connection.project.id),
+      );
+      if (inNamedProjects.length === 0) {
+        hints.push(
+          `Core social records: ${formatProjects(namedProjects)} has 0 active ${label} accounts connected. Tell the owner no ${label} account is connected on the requested project, do not substitute another project, and make no social changes (ids are for tools; never show raw ids).`,
+        );
+        continue;
+      }
+      const narrowed =
+        explicitAccounts.length > 0 ? explicitAccounts : inNamedProjects;
+      if (narrowed.length === 1) {
+        hints.push(
+          `Core social records: exactly 1 fitting ${label} destination in scope — ${socialDestinationLabel(narrowed[0])}. If this request posts or schedules on ${label}, use this account and project directly without asking which project or account, and state which one you used in one line (ids are for tools; never show raw ids).`,
+        );
+      } else if (explicitAccounts.length >= 2) {
+        hints.push(
+          `Core social records: the request explicitly names ${explicitAccounts.length} active ${label} accounts — ${formatCapped(explicitAccounts, socialDestinationLabel)}. Use those named destinations directly without asking which project or account (ids are for tools; never show raw ids).`,
+        );
+      } else if (!input.hasOpenAccountQuestion) {
+        hints.push(
+          `Core social records: ${narrowed.length} active ${label} accounts in scope for ${formatProjects(namedProjects)} — ${formatCapped(narrowed, socialDestinationLabel)}. Ask the owner once which account (@handle) to use and make no changes until they answer (ids are for tools; never show raw ids).`,
+        );
+      }
+      continue;
+    }
+
     if (forProvider.length === 0) {
       hints.push(
         `Core social records: 0 active ${label} accounts are connected in scope. If this request creates, drafts, or schedules a ${label} post, do not ask which project to use — tell the owner no ${label} account is connected and make no social changes.`,
@@ -170,7 +245,37 @@ export async function prepareAskPolicyHints(
   }
 
   if (wantsNewsletter) {
-    if (newsletters.length === 0) {
+    const explicitNewsletters = explicitNewslettersIn(
+      input.message,
+      newsletters,
+    );
+    if (namedProjects.length > 0) {
+      const outsideNamed = explicitNewsletters.filter(
+        (newsletter) => !namedProjectIds.has(newsletter.project.id),
+      );
+      if (outsideNamed.length > 0) {
+        hints.push(
+          `Core newsletter records: the request names ${formatProjects(namedProjects)} alongside newsletter(s) on a different project. Ask the owner once which project's newsletter to use and make no changes until they answer (ids are for tools; never show raw ids).`,
+        );
+      } else {
+        const inNamedProjects = newsletters.filter((newsletter) =>
+          namedProjectIds.has(newsletter.project.id),
+        );
+        if (inNamedProjects.length === 0) {
+          hints.push(
+            `Core newsletter records: ${formatProjects(namedProjects)} has 0 newsletters set up. Tell the owner no newsletter is set up on the requested project, do not substitute another project, and make no changes (ids are for tools; never show raw ids).`,
+          );
+        } else if (inNamedProjects.length === 1) {
+          hints.push(
+            `Core newsletter records: exactly 1 fitting newsletter in scope — "${inNamedProjects[0].name}" (Project "${inNamedProjects[0].project.name}", projectId ${inNamedProjects[0].project.id}). Use this project directly without asking which project, and state which one you used in one line (ids are for tools; never show raw ids).`,
+          );
+        } else {
+          hints.push(
+            `Core newsletter records: ${inNamedProjects.length} newsletters in scope for ${formatProjects(namedProjects)} — ${formatCapped(inNamedProjects, (n) => `"${n.name}" (Project "${n.project.name}", projectId ${n.project.id})`)}. Ask the owner once which to use and make no changes until they answer (ids are for tools; never show raw ids).`,
+          );
+        }
+      }
+    } else if (newsletters.length === 0) {
       hints.push(
         "Core newsletter records: 0 newsletters are set up in scope. If this request drafts or sends a newsletter issue, do not ask which project to use — tell the owner no newsletter is set up and make no changes.",
       );
@@ -205,13 +310,10 @@ export async function prepareAskPolicyHints(
       hints.push(
         `Core project records: only 1 open project exists in scope — Project "${openProjects[0].name}" (projectId ${openProjects[0].id}). Use it directly for project-scoped work without asking which project or showing a project selector, and state which project you used in one line (ids are for tools; never show raw ids).`,
       );
-    } else {
-      const namedProjects = namedProjectsIn(input.message, openProjects);
-      if (namedProjects.length === 1) {
-        hints.push(
-          `Core project records: the request names 1 open project — Project "${namedProjects[0].name}" (projectId ${namedProjects[0].id}). Use it directly without asking which project or showing a project selector (ids are for tools; never show raw ids).`,
-        );
-      }
+    } else if (namedProjects.length === 1) {
+      hints.push(
+        `Core project records: the request names 1 open project — Project "${namedProjects[0].name}" (projectId ${namedProjects[0].id}). Use it directly without asking which project or showing a project selector (ids are for tools; never show raw ids).`,
+      );
     }
   }
 
@@ -234,11 +336,11 @@ export async function validateAskPolicyProjectSelection(
 
   const openProjectWhere = openProjectWhereFor(input.workspaceId, null);
   const uniqueProjectIds = [...new Set(input.projectIds)];
-  const [openSample, requested] = await Promise.all([
+  const [openProjects, requested] = await Promise.all([
     prisma.project.findMany({
       where: openProjectWhere,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      take: 2,
+      take: MAX_CANDIDATE_PROJECTS,
       select: { id: true, name: true },
     }),
     uniqueProjectIds.length > 0
@@ -250,11 +352,11 @@ export async function validateAskPolicyProjectSelection(
       : Promise.resolve([]),
   ]);
 
-  if (openSample.length === 0) {
+  if (openProjects.length === 0) {
     return "Core records show 0 open projects in this workspace. Do not show a project selector; tell the owner no open project exists.";
   }
-  if (openSample.length === 1) {
-    return `Core records show only 1 open project in this workspace: Project "${openSample[0].name}" (projectId ${openSample[0].id}). Use it directly without showing a project selector, and state which project you used.`;
+  if (openProjects.length === 1) {
+    return `Core records show only 1 open project in this workspace: Project "${openProjects[0].name}" (projectId ${openProjects[0].id}). Use it directly without showing a project selector, and state which project you used.`;
   }
   if (requested.length === 0) {
     return "None of those projectIds match an open project in this workspace. Do not show a project selector; tell the owner what is missing.";
@@ -264,6 +366,15 @@ export async function validateAskPolicyProjectSelection(
   }
 
   if (input.userMessage.trim().length > 0) {
+    const knownProjectsById = new Map<string, NamedProjectCandidate>(
+      openProjects.map((project) => [project.id, project]),
+    );
+    for (const project of requested) knownProjectsById.set(project.id, project);
+    const namedProjects = namedProjectsIn(input.userMessage, [
+      ...knownProjectsById.values(),
+    ]);
+    const namedProjectIds = new Set(namedProjects.map((project) => project.id));
+
     const providers = mentionedSocialProviders(input.userMessage);
     if (providers.length === 1) {
       const provider = providers[0];
@@ -282,6 +393,37 @@ export async function validateAskPolicyProjectSelection(
             project: { select: { id: true, name: true } },
           },
         });
+
+      const explicitAccounts = explicitSocialDestinations(
+        input.userMessage,
+        connections,
+      );
+      if (namedProjects.length > 0) {
+        const outsideNamed = explicitAccounts.filter(
+          (account) => !namedProjectIds.has(account.project.id),
+        );
+        if (outsideNamed.length > 0) {
+          return null;
+        }
+        const scopedConnections = connections.filter((connection) =>
+          namedProjectIds.has(connection.project.id),
+        );
+        if (scopedConnections.length === 0) {
+          return `${formatProjects(namedProjects)} has 0 active ${label} accounts connected. Do not show a project selector or substitute another project; tell the owner no ${label} account is connected there and make no changes.`;
+        }
+        if (scopedConnections.length === 1) {
+          return `Core records show exactly 1 fitting ${label} destination on the requested project: ${socialDestinationLabel(scopedConnections[0])}. Use it directly without showing a project selector, and state which one you used.`;
+        }
+        if (namedProjects.length === 1) {
+          const handles = scopedConnections
+            .map((account) => {
+              const handle = socialHandleOf(account);
+              return handle ? `@${handle}` : `account ${account.id}`;
+            })
+            .join(", ");
+          return `The owner already named Project "${namedProjects[0].name}" (projectId ${namedProjects[0].id}), which has ${scopedConnections.length} active ${label} accounts (${handles}). Do not show a project selector; ask the owner once which ${label} account to use and make no changes until they answer.`;
+        }
+      }
 
       if (connections.length === 0) {
         return `Core records show 0 active ${label} accounts connected in this workspace. Do not show a project selector; tell the owner no ${label} account is connected and make no changes.`;
@@ -356,6 +498,17 @@ export async function validateAskPolicyProjectSelection(
           project: { select: { id: true, name: true } },
         },
       });
+      if (namedProjects.length > 0) {
+        const scopedNewsletters = newsletters.filter((newsletter) =>
+          namedProjectIds.has(newsletter.project.id),
+        );
+        if (scopedNewsletters.length === 0) {
+          return `${formatProjects(namedProjects)} has 0 newsletters set up. Do not show a project selector or substitute another project; tell the owner no newsletter is set up there and make no changes.`;
+        }
+        if (scopedNewsletters.length === 1) {
+          return `Core records show exactly 1 newsletter on the requested project: "${scopedNewsletters[0].name}" (Project "${scopedNewsletters[0].project.name}", projectId ${scopedNewsletters[0].project.id}). Use it directly without showing a project selector, and state which project you used.`;
+        }
+      }
       if (newsletters.length === 0) {
         return "Core records show 0 newsletters set up in this workspace. Do not show a project selector; tell the owner no newsletter is set up and make no changes.";
       }
@@ -378,7 +531,6 @@ export async function validateAskPolicyProjectSelection(
       return null;
     }
 
-    const namedProjects = namedProjectsIn(input.userMessage, requested);
     if (namedProjects.length === 1) {
       return `The owner's message already names Project "${namedProjects[0].name}" (projectId ${namedProjects[0].id}). Use it directly without showing a project selector.`;
     }

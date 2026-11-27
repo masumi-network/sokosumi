@@ -80,10 +80,28 @@ describe("ask-policy-match", () => {
         "Make a 10x better 16x9 banner for OS X and Project X",
       ),
     ).toEqual([]);
+    expect(
+      mentionedSocialProviders(
+        "Make a project task to research YouTube captions. Let me pick the project.",
+      ),
+    ).toEqual([]);
+    expect(
+      mentionedSocialProviders(
+        "Audit competitor LinkedIn posts and summarize this YouTube video",
+      ),
+    ).toEqual([]);
   });
 
-  it("detects newsletter mentions outside quotes and URLs", () => {
+  it("detects newsletter destination intent outside quotes, URLs, and research tasks", () => {
     expect(mentionsNewsletter("Draft this week's newsletter issue")).toBe(true);
+    expect(
+      mentionsNewsletter("For Founder Desk, draft an X post and a newsletter."),
+    ).toBe(true);
+    expect(
+      mentionsNewsletter(
+        "Make a project task to research newsletter inspiration. Let me pick the project.",
+      ),
+    ).toBe(false);
     expect(
       mentionsNewsletter('Post "Subscribe to our newsletter" to LinkedIn'),
     ).toBe(false);
@@ -264,6 +282,33 @@ describe("prepareAskPolicyHints", () => {
     });
     expect(two[0]).toContain("2 newsletters in scope and none is named");
   });
+
+  it("does not substitute a different project when the named project has no destination", async () => {
+    db.projectFindMany.mockResolvedValue([P1, P2]);
+    db.connectionFindMany.mockResolvedValue([X1]);
+    db.newsletterFindMany.mockResolvedValue([
+      { id: "newsletter-1", name: "Updates", projectId: P1.id, project: P1 },
+    ]);
+    const message = "For Founder Desk, draft an X post and a newsletter.";
+    const hints = await prepareAskPolicyHints({
+      workspaceId: "ws-1",
+      projectId: null,
+      message,
+    });
+    const unrelated = hints.filter(
+      (hint) =>
+        hint.includes(P1.id) &&
+        /use (this|it) directly|use this account|use this project/i.test(hint),
+    );
+    expect(unrelated).toEqual([]);
+    expect(hints.some((h) => h.includes("0 active X accounts connected"))).toBe(
+      true,
+    );
+    expect(hints.some((h) => h.includes("0 newsletters set up"))).toBe(true);
+    expect(
+      hints.some((h) => h.includes("do not substitute another project")),
+    ).toBe(true);
+  });
 });
 
 describe("validateAskPolicyProjectSelection", () => {
@@ -401,5 +446,35 @@ describe("validateAskPolicyProjectSelection", () => {
       userMessage: "Generate 3 replacement hero images",
     });
     expect(allowed).toBeNull();
+  });
+
+  it("allows choosing a project for work about a network that needs no social account", async () => {
+    db.projectFindMany.mockResolvedValue([P1, P2]);
+    db.connectionFindMany.mockResolvedValue([]);
+    const refusal = await validateAskPolicyProjectSelection({
+      workspaceId: "ws-1",
+      botProjectId: null,
+      projectIds: [P1.id, P2.id],
+      userMessage:
+        "Make a project task to research YouTube captions. Let me pick the project.",
+    });
+    expect(refusal).toBeNull();
+  });
+
+  it("carries a named-project constraint into project_selection without substituting another project", async () => {
+    db.projectFindMany.mockResolvedValue([P1, P2]);
+    db.connectionFindMany.mockResolvedValue([X1]);
+    const refusal = await validateAskPolicyProjectSelection({
+      workspaceId: "ws-1",
+      botProjectId: null,
+      projectIds: [P1.id, P2.id],
+      userMessage: "For Founder Desk, draft an X post",
+    });
+    expect(refusal).toContain(`Project "${P2.name}"`);
+    expect(refusal).toContain("0 active X accounts connected");
+    expect(refusal).toContain(
+      "Do not show a project selector or substitute another project",
+    );
+    expect(refusal).not.toContain(P1.id);
   });
 });
