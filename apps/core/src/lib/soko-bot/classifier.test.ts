@@ -387,6 +387,104 @@ describe("Jev route selection", () => {
     for (const write of ["update_memory", "post_chat", "update_task"])
       expect(capabilities).not.toContain(write);
   });
+
+  it("keeps the leading scope when MANAGE_WORK is sure and two scopes split the mass", async () => {
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "FILE" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: { MANAGE_WORK: 0.87 },
+          },
+          writeScope: {
+            choice: "FILE",
+            probabilities: { FILE: 0.63, SOCIAL: 0.37 },
+          },
+        },
+      }),
+    ).classify("Make two images for a post", EMPTY_CONTEXT);
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "FILE",
+    });
+    expect(capabilitiesForClassification(result.classification)).toContain(
+      "generate_image",
+    );
+  });
+
+  it("acts in a high-confidence write scope when work routes hold a clear majority and CLARIFY is negligible", async () => {
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "CHAT" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: {
+              MANAGE_WORK: 0.42,
+              DELEGATE_TASK: 0.26,
+              DIRECT_RESPONSE: 0.29,
+              CLARIFY: 0.03,
+            },
+          },
+          writeScope: {
+            choice: "CHAT",
+            probabilities: { CHAT: 0.93, INTEGRATION: 0.05 },
+          },
+        },
+      }),
+    ).classify("Ask the other assistant for an update", EMPTY_CONTEXT);
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "CHAT",
+    });
+    expect(capabilitiesForClassification(result.classification)).toContain(
+      "send_message",
+    );
+  });
+
+  it("delegates when MANAGE_WORK and DELEGATE_TASK nearly tie under generic WORK scope", async () => {
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "WORK" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: {
+              MANAGE_WORK: 0.49,
+              DELEGATE_TASK: 0.45,
+              DIRECT_RESPONSE: 0.04,
+            },
+          },
+          writeScope: { choice: "WORK", probabilities: { WORK: 0.95 } },
+        },
+      }),
+    ).classify("Start a research task on the topic", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+  });
+
+  it("distinguishes standing preferences from refusals and covers tables, contacts, newsletters, and conditional hires in route criteria", () => {
+    const questions = routeQuestions(false);
+    expect(questions.route.instructions).toContain("standing preference");
+    expect(questions.route.criteria.HIRE_AGENT).toContain(
+      "conditional or standing future rule",
+    );
+    expect(questions.route.criteria.DIRECT_RESPONSE).toContain(
+      "polite closings or thanks",
+    );
+    expect(questions.route.criteria.MANAGE_WORK).toContain("table in Files");
+    expect(questions.route.criteria.MANAGE_WORK).toContain("newsletter issue");
+    expect(questions.writeScope.criteria.FILE).toContain("contacts");
+    expect(questions.writeScope.criteria.MEMORY).toContain(
+      "standing behavior rule",
+    );
+  });
 });
 
 describe("pending proposals", () => {

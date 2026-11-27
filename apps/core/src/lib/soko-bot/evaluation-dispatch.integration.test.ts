@@ -325,13 +325,18 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
       expect(JSON.stringify(result)).not.toContain("private");
       expect(
         fence.evaluationClassifierContext({
+          previousReply: "Which draft should I update?",
           taskIds: [task, "other"],
           projectIds: ["private"],
           agentIds: [],
           coworkerIds: [],
           jobIds: [],
         }),
-      ).toMatchObject({ taskIds: [task], projectIds: [] });
+      ).toMatchObject({
+        previousReply: "Which draft should I update?",
+        taskIds: [task],
+        projectIds: [],
+      });
     });
     it("allows only synthetic archive/read/approval targets", () => {
       expect(() =>
