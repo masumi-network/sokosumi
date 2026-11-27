@@ -50,6 +50,7 @@ import {
 } from "./action-response";
 import { claimsAction } from "./answer-claims";
 import { citationsIn, dropUnverifiedLinks } from "./citations";
+import { emitStoredRouteDecisionReceipt } from "./decision-receipts";
 import { evaluationBinding } from "./evaluation-dispatch";
 import { SOKO_BOT_ARCHIVE_GUIDANCE } from "./evaluation-preparation";
 import {
@@ -583,6 +584,9 @@ export async function prepareTurn(
         cacheKey,
       }),
     );
+  // Core-internal only: never attached to getContext/refresh_context results.
+  if (version.decisionReceipts)
+    await emitStoredRouteDecisionReceipt(turnId, sessionId);
   // The plan is shown only to a turn that can update it.
   const planLoop =
     version.planLoop === true && capabilities.includes("update_plan");

@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
+  type DecisionFallbackReason,
   SOKO_BOT_TURN_COMPLEXITIES,
   type SokoBotCapability,
   type SokoBotRoute,
@@ -219,6 +220,20 @@ export interface ClassifierUsage {
   providerMetadata?: unknown;
 }
 
+/** Raw selector output kept in memory so decision-receipt versions can audit it. */
+export interface RouteRawDecision {
+  /** Exact route option IDs sent to Jev at classification time. */
+  offeredCandidateIds: string[];
+  rawChoice: string | null;
+  probabilities: Record<string, number>;
+  writeScopeChoice: string | null;
+  writeScopeProbabilities: Record<string, number>;
+  abstained: boolean;
+  abstainReason?: string;
+  fallbackApplied: boolean;
+  fallbackReason?: DecisionFallbackReason;
+}
+
 export interface ClassificationResult {
   classification: TurnClassification &
     Pick<PresetRoute, "systemKey" | "meetingPrepSlot">;
@@ -227,6 +242,7 @@ export interface ClassificationResult {
   latencyMs: number;
   failed: boolean;
   usage: ClassifierUsage | null;
+  rawDecision?: RouteRawDecision;
 }
 
 /** A route Core chose itself for a turn whose prompt it wrote. */
@@ -703,17 +719,44 @@ export class JevTurnClassifier implements TurnClassifier {
         costUsd: gatewayCostUsd(result.providerMetadata),
         providerMetadata: result.providerMetadata,
       };
+      const parsedAnswers = routeAnswersSchema.parse(result.answers);
+      const classification = classificationFromAnswers(
+        message,
+        parsedAnswers,
+        pending,
+      );
+      const rawChoice = parsedAnswers.route.choice;
+      const invalidChoice = !isRoute(rawChoice);
+      const lowConfidenceFallback =
+        !invalidChoice && classification.unsureRoute !== undefined;
+      const fallbackApplied = invalidChoice || lowConfidenceFallback;
+      const offeredCandidateIds = Object.keys(ROUTE_CRITERIA);
       return {
-        classification: classificationFromAnswers(
-          message,
-          routeAnswersSchema.parse(result.answers),
-          pending,
-        ),
+        classification,
         model: routeModelName(),
         version: CLASSIFIER_VERSION,
         latencyMs: elapsed(),
         failed: false,
         usage,
+        rawDecision: {
+          offeredCandidateIds,
+          rawChoice,
+          probabilities: { ...(parsedAnswers.route.probabilities ?? {}) },
+          writeScopeChoice: parsedAnswers.writeScope.choice,
+          writeScopeProbabilities: {
+            ...(parsedAnswers.writeScope.probabilities ?? {}),
+          },
+          abstained: fallbackApplied,
+          ...(fallbackApplied
+            ? { abstainReason: classification.rationaleSummary }
+            : {}),
+          fallbackApplied,
+          ...(invalidChoice
+            ? { fallbackReason: "invalid_choice" as const }
+            : lowConfidenceFallback
+              ? { fallbackReason: "low_confidence" as const }
+              : {}),
+        },
       };
     } catch (error) {
       // Fail closed, but never silently: a broken classifier turns every
@@ -744,6 +787,17 @@ export class JevTurnClassifier implements TurnClassifier {
         latencyMs: elapsed(),
         failed: true,
         usage,
+        rawDecision: {
+          offeredCandidateIds: Object.keys(ROUTE_CRITERIA),
+          rawChoice: null,
+          probabilities: {},
+          writeScopeChoice: null,
+          writeScopeProbabilities: {},
+          abstained: true,
+          abstainReason: "Classifier unavailable; reads only.",
+          fallbackApplied: true,
+          fallbackReason: "selector_error",
+        },
       };
     }
   }

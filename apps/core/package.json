@@ -34,6 +34,7 @@
     "bench:coworker-chat": "tsx --env-file=.env scripts/bench-coworker-chat.mts",
     "soko-bot:judge-eval": "tsx --env-file=.env scripts/soko-bot-judge-eval.mts",
     "soko-bot:router-eval": "tsx --env-file=.env scripts/soko-bot-router-eval.mts",
+    "soko-bot:decision-replay": "tsx --env-file=.env scripts/soko-bot-decision-replay.mts",
     "chatgpt-plan": "tsx scripts/chatgpt-plan.mts",
     "evals:local": "tsx --env-file=.env scripts/evals-local.mts",
     "soko-bot:lab": "tsx --env-file=.env scripts/soko-bot-lab.mts",

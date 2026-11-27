@@ -44,6 +44,12 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * Record structured Jev decision receipts (route, focus, completion) and
+   * settled outcomes on `SokoBotRuntimeEvent` for offline replay and evals.
+   * Omitted on live versions: no receipts recorded and behaviour is unchanged.
+   */
+  decisionReceipts?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

@@ -124,6 +124,11 @@ import {
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import {
+  buildRouteDecisionReceipt,
+  hasHireableMarketplaceAgent,
+  routeCandidatesForTurn,
+} from "@/lib/soko-bot/decision-receipts";
+import {
   DetachedNetworkRefusal,
   detachedNetworkScope,
 } from "@/lib/soko-bot/detached-network";
@@ -2612,6 +2617,15 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
+    const preClassificationCandidates =
+      version.decisionReceipts && !input.presetRoute
+        ? routeCandidatesForTurn({
+            version,
+            askedByBot: input.chat?.askedByBot,
+            hasHireableAgent: await hasHireableMarketplaceAgent(),
+            hasCoworker: classifierContext.coworkerIds.length > 0,
+          })
+        : undefined;
     const classification: ClassificationResult = input.presetRoute
       ? presetClassificationResult(message, input.presetRoute)
       : await withEvaluationActor(
@@ -2798,6 +2812,37 @@ export class SokoBotControlPlane {
         // Without a key `search_exa` refuses on every call; offer web_search only.
         (capability !== "search_exa" || Boolean(getEnv().EXA_API_KEY)),
     ) as readonly SokoBotCapability[];
+    if (version.decisionReceipts && !input.presetRoute) {
+      // Re-check live marketplace availability at dispatch when HIRE_AGENT was chosen.
+      const liveHasHireableAgent =
+        classification.classification.route === "HIRE_AGENT" ||
+        classification.rawDecision?.rawChoice === "HIRE_AGENT"
+          ? await hasHireableMarketplaceAgent()
+          : undefined;
+      classification.classification = {
+        ...classification.classification,
+        decisionReceipt: buildRouteDecisionReceipt({
+          turnId: clientTurnId,
+          message: input.chat?.classifyMessage ?? message,
+          previousReply:
+            previousTurn?.status === "COMPLETED"
+              ? previousTurn.finalAnswer
+              : null,
+          pendingProposals: pendingIntents.map(
+            (intent) => intent.desiredOutcome,
+          ),
+          classification,
+          version,
+          source,
+          personAsked,
+          cmoOwnerRequest,
+          askedByBot: input.chat?.askedByBot,
+          candidatesAtClassification: preClassificationCandidates,
+          liveHasHireableAgent,
+          grantedCapabilities: capabilities,
+        }),
+      };
+    }
     const startNow = (await databaseNow()).getTime();
     const deadlineAt = new Date(
       startNow +

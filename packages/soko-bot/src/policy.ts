@@ -1,3 +1,4 @@
+import type { DecisionReceipt } from "./decision-receipts.js";
 import {
   SOKO_BOT_SEO_CAPABILITIES,
   SOKO_BOT_SEO_READ_CAPABILITIES,
@@ -776,6 +777,8 @@ export interface TurnClassification {
   signals?: SokoBotTurnSignals;
   /** How much work Jev reads in a typed message; picks the turn's model. */
   complexity?: SokoBotTurnComplexity;
+  /** Route decision receipt persisted when `version.decisionReceipts` is on. */
+  decisionReceipt?: DecisionReceipt;
 }
 
 export const SOKO_BOT_TURN_COMPLEXITIES = [
