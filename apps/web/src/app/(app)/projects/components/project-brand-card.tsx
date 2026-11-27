@@ -570,7 +570,7 @@ export function ProjectBrandCard({
                 onClick={(event) =>
                   handleCopyOrganization(organizationName, event.currentTarget)
                 }
-                className="h-auto min-h-10 w-full max-w-full whitespace-normal wrap-anywhere py-2 text-start sm:min-h-8 sm:w-auto sm:py-1.5"
+                className="h-auto min-h-10 w-full max-w-full whitespace-normal wrap-anywhere py-2 text-start sm:min-h-8 sm:w-auto sm:py-1"
               >
                 <Building2 aria-hidden />
                 {t("brandCard.useOrganization", {
