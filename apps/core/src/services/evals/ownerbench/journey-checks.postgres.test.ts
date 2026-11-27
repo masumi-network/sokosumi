@@ -34,6 +34,7 @@ import {
   retriedAttempts,
   routingFailures,
   scheduleToFire,
+  stepChain,
   wakeCheck,
   withDescendants,
 } from "./journey-runner";
@@ -1410,6 +1411,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           sourceKind: "DRIVE_UPLOAD",
           sourceScope: "USER",
           sourceId: `users/${userId}/${randomUUID()}/weekly-result.md`,
+          ownerUserId: userId,
           displayName: "weekly-result.md",
           normalizedName: "weekly-result.md",
           mimeType: "text/markdown",
@@ -1472,6 +1474,19 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect(await outcomeCheck(delivered, withSavedReport)).toMatchObject({
         pass: true,
         actual: expect.stringContaining('opening "weekly-result.md"'),
+      });
+      // The same card on a file the owner can't open (another member's) is
+      // not a report they received.
+      await prisma.fileResource.update({
+        where: { id: savedReport.id },
+        data: { ownerUserId: randomUUID() },
+      });
+      expect(await outcomeCheck(delivered, withSavedReport)).toMatchObject({
+        pass: false,
+      });
+      await prisma.fileResource.update({
+        where: { id: savedReport.id },
+        data: { ownerUserId: userId },
       });
       await clearPosts();
       // A tool posted the full report; the final reply only says so.
@@ -1575,6 +1590,16 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
           actual: "a failed attempt called send_message",
         }),
       ]);
+      // The step reads as completed by its retry, and still carries what the
+      // failed attempt did; an unrelated failure keeps the step failed.
+      const recovered = await stepChain([failedAttempt, retry], retried);
+      expect(recovered.status).toBe("COMPLETED");
+      expect(recovered.toolCalls.map((call) => call.capability)).toContain(
+        "send_message",
+      );
+      expect(
+        (await stepChain([failedAttempt, retry, unrelated], retried)).status,
+      ).toBe("FAILED");
       await clearPosts();
       // A correct report may also say when it looks again.
       await postToOwner(`${report} I'll check again tomorrow.`);

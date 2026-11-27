@@ -1420,8 +1420,19 @@ export async function ownerReceived(
     openableFileIds(message.content, message.metadata),
   );
   const fileIds = [...new Set(linked.flat())];
+  // Only a live file the owner can open: in their workspace, theirs or
+  // their organization's.
   const files = await prisma.fileResource.findMany({
-    where: { id: { in: fileIds }, tombstonedAt: null },
+    where: {
+      id: { in: fileIds },
+      workspaceId: context.lane.workspaceId,
+      tombstonedAt: null,
+      lifecycle: "ACTIVE",
+      OR: [
+        { ownerUserId: context.lane.userId },
+        { ownerOrganizationId: context.lane.organizationId },
+      ],
+    },
     select: { id: true, displayName: true },
   });
   const texts = savedFileTexts(

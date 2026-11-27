@@ -796,6 +796,27 @@ export async function retriedAttempts(
   );
 }
 
+/**
+ * The step's turns as one: a failed attempt whose own retry got through is
+ * not the step's outcome, so only its status leaves the step's. What it did
+ * (calls, delegations, effects) stays in, so a retry can't hide an action.
+ */
+export async function stepChain(
+  turnIds: string[],
+  retried: ReadonlySet<string>,
+) {
+  const chain = await loadA2aChain(turnIds);
+  const terminal = chain.turns.filter((_, i) => !retried.has(turnIds[i]!));
+  return {
+    ...chain.merged,
+    status:
+      terminal.find((turn) => turn.status !== "COMPLETED")?.status ??
+      terminal.at(-1)?.status ??
+      chain.merged.status,
+    errorKind: terminal.find((turn) => turn.errorKind)?.errorKind ?? null,
+  };
+}
+
 async function answerWakes(
   botId: string,
   since: Date,
@@ -832,11 +853,8 @@ async function finishStep(
   );
   const checks: ScenarioCheck[] = [];
   let merged: Awaited<ReturnType<typeof loadA2aChain>>["merged"] | null = null;
-  // A failed attempt whose own retry got through is not the step's outcome;
-  // it stays in the step's turns, for cost and diagnosis.
   const retried = await retriedAttempts(turnIds);
-  const graded = turnIds.filter((id) => !retried.has(id));
-  if (graded.length) merged = (await loadA2aChain(graded)).merged;
+  if (turnIds.length) merged = await stepChain(turnIds, retried);
   checks.push(
     ...stepExpectationChecks(
       journey,
