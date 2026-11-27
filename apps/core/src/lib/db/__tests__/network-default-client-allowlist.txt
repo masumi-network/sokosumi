@@ -66,7 +66,6 @@ apps/core/src/services/polar-subscription.service.ts
 apps/core/src/services/polar-yearly-grant-sync.service.ts
 apps/core/src/services/soko-bot-activity-stats.service.ts
 apps/core/src/services/soko-bot-billing.service.ts
-apps/core/src/services/soko-bot-deletion.service.ts
 apps/core/src/services/soko-bot-events-sync.service.ts
 apps/core/src/services/soko-bot-runtime/decision-apply.ts
 apps/core/src/services/soko-bot-runtime/decision-claim.ts
