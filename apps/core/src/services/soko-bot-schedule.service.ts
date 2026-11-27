@@ -14,6 +14,7 @@ import { z } from "zod";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { conflict } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { networkStamp } from "@/helpers/preprod-control";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
@@ -438,7 +439,7 @@ export async function createSokoBotSchedule(
     }
     return tx.sokoBotSchedule.create({
       data: {
-        network: input.network,
+        ...(await networkStamp(input.network)),
         ...(scheduleId ? { id: scheduleId } : {}),
         sokoBotId: bot.id,
         requestedByUserId: input.userId,

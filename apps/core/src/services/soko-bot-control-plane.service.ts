@@ -48,6 +48,7 @@ import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
 } from "@/helpers/cuso-project-credits";
+import { networkStamp } from "@/helpers/preprod-control";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
@@ -2917,7 +2918,7 @@ export class SokoBotControlPlane {
         });
         const created = await tx.sokoBotTurn.create({
           data: {
-            network: input.network,
+            ...(await networkStamp(input.network)),
             sokoBotId: bot.id,
             requestedByUserId: input.userId,
             workspaceId: input.workspaceId,

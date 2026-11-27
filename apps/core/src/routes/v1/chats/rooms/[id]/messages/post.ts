@@ -14,6 +14,7 @@ import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-c
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { networkStamp } from "@/helpers/preprod-control";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
@@ -390,6 +391,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           excludeUserId: userContext.userId,
         });
 
+        // Read only for a message that mentions someone: a Preprod post
+        // without mentions writes no Network row.
+        const mentionStamp =
+          mentionedCoworkerIds.length + mentionedSokoBotIds.length > 0
+            ? await networkStamp(c.var.networkScope.network)
+            : undefined;
         const message = await tx.chatRoomMessage.create({
           data: {
             roomId: room.id,
@@ -401,10 +408,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             mentionsAsSource: {
               create: [
                 ...mentionedCoworkerIds.map((coworkerId) => ({
+                  ...mentionStamp,
                   coworkerId,
                   sokoBotId: null,
                 })),
                 ...mentionedSokoBotIds.map((sokoBotId) => ({
+                  ...mentionStamp,
                   coworkerId: null,
                   sokoBotId: sokoBotId,
                 })),

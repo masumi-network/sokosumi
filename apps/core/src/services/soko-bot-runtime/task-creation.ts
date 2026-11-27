@@ -4,6 +4,7 @@ import {
   type SokoBotDecisionTarget,
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
 } from "@sokosumi/soko-bot";
+import { networkStamp } from "@/helpers/preprod-control";
 import { jsonInput } from "@/helpers/prisma-json";
 import {
   buildSokoBotReaderTaskWhere,
@@ -309,7 +310,7 @@ export async function createTask(
         : undefined;
     await tx.sokoBotDelegation.create({
       data: {
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK)),
         turnId: authorized.turn.id,
         toolCallId,
         kind: "TASK",

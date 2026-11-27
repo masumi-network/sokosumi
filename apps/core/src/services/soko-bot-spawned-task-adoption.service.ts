@@ -1,4 +1,5 @@
 import { getEnv } from "@/config/env";
+import { networkStamp } from "@/helpers/preprod-control";
 import prisma from "@/lib/db/prisma";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
@@ -83,9 +84,10 @@ export async function adoptCoworkerSpawnedTasks(
     );
     const byBot = new Map(running.map((p) => [p.turn.sokoBotId, p.turnId]));
     if (!byBot.size) continue;
+    const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK);
     const created = await prisma.sokoBotDelegation.createMany({
       data: Array.from(byBot.values(), (turnId) => ({
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...stamp,
         turnId,
         // Stored keys from before sub-tasks existed: rows already use them.
         toolCallId: `subtask:${spawned.id}`,

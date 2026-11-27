@@ -1,6 +1,7 @@
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { v7 as uuidv7 } from "uuid";
 
+import { serviceUnavailable } from "@/helpers/error";
 import {
   preprodAccessOf,
   recordPreprodAccessChange,
@@ -8,6 +9,7 @@ import {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import { recordCoreError } from "@/lib/evlog";
+import type { Network } from "@/lib/network";
 
 /**
  * The Preprod pause and generation number: two `sync_metadata` rows on the
@@ -85,6 +87,28 @@ export async function readPreprodControl(): Promise<PreprodControl> {
     );
     return { state: "unavailable" };
   }
+}
+
+/**
+ * The `network` of a new row that work resumes from later (a Soko Bot turn,
+ * delegation or schedule, a chat mention), with the Preprod generation it
+ * starts under. A Mainnet row gets no generation and reads nothing. A Preprod
+ * row is written only while Preprod is open: paused or unavailable throws a
+ * retryable 503, so no Preprod row exists without its generation.
+ */
+export async function networkStamp(
+  network: Network,
+): Promise<{ network: Network; preprodGeneration?: number }> {
+  if (network === "mainnet") return { network };
+  const control = await readPreprodControl();
+  if (control.state !== "open") {
+    throw serviceUnavailable(
+      control.state === "paused"
+        ? "Preprod is paused; try again later"
+        : "Preprod's state could not be read; try again later",
+    );
+  }
+  return { network, preprodGeneration: control.generation };
 }
 
 /**
