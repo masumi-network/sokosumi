@@ -105,6 +105,24 @@ describe("createNetworkScope", () => {
   });
 });
 
+describe("createRefusedNetworkScope", () => {
+  it("throws the refusal on every Network member and serves the shared side", async () => {
+    const { createRefusedNetworkScope } = await import("./network-scope");
+    const refusal = new Error("refused");
+
+    const scope = createRefusedNetworkScope(refusal);
+
+    expect(() => scope.network).toThrow(refusal);
+    expect(() => scope.networkDb).toThrow(refusal);
+    expect(() => scope.networkTable("Job")).toThrow(refusal);
+    await expect(
+      scope.netTransaction(async () => "ran", "conflict"),
+    ).rejects.toBe(refusal);
+    expect(scope.sharedDb).toBe(clients.shared);
+    expect(networkPrisma).not.toHaveBeenCalled();
+  });
+});
+
 /**
  * Never called: `tsc` checks it. Each `@ts-expect-error` is a use that must
  * not compile, so loosening a type fails the typecheck here.
