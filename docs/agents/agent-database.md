@@ -90,13 +90,16 @@ When `CURSOR_AGENT=1` (or `CLOUD_AGENT_DB_FORCE=1`, which `pnpm db:up` sets)
 and Neon secrets are present, provision:
 
 1. Resolves the agent run id (`CLOUD_AGENT_RUN_ID`, else `CURSOR_CONVERSATION_ID`, e.g. `bc-…`)
-2. Reuses `cloud-agent-<run-id>` if it already exists (resume); otherwise creates
-   it from `NEON_PARENT_BRANCH` (never from another agent branch)
+2. Reuses `cloud-agent-<run-id>` if it already exists (resume) or creates it
+   from `NEON_PARENT_BRANCH` (never from another agent branch). For either
+   path, provision verifies the child's name, parent, default and protection
+   status, and checks both URLs against its read-write endpoint before saving
+   credentials or running migrations.
 3. Sets Neon `expires_at` to **now + 72 hours** (idle TTL)
 4. Writes:
    - `.agent-db/db.env` (shell-sourceable)
    - `.agent-db/urls.json` (for `with-db.mjs`)
-   - `.agent-db/state.json` (branch metadata)
+   - `.agent-db/state.json` (branch metadata and the verified direct hostname)
    - patches `apps/core/.env` and `apps/web/.env` when present, and writes
      `packages/database/.env`
    - in Cursor only (`CURSOR_AGENT=1`), injects a source block into
@@ -105,7 +108,7 @@ and Neon secrets are present, provision:
    Checkouts provisioned before `.agent-db/` keep `.cursor/cloud-agent-db.*`;
    `with-db.mjs`, teardown and `db:status` read those as a fallback, and the
    next provision moves them to `.agent-db/`.
-5. Runs `pnpm prisma:migrate:deploy` with `DATABASE_URL_UNPOOLED`
+5. Runs `pnpm prisma:migrate:deploy` with the verified URLs set explicitly
 6. Upserts **guarded auth fixtures** (known email/password logins) — agent
    branches only; never against production/`main`
 
@@ -125,8 +128,11 @@ provision upserts disposable Better Auth credential accounts:
 
 Fixtures opt into personal workspace + org by default. Set `createPersonalWorkspace: false` and omit / null `organization` in `scripts/agent-db/fixtures.mjs` to seed a zero-workspace user. Org fixtures still get an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
 
-**Guards:** fixtures run only when provision state has a `cloud-agent-*` branch
-name (and a `DATABASE_URL`). They refuse `main` / other non-agent branches.
+**Guards:** provisioned fixtures, including manual re-seeds, require
+`cloud-agent-*` branch state and a selected database URL matching its verified
+read-write endpoint. Run `pnpm db:up` or rerun agent DB provisioning to refresh
+older state that lacks a verified hostname. Forced local dry-runs can use a
+local Postgres URL without branch state.
 Skip with `CLOUD_AGENT_DB_SKIP_FIXTURES=1`. Manual re-run:
 
 ```bash
