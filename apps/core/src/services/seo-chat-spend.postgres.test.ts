@@ -14,6 +14,10 @@
  * (`POSTGRES_TEST_DATABASE_PER_WORKER`): another file's Serializable
  * transaction on the same database can make a charge retry, and a retry is
  * a second transaction in the statements.
+ *
+ * On the split layout a reply stops in its reservation, before any charge:
+ * `sendSeoChat` reads the turn's debit through the shared client.
+ * `origin/main` stops at the same statement, with the same rows.
  */
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -45,6 +49,7 @@ import {
   baseFile,
   observing,
   plain,
+  type Statement,
   statements,
 } from "@/test/spend-comparison";
 
@@ -438,6 +443,39 @@ async function race(name: string, first: 0 | 1) {
   }
 }
 
+const BUCKET_READ = /^WITH bucket_avail AS \(/;
+
+/**
+ * The race's one difference beyond the debit, measured, not chosen. On
+ * `origin/main` PostgreSQL cancels the loser's first attempt at its bucket
+ * read ("conflict out to pivot, during read"); now it cancels it one
+ * statement earlier, at the update of its turn ("identification as a pivot,
+ * during write"), so that attempt sends no bucket read. The retry, the
+ * answer and every row are the same. The only statements that differ in the
+ * winner's transaction are its debit's; its read-back is not the cause (put
+ * back, the cancel stays at the write). Base's transactions in order: two
+ * reservations, the winner's settlement, the loser's two attempts.
+ */
+function withTheLosersFirstAttemptCanceledAtItsWrite(
+  transactions: Statement[][],
+): Statement[][] {
+  const [first, second, winner, attempt, retry, ...more] = transactions;
+  if (!first || !second || !winner || !attempt || !retry || more.length > 0)
+    throw new Error("The race is not two reservations and three settlements");
+  const at = attempt.length - 2;
+  expect([
+    BUCKET_READ.test(attempt[at]?.sql ?? ""),
+    attempt.at(-1)?.sql,
+  ]).toEqual([true, "ROLLBACK"]);
+  return [
+    first,
+    second,
+    winner,
+    [...attempt.slice(0, at), ...attempt.slice(at + 1)],
+    retry,
+  ];
+}
+
 describe.skipIf(!enabled)(
   "an SEO chat reply's charge, as on origin/main (PostgreSQL)",
   () => {
@@ -576,6 +614,7 @@ describe.skipIf(!enabled)(
         expectAsOnBase(
           "a person, two replies race, the first reserved settles first",
           await race("first wins", 0),
+          withTheLosersFirstAttemptCanceledAtItsWrite,
         );
       },
       CASE_TIMEOUT,
@@ -587,6 +626,7 @@ describe.skipIf(!enabled)(
         expectAsOnBase(
           "a person, two replies race, the second reserved settles first",
           await race("second wins", 1),
+          withTheLosersFirstAttemptCanceledAtItsWrite,
         );
       },
       CASE_TIMEOUT,

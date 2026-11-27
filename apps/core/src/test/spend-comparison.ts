@@ -85,7 +85,7 @@ export async function observing<T>(
   }
 }
 
-interface Statement {
+export interface Statement {
   sql: string;
   values: unknown[];
 }
@@ -233,7 +233,15 @@ export function baseFile(path: string, recording: boolean) {
       ? (JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>)
       : {};
   return {
-    expectAsOnBase(key: string, observed: unknown): void {
+    /**
+     * `rewrite` names a further difference of one case, which the caller
+     * states and checks; it gets the base's transactions as recorded.
+     */
+    expectAsOnBase(
+      key: string,
+      observed: unknown,
+      rewrite: (transactions: Statement[][]) => Statement[][] = (same) => same,
+    ): void {
       if (recording) {
         writeFileSync(
           path,
@@ -247,7 +255,7 @@ export function baseFile(path: string, recording: boolean) {
         ...base,
         statements: {
           ...base.statements,
-          transactions: base.statements.transactions.map(
+          transactions: rewrite(base.statements.transactions).map(
             withTheDebitAsWrittenNow,
           ),
         },
