@@ -10,6 +10,7 @@ import {
   type EnvVariables,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { canUsePreprodInWorkspace, isPreprodOn } from "@/lib/network";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/ably-token.schema";
 
@@ -66,6 +67,17 @@ export default function mount(
       throw badRequest("Invalid clientInstanceId");
     }
 
+    // Preprod Job channels go to a browser session only, on purpose: Preprod
+    // itself is open to keys and tokens too (`hasPreprodAccess`), and only
+    // Web subscribes to Job channels. The flags are read only while it is on.
+    const { authContext } = c.var;
+    const sessionRole =
+      authContext.actor === "user" &&
+      authContext.authenticationMethod === "session"
+        ? { role: authContext.role }
+        : null;
+    const withPreprod = isPreprodOn() && sessionRole !== null;
+
     const [roomMemberships, orgMemberships, workspaces] = await Promise.all([
       prisma.chatRoomUserMember.findMany({
         where: {
@@ -89,7 +101,13 @@ export default function mount(
             },
           ],
         },
-        select: { id: true },
+        select: {
+          id: true,
+          ...(withPreprod && {
+            user: { select: { preprodEnabled: true } },
+            organization: { select: { preprodEnabled: true } },
+          }),
+        },
       }),
     ]);
 
@@ -98,6 +116,17 @@ export default function mount(
       roomIds: roomMemberships.map((m) => m.roomId),
       organizationIds: orgMemberships.map((m) => m.organizationId),
       workspaceIds: workspaces.map((workspace) => workspace.id),
+      preprodJobWorkspaceIds: withPreprod
+        ? workspaces
+            .filter((workspace) =>
+              canUsePreprodInWorkspace(
+                workspace.user ?? {},
+                sessionRole?.role,
+                { organization: workspace.organization ?? null },
+              ),
+            )
+            .map((workspace) => workspace.id)
+        : [],
       clientInstanceId,
     });
 

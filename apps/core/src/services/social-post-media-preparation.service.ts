@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   type SocialPostMediaRef,
   type SocialPostProvider,
+  socialPostAcceptedFormats,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
   socialPostProviderLabel,
@@ -62,7 +63,7 @@ export async function prepareSocialPostMedia(
     };
     if (socialPostMediaKindForMime(source.mimeType) !== source.kind)
       throw badRequest(
-        `Media file "${source.name}" is not a file type ${socialPostProviderLabel(provider)} accepts`,
+        `Media file "${source.name}" is not a file type ${socialPostProviderLabel(provider)} accepts. It takes ${socialPostAcceptedFormats(provider)}`,
       );
     if (
       source.kind !== "image" ||

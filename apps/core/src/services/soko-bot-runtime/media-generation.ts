@@ -5,6 +5,7 @@ import {
   sokoBotGetImageInputSchema as getImageInputSchema,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { requireProjectAccess } from "@/lib/image-studio/access";
@@ -416,7 +417,8 @@ export async function getStudioJob(
     // Access before reconciling: reconciliation calls the provider, and a
     // Project id the owner cannot open must not reach it.
     await requireProjectAccess(scope);
-    await reconcileProjectJobs(input.projectId);
+    // Image Studio is Mainnet only, whatever the turn's Network.
+    await reconcileProjectJobs(createNetworkScope("mainnet"), input.projectId);
     const job = await getJob({ ...scope, jobId: input.jobId });
     if (!job) return null;
     const styled = await styledChatPicture(runtime, authorized, job);

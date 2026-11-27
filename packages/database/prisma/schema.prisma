@@ -530,6 +530,7 @@ model Project {
   sitePlatform            String?
   logo                    String?
   studioLogoPosition      String?
+  studioBrandAssets       Json?
   studioBrandLook         Json?
   studioBrandLookRevision Int       @default(0)
   designMdUrl             String?
@@ -2811,6 +2812,9 @@ model SokoBotTurn {
   /// SQL-only CHECK `soko_bot_turn_network_check`.
   network String?
 
+  /// Preprod generation the row started under; null on every Mainnet row.
+  preprodGeneration Int?
+
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
@@ -3252,6 +3256,9 @@ model SokoBotDelegation {
   /// SQL-only CHECK `soko_bot_delegation_network_check`.
   network String?
 
+  /// Preprod generation the row started under; null on every Mainnet row.
+  preprodGeneration Int?
+
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
@@ -3439,6 +3446,9 @@ model SokoBotSchedule {
   /// SQL-only CHECK `soko_bot_schedule_network_check`.
   network String?
 
+  /// Preprod generation the row started under; null on every Mainnet row.
+  preprodGeneration Int?
+
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
@@ -3579,9 +3589,9 @@ model PreprodAccessChange {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
 
-  /// "user" | "organization"
+  /// "user" | "organization" | "network" (the Preprod pause)
   targetType String
-  /// User.id or Organization.id. Intentionally not a relation.
+  /// User.id, Organization.id, or "preprod". Intentionally not a relation.
   targetId   String
   /// The value the flag was switched to.
   enabled    Boolean
@@ -4922,6 +4932,12 @@ model ChatRoomMention {
   /// unattended cascade terminates whatever the models decide to say.
   chainDepth Int @default(0)
 
+  /// Network of the request that posted the mention. Null on legacy writes.
+  /// SQL-only CHECK `chat_room_mention_network_check`.
+  network           String?
+  /// Preprod generation the mention was posted under; null on every Mainnet row.
+  preprodGeneration Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -5563,6 +5579,8 @@ model ProjectImageJob {
   /// Files (a brand's product photos) sent as references after the assets,
   /// readable by the person who asked. Ids for the same reason as above.
   referenceFileIds  String[] @default([]) @db.Uuid
+  /// Leading Files references that depict brand assets. Any product photos follow them.
+  brandReferenceCount Int @default(0)
   /// Reference library images (`reference_image`) sent first, as the style to
   /// borrow: Cuso's pictures in the look of an old ad or poster.
   referenceLibraryIds String[] @default([]) @db.Uuid

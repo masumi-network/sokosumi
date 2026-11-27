@@ -41,6 +41,7 @@ import {
   loadSeoRankSources,
 } from "./project-seo-rank-sources";
 import { seoRankKeys, withSeoRankings } from "./project-seo-rankings";
+import { loadSeoRunDiffBaselines } from "./project-seo-run-diff-baselines";
 import { loadSeoBrandTerms } from "./project-seo-settings.service";
 import {
   canConfirmSeoCompetitor,
@@ -457,6 +458,11 @@ async function loadSeoWorkspaceObservations(
         })
       : [],
   ]);
+  const diffBaselines = await loadSeoRunDiffBaselines(
+    where,
+    evidence,
+    SEO_WORKSPACE_EVIDENCE_LIMIT,
+  );
   const taskIds = evidence.flatMap((row) =>
     row.kind === "audit_full" && row.sourceTaskId ? [row.sourceTaskId] : [],
   );
@@ -490,6 +496,7 @@ async function loadSeoWorkspaceObservations(
       evidence.length >= SEO_WORKSPACE_EVIDENCE_LIMIT ||
       metrics.length >= SEO_WORKSPACE_METRICS_LIMIT,
     evidenceLimited: evidence.length >= SEO_WORKSPACE_EVIDENCE_LIMIT,
+    diffBaselines,
   };
 }
 
@@ -511,7 +518,7 @@ export async function getProjectSeoWorkspace(
   const [
     pages,
     scopes,
-    { observations, historyLimited, evidenceLimited },
+    { observations, historyLimited, evidenceLimited, diffBaselines },
     keywords,
     competitors,
     analyses,
@@ -648,6 +655,7 @@ export async function getProjectSeoWorkspace(
     observations,
     historyLimited,
     evidenceLimited,
+    diffBaselines,
     reviewHistory,
     privateReviews,
     keywords,

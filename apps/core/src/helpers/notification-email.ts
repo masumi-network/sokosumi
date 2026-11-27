@@ -1,4 +1,3 @@
-import type { NotificationKind } from "@sokosumi/database";
 import type { TaskAttentionReason, TaskUpdateReason } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
@@ -12,6 +11,7 @@ import {
 import type { SendEmailInput } from "@/clients/email.client";
 import { TASK_COMPLETED_MESSAGE_KEY } from "@/helpers/notification-delivery";
 import {
+  type NotificationEmailLinkInput,
   notificationEmailLink,
   notificationSettingsLink,
   readString,
@@ -144,12 +144,8 @@ export function roomUnreadCountOf(
 }
 
 /** What the notification is about, spelled the way the email needs it. */
-export interface NotificationEmailInput {
-  kind: NotificationKind;
-  referenceId: string;
-  messageKey: string;
+export interface NotificationEmailInput extends NotificationEmailLinkInput {
   messageParams: Record<string, unknown>;
-  metadata?: Record<string, unknown> | null;
   recipientEmail: string;
   recipientName: null | string;
 }

@@ -12,7 +12,7 @@ import {
   Search,
   Settings2,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -20,7 +20,7 @@ import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoActionDetail } from "./seo-action-detail";
 import { SeoActionFinding } from "./seo-action-finding";
-import type { SeoAgentStep } from "./seo-agent-model";
+import { type SeoAgentStep, seoFixCheckState } from "./seo-agent-model";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { SeoGoogleConnection } from "./seo-google-connection";
 import type { SeoIssueSeverity } from "./seo-overview-model";
@@ -253,7 +253,9 @@ export function SeoActionStepRow({
   lead?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const format = useFormatter();
   const findingId = useId();
+  const checkState = seoFixCheckState(action, model.data);
   return (
     <li className="content-rise">
       <button
@@ -282,6 +284,17 @@ export function SeoActionStepRow({
               </span>
             ) : null}
           </span>
+          {/* A fix from an earlier check says where it stands now, as the test results of the last check count it. */}
+          {checkState ? (
+            <span className="text-muted-foreground mt-1 block text-xs">
+              {t(`agent.fixState.${checkState.state}`, {
+                day: format.dateTime(new Date(checkState.day), {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }),
+              })}
+            </span>
+          ) : null}
           {lead ? (
             <span
               id={findingId}

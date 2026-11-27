@@ -826,7 +826,12 @@ export function ImageStudio({
       ...(source.lettering ? { lettering: source.lettering } : {}),
       ...(exportHeadline ? { exportHeadline } : {}),
       ...(!reroll && !inheritsCutout && job?.referenceFileIds?.length
-        ? { referenceFileIds: job.referenceFileIds }
+        ? {
+            referenceFileIds: job.referenceFileIds,
+            ...(job.brandReferenceCount
+              ? { brandReferenceCount: job.brandReferenceCount }
+              : {}),
+          }
         : {}),
       ...(!reroll && !inheritsCutout && job?.useProductCutout
         ? { useProductCutout: true }

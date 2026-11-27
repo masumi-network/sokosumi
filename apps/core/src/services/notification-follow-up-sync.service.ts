@@ -5,6 +5,7 @@ import {
   type SendEmailInput,
   sendEmails,
 } from "@/clients/email.client";
+import { NON_PREPROD_NOTIFICATION_WHERE } from "@/helpers/notification-feed";
 import {
   FOLLOW_UP_SOURCE_MESSAGE_KEYS,
   followUpEventId,
@@ -522,6 +523,7 @@ export async function sendFollowUps(
       where: {
         isRead: false,
         inApp: true,
+        AND: [NON_PREPROD_NOTIFICATION_WHERE],
         messageKey: { in: [...FOLLOW_UP_SOURCE_MESSAGE_KEYS] },
         createdAt: {
           // The first page opens at the window. Every later one opens at the

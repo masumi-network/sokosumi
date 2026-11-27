@@ -12,10 +12,10 @@ const WORKSPACE_ID = "01992833-2810-7000-8000-000000000001";
 
 function createTransaction() {
   const queryRaw = vi.fn();
-  const taskX402PaymentFindFirst = vi.fn();
   const taskScheduleOccurrenceDeleteMany = vi.fn();
   const taskLinkDeleteMany = vi.fn();
-  const taskX402PaymentDeleteMany = vi.fn();
+  // The sweep of the workspace's payments: raw SQL on a Network's table.
+  const paymentSweep = vi.fn();
   const taskScheduleCreateOperationDeleteMany = vi.fn();
   const taskEventDeleteMany = vi.fn();
   const taskDeleteMany = vi.fn();
@@ -32,10 +32,7 @@ function createTransaction() {
   return {
     tx: {
       $queryRaw: queryRaw,
-      taskX402Payment: {
-        findFirst: taskX402PaymentFindFirst,
-        deleteMany: taskX402PaymentDeleteMany,
-      },
+      $executeRaw: paymentSweep,
       taskScheduleRun: {
         deleteMany: taskScheduleOccurrenceDeleteMany,
       },
@@ -62,11 +59,10 @@ function createTransaction() {
       },
     },
     queryRaw,
-    taskX402PaymentFindFirst,
     deletionMocks: [
       taskScheduleOccurrenceDeleteMany,
       taskLinkDeleteMany,
-      taskX402PaymentDeleteMany,
+      paymentSweep,
       taskScheduleCreateOperationDeleteMany,
       taskEventDeleteMany,
       taskDeleteMany,
@@ -78,6 +74,25 @@ function createTransaction() {
       calendarInvalidationOutboxDeleteMany,
     ],
   };
+}
+
+const UNRESOLVED_PAYMENT_READ = 7;
+const LIVE_AUTHORIZATION_READ = 8;
+
+/**
+ * Answers the lock's raw queries by position: the workspace row first, then
+ * six more locks, then the two payment reads. PostgreSQL proves the
+ * statements (`calendar-erasure.postgres.test.ts`); this holds their order.
+ */
+function answerLockQueries(
+  queryRaw: ReturnType<typeof vi.fn>,
+  rows: Record<number, unknown[]> = {},
+) {
+  let position = 0;
+  queryRaw.mockImplementation(async () => {
+    const index = position++;
+    return index === 0 ? [{ id: WORKSPACE_ID }] : (rows[index] ?? []);
+  });
 }
 
 function capturedQuery(call: unknown[]) {
@@ -105,17 +120,15 @@ describe("calendar erasure", () => {
   });
 
   it("locks workspace calendar data in canonical parent-to-child order", async () => {
-    const { tx, queryRaw, taskX402PaymentFindFirst } = createTransaction();
-    queryRaw
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValue([]);
-    taskX402PaymentFindFirst.mockResolvedValue(null);
+    const { tx, queryRaw } = createTransaction();
+    answerLockQueries(queryRaw);
 
     await lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID);
 
-    expect(queryRaw).toHaveBeenCalledTimes(7);
+    // Seven locks, then the two payment reads.
+    expect(queryRaw).toHaveBeenCalledTimes(9);
     const queries = queryRaw.mock.calls.map(capturedQuery);
-    expect(queries.map((query) => query.sql)).toEqual([
+    expect(queries.slice(0, 7).map((query) => query.sql)).toEqual([
       expect.stringMatching(/FROM "public"."workspace"[\s\S]*FOR UPDATE/),
       expect.stringMatching(/FROM "public"."project"[\s\S]*FOR UPDATE/),
       expect.stringMatching(/FROM "public"."task"[\s\S]*FOR UPDATE/),
@@ -133,18 +146,14 @@ describe("calendar erasure", () => {
     expect(queries.every((query) => query.values.includes(WORKSPACE_ID))).toBe(
       true,
     );
-    expect(queryRaw.mock.invocationCallOrder[6]).toBeLessThan(
-      taskX402PaymentFindFirst.mock.invocationCallOrder[0] ?? Infinity,
-    );
+    expect(queries[UNRESOLVED_PAYMENT_READ].sql).not.toContain("FOR UPDATE");
   });
 
   it("blocks erasure before cleanup when a payment is unresolved", async () => {
-    const { tx, queryRaw, taskX402PaymentFindFirst, deletionMocks } =
-      createTransaction();
-    queryRaw
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValue([]);
-    taskX402PaymentFindFirst.mockResolvedValueOnce({ id: "payment-1" });
+    const { tx, queryRaw, deletionMocks } = createTransaction();
+    answerLockQueries(queryRaw, {
+      [UNRESOLVED_PAYMENT_READ]: [{ id: "payment-1" }],
+    });
 
     await expect(
       lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID),
@@ -152,21 +161,17 @@ describe("calendar erasure", () => {
       name: "CalendarErasureBlockedError",
       blocker: "task_payment_unresolved",
     });
-    expect(taskX402PaymentFindFirst).toHaveBeenCalledTimes(1);
+    expect(queryRaw).toHaveBeenCalledTimes(UNRESOLVED_PAYMENT_READ + 1);
     for (const deleteMany of deletionMocks) {
       expect(deleteMany).not.toHaveBeenCalled();
     }
   });
 
   it("blocks erasure when a payment authorization remains live", async () => {
-    const { tx, queryRaw, taskX402PaymentFindFirst, deletionMocks } =
-      createTransaction();
-    queryRaw
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValue([]);
-    taskX402PaymentFindFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "payment-1" });
+    const { tx, queryRaw, deletionMocks } = createTransaction();
+    answerLockQueries(queryRaw, {
+      [LIVE_AUTHORIZATION_READ]: [{ id: "payment-1" }],
+    });
 
     await expect(
       lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID),
@@ -182,12 +187,8 @@ describe("calendar erasure", () => {
   });
 
   it("deletes children before parents and clears retained workspace history", async () => {
-    const { tx, queryRaw, taskX402PaymentFindFirst, deletionMocks } =
-      createTransaction();
-    queryRaw
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValue([]);
-    taskX402PaymentFindFirst.mockResolvedValue(null);
+    const { tx, queryRaw, deletionMocks } = createTransaction();
+    answerLockQueries(queryRaw);
 
     await expect(
       lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID),

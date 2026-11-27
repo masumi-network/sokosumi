@@ -211,6 +211,11 @@ const AGENT_EDITS: readonly [method: string, path: string, body: object][] = [
     },
   ],
   ["POST", `${P}/image-studio/website-draft`, {}],
+  [
+    "PATCH",
+    `${P}/image-studio/brand-kit/assets`,
+    { remove: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+  ],
   ["PUT", `${P}/image-studio/brand-kit/look`, { look: null, lookRevision: 0 }],
   ["POST", `${P}/image-studio/brand-kit/logo`, logoUpload()],
   ["POST", `${P}/image-studio/brand-kit/logo/website`, {}],

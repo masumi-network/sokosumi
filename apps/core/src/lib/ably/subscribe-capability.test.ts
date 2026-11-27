@@ -15,11 +15,13 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a", "room-b"],
       organizationIds: [],
       workspaceIds: ["workspace-personal"],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
+      "agent_jobs:mainnet:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
       "notifications:all:user_user_123": [
         "subscribe",
@@ -45,6 +47,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a", "room-b"],
       organizationIds: ["org_a"],
       workspaceIds: [],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -67,6 +70,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a"],
       organizationIds: ["org_a"],
       workspaceIds: ["workspace-personal", "workspace-org-a"],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -88,6 +92,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: [],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: {
         network: "Mainnet",
         vercelEnv: "preview",
@@ -111,6 +116,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["r1"],
       organizationIds: ["o1"],
       workspaceIds: ["w1"],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: {
         network: "Mainnet",
         vercelEnv: "preview",
@@ -119,12 +125,34 @@ describe("buildAblyClientCapability", () => {
     });
 
     const keys = Object.keys(capability);
-    expect(keys).toHaveLength(9);
+    expect(keys).toHaveLength(10);
     for (const key of keys) {
       expect(key.split(":").slice(1, 4).join(":")).toBe(
         "preview:mainnet:branch_fix%2Fx",
       );
     }
+  });
+
+  it("grants Preprod Job status per named Workspace, never by a wildcard", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: [],
+      organizationIds: [],
+      workspaceIds: ["workspace-a", "workspace-b"],
+      preprodJobWorkspaceIds: ["workspace-b"],
+      channelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
+
+    expect(
+      Object.keys(capability).filter((key) => key.startsWith("agent_jobs:")),
+    ).toEqual([
+      "agent_jobs:*:user_user_123",
+      "agent_jobs:mainnet:*:user_user_123",
+      "agent_jobs:preprod:workspace_workspace-b:user_user_123",
+    ]);
+    expect(
+      capability["agent_jobs:preprod:workspace_workspace-b:user_user_123"],
+    ).toEqual(["subscribe"]);
   });
 
   it("grants presence on each organization channel", () => {
@@ -133,6 +161,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a"],
       organizationIds: ["org_a", "org_b"],
       workspaceIds: ["workspace-org-a", "workspace-org-b"],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -147,6 +176,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: [],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -165,6 +195,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: ["room-a"],
       organizationIds: [],
       workspaceIds: [],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -178,6 +209,7 @@ describe("buildAblyClientCapability", () => {
       roomIds: [],
       organizationIds: [],
       workspaceIds: ["workspace-personal", "workspace-org-a"],
+      preprodJobWorkspaceIds: [],
       channelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 

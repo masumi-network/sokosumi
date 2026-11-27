@@ -87,7 +87,7 @@ beforeAll(async () => {
   );
   await waitFor(() =>
     expect(
-      screen.getByLabelText<HTMLTextAreaElement>(LABELS.approvedLines).disabled,
+      screen.getByLabelText(LABELS.approvedLines).matches(":disabled"),
     ).toBe(false),
   );
   markup = document.body.innerHTML;
@@ -177,6 +177,35 @@ describe("Content Studio brand kit dialog", () => {
 
       await expectOnScreen(LABELS.close);
       await expectOnScreen(LABELS.save);
+    },
+  );
+
+  it.each([
+    [390, 844],
+    [1440, 900],
+  ])(
+    "puts the logo controls on the logo tile, named and tappable, at %ipx",
+    async (width, height) => {
+      await showDialog(width, height);
+      for (const name of [LABELS.uploadLogo, LABELS.findWebsiteLogo]) {
+        const button = page.getByRole("button", { name, exact: true });
+        const placement = await button.evaluate((element) => {
+          const tile = element.closest('[role="group"]');
+          if (!tile) return null;
+          const control = element.getBoundingClientRect();
+          const box = tile.getBoundingClientRect();
+          return {
+            inside:
+              control.left >= box.left &&
+              control.right <= box.right &&
+              control.top >= box.top &&
+              control.bottom <= box.bottom,
+            size: Math.min(control.width, control.height),
+          };
+        });
+        expect(placement?.inside).toBe(true);
+        expect(placement?.size).toBeGreaterThanOrEqual(width < 768 ? 40 : 32);
+      }
     },
   );
 });

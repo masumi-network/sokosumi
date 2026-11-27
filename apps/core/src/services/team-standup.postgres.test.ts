@@ -229,7 +229,12 @@ describe.skipIf(!enabled)("team stand-up", () => {
                 senderSokoBotId: true,
                 content: true,
                 mentionsAsSource: {
-                  select: { coworkerId: true, chainDepth: true },
+                  select: {
+                    coworkerId: true,
+                    chainDepth: true,
+                    network: true,
+                    preprodGeneration: true,
+                  },
                 },
               },
             },
@@ -265,7 +270,15 @@ describe.skipIf(!enabled)("team stand-up", () => {
     expect(bot!.replies).toHaveLength(1);
     expect(bot!.replies[0]).toMatchObject({
       senderSokoBotId: world.bot.id,
-      mentionsAsSource: [{ coworkerId: world.mira.id, chainDepth: 1 }],
+      // A stand-up is unattended: its hand-off is Mainnet by name.
+      mentionsAsSource: [
+        {
+          coworkerId: world.mira.id,
+          chainDepth: 1,
+          network: "mainnet",
+          preprodGeneration: null,
+        },
+      ],
     });
     expect(bot!.replies[0]!.content).toContain("- Goal: a DACH market study");
     expect(dispatched).toHaveLength(1);
