@@ -180,7 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
-      "switchOrganization": "Switch organisation",
+      "switchWorkspaceCurrent": "Switch workspace (current: {name})",
       "personalAccount": "Personal account",
       "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",

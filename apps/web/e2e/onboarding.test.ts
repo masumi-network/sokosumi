@@ -355,15 +355,117 @@ for (const { name, ...viewport } of PROJECTS) {
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });
-      // They picked Personal, so the switcher says Personal, not their name.
+      // Every composer tool shows: on a phone Home's padding once pushed
+      // "Add a skill" out of the toolbar's visible width.
+      const skillShown = await saved
+        .getByRole("main")
+        .getByRole("button", { name: "Add a skill" })
+        .evaluate((button) => {
+          const bar = button.parentElement?.getBoundingClientRect();
+          const box = button.getBoundingClientRect();
+          return !!bar && box.left >= bar.left && box.right <= bar.right + 1;
+        });
+      assert.ok(skillShown, "Add a skill shows inside the composer toolbar");
       const showSidebar = saved.getByRole("button", { name: "Show sidebar" });
+      if (viewport.width >= 768 && (await showSidebar.isVisible())) {
+        // With the sidebar folded, the rail's workspace button is a face
+        // alone; its name says what it does and which workspace is on.
+        await saved
+          .getByRole("button", {
+            name: "Switch workspace (current: Personal)",
+            exact: true,
+          })
+          .waitFor();
+      }
+      // They picked Personal, so the switcher says Personal, not their name.
       if (await showSidebar.isVisible()) await showSidebar.click();
+      // The bot is one row under Direct messages: its Direct, with the
+      // team's Soko Bots at its end. It and the phone's All chats sit on the
+      // same column as the rows around them, not 8px further in.
+      const rows: Record<string, string> = {
+        home: '[data-sidebar="menu-button"][href$="/chat"]',
+        sokoBot:
+          '[data-slot="room-row-main"]:has(a[href$="/agents"]) [data-sidebar="menu-button"]',
+        ...(viewport.width < 768 && {
+          allChats: '[data-sidebar="menu-button"][href$="/chat/rooms"]',
+        }),
+      };
+      for (const selector of Object.values(rows)) {
+        await saved
+          .locator(selector)
+          .filter({ visible: true })
+          .first()
+          .waitFor();
+      }
+      // The sheet and the sidebar slide in, so every row is read in one
+      // frame, once two frames in a row agree.
+      const lefts = await saved.evaluate(async (selectors) => {
+        const read = () =>
+          JSON.stringify(
+            Object.fromEntries(
+              Object.entries(selectors).map(([key, selector]) => {
+                const row = [...document.querySelectorAll(selector)].find(
+                  (el) => el.getBoundingClientRect().width > 0,
+                );
+                return [
+                  key,
+                  Math.round(row?.getBoundingClientRect().left ?? -1),
+                ];
+              }),
+            ),
+          );
+        const frame = () => new Promise((done) => requestAnimationFrame(done));
+        let last = read();
+        for (let i = 0; i < 120; i++) {
+          await frame();
+          const next = read();
+          if (next === last) break;
+          last = next;
+        }
+        return JSON.parse(last) as Record<string, number>;
+      }, rows);
+      for (const [key, left] of Object.entries(lefts)) {
+        assert.equal(left, lefts.home, `${key} starts where Home does`);
+      }
+      const botRows = await saved
+        .locator('[data-sidebar="menu-button"][href$="/personal-assistant"]')
+        .filter({ visible: true })
+        .count();
+      assert.equal(botRows, 0, `${BOT} is listed once`);
       await saved
         .getByRole("button", { name: "Personal", exact: true })
         .click();
       await saved
         .getByRole("menuitem", { name: /^Personal\b.*Just you$/ })
         .waitFor();
+      await saved.keyboard.press("Escape");
+      // The people icon at the end of the bot's row is its own target: it
+      // opens the team's Soko Bots, not the row's chat or its menu, and on a
+      // phone it closes the sheet like any sidebar link.
+      const team = saved
+        .locator('[data-slot="room-row-main"]')
+        .filter({ visible: true })
+        .getByRole("link", { name: "Your team's Soko Bots", exact: true });
+      const sidebarUrl = saved.url();
+      // Pressed 2px inside its right edge, next to the menu: still the team.
+      const teamBox = await team.boundingBox();
+      assert.ok(teamBox, "the team link has a box");
+      assert.ok(
+        teamBox.width >= (viewport.width < 768 ? 40 : 32),
+        "the team link is a full target",
+      );
+      await team.click({
+        position: { x: teamBox.width - 2, y: teamBox.height / 2 },
+      });
+      await saved.waitForURL(/\/agents$/);
+      await saved
+        .locator('[data-slot="sidebar"][data-mobile="true"]')
+        .waitFor({ state: "detached" });
+      // Back where it was, with the sidebar open again.
+      await saved.goBack();
+      await saved.waitForURL(sidebarUrl);
+      if (await showSidebar.isVisible()) await showSidebar.click();
+      await team.waitFor();
       if (viewport.width < 768) {
         // Back to chats is one tap to the phone's global Search and New task.
         await page.getByRole("link", { name: "Back to chats" }).click();

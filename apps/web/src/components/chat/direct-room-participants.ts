@@ -32,6 +32,23 @@ export function getDirectParticipants(
   }));
 }
 
+/**
+ * Your own Soko Bot's id when the room is your Direct with it alone. Read
+ * from the room, so the server knows it too, before any status poll.
+ */
+export function ownSokoBotIdOfDirect(
+  room: ChatRoom,
+  currentUserId: string,
+): string | null {
+  const bot = room.sokoBotMembers.find(
+    ({ scope, ownerUserId }) =>
+      scope === "personal" && ownerUserId === currentUserId,
+  );
+  return bot && isDirectWithSokoBot(room, currentUserId, bot.id)
+    ? bot.id
+    : null;
+}
+
 /** A Direct of you and one Soko Bot, which its row can say the status of. */
 export function isDirectWithSokoBot(
   room: ChatRoom,
