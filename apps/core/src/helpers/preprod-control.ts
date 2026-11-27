@@ -7,6 +7,7 @@ import {
   preprodAccessOf,
   recordPreprodAccessChange,
 } from "@/helpers/preprod-access";
+import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import { recordCoreError } from "@/lib/evlog";
@@ -45,9 +46,6 @@ export type PreprodControl =
 
 type KnownPreprodControl = Exclude<PreprodControl, { state: "unavailable" }>;
 
-/** A stored value the reader does not accept. */
-class InvalidPreprodControlError extends Error {}
-
 /** One statement for both rows. Throws on a failed read or an invalid value. */
 async function readControl(db: DbClient): Promise<KnownPreprodControl> {
   return controlOf(
@@ -72,7 +70,7 @@ function controlOf(
       Number.isSafeInteger(generation)
     )
   ) {
-    throw new InvalidPreprodControlError(
+    throw new Error(
       `Preprod generation is not a count: ${JSON.stringify(stored.cursorId)}`,
     );
   }
@@ -108,11 +106,15 @@ const UNREADABLE = {
  * row is written only while Preprod is open: paused or unavailable throws a
  * retryable 503, so no Preprod row exists without its generation.
  *
- * `tx` is the transaction that writes the row. The read locks both control
- * rows `FOR SHARE` in it until that write commits, and a pause or a raise
- * locks the pause row `FOR UPDATE`, so they run in a defined order: the row
- * commits before the pause or raise, or its write sees them. A database
- * error is not caught: the transaction's own retry and error rules apply.
+ * `tx` is the transaction that writes the row. The pause row is the only
+ * fence: the stamp locks it `FOR SHARE` until the write commits, and every
+ * operator action (pause, open, raise) updates it first (`fencePause`). So
+ * the row commits before the action, or waits for it: then a Read Committed
+ * writer reads the new values in the next statement, and a serializable one
+ * fails with 40001 and its transaction retries. The generation is read in a
+ * second statement, unlocked, so there is one lock order everywhere (pause,
+ * then generation). A transaction conflict is rethrown for the caller's
+ * retry; any other failed read is the unavailable 503.
  */
 export async function networkStamp(
   network: Network,
@@ -121,14 +123,20 @@ export async function networkStamp(
   if (network === "mainnet") return { network };
   let control: KnownPreprodControl;
   try {
-    control = controlOf(
-      await tx.$queryRaw<{ key: string; cursorId: string | null }[]>`
-        SELECT "key", "cursorId" FROM ${sharedTable("sync_metadata")}
-        WHERE "key" IN (${PREPROD_PAUSE_KEY}, ${PREPROD_GENERATION_KEY})
-        FOR SHARE`,
-    );
+    const pause = await tx.$queryRaw<
+      { key: string; cursorId: string | null }[]
+    >`
+      SELECT "key", "cursorId" FROM ${sharedTable("sync_metadata")}
+      WHERE "key" = ${PREPROD_PAUSE_KEY}
+      FOR SHARE`;
+    const generation = await tx.$queryRaw<
+      { key: string; cursorId: string | null }[]
+    >`
+      SELECT "key", "cursorId" FROM ${sharedTable("sync_metadata")}
+      WHERE "key" = ${PREPROD_GENERATION_KEY}`;
+    control = controlOf([...pause, ...generation]);
   } catch (error) {
-    if (!(error instanceof InvalidPreprodControlError)) throw error;
+    if (isPrismaTransactionConflict(error)) throw error;
     recordCoreError(
       { operation: "read_preprod_control" },
       { ...UNREADABLE, cause: error },
@@ -146,6 +154,26 @@ export async function networkStamp(
     });
   }
   return { network, preprodGeneration: control.generation };
+}
+
+/**
+ * The fence every operator action takes first: the pause row exists (a
+ * missing row is paused, so it is created as paused) and is really updated,
+ * a no-op that changes no value. The update, not only a lock, is what makes
+ * a serializable writer that read the row before fail with 40001.
+ */
+async function fencePause(tx: Prisma.TransactionClient) {
+  await tx.syncMetadata.createMany({
+    data: {
+      key: PREPROD_PAUSE_KEY,
+      cursorId: PAUSED,
+      lastSyncedAt: await databaseNow(tx),
+    },
+    skipDuplicates: true,
+  });
+  await tx.$executeRaw`
+    UPDATE ${sharedTable("sync_metadata")} SET "cursorId" = "cursorId"
+    WHERE "key" = ${PREPROD_PAUSE_KEY}`;
 }
 
 /**
@@ -182,20 +210,9 @@ export function setPreprodPaused(input: {
   const { paused, operatorId, reason } = input;
   const value = paused ? PAUSED : OPEN;
   return prisma.$transaction(async (tx) => {
-    // A missing row is paused, so it is created as paused: the update below
-    // then decides alone whether anything changes.
-    await tx.syncMetadata.createMany({
-      data: {
-        key: PREPROD_PAUSE_KEY,
-        cursorId: PAUSED,
-        lastSyncedAt: await databaseNow(tx),
-      },
-      skipDuplicates: true,
-    });
-    await tx.$queryRaw`
-      SELECT 1 FROM ${sharedTable("sync_metadata")}
-      WHERE "key" = ${PREPROD_PAUSE_KEY}
-      FOR UPDATE`;
+    // The fence creates a missing row as paused: the update below then
+    // decides alone whether anything changes.
+    await fencePause(tx);
     const { count } = await tx.syncMetadata.updateMany({
       where: {
         key: PREPROD_PAUSE_KEY,
@@ -219,16 +236,13 @@ export function setPreprodPaused(input: {
  * gives 1. One statement under the row's lock, so two raises at once give two
  * numbers. A stored value the reader would not accept (not canonical decimal
  * text, or at the safe-integer limit) is left as it is, and the raise throws.
- * The pause row is locked first, as a pause locks it, so a Preprod row being
+ * The pause row is fenced first (`fencePause`), so a Preprod row being
  * written (`networkStamp`) commits before the raise or sees the new number.
  * Called by the wipe (ticket 41), by no route.
  */
 export async function raisePreprodGeneration(): Promise<number> {
   const [row] = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`
-      SELECT 1 FROM ${sharedTable("sync_metadata")}
-      WHERE "key" = ${PREPROD_PAUSE_KEY}
-      FOR UPDATE`;
+    await fencePause(tx);
     // The CASE keeps the cast from running on text that is not a count.
     return tx.$queryRaw<{ generation: string }[]>`
     INSERT INTO ${sharedTable("sync_metadata")} AS m ("id", "key", "cursorId", "lastSyncedAt", "updatedAt")
