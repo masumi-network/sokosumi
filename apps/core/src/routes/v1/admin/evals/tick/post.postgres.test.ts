@@ -12,10 +12,9 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-const { env, pending, outcomes, sendEmail } = vi.hoisted(() => ({
+const { env, outcomes, sendEmail } = vi.hoisted(() => ({
   /** What this Core's `getEnv()` says on top of the real values. */
   env: {} as { NETWORK?: "Mainnet" | "Preprod"; EVALS_REPORT_EMAILS?: string },
-  pending: [] as Promise<unknown>[],
   /** Which cases have finished, per lane; a case not listed stays running. */
   outcomes: new Map<string, "PASSED" | "FAILED">(),
   sendEmail: vi.fn(async (_input: unknown) => ({ id: "email-1" })),
@@ -32,7 +31,7 @@ vi.mock("@/config/env", async (importOriginal) => {
 vi.mock("@/clients/email.client", () => ({ sendEmail }));
 vi.mock("@vercel/functions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vercel/functions")>()),
-  waitUntil: (work: Promise<unknown>) => pending.push(work),
+  waitUntil: vi.fn(),
 }));
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -113,10 +112,12 @@ vi.mock("@/services/evals/eval-case-runner", async (importOriginal) => {
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { pollEvalCase } from "@/services/evals/eval-case-runner";
 import {
   createEvalRun,
   EVAL_RUN_TIMEOUT_MS,
 } from "@/services/evals/eval-runs.service";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mount from "./post";
 
 const CASE = "ambiguous-request";
@@ -127,7 +128,6 @@ async function tick(): Promise<{ runId: string | null; completed: boolean }> {
   const response = await app.request("/tick", { method: "POST" });
   const body = await response.json();
   expect(response.status, JSON.stringify(body)).toBe(200);
-  await Promise.all(pending.splice(0));
   return body.data;
 }
 
@@ -185,7 +185,7 @@ describe.skipIf(!enabled)("POST /admin/evals/tick on PostgreSQL", () => {
   beforeEach(async () => {
     outcomes.clear();
     sendEmail.mockClear();
-    pending.length = 0;
+    vi.mocked(pollEvalCase).mockClear();
     for (const key of Object.keys(env)) delete env[key as keyof typeof env];
     await prisma.evalRun.deleteMany({});
   });
@@ -199,16 +199,21 @@ describe.skipIf(!enabled)("POST /admin/evals/tick on PostgreSQL", () => {
     await prisma.$disconnect();
   });
 
-  it("leaves another environment's queued and running runs alone and starts its own", async () => {
+  it("waits while a copied run is running, times it out like any stuck run, then starts its own", async () => {
+    expectCoreLogWhys("warn", "Timed out an eval run that was stuck", [
+      "It was still running 24 hours after it started",
+    ]);
     runOn("local");
-    // Past the timeout: a Core that picked it would time it out.
-    const stuckSince = new Date(
-      (await databaseNow()).getTime() - EVAL_RUN_TIMEOUT_MS - 60_000,
-    );
-    const running = await copiedRun("RUNNING", stuckSince);
+    env.EVALS_REPORT_EMAILS = "evals@sokosumi.test";
+    const running = await copiedRun("RUNNING", await databaseNow());
     const queued = await copiedRun("QUEUED");
+    const own = await createEvalRun({ trigger: "MANUAL", caseIds: [CASE] });
+    expect(own.environment).toBe("local");
 
+    // The copied run holds the lanes: this Core neither advances it nor
+    // starts its own run.
     expect(await tick()).toMatchObject({ runId: null, completed: false });
+    expect(pollEvalCase).not.toHaveBeenCalled();
     expect(await state(running.id)).toEqual({
       status: "RUNNING",
       results: ["RUNNING"],
@@ -217,22 +222,35 @@ describe.skipIf(!enabled)("POST /admin/evals/tick on PostgreSQL", () => {
       status: "QUEUED",
       results: ["PENDING"],
     });
+    expect(await state(own.id)).toEqual({
+      status: "QUEUED",
+      results: ["PENDING"],
+    });
 
-    const own = await createEvalRun({ trigger: "MANUAL", caseIds: [CASE] });
-    expect(own.environment).toBe("local");
+    // A day on, the copied run is stuck, as on any database.
+    await prisma.evalRun.update({
+      where: { id: running.id },
+      data: {
+        startedAt: new Date(
+          (await databaseNow()).getTime() - EVAL_RUN_TIMEOUT_MS - 60_000,
+        ),
+      },
+    });
     expect((await tick()).runId).toBe(own.id);
+    expect(pollEvalCase).not.toHaveBeenCalled();
+    expect(await state(running.id)).toEqual({
+      status: "COMPLETED",
+      results: ["ERROR"],
+    });
     expect(await state(own.id)).toEqual({
       status: "RUNNING",
       results: ["RUNNING"],
     });
-    expect(await state(running.id)).toEqual({
-      status: "RUNNING",
-      results: ["RUNNING"],
-    });
     expect(await state(queued.id)).toEqual({
       status: "QUEUED",
       results: ["PENDING"],
     });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("starts mainnet's own queued run on mainnet's production as before", async () => {
