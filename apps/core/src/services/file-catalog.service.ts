@@ -8,7 +8,6 @@ import {
 } from "@sokosumi/database";
 import { normalizeFileResourceName } from "@sokosumi/utils";
 
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { enqueueFileIndexJob } from "@/lib/files/index-jobs";
@@ -100,83 +99,32 @@ export async function reserveDriveUploadResource(input: {
       return { resourceId: existing.id, versionId: version.id };
     }
 
-    return createPendingResource(tx, input);
-  });
-}
-
-type PendingUpload = Parameters<typeof reserveDriveUploadResource>[0];
-
-async function createPendingResource(
-  tx: Prisma.TransactionClient,
-  input: PendingUpload,
-): Promise<{ resourceId: string; versionId: string }> {
-  const { key } = input;
-  const resource = await tx.fileResource.create({
-    data: {
-      workspaceId: key.workspaceId,
-      sourceKind: FileSourceKind.DRIVE_UPLOAD,
-      sourceScope: toSourceScope(key.scope),
-      sourceId: key.pathname,
-      ownerUserId: key.scope === "user" ? key.ownerId : null,
-      ownerOrganizationId: key.scope === "organization" ? key.ownerId : null,
-      displayName: input.displayName,
-      normalizedName: normalizeFileResourceName(input.displayName),
-      mimeType: input.mimeType,
-      sizeBytes: input.sizeBytes,
-      lifecycle: FileResourceLifecycle.PENDING,
-      versions: {
-        create: {
-          revision: 1,
-          objectKey: key.pathname,
-          sizeBytes: input.sizeBytes,
-          mimeType: input.mimeType,
+    const resource = await tx.fileResource.create({
+      data: {
+        workspaceId: key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope,
+        sourceId: key.pathname,
+        ownerUserId: key.scope === "user" ? key.ownerId : null,
+        ownerOrganizationId: key.scope === "organization" ? key.ownerId : null,
+        displayName: input.displayName,
+        normalizedName: normalizeFileResourceName(input.displayName),
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        lifecycle: FileResourceLifecycle.PENDING,
+        versions: {
+          create: {
+            revision: 1,
+            objectKey: key.pathname,
+            sizeBytes: input.sizeBytes,
+            mimeType: input.mimeType,
+          },
         },
       },
-    },
-    select: { id: true, versions: { select: { id: true } } },
-  });
-  return { resourceId: resource.id, versionId: resource.versions[0].id };
-}
-
-/**
- * A new document at a pathname, or null when any entry already holds it,
- * pending or live. Unlike {@link reserveDriveUploadResource} it never takes
- * over an existing entry, so the caller owns exactly the row it gets back
- * and may release it with {@link releaseDriveUploadClaim}.
- */
-export async function claimDriveUploadResource(
-  input: PendingUpload,
-): Promise<{ resourceId: string } | null> {
-  const { key } = input;
-  try {
-    return await prisma.$transaction(async (tx) => {
-      await ensureEvidenceScope(
-        {
-          workspaceId: key.workspaceId,
-          sourceKind: FileSourceKind.DRIVE_UPLOAD,
-          sourceScope: toSourceScope(key.scope),
-          sourceId: key.ownerId,
-        },
-        tx,
-      );
-      return createPendingResource(tx, input);
+      select: { id: true, versions: { select: { id: true } } },
     });
-  } catch (error) {
-    if (isPrismaUniqueViolation(error)) return null;
-    throw error;
-  }
-}
 
-/**
- * Drops a claim that never went live, freeing its pathname. Only the
- * claimed row, and only while still pending: a live document is never
- * removed here.
- */
-export async function releaseDriveUploadClaim(
-  resourceId: string,
-): Promise<void> {
-  await prisma.fileResource.deleteMany({
-    where: { id: resourceId, lifecycle: FileResourceLifecycle.PENDING },
+    return { resourceId: resource.id, versionId: resource.versions[0].id };
   });
 }
 

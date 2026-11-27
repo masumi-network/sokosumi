@@ -13,13 +13,15 @@ vi.mock("@/lib/utils/file-search.client", async (importOriginal) => ({
 }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
-vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({}) }));
-vi.mock("@/queries/drive", () => ({ invalidateDrive: vi.fn() }));
+const save = vi.hoisted(() => ({ saveBlob: vi.fn() }));
+vi.mock("@/lib/files-archive", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/files-archive")>()),
+  ...save,
+}));
 
 import { DriveCombinePdfError } from "@/lib/utils/file-search.client";
 import { DriveCombinePdfDialog } from "./drive-combine-pdf-dialog";
 
-const store = { scope: "me" as const };
 const files = [
   { pathname: "drive/users/u/Pack/a.pdf", name: "a.pdf" },
   { pathname: "drive/users/u/Pack/b.pdf", name: "b.pdf" },
@@ -28,20 +30,14 @@ const files = [
 describe("DriveCombinePdfDialog", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("combines the files in the order the reader set", async () => {
-    api.combineDrivePdfs.mockResolvedValue({
-      resourceId: "r1",
-      name: "Pack.pdf",
-      pathname: "drive/users/u/Pack/Pack.pdf",
-      pageCount: 3,
-    });
+  it("downloads the files combined in the order the reader set", async () => {
+    const pdf = new Blob(["%PDF"], { type: "application/pdf" });
+    api.combineDrivePdfs.mockResolvedValue(pdf);
     const onOpenChange = vi.fn();
     render(
       <DriveCombinePdfDialog
         files={files}
-        store={store}
         onOpenChange={onOpenChange}
-        onOpenFile={() => {}}
         onCloseFocus={() => {}}
       />,
     );
@@ -52,12 +48,16 @@ describe("DriveCombinePdfDialog", () => {
     const name = screen.getByLabelText("nameLabel");
     await userEvent.clear(name);
     await userEvent.type(name, "Pack");
-    await userEvent.click(screen.getByRole("button", { name: "combine" }));
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
 
     expect(api.combineDrivePdfs).toHaveBeenCalledWith({
       pathnames: [files[1].pathname, files[0].pathname],
       filename: "Pack",
     });
+    expect(save.saveBlob).toHaveBeenCalledWith(pdf, "Pack.pdf");
+    expect(toast.success).toHaveBeenCalledWith(
+      'downloaded {"name":"Pack.pdf"}',
+    );
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
@@ -69,39 +69,38 @@ describe("DriveCombinePdfDialog", () => {
     render(
       <DriveCombinePdfDialog
         files={files}
-        store={store}
         onOpenChange={onOpenChange}
-        onOpenFile={() => {}}
         onCloseFocus={() => {}}
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "combine" }));
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       'unreadable {"name":"b.pdf"}',
     );
     expect(onOpenChange).not.toHaveBeenCalled();
+    expect(save.saveBlob).not.toHaveBeenCalled();
   });
 
-  it("names the taken file from Core's field, not its message", async () => {
-    api.combineDrivePdfs.mockRejectedValue(
-      new DriveCombinePdfError(409, "name_taken", 'Pa"ck.pdf'),
-    );
+  it("keeps a name that already ends in .pdf and makes it safe to save", async () => {
+    api.combineDrivePdfs.mockResolvedValue(new Blob(["%PDF"]));
     render(
       <DriveCombinePdfDialog
         files={files}
-        store={store}
         onOpenChange={() => {}}
-        onOpenFile={() => {}}
         onCloseFocus={() => {}}
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "combine" }));
+    const name = screen.getByLabelText("nameLabel");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Q3/Board.PDF");
+    await userEvent.click(screen.getByRole("button", { name: "download" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      'duplicate {"name":"Pa\\"ck.pdf"}',
+    expect(save.saveBlob).toHaveBeenCalledWith(
+      expect.any(Blob),
+      "Q3-Board.PDF",
     );
   });
 
@@ -110,9 +109,7 @@ describe("DriveCombinePdfDialog", () => {
     const { rerender } = render(
       <DriveCombinePdfDialog
         files={files}
-        store={store}
         onOpenChange={() => {}}
-        onOpenFile={() => {}}
         onCloseFocus={onCloseFocus}
       />,
     );
@@ -121,9 +118,7 @@ describe("DriveCombinePdfDialog", () => {
     rerender(
       <DriveCombinePdfDialog
         files={null}
-        store={store}
         onOpenChange={() => {}}
-        onOpenFile={() => {}}
         onCloseFocus={onCloseFocus}
       />,
     );
@@ -135,9 +130,7 @@ describe("DriveCombinePdfDialog", () => {
     render(
       <DriveCombinePdfDialog
         files={files}
-        store={store}
         onOpenChange={() => {}}
-        onOpenFile={() => {}}
         onCloseFocus={() => {}}
       />,
     );

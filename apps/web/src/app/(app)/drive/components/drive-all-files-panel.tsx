@@ -1036,19 +1036,11 @@ export function DriveAllFilesPanel({
 
       <DriveCombinePdfDialog
         files={combineFiles}
-        store={store}
         onOpenChange={(open) => {
           if (open) return;
           setCombineFiles(null);
         }}
         onCloseFocus={() => combineButtonRef.current?.focus()}
-        onOpenFile={(file) =>
-          setOpenFile({
-            id: file.id,
-            displayName: file.name,
-            mimeType: "application/pdf",
-          })
-        }
       />
 
       <AlertDialog

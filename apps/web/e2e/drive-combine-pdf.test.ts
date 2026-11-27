@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
 import { type Browser, chromium, type Page } from "playwright";
@@ -8,8 +8,8 @@ import { resolveBaseUrl } from "./base-url.ts";
 import { createMailbox } from "./mailbox.ts";
 
 // A new user combines two PDFs in Files: upload two invented PDFs, select
-// both, put the second first, name the result and find it beside the two
-// originals. Each size signs up its own disposable mail.tm inbox.
+// both, put the second first, name the result and download it. Files keeps
+// only the two originals. Each size signs up its own disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 
@@ -65,6 +65,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
   describe(size, () => {
     test("a new user combines two PDFs in Files", async () => {
       const context = await browser.newContext({
+        acceptDownloads: true,
         viewport,
         isMobile,
         hasTouch: isMobile,
@@ -120,15 +121,40 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         .click();
       const order = await dialog.getByRole("listitem").allInnerTexts();
       assert.match(order[0], /price-list\.pdf/);
-      await dialog.getByLabel("Name of the new PDF").fill("Pack");
+      await dialog.getByLabel("File name").fill("Pack");
       await shot(page, size, "1-order");
 
-      await dialog.getByRole("button", { name: "Combine" }).click();
-      await page.getByText("Saved Pack.pdf (3 pages)").waitFor();
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        dialog.getByRole("button", { name: "Download" }).click(),
+      ]);
+      assert.equal(download.suggestedFilename(), "Pack.pdf");
+      // pdf-lib copies page content streams as they are, so the text stays
+      // readable in the bytes and shows the page order.
+      const pdf = readFileSync(await download.path()).toString("latin1");
+      assert.ok(pdf.startsWith("%PDF-"));
+      const at = [
+        "Price list (demo) 1",
+        "Price list (demo) 2",
+        "Cover letter (demo)",
+      ].map((text) => pdf.indexOf(text));
+      assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2], `order ${at}`);
+      await page.getByText("Downloaded Pack.pdf").waitFor();
       await dialog.waitFor({ state: "detached" });
-      for (const name of ["Pack.pdf", "cover-letter.pdf", "price-list.pdf"])
+      await page.getByRole("button", { name: "Combine PDFs" }).waitFor();
+      assert.ok(
+        await page
+          .getByRole("button", { name: "Combine PDFs" })
+          .evaluate((button) => button === document.activeElement),
+        "focus returns to Combine PDFs",
+      );
+      for (const name of ["cover-letter.pdf", "price-list.pdf"])
         await page.getByRole("link", { name }).waitFor();
-      await shot(page, size, "2-saved");
+      assert.equal(
+        await page.getByRole("link", { name: "Pack.pdf" }).count(),
+        0,
+      );
+      await shot(page, size, "2-downloaded");
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,

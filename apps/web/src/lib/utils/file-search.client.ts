@@ -387,16 +387,19 @@ export class DriveCombinePdfError extends Error {
   }
 }
 
-/** Saves the PDFs, pages in this order, as one new PDF beside the first. */
+/** The PDFs, pages in this order, as one PDF to download. Nothing is saved. */
 export async function combineDrivePdfs(body: {
   pathnames: string[];
   filename: string;
-}) {
+}): Promise<Blob> {
   const { data, error, response } = await postDriveFilesCombinePdf({
     client: getBrowserCoreClient(),
     body,
+    parseAs: "blob",
   });
-  if (data) return data.data;
+  // The generated `Blob | File` names a Core schema called File; with
+  // `parseAs: "blob"` the body is always a Blob.
+  if (data) return data as Blob;
   const fields: { kind?: string; fileName?: string } = error ?? {};
   throw new DriveCombinePdfError(
     response?.status ?? 0,

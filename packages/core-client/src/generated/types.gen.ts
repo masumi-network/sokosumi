@@ -48092,22 +48092,6 @@ export type PostDriveFilesCombinePdfErrors = {
         };
     };
     /**
-     * Conflict - `fileName` already exists (`name_taken`)
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        fileName?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Payload Too Large (`too_large`)
      */
     413: {
@@ -48138,42 +48122,15 @@ export type PostDriveFilesCombinePdfErrors = {
             method: string;
         };
     };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
 };
 
 export type PostDriveFilesCombinePdfError = PostDriveFilesCombinePdfErrors[keyof PostDriveFilesCombinePdfErrors];
 
 export type PostDriveFilesCombinePdfResponses = {
     /**
-     * Combined PDF saved
+     * The combined PDF
      */
-    201: {
-        data: {
-            resourceId: string;
-            name: string;
-            pathname: string;
-            pageCount: number;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
+    200: Blob | File;
 };
 
 export type PostDriveFilesCombinePdfResponse = PostDriveFilesCombinePdfResponses[keyof PostDriveFilesCombinePdfResponses];
