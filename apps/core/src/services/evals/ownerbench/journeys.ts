@@ -58,6 +58,12 @@ export type JourneyOutcome =
       identity?: "remember" | "unchanged" | "edited";
       /** A one-time reminder (true) or a recurring schedule (false). */
       runOnce?: boolean;
+      /**
+       * The brief may be split: a Coworker's part can live in a Task
+       * Schedule the bot made in this journey for that Coworker, so
+       * promptMatches also read its name, description and assignee.
+       */
+      withTaskSchedules?: true;
     }
   | {
       kind: "task";
@@ -445,6 +451,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             kind: "schedule",
             label: "A daily schedule with the whole brief",
             days: [0, 1, 2, 3, 4, 5, 6],
+            withTaskSchedules: true,
             promptMatches: [
               "codepat",
               "architect",

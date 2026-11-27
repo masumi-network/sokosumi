@@ -168,7 +168,31 @@ async function scheduleCheck(
     problems.push(latest.timezone);
   if (outcome.runOnce !== undefined && latest.runOnce !== outcome.runOnce)
     problems.push(latest.runOnce ? "one-time" : "recurring");
-  const prompt = matchesAll(latest.prompt, outcome.promptMatches);
+  const coworkerParts = outcome.withTaskSchedules
+    ? await prisma.taskSchedule.findMany({
+        where: {
+          workspaceId: context.lane.workspaceId,
+          creatorSokoBotId: context.botId,
+          createdAt: { gte: context.journeyStartedAt },
+          state: "ACTIVE",
+          assigneeId: { not: null },
+        },
+        select: {
+          name: true,
+          description: true,
+          assignee: { select: { name: true } },
+        },
+      })
+    : [];
+  const prompt = matchesAll(
+    [
+      latest.prompt,
+      ...coworkerParts.map((part) =>
+        [part.assignee?.name, part.name, part.description].join("\n"),
+      ),
+    ].join("\n"),
+    outcome.promptMatches,
+  );
   if (!prompt.pass)
     problems.push(`prompt lacks /${prompt.missing.join("/, /")}/`);
   return {

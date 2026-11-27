@@ -30,6 +30,7 @@ import {
   claimedRunState,
   earlierCaseFilesCheck,
   earlierCaseTasksCheck,
+  failedCallsByRecovery,
   foregroundTurnId,
   freshConversationCheck,
   isolationFailed,
@@ -474,6 +475,59 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       );
     });
 
+    it("reads a brief split across the bot's schedule and a Coworker Task Schedule", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      await create("Make 2-3 images from the note and draft the post.");
+      const brief = {
+        promptMatches: ["codepat", "architect", "image"],
+      };
+      expect(
+        (await check("remember", { ...brief, withTaskSchedules: true })).pass,
+      ).toBe(false);
+      const vendor = await prisma.vendor.upsert({
+        where: { slug: "journey-checks-fixture" },
+        create: { slug: "journey-checks-fixture", name: "Fixture" },
+        update: {},
+        select: { id: true },
+      });
+      const codepat = await prisma.coworker.create({
+        data: {
+          slug: `fixture-${randomUUID()}`,
+          name: "CodePat",
+          baseURL: "https://coworker.evals.invalid",
+          capabilities: ["tasks"],
+          vendorId: vendor.id,
+        },
+        select: { id: true },
+      });
+      const now = new Date();
+      const taskSchedule = await prisma.taskSchedule.create({
+        data: {
+          workspaceId,
+          creatorSokoBotId: botId,
+          assigneeId: codepat.id,
+          name: "Daily architecture note",
+          description: "Review the source and write one architecture note.",
+          expr: "0 9 * * *",
+          timezone: "Europe/Berlin",
+          anchorAt: now,
+          ruleEffectiveFrom: now,
+          epochId: randomUUID(),
+        },
+        select: { id: true },
+      });
+      try {
+        expect(
+          (await check("remember", { ...brief, withTaskSchedules: true })).pass,
+        ).toBe(true);
+        // Without the opt-in the bot's schedule alone is read, as before.
+        expect((await check("remember", brief)).pass).toBe(false);
+      } finally {
+        await prisma.taskSchedule.delete({ where: { id: taskSchedule.id } });
+        await prisma.coworker.delete({ where: { id: codepat.id } });
+      }
+    });
+
     it("fails an edit that keeps the dropped clause, passes the same id without it", async () => {
       await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
       const original = await create("Report finished, stuck and waiting work.");
@@ -493,6 +547,66 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         true,
       );
     });
+  });
+
+  it("counts a refusal recovered only when a later call in the same turn on the same thing works", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId },
+        select: { id: true },
+      })
+    ).id;
+    const turn = () =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: `chat:${randomUUID()}`,
+          userMessage: "Every Monday at 8:00 send me a short report.",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+        },
+        select: { id: true },
+      });
+    const [first, second] = [await turn(), await turn()];
+    let at = Date.now();
+    const call = (turnId: string, capability: string, status: string) =>
+      prisma.sokoBotToolCall.create({
+        data: {
+          turnId,
+          toolCallId: randomUUID(),
+          capability,
+          inputHash: randomUUID(),
+          status: status as "FAILED" | "COMPLETED",
+          createdAt: new Date((at += 1_000)),
+        },
+      });
+    try {
+      // Refused with a hint, then the right call on the same thing.
+      await call(first.id, "update_schedule", "FAILED");
+      await call(first.id, "create_schedule", "COMPLETED");
+      // Refused, and nothing on posts works later in this turn.
+      await call(first.id, "create_social_post", "FAILED");
+      // A working call in another turn does not make it good.
+      await call(second.id, "create_social_post", "COMPLETED");
+      expect(await failedCallsByRecovery([first.id, second.id], {})).toEqual({
+        unrecovered: ["create_social_post"],
+        recovered: ["update_schedule"],
+      });
+      expect(
+        await failedCallsByRecovery([first.id], {
+          allowFailedTools: ["create_social_post"],
+        }),
+      ).toEqual({ unrecovered: [], recovered: ["update_schedule"] });
+    } finally {
+      await prisma.sokoBotTurn.deleteMany({
+        where: { id: { in: [first.id, second.id] } },
+      });
+      await prisma.sokoBot.deleteMany({ where: { id: botId } });
+    }
   });
 
   it("follows the claimed scheduled run: a failed or dead-lettered one ends and fails the step", async () => {

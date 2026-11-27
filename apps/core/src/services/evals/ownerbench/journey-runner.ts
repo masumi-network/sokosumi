@@ -48,6 +48,7 @@ import {
   type JourneyStep,
   journeyJudgeScenario,
   type OwnerJourney,
+  type StepExpect,
 } from "./journeys";
 
 /** A wait on a chat reply or an app nobody will connect ends after this much quiet. */
@@ -75,6 +76,8 @@ export interface StepRecord {
   tools?: string[];
   toolCalls?: number;
   toolErrors?: string[];
+  /** Refusals the bot recovered from in the same turn: noted, not failed. */
+  warnings?: string[];
   retries?: number;
   costUsd?: number;
   durationMs?: number;
@@ -727,6 +730,74 @@ export function packetTurnIds(packet: unknown): string[] {
     : [];
 }
 
+/** The thing a tool acts on: `update_schedule` and `create_schedule` share "schedule". */
+function toolObject(capability: string): string {
+  return capability.split("_").slice(1).join("_").replace(/s$/, "");
+}
+
+/**
+ * The failed calls of these turns that no later call in the same turn made
+ * good, and the ones it did. A refusal followed by a working call on the same
+ * thing (a rule refusal with a hint, then the right call) is recovered.
+ * Failures a step allows or expects are left out.
+ */
+export async function failedCallsByRecovery(
+  turnIds: readonly string[],
+  expect: Pick<StepExpect, "allowFailedTools">,
+): Promise<{ unrecovered: string[]; recovered: string[] }> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: { in: [...turnIds] } },
+    orderBy: { createdAt: "asc" },
+    select: { turnId: true, capability: true, status: true },
+  });
+  const unrecovered: string[] = [];
+  const recovered: string[] = [];
+  calls.forEach((call, index) => {
+    if (call.status !== "FAILED") return;
+    if (expect.allowFailedTools?.includes(call.capability)) return;
+    const madeGood = calls
+      .slice(index + 1)
+      .some(
+        (later) =>
+          later.turnId === call.turnId &&
+          later.status === "COMPLETED" &&
+          (later.capability === call.capability ||
+            toolObject(later.capability) === toolObject(call.capability)),
+      );
+    (madeGood ? recovered : unrecovered).push(call.capability);
+  });
+  return { unrecovered, recovered };
+}
+
+/**
+ * Coordinator decision (2026-11-27): a refusal the bot recovers from in the
+ * same turn no longer fails "No failed tool calls" on its own; it is kept as
+ * a warning. Rewrites that check in place and returns the warnings.
+ */
+async function recoveredRefusalsCheck(
+  turnIds: readonly string[],
+  checks: ScenarioCheck[],
+  expect: JourneyStep["expect"],
+): Promise<string[] | null> {
+  const index = checks.findIndex(
+    (check) => check.label === "No failed tool calls",
+  );
+  if (index < 0 || checks[index]!.pass) return null;
+  const { unrecovered, recovered } = await failedCallsByRecovery(
+    turnIds,
+    expect ?? {},
+  );
+  if (!recovered.length) return null;
+  checks[index] = {
+    label: "No failed tool calls",
+    pass: unrecovered.length === 0,
+    actual: unrecovered.length
+      ? `${unrecovered.join(", ")} failed`
+      : `clean (recovered: ${recovered.join(", ")})`,
+  };
+  return recovered.map((capability) => `${capability} refused, then recovered`);
+}
+
 /** Scores a settled step: its tools and answer, then the world it left. */
 async function finishStep(
   journey: OwnerJourney,
@@ -756,6 +827,8 @@ async function finishStep(
       ...result.checks.filter((check) => !check.label.startsWith("Route ")),
     );
   } else checks.push({ label: "Completed", pass: false, actual: "no turn" });
+  const recovered = await recoveredRefusalsCheck(turnIds, checks, step.expect);
+  if (recovered) record.warnings = recovered;
   if (record.index === 0 && turnIds[0])
     checks.push(
       await freshConversationCheck(
@@ -968,6 +1041,11 @@ export async function startJourney(
   await prisma.sokoBotWatch.deleteMany({
     where: { sokoBotId: botId, status: "WAITING" },
   });
+  // An account question an earlier journey opened (or answered) would let
+  // this journey's post skip the owner's choice.
+  await prisma.sokoBotAccountQuestion.deleteMany({
+    where: { sokoBotId: { in: [lane.sokoBotId, lane.cusoBotId] } },
+  });
   // An earlier case's uncollected image job would fill the project's limit.
   const { unresolved } = await closeLaneImageJobs(lane.workspaceId);
   if (unresolved.length) return imageJobsUnresolved(journey, unresolved);
@@ -1052,6 +1130,14 @@ async function coworkerCanAnswer(
     select: { status: true },
   });
   if (!turn || ACTIVE.includes(turn.status)) return false;
+  // The step is scored once every turn it started has settled, not only the
+  // chat turn: a background run it handed work to may still be writing.
+  const own = await journeyTurns(
+    botOf(journey, lane),
+    new Date(current.startedAt),
+    new Date(state.journeyStartedAt),
+  );
+  if (own.some((each) => ACTIVE.includes(each.status))) return false;
   const tasks = await coworkerTasks(
     {
       lane,
