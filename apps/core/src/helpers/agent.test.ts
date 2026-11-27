@@ -284,6 +284,17 @@ describe("getCardanoV2ReadySources", () => {
     });
   });
 
+  it("reads Preprod's own readiness row", async () => {
+    const { tx, findUnique } = createSyncMetadataTransactionClient(null);
+
+    await getCardanoV2ReadySources(tx, "mainnet");
+    await getCardanoV2ReadySources(tx, "preprod");
+    expect(findUnique.mock.calls).toEqual([
+      [{ where: { key: "cardano-v2-rail-readiness" } }],
+      [{ where: { key: "preprod:cardano-v2-rail-readiness" } }],
+    ]);
+  });
+
   it("returns no sources when the cached readiness is empty", async () => {
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: "[]",

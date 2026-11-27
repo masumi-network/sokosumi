@@ -9,7 +9,10 @@ import {
   readRouteSession,
 } from "@/lib/auth/route-session";
 import { withExportOperation } from "@/lib/services/export.service";
-import { awaitExportStep } from "@/lib/utils/export-operation";
+import {
+  awaitExportStep,
+  EXPORT_MAX_BYTES,
+} from "@/lib/utils/export-operation";
 import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
@@ -17,7 +20,7 @@ import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limi
 export const maxDuration = 60;
 
 /** Hard cap on HTML payload size to limit Chromium memory/CPU abuse. */
-const MAX_HTML_BYTES = 1_500_000;
+const MAX_HTML_BYTES = EXPORT_MAX_BYTES;
 
 interface GeneratePdfRequest {
   html?: string;

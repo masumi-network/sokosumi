@@ -195,6 +195,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
         logo: null,
         websiteUrl: null,
         preferred: slug === null,
+        canUsePreprod: false,
       })),
       pendingInvitationCount: 0,
     });

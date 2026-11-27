@@ -573,12 +573,23 @@ export async function resolveChatResultReference(
       break;
     }
     case "project_selection": {
-      const projects = await client.project.findMany({
-        where: { workspaceId: actor.workspaceId, id: { in: ref.projectIds } },
-        select: { id: true, name: true, identifier: true, logo: true },
-        orderBy: { name: "asc" },
-        take: 12,
-      });
+      const validProjectIds = ref.projectIds.filter((projectId) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          projectId,
+        ),
+      );
+      const projects =
+        validProjectIds.length === 0
+          ? []
+          : await client.project.findMany({
+              where: {
+                workspaceId: actor.workspaceId,
+                id: { in: validProjectIds },
+              },
+              select: { id: true, name: true, identifier: true, logo: true },
+              orderBy: { name: "asc" },
+              take: 12,
+            });
       data = chatResultAvailableSchema.parse({
         ...base,
         title: "Choose a project",

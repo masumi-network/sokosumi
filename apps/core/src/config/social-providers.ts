@@ -5,6 +5,7 @@ import {
   socialProviderUnavailableMessage,
 } from "@sokosumi/utils";
 import { badRequest } from "@/helpers/error";
+import { EVAL_ORGANIZATION_SLUG } from "@/lib/evals/eval-social-account";
 
 export const PROJECT_SOCIAL_PROVIDERS = {
   x: {
@@ -67,7 +68,10 @@ export function socialProviderWorkspace(
 ): SocialProviderWorkspace {
   return {
     organizationSlug,
-    tiktokEnabled: Boolean(process.env.ZERNIO_API_KEY?.trim()),
+    // An eval lane posts to a stand-in TikTok account, Zernio key or not.
+    tiktokEnabled:
+      Boolean(process.env.ZERNIO_API_KEY?.trim()) ||
+      EVAL_ORGANIZATION_SLUG.test(organizationSlug ?? ""),
   };
 }
 

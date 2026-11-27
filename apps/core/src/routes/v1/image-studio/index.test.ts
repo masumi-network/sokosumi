@@ -104,7 +104,11 @@ describe("workspace Studio router", () => {
         userId: "user-a",
       };
       expect(mocks.requireWorkspaceAccess).toHaveBeenCalledWith(scope);
-      expect(mocks.reconcileWorkspaceJobs).toHaveBeenCalledWith("workspace-a");
+      expect(mocks.reconcileWorkspaceJobs).toHaveBeenCalledWith(
+        // Image Studio is Mainnet only, whatever Network the request names.
+        expect.objectContaining({ network: "mainnet" }),
+        "workspace-a",
+      );
       expect(mocks.listAssets).toHaveBeenCalledWith({
         ...scope,
         limit: 100,

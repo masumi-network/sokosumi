@@ -1,0 +1,299 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`GET /v1/notifications network > keeps the untagged create and duplicate on the same row and statement budget 1`] = `
+{
+  "create": 1,
+  "duplicate": 2,
+}
+`;
+
+exports[`GET /v1/notifications network > preserves Mainnet bodies and statement counts for untagged rows 1`] = `
+{
+  "counts": {
+    "body": {
+      "data": {
+        "mentions": 0,
+        "needsAction": 1,
+        "unread": 2,
+      },
+      "meta": {},
+    },
+    "statements": 12,
+  },
+  "list": {
+    "body": {
+      "data": [
+        {
+          "createdAt": "2026-11-27T11:00:00.001Z",
+          "eventId": "task-event",
+          "id": "task-notification",
+          "isRead": false,
+          "kind": "TASK",
+          "messageKey": "Notifications.Task.completed",
+          "messageParams": {},
+          "metadata": null,
+          "network": null,
+          "readAt": null,
+          "referenceId": "untagged-task",
+          "userId": "fixture-user",
+        },
+        {
+          "createdAt": "2026-11-27T11:00:00.000Z",
+          "eventId": "job-event",
+          "id": "job-notification",
+          "isRead": false,
+          "kind": "JOB",
+          "messageKey": "Notifications.Job.inputRequired",
+          "messageParams": {},
+          "metadata": null,
+          "network": null,
+          "readAt": null,
+          "referenceId": "fixture-job",
+          "userId": "fixture-user",
+        },
+      ],
+      "meta": {
+        "pagination": {
+          "cursor": null,
+          "limit": 20,
+          "nextCursor": null,
+          "total": 2,
+        },
+      },
+    },
+    "statements": 8,
+  },
+  "needsAction": {
+    "body": {
+      "data": [
+        {
+          "createdAt": "2026-11-27T11:00:00.000Z",
+          "eventId": "job-event",
+          "id": "job-notification",
+          "isRead": false,
+          "kind": "JOB",
+          "messageKey": "Notifications.Job.inputRequired",
+          "messageParams": {},
+          "metadata": null,
+          "network": null,
+          "readAt": null,
+          "referenceId": "fixture-job",
+          "userId": "fixture-user",
+        },
+      ],
+      "meta": {
+        "pagination": {
+          "cursor": null,
+          "limit": 20,
+          "nextCursor": null,
+          "total": 1,
+        },
+      },
+    },
+    "statements": 13,
+  },
+  "paged": {
+    "body": {
+      "data": [
+        {
+          "createdAt": "2026-11-27T11:00:00.000Z",
+          "eventId": "job-event",
+          "id": "job-notification",
+          "isRead": false,
+          "kind": "JOB",
+          "messageKey": "Notifications.Job.inputRequired",
+          "messageParams": {},
+          "metadata": null,
+          "network": null,
+          "readAt": null,
+          "referenceId": "fixture-job",
+          "userId": "fixture-user",
+        },
+      ],
+      "meta": {
+        "pagination": {
+          "cursor": "task-notification",
+          "limit": 1,
+          "nextCursor": null,
+          "total": 2,
+        },
+      },
+    },
+    "statements": 9,
+  },
+  "readAll": {
+    "body": {
+      "data": {
+        "count": 1,
+      },
+      "meta": {},
+    },
+    "statements": 3,
+  },
+  "readById": {
+    "body": {
+      "data": {
+        "createdAt": "2026-11-27T11:00:00.000Z",
+        "eventId": "job-event",
+        "id": "job-notification",
+        "isRead": true,
+        "kind": "JOB",
+        "messageKey": "Notifications.Job.inputRequired",
+        "messageParams": {},
+        "metadata": null,
+        "network": null,
+        "readAt": "set",
+        "referenceId": "fixture-job",
+        "userId": "fixture-user",
+      },
+      "meta": {},
+    },
+    "statements": 5,
+  },
+  "readByIds": {
+    "body": {
+      "data": {
+        "count": 1,
+      },
+      "meta": {},
+    },
+    "statements": 3,
+  },
+  "readJob": {
+    "body": {
+      "data": {
+        "count": 1,
+      },
+      "meta": {},
+    },
+    "statements": 3,
+  },
+  "readTask": {
+    "body": {
+      "data": {
+        "count": 1,
+      },
+      "meta": {},
+    },
+    "statements": 3,
+  },
+  "unreadAgain": {
+    "body": {
+      "data": {
+        "createdAt": "2026-11-27T11:00:00.000Z",
+        "eventId": "job-event",
+        "id": "job-notification",
+        "isRead": false,
+        "kind": "JOB",
+        "messageKey": "Notifications.Job.inputRequired",
+        "messageParams": {},
+        "metadata": null,
+        "network": null,
+        "readAt": null,
+        "referenceId": "fixture-job",
+        "userId": "fixture-user",
+      },
+      "meta": {},
+    },
+    "statements": 4,
+  },
+  "unreadById": {
+    "body": {
+      "data": {
+        "createdAt": "2026-11-27T11:00:00.000Z",
+        "eventId": "job-event",
+        "id": "job-notification",
+        "isRead": false,
+        "kind": "JOB",
+        "messageKey": "Notifications.Job.inputRequired",
+        "messageParams": {},
+        "metadata": null,
+        "network": null,
+        "readAt": null,
+        "referenceId": "fixture-job",
+        "userId": "fixture-user",
+      },
+      "meta": {},
+    },
+    "statements": 4,
+  },
+  "unreadForReadAll": {
+    "body": {
+      "data": {
+        "createdAt": "2026-11-27T11:00:00.001Z",
+        "eventId": "task-event",
+        "id": "task-notification",
+        "isRead": false,
+        "kind": "TASK",
+        "messageKey": "Notifications.Task.completed",
+        "messageParams": {},
+        "metadata": null,
+        "network": null,
+        "readAt": null,
+        "referenceId": "untagged-task",
+        "userId": "fixture-user",
+      },
+      "meta": {},
+    },
+    "statements": 4,
+  },
+}
+`;
+
+exports[`GET /v1/notifications network > preserves Mainnet push-device bodies and statement counts 1`] = `
+{
+  "activation": {
+    "body": {
+      "data": {
+        "id": "fixture-consent",
+        "replaceDevice": false,
+        "revision": 0,
+        "revoked": false,
+      },
+      "meta": {},
+    },
+    "statements": 8,
+  },
+  "browser": {
+    "body": {
+      "data": {
+        "success": true,
+      },
+      "meta": {},
+    },
+    "statements": 2,
+  },
+  "list": {
+    "body": {
+      "data": [
+        {
+          "formFactor": "desktop",
+          "id": "notification-fixture-device",
+          "platform": "browser",
+          "state": "active",
+        },
+      ],
+      "meta": {},
+    },
+    "statements": 3,
+  },
+  "revoke": {
+    "body": {
+      "data": {
+        "success": true,
+      },
+      "meta": {},
+    },
+    "statements": 14,
+  },
+  "subscription": {
+    "body": {
+      "data": {
+        "subscribed": true,
+      },
+      "meta": {},
+    },
+    "statements": 11,
+  },
+}
+`;

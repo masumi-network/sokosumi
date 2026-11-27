@@ -162,25 +162,25 @@ function MobileChatsLink() {
   const { setOpenMobile } = useSidebar();
   const isActive = useNavPathname() === CHAT_CHATS_LIST_PATH;
 
+  // A menu, not a group: it sits in the chat list's group, after Catch up,
+  // and a group of its own put it 8px in from the rows around it.
   return (
-    <SidebarGroup className="px-2 py-1">
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={isActive}>
-            <Link
-              href={CHAT_CHATS_LIST_PATH}
-              aria-current={isActive ? "page" : undefined}
-              onClick={() => setOpenMobile(false)}
-              className={SIDEBAR_ROW_LINK_CLASS}
-            >
-              <SidebarRowSlot aria-hidden>
-                <MessageCircle aria-hidden />
-              </SidebarRowSlot>
-              <span className={SIDEBAR_ROW_LABEL_CLASS}>{nav("allChats")}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    </SidebarGroup>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={isActive}>
+          <Link
+            href={CHAT_CHATS_LIST_PATH}
+            aria-current={isActive ? "page" : undefined}
+            onClick={() => setOpenMobile(false)}
+            className={SIDEBAR_ROW_LINK_CLASS}
+          >
+            <SidebarRowSlot aria-hidden>
+              <MessageCircle aria-hidden />
+            </SidebarRowSlot>
+            <span className={SIDEBAR_ROW_LABEL_CLASS}>{nav("allChats")}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }

@@ -219,6 +219,10 @@ const FIXTURES: Record<string, Record<string, unknown>> = {
       version: null,
     },
   },
+  projects_image_studio_brand_assets_update: {
+    id: "p-1",
+    body: { remove: "11111111-1111-4111-8111-111111111111" },
+  },
   projects_image_studio_brand_look_update: {
     id: "p-1",
     body: { look: null, lookRevision: 0 },

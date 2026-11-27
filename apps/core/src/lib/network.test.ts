@@ -80,6 +80,25 @@ describe("isPreprodOn", () => {
   });
 });
 
+describe("networksThatAreOn", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns Mainnet while Preprod is off", async () => {
+    const network = await freshNetworkModule({
+      ...PREPROD_ON,
+      NETWORK_PREPROD_ENABLED: "false",
+    });
+    expect(network.networksThatAreOn()).toEqual(["mainnet"]);
+  });
+
+  it("returns Mainnet and Preprod while Preprod is on", async () => {
+    const network = await freshNetworkModule(PREPROD_ON);
+    expect(network.networksThatAreOn()).toEqual(["mainnet", "preprod"]);
+  });
+});
+
 describe("requireNetworkOn", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

@@ -1,13 +1,12 @@
 import * as Sentry from "@sentry/node";
 import {
   type Prisma,
-  TaskPaymentClaimStatus,
   TaskScheduleState,
   TaskVisibility,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
-import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { APIError } from "better-auth/api";
 
 import {
@@ -22,8 +21,27 @@ import {
   USER_DELETION_MESSAGES,
 } from "@/helpers/deletion-evaluate";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
-import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import {
+  applyJobRules,
+  applyRulesAfterDelete,
+  applyUserRules,
+  checkPersonalWorkspace,
+  checkPrivateTasks,
+  checkUser,
+} from "@/helpers/user-deletion-crossing-rules";
+import {
+  deleteJobsOfUser,
+  deleteSweepableX402Payments,
+  deleteTerminalClaims,
+  findForeignChargeX402Payment,
+  findLiveAuthorizationX402Payment,
+  findPendingClaim,
+  findReviewRequiredClaim,
+  findUnresolvedX402Payment,
+  lockX402PaymentsOfUser,
+} from "@/helpers/user-deletion-network";
 import { prepareVendorsForMemberDeletion } from "@/helpers/vendor-membership";
+import { networksThatAreOn } from "@/lib/network";
 import { stopPlannedTaskScheduleRuns } from "@/services/task-schedule-runs.service";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
@@ -89,8 +107,9 @@ async function pausePublicTaskSchedules(
  *
  * - The private Tasks, Task Schedules and Jobs this user owns are deleted,
  *   and so is the work in their personal workspace.
- * - Public work stays with its workspace (ADR 0057); the database empties
- *   this user's Owner and Creator columns on it. Public Task Schedules this
+ * - Public work stays with its workspace (ADR 0057); this user's Owner and
+ *   Creator columns on it are emptied: on Tasks and Task Schedules by the
+ *   database, on a Network's Jobs by `applyUserRules`. Public Task Schedules this
  *   user owned are paused, so nothing keeps running with nobody behind it;
  *   the member who resumes one becomes its Owner.
  * - Payment-claim blockers are previewed by `evaluateUserDeletion` and
@@ -124,6 +143,7 @@ export async function prepareTasksForUserDeletion(
   try {
     cleanup = await prisma.$transaction(
       async (tx) => {
+        const networks = networksThatAreOn();
         // Serialize account deletion with both halves of x402 payment creation:
         //
         // 0. Every debit Transaction insert takes a foreign-key key-share lock
@@ -205,52 +225,24 @@ export async function prepareTasksForUserDeletion(
             await lockWorkspaceCalendarForErasure(tx, workspace.id);
           }
         }
-        // Three UNIONed arms rather than one join with an OR across charge,
-        // refund and task: a disjunction whose branches live in three different
-        // joined relations cannot be served by any index, so the single-query
-        // form had to build and filter the full payments join on every account
-        // deletion — while holding the user and task locks above. Each arm here
-        // seeks (Transaction has a userId-leading index, task has ownerId, and
-        // the payment side is reached over its transactionId/refundTransactionId
-        // uniques and the taskId unique prefix). Only the outer SELECT takes
-        // locks, exactly like FOR UPDATE OF payment did on the join.
-        await tx.$queryRaw`
-          SELECT payment."id"
-          FROM ${netTable("mainnet", "task_x402_payment")} AS payment
-          WHERE payment."id" IN (
-            SELECT charge_payment."id"
-            FROM ${netTable("mainnet", "task_x402_payment")} AS charge_payment
-            INNER JOIN ${netTable("mainnet", "Transaction")} AS charge
-              ON charge."id" = charge_payment."transactionId"
-            WHERE charge."userId" = ${userId}
-            UNION
-            SELECT refund_payment."id"
-            FROM ${netTable("mainnet", "task_x402_payment")} AS refund_payment
-            INNER JOIN ${netTable("mainnet", "Transaction")} AS refund
-              ON refund."id" = refund_payment."refundTransactionId"
-            WHERE refund."userId" = ${userId}
-            UNION
-            SELECT task_payment."id"
-            FROM ${netTable("mainnet", "task_x402_payment")} AS task_payment
-            INNER JOIN ${sharedTable("task")} AS payment_task
-              ON payment_task."id" = task_payment."taskId"
-            WHERE payment_task."ownerId" = ${userId}
-          )
-          FOR UPDATE OF payment
-        `;
+        for (const network of networks) {
+          await lockX402PaymentsOfUser(tx, network, userId);
+        }
 
         // Prefer review-required claims over ordinary PENDING ones. A single
         // findFirst without that filter is nondeterministic when both exist, and
         // would return TASK_PAYMENT_CLAIM_PENDING without paging Sentry for the
         // operator-blocked row.
-        const reviewRequiredClaim = await tx.taskPaymentClaim.findFirst({
-          where: {
-            status: TaskPaymentClaimStatus.PENDING,
-            reviewRequiredAt: { not: null },
-            transaction: { userId },
-          },
-          select: { id: true, reviewRequiredAt: true },
-        });
+        let reviewRequiredClaim: Awaited<
+          ReturnType<typeof findReviewRequiredClaim>
+        >;
+        for (const network of networks) {
+          reviewRequiredClaim ??= await findReviewRequiredClaim(
+            tx,
+            network,
+            userId,
+          );
+        }
         if (reviewRequiredClaim?.reviewRequiredAt) {
           // A plain PENDING claim clears itself within a cron cycle, but one
           // parked for review clears only when an operator resolves it — so
@@ -277,13 +269,10 @@ export async function prepareTasksForUserDeletion(
           });
         }
 
-        const pendingPaymentClaim = await tx.taskPaymentClaim.findFirst({
-          where: {
-            status: TaskPaymentClaimStatus.PENDING,
-            transaction: { userId },
-          },
-          select: { id: true },
-        });
+        let pendingPaymentClaim: Awaited<ReturnType<typeof findPendingClaim>>;
+        for (const network of networks) {
+          pendingPaymentClaim ??= await findPendingClaim(tx, network, userId);
+        }
         if (pendingPaymentClaim) {
           throw new APIError("BAD_REQUEST", {
             code: "TASK_PAYMENT_CLAIM_PENDING",
@@ -292,20 +281,9 @@ export async function prepareTasksForUserDeletion(
           });
         }
 
-        await tx.taskPaymentClaim.deleteMany({
-          where: {
-            status: {
-              in: [
-                TaskPaymentClaimStatus.PURCHASED,
-                TaskPaymentClaimStatus.REFUNDED,
-              ],
-            },
-            OR: [
-              { transaction: { userId } },
-              { refundTransaction: { userId } },
-            ],
-          },
-        });
+        for (const network of networks) {
+          await deleteTerminalClaims(tx, network, userId);
+        }
 
         // Any x402 payment NOT in a known-terminal status blocks deletion.
         // For PENDING: the row holds a debit the user cannot clear themselves —
@@ -320,21 +298,20 @@ export async function prepareTasksForUserDeletion(
         // For any FUTURE status this code predates: fail closed the same way
         // (see SWEEPABLE_X402_STATUSES) instead of letting the sweep destroy a
         // row whose semantics this code cannot know.
-        const unresolvedX402Payment = await tx.taskX402Payment.findFirst({
-          where: {
-            status: { notIn: SWEEPABLE_X402_STATUSES },
-            // refundTransaction should be impossible on a non-terminal row (the
-            // refund is written when status flips), but nothing DB-level forbids
-            // it and the FK is RESTRICT — without this branch such a row would
-            // fail the user cascade with a raw FK 500 instead of this clean 400.
-            OR: [
-              { transaction: { userId } },
-              { refundTransaction: { userId } },
-              { task: { ownerId: userId } },
-            ],
-          },
-          select: { id: true, status: true },
-        });
+        // refundTransaction should be impossible on a non-terminal row (the
+        // refund is written when status flips), but nothing DB-level forbids
+        // it and the FK is RESTRICT — without this branch such a row would
+        // fail the user cascade with a raw FK 500 instead of this clean 400.
+        let unresolvedX402Payment: Awaited<
+          ReturnType<typeof findUnresolvedX402Payment>
+        >;
+        for (const network of networks) {
+          unresolvedX402Payment ??= await findUnresolvedX402Payment(
+            tx,
+            network,
+            userId,
+          );
+        }
         if (unresolvedX402Payment) {
           // The user cannot unblock themselves — nothing auto-refunds the held
           // debit, so only an operator can. Page it the same way a review-required
@@ -388,29 +365,18 @@ export async function prepareTasksForUserDeletion(
         // hard-deleted with its authorization live — the exact evidence loss
         // this block exists to prevent. The predicate costs nothing: rows
         // without a live header never match.
-        const liveAuthorizationX402Payment = await tx.taskX402Payment.findFirst(
-          {
-            where: {
-              xPaymentHeader: { not: null },
-              AND: [
-                {
-                  OR: [
-                    { validBefore: null },
-                    { validBefore: { gt: new Date() } },
-                  ],
-                },
-                {
-                  OR: [
-                    { transaction: { userId } },
-                    { refundTransaction: { userId } },
-                    { task: { ownerId: userId } },
-                  ],
-                },
-              ],
-            },
-            select: { id: true, validBefore: true },
-          },
-        );
+        let liveAuthorizationX402Payment: Awaited<
+          ReturnType<typeof findLiveAuthorizationX402Payment>
+        >;
+        for (const network of networks) {
+          liveAuthorizationX402Payment ??=
+            await findLiveAuthorizationX402Payment(
+              tx,
+              network,
+              userId,
+              new Date(),
+            );
+        }
         if (liveAuthorizationX402Payment) {
           throw new APIError("BAD_REQUEST", {
             code: "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
@@ -428,35 +394,22 @@ export async function prepareTasksForUserDeletion(
         // while the chain leg, nonce, agent and network are lost. Narrowing the
         // sweep is not the fix (the task-owner branch is load-bearing for the
         // RESTRICT on taskId), so block until an operator repairs the ownership.
-        const foreignChargePayment = await tx.taskX402Payment.findFirst({
-          where: {
-            // Exactly the sweep's status set: the detector exists to inspect the
-            // rows the deleteMany below is about to remove, nothing else.
-            status: { in: SWEEPABLE_X402_STATUSES },
-            transaction: { userId: { not: userId } },
-            // Only the non-charge branches can reach a foreign charge; the
-            // `transaction: { userId }` branch is this user's own by definition.
-            OR: [
-              { refundTransaction: { userId } },
-              { task: { ownerId: userId } },
-            ],
-          },
-          select: {
-            id: true,
-            taskId: true,
-            transaction: { select: { userId: true } },
-          },
-        });
+        // Exactly the sweep's status set: the detector exists to inspect the
+        // rows the deleteMany below is about to remove, nothing else.
+        // Only the non-charge branches can reach a foreign charge; the
+        // `transaction: { userId }` branch is this user's own by definition.
         // Same narrowing as deletion-evaluate: `userId: { not: userId }`
         // excludes SQL NULL, so a matched charge always has a string actor.
-        const foreignCharge =
-          foreignChargePayment?.transaction.userId != null
-            ? {
-                id: foreignChargePayment.id,
-                taskId: foreignChargePayment.taskId,
-                chargedUserId: foreignChargePayment.transaction.userId,
-              }
-            : null;
+        let foreignCharge: Awaited<
+          ReturnType<typeof findForeignChargeX402Payment>
+        >;
+        for (const network of networks) {
+          foreignCharge ??= await findForeignChargeX402Payment(
+            tx,
+            network,
+            userId,
+          );
+        }
         if (foreignCharge) {
           Sentry.captureMessage(
             "Account deletion would remove a task x402 payment charged to another user",
@@ -496,16 +449,9 @@ export async function prepareTasksForUserDeletion(
         // represent money in flight. Fail-closed beats fail-destructive here;
         // the cost is one paged deletion when the enum grows before this code
         // learns the new member, never a raw RESTRICT-FK 500.
-        await tx.taskX402Payment.deleteMany({
-          where: {
-            status: { in: SWEEPABLE_X402_STATUSES },
-            OR: [
-              { transaction: { userId } },
-              { refundTransaction: { userId } },
-              { task: { ownerId: userId } },
-            ],
-          },
-        });
+        for (const network of networks) {
+          await deleteSweepableX402Payments(tx, network, userId);
+        }
 
         const privateTaskWhere = {
           ownerId: userId,
@@ -522,10 +468,12 @@ export async function prepareTasksForUserDeletion(
         };
         for (const workspace of affectedWorkspaces) {
           if (workspace.userId === userId) {
+            const erased = await checkPersonalWorkspace(tx, workspace.id);
             const workspaceCleanup = await eraseWorkspaceCalendarData(
               tx,
               workspace.id,
             );
+            await applyRulesAfterDelete(tx, erased);
             cleanup.scheduledEmails.push(...workspaceCleanup.scheduledEmails);
             // Owned files were captured across all workspaces above. Also retain
             // any other-owner files removed with the personal workspace.
@@ -544,15 +492,13 @@ export async function prepareTasksForUserDeletion(
         await pausePublicTaskSchedules(tx, userId);
         // Before their Tasks, which would only detach them. Jobs in the
         // personal workspace go too: that workspace is deleted with the user.
-        await tx.job.deleteMany({
-          where: {
-            OR: [
-              { ownerId: userId, task: { is: privateTaskWhere } },
-              { workspace: { userId } },
-            ],
-          },
-        });
+        for (const network of networks) {
+          const jobIds = await deleteJobsOfUser(tx, network, userId);
+          await applyJobRules(tx, network, jobIds);
+        }
+        const privateTasks = await checkPrivateTasks(tx, userId);
         await tx.task.deleteMany({ where: privateTaskWhere });
+        await applyRulesAfterDelete(tx, privateTasks);
 
         const createdRooms = await tx.chatRoom.findMany({
           where: { createdByUserId: userId },
@@ -585,7 +531,9 @@ export async function prepareTasksForUserDeletion(
         // Better Auth's subsequent adapter delete is intentionally a not-found
         // no-op. Keeping this delete inside the lock/sweep transaction closes
         // the otherwise-unprotected gap after beforeDelete returns.
+        const deletedWithUser = await checkUser(tx, userId);
         await tx.user.deleteMany({ where: { id: userId } });
+        await applyUserRules(tx, userId, deletedWithUser);
         // Pending revocations in surviving organization workspaces still own
         // delayed-email cancellation. Keep them until the outbox delivers them.
         await tx.calendarInvalidationOutbox.deleteMany({

@@ -1,0 +1,256 @@
+import type {
+  NetworkTableName,
+  SharedTableName,
+} from "@sokosumi/database/sql-tables";
+
+type ReferentialAction =
+  | "Cascade"
+  | "Restrict"
+  | "SetNull"
+  | "NoAction"
+  | "SetDefault";
+type DeleteFlow =
+  | "user"
+  | "organization"
+  | "personal workspace"
+  | "Soko Bot"
+  | "failed CMO hire";
+
+type CrossingKey<Child, Parent> = readonly [
+  child: Child,
+  column: string,
+  parent: Parent,
+  onDelete: ReferentialAction,
+  onUpdate: ReferentialAction,
+  nullable: boolean,
+  owners: readonly DeleteFlow[],
+];
+
+// Each parent key is its table's "id". An empty owner list means no Core
+// flow deletes the parent (Coworker).
+export const NETWORK_TO_SHARED_KEYS = [
+  ["Transaction", "userId", "user", "Cascade", "Cascade", true, ["user"]],
+  ["credit_bucket", "userId", "user", "Cascade", "Cascade", true, ["user"]],
+  ["UserAgentRating", "userId", "user", "Cascade", "Cascade", false, ["user"]],
+  ["coworker_usage", "userId", "user", "Cascade", "Cascade", false, ["user"]],
+  ["soko_bot_usage", "userId", "user", "Cascade", "Cascade", true, ["user"]],
+  ["Job", "ownerId", "user", "SetNull", "Cascade", true, ["user"]],
+  ["Job", "creatorUserId", "user", "SetNull", "Cascade", true, ["user"]],
+  [
+    "credit_bucket",
+    "organizationId",
+    "organization",
+    "Cascade",
+    "Cascade",
+    true,
+    ["organization"],
+  ],
+  [
+    "Transaction",
+    "organizationId",
+    "organization",
+    "SetNull",
+    "Cascade",
+    true,
+    ["organization"],
+  ],
+  [
+    "Job",
+    "organizationId",
+    "organization",
+    "SetNull",
+    "Cascade",
+    true,
+    ["organization"],
+  ],
+  [
+    "coworker_usage",
+    "organizationId",
+    "organization",
+    "SetNull",
+    "Cascade",
+    true,
+    ["organization"],
+  ],
+  [
+    "soko_bot_usage",
+    "organizationId",
+    "organization",
+    "SetNull",
+    "Cascade",
+    true,
+    ["organization"],
+  ],
+  [
+    "Job",
+    "workspaceId",
+    "workspace",
+    "Restrict",
+    "Cascade",
+    false,
+    ["user", "organization", "personal workspace"],
+  ],
+  [
+    "credit_bucket",
+    "projectId",
+    "project",
+    "Cascade",
+    "Cascade",
+    true,
+    ["user", "organization", "personal workspace", "failed CMO hire"],
+  ],
+  [
+    "Job",
+    "projectId",
+    "project",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user", "organization", "personal workspace", "failed CMO hire"],
+  ],
+  [
+    "Job",
+    "taskId",
+    "task",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user", "organization"],
+  ],
+  [
+    "task_x402_payment",
+    "taskId",
+    "task",
+    "Restrict",
+    "Cascade",
+    false,
+    ["user", "organization"],
+  ],
+  [
+    "task_payment_claim",
+    "taskEventId",
+    "taskEvent",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user", "organization"],
+  ],
+  [
+    "task_x402_payment",
+    "taskEventId",
+    "taskEvent",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user", "organization"],
+  ],
+  [
+    "Job",
+    "creatorSokoBotId",
+    "soko_bot",
+    "Restrict",
+    "Cascade",
+    true,
+    [
+      "user",
+      "organization",
+      "personal workspace",
+      "Soko Bot",
+      "failed CMO hire",
+    ],
+  ],
+  [
+    "soko_bot_usage",
+    "sokoBotId",
+    "soko_bot",
+    "Cascade",
+    "Cascade",
+    false,
+    [
+      "user",
+      "organization",
+      "personal workspace",
+      "Soko Bot",
+      "failed CMO hire",
+    ],
+  ],
+  ["Job", "creatorCoworkerId", "coworker", "Restrict", "Cascade", true, []],
+  ["coworker_usage", "coworkerId", "coworker", "Cascade", "Cascade", false, []],
+] as const satisfies readonly CrossingKey<NetworkTableName, SharedTableName>[];
+
+export const SHARED_TO_NETWORK_KEYS = [
+  [
+    "taskEvent",
+    "transactionId",
+    "Transaction",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user"],
+    "tagged",
+  ],
+  [
+    "soko_bot_delegation",
+    "jobId",
+    "Job",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user"],
+    "tagged",
+  ],
+  [
+    "soko_bot_schedule",
+    "jobId",
+    "Job",
+    "Cascade",
+    "Cascade",
+    true,
+    ["user"],
+    "tagged",
+  ],
+  [
+    "competitor_check",
+    "transactionId",
+    "Transaction",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user"],
+    "mainnet",
+  ],
+  [
+    "project_image_job",
+    "transactionId",
+    "Transaction",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user"],
+    "mainnet",
+  ],
+  [
+    "project_image_job",
+    "refundTransactionId",
+    "Transaction",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user"],
+    "mainnet",
+  ],
+  [
+    "seo_audit_chat_turn",
+    "transactionId",
+    "Transaction",
+    "SetNull",
+    "Cascade",
+    true,
+    ["user"],
+    "mainnet",
+  ],
+  ["jobShare", "jobId", "Job", "Cascade", "Cascade", true, ["user"], "mainnet"],
+] as const satisfies readonly [
+  ...CrossingKey<SharedTableName, NetworkTableName>,
+  routing: "tagged" | "mainnet",
+][];

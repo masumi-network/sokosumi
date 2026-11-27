@@ -20,6 +20,7 @@ import type {
   StudioProductCatalog,
   StudioProductImport,
   StudioProductPhoto,
+  UpdateStudioBrandAssets,
   WriteProjectTalkingVideoScriptsRequest,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
@@ -147,6 +148,10 @@ export const imageStudioService = {
 
   async saveBrandCopy(projectId: string, input: SaveStudioBrandCopy) {
     return (await coreClient.saveStudioBrandCopy(projectId, input)).data;
+  },
+
+  async updateBrandAssets(projectId: string, change: UpdateStudioBrandAssets) {
+    return (await coreClient.updateStudioBrandAssets(projectId, change)).data;
   },
 
   async saveBrandLook(projectId: string, input: SaveStudioBrandLook) {

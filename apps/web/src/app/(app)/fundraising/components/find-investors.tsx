@@ -5,9 +5,9 @@ import type {
   FundraisingResearch,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, UserSearch } from "lucide-react";
+import { ChevronRight, ExternalLink, UserSearch } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
 import { coreErrorOf } from "@/app/contacts/contacts-view";
@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { fundraisingService } from "@/lib/services/fundraising.client";
+import { cn } from "@/lib/utils";
 import { useScopedQuery } from "@/queries/scoped-queries";
 import {
   FUNDRAISING_KEY,
@@ -56,13 +57,17 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
   const organizationId = useFundraisingOrganization();
   const suggestions = useInvestorSuggestions();
   const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const listId = useId();
   const [busy, setBusy] = useState<string[]>([]);
   const [research, setResearch] = useState<FundraisingResearch>(
     pipeline.research,
   );
   const rows = suggestions.data ?? [];
-  const shown = expanded ? rows : rows.slice(0, SHOWN);
+  // An emptied list closes Review, so the next batch arrives folded too.
+  if (reviewing && rows.length === 0) setReviewing(false);
+  const section = useRef<HTMLElement>(null);
+  const findButton = useRef<HTMLButtonElement>(null);
   const key = [organizationId, ...SUGGESTIONS_KEY] as const;
 
   async function decide(action: "add" | "dismiss", ids: string[]) {
@@ -72,6 +77,12 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
         current?.filter((row) => !ids.includes(row.id)),
       );
     void cache.cancelQueries({ queryKey: key });
+    // The last decision removes Review and the panel; focus goes to the control that stays.
+    if (
+      rows.every((row) => ids.includes(row.id)) &&
+      section.current?.contains(document.activeElement)
+    )
+      (findButton.current?.disabled ? section : findButton).current?.focus();
     hide();
     try {
       if (action === "add") {
@@ -97,115 +108,70 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
 
   return (
     <section
+      ref={section}
+      tabIndex={-1}
       aria-label={t("title")}
-      className="border-border-tertiary flex flex-col gap-3 rounded-xl border p-3"
+      className="border-border-tertiary focus-visible:ring-ring rounded-xl border outline-hidden focus-visible:ring-2"
       data-testid="find-investors"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-medium">
+      {/* One line at every width, so suggestions that load late never push the pipeline down. */}
+      <div className="flex min-w-0 items-center gap-2 px-3 py-2">
+        <UserSearch
+          aria-hidden
+          className="text-muted-foreground size-4 shrink-0"
+        />
+        <h3 className="truncate text-sm font-medium">
           {rows.length ? t("titleCount", { count: rows.length }) : t("title")}
         </h3>
-        <p className="text-muted-foreground truncate text-sm">
-          {rows.length
-            ? t("hintSuggested")
-            : research.exaConfigured
-              ? t("hint")
-              : t("hintNoExa")}
-        </p>
-        <div className="ms-auto flex items-center gap-1">
-          {rows.length > 1 ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy.length > 0}
-              onClick={() =>
-                void decide(
-                  "add",
-                  rows.map((row) => row.id),
-                )
-              }
-            >
-              {t("addAll")}
-            </Button>
-          ) : null}
+        {rows.length ? (
           <Button
             size="sm"
-            variant="outline"
-            disabled={!research.exaConfigured}
-            onClick={() => setOpen(true)}
+            variant="ghost"
+            className="text-muted-foreground shrink-0"
+            aria-expanded={reviewing}
+            aria-controls={reviewing ? listId : undefined}
+            onClick={() => setReviewing((value) => !value)}
           >
-            <UserSearch aria-hidden className="size-4" />
-            {t("find")}
+            {t("review")}
+            <ChevronRight
+              aria-hidden
+              className={cn(
+                "size-4 transition-transform motion-reduce:transition-none",
+                reviewing && "rotate-90",
+              )}
+            />
           </Button>
-        </div>
+        ) : (
+          <>
+            <p className="text-muted-foreground hidden min-w-0 truncate text-sm sm:block">
+              {research.exaConfigured ? t("hint") : t("hintNoExa")}
+            </p>
+            {research.exaConfigured ? null : (
+              <p className="text-muted-foreground min-w-0 truncate text-sm sm:hidden">
+                {t("hintNoExaShort")}
+              </p>
+            )}
+          </>
+        )}
+        <Button
+          ref={findButton}
+          size="sm"
+          variant="outline"
+          className="ms-auto shrink-0"
+          disabled={!research.exaConfigured}
+          onClick={() => setOpen(true)}
+        >
+          <UserSearch aria-hidden className="size-4" />
+          <span className="sr-only sm:not-sr-only">{t("find")}</span>
+        </Button>
       </div>
-      {rows.length ? (
-        <ul className="divide-border-tertiary divide-y">
-          {shown.map((row) => (
-            <li
-              key={row.id}
-              className="flex items-start gap-3 py-2"
-              data-testid="investor-suggestion"
-            >
-              <ContactAvatar name={row.name} className="mt-0.5 size-8" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {row.name}
-                  <span className="text-muted-foreground font-normal">
-                    {[row.role, row.organization].filter(Boolean).length
-                      ? ` · ${[row.role, row.organization].filter(Boolean).join(", ")}`
-                      : ""}
-                    {row.location ? ` · ${row.location}` : ""}
-                  </span>
-                </p>
-                <p className="text-muted-foreground text-sm text-pretty">
-                  {row.reason}
-                </p>
-                <a
-                  href={row.profileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
-                >
-                  {new URL(row.profileUrl).hostname.replace(/^www\./, "")}
-                  <ExternalLink aria-hidden className="size-3" />
-                </a>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy.includes(row.id)}
-                  onClick={() => void decide("dismiss", [row.id])}
-                >
-                  {t("dismiss")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy.includes(row.id)}
-                  onClick={() => void decide("add", [row.id])}
-                >
-                  {t("add")}
-                </Button>
-              </div>
-            </li>
-          ))}
-          {rows.length > SHOWN ? (
-            <li>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full"
-                onClick={() => setExpanded((value) => !value)}
-              >
-                {expanded
-                  ? t("showFewer")
-                  : t("showMore", { count: rows.length - SHOWN })}
-              </Button>
-            </li>
-          ) : null}
-        </ul>
+      {reviewing && rows.length ? (
+        <SuggestionReview
+          id={listId}
+          rows={rows}
+          busy={busy}
+          onDecide={(action, ids) => void decide(action, ids)}
+        />
       ) : null}
       <FindInvestorsDialog
         open={open}
@@ -223,6 +189,137 @@ export function FindInvestors({ pipeline }: { pipeline: FundraisingPipeline }) {
         }}
       />
     </section>
+  );
+}
+
+/** The open suggestions: the hint, Add all, and the first few cards with Show more. */
+function SuggestionReview({
+  id,
+  rows,
+  busy,
+  onDecide,
+}: {
+  id: string;
+  rows: ContactSuggestion[];
+  busy: string[];
+  onDecide: (action: "add" | "dismiss", ids: string[]) => void;
+}) {
+  const t = useTranslations("App.Fundraising.find");
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? rows : rows.slice(0, SHOWN);
+  return (
+    <div
+      id={id}
+      className="border-border-tertiary flex flex-col gap-2 border-t px-3 pt-2 pb-1"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-muted-foreground min-w-0 flex-1 basis-48 text-sm text-pretty">
+          {t("hintSuggested")}
+        </p>
+        {rows.length > 1 ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy.length > 0}
+            onClick={() =>
+              onDecide(
+                "add",
+                rows.map((row) => row.id),
+              )
+            }
+          >
+            {t("addAll")}
+          </Button>
+        ) : null}
+      </div>
+      <ul className="divide-border-tertiary divide-y">
+        {shown.map((row) => (
+          <SuggestionItem
+            key={row.id}
+            row={row}
+            busy={busy.includes(row.id)}
+            onDecide={(action) => onDecide(action, [row.id])}
+          />
+        ))}
+        {rows.length > SHOWN ? (
+          <li>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded
+                ? t("showFewer")
+                : t("showMore", { count: rows.length - SHOWN })}
+            </Button>
+          </li>
+        ) : null}
+      </ul>
+    </div>
+  );
+}
+
+/** One suggested investor with the reason, the source and the two decisions. */
+function SuggestionItem({
+  row,
+  busy,
+  onDecide,
+}: {
+  row: ContactSuggestion;
+  busy: boolean;
+  onDecide: (action: "add" | "dismiss") => void;
+}) {
+  const t = useTranslations("App.Fundraising.find");
+  return (
+    <li
+      className="flex flex-wrap items-start gap-x-3 gap-y-2 py-2"
+      data-testid="investor-suggestion"
+    >
+      <ContactAvatar name={row.name} className="mt-0.5 size-8" />
+      {/* basis-48: on a phone the buttons wrap below instead of squeezing the reason to one word per line. */}
+      <div className="min-w-0 flex-1 basis-48">
+        <p className="truncate text-sm font-medium">
+          {row.name}
+          <span className="text-muted-foreground font-normal">
+            {[row.role, row.organization].filter(Boolean).length
+              ? ` · ${[row.role, row.organization].filter(Boolean).join(", ")}`
+              : ""}
+            {row.location ? ` · ${row.location}` : ""}
+          </span>
+        </p>
+        <p className="text-muted-foreground text-sm text-pretty">
+          {row.reason}
+        </p>
+        <a
+          href={row.profileUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+        >
+          {new URL(row.profileUrl).hostname.replace(/^www\./, "")}
+          <ExternalLink aria-hidden className="size-3" />
+        </a>
+      </div>
+      <div className="ms-auto flex shrink-0 items-center gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          onClick={() => onDecide("dismiss")}
+        >
+          {t("dismiss")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => onDecide("add")}
+        >
+          {t("add")}
+        </Button>
+      </div>
+    </li>
   );
 }
 

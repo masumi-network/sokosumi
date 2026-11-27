@@ -20,6 +20,7 @@ import { projectSeoProjection } from "./project-seo-projection";
 
 type Input = Parameters<typeof projectSeoProjection>[0];
 const now = new Date("2026-11-01T12:00:00Z");
+const EXTRA_PAGE = "https://example.test/extra";
 function fixture(): Input {
   const projectId = randomUUID(),
     pageId = randomUUID();
@@ -423,6 +424,45 @@ describe("stored SEO workspace projections", () => {
     ]);
   });
 
+  it("gives a check the diff against the earlier check of its kind, with the issue counts of the runs row", () => {
+    const input = fixture();
+    const audit = (at: string) =>
+      observation(input, parsePublicSeoArtifact(legacyReport()), at);
+    input.observations = [
+      audit("2026-11-02T12:00:00Z"),
+      audit("2026-11-01T12:00:00Z"),
+    ];
+    const [latest, first] = projectSeoProjection(input).runs ?? [];
+    expect(latest.runDiff).toMatchObject({
+      from: "2026-11-01T12:00:00.000Z",
+      to: "2026-11-02T12:00:00.000Z",
+      comparable: true,
+      newCount: 0,
+      stillOpenCount: 1,
+      numbers: { issues: { from: 1, to: 1 } },
+    });
+    expect(first.runDiff).toBeUndefined();
+  });
+
+  it("compares the oldest check it shows with an older check that only the comparison reads", () => {
+    const input = fixture();
+    const audit = (at: string) =>
+      observation(input, parsePublicSeoArtifact(legacyReport()), at);
+    const older = audit("2026-11-01T12:00:00Z");
+    input.observations = [audit("2026-11-02T12:00:00Z")];
+    input.diffBaselines = [
+      { ...older, payload: parsePublicSeoArtifact(legacyReport()) },
+    ];
+    const runs = projectSeoProjection(input).runs ?? [];
+    // The older check is no run of its own: it is the base of the one shown.
+    expect(runs).toHaveLength(1);
+    expect(runs[0].runDiff).toMatchObject({
+      from: "2026-11-01T12:00:00.000Z",
+      comparable: true,
+      stillOpenCount: 1,
+    });
+  });
+
   it("shows the newest site audit's strategy with the keyword groups of the selected pages", () => {
     const input = fixture();
     expect(projectSeoProjection(input).strategy).toBeNull();
@@ -475,6 +515,162 @@ describe("stored SEO workspace projections", () => {
       projectSeoProjection({ ...input, query: { from: "2026-11-04" } })
         .strategy,
     ).toBeNull();
+  });
+
+  it("shows the newest site audit's speed table, and none to a view that lacks one of its pages", () => {
+    const input = fixture();
+    expect(projectSeoProjection(input).siteSpeed).toBeNull();
+    const table = (url: string) =>
+      parsePublicSeoArtifact({
+        kind: "site",
+        rulebookVersion: "v",
+        pages: [legacyReport()],
+        speed: {
+          pages: [
+            { url: SEO_TEST_PAGE, n: 1, source: "audited", speed: null },
+            { url, n: null, source: "links", group: "/", speed: null },
+          ],
+          note: null,
+        },
+      });
+    const newest = observation(
+      input,
+      table("https://example.test/new"),
+      "2026-11-03T12:00:00Z",
+    );
+    input.observations = [
+      observation(
+        input,
+        parsePublicSeoArtifact(focusedReport()),
+        "2026-11-04T12:00:00Z",
+      ),
+      newest,
+      observation(
+        input,
+        table("https://example.test/old"),
+        "2026-11-01T12:00:00Z",
+      ),
+    ];
+    const shown = projectSeoProjection(input).siteSpeed;
+    expect(shown).toMatchObject({
+      observationId: newest.id,
+      observedAt: "2026-11-03T12:00:00.000Z",
+    });
+    expect(shown?.rows.map((row) => [row.url, row.audited])).toEqual([
+      [SEO_TEST_PAGE, true],
+      ["https://example.test/new", false],
+    ]);
+    // A newer full audit without a table hides the older table: its own page speed is the newest result.
+    input.observations.unshift(
+      observation(
+        input,
+        parsePublicSeoArtifact(legacyReport()),
+        "2026-11-05T12:00:00Z",
+      ),
+    );
+    expect(input.observations[0]?.kind).toBe("audit_full");
+    expect(projectSeoProjection(input).siteSpeed).toBeNull();
+  });
+
+  it("shows no speed table to a view that holds only some pages of the audit", () => {
+    const input = fixture();
+    const second = {
+      ...input.pages[0]!,
+      id: randomUUID(),
+      url: SEO_TEST_SECOND_PAGE,
+    };
+    input.pages.push(second);
+    const all = {
+      ...input.scope,
+      pageIds: input.pages.map((page) => page.id),
+      pages: input.pages,
+    };
+    const report = legacyReport();
+    const audit = observation(
+      { ...input, scope: all },
+      parsePublicSeoArtifact({
+        kind: "site",
+        rulebookVersion: "v",
+        pages: [report, { ...report, request: { url: second.url } }],
+        speed: {
+          pages: [{ url: EXTRA_PAGE, n: null, source: "links", speed: null }],
+          note: null,
+        },
+      }),
+      "2026-11-03T12:00:00Z",
+    );
+    const shown = (scope: Input["scope"]) =>
+      projectSeoProjection({ ...input, scope, observations: [audit] });
+    expect(shown(all).siteSpeed?.rows.map((row) => row.url)).toEqual([
+      EXTRA_PAGE,
+    ]);
+    // The audit is in the view of its first page: only the table is withheld.
+    const part = shown(input.scope);
+    expect(part.observations.map((item) => item.id)).toEqual([audit.id]);
+    expect(part.siteSpeed).toBeNull();
+  });
+
+  it("serves the weekly speed series on the newest audit only", () => {
+    const input = fixture();
+    const record = "d".repeat(64);
+    const ref = (kind: string) => ({
+      record: kind === "history" ? record : "e".repeat(64),
+      port: "crux",
+      request: {
+        port: "crux",
+        device: "mobile",
+        url: SEO_TEST_PAGE,
+        params: { kind, level: "url" },
+      },
+      outcome: { kind: "ok", status: 200 },
+    });
+    const audit = parsePublicSeoArtifact({
+      kind: "site",
+      rulebookVersion: "v",
+      pages: [
+        {
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                sourceRefs: [ref("record"), ref("history")],
+                history: {
+                  status: "comparable",
+                  sourceRecord: record,
+                  series: { lcp: [{ last: "2026-10-25", p75: 1300 }] },
+                },
+              },
+            },
+          },
+        },
+      ],
+      speed: {
+        pages: [{ url: SEO_TEST_PAGE, n: 1, source: "audited", speed: null }],
+        note: null,
+      },
+    });
+    input.observations = [
+      observation(input, audit, "2026-11-03T12:00:00Z"),
+      observation(input, audit, "2026-11-01T12:00:00Z"),
+    ];
+    const workspace = projectSeoProjection(input);
+    const series = { status: "comparable", weeks: ["2026-10-25"], lcp: [1300] };
+    expect(
+      workspace.observations.map((item) => item.pageSpeed?.[0]?.field),
+    ).toMatchObject([
+      { history: series },
+      { history: { status: "comparable" } },
+    ]);
+    expect(workspace.observations[1]?.pageSpeed?.[0]?.field).not.toHaveProperty(
+      "history.weeks",
+    );
+    expect(workspace.siteSpeed?.rows[0]?.devices[0]?.field).toMatchObject({
+      history: series,
+    });
   });
 
   it("retains measured site intent and a matching purpose opportunity only in the scope they describe", () => {
@@ -857,6 +1053,248 @@ describe("stored SEO workspace projections", () => {
     pass.payload = parsePublicSeoArtifact(focusedReport());
     pass.observedAt = original.observedAt;
     expect(projectSeoProjection(input).actions).toHaveLength(1);
+  });
+
+  it("names each fix by its issue in the newest compared check, and drops a proposal that check fixed", () => {
+    const input = fixture();
+    const base = parsePublicSeoArtifact(legacyReport());
+    const page = base.findings[0].pageUrl;
+    const fired = (rowId: string) => ({
+      rowId,
+      pageUrl: page,
+      device: "desktop" as const,
+      result: "fired" as const,
+    });
+    const finding = (rowId: string, device: "desktop" | null = "desktop") => ({
+      ...base.findings[0],
+      id: `finding:${rowId}`,
+      rowId,
+      device,
+    });
+    const fix = (id: string, rowId: string) => ({
+      ...base.actions[0],
+      id,
+      findingIds: [`finding:${rowId}`],
+    });
+    // A finding without a device: no exact later pass on its device can end its proposal.
+    const earlier = observation(
+      input,
+      {
+        ...base,
+        checks: [fired("title"), fired("h1"), fired("meta")],
+        findings: [finding("title", null), finding("h1"), finding("meta")],
+        actions: [fix("1", "title"), fix("2", "h1"), fix("3", "meta")],
+      },
+      "2026-11-01T12:00:00Z",
+    );
+    const latest = observation(
+      input,
+      {
+        ...base,
+        checks: [{ ...fired("title"), result: "pass" }, fired("h1")],
+        findings: [finding("h1")],
+        actions: [],
+      },
+      "2026-11-03T12:00:00Z",
+    );
+    input.observations = [latest, earlier];
+    const results = () =>
+      projectSeoProjection(input).actions.map(({ id, lastCheckResult }) => ({
+        id,
+        lastCheckResult,
+      }));
+    // The title passes now, the h1 still fails, and the newest check did not test the meta rule again.
+    expect(results()).toEqual([
+      { id: "2", lastCheckResult: "failing" },
+      { id: "3", lastCheckResult: undefined },
+    ]);
+    // A newest check of another Market compares nothing: every fix stays as it was.
+    latest.payload = {
+      ...(latest.payload as object),
+      countryCode: "DE",
+    } as typeof latest.payload;
+    expect(results()).toEqual(
+      ["1", "2", "3"].map((id) => ({ id, lastCheckResult: undefined })),
+    );
+  });
+
+  it("keeps a fix through a later pass, a fix on another device, and a check after the period", () => {
+    const input = fixture();
+    const base = parsePublicSeoArtifact(legacyReport());
+    const page = base.findings[0].pageUrl;
+    const row = (device: "desktop" | "mobile", result: "fired" | "pass") => ({
+      rowId: "title",
+      pageUrl: page,
+      device,
+      result,
+    });
+    const finding = (device: "desktop" | "mobile" | null) => ({
+      ...(base.findings[0] as object),
+      id: "finding:title",
+      rowId: "title",
+      device,
+    });
+    const check = (
+      checks: ReturnType<typeof row>[],
+      findings: ReturnType<typeof finding>[],
+      at: string,
+      fixes = 0,
+    ) =>
+      observation(
+        input,
+        {
+          ...base,
+          checks,
+          findings,
+          actions: fixes
+            ? [
+                {
+                  ...(base.actions[0] as object),
+                  id: "1",
+                  findingIds: ["finding:title"],
+                },
+              ]
+            : [],
+        } as PublicSeoPayload,
+        at,
+      );
+    const ids = () => projectSeoProjection(input).actions.map(({ id }) => id);
+    const rowOf = (result: "fired" | "pass") => row("desktop", result);
+    // Fail, pass, pass: the second pass reads no open issue, and the first one still ended the proposal.
+    input.observations = [
+      check([row("desktop", "pass")], [], "2026-11-05T12:00:00Z"),
+      check([row("desktop", "pass")], [], "2026-11-03T12:00:00Z"),
+      check(
+        [row("desktop", "fired")],
+        [finding(null)],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(ids()).toEqual([]);
+    // A period that ends before the passes shows the proposal its checks still hold.
+    input.query = { to: "2026-11-02" };
+    expect(ids()).toEqual(["1"]);
+    input.query = {};
+    // A fix for mobile is not tested again by checks that read desktop only.
+    input.observations = [
+      check([row("desktop", "pass")], [], "2026-11-05T12:00:00Z"),
+      check(
+        [row("desktop", "fired")],
+        [finding("desktop")],
+        "2026-11-03T12:00:00Z",
+      ),
+      check(
+        [row("mobile", "fired")],
+        [finding("mobile")],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(
+      projectSeoProjection(input).actions.map(({ id, lastCheckResult }) => ({
+        id,
+        lastCheckResult,
+      })),
+    ).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // Pass, fail in an audit, pass: the two focused checks agree, and the newest one still answers the audit's fix.
+    const focused = (at: string) => {
+      const row = check([{ ...rowOf("pass") }], [], at);
+      row.kind = "page_check";
+      row.payload = {
+        ...(row.payload as object),
+        kind: "page_check",
+      } as PublicSeoPayload;
+      return row;
+    };
+    input.observations = [
+      focused("2026-11-05T12:00:00Z"),
+      check([rowOf("fired")], [finding(null)], "2026-11-03T12:00:00Z", 1),
+      focused("2026-11-01T12:00:00Z"),
+    ];
+    expect(ids()).toEqual([]);
+    const tags = () =>
+      projectSeoProjection(input).actions.map(({ id, lastCheckResult }) => ({
+        id,
+        lastCheckResult,
+      }));
+    const h1 = { ...rowOf("pass"), rowId: "h1" };
+    // Fail, pass, then a check of another rule: the pass still answers the fix.
+    input.observations = [
+      check([h1], [], "2026-11-05T12:00:00Z"),
+      check([rowOf("pass")], [], "2026-11-03T12:00:00Z"),
+      check([rowOf("fired")], [finding(null)], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(ids()).toEqual([]);
+    // Fail, pass, then a row that fires without a finding: the fix fails again.
+    input.observations[0] = check([rowOf("fired")], [], "2026-11-05T12:00:00Z");
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: "failing" }]);
+    // A finding without a device that fired on both devices: desktop passes leave mobile untested.
+    input.observations = [
+      check([rowOf("pass")], [], "2026-11-05T12:00:00Z"),
+      check([rowOf("pass")], [], "2026-11-03T12:00:00Z"),
+      check(
+        [rowOf("fired"), row("mobile", "fired")],
+        [finding(null)],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // A note without a device and a mobile pass leave a desktop fix untested.
+    input.observations = [
+      check(
+        [row("mobile", "pass")],
+        [{ ...finding(null), severity: "note" } as ReturnType<typeof finding>],
+        "2026-11-05T12:00:00Z",
+      ),
+      check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // A check under another rulebook fails a fix, and its time dates the failure. Its pass ends nothing.
+    const newer = (result: "fired" | "pass", at: string) => {
+      const row = check([rowOf(result)], [], at);
+      row.payload = {
+        ...(row.payload as object),
+        rulebookVersion: "newer-rulebook",
+      } as PublicSeoPayload;
+      return row;
+    };
+    input.observations = [
+      newer("fired", "2026-11-05T12:00:00Z"),
+      check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(
+      projectSeoProjection(input).actions.map(
+        ({ id, lastCheckResult, lastCheckAt }) => ({
+          id,
+          lastCheckResult,
+          lastCheckAt,
+        }),
+      ),
+    ).toEqual([
+      {
+        id: "1",
+        lastCheckResult: "failing",
+        lastCheckAt: "2026-11-05T12:00:00.000Z",
+      },
+    ]);
+    input.observations = [
+      newer("pass", "2026-11-05T12:00:00Z"),
+      check([rowOf("fired")], [finding("desktop")], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // A fix for mobile does not fail on a desktop failure.
+    input.observations = [
+      check([rowOf("fired")], [finding("desktop")], "2026-11-05T12:00:00Z"),
+      check(
+        [row("mobile", "fired")],
+        [finding("mobile")],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
   });
 
   it("replaces an unlinked recommendation when a later check proposes its own fix for the finding", () => {

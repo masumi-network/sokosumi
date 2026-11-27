@@ -60,6 +60,19 @@ describe("read_skill", () => {
     expect(isSkillRead("read_calendar")).toBe(false);
   });
 
+  it("answers an unknown id with the closest ids and every id it can read", async () => {
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("cmo-v24"));
+    const unknown = readSkill(authorized("cmo-v24"), {
+      skill: "cmo-launch-plan",
+    });
+    await expect(unknown).rejects.toThrow(
+      /^No skill "cmo-launch-plan"\. Closest: [^.]*\blaunch-plan\b.*Your skills: .*cmo-strategy-v22.*Writing skills, read the same way:/,
+    );
+    await expect(
+      readSkill(authorized("cmo-v24"), { skill: "cmo-seo" }),
+    ).rejects.toThrow(/Closest: [^.]*\bcmo-seo-reports/);
+  });
+
   it("refuses a skill of another version", async () => {
     resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("v36"));
     await expect(

@@ -4,7 +4,7 @@ import {
   parsePublicSeoArtifact,
   publicSeoPayloadSchema,
 } from "./project-seo-report";
-import { scopedPageSpeed } from "./seo-page-speed";
+import { readPageSpeed, scopedPageSpeed } from "./seo-page-speed";
 
 const median = { lcp: 7400, fcp: 1200, cls: 0, si: 3600, tbt: 180 };
 const insight = {
@@ -108,6 +108,169 @@ describe("imported full-audit PageSpeed evidence", () => {
       ["budget", "not_checked"],
       ["quota", "not_checked"],
     ]);
+  });
+  it("reads the worker's words for a read it did not send and for a record without data", () => {
+    const raw = legacyReport();
+    const ref = (request: object, outcome: object) => ({
+      port: "crux",
+      request: { port: "crux", url: SEO_TEST_PAGE, ...request },
+      outcome,
+    });
+    // A reduced check reads the record of all devices first. That request names no device.
+    const all = { params: { kind: "record", level: "url", formFactor: "all" } };
+    const own = { device: "mobile", params: { kind: "record", level: "url" } };
+    const status = (field: object, lab: object = { none: "not read" }) => {
+      const row = parsePublicSeoArtifact({
+        ...raw,
+        speed: { mobile: { field, lab } },
+      }).pageSpeed?.[0];
+      return [row?.field.status, row?.lab.status];
+    };
+    expect(
+      status(
+        {
+          none: "no CrUX data for this URL",
+          sourceRefs: [ref(all, { kind: "no-data", status: 404 })],
+        },
+        { none: "one lab page per template: /* is measured on p1" },
+      ),
+    ).toEqual(["no_data", "not_checked"]);
+    expect(
+      status({
+        none: "the CrUX record for this URL holds no measured value",
+        sourceRefs: [ref(own, { kind: "ok", status: 200 })],
+      }),
+    ).toEqual(["no_data", "not_checked"]);
+    expect(status({ none: "not read", failed: true })).toEqual([
+      "not_checked",
+      "not_checked",
+    ]);
+    // A read with a failed source was sent: it is no skipped read.
+    expect(
+      status({
+        none: "not read",
+        failed: true,
+        sourceRefs: [ref(own, { kind: "error", message: "x" })],
+      })[0],
+    ).toBe("unavailable");
+    // The History of all devices does not say that the current record holds no data.
+    expect(
+      status({
+        none: "no CrUX data for this URL",
+        sourceRefs: [
+          ref(
+            { params: { kind: "history", level: "url", formFactor: "all" } },
+            { kind: "no-data", status: 404 },
+          ),
+        ],
+      })[0],
+    ).toBe("unavailable");
+    // The worker's CrUX gaps start with "was not collected": the suffix is the cause.
+    const notCollected =
+      "URL: Chrome UX Report field data was not collected by this public audit.";
+    const sent = [ref(all, { kind: "error", message: "x" })];
+    expect(
+      [
+        "Google did not accept the CrUX request.",
+        "CrUX did not return a usable response.",
+        "The speed time limit had passed.",
+        "The worker holds no PageSpeed key.",
+      ].map(
+        (cause) =>
+          status({
+            none: `${notCollected} ${cause}`,
+            failed: true,
+            sourceRefs: sent,
+          })[0],
+      ),
+    ).toEqual(["unavailable", "unavailable", "deadline", "not_checked"]);
+    // The lab template sentence is no field reason.
+    expect(
+      status({ none: "one lab page per template: /* is measured on p1" })[0],
+    ).toBe("unavailable");
+    // A lab read with a failed source was sent too.
+    expect(
+      status(
+        { none: "not read" },
+        {
+          none: "not read",
+          sourceRefs: [
+            {
+              port: "psi",
+              request: {
+                port: "psi",
+                url: SEO_TEST_PAGE,
+                device: "mobile",
+                params: { run: 1 },
+              },
+              outcome: { kind: "error", message: "x" },
+            },
+          ],
+        },
+      )[1],
+    ).toBe("unavailable");
+    // An outcome kind that is no string is no failed source, and it does not stop the read of the page.
+    expect(
+      status(
+        { none: "not read" },
+        {
+          none: "not read",
+          sourceRefs: [
+            {
+              port: "psi",
+              request: {
+                port: "psi",
+                url: SEO_TEST_PAGE,
+                device: "mobile",
+                params: { run: 1 },
+              },
+              outcome: JSON.parse('{"kind":{"toString":1}}'),
+            },
+          ],
+        },
+      )[1],
+    ).toBe("not_checked");
+    // A device History without data does not say that the current record holds no data.
+    expect(
+      status({
+        none: "no CrUX data for this URL",
+        sourceRefs: [
+          ref(
+            { device: "mobile", params: { kind: "history", level: "url" } },
+            { kind: "no-data", status: 404 },
+          ),
+        ],
+      })[0],
+    ).toBe("unavailable");
+    // A template or a page with a failure word in its name is no failure.
+    for (const none of [
+      "one lab page per template: /quota/* is measured on p1",
+      "one lab page per template: /docs/* is measured on https://example.com/timeout",
+    ])
+      expect(status({ none: "not read" }, { none })[1]).toBe("not_checked");
+    // Words that only hold "not read" are no skipped read.
+    expect(status({ none: "not read" }, { none: "could not read" })[1]).toBe(
+      "unavailable",
+    );
+    // The record of all devices is no source of a device's measured value.
+    expect(
+      status({
+        level: "url",
+        url: SEO_TEST_PAGE,
+        period: null,
+        p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+        sourceRefs: [ref(all, { kind: "ok", status: 200 })],
+      })[0],
+    ).toBe("unavailable");
+    // A record of another device still tells nothing of this device.
+    expect(
+      status({
+        none: "no CrUX data for this URL",
+        sourceRefs: [
+          ref({ ...own, device: "desktop" }, { kind: "no-data", status: 404 }),
+        ],
+      })[0],
+    ).toBe("unavailable");
   });
   it("does not assign a different page or device's lab sample to the audited page", () => {
     const raw = legacyReport();
@@ -277,11 +440,650 @@ describe("imported full-audit PageSpeed evidence", () => {
       field: {
         status: "measured",
         level: "origin",
-        url: origin,
+        // The stored form has the root slash.
+        url: origin + "/",
         p75,
         period: null,
       },
       lab: { status: "measured", ...lab },
     });
+  });
+
+  it("reads a Lighthouse version that is not plain as null and keeps the measurement, fresh and stored", () => {
+    const leak = "13.6.0-sk-live-abcdef123456";
+    const versions = [
+      ["13.6.0", "13.6.0"],
+      ["12.0.0-beta.1", "12.0.0-beta.1"],
+      [leak, null],
+      ["1.0-AKIAIOSFODNN7EXAMPLE", null],
+      ["v13.6.0", null],
+      [`13.${"1".repeat(40)}`, null],
+    ] as const;
+    for (const [version, expected] of versions) {
+      const speed = readings(SEO_TEST_PAGE);
+      const fresh = readPageSpeed(
+        {
+          mobile: {
+            ...speed.mobile,
+            lab: { ...speed.mobile.lab, lighthouse: version },
+          },
+        },
+        SEO_TEST_PAGE,
+      );
+      expect(fresh[0]?.lab).toMatchObject({
+        status: "measured",
+        median,
+        lighthouse: expected,
+      });
+      const result = parsePublicSeoArtifact({ ...legacyReport(), speed });
+      const stored = JSON.parse(JSON.stringify(result));
+      stored.pageSpeed[0].lab.lighthouse = version;
+      expect(
+        publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.lab,
+      ).toMatchObject({
+        status: "measured",
+        median,
+        lighthouse: expected,
+      });
+    }
+  });
+
+  it("drops a stored measurement the row schema refuses and keeps the others and the audit", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const [valid] = stored.pageSpeed;
+    stored.pageSpeed = [valid, { ...valid, device: "watch" }];
+    const read = publicSeoPayloadSchema.safeParse(stored);
+    expect(read.success).toBe(true);
+    expect(read.data?.pageSpeed).toEqual([valid]);
+    // A lab with a status Core does not know costs the lab only, as on a fresh import (review pass 16).
+    stored.pageSpeed = [{ ...valid, lab: { status: "broken" } }];
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.lab).toEqual({
+      status: "unavailable",
+    });
+    // A measured lab Core cannot read costs the lab only: the field data stays.
+    stored.pageSpeed = [{ ...valid, lab: { ...valid.lab, runs: 0, ok: 0 } }];
+    const kept = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0];
+    expect([kept?.lab, kept?.field]).toEqual([
+      { status: "unavailable" },
+      valid.field,
+    ]);
+  });
+
+  it("reads a measured lab without a Lighthouse version as version null, fresh and stored", () => {
+    const speed = readings(SEO_TEST_PAGE);
+    const { lighthouse: _, ...lab } = speed.mobile.lab as Record<
+      string,
+      unknown
+    >;
+    const fresh = readPageSpeed(
+      { mobile: { ...speed.mobile, lab } },
+      SEO_TEST_PAGE,
+    );
+    expect(fresh[0]?.lab).toMatchObject({
+      status: "measured",
+      lighthouse: null,
+    });
+    const stored = JSON.parse(
+      JSON.stringify(parsePublicSeoArtifact({ ...legacyReport(), speed })),
+    );
+    delete stored.pageSpeed[0].lab.lighthouse;
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.lab,
+    ).toMatchObject({
+      status: "measured",
+      lighthouse: null,
+    });
+  });
+
+  it("drops a stored insight the schema refuses and keeps its device and the other insights", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const row = stored.pageSpeed.find(
+      (item: { lab: { pageSpeed?: { insights: unknown[] } } }) =>
+        item.lab.pageSpeed?.insights.length,
+    );
+    const [valid] = row.lab.pageSpeed.insights;
+    row.lab.pageSpeed.insights = [
+      valid,
+      { ...valid, title: "" },
+      { ...valid, id: "Unknown" },
+      { ...valid, detail: "a".repeat(601) },
+    ];
+    const read = publicSeoPayloadSchema.parse(stored);
+    expect(read.pageSpeed).toHaveLength(stored.pageSpeed.length);
+    expect(
+      read.pageSpeed?.find((item) => item.device === row.device)?.lab,
+    ).toMatchObject({ pageSpeed: { insights: [valid] } });
+  });
+
+  it("reads the first 20 stored insights and keeps the device of a longer list", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const row = stored.pageSpeed.find(
+      (item: { lab: { pageSpeed?: { insights: unknown[] } } }) =>
+        item.lab.pageSpeed?.insights.length,
+    );
+    const [valid] = row.lab.pageSpeed.insights;
+    row.lab.pageSpeed.insights = Array.from({ length: 21 }, () => valid);
+    const read = publicSeoPayloadSchema.parse(stored);
+    expect(read.pageSpeed).toHaveLength(stored.pageSpeed.length);
+    expect(
+      read.pageSpeed?.find((item) => item.device === row.device)?.lab,
+    ).toMatchObject({ pageSpeed: { insights: { length: 20 } } });
+    // A part of the details Core cannot read goes, as on a fresh import: the device stays.
+    const labOf = (details: unknown) => {
+      row.lab.pageSpeed = details;
+      const kept = publicSeoPayloadSchema
+        .parse(stored)
+        .pageSpeed?.find((item) => item.device === row.device)?.lab;
+      return kept?.status === "measured" ? (kept.pageSpeed ?? "none") : kept;
+    };
+    const { scores } = row.lab.pageSpeed;
+    expect(labOf(null)).toBe("none");
+    expect(labOf({ scores, insights: null })).toEqual({ scores, insights: [] });
+    expect(labOf({ scores: { performance: 150 }, insights: [valid] })).toEqual({
+      scores: {},
+      insights: [valid],
+    });
+    expect(
+      labOf({ scores, insights: [valid], measuredAt: "not-a-date" }),
+    ).toEqual({ scores, insights: [valid] });
+  });
+
+  it("reads a stored collection that is no array as absent and keeps the first 20 measurements", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: readings(SEO_TEST_PAGE),
+        }),
+      ),
+    );
+    const [valid] = stored.pageSpeed;
+    const none = publicSeoPayloadSchema.safeParse({
+      ...stored,
+      pageSpeed: null,
+    });
+    expect([none.success, none.data?.pageSpeed]).toEqual([true, undefined]);
+    const many = publicSeoPayloadSchema.safeParse({
+      ...stored,
+      pageSpeed: Array.from({ length: 21 }, () => valid),
+    });
+    expect([many.success, many.data?.pageSpeed?.length]).toEqual([true, 20]);
+  });
+
+  it("stores the checked form of a field URL and reads a stored spelling with another host case", () => {
+    const books = "https://example.test/books";
+    const spelled = "https://EXAMPLE.test/books";
+    const p75 = { lcp: 2000, inp: 111, cls: 0.1, ttfb: null, fcp: 1200 };
+    const speed = {
+      ...readings(books),
+      mobile: {
+        ...readings(books).mobile,
+        field: { level: "url", url: spelled, p75, period: null },
+      },
+    };
+    const result = parsePublicSeoArtifact({
+      ...legacyReport(),
+      request: { url: books },
+      speed,
+    });
+    const measured = { status: "measured", url: books, p75 };
+    expect(readPageSpeed(speed, books)[0]?.field).toMatchObject(measured);
+    expect(result.pageSpeed?.[0]).toMatchObject({
+      field: measured,
+      lab: { status: "measured" },
+    });
+    const stored = JSON.parse(JSON.stringify(result));
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed).toEqual(
+      result.pageSpeed,
+    );
+    // An audit Core stored with the worker's spelling keeps its field and its lab result.
+    stored.pageSpeed[0].field.url = spelled;
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed).toEqual(
+      result.pageSpeed,
+    );
+    // A spelling Core does not read (a path with dots, the default port) is no field data. The lab result
+    // stays, as on a fresh import.
+    for (const url of [
+      "https://example.test/x/../books",
+      "https://example.test:443/books",
+    ]) {
+      stored.pageSpeed[0].field.url = url;
+      expect(publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]).toMatchObject(
+        {
+          device: "mobile",
+          field: { status: "unavailable" },
+          lab: { status: "measured" },
+        },
+      );
+      expect(
+        readPageSpeed(
+          {
+            ...speed,
+            mobile: { ...speed.mobile, field: { ...speed.mobile.field, url } },
+          },
+          books,
+        )[0],
+      ).toMatchObject({
+        field: { status: "unavailable" },
+        lab: { status: "measured" },
+      });
+    }
+    // A measured field without a URL is no field data either: the lab result stays.
+    for (const url of [null, undefined]) {
+      stored.pageSpeed[0].field.url = url;
+      expect(
+        publicSeoPayloadSchema.parse(JSON.parse(JSON.stringify(stored)))
+          .pageSpeed?.[0],
+      ).toMatchObject({
+        device: "mobile",
+        field: { status: "unavailable" },
+        lab: { status: "measured" },
+      });
+    }
+    // So is a measured field with another part Core cannot read.
+    for (const part of [{ level: "bogus" }, { period: "x" }, { p75: null }]) {
+      const copy = JSON.parse(JSON.stringify(stored));
+      copy.pageSpeed[0].field = {
+        ...copy.pageSpeed[0].field,
+        url: books,
+        ...part,
+      };
+      expect(publicSeoPayloadSchema.parse(copy).pageSpeed?.[0]).toMatchObject({
+        device: "mobile",
+        field: { status: "unavailable" },
+        lab: { status: "measured" },
+      });
+    }
+  });
+});
+
+describe("CrUX History on a measured field", () => {
+  const historyRecord = "d".repeat(64);
+  const ref = (kind: string, level = "url", record = "e".repeat(64)) => ({
+    record,
+    port: "crux",
+    request: {
+      port: "crux",
+      device: "mobile",
+      url: SEO_TEST_PAGE,
+      params: { kind, level },
+    },
+    outcome: { kind: "ok", status: 200 },
+  });
+  const weeks = (count: number) =>
+    Array.from({ length: count }, (_, i) =>
+      new Date(Date.UTC(2026, 0, 4 + 7 * i)).toISOString().slice(0, 10),
+    );
+  const points = (days: string[]) =>
+    days.map((last, i) => ({ last, p75: i === 1 ? null : 1000 + i }));
+  const three = weeks(3);
+  const series = {
+    lcp: points(three),
+    inp: points(three),
+    cls: points(three),
+    fcp: points(three),
+    ttfb: points(three),
+  };
+  const historyOf = (history: object, sourceRefs: unknown[] | undefined) => {
+    const field = parsePublicSeoArtifact({
+      ...legacyReport(),
+      speed: {
+        mobile: {
+          field: {
+            level: "url",
+            url: SEO_TEST_PAGE,
+            period: null,
+            p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+            history: { sourceRecord: historyRecord, reason: null, ...history },
+            ...(sourceRefs && { sourceRefs }),
+          },
+        },
+      },
+    }).pageSpeed?.[0]?.field;
+    return field && "history" in field ? field.history : "no field history";
+  };
+  const bound = [ref("record"), ref("history", "url", historyRecord)];
+
+  it("keeps the weekly series of the three Core Web Vitals for a comparable, bound history", () => {
+    expect(historyOf({ status: "comparable", series }, bound)).toEqual({
+      status: "comparable",
+      weeks: three,
+      lcp: [1000, null, 1002],
+      inp: [1000, null, 1002],
+      cls: [1000, null, 1002],
+    });
+  });
+
+  it("shows no series for a population that is not comparable", () => {
+    for (const status of ["incompatible_population", "legacy_unverified"])
+      expect(historyOf({ status, series }, bound)).toEqual({ status });
+  });
+
+  it("shows no series when the history record is not a successful history read at the field's level", () => {
+    const refused = { status: "unavailable" };
+    for (const refs of [
+      [ref("record"), ref("history", "url", "f".repeat(64))],
+      [ref("record", "url", historyRecord)],
+      [
+        ref("record"),
+        {
+          ...ref("history", "url", historyRecord),
+          outcome: { kind: "no-data" },
+        },
+      ],
+    ])
+      expect(historyOf({ status: "comparable", series }, refs)).toEqual(
+        refused,
+      );
+    // An origin history read is no history of the URL's own field data. Its request names the origin.
+    const origin = ref("history", "origin", historyRecord);
+    origin.request.url = new URL(SEO_TEST_PAGE).origin;
+    expect(
+      historyOf({ status: "comparable", series }, [ref("record"), origin]),
+    ).toEqual(refused);
+    // A Report from before source references cannot prove the series.
+    expect(historyOf({ status: "comparable", series }, undefined)).toEqual({
+      status: "legacy_unverified",
+    });
+  });
+
+  it("keeps the newest 40 weeks and leaves out a metric with unordered, invalid or other weeks", () => {
+    const long = weeks(45);
+    const read = historyOf(
+      {
+        status: "comparable",
+        series: {
+          lcp: points(long),
+          inp: points([...long].reverse()),
+          cls: points(long.slice(0, 44)),
+        },
+      },
+      bound,
+    );
+    expect(read).toMatchObject({ status: "comparable", weeks: long.slice(5) });
+    expect(read).not.toHaveProperty("inp");
+    expect(read).not.toHaveProperty("cls");
+    expect(
+      historyOf(
+        {
+          status: "comparable",
+          series: {
+            lcp: [{ last: "2026-13-45", p75: 1 }],
+            inp: [{ last: "2026-01-04", p75: -1 }],
+            cls: "x",
+          },
+        },
+        bound,
+      ),
+    ).toEqual({ status: "unavailable" });
+  });
+
+  it("keeps the status of a bound, comparable history that has no series", () => {
+    expect(historyOf({ status: "comparable" }, bound)).toEqual({
+      status: "comparable",
+    });
+    expect(historyOf({ status: "comparable" }, [ref("record")])).toEqual({
+      status: "unavailable",
+    });
+  });
+
+  it("refuses a week that is no calendar date", () => {
+    expect(
+      historyOf(
+        {
+          status: "comparable",
+          series: { lcp: [{ last: "2026-02-31", p75: 1300 }] },
+        },
+        bound,
+      ),
+    ).toEqual({ status: "unavailable" });
+  });
+
+  it("reads a series that is no object as an unavailable history", () => {
+    for (const broken of ["broken", 42, [], false])
+      expect(
+        historyOf({ status: "comparable", series: broken }, bound),
+      ).toEqual({ status: "unavailable" });
+    expect(historyOf({ status: "comparable", series: null }, bound)).toEqual({
+      status: "comparable",
+    });
+  });
+
+  it("reads a series that is no object as unavailable in a Report without source references", () => {
+    for (const broken of [false, "broken", []])
+      expect(
+        historyOf({ status: "comparable", series: broken }, undefined),
+      ).toEqual({ status: "unavailable" });
+    for (const readable of [{}, { series }, { series: null }])
+      expect(
+        historyOf({ status: "comparable", ...readable }, undefined),
+      ).toEqual({ status: "legacy_unverified" });
+  });
+
+  it("reads a stored series that is no object as an unavailable history and keeps the measurement", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                history: {
+                  status: "comparable",
+                  sourceRecord: historyRecord,
+                  series,
+                },
+                sourceRefs: bound,
+              },
+            },
+          },
+        }),
+      ),
+    );
+    for (const broken of [false, "broken", 42, []]) {
+      stored.pageSpeed[0].field.history = {
+        status: "comparable",
+        series: broken,
+      };
+      expect(
+        publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
+      ).toMatchObject({
+        status: "measured",
+        p75: { lcp: 1300 },
+        history: { status: "unavailable" },
+      });
+    }
+    // No series is the answer of a read that gave none.
+    stored.pageSpeed[0].field.history = { status: "comparable", series: null };
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
+    ).toMatchObject({ history: { status: "comparable" } });
+    // Weeks that are not oldest first would turn the trend around: no trend (review pass 18: unavailable, as a
+    // fresh import, not a history that goes without a trace).
+    for (const weeks of [[...three].reverse(), [three[0], three[0]]]) {
+      stored.pageSpeed[0].field.history = { status: "comparable", weeks };
+      const field = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field;
+      expect(field).toMatchObject({
+        status: "measured",
+        p75: { lcp: 1300 },
+        history: { status: "unavailable" },
+      });
+    }
+    stored.pageSpeed[0].field.history = {
+      status: "comparable",
+      weeks: three,
+      lcp: [1, 2, 3],
+    };
+    expect(
+      publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field,
+    ).toMatchObject({ history: { weeks: three } });
+    // Only a comparable history holds a series, and a metric has one value per week.
+    const historyOfStored = (history: object) => {
+      stored.pageSpeed[0].field.history = history;
+      const field = publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field;
+      return field && "history" in field ? field.history : "none";
+    };
+    expect(
+      historyOfStored({
+        status: "incompatible_population",
+        weeks: three,
+        lcp: [1, 2, 3],
+      }),
+    ).toEqual({ status: "incompatible_population" });
+    expect(
+      historyOfStored({
+        status: "comparable",
+        weeks: three,
+        lcp: [1, 2, 3],
+        inp: [1, 2],
+      }),
+    ).toEqual({ status: "comparable", weeks: three, lcp: [1, 2, 3] });
+    // A fresh import stores weeks with each metric: a metric without weeks leaves no trend.
+    expect(historyOfStored({ status: "comparable", lcp: [1, 2, 3] })).toEqual({
+      status: "unavailable",
+    });
+    // Each metric is read alone, as on a fresh import: one bad metric does not cost the other ones.
+    expect(
+      historyOfStored({
+        status: "comparable",
+        weeks: three,
+        lcp: [1, 2, 3],
+        inp: [1, -1, 3],
+      }),
+    ).toEqual({ status: "comparable", weeks: three, lcp: [1, 2, 3] });
+    // Metrics that all go leave no trend, as on a fresh import: weeks alone do not say "comparable".
+    expect(
+      historyOfStored({ status: "comparable", weeks: three, lcp: [1, -1, 3] }),
+    ).toEqual({ status: "unavailable" });
+    // An empty list is no metric, as on a fresh import, and a fresh import stores weeks only with a metric.
+    expect(
+      historyOfStored({ status: "comparable", weeks: three, lcp: [] }),
+    ).toEqual({ status: "comparable" });
+    // A metric that is no list leaves no trend: with empty weeks, without weeks, and next to an empty metric.
+    for (const history of [
+      { weeks: [], lcp: "bad" },
+      { lcp: "bad" },
+      { weeks: null, lcp: "bad" },
+      { weeks: [], lcp: "bad", inp: [] },
+    ])
+      expect(historyOfStored({ status: "comparable", ...history })).toEqual({
+        status: "unavailable",
+      });
+    // A status that is not comparable stays, whatever the weeks hold.
+    expect(
+      historyOfStored({ status: "unavailable", weeks: ["not-a-day"] }),
+    ).toEqual({ status: "unavailable" });
+    // A fresh import stores no empty series.
+    expect(
+      historyOfStored({ status: "comparable", weeks: [], lcp: [], inp: [] }),
+    ).toEqual({ status: "comparable" });
+    // The URLs get the form a fresh import stores: a home page has its root slash.
+    const home = JSON.parse(JSON.stringify(stored));
+    home.pageUrls = ["https://example.test/"];
+    home.pageSpeed[0].pageUrl = home.pageSpeed[0].testedUrl =
+      "https://example.test";
+    home.pageSpeed[0].field.url = "https://example.test/";
+    expect(
+      publicSeoPayloadSchema
+        .parse(home)
+        .pageSpeed?.slice(0, 1)
+        .map((row) => [row.pageUrl, row.testedUrl]),
+    ).toEqual([["https://example.test/", "https://example.test/"]]);
+    // Field data of another host is no data of the tested page; a tested page of another host is no measurement.
+    delete stored.pageSpeed[0].field.history;
+    stored.pageSpeed[0].field.url = "https://other.test/books";
+    expect(publicSeoPayloadSchema.parse(stored).pageSpeed?.[0]?.field).toEqual({
+      status: "unavailable",
+    });
+    stored.pageSpeed[0].field.url = SEO_TEST_PAGE;
+    stored.pageSpeed[0].testedUrl = "https://other.test/books";
+    expect(
+      publicSeoPayloadSchema
+        .parse(stored)
+        .pageSpeed?.some((row) => row.testedUrl.includes("other.test")),
+    ).toBe(false);
+  });
+
+  it("reads a stored history whose weeks it cannot read as unavailable, as a fresh import, and keeps the measurement and the audit", () => {
+    const stored = JSON.parse(
+      JSON.stringify(
+        parsePublicSeoArtifact({
+          ...legacyReport(),
+          speed: {
+            mobile: {
+              field: {
+                level: "url",
+                url: SEO_TEST_PAGE,
+                period: null,
+                p75: { lcp: 1300, inp: 60, cls: 0, ttfb: null, fcp: null },
+                history: {
+                  status: "comparable",
+                  sourceRecord: historyRecord,
+                  series,
+                },
+                sourceRefs: bound,
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(stored.pageSpeed[0].field.history.weeks).toEqual(three);
+    // The second value has the form of a day and is no calendar day. Review pass 18: weeks out of order are
+    // unavailable too, not dropped without a trace.
+    for (const weeks of [
+      ["2026-1-4"],
+      ["2026-02-31"],
+      [three[1], three[0], three[2]],
+    ]) {
+      stored.pageSpeed[0].field.history.weeks = weeks;
+      stored.siteSpeed = {
+        rows: [
+          {
+            url: SEO_TEST_PAGE,
+            audited: false,
+            devices: [stored.pageSpeed[0]],
+          },
+        ],
+        dropped: 0,
+      };
+      const read = publicSeoPayloadSchema.safeParse(stored);
+      expect(read.success).toBe(true);
+      for (const field of [
+        read.data?.pageSpeed?.[0]?.field,
+        read.data?.siteSpeed?.rows[0]?.devices[0]?.field,
+      ]) {
+        expect(field).toMatchObject({
+          status: "measured",
+          p75: { lcp: 1300 },
+          history: { status: "unavailable" },
+        });
+      }
+    }
   });
 });

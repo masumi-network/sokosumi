@@ -1,3 +1,6 @@
+import prisma from "@/lib/db/prisma";
+import { isEvalWorkspaceNow } from "@/lib/evals/eval-guard";
+import { runInEvalWorld } from "@/lib/evals/eval-world-context";
 import {
   recordSandboxAction,
   recordSandboxActionResult,
@@ -51,6 +54,23 @@ async function searchTheWeb(input: {
   return { query, results: found.results };
 }
 
+/** The turn's workspace when it is an eval lane's, else null. */
+async function evalTurnWorkspace(turnId: string): Promise<string | null> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { workspaceId: true },
+  });
+  return turn && (await isEvalWorkspaceNow(prisma, turn.workspaceId))
+    ? turn.workspaceId
+    : null;
+}
+
+/** An eval lane's page: from its fixed web, never the network. */
+async function evalWebFetchPage(toolInput: unknown) {
+  const { evalWebFetch } = await import("@/services/evals/eval-web-world");
+  return evalWebFetch(toolInput as { url: string; maxChars?: number });
+}
+
 /**
  * Runs a read-only web tool in Core: every web search, and a fetch for a turn
  * without a sandbox. It writes the same audit row, web-taint mark and citable
@@ -82,10 +102,16 @@ export async function runCoreWebTool(input: {
       sources: citableSources(input.capability, output),
     }).catch(() => undefined);
   try {
-    const output =
+    const evalWorkspace = await evalTurnWorkspace(input.turnId);
+    const run = (): Promise<unknown> =>
       input.capability === "web_fetch"
-        ? await fetchWebPage(input.toolInput as { url: string })
-        : await searchTheWeb(input);
+        ? evalWorkspace
+          ? evalWebFetchPage(input.toolInput)
+          : fetchWebPage(input.toolInput as { url: string })
+        : searchTheWeb(input);
+    const output = evalWorkspace
+      ? await runInEvalWorld(evalWorkspace, run)
+      : await run();
     await report("completed", output);
     return output;
   } catch (error) {

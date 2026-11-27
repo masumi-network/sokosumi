@@ -180,7 +180,7 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Cambiar espacio de trabajo",
-      "switchOrganization": "Cambiar de organización",
+      "switchWorkspaceCurrent": "Cambiar espacio de trabajo (actual: {name})",
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
@@ -434,6 +434,7 @@
           "download": "Descargar",
           "copy": "Copiar",
           "copySuccess": "Resultado copiado al portapapeles",
+          "copyFormattedSuccess": "Resultado copiado con formato",
           "copyError": "No se pudo copiar el resultado",
           "maximize": "Maximizar",
           "expand": "Expandir",
@@ -448,6 +449,7 @@
           "exportDocxError": "Error al exportar documento Word",
           "exportAsPdf": "Exportar como PDF",
           "exportAsDocx": "Exportar como documento Word",
+          "exportTooLarge": "Este archivo es demasiado grande para exportarlo. El límite es de {limit, number} MB.",
           "exportAsMarkdown": "Exportar como Markdown",
           "Refund": {
             "error": "No se pudo solicitar el reembolso",
@@ -671,7 +673,7 @@
           "emailError": "No se pudieron enviar las invitaciones"
         },
         "Errors": {
-          "createFailed": "No se pudo crear la organización",
+          "createFailed": "No se pudo crear la organización. Inténtalo de nuevo.",
           "unauthorizedAction": "Iniciar sesión"
         }
       },
@@ -4760,10 +4762,20 @@
         "error": "No se pudieron preparar sugerencias del sitio web del proyecto. Inténtalo de nuevo."
       },
       "BrandKit": {
+        "logo": "Logotipo",
+        "look": "Colores y fuentes",
+        "copy": "Textos de marca",
+        "assets": "Imágenes de marca",
+        "assetHint": "Añade mascotas, ilustraciones u otras imágenes que Content Studio pueda usar como referencias visuales.",
+        "addAsset": "Añadir imagen",
+        "removeAsset": "Quitar {name}",
+        "removeImage": "Quitar",
+        "assetError": "No se pudieron actualizar las imágenes de marca.",
+        "retryAsset": "Reintentar",
         "websiteLookDraft": "Colores y fuentes sugeridos a partir de tu web. Puedes editarlos antes de guardar el estilo.",
         "discardWebsiteLook": "Descartar estilo sugerido",
         "cancelLook": "Descartar cambios de estilo",
-        "editLook": "Editar colores y fuentes",
+        "editLook": "Editar",
         "resetLook": "Usar el diseño del proyecto",
         "colorsHelp": "Introduce hasta ocho colores hexadecimales, uno por línea, como #23453C.",
         "fonts": "Fuentes",
@@ -4779,7 +4791,7 @@
         "websiteProfileAdded": "Se añadieron sugerencias del sitio web. Revisa la voz de marca y el público antes de guardar.",
         "websiteCopyEmpty": "No hay texto nuevo del sitio web para añadir.",
         "websiteCopyError": "No se pudo leer el texto del sitio web del proyecto. Inténtalo de nuevo.",
-        "extractWebsiteStyle": "Extraer colores y tipografías",
+        "extractWebsiteStyle": "Del sitio web",
         "websiteStyleHelp": "Extraer el estilo del sitio web sustituye la guía de diseño del proyecto.",
         "websiteStyleSaved": "Se guardó el estilo del sitio web en la guía de diseño del proyecto.",
         "logoFile": "Archivo del logotipo del proyecto",
@@ -8000,6 +8012,9 @@
         "states": {
           "waiting_crawl": "Espera el rastreo",
           "waiting_window": "Espera la ventana",
+          "ready": "Listo para el veredicto",
+          "waiting_retry": "Espera más datos",
+          "measured": "Medido",
           "not_measurable": "No medible"
         },
         "reasons": {
@@ -8007,7 +8022,8 @@
           "not_connected": "Search Console no está conectado.",
           "no_property": "Ninguna propiedad de Search Console cubre la página.",
           "inspection_failed": "La inspección de URL falló o fue rechazada.",
-          "not_crawled_yet": "Google no ha rastreado la página desde el cambio."
+          "not_crawled_yet": "Google no ha rastreado la página desde el cambio.",
+          "worker_failed": "El worker de SEO no dio un veredicto tras tres reclamaciones."
         }
       },
       "CmoSpend": {
@@ -8333,6 +8349,38 @@
           "help": "Solo con permiso de entrenamiento. Se omite el texto de marca; los enlaces caducan en 10 minutos.",
           "download": "Descargar JSONL",
           "error": "No se pudieron exportar los datos de anuncios. Inténtalo de nuevo."
+        }
+      },
+      "PreprodAccess": {
+        "title": "Acceso a Preprod",
+        "noEffect": "Este ajuste todavía no cambia el acceso a Preprod.",
+        "state": "{enabled, select, true {Activado} other {Desactivado}}",
+        "saved": "{enabled, select, true {El acceso a Preprod está activado.} other {El acceso a Preprod está desactivado.}}",
+        "history": {
+          "title": "Cambios recientes",
+          "entry": "{enabled, select, true {Activado} other {Desactivado}} por {operator}",
+          "unknown": "un admin desconocido",
+          "empty": "Todavía no hay cambios."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {¿Activar el acceso a Preprod?} other {¿Desactivar el acceso a Preprod?}}",
+          "description": "{enabled, select, true {{type, select, user {El usuario} other {La organización}} {name} obtiene acceso a Preprod.} other {{type, select, user {El usuario} other {La organización}} {name} pierde el acceso a Preprod.}} Tu nombre y el motivo se guardan con el cambio.",
+          "reasonLabel": "Motivo",
+          "reasonHint": "ID del ticket, sin datos personales.",
+          "reasonRequired": "Escribe un motivo.",
+          "cancel": "Cancelar",
+          "confirm": "{enabled, select, true {Activar} other {Desactivar}}"
+        },
+        "errors": {
+          "forbidden": "No permitido: solo un admin que haya iniciado sesión como sí mismo puede cambiar el acceso a Preprod.",
+          "notFound": "{type, select, user {Este usuario ya no existe.} other {Esta organización ya no existe.}}",
+          "invalid": "El cambio no se aceptó. Revisa el motivo e inténtalo de nuevo.",
+          "failed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+        },
+        "unavailable": {
+          "title": "No se pudo cargar el acceso a Preprod.",
+          "description": "El resto de la página funciona.",
+          "retry": "Reintentar"
         }
       }
     },
@@ -10786,6 +10834,7 @@
       "uploadFab": "Subir archivo",
       "folder": "Carpeta",
       "createFolder": "Nuevo",
+      "emptyNewFolder": "Nueva carpeta",
       "folderName": "Nombre de carpeta",
       "createFolderDialogTitle": "Crear nueva carpeta",
       "createFolderDialogDescription": "Escribe un nombre para la nueva carpeta",
@@ -10896,7 +10945,7 @@
         "retry": "Reintentar",
         "loadMore": "Cargar más",
         "emptyTitle": "Aquí aparecerán tus archivos",
-        "emptyDescription": "Sube un archivo y aparecerá aquí.",
+        "emptyDescription": "Sube un archivo o crea una carpeta para ordenarlos.",
         "noMatchesTitle": "Sin coincidencias accesibles",
         "noMatchesDescription": "Prueba con otras palabras o quita los filtros.",
         "statusLoading": "Cargando archivos",
@@ -10988,7 +11037,14 @@
         },
         "previewHeading": "Vista previa",
         "previewOpen": "Abrir",
+        "readmeLabel": "Sobre esta carpeta",
+        "readmeShowMore": "Ver más",
+        "readmeShowLess": "Ver menos",
+        "readmeMedia": "Abrir multimedia",
+        "readmeMediaNamed": "Abrir multimedia: {name}",
         "previewDownload": "Descargar",
+        "previewDownloadOriginal": "Archivo original",
+        "previewExportTooLarge": "Demasiado grande para exportar como PDF o Word. El límite es de {limit, number} MB; el archivo original se puede seguir descargando.",
         "previewLoading": "Cargando vista previa",
         "previewUnavailable": "No se pudo cargar esta vista previa. La descarga sigue funcionando.",
         "previewNotRenderable": "No hay vista previa integrada para este tipo de archivo. Ábrelo en una pestaña o descárgalo.",
@@ -11084,6 +11140,8 @@
         "manage": "Gestionar sala",
         "loading": "Cargando sala de datos",
         "loadFailed": "No se pudo cargar la sala de datos",
+        "loadFailedDescription": "Puede que se haya cerrado o que pertenezca a otro espacio de trabajo.",
+        "retry": "Reintentar",
         "backToFiles": "Volver a Archivos",
         "copyLink": "Copiar enlace",
         "linkCopied": "Enlace copiado",
@@ -12109,6 +12167,7 @@
       "create": "Crear tabla",
       "save": "Guardar",
       "retry": "Reintentar",
+      "openFailed": "No se puede abrir esta tabla",
       "openTable": "Abrir tabla",
       "loading": "Cargando…",
       "showArchivedRows": "Mostrar filas archivadas",
@@ -12143,7 +12202,7 @@
       "exportCsv": "Exportar CSV",
       "restore": "Restaurar tabla",
       "archive": "Archivar tabla",
-      "archivedNotice": "Esta tabla está archivada. Restáurala para seguir editando.",
+      "archivedNotice": "Esta tabla está archivada, así que es de solo lectura.",
       "view": "Vista guardada",
       "allRows": "Todas las filas",
       "configureView": "Configuración de vista",
@@ -12160,10 +12219,13 @@
       "sortAscending": "Ordenar ascendente",
       "sortDescending": "Ordenar descendente",
       "noRows": "No hay filas en esta vista. Añade una fila o cambia los filtros.",
+      "noRowsArchived": "No hay filas. Restaura la tabla para añadir algunas.",
+      "noRowsArchivedFiltered": "No hay filas en esta vista. Cambia la vista o sus filtros.",
       "liveUpdates": "Actualizaciones cada 3 segundos. Se comprueban los conflictos al editar.",
       "enrichDescription": "La tarea solo puede escribir en las filas y columnas de salida seleccionadas. No se autoriza enviar mensajes ni contactar a nadie.",
       "historyDescription": "Cada lote registra cambios y fuentes. No se deshace si un valor cambió después.",
       "archiveDescription": "Archivar conserva los datos y el historial. Puedes restaurar la tabla desde Archivos.",
+      "restoreDescription": "Al restaurarla, la tabla vuelve a ser editable con sus datos y su historial.",
       "tableSettings": "Los cambios se aplican a esta tabla en vivo.",
       "viewName": "Nombre de vista",
       "visibleColumns": "Columnas visibles",
@@ -13061,7 +13123,9 @@
         "hint": "Describe a quién le estás pidiendo dinero; Exa lee páginas de fondos y noticias de rondas y sugiere personas con un motivo y una fuente.",
         "hintSuggested": "Añade a quienes merezcan una conversación; los descartados no vuelven a sugerirse.",
         "hintNoExa": "Exa no está configurado en este servidor, así que la búsqueda está desactivada.",
+        "hintNoExaShort": "Búsqueda desactivada",
         "find": "Buscar inversores",
+        "review": "Revisar",
         "add": "Añadir",
         "addAll": "Añadir todos",
         "dismiss": "Descartar",
@@ -13853,6 +13917,13 @@
         "before": "Antes",
         "after": "Cambio sugerido",
         "noBefore": "No se registró un valor anterior",
+        "draft": "Borrador del texto inicial",
+        "draftBefore": "Inicio actual",
+        "draftAfter": "Inicio sugerido",
+        "copyDraft": "Copiar borrador",
+        "draftNote": "El bot SEO comparó los números y los nombres del borrador con la página. Esta comprobación puede pasar por alto una afirmación falsa. Lee el borrador antes de publicarlo.",
+        "draftDevice": "Este borrador es solo para la página en {device, select, mobile {móvil} desktop {ordenador} other {{device}}}.",
+        "draftHeldBack": "El bot SEO retuvo su borrador: {reason}",
         "recommended": "Recomendada",
         "unavailable": "Tarea no disponible",
         "task_created": "Borrador de tarea creado",
@@ -14755,8 +14826,10 @@
         },
         "researchCompetitors": "Investigar competidores",
         "verdict": {
-          "issues": "{count, plural, one {# problema por corregir} other {# problemas por corregir}}",
+          "actions": "{count, plural, one {# cosa por corregir} other {# cosas por corregir}}",
+          "issuesFound": "{count, plural, one {# problema encontrado en la última comprobación} other {# problemas encontrados en la última comprobación}}",
           "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
+          "andSuggestions": "{lead}. {count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
           "clear": "Sin problemas en la última comprobación",
           "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",
           "noCheckOff": "Aún no hay comprobación",
@@ -14778,7 +14851,11 @@
         },
         "openAction": "Abrir acción",
         "changeProperty": "Cambiar propiedad",
-        "chooseProperty": "Elegir propiedad"
+        "chooseProperty": "Elegir propiedad",
+        "fixState": {
+          "failing": "Siguió fallando en la comprobación del {day}",
+          "notTested": "No se ha vuelto a comprobar desde el {day}"
+        }
       },
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
@@ -14809,6 +14886,36 @@
         "shownUntil": "Mostrando hasta {day}.",
         "scheduled": "Programada",
         "next": "Próxima comprobación"
+      },
+      "runDiff": {
+        "title": "Desde la comprobación del {day}",
+        "cardTitle": "Resultados de las pruebas desde la comprobación del {day}",
+        "open": "Qué cambió desde la comprobación anterior",
+        "issues": "Pruebas de página fallidas: {from, number} antes, {to, number} ahora",
+        "issuesNow": "Pruebas de página fallidas ahora: {to, number}",
+        "new": "Nuevos ({count, number})",
+        "fixed": "Corregidos ({count, number})",
+        "stillOpen": "Siguen fallando ({count, number})",
+        "none": "Ninguno",
+        "more": "y {count, number} más",
+        "notCheckedAgain": "{count, plural, one {# problema anterior no tiene un resultado claro en esta comprobación. No cuenta como corregido ni como aún fallido.} other {# problemas anteriores no tienen un resultado claro en esta comprobación. No cuentan como corregidos ni como aún fallidos.}}",
+        "notCheckedBefore": "{count, plural, one {# problema abierto no tiene un resultado claro en la comprobación anterior. No cuenta como nuevo.} other {# problemas abiertos no tienen un resultado claro en la comprobación anterior. No cuentan como nuevos.}}",
+        "moves": "Cambios de posición ({count, number})",
+        "noMoves": "No hay cambios de posición que mostrar.",
+        "notComparable": {
+          "title": "Sin comparación con la comprobación anterior",
+          "market": "Las dos comprobaciones usaron mercados distintos, así que sus problemas no se comparan.",
+          "rulebook": "Las pruebas cambiaron entre las dos comprobaciones, así que sus problemas no se comparan.",
+          "pages": "Una de las dos comprobaciones no leyó todas las páginas seleccionadas, así que sus problemas no se comparan."
+        },
+        "all": "Detalles de la comparación",
+        "count": {
+          "new": "Nuevos",
+          "fixed": "Corregidos",
+          "stillOpen": "Siguen fallando"
+        },
+        "rulebookChange": "Las pruebas cambiaron entre las dos comprobaciones. Se {compared, plural, one {compara # prueba que ejecutaron ambas} other {comparan # pruebas que ejecutaron ambas}}; {other, plural, one {# queda fuera} other {# quedan fuera}}.",
+        "firstNew": "Primeras pruebas fallidas nuevas"
       },
       "filterDates": "Filtrar por fecha",
       "syncNow": "Sincronizar ahora",
@@ -15421,7 +15528,7 @@
           },
           "38": {
             "title": "Exportación y periodos predefinidos",
-            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos», «Asistentes de IA» y «Qué cambió en las visitas orgánicas» no se pueden exportar. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos», «Asistentes de IA», «Qué cambió en las visitas orgánicas» y «Site speed» no se pueden exportar. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
@@ -15541,21 +15648,14 @@
         }
       },
       "pageSpeed": {
-        "overTarget": "Supera el objetivo de 2,5 s",
-        "withinTarget": "Dentro del objetivo de 2,5 s",
         "title": "Page speed",
-        "lab": "Prueba de Lighthouse",
+        "lab": "Prueba de laboratorio (Lighthouse)",
         "field": "Velocidad para visitantes reales",
-        "scope": {
-          "url": "This URL",
-          "origin": "Entire origin",
-          "normalized": "Normalized URL group"
-        },
         "scores": "Lighthouse scores (out of 100)",
         "unavailable": "Google could not return usable measurements.",
         "not_checked": "Sin comprobar en esta auditoría.",
         "no_data": "Google reported no real-user data for this URL.",
-        "quota": "Se alcanzó el límite de pruebas de Google.",
+        "quota": "Se alcanzó un límite de pruebas.",
         "deadline": "La prueba se quedó sin tiempo.",
         "single": "One run",
         "multiple": "Median of {ok} usable runs out of {runs}",
@@ -15569,18 +15669,112 @@
         "metricsTitle": {
           "lcp": "Aparición del mayor elemento (LCP)",
           "fcp": "Aparición del primer contenido (FCP)",
-          "tbt": "Total blocking time",
-          "si": "Speed index",
+          "tbt": "Time the page is too busy to respond (TBT)",
+          "si": "How fast the page fills in (speed index)",
           "cls": "Cambios inesperados de diseño (CLS)",
-          "inp": "Interaction to next paint",
-          "ttfb": "Time to first byte"
+          "inp": "Response to a tap or click (INP)",
+          "ttfb": "Server starts to answer (TTFB)"
         },
         "insights": "What to investigate",
-        "p75": "75th percentile",
+        "p75": "3 of 4 visits were at least this fast (75th percentile)",
         "date": "Audit date",
         "budget": "The audit used its PageSpeed request budget.",
         "unsafe": "The audit could not verify a public landing page.",
-        "paintTime": "{device} · el mayor elemento apareció en {time}"
+        "status": {
+          "good": "Good",
+          "needs_improvement": "Needs improvement",
+          "poor": "Poor",
+          "too_little_data": "Too little data"
+        },
+        "limit": "Good: up to {good} · poor: over {poor}",
+        "vitals": "Each status compares the value with Google’s limits (Core Web Vitals).",
+        "source": {
+          "field": "Real visitors",
+          "fieldOrigin": "Real visitors, whole site",
+          "fieldGroup": "Real visitors, group of similar pages",
+          "lab": "Lab test",
+          "mixed": "Differs by device"
+        },
+        "caveat": {
+          "origin": "Google has too few visits to this page alone. These values are for the whole site, so they do not describe this page.",
+          "normalized": "These values are for a group of similar addresses, so they can differ for this page."
+        },
+        "labNote": "A lab test loads the page once on a simulated device. It shows what to fix, but real visitors can see other values.",
+        "labNoInp": "A lab test cannot measure the response to taps and clicks.",
+        "labVersion": "Lighthouse {version}",
+        "auditedPage": "La auditoría probó {url}. Esa dirección lleva a esta página.",
+        "noReadable": "Ninguna medición legible.",
+        "verdict": {
+          "pass": "Within all limits",
+          "passOn": "Within all limits on {devices}",
+          "over": "Over a limit: {metrics}",
+          "unknown": "Not known"
+        },
+        "metricShort": {
+          "lcp": "loading (LCP)",
+          "inp": "response (INP)",
+          "cls": "layout shifts (CLS)"
+        }
+      },
+      "siteSpeed": {
+        "title": "Site speed",
+        "description": "How fast the main pages load, measured against Google’s limits.",
+        "column": {
+          "page": "Page",
+          "tier": "Check",
+          "devices": "Devices",
+          "status": "Speed",
+          "source": "Measured by",
+          "trend": "Trend"
+        },
+        "tier": {
+          "full": "Full check",
+          "reduced": "Short check, one device",
+          "none": "Not checked"
+        },
+        "audited": "Page of this audit",
+        "cause": {
+          "action": "Added because it is on the path to the site's main action",
+          "keyword": "Added because it ranks for a tracked keyword",
+          "template": "Added as an example of a page type",
+          "entry": "Added because visitors often arrive here",
+          "risk": "Added because it is likely to be slow"
+        },
+        "showMore": "Show {count} more pages",
+        "trend": {
+          "better": "Getting better",
+          "worse": "Getting worse",
+          "steady": "Steady",
+          "none": "No trend yet"
+        },
+        "trendTitle": "Real visitors, week by week",
+        "trendText": "{metric}: {first} in the 28 days to {firstDate}, {last} in the 28 days to {lastDate}.",
+        "trendLimit": "The dashed line is the good limit: {good}.",
+        "trendWeek": "28 days to {date}: {value}",
+        "trendWeekNone": "28 days to {date}: no data",
+        "noTrend": {
+          "incompatible_population": "Earlier weeks measured a different group of visits, so they cannot be compared.",
+          "unavailable": "Earlier weeks could not be read or verified.",
+          "legacy_unverified": "This audit could not verify that the earlier weeks measured the same group of visits. Run a new audit to check for a trend.",
+          "too_few": "Too few weeks with data to show a trend.",
+          "no_series": "No weekly chart is available for this measurement."
+        },
+        "deviceReason": {
+          "crux-url": "Short check on {device}: {share} of the page loads Google measured for this address or similar addresses were on it.",
+          "crux-origin": "Short check on {device}: {share} of the page loads Google measured for the site were on it.",
+          "page-type": "Short check on {device}, the usual device for this kind of page.",
+          "default": "Short check on {device}, the default device.",
+          "unknown": "Short check on {device}.",
+          "stopped": "The default device is {device}: the check found no device shares before it stopped."
+        },
+        "mix": "Page loads: {phone} phone · {desktop} desktop · {tablet} tablet",
+        "notChecked": "Pages not checked: {count}. {reason}",
+        "gap": {
+          "limit": "The audit checks a limited number of pages for speed.",
+          "deadline": "The audit ran out of time.",
+          "quota": "A CrUX rate limit was reached.",
+          "other": "The speed test did not finish."
+        }
       }
     },
     "AdDataConsent": {

@@ -11,6 +11,7 @@ import {
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import { linkedInAuthorUrn } from "@/helpers/linkedin-person";
+import { isEvalSocialAccount } from "@/lib/evals/eval-social-account";
 
 const FIRST_COMMENT_TOOLS = {
   x: {
@@ -108,6 +109,7 @@ export function socialPostFirstCommentTool(
 export async function publishSocialPostFirstComment(
   input: PublishSocialPostFirstCommentInput,
 ): Promise<void> {
+  if (isEvalSocialAccount(input.connectedAccountId)) return;
   const tool = socialPostFirstCommentTool(input.provider);
   const limit = socialPostFirstCommentLimit(
     input.provider,

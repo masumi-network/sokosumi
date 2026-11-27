@@ -96,7 +96,7 @@ function gscReportOf<Row extends z.ZodTypeAny>(row: Row) {
     rows: z.array(row).max(SEO_STATS_MAX_ROWS).default([]),
   });
 }
-const gscReportSchema = gscReportOf(
+export const gscReportSchema = gscReportOf(
   z.object({ ...gscRowFields, position: valueSchema }),
 );
 /**

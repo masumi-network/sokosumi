@@ -12,6 +12,14 @@ import {
 import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
+import { evalWorldWorkspace } from "@/lib/evals/eval-world-context";
+import {
+  EvalWorldRefusal,
+  isEvalIntegrationAccount,
+  isEvalIntegrationToolReadOnly,
+  listEvalIntegrationTools,
+  runEvalIntegrationTool,
+} from "@/services/evals/eval-integration-world";
 
 /** The account and its actual Composio execution identity, independent of UI. */
 export interface ComposioIntegrationAccount {
@@ -158,6 +166,8 @@ export async function listIntegrationTools(
 ): Promise<SokoBotIntegrationTool[]> {
   const refusal = adToolkitRefusal(integration.provider.id);
   if (refusal) throw new SokoBotIntegrationError(refusal);
+  if (inEvalWorld(integration))
+    return listEvalIntegrationTools(integration.provider.id, options);
   const composio = requireComposio();
   const query = options.query?.trim() || undefined;
   const pinnedSlugs = pinnedReadToolSlugs(integration.provider.id, query);
@@ -228,11 +238,14 @@ export async function readIntegrationTool(
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const slug = integrationToolSlug(integration, tool);
-  const composio = requireComposio();
-  const described = await withComposio("describe tool", () =>
-    composio.tools.getRawComposioToolBySlug(slug),
-  );
-  if (!described.tags?.includes(READ_ONLY_TAG))
+  const readOnly = inEvalWorld(integration)
+    ? evalWorldTool(() =>
+        isEvalIntegrationToolReadOnly(integration.provider.id, slug),
+      )
+    : await withComposio("describe tool", () =>
+        requireComposio().tools.getRawComposioToolBySlug(slug),
+      ).then((described) => described.tags?.includes(READ_ONLY_TAG) ?? false);
+  if (!readOnly)
     throw new SokoBotIntegrationError(
       `${slug} is not marked read-only; a tool that changes something runs through run_integration_tool`,
     );
@@ -373,11 +386,41 @@ function fixtureKey(slug: string, args: Record<string, unknown>): string {
   return `${slug}.${hash}`;
 }
 
+/**
+ * Whether this account belongs to the eval world. An eval account is never
+ * sent to Composio, wherever the call comes from, and an eval lane's turn
+ * may never use a real account: either would reach outside the benchmark.
+ */
+function inEvalWorld(integration: ComposioIntegrationAccount): boolean {
+  if (isEvalIntegrationAccount(integration.composioAccountId)) return true;
+  if (evalWorldWorkspace())
+    throw new SokoBotIntegrationError(
+      "An eval lane cannot use a real connected account",
+      "IDENTITY_MISMATCH",
+    );
+  return false;
+}
+
+function evalWorldTool<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    throw new SokoBotIntegrationError(
+      error instanceof Error ? error.message : "Not available",
+      error instanceof EvalWorldRefusal ? "NOT_FOUND" : "UPSTREAM",
+    );
+  }
+}
+
 export async function executeIntegrationTool(
   integration: ComposioIntegrationAccount,
   slug: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  if (inEvalWorld(integration))
+    return evalWorldTool(() =>
+      runEvalIntegrationTool(integration.provider.id, slug, args),
+    );
   const mode = integrationFixtureMode();
   const key = fixtureKey(slug, args);
   const file = path.join(fixtureDir(), `${key}.json`);

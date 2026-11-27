@@ -15,6 +15,7 @@ import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
+import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { standupClaimsUnrecordedWork } from "@/lib/soko-bot/answer-claims";
 import { askSmallModel } from "@/lib/soko-bot/small-model";
@@ -891,6 +892,8 @@ async function openHandoff(input: {
       sokoBotId: offering.kind === "sokoBot" ? offering.id : null,
       chainDepth: 1,
       status: "pending",
+      // A stand-up is unattended work: Mainnet by name.
+      network: DETACHED_SOKO_BOT_NETWORK,
     },
     select: { id: true },
   });

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { parseMedia } from "@/lib/image-studio/fal-client";
@@ -77,6 +78,9 @@ export function mountFalImageJobsWebhook(app: Hono): void {
     });
     if (!job) return c.json({ ok: true, ignored: "unknown_request" }, 200);
 
+    // fal's callback carries no Network, and Image Studio is Mainnet only.
+    const scope = createNetworkScope("mainnet");
+
     if (body.status === "ERROR") {
       // Through the service, not with an `updateMany` of its own. This handler
       // used to write FAILED directly, which meant the one path fal takes to tell
@@ -84,6 +88,7 @@ export function mountFalImageJobsWebhook(app: Hono): void {
       // failed generation on preview took eight credits and kept them.
       // `failImageJob` owns settling a failure, including paying it back.
       await failImageJob(
+        scope,
         job.id,
         "provider_error",
         typeof body.error === "string" ? body.error : undefined,
@@ -102,7 +107,7 @@ export function mountFalImageJobsWebhook(app: Hono): void {
     // The provider's dimensions go with the URL. They used to be dropped here,
     // which is half of why stored assets read 0x0.
     const produced = media[0]!;
-    await settleWithMedia(job.id, produced.url, produced, requestId);
+    await settleWithMedia(scope, job.id, produced.url, produced, requestId);
     return c.json({ ok: true }, 200);
   });
 }

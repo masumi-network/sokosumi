@@ -2,8 +2,12 @@ import { spawn } from "node:child_process";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
-import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
+import {
+  SOKO_BOT_TURN_TOKEN_HEADER,
+  type SokoBotCapability,
+} from "@sokosumi/soko-bot";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { serviceUnavailable } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
@@ -156,37 +160,104 @@ describe("a runner whose start call fails", () => {
   }, 30_000);
 });
 
-it("completes a turn when older Core sends only an absolute deadline", async () => {
+function startTurn(capabilities: SokoBotCapability[] = []) {
   service.startSandboxTurn.mockResolvedValueOnce({
     message: "Hello",
     system: "Reply with a greeting.",
     model: "google/gemini-3.6-flash",
-    capabilities: [],
+    capabilities,
     deadlineAt: new Date(Date.now() + 60_000).toISOString(),
     maxSteps: 1,
   });
+}
+
+function streamReply(events: object[], reason: "stop" | "tool-calls") {
   service.proxySandboxModelCall.mockResolvedValueOnce({
     status: 200,
     contentType: "text/event-stream",
     body: [
-      { type: "text-start", id: "answer" },
-      { type: "text-delta", id: "answer", delta: "Hello there." },
-      { type: "text-end", id: "answer" },
+      ...events,
       {
         type: "finish",
-        finishReason: { unified: "stop", raw: "stop" },
+        finishReason: { unified: reason, raw: reason },
         usage: { inputTokens: { total: 10 }, outputTokens: { total: 3 } },
       },
     ]
       .map((event) => `data: ${JSON.stringify(event)}\n\n`)
       .join(""),
   });
+}
+
+function streamAnswer() {
+  streamReply(
+    [
+      { type: "text-start", id: "answer" },
+      { type: "text-delta", id: "answer", delta: "Hello there." },
+      { type: "text-end", id: "answer" },
+    ],
+    "stop",
+  );
+}
+
+it.each([
+  { title: "completes a turn when older Core sends only an absolute deadline" },
+  {
+    title: "stops on soko_bot_network_stale",
+    status: 409,
+    kind: "soko_bot_network_stale",
+  },
+  { title: "stops on preprod_off", status: 403, kind: "preprod_off" },
+] as const)(
+  "$title",
+  async (scenario) => {
+    startTurn();
+    streamAnswer();
+    if ("status" in scenario) {
+      service.completeSandboxTurn.mockRejectedValueOnce(
+        new HTTPException(scenario.status, {
+          cause: {
+            kind: scenario.kind,
+            reportToSentry: false,
+          },
+        }),
+      );
+    }
+
+    const result = await runRunner(await coreBehindSandboxProxy());
+    expect(result.code, result.output).toBe(0);
+    expect(service.completeSandboxTurn).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ turnId: TURN_ID }),
+      { text: "Hello there.", finishReason: "stop" },
+    );
+    expect(requests.at(-1)?.path).toBe("complete");
+  },
+  30_000,
+);
+
+it("sends a tool call once when Core refuses it during a Preprod pause", async () => {
+  startTurn(["list_tasks"]);
+  streamReply(
+    [
+      {
+        type: "tool-call",
+        toolCallId: "call_1",
+        toolName: "list_tasks",
+        input: "{}",
+      },
+    ],
+    "tool-calls",
+  );
+  streamAnswer();
+  service.runSandboxTool.mockRejectedValueOnce(
+    new HTTPException(503, {
+      cause: { kind: "preprod_paused", reportToSentry: false },
+    }),
+  );
 
   const result = await runRunner(await coreBehindSandboxProxy());
 
+  expect(
+    requests.filter(({ path }) => path === "tools/list_tasks"),
+  ).toHaveLength(1);
   expect(result.code, result.output).toBe(0);
-  expect(service.completeSandboxTurn).toHaveBeenCalledExactlyOnceWith(
-    expect.objectContaining({ turnId: TURN_ID }),
-    { text: "Hello there.", finishReason: "stop" },
-  );
 }, 30_000);

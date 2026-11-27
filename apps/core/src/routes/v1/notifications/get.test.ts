@@ -53,10 +53,8 @@ vi.mock("@/lib/db/prisma", () => ({
     task: {
       findMany: taskFindManyMock,
     },
-    job: {
-      findMany: jobFindManyMock,
-    },
   },
+  networkPrisma: () => ({ job: { findMany: jobFindManyMock } }),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -98,6 +96,7 @@ function createNotificationRow(
     isRead: false,
     readAt: null,
     createdAt: new Date("2026-06-16T15:00:00.000Z"),
+    network: null,
     ...overrides,
   };
 }
@@ -161,14 +160,17 @@ describe("GET /notifications", () => {
     expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
-  it("answers the same whether or not a row has a Network", async () => {
+  it("answers each row's Network, and otherwise the same", async () => {
     // The body carries the time of the answer.
     vi.useFakeTimers({
       toFake: ["Date"],
       now: new Date("2026-11-26T12:00:00Z"),
     });
     onTestFinished(() => void vi.useRealTimers());
-    const bodies: string[] = [];
+    const bodies: {
+      data: Record<string, unknown>[];
+      meta: Record<string, unknown>;
+    }[] = [];
     for (const network of [null, "mainnet"]) {
       notificationFindManyMock
         .mockResolvedValueOnce([])
@@ -177,10 +179,21 @@ describe("GET /notifications", () => {
       notificationCountMock.mockResolvedValue(1);
       const response = await createApp().request("http://localhost/");
       expect(response.status).toBe(200);
-      bodies.push(await response.text());
+      const body = (await response.json()) as {
+        data: Record<string, unknown>[];
+        meta: Record<string, unknown>;
+      };
+      delete body.meta.requestId;
+      bodies.push(body);
     }
-    expect(bodies[1]).toBe(bodies[0]);
-    expect(bodies[0]).not.toContain("network");
+    const [untagged, tagged] = bodies;
+    expect(bodies.map((body) => body.data.map((item) => item.network))).toEqual(
+      [[null], ["mainnet"]],
+    );
+    expect({
+      ...tagged,
+      data: tagged.data.map((item) => ({ ...item, network: null })),
+    }).toEqual(untagged);
   });
 
   it("applies kind and isRead filters", async () => {

@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -47,7 +48,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, jobId } = c.req.valid("param");
 
+    // Image Studio is Mainnet only: the charge does not follow the request's Network.
     const result = await requestCancel({
+      scope: createNetworkScope("mainnet"),
       jobId,
       projectId,
       workspaceId: workspaceContext.workspaceId,

@@ -48,6 +48,7 @@ export {
   sokoBotJudgeVerdictSchema,
 } from "./judge.js";
 export {
+  containsSokoBotCredentialMaterial,
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   parseSokoBotMemory,
@@ -180,8 +181,12 @@ export {
   storedBrandBrainSchema,
 } from "./project-marketing.js";
 export {
+  ACTION_RESULT_CARD_KINDS,
+  ACTION_RESULT_REMOVAL_KINDS,
   CHAT_RESULT_PREVIEW_LIMIT,
+  CHAT_RESULT_REFERENCE_KINDS,
   type ChatResultReference,
+  type ChatResultReferenceKind,
   chatResultReferenceSchema,
   sokoBotPreviewResultInputSchema,
 } from "./result-previews.js";

@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function ChatHomePageSkeleton(): React.ReactElement {
   return (
     <div
-      className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center px-4"
+      className="flex min-h-full w-full min-w-0 flex-1 flex-col items-center md:px-4"
       data-testid="home-loading"
       // Bones only: a screen reader would read an empty list of three items.
       aria-hidden
@@ -25,7 +25,7 @@ export function ChatHomePageSkeleton(): React.ReactElement {
         <div className="flex flex-col gap-4">
           {/* RoomComposer's form gutter and card height, so the chips below
               land where the page draws them. */}
-          <div className="px-3 pb-3 md:px-5 md:pb-6">
+          <div className="pb-3 md:px-5 md:pb-6">
             <Skeleton
               className="h-27.5 w-full rounded-xl md:h-25.5"
               data-testid="home-loading-composer"
