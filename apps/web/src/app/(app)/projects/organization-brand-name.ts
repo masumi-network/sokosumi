@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
+
 import { designMdService } from "@/lib/services/design-md.service";
 
 /**
@@ -15,6 +17,10 @@ export async function organizationBrandName(project: {
   if (project.designMd || project.cmo) return null;
   const effective = await designMdService
     .resolveEffectiveDesignMd()
-    .catch(() => null);
+    .catch((error: unknown) => {
+      // A Core 401 arrives as the sign-in redirect; only real failures fall back.
+      unstable_rethrow(error);
+      return null;
+    });
   return effective?.owner.type === "organization" ? effective.owner.name : null;
 }

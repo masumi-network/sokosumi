@@ -84,5 +84,10 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
   await page.getByRole("button", { name: "Finish setup" }).click();
   await page.getByRole("button", { name: "Go to workspace" }).click();
   await page.getByRole("link", { name: "Later" }).click();
-  await page.waitForURL(`${baseUrl}/`);
+  // Home can hand over to Chats before the load event.
+  await page.waitForURL(
+    (url) =>
+      url.origin === new URL(baseUrl).origin &&
+      (url.pathname === "/" || url.pathname === "/chat"),
+  );
 }

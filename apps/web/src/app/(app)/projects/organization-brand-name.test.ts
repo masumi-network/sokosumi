@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const resolveEffectiveMock = vi.hoisted(() => vi.fn());
@@ -38,6 +39,20 @@ describe("organizationBrandName", () => {
 
     resolveEffectiveMock.mockRejectedValueOnce(new Error("Core down"));
     await expect(organizationBrandName(EMPTY_PROJECT)).resolves.toBeNull();
+  });
+
+  it("lets a sign-in redirect through instead of hiding it", async () => {
+    let signInRedirect: unknown;
+    try {
+      redirect("/signin");
+    } catch (error) {
+      signInRedirect = error;
+    }
+    resolveEffectiveMock.mockRejectedValueOnce(signInRedirect);
+
+    await expect(organizationBrandName(EMPTY_PROJECT)).rejects.toBe(
+      signInRedirect,
+    );
   });
 
   it("skips the lookup for a Project with a brand or a CMO Project", async () => {
