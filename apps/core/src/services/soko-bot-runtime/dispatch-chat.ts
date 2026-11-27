@@ -1,4 +1,5 @@
 import {
+  type ChatResultReference,
   sokoBotAskCoworkerInputSchema,
   sokoBotListRecipientsInputSchema,
   sokoBotOpenDirectChatInputSchema,
@@ -12,10 +13,46 @@ import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeAuthorizationError,
+  SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf } from "./acting-scope";
 import { listRecipients, sendMessage } from "./chat-message";
 import { type RuntimeOperations } from "./operations";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Every preview_result resource except `task` (whose id column is text) lives
+ * in a Postgres UUID column; reject malformed ids before Prisma throws a raw
+ * invalid-uuid error.
+ */
+function previewReferenceUuidRefusal(ref: ChatResultReference): string | null {
+  switch (ref.kind) {
+    case "task":
+      return null;
+    case "project_selection": {
+      const bad = ref.projectIds.find((id) => !UUID_RE.test(id));
+      return bad
+        ? `"${bad.slice(0, 80)}" is not a valid Project UUID; copy exact projectIds from context or refresh_context.`
+        : null;
+    }
+    case "social_post":
+    case "studio_job": {
+      if (!UUID_RE.test(ref.projectId)) {
+        return `"${ref.projectId.slice(0, 80)}" is not a valid Project UUID; copy the exact projectId from context or tool results.`;
+      }
+      if (!UUID_RE.test(ref.id)) {
+        return `"${ref.id.slice(0, 80)}" is not a valid ${ref.kind} UUID; copy the exact id from the tool result.`;
+      }
+      return null;
+    }
+    default:
+      return UUID_RE.test(ref.id)
+        ? null
+        : `"${ref.id.slice(0, 80)}" is not a valid ${ref.kind} UUID; copy the exact id from context or tool results.`;
+  }
+}
 
 export async function dispatchChatTools(
   runtime: RuntimeOperations,
@@ -67,6 +104,10 @@ export async function dispatchChatTools(
         throw new SokoBotRuntimeAuthorizationError(
           "Result previews are prepared for the owner's requests",
         );
+      }
+      const uuidRefusal = previewReferenceUuidRefusal(reference);
+      if (uuidRefusal) {
+        throw new SokoBotRuntimeValidationError(uuidRefusal);
       }
       return resolveChatResultReference({
         reference,

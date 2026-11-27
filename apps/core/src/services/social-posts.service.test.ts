@@ -3274,6 +3274,207 @@ describe("social posts service", () => {
     });
   });
 
+  describe("botSocialPostUpdateProblems and month media uniqueness", () => {
+    const OTHER_POST_ID = "99999999-9999-4999-8999-999999999999";
+
+    it("returns formatting, stacked caveats, and reused-picture problems in one pass with holder id and recovery hint", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        provider: "linkedin",
+        marketingStrategyId: "version-1",
+        planning: { id: "piece-a" },
+        revision: 2,
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          id: OTHER_POST_ID,
+          text: "First launch post\nSecond line",
+          media: [IMAGE_REF],
+          planning: { id: "piece-b" },
+        },
+      ]);
+      const { botSocialPostUpdateProblems } = await loadService();
+
+      const problems = await botSocialPostUpdateProblems({
+        projectId: PROJECT_ID,
+        postId: POST_ID,
+        workspaceId: WORKSPACE_ID,
+        revision: 2,
+        text: "We launched — fees depend on the tier and may vary by region.",
+        media: [IMAGE_REF],
+      });
+
+      expect(problems).toHaveLength(3);
+      expect(problems[0]).toContain("em dash");
+      expect(problems[1]).toContain("stacks caveats");
+      expect(problems[2]).toContain("Use another picture:");
+      expect(problems[2]).toContain(OTHER_POST_ID);
+      expect(problems[2]).toContain("generate_image");
+      expect(problems[2]).toContain("list_files");
+    });
+
+    it("exempts talking-video siblings sharing the same videoOf group while still refusing null-planning reuse", async () => {
+      const { botSocialPostUpdateProblems } = await loadService();
+      socialPostFindFirstMock.mockResolvedValueOnce({
+        ...draftPost,
+        provider: "instagram",
+        marketingStrategyId: "version-1",
+        planning: { id: "piece-ig", videoOf: "piece-tiktok" },
+        revision: 1,
+      });
+      socialPostFindManyMock.mockResolvedValueOnce([
+        {
+          id: OTHER_POST_ID,
+          text: "Original TikTok video",
+          media: [VIDEO_REF],
+          planning: { id: "piece-tiktok" },
+        },
+      ]);
+
+      expect(
+        await botSocialPostUpdateProblems({
+          projectId: PROJECT_ID,
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          revision: 1,
+          text: "Clean Instagram caption without caveats.",
+          media: [VIDEO_REF],
+        }),
+      ).toEqual([]);
+
+      // Null planning never matches null planning as a videoOf sibling.
+      socialPostFindFirstMock.mockResolvedValueOnce({
+        ...draftPost,
+        provider: "x",
+        marketingStrategyId: "version-1",
+        planning: null,
+        revision: 1,
+      });
+      socialPostFindManyMock.mockResolvedValueOnce([
+        {
+          id: OTHER_POST_ID,
+          text: "Earlier post",
+          media: [IMAGE_REF],
+          planning: null,
+        },
+      ]);
+
+      const nullPlanningProblems = await botSocialPostUpdateProblems({
+        projectId: PROJECT_ID,
+        postId: POST_ID,
+        workspaceId: WORKSPACE_ID,
+        revision: 1,
+        text: "Clean post text.",
+        media: [IMAGE_REF],
+      });
+      expect(nullPlanningProblems).toHaveLength(1);
+      expect(nullPlanningProblems[0]).toContain("Use another picture:");
+      expect(nullPlanningProblems[0]).toContain(OTHER_POST_ID);
+    });
+
+    it("enforces videoOf exemption and actionable reuse hint inside updateSocialPost transaction too", async () => {
+      const { updateSocialPost } = await loadService();
+      const videoPost = {
+        ...draftPost,
+        provider: "instagram",
+        marketingStrategyId: "version-1",
+        planning: { id: "piece-ig", videoOf: "piece-tiktok" },
+        revision: 1,
+      };
+      socialPostFindUniqueMock.mockResolvedValue(videoPost);
+      socialPostFindFirstMock.mockResolvedValue(videoPost);
+      socialPostFindManyMock.mockResolvedValueOnce([
+        {
+          id: OTHER_POST_ID,
+          text: "Original TikTok video",
+          media: [VIDEO_REF],
+          planning: { id: "piece-tiktok" },
+        },
+      ]);
+      socialPostUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+
+      const updated = await updateSocialPost({
+        projectId: PROJECT_ID,
+        postId: POST_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        revision: 1,
+        media: [VIDEO_REF],
+      });
+      expect(updated.id).toBe(POST_ID);
+
+      // Distinct month post still refused inside transaction with holder id + recovery hint.
+      const distinctPost = {
+        ...draftPost,
+        provider: "x",
+        marketingStrategyId: "version-1",
+        planning: { id: "piece-other" },
+        revision: 2,
+      };
+      socialPostFindUniqueMock.mockResolvedValue(distinctPost);
+      socialPostFindFirstMock.mockResolvedValue(distinctPost);
+      socialPostFindManyMock.mockResolvedValueOnce([
+        {
+          id: OTHER_POST_ID,
+          text: "First launch post",
+          media: [IMAGE_REF],
+          planning: { id: "piece-a" },
+        },
+      ]);
+      await expect(
+        updateSocialPost({
+          projectId: PROJECT_ID,
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          sokoBotId: "55555555-5555-4555-8555-555555555555",
+          revision: 2,
+          media: [IMAGE_REF],
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: expect.stringContaining(OTHER_POST_ID),
+      });
+    });
+
+    it("returns empty when revision is stale or post is published so authoritative 409 conflicts are never masked", async () => {
+      const { botSocialPostUpdateProblems } = await loadService();
+      socialPostFindFirstMock.mockResolvedValueOnce({
+        ...draftPost,
+        marketingStrategyId: "version-1",
+        revision: 3,
+      });
+      expect(
+        await botSocialPostUpdateProblems({
+          projectId: PROJECT_ID,
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          revision: 2,
+          text: "Bad **markdown** — em dash",
+        }),
+      ).toEqual([]);
+
+      socialPostFindFirstMock.mockResolvedValueOnce({
+        ...draftPost,
+        status: "PUBLISHED",
+        marketingStrategyId: "version-1",
+        revision: 2,
+      });
+      expect(
+        await botSocialPostUpdateProblems({
+          projectId: PROJECT_ID,
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          revision: 2,
+          text: "Bad **markdown** — em dash",
+        }),
+      ).toEqual([]);
+    });
+  });
+
   it("leaves a person's own formatting alone", async () => {
     const { createSocialPost } = await loadService();
 

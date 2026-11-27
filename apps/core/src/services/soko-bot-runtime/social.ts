@@ -51,6 +51,7 @@ import {
   refreshSocialPostStatistics,
 } from "@/services/social-post-statistics.service";
 import {
+  botSocialPostUpdateProblems,
   cancelSocialPost,
   createSocialPost,
   getSocialPost,
@@ -609,8 +610,9 @@ export async function executeSocialTool(
           input.input,
         );
         // Compared by meaning, which waits on the embedding model, so it
-        // runs before the transaction. Both checks run, so one refusal names
-        // everything to fix: NMKR's month met them one rewrite at a time.
+        // runs before the transaction. Deterministic formatting, caveats, and
+        // reused-picture checks run alongside them so one refusal names
+        // everything to fix at once instead of failing one check per retry.
         if (params.text) {
           const post = {
             postId: params.postId,
@@ -619,7 +621,20 @@ export async function executeSocialTool(
           };
           const stamp = await monthSiblingsStamp(post);
           if (stamp !== null) checkedAgainst = { postId: post.postId, stamp };
-          const [own, opening] = await Promise.all([
+          const [deterministicProblems, own, opening] = await Promise.all([
+            botSocialPostUpdateProblems({
+              projectId: params.projectId,
+              postId: params.postId,
+              workspaceId,
+              revision: params.revision,
+              text: params.text,
+              firstComment: params.firstComment,
+              linkInPost: params.linkInPost,
+              socialConnectionId: params.socialConnectionId,
+              quotedPostId: params.quotedPostId,
+              media,
+              threadParts,
+            }),
             ownMessageProblem(post),
             cmoMakesVariedMonth(authorized.turn.versionId)
               ? linkedInOpeningProblem(post)
@@ -629,9 +644,12 @@ export async function executeSocialTool(
           if (opening)
             await chargeCheck(input, SOKO_BOT_JEV_MODEL, opening.costUsd);
           const checks = [own, ...(opening ? [opening] : [])];
-          const problems = checks.flatMap((check) =>
-            check.problem && !check.waitsForBatch ? [check.problem] : [],
-          );
+          const problems = [
+            ...deterministicProblems,
+            ...checks.flatMap((check) =>
+              check.problem && !check.waitsForBatch ? [check.problem] : [],
+            ),
+          ];
           if (problems.length > 0) throw badRequest(problems.join("\n"));
           const wait = checks.find((check) => check.waitsForBatch);
           if (wait?.problem) throw new WaitsForBatchPostError(wait.problem);
