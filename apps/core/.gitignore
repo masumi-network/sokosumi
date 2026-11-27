@@ -8,3 +8,5 @@ fixtures/soko-bot-integrations/
 !.env.example
 # behaviour lab result files (pnpm soko-bot:lab writes these to cwd)
 soko-bot-lab-*.json
+# Jev routing bench answer caches (pnpm jev:routing-bench writes these next to each set)
+*.answers.json
