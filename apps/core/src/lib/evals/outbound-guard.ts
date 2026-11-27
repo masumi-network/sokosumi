@@ -33,8 +33,19 @@ export class EvalOutboundCallError extends Error {
 
 let installed: OutboundGuardMode | null = null;
 
+/**
+ * Our own storage, not a third party: Files and Drive uploads go to the Blob
+ * store `BLOB_READ_WRITE_TOKEN` names (point it at an eval-only store).
+ */
+const ALLOWED_SUFFIXES = [".blob.vercel-storage.com"];
+
 export function outboundAllowed(host: string): boolean {
-  return ALLOWED_HOSTS.has(host.replace(/^\[|\]$/g, ""));
+  const bare = host.replace(/^\[|\]$/g, "");
+  return (
+    ALLOWED_HOSTS.has(bare) ||
+    bare === "blob.vercel-storage.com" ||
+    ALLOWED_SUFFIXES.some((suffix) => bare.endsWith(suffix))
+  );
 }
 
 function note(logFile: string | undefined, host: string, via: string): void {

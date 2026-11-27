@@ -25,8 +25,15 @@ describe("the eval outbound guard", () => {
   });
 
   it("allows the plan, the Gateway and this machine, and nothing else", () => {
-    for (const host of ["api.openai.com", "ai-gateway.vercel.sh", "localhost"])
+    for (const host of [
+      "api.openai.com",
+      "ai-gateway.vercel.sh",
+      "localhost",
+      "blob.vercel-storage.com",
+      "abc123.public.blob.vercel-storage.com",
+    ])
       expect(outboundAllowed(host), host).toBe(true);
+    expect(outboundAllowed("blob.vercel-storage.com.evil.example")).toBe(false);
     for (const host of ["api.exa.ai", "backend.composio.dev", "rest.ably.io"])
       expect(outboundAllowed(host), host).toBe(false);
   });
