@@ -87,6 +87,14 @@ export interface SokoBotVersion {
    */
   askPolicy?: true;
   /**
+   * CMO only: when a chat turn saves a new unapproved strategy version on a
+   * project with an approved running month and upcoming unpublished posts,
+   * Core updates the captured-preference hint and bounces the turn once if no
+   * upcoming posts were updated yet. Omitted on all live, control, and
+   * loop-only versions.
+   */
+  cmoApplyChanges?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

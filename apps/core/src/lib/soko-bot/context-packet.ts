@@ -137,6 +137,11 @@ export interface BuildContextPacketInput extends ContextPacketReaderInput {
   routeSteering?: boolean;
   /** The lasting preference saved from this message before the turn. */
   capturedPreference?: string | null;
+  /**
+   * CMO `cmoApplyChanges` flag: direct captured preferences to apply to
+   * affected upcoming unpublished posts too, not only memory or strategy.
+   */
+  cmoApplyChanges?: boolean;
   /** The message as the classifier read it: Cuso's organizer picks from it. */
   turnMessage?: string;
   /** The bot's own last reply here, for a message that only answers it. */
@@ -254,7 +259,9 @@ export function triggerHints(input: BuildContextPacketInput): string[] {
       : []),
     ...(input.capturedPreference
       ? [
-          `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
+          input.cmoApplyChanges
+            ? `Saved to your memory's preferences from this message: "${input.capturedPreference}". Compare the owner's requested scope before acting: if they asked for a change to take effect now, check and update only the affected upcoming unpublished posts on the approved running month (leaving any posts they asked to preserve unchanged) and report what changed from receipts; if they asked only for a proposal/review draft or a future-only rule, leave existing scheduled posts unchanged. Correct memory with update_memory if it is wrong.`
+            : `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
         ]
       : (signals?.statesPreference ?? 0) >= LIKELY_SIGNAL
         ? ["The message may state a lasting preference."]

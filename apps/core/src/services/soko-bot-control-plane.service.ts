@@ -2876,6 +2876,9 @@ export class SokoBotControlPlane {
       ],
       routeSteering: version.routeSteering === true,
       capturedPreference,
+      ...(version.cmoApplyChanges && version.profile === "cmo"
+        ? { cmoApplyChanges: true }
+        : {}),
       turnMessage: input.chat?.said ?? input.chat?.classifyMessage ?? message,
       previousReply:
         previousTurn?.status === "COMPLETED" ? previousTurn.finalAnswer : null,
