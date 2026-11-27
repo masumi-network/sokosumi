@@ -5,7 +5,8 @@
 - Environment: local, ChatGPT plan + real Jev (`local-chatgpt-plan-real-jev`)
 - Pin: `2ac1726d20` (main `a01df00294` with #8362, the real-Jev switch), both sides on the same code
 - Bots: candidate Soko Bot v39 + Cuso cmo-v26, baseline Soko Bot v36 + Cuso cmo-v23
-- Judge: `claude-code:claude-opus-5-5`
+- Judge: `claude-code:claude-opus-5-5` (Claude Code on its subscription, the plan-run default) for all 96 verdicts, both sides
+- Agent turns: ChatGPT plan; Jev through the AI Gateway
 - Sets: dev 18 journeys × 1 repeat, held-out 10 journeys × 3 repeats; 96 results, 0 ERROR, all labelled real Jev
 - Jev: 474 real calls, 0 failed, $0.0234 (candidate 252 calls / $0.0121, baseline 222 / $0.0113)
 
