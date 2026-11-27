@@ -15,6 +15,7 @@ import {
   type RuntimeJsonValue,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION,
+  SOKO_BOT_TOOL_DESCRIPTIONS,
   type SokoBotCapability,
   type SokoBotVersion,
   sokoBotIdentity,
@@ -593,14 +594,15 @@ export async function prepareTurn(
       )
     : null;
   const toolDescriptions: Partial<Record<SokoBotCapability, string>> = {
-    ...(version.texts
-      ? Object.fromEntries(
-          capabilities.map((capability) => [
-            capability,
-            sokoBotToolDescription(capability, version),
-          ]),
-        )
-      : {}),
+    ...Object.fromEntries(
+      capabilities.flatMap((capability) => {
+        const description = sokoBotToolDescription(capability, version);
+        return version.texts ||
+          description !== SOKO_BOT_TOOL_DESCRIPTIONS[capability]
+          ? [[capability, description] as const]
+          : [];
+      }),
+    ),
     ...(version.planLoop && capabilities.includes("update_plan")
       ? { update_plan: SOKO_BOT_PLAN_LOOP_UPDATE_PLAN_DESCRIPTION }
       : {}),
