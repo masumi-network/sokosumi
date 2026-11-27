@@ -6774,6 +6774,96 @@ export const AdminRemoveMatchedChannelParticipantSchema = {
     ]
 } as const;
 
+export const AdminPreprodPauseSchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused. Paused until an admin opens it.'
+        },
+        generation: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Preprod\'s generation number, raised by each wipe; 0 before the first.'
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    createdAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    paused: {
+                        type: 'boolean'
+                    },
+                    reason: {
+                        type: 'string'
+                    },
+                    operator: {
+                        type: 'object',
+                        properties: {
+                            id: {
+                                type: 'string'
+                            },
+                            name: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                description: 'Null when the admin\'s account no longer exists'
+                            }
+                        },
+                        required: [
+                            'id',
+                            'name'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'createdAt',
+                    'paused',
+                    'reason',
+                    'operator'
+                ]
+            },
+            description: 'The 20 most recent pause changes, newest first'
+        }
+    },
+    required: [
+        'paused',
+        'generation',
+        'changes'
+    ]
+} as const;
+
+export const SetAdminPreprodPauseBodySchema = {
+    type: 'object',
+    properties: {
+        paused: {
+            type: 'boolean',
+            description: 'Whether Preprod is paused'
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            description: 'Why Preprod is paused or opened: a ticket id, no personal details.',
+            example: 'SOK-123'
+        }
+    },
+    required: [
+        'paused',
+        'reason'
+    ]
+} as const;
+
 export const AdminOrganizationOverviewItemSchema = {
     type: 'object',
     properties: {

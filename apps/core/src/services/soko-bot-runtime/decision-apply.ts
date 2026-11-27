@@ -302,16 +302,19 @@ export async function applyDecision(
               "Agent hire reservation is missing",
             );
           }
-          const attached = await tx.sokoBotDelegation.updateMany({
-            where: {
-              turnId: decision.turnId,
-              toolCallId: decisionToolCallId,
-              outcome: "processing",
-              error: serializeSellerReservationMarker(marker),
-            },
-            data: { outcome: "accepted", jobId: job.id, error: null },
-          });
-          if (attached.count !== 1) {
+          const attached = await tx.$executeRaw`
+            UPDATE ${sharedTable("soko_bot_delegation")}
+            SET "outcome" = 'accepted',
+                "jobId" = ${job.id},
+                "network" = COALESCE("network", ${DETACHED_SOKO_BOT_NETWORK}),
+                "error" = NULL,
+                "updatedAt" = ${new Date()}
+            WHERE "turnId" = ${decision.turnId}::uuid
+              AND "toolCallId" = ${decisionToolCallId}
+              AND "outcome" = 'processing'
+              AND "error" = ${serializeSellerReservationMarker(marker)}
+          `;
+          if (attached !== 1) {
             throw new SokoBotRuntimeConflictError(
               "Agent hire reservation changed before local commit",
             );
