@@ -58,7 +58,13 @@ function excerptOf(text: string): string | null {
   // Nor on a heading whose section is cut away.
   while (end > 1 && /^(\s*$|#{1,6}\s)/.test(lines[end - 1] ?? "")) end -= 1;
 
-  return lines.slice(0, end).join("\n").trimEnd();
+  const excerpt = lines.slice(0, end).join("\n").trimEnd();
+  if (excerpt.length > 0 && excerpt.length <= EXCERPT_CHARS) return excerpt;
+
+  // One oversized first paragraph: cut it at a word, so collapsed stays short.
+  const head = (excerpt || (lines[0] ?? "")).slice(0, EXCERPT_CHARS);
+  const space = head.lastIndexOf(" ");
+  return `${(space > EXCERPT_CHARS / 2 ? head.slice(0, space) : head).trimEnd()}…`;
 }
 
 /** A link in place of media, so the reader decides when a media host is called. */
@@ -115,7 +121,8 @@ export function DriveFolderReadme({
 
   return (
     <ReadmeCard
-      key={file.id}
+      // A replaced file keeps its id and bumps its revision: read it again.
+      key={`${file.id}:${file.contentRevision}`}
       file={file}
       store={store}
       onOpen={() => onOpen(file)}

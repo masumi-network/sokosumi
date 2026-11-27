@@ -1,6 +1,6 @@
 import type { FileResource } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,6 +25,7 @@ const README_FILE = {
   displayName: "README.md",
   mimeType: "text/markdown",
   sizeBytes: 100,
+  contentRevision: 1,
   pathname: "drive/orgs/org-1/Client work/README.md",
 } as unknown as FileResource;
 
@@ -58,7 +59,7 @@ function renderCard(text: string, onOpen = vi.fn()) {
       />
     </QueryClientProvider>,
   );
-  return onOpen;
+  return { onOpen, client };
 }
 
 describe("DriveFolderReadme", () => {
@@ -95,7 +96,7 @@ describe("DriveFolderReadme", () => {
   });
 
   it("opens the README file in the viewer", async () => {
-    const onOpen = renderCard("Short.");
+    const { onOpen } = renderCard("Short.");
     await userEvent.click(
       await screen.findByRole("button", { name: "previewOpen" }),
     );
@@ -154,6 +155,39 @@ describe("DriveFolderReadme", () => {
     expect(
       screen.getByRole("region", { name: "readmeLabel" }),
     ).toHaveTextContent("Everything lives here.");
+  });
+
+  it("reads a replaced README again when its revision changes under the same id", async () => {
+    const { client } = renderCard("Old rules.");
+    const card = await screen.findByRole("region", { name: "readmeLabel" });
+    expect(card).toHaveTextContent("Old rules.");
+
+    fetchFolderReadme.mockResolvedValue({ ...README_FILE, contentRevision: 2 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("New rules.")),
+    );
+    await act(() => client.invalidateQueries());
+
+    expect(await screen.findByText("New rules.")).toBeInTheDocument();
+    expect(screen.queryByText("Old rules.")).toBeNull();
+  });
+
+  it("bounds the excerpt of a README that is one long paragraph", async () => {
+    const paragraph =
+      "Keep every signed contract in the signed folder. ".repeat(40);
+    renderCard(paragraph);
+
+    const more = await screen.findByRole("button", { name: "readmeShowMore" });
+    const card = screen.getByRole("region", { name: "readmeLabel" });
+    const collapsed = card.textContent ?? "";
+    expect(collapsed).toContain("…");
+    expect(collapsed.length).toBeLessThan(700);
+
+    await userEvent.click(more);
+    expect((card.textContent ?? "").length).toBeGreaterThan(
+      paragraph.trim().length,
+    );
   });
 
   it("turns images and media into links instead of loading them", async () => {

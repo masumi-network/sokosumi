@@ -140,10 +140,13 @@ export async function fetchFileSearchPage(input: {
 
 /**
  * The `README.md` filed directly in `folder` (the root when empty), any case,
- * or null. One small read of its own, so a README sorted past the first page
- * of a long folder is still found. The name sort keeps it deterministic: Core
- * never reranks an explicit name sort, so this read calls no model, and its
- * exact filename match comes first.
+ * or null. Its own read, so a README sorted past the first page of a long
+ * folder is still found. Cost: Core runs its filename, full-text and metadata
+ * retrieval over this one folder's direct files (Postgres only); an explicit
+ * name sort is never reranked, so no model is called. `limit` bounds only the
+ * response, not that work. Exact filename matches come first. No narrower
+ * authorized seam exists: `/v1/drive/files?q=` is a case-sensitive prefix
+ * match over the Blob listing and returns no resource id.
  */
 export async function fetchFolderReadme(input: {
   store: FileStore;
