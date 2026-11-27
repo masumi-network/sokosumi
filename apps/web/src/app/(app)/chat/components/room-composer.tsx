@@ -4,6 +4,7 @@ import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessageSkill,
   ChatRoomSokoBotParticipant,
+  ChatSticker,
   DriveFile,
 } from "@sokosumi/core-client";
 import {
@@ -15,7 +16,9 @@ import {
   ALargeSmall,
   AtSign,
   FileText,
+  HardDrive,
   Paperclip,
+  Upload,
   Users,
   X,
 } from "lucide-react";
@@ -50,7 +53,11 @@ import {
   type RoomMessageComposerAttachment,
 } from "@/components/chat/room-message-composer";
 import { ComposerSkillChips } from "@/components/chat/skill-chip";
-import { SkillPicker } from "@/components/chat/skill-picker";
+import {
+  MAX_SKILLS_PER_MESSAGE,
+  SkillPicker,
+  SkillPickerPanel,
+} from "@/components/chat/skill-picker";
 import { StickerPicker } from "@/components/chat/sticker-picker";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
@@ -64,6 +71,7 @@ import {
 import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useFocusWhen } from "@/hooks/effects/use-focus-when";
 import { useFormatToolbarOpenPreference } from "@/hooks/effects/use-format-toolbar-open-preference";
+import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { transcribeVoiceRecording } from "@/lib/services/voice-transcription.browser";
 import { cn } from "@/lib/utils";
@@ -74,6 +82,10 @@ import {
   EMPTY_COMPOSER_ACTIVE_FORMATS,
 } from "@/lib/utils/composer-active-formats";
 import { getInitials } from "@/lib/utils/text";
+import {
+  MobileRoomComposerTools,
+  MobileRoomMediaPicker,
+} from "./mobile-room-composer-controls";
 import {
   mentionLookupMapsFromCatalog,
   type UserMentionLookup,
@@ -358,8 +370,11 @@ export function RoomComposer({
   /** Shows the skill button; omit where a send cannot carry skills. */
   onSkillsChange?: (skills: ChatRoomMessageSkill[]) => void;
 }) {
+  const isMobile = useIsMobileMedia();
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
+  const tDrive = useTranslations("App.Drive");
+  const tSkills = useTranslations("App.Channels.Skills");
   const formRef = useRef<HTMLFormElement | null>(null);
   const [form, setForm] = useState<HTMLFormElement | null>(null);
   const attachForm = useCallback((node: HTMLFormElement | null) => {
@@ -619,6 +634,83 @@ export function RoomComposer({
     editorRef.current?.focus();
   }
 
+  const formatLabel = formatToolbarOpen
+    ? tToolbar("hideFormatting")
+    : tToolbar("showFormatting");
+  const keepMic = isRecordingVoice || isTranscribing;
+  const showSend = (!sendDisabled || isSending) && !keepMic;
+
+  function toggleFormatting() {
+    setFormatToolbarOpen(!formatToolbarOpen);
+    if (formatToolbarOpen) setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
+  }
+
+  function insertEmoji(emoji: string) {
+    onToolbarInsert?.();
+    editorRef.current?.insertText(emoji);
+  }
+
+  function attachSticker(sticker: ChatSticker) {
+    onAttachmentsChange((current) => [
+      ...current,
+      { url: sticker.url, fileName: sticker.name, mediaType: null },
+    ]);
+    editorRef.current?.focus();
+  }
+
+  function attachSkill(skill: ChatRoomMessageSkill) {
+    if (skills.some((item) => item.id === skill.id)) return;
+    onSkillsChange?.([...skills, skill]);
+    editorRef.current?.focus();
+  }
+
+  const characterCount = showContentCount ? (
+    <span
+      className={cn(
+        "text-xs tabular-nums",
+        contentOverLimit ? "text-destructive" : "text-muted-foreground",
+      )}
+      aria-live="polite"
+    >
+      {t("composerCharacterCount", {
+        count: composedContent.length,
+        max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
+      })}
+    </span>
+  ) : null;
+  const stickerUserId =
+    allowAttachments && currentUserId ? currentUserId : undefined;
+  const mobileActions = [
+    ...(allowAttachments
+      ? [
+          {
+            label: tDrive("uploadFile"),
+            icon: Upload,
+            disabled: isUploadingFiles,
+            select: () => fileInputRef.current?.click(),
+          },
+          {
+            label: tDrive("fromDrive"),
+            icon: HardDrive,
+            disabled: isUploadingFiles,
+            select: () => setDrivePickerOpen(true),
+            movesFocus: true,
+          },
+        ]
+      : []),
+    { label: formatLabel, icon: ALargeSmall, select: toggleFormatting },
+    ...(showMentionShortcut
+      ? [
+          {
+            label: tToolbar("mention"),
+            icon: AtSign,
+            select: () => editorRef.current?.openMentions(),
+            movesFocus: true,
+          },
+        ]
+      : []),
+  ];
+
   return (
     <>
       <RoomMessageComposer
@@ -648,58 +740,80 @@ export function RoomComposer({
           sendDisabled ||
           contentOverLimit
         }
+        mobileControls={{
+          tools: (
+            <MobileRoomComposerTools
+              actions={mobileActions}
+              skills={
+                onSkillsChange
+                  ? {
+                      label: tSkills("add"),
+                      disabled: skills.length >= MAX_SKILLS_PER_MESSAGE,
+                      render: (pick) => (
+                        <SkillPickerPanel
+                          selectedIds={new Set(skills.map((skill) => skill.id))}
+                          onPick={(item) => pick(() => attachSkill(item))}
+                        />
+                      ),
+                    }
+                  : undefined
+              }
+            />
+          ),
+          picker: (
+            <MobileRoomMediaPicker
+              stickerUserId={stickerUserId}
+              stickersDisabled={isSending}
+              onEmoji={insertEmoji}
+              onSticker={attachSticker}
+            />
+          ),
+          showSend,
+        }}
         toolbarEnd={
           <>
-            {showContentCount ? (
-              <span
-                className={cn(
-                  "text-xs tabular-nums",
-                  contentOverLimit
-                    ? "text-destructive"
-                    : "text-muted-foreground",
-                )}
-                aria-live="polite"
-              >
-                {t("composerCharacterCount", {
-                  count: composedContent.length,
-                  max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-                })}
-              </span>
-            ) : null}
-            <DictationButton
-              buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              disabled={isTranscribing}
-              loading={isTranscribing}
-              onRecordingChange={setIsRecordingVoice}
-              onRecorded={(file) => {
-                void dictate(file);
-              }}
-            />
+            {!isMobile && characterCount}
+            <div className={showSend ? "hidden md:contents" : "contents"}>
+              <DictationButton
+                buttonClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                disabled={isTranscribing}
+                loading={isTranscribing}
+                onRecordingChange={setIsRecordingVoice}
+                onRecorded={(file) => {
+                  void dictate(file);
+                }}
+              />
+            </div>
           </>
         }
         belowEditor={
-          contentOverLimit ? (
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 pb-1">
-              <p className="text-destructive text-xs" role="alert">
-                {t("composerTooLongHint")}
-              </p>
-              {allowAttachments ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  loading={isUploadingFiles}
-                  onClick={() => {
-                    void handleAttachOverflowAsMarkdown();
-                  }}
-                >
-                  <FileText className="size-3.5" aria-hidden />
-                  {t("composerConvertToFile")}
-                </Button>
-              ) : null}
-            </div>
-          ) : undefined
+          <>
+            {isMobile && characterCount ? (
+              <div className="px-2 pb-1">{characterCount}</div>
+            ) : null}
+            {contentOverLimit ? (
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 pb-1">
+                <p className="text-destructive text-xs" role="alert">
+                  {t("composerTooLongHint")}
+                </p>
+                {allowAttachments ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 text-xs"
+                    loading={isUploadingFiles}
+                    onClick={() => {
+                      void handleAttachOverflowAsMarkdown();
+                    }}
+                  >
+                    <FileText className="size-3.5" aria-hidden />
+                    {t("composerConvertToFile")}
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </>
         }
         sendAriaLabel={t("send")}
         onPrepareSubmit={() => editorRef.current?.flushTrailingEmoticon()}
@@ -737,6 +851,7 @@ export function RoomComposer({
                 onFormat={handleFormat}
                 onLink={openLinkDialog}
                 activeFormats={activeFormats}
+                className="max-md:flex-wrap max-md:overflow-x-visible"
               />
             ) : null}
           </>
@@ -782,62 +897,31 @@ export function RoomComposer({
                 ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
                 formatToolbarOpen && "bg-muted text-foreground",
               )}
-              title={
-                formatToolbarOpen
-                  ? t("Toolbar.hideFormatting")
-                  : t("Toolbar.showFormatting")
-              }
-              aria-label={
-                formatToolbarOpen
-                  ? t("Toolbar.hideFormatting")
-                  : t("Toolbar.showFormatting")
-              }
+              title={formatLabel}
+              aria-label={formatLabel}
               aria-pressed={formatToolbarOpen}
-              onClick={() => {
-                const next = !formatToolbarOpen;
-                setFormatToolbarOpen(next);
-                if (!next) {
-                  setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
-                }
-              }}
+              onClick={toggleFormatting}
             >
               <ALargeSmall className="size-4" aria-hidden />
             </Button>
             <RoomComposerEmojiPicker
-              title={t("Toolbar.emoji")}
-              ariaLabel={t("Toolbar.emoji")}
-              onPick={(emoji) => {
-                onToolbarInsert?.();
-                editorRef.current?.insertText(emoji);
-              }}
+              title={tToolbar("emoji")}
+              ariaLabel={tToolbar("emoji")}
+              onPick={insertEmoji}
             />
-            {allowAttachments && currentUserId ? (
+            {stickerUserId ? (
               <StickerPicker
-                userId={currentUserId}
+                userId={stickerUserId}
                 triggerClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                 disabled={isSending}
-                onPick={(sticker) => {
-                  onAttachmentsChange((current) => [
-                    ...current,
-                    {
-                      url: sticker.url,
-                      fileName: sticker.name,
-                      mediaType: null,
-                    },
-                  ]);
-                  editorRef.current?.focus();
-                }}
+                onPick={attachSticker}
               />
             ) : null}
             {onSkillsChange ? (
               <SkillPicker
                 selected={skills}
                 triggerClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                onPick={(skill) => {
-                  if (skills.some((item) => item.id === skill.id)) return;
-                  onSkillsChange([...skills, skill]);
-                  editorRef.current?.focus();
-                }}
+                onPick={attachSkill}
               />
             ) : null}
             {showMentionShortcut ? (
@@ -876,7 +960,10 @@ export function RoomComposer({
           onActiveFormatsChange={
             formatToolbarOpen ? handleActiveFormatsChange : undefined
           }
-          className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+          className={cn(
+            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+            "max-md:min-w-0 max-md:px-1",
+          )}
           groupMentions={(filtered) =>
             partitionRoomMentionSuggestions(filtered, {
               peopleLabel: t("MentionSections.people"),

@@ -40,7 +40,7 @@ export function HeaderChrome({ className, children }: HeaderChromeProps) {
 
       <div
         className={cn(
-          "relative z-10 flex h-16 w-full items-center justify-between gap-1 px-2 md:gap-3 md:border-b md:border-sidebar-border md:px-4",
+          "relative z-10 flex h-16 w-full items-center justify-between gap-1 px-2 max-md:[&:has([data-mobile-room=true])>[data-testid=header-workspace-controls]]:hidden md:gap-3 md:border-b md:border-sidebar-border md:px-4",
           className,
         )}
       >

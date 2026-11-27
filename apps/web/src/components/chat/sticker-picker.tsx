@@ -67,7 +67,7 @@ export function StickerPicker({
   );
 }
 
-function StickerPickerPanel({
+export function StickerPickerPanel({
   userId,
   onPick,
 }: Pick<StickerPickerProps, "userId" | "onPick">) {

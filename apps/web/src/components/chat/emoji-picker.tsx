@@ -158,7 +158,15 @@ function initialNavId(frequentlyUsed: readonly string[]): NavTargetId {
 }
 
 /** Mounted on open, unmounted on close, so mount is the place to read recents and focus search. */
-function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
+export function EmojiPickerPanel({
+  onPick,
+  autoFocus = true,
+  wrapCategories = false,
+}: {
+  onPick: (emoji: string) => void;
+  autoFocus?: boolean;
+  wrapCategories?: boolean;
+}) {
   const t = useTranslations("Components.EmojiPicker");
   const [query, setQuery] = useState("");
   const frequentlyUsed = useFrequentlyUsedEmojis();
@@ -187,7 +195,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
     });
   }
 
-  useFocusWhen(searchInputRef, true, { deferToFrame: true });
+  useFocusWhen(searchInputRef, autoFocus, { deferToFrame: true });
 
   function handleScrollToSection(sectionId: NavTargetId) {
     if (sectionId === SEARCH_NAV_ID) {
@@ -209,7 +217,12 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
       style={{ maxHeight: maxHeightPx }}
       className="flex max-h-full flex-col overflow-hidden"
     >
-      <nav className="app-scrollbar border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
+      <nav
+        className={cn(
+          "app-scrollbar border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1",
+          wrapCategories && "flex-wrap overflow-x-visible [&>button]:size-7",
+        )}
+      >
         <NavButton
           label={t("searchPlaceholder")}
           active={resolvedActiveNavId === SEARCH_NAV_ID}

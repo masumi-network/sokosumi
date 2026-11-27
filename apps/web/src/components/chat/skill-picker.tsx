@@ -57,8 +57,8 @@ export function SkillPicker({
   const [open, setOpen] = useState(false);
   const full = selected.length >= MAX_SKILLS_PER_MESSAGE;
 
-  function handlePick(item: ChatSkillCatalogItem) {
-    onPick(skillChipFromCatalog(item));
+  function handlePick(item: ChatRoomMessageSkill) {
+    onPick(item);
     setOpen(false);
   }
 
@@ -89,12 +89,12 @@ export function SkillPicker({
   );
 }
 
-function SkillPickerPanel({
+export function SkillPickerPanel({
   selectedIds,
   onPick,
 }: {
   selectedIds: ReadonlySet<string>;
-  onPick: (item: ChatSkillCatalogItem) => void;
+  onPick: (skill: ChatRoomMessageSkill) => void;
 }) {
   const t = useTranslations("App.Channels.Skills");
   const format = useFormatter();
@@ -133,7 +133,7 @@ function SkillPickerPanel({
           onKeyDown={(event) => {
             if (event.key === "Enter" && firstPickable) {
               event.preventDefault();
-              onPick(firstPickable);
+              onPick(skillChipFromCatalog(firstPickable));
             }
           }}
           placeholder={t("searchPlaceholder")}
@@ -163,7 +163,7 @@ function SkillPickerPanel({
                   <button
                     type="button"
                     disabled={picked}
-                    onClick={() => onPick(item)}
+                    onClick={() => onPick(skillChipFromCatalog(item))}
                     className={cn(
                       POPOVER_ROW_CLASS,
                       "flex w-full items-start gap-2 px-2 py-2 text-start",

@@ -10144,6 +10144,8 @@
         "replyBadge": "Thread-Antwort"
       },
       "Toolbar": {
+        "more": "Weitere Eingabeoptionen",
+        "emojiAndStickers": "Emojis und Sticker",
         "mention": "Coworker erwähnen",
         "attach": "Datei anhängen",
         "dropToAttach": "Dateien zum Anhängen ablegen",

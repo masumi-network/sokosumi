@@ -1,6 +1,14 @@
 "use client";
 
-import { ALargeSmall, AtSign, Paperclip, SmilePlus } from "lucide-react";
+import {
+  ALargeSmall,
+  AtSign,
+  type LucideIcon,
+  Mic,
+  Paperclip,
+  Plus,
+  SmilePlus,
+} from "lucide-react";
 
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
@@ -47,6 +55,16 @@ export function RoomOpenLoadingView(): React.ReactElement {
             removeAttachmentLabel={() => ""}
             isSending={false}
             sendDisabled
+            mobileControls={{
+              tools: <LoadingComposerControl icon={Plus} />,
+              picker: <LoadingComposerControl icon={SmilePlus} />,
+              showSend: false,
+            }}
+            toolbarEnd={
+              <div className="md:hidden">
+                <LoadingComposerControl icon={Mic} />
+              </div>
+            }
             sendAriaLabel="Send"
             withOuterPadding={false}
             withSafeAreaPadding
@@ -55,6 +73,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
             aboveEditor={
               formatToolbarOpen ? (
                 <ComposerFormatToolbar
+                  className="max-md:flex-wrap max-md:overflow-x-visible"
                   onFormat={() => {
                     /* no-op */
                   }}
@@ -126,7 +145,7 @@ export function RoomOpenLoadingView(): React.ReactElement {
               className={cn(
                 ROOM_COMPOSER_TEXTAREA_CLASSNAME,
                 ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
-                "pointer-events-none",
+                "pointer-events-none max-md:min-w-0 max-md:px-1",
               )}
               data-placeholder=" "
             />
@@ -134,5 +153,19 @@ export function RoomOpenLoadingView(): React.ReactElement {
         </div>
       }
     />
+  );
+}
+
+function LoadingComposerControl({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+        "inline-flex shrink-0 items-center justify-center opacity-50",
+      )}
+    >
+      <Icon className="size-4" aria-hidden />
+    </span>
   );
 }

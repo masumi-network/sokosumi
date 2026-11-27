@@ -7,10 +7,11 @@ import {
   MessageCircle,
   MessagesSquare,
   Pin,
+  Search,
   Users,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { type Ref, useRef, useState } from "react";
 import { useRoomWorkspaceName } from "@/app/chat/components/use-room-display-name";
 import { ROOM_HEADER_ACTIONS_SLOT } from "@/app/chat/components/use-room-panel-slide";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
@@ -38,6 +39,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -54,7 +61,7 @@ import { UnreadThreadsPanel } from "./unread-threads-panel";
  * so every room's title text starts at one x.
  */
 const ROOM_TITLE_STATIC_CLASS =
-  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm max-md:font-medium md:gap-2";
+  "text-foreground flex min-w-0 max-w-full items-center gap-1.5 px-1.5 py-0.5 text-sm max-md:min-h-7 max-md:font-medium md:gap-2";
 
 /**
  * The room title as the way into its settings: a Channel's (its members panel
@@ -217,6 +224,8 @@ interface RoomHeaderMenuProps {
   unreadThreadCount: number;
   /** Null when the room shows no members control. */
   onToggleRoster: (() => void) | null;
+  onSearch: () => void;
+  triggerRef: Ref<HTMLButtonElement>;
 }
 
 /**
@@ -232,12 +241,14 @@ function RoomHeaderMenu({
   onToggleThreadList,
   unreadThreadCount,
   onToggleRoster,
+  onSearch,
+  triggerRef,
 }: RoomHeaderMenuProps) {
   const t = useTranslations("App.Channels");
   const [decisionsOpen, setDecisionsOpen] = useState(false);
   // The menu's close would put focus on its button, under the decisions
   // log opening in the same click, and the log closes on that focus.
-  const opensDecisionsRef = useRef(false);
+  const openAfterMenuRef = useRef<(() => void) | null>(null);
   const hasUnread = unreadThreadCount > 0;
   const spokenUnread =
     unreadThreadCount > ROOM_COUNT_CAP
@@ -256,6 +267,7 @@ function RoomHeaderMenu({
           size="icon"
           aria-label={label}
           title={t("headerMore")}
+          ref={triggerRef}
           data-testid="room-header-menu-trigger"
           className="relative size-10"
         >
@@ -271,15 +283,24 @@ function RoomHeaderMenu({
         align="end"
         className="w-52"
         onCloseAutoFocus={(event) => {
-          if (!opensDecisionsRef.current) return;
-          opensDecisionsRef.current = false;
+          const action = openAfterMenuRef.current;
+          if (!action) return;
+          openAfterMenuRef.current = null;
           event.preventDefault();
           // Open only now the menu is gone: while it closes, a mouse leaving
           // the picked item puts focus back on the menu, and a log already
           // open takes that as focus outside and closes at once.
-          setDecisionsOpen(true);
+          action();
         }}
       >
+        <DropdownMenuItem
+          onSelect={() => {
+            openAfterMenuRef.current = onSearch;
+          }}
+        >
+          <Search aria-hidden />
+          {t("RoomSearch.open")}
+        </DropdownMenuItem>
         {isDirectRoom ? null : (
           <>
             <DropdownMenuItem onSelect={onTogglePinned}>
@@ -288,7 +309,7 @@ function RoomHeaderMenu({
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => {
-                opensDecisionsRef.current = true;
+                openAfterMenuRef.current = () => setDecisionsOpen(true);
               }}
             >
               <Gavel aria-hidden />
@@ -390,6 +411,7 @@ export function RoomHeaderChrome({
   readReceipts,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
+  const isMobile = useIsMobileMedia();
   const trimmedTopic = room.topic?.trim() ?? "";
   const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
   // Every room has a second line, so the title sits at one height in all of
@@ -418,6 +440,45 @@ export function RoomHeaderChrome({
     </>
   );
 
+  const directTitle = (
+    <>
+      {room.isSelfDirect ? (
+        // The face's initials would read as part of the room's name.
+        <span aria-hidden className={CHAT_TITLE_MARK_CLASS}>
+          <DirectRoomAvatarStack room={room} currentUserId={currentUserId} />
+        </span>
+      ) : (
+        <>
+          {/* On a phone the header is the room's only identity, so
+                      it shows who the Direct is with, as the sidebar row
+                      does; from md the sidebar sits beside it. Only the
+                      face: presence drawn inside a hidden mark would be
+                      seen and never heard. */}
+          {directFace ? (
+            <span
+              aria-hidden
+              data-testid="room-title-face"
+              className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
+            >
+              <Avatar className="size-6">
+                <AvatarImage alt="" src={directFace.image ?? undefined} />
+                <AvatarFallback className="text-2xs font-medium">
+                  {getInitials(directFace.name)}
+                </AvatarFallback>
+              </Avatar>
+            </span>
+          ) : null}
+          <span className={directFace ? "hidden md:contents" : "contents"}>
+            {DIRECT_ICON}
+          </span>
+        </>
+      )}
+      <span className="min-w-0 truncate" data-testid="room-open-title">
+        {displayName}
+      </span>
+    </>
+  );
+
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4 lg:overflow-visible">
       <div className="flex min-w-0 flex-1 flex-col items-start justify-center overflow-hidden">
@@ -441,51 +502,32 @@ export function RoomHeaderChrome({
               </button>
             </NameGroupDialog>
           ) : isDirectRoom ? (
-            // Spans, not div/p: a heading holds phrasing content only.
-            <span className={ROOM_TITLE_STATIC_CLASS}>
-              {room.isSelfDirect ? (
-                // The face's initials would read as part of the room's name.
-                <span aria-hidden className={CHAT_TITLE_MARK_CLASS}>
-                  <DirectRoomAvatarStack
-                    room={room}
-                    currentUserId={currentUserId}
-                  />
-                </span>
-              ) : (
-                <>
-                  {/* On a phone the header is the room's only identity, so
-                      it shows who the Direct is with, as the sidebar row
-                      does; from md the sidebar sits beside it. Only the
-                      face: presence drawn inside a hidden mark would be
-                      seen and never heard. */}
-                  {directFace ? (
-                    <span
-                      aria-hidden
-                      data-testid="room-title-face"
-                      className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
-                    >
-                      <Avatar className="size-6">
-                        <AvatarImage
-                          alt=""
-                          src={directFace.image ?? undefined}
-                        />
-                        <AvatarFallback className="text-2xs font-medium">
-                          {getInitials(directFace.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </span>
-                  ) : null}
-                  <span
-                    className={directFace ? "hidden md:contents" : "contents"}
-                  >
-                    {DIRECT_ICON}
-                  </span>
-                </>
-              )}
-              <span className="min-w-0 truncate" data-testid="room-open-title">
-                {displayName}
-              </span>
-            </span>
+            isMobile ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className={ROOM_TITLE_BUTTON_CLASS}>
+                    {directTitle}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="max-w-[calc(100vw-2rem)]"
+                  aria-label={displayName}
+                >
+                  <p className="break-words text-sm font-medium">
+                    {displayName}
+                  </p>
+                  <p className="text-muted-foreground break-words text-sm">
+                    {directFace?.kind === "human"
+                      ? directFace.email || subtitle
+                      : subtitle}
+                  </p>
+                </PopoverContent>
+              </Popover>
+            ) : (
+              // Spans, not div/p: a heading holds phrasing content only.
+              <span className={ROOM_TITLE_STATIC_CLASS}>{directTitle}</span>
+            )
           ) : canManageSettings ? (
             <EditChannelDialog
               channel={room}
@@ -546,6 +588,19 @@ export function RoomHeaderChrome({
             key={room.id}
             roomId={room.id}
             onJumpToMessage={onJumpToMessage}
+            mobileTrigger={(onSearch, triggerRef) => (
+              <RoomHeaderMenu
+                room={room}
+                isDirectRoom={isDirectRoom}
+                onJumpToMessage={onJumpToMessage}
+                onTogglePinned={onTogglePinned}
+                onToggleThreadList={onToggleThreadList}
+                unreadThreadCount={unreadThreadCount}
+                onToggleRoster={showRoster ? onToggleRoster : null}
+                onSearch={onSearch}
+                triggerRef={triggerRef}
+              />
+            )}
             labels={{
               open: t("RoomSearch.open"),
               placeholder: t("RoomSearch.placeholder"),
@@ -584,18 +639,6 @@ export function RoomHeaderChrome({
                 unreadThreadsCapped: (max) =>
                   t("UnreadThreads.unreadThreadsCapped", { max }),
               }}
-            />
-          </div>
-          <div className="contents md:hidden">
-            <RoomHeaderMenu
-              key={`header-menu-${room.id}`}
-              room={room}
-              isDirectRoom={isDirectRoom}
-              onJumpToMessage={onJumpToMessage}
-              onTogglePinned={onTogglePinned}
-              onToggleThreadList={onToggleThreadList}
-              unreadThreadCount={unreadThreadCount}
-              onToggleRoster={showRoster ? onToggleRoster : null}
             />
           </div>
         </div>

@@ -10144,6 +10144,8 @@
         "replyBadge": "Respuesta del hilo"
       },
       "Toolbar": {
+        "more": "Más opciones de redacción",
+        "emojiAndStickers": "Emojis y pegatinas",
         "mention": "Mencionar coworker",
         "attach": "Adjuntar archivo",
         "dropToAttach": "Suelta archivos para adjuntar",

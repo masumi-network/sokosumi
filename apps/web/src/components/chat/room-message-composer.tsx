@@ -105,6 +105,7 @@ interface RoomMessageComposerProps {
    */
   toolbarEnd?: ReactNode;
   sendButtonTestId?: string;
+  mobileControls?: { tools: ReactNode; picker: ReactNode; showSend: boolean };
 }
 
 /**
@@ -133,6 +134,7 @@ export function RoomMessageComposer({
   belowEditor,
   toolbarEnd,
   sendButtonTestId,
+  mobileControls,
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
@@ -176,23 +178,67 @@ export function RoomMessageComposer({
             </div>
           ) : null}
           {aboveEditor}
-          {children}
-          {belowEditor}
-          <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-3">
-            <div className="app-scrollbar text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-              {toolbarStart}
+          <div
+            className={
+              mobileControls
+                ? "grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-end gap-x-1 px-2 py-1 md:contents"
+                : "contents"
+            }
+          >
+            <div
+              className={cn("hidden pb-0.5", mobileControls && "max-md:block")}
+            >
+              {mobileControls?.tools}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {toolbarEnd}
-              {submitControl ?? (
-                <RoomComposerSendButton
-                  sendBlocked={sendBlocked}
-                  isSending={isSending}
-                  ariaLabel={sendAriaLabel}
-                  testId={sendButtonTestId}
-                  onPrepareSubmit={onPrepareSubmit}
-                />
+            {children}
+            <div
+              className={cn("hidden pb-0.5", mobileControls && "max-md:block")}
+            >
+              {mobileControls?.picker}
+            </div>
+            {belowEditor ? (
+              <div
+                className={
+                  mobileControls
+                    ? "col-span-full row-start-2 md:contents"
+                    : "contents"
+                }
+              >
+                {belowEditor}
+              </div>
+            ) : null}
+            <div
+              className={cn(
+                "flex items-center justify-between gap-2 px-4 pt-2 pb-3",
+                mobileControls && "max-md:contents",
               )}
+            >
+              <div
+                className={cn(
+                  "app-scrollbar text-muted-foreground flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto",
+                  mobileControls && "max-md:hidden",
+                )}
+              >
+                {toolbarStart}
+              </div>
+              <div
+                className={cn(
+                  "flex shrink-0 items-center gap-2",
+                  mobileControls && "max-md:pb-0.5",
+                )}
+              >
+                {toolbarEnd}
+                {submitControl ?? (
+                  <RoomComposerSendButton
+                    sendBlocked={sendBlocked}
+                    isSending={isSending}
+                    ariaLabel={sendAriaLabel}
+                    testId={sendButtonTestId}
+                    onPrepareSubmit={onPrepareSubmit}
+                    hideMobile={mobileControls?.showSend === false}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -202,6 +248,7 @@ export function RoomMessageComposer({
 }
 
 interface RoomComposerSendButtonProps {
+  hideMobile: boolean;
   sendBlocked: boolean;
   isSending: boolean;
   ariaLabel: string;
@@ -215,6 +262,7 @@ interface RoomComposerSendButtonProps {
  * touchstart listener lives and dies with the button it belongs to.
  */
 function RoomComposerSendButton({
+  hideMobile,
   sendBlocked,
   isSending,
   ariaLabel,
@@ -279,6 +327,7 @@ function RoomComposerSendButton({
       // one accent stays for the moment Send can act.
       className={cn(
         ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+        hideMobile && "max-md:hidden",
         "disabled:border-input disabled:text-disabled-foreground disabled:bg-transparent disabled:opacity-100",
       )}
       disabled={sendBlocked}

@@ -10144,6 +10144,8 @@
         "replyBadge": "Thread reply"
       },
       "Toolbar": {
+        "more": "More composer options",
+        "emojiAndStickers": "Emoji & stickers",
         "mention": "Mention coworker",
         "attach": "Attach file",
         "dropToAttach": "Drop files to attach",
