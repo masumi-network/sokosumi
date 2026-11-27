@@ -1,9 +1,44 @@
-import type { Prisma } from "@sokosumi/database";
+import type { ChatRoomMention, Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { readSokoBotAttemptAt } from "@sokosumi/utils";
-import prisma from "@/lib/db/prisma";
+import prisma, { type DbClient } from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
+import type { Network } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  detachedNetworkScope,
+  requireDetachedTurnProvenance,
+} from "@/lib/soko-bot/detached-network";
+import type { StartSokoBotTurnInput } from "@/lib/soko-bot/turn-start";
+
+export type NewChatRoomMention = Omit<
+  Prisma.ChatRoomMentionCreateManyInput,
+  "messageId" | "network"
+> & { messageId?: string; network: Network };
+
+export type MentionTurnProvenance = Pick<
+  StartSokoBotTurnInput,
+  "network" | "expectedPreprodGeneration"
+>;
+
+export async function mentionTurnProvenance(
+  mention: Pick<ChatRoomMention, "network" | "preprodGeneration">,
+  db?: DbClient,
+): Promise<MentionTurnProvenance> {
+  const scope = await detachedNetworkScope(
+    {
+      network: mention.network ?? "mainnet",
+      preprodGeneration: mention.preprodGeneration,
+    },
+    db,
+  );
+  return scope.network === "mainnet"
+    ? { network: scope.network }
+    : {
+        network: scope.network,
+        expectedPreprodGeneration: mention.preprodGeneration,
+      };
+}
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
 export const ROOM_COWORKER_TOTAL_MS = 240_000;
@@ -150,12 +185,15 @@ export async function claimMentionForDispatch(
 export async function releaseFailedTurnForRetry(
   tx: Prisma.TransactionClient,
   mentionId: string,
+  provenance?: MentionTurnProvenance,
 ): Promise<void> {
   const turn = await tx.sokoBotTurn.findUnique({
     where: { chatMentionId: mentionId },
     select: {
       id: true,
       status: true,
+      network: true,
+      preprodGeneration: true,
       deliveries: {
         where: { status: { in: ["PENDING", "PERSISTED"] } },
         select: { id: true },
@@ -163,6 +201,7 @@ export async function releaseFailedTurnForRetry(
       },
     },
   });
+  if (turn && provenance) requireDetachedTurnProvenance(provenance, turn);
   if (
     !turn ||
     (turn.status !== "FAILED" && turn.status !== "CANCELLED") ||

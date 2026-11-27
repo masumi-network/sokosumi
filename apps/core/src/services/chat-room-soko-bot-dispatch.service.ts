@@ -1,10 +1,14 @@
+import { HTTPException } from "hono/http-exception";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  DetachedNetworkRefusal,
+  requireDetachedTurnProvenance,
+} from "@/lib/soko-bot/detached-network";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 import { persistSokoBotChatTurn } from "@/services/soko-bot-chat.service";
@@ -27,8 +31,10 @@ import {
   claimMentionForDispatch,
   failSokoBotReplyIfOwned,
   findSokoBotReplyOpenedBy,
+  type MentionTurnProvenance,
   openSokoBotReply,
 } from "./chat-room-mention-state";
+import { failStaleMention } from "./chat-room-mention-stream";
 
 /**
  * Fails a Soko Bot mention only where `failSokoBotReplyIfOwned` allows, then
@@ -195,6 +201,7 @@ export async function acceptOnceIdle<T>(
  */
 export async function runSokoBotMentionDispatch(params: {
   mentionId: string;
+  provenance: MentionTurnProvenance;
   mention: {
     message: {
       id: string;
@@ -226,8 +233,15 @@ export async function runSokoBotMentionDispatch(params: {
   askedByBot: boolean;
   chainDepth: number;
 }): Promise<void> {
-  const { mentionId, mention, userId, failWithShell, askedByBot, chainDepth } =
-    params;
+  const {
+    mentionId,
+    mention,
+    provenance,
+    userId,
+    failWithShell,
+    askedByBot,
+    chainDepth,
+  } = params;
   const bot = mention.sokoBot;
   if (!bot || bot.archivedAt) {
     await failWithShell("This Soko Bot is no longer active");
@@ -271,8 +285,17 @@ export async function runSokoBotMentionDispatch(params: {
   // Every failure past the claim ends here. It writes only what this worker
   // may: a turn holding the mention is failed only by its own failure, and
   // before any turn only while the claim is still this worker's.
+  // A temporary refusal at the writer leaves the claim for stale reclaim.
   const failReply = (error: unknown) =>
-    failSokoBotMention(mentionId, claim.stamp, error);
+    error instanceof DetachedNetworkRefusal && error.final
+      ? failStaleMention({
+          id: mentionId,
+          messageId: mention.message.id,
+          responseMessageId: replyId,
+          status: "sent",
+          updatedAt: claim.stamp,
+        })
+      : failSokoBotMention(mentionId, claim.stamp, error);
 
   try {
     // The key this start runs under. The turn holding the mention keeps it:
@@ -291,11 +314,15 @@ export async function runSokoBotMentionDispatch(params: {
         clientTurnId: true,
         chatMentionId: true,
         status: true,
+        network: true,
+        preprodGeneration: true,
       },
     });
     const holder = newest?.chatMentionId === mentionId ? newest : null;
-    if (holder) clientTurnId = holder.clientTurnId;
-    else if (newest) clientTurnId = `chat:${mentionId}:retry:${newest.id}`;
+    if (holder) {
+      requireDetachedTurnProvenance(provenance, holder);
+      clientTurnId = holder.clientTurnId;
+    } else if (newest) clientTurnId = `chat:${mentionId}:retry:${newest.id}`;
     // A turn that already ended still holds the mention (stale reclaim, or
     // Retry while its delivery was owed): put its outcome back without
     // reopening the reply. A reopened "Thinking…" is a snapshot a concurrent
@@ -400,7 +427,7 @@ export async function runSokoBotMentionDispatch(params: {
 
     const accept = async () => {
       const accepted = sokoBotControlPlane.startTurn({
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...provenance,
         sokoBotId: bot.id,
         userId: isPersonalSokoBot(bot) ? bot.userId : userId,
         // The mentioned bot runs in its own workspace, whatever room it was
@@ -437,7 +464,20 @@ export async function runSokoBotMentionDispatch(params: {
       });
     };
 
-    const result = await acceptOnceIdle(accept, bot.id);
+    const result = await acceptOnceIdle(accept, bot.id).catch(
+      (error: unknown) => {
+        if (
+          provenance.network === "preprod" &&
+          ((error instanceof HTTPException && error.status === 503) ||
+            (error instanceof DetachedNetworkRefusal && !error.final))
+        ) {
+          // The existing turn writer fence can refuse after dispatch admitted us.
+          return null;
+        }
+        throw error;
+      },
+    );
+    if (!result) return;
     // A turn that already ended answers through its own outcome: a
     // completed one may still be delivering, and failing the reply here
     // would turn a good answer into a failed card.

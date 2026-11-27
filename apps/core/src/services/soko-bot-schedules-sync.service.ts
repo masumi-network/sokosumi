@@ -12,7 +12,10 @@ import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, emitCoreError, logCoreWarning } from "@/lib/evlog";
 import { sokoBotScheduleActingUserId } from "@/lib/soko-bot/acting-user";
-import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
+import {
+  DetachedNetworkRefusal,
+  requireDetachedTurnProvenance,
+} from "@/lib/soko-bot/detached-network";
 import { isScheduleAuthorityRevoked } from "@/lib/soko-bot/owner-authority";
 import {
   isRetryableSokoBotRuntimeError,
@@ -21,7 +24,6 @@ import {
 import {
   finishStaleSchedule,
   isTemporaryScheduleRefusal,
-  requireScheduledTurnProvenance,
   type ScheduledTurnProvenance,
   scheduleTurnProvenance,
 } from "@/lib/soko-bot/schedule-resume";
@@ -661,7 +663,7 @@ export class SokoBotSchedulesSyncService {
           },
         });
         if (existing) {
-          requireScheduledTurnProvenance(provenance, existing);
+          requireDetachedTurnProvenance(provenance, existing);
           turnStatus = existing.status;
           turnErrorKind = existing.errorKind;
         } else {

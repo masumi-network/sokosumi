@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { readPreprodControl } from "@/helpers/preprod-control";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import type { DbClient } from "@/lib/db/prisma";
-import { isPreprodOn, requireNetwork } from "@/lib/network";
+import { isPreprodOn, type Network, requireNetwork } from "@/lib/network";
 
 const refusals = {
   preprod_off: [403, "Preprod is switched off"],
@@ -26,6 +26,21 @@ export class DetachedNetworkRefusal extends HTTPException {
 
   get final() {
     return this.kind === CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE;
+  }
+}
+
+export function requireDetachedTurnProvenance(
+  expected: { network: Network; expectedPreprodGeneration?: number | null },
+  stored: { network: string | null; preprodGeneration?: number | null },
+): void {
+  if (
+    expected.expectedPreprodGeneration !== undefined &&
+    (expected.network !== stored.network ||
+      expected.expectedPreprodGeneration !== stored.preprodGeneration)
+  ) {
+    throw new DetachedNetworkRefusal(
+      CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+    );
   }
 }
 

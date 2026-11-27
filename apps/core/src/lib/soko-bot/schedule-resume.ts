@@ -51,19 +51,6 @@ function staleScheduleNetwork() {
   );
 }
 
-export function requireScheduledTurnProvenance(
-  expected: ScheduledTurnProvenance,
-  stored: { network: string | null; preprodGeneration?: number | null },
-): void {
-  if (
-    expected.expectedPreprodGeneration !== undefined &&
-    (expected.network !== stored.network ||
-      expected.expectedPreprodGeneration !== stored.preprodGeneration)
-  ) {
-    throw staleScheduleNetwork();
-  }
-}
-
 /** The writer's existing pause fence can refuse a turn after pickup. */
 export function isTemporaryScheduleRefusal(
   schedule: Pick<ScheduleSource, "jobId" | "network">,

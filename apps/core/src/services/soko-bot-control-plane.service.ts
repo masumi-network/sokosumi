@@ -126,6 +126,7 @@ import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import {
   DetachedNetworkRefusal,
   detachedNetworkScope,
+  requireDetachedTurnProvenance,
 } from "@/lib/soko-bot/detached-network";
 import {
   assertEvaluationActor,
@@ -155,7 +156,6 @@ import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
   finishStaleSchedule,
   isTemporaryScheduleRefusal,
-  requireScheduledTurnProvenance,
   scheduleTurnProvenance,
 } from "@/lib/soko-bot/schedule-resume";
 import {
@@ -2385,7 +2385,7 @@ export class SokoBotControlPlane {
       },
     });
     if (duplicate) {
-      requireScheduledTurnProvenance(input, duplicate);
+      requireDetachedTurnProvenance(input, duplicate);
       if (
         !matchesReservedTurnMessage(duplicate, message, input.presetRoute) ||
         duplicate.workspaceId !== input.workspaceId ||
@@ -3012,7 +3012,7 @@ export class SokoBotControlPlane {
           now: reservedAt,
         });
         const stamp = await networkStamp(input.network, tx);
-        requireScheduledTurnProvenance(input, stamp);
+        requireDetachedTurnProvenance(input, stamp);
         const created = await tx.sokoBotTurn.create({
           data: {
             ...stamp,
@@ -3321,7 +3321,7 @@ export class SokoBotControlPlane {
         },
       });
       if (racedDuplicate) {
-        requireScheduledTurnProvenance(input, racedDuplicate);
+        requireDetachedTurnProvenance(input, racedDuplicate);
         if (
           !matchesReservedTurnMessage(
             racedDuplicate,
@@ -5406,7 +5406,7 @@ export class SokoBotControlPlane {
       try {
         const provenance = await scheduleTurnProvenance(scheduleRun.schedule);
         if (scheduleRun.turn) {
-          requireScheduledTurnProvenance(provenance, scheduleRun.turn);
+          requireDetachedTurnProvenance(provenance, scheduleRun.turn);
         }
         const retryInput = await scheduleRetryInput(
           bot,

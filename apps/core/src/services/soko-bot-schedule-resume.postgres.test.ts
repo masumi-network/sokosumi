@@ -875,8 +875,8 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
       const realStarter = publicTurnStarter();
       const start = vi.spyOn(controlPlane, "startTurn");
       onTestFinished(() => start.mockRestore());
-      const { requireScheduledTurnProvenance } = await import(
-        "@/lib/soko-bot/schedule-resume"
+      const { requireDetachedTurnProvenance } = await import(
+        "@/lib/soko-bot/detached-network"
       );
       start.mockImplementationOnce(async (input) => {
         if (operation === "raise") await control.raisePreprodGeneration();
@@ -889,7 +889,7 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
         // The split fixture stops at the writer fence (ticket 30).
         await prisma.$transaction(async (tx) => {
           const stamp = await control.networkStamp(input.network, tx);
-          requireScheduledTurnProvenance(input, stamp);
+          requireDetachedTurnProvenance(input, stamp);
         });
         throw new Error("Expected the fence to refuse the turn");
       });
