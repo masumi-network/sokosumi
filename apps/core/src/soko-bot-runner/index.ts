@@ -29,6 +29,11 @@ import {
   MODEL_CALL_MAX_MS,
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
+import {
+  CoreRejected,
+  classifyRunnerToolError,
+  isTypedToolErrorPayload,
+} from "../lib/soko-bot/tool-errors";
 import { fitToolResult } from "../lib/soko-bot/tool-result-fit";
 import {
   estimateInputTokens,
@@ -82,6 +87,8 @@ interface TurnStart {
   preamble?: string;
   /** Core runs update_plan for the whole request; an older Core sends none. */
   planLoop?: boolean;
+  /** Core classifies tool failures into typed recovery notes (experiment E5). */
+  typedToolErrors?: boolean;
   /** The turn starts with a plan from earlier in its request. */
   planInherited?: boolean;
   /** Tools whose completed call Core records as a change (planLoop). */
@@ -92,16 +99,6 @@ interface TurnStart {
   fullCacheKey?: string | null;
   /** The owner's setup commands and the keys shell commands get (ADR 0074). */
   shell?: { setupCommands: string[]; env: Record<string, string> };
-}
-
-class CoreRejected extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly kind?: string,
-  ) {
-    super(message);
-  }
 }
 
 // Its own process, outside any request: standalone events, on Core's drain.
@@ -180,6 +177,7 @@ async function callCore<T>(route: string, body: unknown): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as {
     message?: string;
     kind?: string;
+    toolError?: unknown;
   } & T;
   const rejected = response.ok
     ? null
@@ -187,6 +185,9 @@ async function callCore<T>(route: string, body: unknown): Promise<T> {
         payload.message ?? `Core answered ${response.status}`,
         response.status,
         payload.kind,
+        isTypedToolErrorPayload(payload.toolError)
+          ? payload.toolError
+          : undefined,
       );
   if (rejected && isInactive(rejected)) stopped.abort();
   if (rejected) throw rejected;
@@ -272,6 +273,8 @@ function buildTools(
     descriptions?: Partial<Record<SokoBotCapability, string>>;
     /** Core keeps the plan, so update_plan goes to Core. */
     planLoop?: boolean;
+    /** Keep CoreRejected status/kind and emit typed tool errors (experiment E5). */
+    typedToolErrors?: boolean;
   },
 ): ToolSet {
   const tools: ToolSet = {};
@@ -335,6 +338,10 @@ function buildTools(
           );
           return await withWorkspaceCopy(capability, input, result);
         } catch (error) {
+          if (isInactive(error)) throw error;
+          if (options.typedToolErrors) {
+            throw classifyRunnerToolError(error, capability, input);
+          }
           throw new Error(
             error instanceof Error ? error.message : "Tool failed",
           );
@@ -508,6 +515,7 @@ async function main(): Promise<void> {
       forSubagent: false,
       descriptions: start.toolDescriptions,
       planLoop: start.planLoop,
+      typedToolErrors: start.typedToolErrors,
     });
     const deadline = Date.now() + budgetMs;
     const message = await withPartHandOvers(
@@ -525,6 +533,7 @@ async function main(): Promise<void> {
             budget,
             part: true,
             background: false,
+            typedToolErrors: start.typedToolErrors,
             deadline: Math.min(deadline, Date.now() + TURN_PART_MAX_MS),
             stopped: stopped.signal,
           })
@@ -538,6 +547,7 @@ async function main(): Promise<void> {
       maxSteps: start.maxSteps,
       budget,
       background: Boolean(start.background),
+      typedToolErrors: start.typedToolErrors,
       deadline,
       stopped: stopped.signal,
       onReasoning: reportReasoning,

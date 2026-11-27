@@ -1,10 +1,10 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
 import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import type { Context } from "hono";
-import { HTTPException } from "hono/http-exception";
-import { badRequest, unauthorized, unprocessableEntity } from "@/helpers/error";
+import { badRequest, unauthorized } from "@/helpers/error";
 import { databaseNow } from "@/lib/db/database-now";
 import { tryUseLogger } from "@/lib/evlog";
+import { toSandboxToolHttpException } from "@/lib/soko-bot/core-tool-error";
 import { runnerDiagnostic } from "@/lib/soko-bot/runner-log-events";
 import {
   type TurnTokenClaims,
@@ -99,10 +99,10 @@ app.post("/turns/:turnId/tools/:capability", async (c) => {
     });
     return c.json({ result: result ?? null });
   } catch (error) {
-    if (error instanceof HTTPException) throw error;
-    // A refused or failed tool is the model's to read, not a transport error.
-    throw unprocessableEntity(
-      error instanceof Error ? error.message : "Tool failed",
+    throw toSandboxToolHttpException(
+      error,
+      c.req.param("capability"),
+      call.input,
     );
   }
 });

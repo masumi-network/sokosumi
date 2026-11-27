@@ -2,6 +2,10 @@ import { simulateReadableStream, tool } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import {
+  classifyCoreToolError,
+  TypedToolError,
+} from "../lib/soko-bot/tool-errors";
 import { turnTokenBudget } from "../lib/soko-bot/turn-budget";
 import { runTurnLoop, type TurnLoopPlan } from "./loop";
 import {
@@ -1289,5 +1293,178 @@ describe("the done check (planLoop)", () => {
     expect(report?.lastUser).toBe(
       `${TIME_UP_PROMPT}\n\nOpen steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30`,
     );
+  });
+});
+
+describe("runTurnLoop typedToolErrors fresh recovery note", () => {
+  it("delivers one fresh user-side recovery note after a TypedToolError and stops injecting once a step succeeds", async () => {
+    let step = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        step += 1;
+        if (step === 1) {
+          return streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_conflict",
+                toolName: "create_table",
+                input: '{"slug":"investors"}',
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        }
+        if (step === 2) {
+          return streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_list",
+                toolName: "list_tables",
+                input: "{}",
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        }
+        return streamOf({
+          content: [{ type: "text", text: "Created the table cleanly." }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Create an investor table.",
+      tools: {
+        create_table: tool({
+          inputSchema: z.object({ slug: z.string() }),
+          execute: async (): Promise<unknown> => {
+            throw new TypedToolError(
+              classifyCoreToolError({
+                status: 409,
+                message: "Table identifier already exists",
+              }),
+            );
+          },
+        }),
+        list_tables: tool({
+          inputSchema: z.object({}),
+          execute: async () => ({ tables: [] }),
+        }),
+      },
+      maxSteps: 10,
+      background: false,
+      typedToolErrors: true,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    expect(result.text).toBe("Created the table cleanly.");
+    expect(model.doStreamCalls).toHaveLength(3);
+
+    // Step 2 sees tool error immediately followed by a fresh user-side recovery note.
+    const step2Prompt = model.doStreamCalls[1]?.prompt ?? [];
+    expect(step2Prompt.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "tool",
+      "user",
+    ]);
+    const recoveryMsg = step2Prompt.at(-1);
+    const recoveryText =
+      recoveryMsg && Array.isArray(recoveryMsg.content)
+        ? recoveryMsg.content.map((p) => ("text" in p ? p.text : "")).join("")
+        : "";
+    expect(recoveryText).toContain(
+      "Tool error recovery note (from Core, not the owner):",
+    );
+    expect(recoveryText).toContain('"kind":"conflict"');
+    expect(recoveryText).toContain('"retryable":true');
+
+    // Step 3 (after list_tables succeeded) does NOT inject another recovery note.
+    const step3Prompt = model.doStreamCalls[2]?.prompt ?? [];
+    expect(step3Prompt.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "tool",
+      "user",
+      "assistant",
+      "tool",
+    ]);
+  });
+
+  it("injects no recovery note when typedToolErrors is off", async () => {
+    let step = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        step += 1;
+        if (step === 1) {
+          return streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call_1",
+                toolName: "create_table",
+                input: "{}",
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        }
+        return streamOf({
+          content: [{ type: "text", text: "Failed." }],
+          finishReason: { unified: "stop", raw: "stop" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+
+    await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Create a table.",
+      tools: {
+        create_table: tool({
+          inputSchema: z.object({}),
+          execute: async (): Promise<unknown> => {
+            throw new TypedToolError(
+              classifyCoreToolError({
+                status: 409,
+                message: "Table identifier already exists",
+              }),
+            );
+          },
+        }),
+      },
+      maxSteps: 10,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    const step2Prompt = model.doStreamCalls[1]?.prompt ?? [];
+    expect(step2Prompt.map((message) => message.role)).toEqual([
+      "system",
+      "user",
+      "assistant",
+      "tool",
+    ]);
   });
 });

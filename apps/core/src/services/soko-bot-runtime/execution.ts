@@ -35,6 +35,7 @@ import {
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import { markUncertainToolOutcome } from "@/lib/soko-bot/tool-errors";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import { hydrateChatResultSnapshots } from "@/services/chat-result-preview.service";
@@ -345,8 +346,10 @@ export async function executeTool(
           }
         }
         if (ambiguousClipped) {
-          throw new SokoBotRuntimeConflictError(
-            "Previous truncated create_task receipt cannot be verified against this retry; reconcile before retrying",
+          throw markUncertainToolOutcome(
+            new SokoBotRuntimeConflictError(
+              "Previous truncated create_task receipt cannot be verified against this retry; reconcile before retrying",
+            ),
           );
         }
       }
@@ -416,8 +419,10 @@ export async function executeTool(
       );
     }
     if (existing.disposition === "UNKNOWN") {
-      throw new SokoBotRuntimeConflictError(
-        "Effect outcome is unknown; reconciliation is required before retrying",
+      throw markUncertainToolOutcome(
+        new SokoBotRuntimeConflictError(
+          "Effect outcome is unknown; reconciliation is required before retrying",
+        ),
       );
     }
     if (existing.status === "COMPLETED") {
@@ -675,13 +680,17 @@ export async function executeTool(
           verification: "NONE",
         },
       });
-      throw new SokoBotRuntimeConflictError(
-        "Effect outcome is unknown; reconciliation is required before retrying",
+      throw markUncertainToolOutcome(
+        new SokoBotRuntimeConflictError(
+          "Effect outcome is unknown; reconciliation is required before retrying",
+        ),
       );
     }
     if (existing.turnId && existing.turnId !== input.turnId) {
-      throw new SokoBotRuntimeConflictError(
-        "Previous-turn operation requires reconciliation before retrying",
+      throw markUncertainToolOutcome(
+        new SokoBotRuntimeConflictError(
+          "Previous-turn operation requires reconciliation before retrying",
+        ),
       );
     }
     const reclaimed = await prisma.sokoBotToolCall.updateMany({
@@ -900,5 +909,8 @@ export async function executeTool(
         }
       : null,
   });
+  if (action && externalEffect && !refusedUnsent) {
+    markUncertainToolOutcome(providerOutcome.error);
+  }
   throw providerOutcome.error;
 }

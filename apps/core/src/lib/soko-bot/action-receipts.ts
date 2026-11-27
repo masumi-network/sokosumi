@@ -1,55 +1,15 @@
 import { createHash } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
-import {
-  SOKO_BOT_SEO_WRITE_CAPABILITIES,
-  SOKO_BOT_TOOL_INPUT_SCHEMAS,
-} from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 
-/** These effects cannot be repeated safely after an ambiguous transport failure. */
-export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
-  "hire_agent",
-  "provide_job_input",
-  "run_integration_tool",
-  "run_mcp_tool",
-  "upload_file",
-  "publish_social_post",
-  // Creates a campaign at Google; never repeated after an unclear failure.
-  "create_ad_campaign",
-  // Change or delete a campaign at the provider; never repeated after an unclear failure.
-  "update_ad_campaign",
-  "edit_ad_campaign",
-  "delete_ad_campaign",
-  // A paid provider call: never repeated after an unclear failure.
-  "find_investors",
-  "generate_image",
-  "generate_video",
-  "generate_talking_video",
-  "generate_voiceover",
-  "draft_email",
-  "send_email_draft",
-  "save_email_attachment",
-]);
-
-/**
- * Input-aware external-effect check shared by receipt tracking and
- * OwnerAuthority enforcement. Covers always-effectful tools plus
- * `investor_warm_paths` when `research: true` incurs paid Exa spend and writes
- * portfolio data.
- */
-export function isExternalEffectToolCall(
-  capability: string,
-  rawInput: unknown,
-): boolean {
-  if (EXTERNAL_EFFECT_CAPABILITIES.has(capability)) return true;
-  return (
-    capability === "investor_warm_paths" &&
-    SOKO_BOT_TOOL_INPUT_SCHEMAS.investor_warm_paths.safeParse(rawInput).data
-      ?.research === true
-  );
-}
+export {
+  ACTION_CAPABILITIES,
+  ACTION_RECEIPT_CAPABILITIES,
+  EXTERNAL_EFFECT_CAPABILITIES,
+  isExternalEffectToolCall,
+} from "./tool-effects";
 
 /** A Google campaign id: digits only. */
 const adCampaignIdSchema = z.string().regex(/^\d{1,20}$/);
@@ -73,74 +33,6 @@ const AD_WRITE_RECEIPT_PROOF = {
     deleted: z.literal(true),
   }),
 } as const;
-
-export const ACTION_CAPABILITIES = new Set([
-  ...SOKO_BOT_SEO_WRITE_CAPABILITIES,
-  "newsletter_draft_issue",
-  "create_newsletter_issue",
-  "update_newsletter_issue",
-  "delete_newsletter_issue",
-  "submit_newsletter_issue",
-  "update_newsletter_settings",
-  "save_announcement",
-  "publish_announcement",
-  "add_newsletter_subscriber",
-  "import_newsletter_subscribers",
-  "add_newsletter_subscribers_from_contacts",
-  "update_newsletter_subscriber",
-  "remove_newsletter_subscriber",
-  ...EXTERNAL_EFFECT_CAPABILITIES,
-  "create_task",
-  "create_table",
-  "write_table_rows",
-  "update_table_columns",
-  "update_task",
-  "archive_task",
-  "assign_task",
-  "reply_to_task",
-  "update_assigned_task",
-  "link_tasks",
-  "set_task_parent",
-  "stop_following_task",
-  "post_chat",
-  "open_direct_chat",
-  "ask_coworker",
-  "send_message",
-  "upsert_contact",
-  "update_contact",
-  "log_contact_interaction",
-  "merge_contacts",
-  "manage_contact_lists",
-  "update_company",
-  "bulk_update_contacts",
-  "export_contacts_to_table",
-  "find_people",
-  "enrich_contact",
-  "create_project",
-  "update_project",
-  "create_schedule",
-  "update_schedule",
-  "delete_schedule",
-  "save_task_schedule",
-  "delete_task_schedule",
-  "update_memory",
-  "manage_reminder",
-  "create_social_post",
-  "update_social_post",
-  "schedule_social_post",
-  "cancel_social_post",
-  "move_file",
-  "delete_file",
-  "update_emails",
-  "install_skill",
-  "remove_skill",
-]);
-
-/** Warm paths have an action receipt only when the owner requests research. */
-export const ACTION_RECEIPT_CAPABILITIES = [
-  ...ACTION_CAPABILITIES,
-  "investor_warm_paths",
-];
 
 /** Object key order is not part of an operation's identity. */
 export function canonicalActionJson(value: unknown): string {

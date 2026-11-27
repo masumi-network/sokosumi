@@ -152,7 +152,7 @@ async function refusingHttp<T>(work: () => Promise<T>): Promise<T> {
     return await work();
   } catch (error) {
     if (error instanceof HTTPException && error.status < 500)
-      throw new SokoBotRefusedUnsentError(error.message);
+      throw new SokoBotRefusedUnsentError(error.message, { cause: error });
     throw error;
   }
 }

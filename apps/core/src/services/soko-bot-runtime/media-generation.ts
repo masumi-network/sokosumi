@@ -105,6 +105,7 @@ export async function generateImage(
       .catch((error: unknown) => {
         throw new SokoBotImageRefusedError(
           error instanceof Error ? error.message : "Image refused",
+          { cause: error },
         );
       });
   const cuso = style ? await findCusoForBot(authorized.turn.sokoBotId) : null;
@@ -181,7 +182,7 @@ async function startStudioImage(input: Parameters<typeof createImageJob>[0]) {
     // The studio's refusals (no balance, too many at once) come before it
     // sends anything.
     if (error instanceof HTTPException)
-      throw new SokoBotImageRefusedError(error.message);
+      throw new SokoBotImageRefusedError(error.message, { cause: error });
     throw error;
   }
 }
@@ -298,6 +299,7 @@ export async function generateVideo(
     .catch((error: unknown) => {
       throw new SokoBotImageRefusedError(
         error instanceof Error ? error.message : "Video refused",
+        { cause: error },
       );
     });
   let job: Awaited<ReturnType<typeof createVideoJob>>;
@@ -315,7 +317,7 @@ export async function generateVideo(
     });
   } catch (error) {
     if (error instanceof HTTPException)
-      throw new SokoBotImageRefusedError(error.message);
+      throw new SokoBotImageRefusedError(error.message, { cause: error });
     throw error;
   }
   return {
@@ -344,6 +346,7 @@ export async function generateTalkingVideo(
     .catch((error: unknown) => {
       throw new SokoBotImageRefusedError(
         error instanceof Error ? error.message : "Talking video refused",
+        { cause: error },
       );
     });
   const userId = actingMemberOf(authorized);
@@ -373,7 +376,7 @@ export async function generateTalkingVideo(
     });
   } catch (error) {
     if (error instanceof HTTPException)
-      throw new SokoBotImageRefusedError(error.message);
+      throw new SokoBotImageRefusedError(error.message, { cause: error });
     throw error;
   }
   return {
@@ -453,7 +456,7 @@ export async function getStudioJob(
     };
   } catch (error) {
     if (error instanceof HTTPException)
-      throw new SokoBotRuntimeValidationError(error.message);
+      throw new SokoBotRuntimeValidationError(error.message, { cause: error });
     throw error;
   }
 }

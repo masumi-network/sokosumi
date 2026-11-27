@@ -45,6 +45,7 @@ import {
   withReplyLanguage,
 } from "@/lib/soko-bot/turn-model-context";
 import { runTurnLoop, type TurnLoopInput } from "@/soko-bot-runner/loop";
+import { toTypedToolError } from "./core-tool-error";
 import { runCoreWebTool } from "./core-web-tools";
 import { evaluateTurnDoneCheck, openStepsNote } from "./done-check";
 import {
@@ -174,21 +175,28 @@ async function runTurn(
           if (abortSignal.aborted || options.abortSignal?.aborted) {
             throw new Error("Soko Bot turn deadline reached");
           }
-          if (capability === "web_search" || capability === "web_fetch") {
-            return runCoreWebTool({
-              sessionId,
-              turnId: input.turnId,
+          try {
+            if (capability === "web_search" || capability === "web_fetch") {
+              return await runCoreWebTool({
+                sessionId,
+                turnId: input.turnId,
+                capability,
+                toolCallId: options.toolCallId,
+                toolInput,
+              });
+            }
+            return await runTurnTool({
+              log,
               capability,
               toolCallId: options.toolCallId,
               toolInput,
             });
+          } catch (error) {
+            if (turn.typedToolErrors) {
+              throw toTypedToolError(error, capability, toolInput);
+            }
+            throw error;
           }
-          return runTurnTool({
-            log,
-            capability,
-            toolCallId: options.toolCallId,
-            toolInput,
-          });
         },
       });
     }
@@ -274,6 +282,7 @@ async function runTurn(
       maxSteps,
       deadline,
       background,
+      typedToolErrors: turn.typedToolErrors,
       stopped: abortSignal,
       async onReasoning(text) {
         await log.append(runtimeEvent("reasoning.completed", { text }));

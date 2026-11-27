@@ -101,7 +101,10 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 vi.mock("@/services/cmo-hiring.service", () => ({
   cmoTurnParts: cmoTurnPartsMock,
 }));
-vi.mock("@/services/soko-bot-runtime.service", () => ({
+vi.mock("@/services/soko-bot-runtime.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/soko-bot-runtime.service")
+  >()),
   sokoBotRuntimeService: {
     authorize: authorizeMock,
     getContext: getContextMock,
@@ -109,7 +112,9 @@ vi.mock("@/services/soko-bot-runtime.service", () => ({
   },
 }));
 
+import { getSokoBotVersion } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import * as versionService from "@/services/soko-bot-version.service";
 import {
   FOREGROUND_TIME_UP_PROMPT,
   KEEP_GOING_PROMPT,
@@ -124,6 +129,7 @@ import {
   MODEL_STREAM_IDLE_MS,
   ModelStreamStalledError,
 } from "./stream-model-call";
+import { TypedToolError } from "./tool-errors";
 import { endedByTool } from "./turn-parts";
 
 /** The model as the runtime gets it: behind the region check. */
@@ -847,6 +853,107 @@ describe("InProcessSokoBotRuntime", () => {
       await expect(settled).resolves.toMatch(/timed out/i);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("classifies lost responses as uncertain for paid calls and transient for read-only controls when typedToolErrors is enabled", async () => {
+    const contactId = "01960001-0001-7001-8001-000000000099";
+    const versionSpy = vi
+      .spyOn(versionService, "resolveRunnableSokoBotVersion")
+      .mockResolvedValue({
+        ...getSokoBotVersion("v11"),
+        typedToolErrors: true,
+      });
+    authorizeMock.mockResolvedValueOnce({
+      turn: { id: TURN_ID, versionId: "v11" },
+      grant: {
+        capabilities: [
+          "investor_warm_paths",
+          "find_investors",
+          "find_people",
+          "generate_image",
+          "hire_agent",
+          "create_ad_campaign",
+          "get_task_status",
+        ],
+      },
+    });
+    try {
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Check investors and tasks",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await Promise.all(pendingTurns);
+
+      const tools = streamModelCallMock.mock.calls[0][0].tools;
+      executeToolMock.mockImplementation(() => new Promise(() => {}));
+
+      vi.useFakeTimers();
+      try {
+        const invokeTimeout = async (
+          capability: string,
+          toolInput: unknown,
+          callId: string,
+        ) => {
+          const promise = tools[capability]
+            .execute(toolInput, { toolCallId: callId })
+            .then(
+              () => {
+                throw new Error("Expected timeout");
+              },
+              (error: unknown) => error,
+            );
+          await vi.advanceTimersByTimeAsync(95_000);
+          return promise;
+        };
+
+        for (const [capability, toolInput] of [
+          ["investor_warm_paths", { contactId, research: true }],
+          ["find_investors", { query: "seed fintech" }],
+          ["find_people", { query: "VP Engineering" }],
+          ["generate_image", { prompt: "banner" }],
+          ["hire_agent", { agentId: "agent_1" }],
+          ["create_ad_campaign", { name: "Launch" }],
+        ] as const) {
+          const error = await invokeTimeout(
+            capability,
+            toolInput,
+            `call_${capability}`,
+          );
+          expect(error, capability).toBeInstanceOf(TypedToolError);
+          expect((error as TypedToolError).payload, capability).toMatchObject({
+            kind: "uncertain",
+            retryable: false,
+          });
+          expect((error as TypedToolError).payload.hint, capability).toMatch(
+            /read back/i,
+          );
+        }
+
+        for (const [capability, toolInput] of [
+          ["get_task_status", { taskId: TURN_ID }],
+          ["investor_warm_paths", { contactId, research: false }],
+        ] as const) {
+          const error = await invokeTimeout(
+            capability,
+            toolInput,
+            `control_${capability}`,
+          );
+          expect(error, capability).toBeInstanceOf(TypedToolError);
+          expect((error as TypedToolError).payload, capability).toMatchObject({
+            kind: "transient",
+            retryable: true,
+          });
+        }
+      } finally {
+        vi.useRealTimers();
+      }
+    } finally {
+      versionSpy.mockRestore();
     }
   });
 

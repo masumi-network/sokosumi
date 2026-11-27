@@ -710,6 +710,7 @@ export async function checkImageRequest(
     if (error instanceof HTTPException)
       throw new SokoBotRuntimeValidationError(
         "That Project is not one your owner can open.",
+        { cause: error },
       );
     throw error;
   }
@@ -897,6 +898,7 @@ export async function checkVideoRequest(
     if (error instanceof HTTPException)
       throw new SokoBotRuntimeValidationError(
         "That Project is not one your owner can open.",
+        { cause: error },
       );
     throw error;
   }
@@ -1025,6 +1027,7 @@ export async function checkTalkingVideoRequest(
     if (error instanceof HTTPException)
       throw new SokoBotRuntimeValidationError(
         "That Project is not one your owner can open.",
+        { cause: error },
       );
     throw error;
   }
