@@ -1,5 +1,4 @@
 apps/core/src/helpers/access-control.job-share.ts
-apps/core/src/helpers/agent-rating.ts
 apps/core/src/helpers/coworker-task-receipt.ts
 apps/core/src/helpers/public-share.ts
 apps/core/src/helpers/task-visibility.ts

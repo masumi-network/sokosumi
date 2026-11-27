@@ -1,18 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  buildAvailableAgentWhereClause,
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-} from "@/helpers/agent";
-import {
   getAgentRatingDistribution,
   getRecentAgentReviews,
 } from "@/helpers/agent-rating";
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { requireAvailableAgent } from "@/lib/agent-catalog/availability";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -68,26 +62,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { limit } = c.req.valid("query");
 
-    const creditCosts = await getCreditCostsOrThrow(prisma);
-    const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
-
-    const agent = await prisma.agent.findFirst({
-      where: {
-        id,
-        ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!agent) {
-      throw notFound("Agent not found");
-    }
+    const scope = c.var.networkScope;
+    await requireAvailableAgent(scope, id);
 
     const [distribution, ratingsWithComments] = await Promise.all([
-      getAgentRatingDistribution(id, prisma),
-      getRecentAgentReviews(id, limit, prisma),
+      getAgentRatingDistribution(id, scope.networkDb),
+      getRecentAgentReviews(id, limit, scope),
     ]);
 
     const reviews = {
