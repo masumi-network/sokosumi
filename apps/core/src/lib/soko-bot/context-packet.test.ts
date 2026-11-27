@@ -58,6 +58,10 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     sokoBot: { findUnique: sokoBotFindUniqueMock },
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
+    sokoBotIntegration: {
+      findMany: vi.fn().mockResolvedValue([{ provider: "gmail" }]),
+    },
+    sokoBotSchedule: { findUnique: vi.fn().mockResolvedValue(null) },
     agent: { count: agentCountMock, findMany: agentFindManyMock },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
@@ -80,6 +84,13 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     workspace: { findFirst: workspaceFindFirstMock },
   },
+}));
+
+vi.mock("@/services/soko-bot-integrations.service", () => ({
+  resolveProvider: (id: string) => ({
+    id,
+    kinds: id === "gmail" ? ["email"] : [],
+  }),
 }));
 
 import {
@@ -199,7 +210,23 @@ function job(id: string, inputSchema = null as string | null) {
     projectId: "project-new",
     updatedAt: NOW,
     transaction: { amount: -30_000_000_000n },
-    events: [{ status: "AWAITING_INPUT", inputSchema, createdAt: EARLIER }],
+    refundedTransactionId: null as string | null,
+    createdAt: EARLIER,
+    payByTime: null,
+    submitResultTime: null,
+    externalDisputeUnlockTime: null,
+    purchase: { onChainStatus: "FUNDS_LOCKED", nextAction: "NONE" } as {
+      onChainStatus: string | null;
+      nextAction: string;
+    } | null,
+    events: [
+      {
+        status: "AWAITING_INPUT",
+        input: null,
+        inputSchema,
+        createdAt: EARLIER,
+      },
+    ],
   };
 }
 
@@ -490,9 +517,14 @@ describe("ContextPacketBuilder", () => {
       },
     ]);
     agentFindManyMock.mockResolvedValue([agent("agent-1")]);
-    jobFindManyMock.mockResolvedValue([
-      job("job-1", '{"input_data":[{"id":"brief","type":"string"}]}'),
-    ]);
+    // The open job comes back from the open-first read; the fill-up read
+    // excludes it by id, as Postgres would.
+    jobFindManyMock.mockImplementation(
+      async (args: { where?: { id?: { notIn?: string[] } } }) =>
+        args.where?.id?.notIn?.includes("job-1")
+          ? []
+          : [job("job-1", '{"input_data":[{"id":"brief","type":"string"}]}')],
+    );
     pendingDecisionFindManyMock.mockResolvedValue([
       pendingDecision("decision-1"),
     ]);
@@ -535,9 +567,19 @@ describe("ContextPacketBuilder", () => {
       "project-new",
       "project-old",
     ]);
+    // Open jobs are read first, so finished ones never crowd them out.
+    const openWhere = jobFindManyMock.mock.calls[0]?.[0].where;
+    expect(openWhere.events).toEqual({
+      none: { status: { in: ["COMPLETED", "FAILED"] } },
+    });
+    // A refunded or on-chain-ended Job is not open, whatever its last event.
+    expect(openWhere.refundedTransactionId).toBeNull();
+    expect(openWhere.NOT.purchase.is.onChainStatus.in).toEqual(
+      expect.arrayContaining(["REFUND_WITHDRAWN", "DISPUTED_WITHDRAWN"]),
+    );
     expect(result.packet.projects[0]?.status).toEqual({
       taskCounts: { COMPLETED: 1, RUNNING: 1 },
-      jobCounts: { AWAITING_INPUT: 1 },
+      jobCounts: { input_required: 1 },
       totalTasks: 2,
       totalJobs: 1,
       partial: false,
@@ -573,7 +615,7 @@ describe("ContextPacketBuilder", () => {
       },
     });
     expect(result.packet.jobs[0]).toMatchObject({
-      status: "AWAITING_INPUT",
+      status: "input_required",
       pendingInput: {
         required: true,
         schema: expect.stringContaining("brief"),
@@ -594,7 +636,7 @@ describe("ContextPacketBuilder", () => {
     );
     expect(jobFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
+        where: expect.objectContaining({
           ownerId: "user-1",
           workspaceId: buildInput().workspaceId,
           OR: [
@@ -610,9 +652,61 @@ describe("ContextPacketBuilder", () => {
               },
             },
           ],
-        },
+        }),
       }),
     );
+  });
+
+  it("keeps an older Job that waits on the owner ahead of newer lapsed payments", async () => {
+    const lapsed = Array.from({ length: 6 }, (_, index) => ({
+      ...job(`job-lapsed-${index}`),
+      purchase: null,
+      payByTime: new Date(Date.now() - 86_400_000),
+    }));
+    const waiting = job("job-waiting");
+    jobFindManyMock.mockImplementation(
+      async (args: { where?: { id?: { notIn?: string[] } }; take: number }) =>
+        args.where?.id?.notIn
+          ? lapsed.filter((row) => !args.where?.id?.notIn?.includes(row.id))
+          : [...lapsed, waiting].slice(0, args.take),
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    const jobs = result.packet.jobs as { id: string; status: string }[];
+    expect(jobs[0]).toMatchObject({
+      id: "job-waiting",
+      status: "input_required",
+    });
+    expect(
+      jobs.slice(1).every((shown) => shown.status === "payment_failed"),
+    ).toBe(true);
+  });
+
+  it("shows a refunded Job as refunded, never as waiting for input", async () => {
+    // Not open, so only the fill-up read returns them.
+    jobFindManyMock.mockImplementation(
+      async (args: { where?: { id?: { notIn?: string[] } } }) =>
+        args.where?.id?.notIn
+          ? [
+              { ...job("job-refunded"), refundedTransactionId: "tx-refund" },
+              {
+                ...job("job-withdrawn"),
+                purchase: {
+                  onChainStatus: "REFUND_WITHDRAWN",
+                  nextAction: "NONE",
+                },
+              },
+            ]
+          : [],
+    );
+    const result = await new ContextPacketBuilder().build(buildInput());
+    const jobs = result.packet.jobs as {
+      status: string;
+      pendingInput: unknown;
+    }[];
+    expect(jobs.map((shown) => [shown.status, shown.pendingInput])).toEqual([
+      ["refund_resolved", null],
+      ["refund_resolved", null],
+    ]);
   });
 
   it("reads the workspace membership without a user filter for a self-started turn", async () => {
@@ -1213,5 +1307,77 @@ describe("triggerHints", () => {
         { personAsked: false },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("ContextPacketBuilder on demand (v38)", () => {
+  const onDemand = (route: string) => ({
+    ...buildInput(),
+    onDemand: true,
+    classification: { ...CLASSIFICATION, route: route as "MANAGE_WORK" },
+  });
+
+  it("fetches what waits on the owner and no board for a plain question", async () => {
+    taskFindManyMock.mockResolvedValueOnce([
+      { ...task("waiting"), status: "INPUT_REQUIRED" },
+    ]);
+    taskCountMock.mockResolvedValue(1_534);
+    const result = await new ContextPacketBuilder().build(
+      onDemand("DIRECT_RESPONSE"),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledTimes(1);
+    const [waitingQuery] = taskFindManyMock.mock.calls[0];
+    expect(waitingQuery.where.status).toEqual({
+      in: expect.arrayContaining(["INPUT_REQUIRED", "APPROVAL_REQUIRED"]),
+    });
+    expect(waitingQuery.where.ownerId).toBe("user-1");
+    expect(result.packet.tasks.map((item) => item.id)).toEqual(["waiting"]);
+    expect(result.packet.map).toEqual(
+      expect.objectContaining({
+        tasks: expect.objectContaining({ total: 1_534, shown: 1 }),
+        mail: { connected: ["gmail"], read: "search_inbox, read_email" },
+      }),
+    );
+  });
+
+  it("labels trust once, not on every item, and drops sourceCoverage", async () => {
+    taskFindManyMock.mockResolvedValue([task("open")]);
+    coworkerFindManyMock.mockResolvedValue([coworker("c1")]);
+    recentTurnFindManyMock.mockResolvedValue([recentTurn("turn-1")]);
+    const result = await new ContextPacketBuilder().build(
+      onDemand("DELEGATE_TASK"),
+    );
+    const json = JSON.stringify(result.packet);
+    expect(json.match(/untrusted-data/g)).toHaveLength(1);
+    expect(result.packet.sourceCoverage).toBeUndefined();
+    expect(result.packet.coworkers[0]).toEqual({
+      id: "c1",
+      name: "Coworker c1",
+      caption: "Project specialist",
+    });
+  });
+
+  it("is far smaller than the full packet on the same board", async () => {
+    const board = Array.from({ length: 24 }, (_, i) => task(`t-${i}`));
+    const upTo =
+      <T>(items: T[]) =>
+      async ({ take }: { take?: number }) =>
+        items.slice(0, take ?? items.length);
+    const fill = () => {
+      taskFindManyMock.mockImplementation(upTo(board));
+      coworkerFindManyMock.mockImplementation(
+        upTo(Array.from({ length: 24 }, (_, i) => coworker(`c-${i}`))),
+      );
+      recentTurnFindManyMock.mockImplementation(
+        upTo(Array.from({ length: 12 }, (_, i) => recentTurn(`r-${i}`))),
+      );
+    };
+    fill();
+    const full = await new ContextPacketBuilder().build(buildInput());
+    fill();
+    const small = await new ContextPacketBuilder().build(
+      onDemand("DIRECT_RESPONSE"),
+    );
+    expect(small.byteSize).toBeLessThan(full.byteSize / 2);
   });
 });

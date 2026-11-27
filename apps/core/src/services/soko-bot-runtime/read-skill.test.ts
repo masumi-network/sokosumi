@@ -40,6 +40,19 @@ describe("read_skill", () => {
     ).rejects.toThrow(/No skill "linkedin"\. Your skills: /);
   });
 
+  it("lets a Soko Bot with the playbooks read a playbook, and nothing else of Cuso's", async () => {
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("v39"));
+    const read = await readSkill(authorized("v39"), { skill: "landing-page" });
+    expect(read.skill).toBe("landing-page");
+    await expect(
+      readSkill(authorized("v39"), { skill: "linkedin" }),
+    ).rejects.toThrow(/No skill "linkedin"/);
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("v37"));
+    await expect(
+      readSkill(authorized("v37"), { skill: "landing-page" }),
+    ).rejects.toThrow(/No skill "landing-page"/);
+  });
+
   it("reads the whole skill again on a replayed call", async () => {
     resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("cmo-v24"));
     const strategy = SOKO_BOT_SKILLS.find(

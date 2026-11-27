@@ -21,6 +21,7 @@ import {
   isSokoBotNewsletterCapability,
   limitSokoBotWrites,
   type OwnerAuthorityStopRuleInput,
+  readsContextOnDemand,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
@@ -31,6 +32,7 @@ import {
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
   sokoBotContextPacketSchema,
+  sokoBotReadsXDms,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
@@ -157,6 +159,7 @@ import type {
   SokoBotTurnStartResult,
   StartSokoBotTurnInput,
 } from "@/lib/soko-bot/turn-start";
+import { ownerPrivateRoom } from "@/lib/soko-bot/x-inbox";
 import {
   LIVE_CUSO_WHERE,
   ONBOARDING_TURN_PREFIX,
@@ -2786,6 +2789,19 @@ export class SokoBotControlPlane {
         (askedByTeammate
           ? (input.background?.destinationRoomId ?? null)
           : null),
+      onDemand:
+        version.profile !== "cmo" && readsContextOnDemand(version.skills),
+      offered: capabilities,
+      xDms:
+        isPersonalSokoBot(bot) &&
+        !askedByTeammate &&
+        !input.chat?.askedByBot &&
+        input.userId === bot.userId &&
+        sokoBotReadsXDms(version.skills) &&
+        (await ownerPrivateRoom(destinationRoom?.id ?? null, {
+          ownerId: bot.userId,
+          sokoBotId: bot.id,
+        })),
       referencedTaskIds: [
         ...new Set([
           ...classifierContext.namedTaskIds,

@@ -2,6 +2,7 @@ import {
   renderWritingSkill,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  sokoBotReadsPlaybooks,
   WRITING_SKILLS,
 } from "@sokosumi/soko-bot";
 import { resolveSokoBotVersion } from "@/services/soko-bot-version.service";
@@ -60,7 +61,16 @@ export async function readSkill(
     if (skill)
       return { skill: skill.id, name: skill.name, content: skill.content };
   }
-  const writing = version.profile === "cmo" ? readWritingSkill(id) : null;
+  // Cuso reads every writing skill; a Soko Bot with the playbooks (v39)
+  // reads only those, never the per-network post skills.
+  const writing =
+    version.profile === "cmo" ||
+    (sokoBotReadsPlaybooks(version.skills) &&
+      WRITING_SKILLS.some(
+        (skill) => skill.id === id && skill.group === "playbooks",
+      ))
+      ? readWritingSkill(id)
+      : null;
   if (writing) return writing;
   throw new SokoBotRuntimeValidationError(
     `No skill "${id}". Your skills: ${version.skills.join(", ")}.`,
