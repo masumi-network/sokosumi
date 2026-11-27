@@ -29,6 +29,12 @@ const _everyNetworkListed: Exclude<
   ? true
   : never = true;
 
+/** The Network a payload names in the spelling of the deployment's `NETWORK` (`PaymentSource.network`). */
+export const NETWORK_BY_NAME = {
+  Mainnet: "mainnet",
+  Preprod: "preprod",
+} as const satisfies Record<string, Network>;
+
 /**
  * Returns `value` as a Network, or throws. A missing or unknown Network is an
  * error, never a default: a value that slipped past the types must not reach

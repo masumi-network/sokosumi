@@ -178,12 +178,19 @@ export const seoSettlementFields = z.object({
   }),
 });
 
+/**
+ * `payloadNamesNetwork`: while Preprod is on, `PaymentSource.network` names
+ * the payment's Network (`paymentScope`) and need not be the deployment's.
+ */
 export function createTaskEventRequestSchema(
-  params: { serverNetwork: "Preprod" | "Mainnet" } = {
+  params: {
+    serverNetwork: "Preprod" | "Mainnet";
+    payloadNamesNetwork?: boolean;
+  } = {
     serverNetwork: "Preprod",
   },
 ) {
-  const { serverNetwork } = params;
+  const { serverNetwork, payloadNamesNetwork = false } = params;
 
   return z
     .object({
@@ -246,7 +253,11 @@ export function createTaskEventRequestSchema(
         }
 
         const sourceNetwork = data.masumiPayment.PaymentSource?.network;
-        if (sourceNetwork !== undefined && sourceNetwork !== serverNetwork) {
+        if (
+          !payloadNamesNetwork &&
+          sourceNetwork !== undefined &&
+          sourceNetwork !== serverNetwork
+        ) {
           ctx.addIssue({
             code: "custom",
             message: `PaymentSource.network must match server network (${serverNetwork})`,
@@ -300,8 +311,11 @@ export function createTaskEventRequestSchema(
               path: ["masumiPayment", "PaymentSource", "policyId"],
             });
           }
+          const addressNetwork = payloadNamesNetwork
+            ? paymentSource.network
+            : serverNetwork;
           const expectedAddressPrefix =
-            serverNetwork === "Mainnet" ? "addr1" : "addr_test1";
+            addressNetwork === "Mainnet" ? "addr1" : "addr_test1";
           if (
             !paymentSource.smartContractAddress.startsWith(
               expectedAddressPrefix,
@@ -309,7 +323,7 @@ export function createTaskEventRequestSchema(
           ) {
             ctx.addIssue({
               code: "custom",
-              message: `PaymentSource.smartContractAddress must be a ${serverNetwork} bech32 address`,
+              message: `PaymentSource.smartContractAddress must be a ${addressNetwork} bech32 address`,
               path: ["masumiPayment", "PaymentSource", "smartContractAddress"],
             });
           }

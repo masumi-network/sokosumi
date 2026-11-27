@@ -17,7 +17,9 @@ import { created, ok } from "@/helpers/response";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { Network } from "@/lib/network";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
+import { paymentScope } from "@/middleware/network-scope";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
 
 import { createCoworkerUsageRequestSchema } from "./schema";
@@ -68,6 +70,7 @@ function serializeUsage(usage: {
 }
 
 async function prepareConsumptions(
+  network: Network,
   userId: string,
   organizationId: string | null,
   cents: bigint,
@@ -79,7 +82,7 @@ async function prepareConsumptions(
 
   try {
     return await creditBucketRepository.prepareConsumption(
-      "mainnet",
+      network,
       userId,
       organizationId,
       cents,
@@ -167,8 +170,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       await requireAssignedOrganizationSeat(userId, organizationId, tx);
 
+      // The Network of the charge: a call that names Preprod is refused or
+      // spends Preprod's credits, never Mainnet's.
+      const scope = await paymentScope(c, {
+        billed: { userId, organizationId },
+        db: tx,
+      });
       const cents = convertCreditsToCents(credits);
       const consumptions = await prepareConsumptions(
+        scope.network,
         userId,
         organizationId,
         cents,

@@ -30,16 +30,19 @@ import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
 import {
   findX402ReadySource,
   getX402ReadySources,
+  x402ChainNetwork,
 } from "@/helpers/x402-readiness";
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { Network } from "@/lib/network";
 import { requireSeparateAuditPurchaseAllowed } from "@/lib/seo/audit-settlement";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
   isSokoBotAuthContext,
 } from "@/middleware/auth";
+import type { BilledParty } from "@/middleware/network-scope";
 import type { TaskX402PaymentSigned } from "@/schemas/x402-payment.schema";
 import {
   finalizeVerifiedTaskX402Payment,
@@ -81,8 +84,15 @@ export interface PayTaskX402Input {
   paymentRequired: unknown;
   /** Caller's pre-charge ceiling in credits — see the request schema. */
   maxCredits?: number;
-  /** The Network whose credits the payment spends. */
-  networkScope: NetworkScope;
+  /**
+   * The scope whose credits the payment spends (`paymentScope`), asked once
+   * the 402's chain is known, before the charge.
+   */
+  paymentScope: (
+    payloadNetwork: Network | undefined,
+    billed: BilledParty,
+    db: SharedDb,
+  ) => Promise<NetworkScope>;
 }
 
 export type PayTaskX402Result =
@@ -268,6 +278,15 @@ async function runX402ChargePhase(
         getEnv().NETWORK,
       );
 
+      // The chain names the payment's Network: a header that names the other
+      // one, or a billed party without access, is refused here, before the
+      // charge.
+      const scope = await input.paymentScope(
+        x402ChainNetwork(demand.caip2Network),
+        { userId: task.ownerId, organizationId: task.organizationId },
+        tx,
+      );
+
       // Dynamic registry entries intentionally carry no price. The resource
       // server's 402 is therefore the quote, and a caller-controlled ceiling
       // is the only independent pre-debit bound. Unlike fixed pricing there is
@@ -346,7 +365,7 @@ async function runX402ChargePhase(
         projectId: task.projectId,
         cents,
         currentStatus: task.status,
-        scope: input.networkScope,
+        scope,
         tx,
       });
 
@@ -390,7 +409,7 @@ async function runX402ChargePhase(
           taskId,
           cents,
           transactionId: charge.transactionId,
-          network: input.networkScope.network,
+          network: scope.network,
           ...taskEventAttribution,
         },
       });
