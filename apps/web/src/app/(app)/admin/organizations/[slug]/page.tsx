@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { OrganizationDetailPanel } from "@/components/admin/organizations/organization-detail-panel";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
+import { adminPreprodAccessService } from "@/lib/services/admin-preprod-access.service";
 
 export const instant = false;
 
@@ -29,10 +30,10 @@ export default async function AdminOrganizationDetailPage({
 
   const [initialMembersPage, preprodAccess] = await Promise.all([
     adminOrganizationService.listOrganizationMembers(decodedSlug),
-    adminOrganizationService.getPreprodAccess(decodedSlug),
+    adminPreprodAccessService.read({ type: "organization", slug: decodedSlug }),
   ]);
 
-  if (!preprodAccess) {
+  if (preprodAccess.status === "missing") {
     notFound();
   }
 
@@ -42,7 +43,9 @@ export default async function AdminOrganizationDetailPage({
         <OrganizationDetailPanel
           detail={detail}
           initialMembersPage={initialMembersPage}
-          preprodAccess={preprodAccess}
+          preprodAccess={
+            preprodAccess.status === "found" ? preprodAccess.access : null
+          }
         />
       </div>
     </div>

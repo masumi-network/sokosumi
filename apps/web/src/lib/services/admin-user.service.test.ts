@@ -2,34 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { getPreprodAccessMock } = vi.hoisted(() => ({
-  getPreprodAccessMock: vi.fn(),
-}));
-
 const searchAdminUsersMock = vi.fn();
 const listAdminUsersMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
-    getAdminUserPreprodAccess: (...args: unknown[]) =>
-      getPreprodAccessMock(...args),
     searchAdminUsers: (...args: unknown[]) => searchAdminUsersMock(...args),
     listAdminUsers: (...args: unknown[]) => listAdminUsersMock(...args),
   },
-  CoreApiRequestError: class extends Error {
-    constructor(
-      message: string,
-      readonly options?: { status?: number },
-    ) {
-      super(message);
-    }
-    get status() {
-      return this.options?.status;
-    }
-  },
+  CoreApiRequestError: class extends Error {},
 }));
-
-import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 import { adminUserService } from "./admin-user.service";
 
@@ -150,35 +132,5 @@ describe("adminUserService", () => {
     });
     expect(result.nextCursor).toBe("user_9");
     expect(result.total).toBe(25);
-  });
-
-  describe("getPreprodAccess", () => {
-    it("answers Core's flag and history", async () => {
-      const access = { enabled: true, changes: [] };
-      getPreprodAccessMock.mockResolvedValue({ data: access });
-
-      await expect(adminUserService.getPreprodAccess("u1")).resolves.toEqual(
-        access,
-      );
-      expect(getPreprodAccessMock).toHaveBeenCalledWith("u1");
-    });
-
-    it("answers null when Core has no such target", async () => {
-      getPreprodAccessMock.mockRejectedValue(
-        new CoreApiRequestError("Not found", { status: 404 }),
-      );
-
-      await expect(adminUserService.getPreprodAccess("u1")).resolves.toBeNull();
-    });
-
-    it("rethrows any other failure", async () => {
-      getPreprodAccessMock.mockRejectedValue(
-        new CoreApiRequestError("Forbidden", { status: 403 }),
-      );
-
-      await expect(adminUserService.getPreprodAccess("u1")).rejects.toThrow(
-        "Forbidden",
-      );
-    });
   });
 });

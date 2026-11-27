@@ -7,7 +7,7 @@ import { PreprodAccessSection } from "@/components/admin/preprod-access-section"
 import { UserSignUpSection } from "@/components/admin/users/user-sign-up-section";
 import { Button } from "@/components/ui/button";
 import { coreClient } from "@/lib/clients/core.client";
-import { adminUserService } from "@/lib/services/admin-user.service";
+import { adminPreprodAccessService } from "@/lib/services/admin-preprod-access.service";
 
 export const instant = false;
 
@@ -29,10 +29,10 @@ export default async function AdminUserDetailPage({
     getTranslations("App.Admin.Users.UserDetail"),
     coreClient.getUserById(userId),
     coreClient.getUserSignUp(userId),
-    adminUserService.getPreprodAccess(userId),
+    adminPreprodAccessService.read({ type: "user", id: userId }),
   ]);
 
-  if (!user || !preprodAccess) {
+  if (!user || preprodAccess.status === "missing") {
     notFound();
   }
 
@@ -58,7 +58,9 @@ export default async function AdminUserDetailPage({
         <PreprodAccessSection
           target={{ type: "user", id: user.id }}
           targetName={user.name}
-          access={preprodAccess}
+          access={
+            preprodAccess.status === "found" ? preprodAccess.access : null
+          }
         />
       </div>
     </div>

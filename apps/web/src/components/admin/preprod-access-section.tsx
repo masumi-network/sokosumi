@@ -1,11 +1,13 @@
 "use client";
 
 import type { AdminPreprodAccess } from "@sokosumi/core-client";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { ReasonField } from "@/components/admin/reason-field";
+import { LoadErrorState } from "@/components/common/load-error-state";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,35 +17,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  type PreprodAccessTarget,
-  setAdminPreprodAccessAction,
-} from "@/lib/actions/admin-preprod-access/action";
+import { setAdminPreprodAccessAction } from "@/lib/actions/admin-preprod-access/action";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { refreshPage } from "@/lib/actions/refresh-page-action";
+import type { PreprodAccessTarget } from "@/lib/services/admin-preprod-access.service";
 
 interface PreprodAccessSectionProps {
   target: PreprodAccessTarget;
   /** The user's or Organization's name, as the dialog names it. */
   targetName: string;
-  access: AdminPreprodAccess;
+  /** The page's read from Core; null when Core did not answer it. */
+  access: AdminPreprodAccess | null;
 }
 
 /**
  * Preprod access of one user or Organization: the flag, a switch that asks for
- * a reason, and the recent changes. The switch shows only what Core accepted.
+ * a reason, and the recent changes. Everything shown comes from the page's
+ * read; after a change the page reads again.
  */
 export function PreprodAccessSection({
   target,
   targetName,
-  access: initialAccess,
+  access,
 }: PreprodAccessSectionProps) {
   const t = useTranslations("App.Admin.PreprodAccess");
   const formatter = useFormatter();
+  const router = useRouter();
   const id = useId();
-  const [access, setAccess] = useState(initialAccess);
+  const switchRef = useRef<HTMLButtonElement>(null);
+  const reasonRef = useRef<HTMLInputElement>(null);
+  // What the admin asked for, kept while the dialog is open.
   const [requested, setRequested] = useState<boolean | null>(null);
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState<string | undefined>();
@@ -51,7 +56,13 @@ export function PreprodAccessSection({
   const [isPending, startTransition] = useTransition();
 
   const titleId = `${id}-title`;
-  const switchId = `${id}-switch`;
+
+  async function refreshPageData() {
+    // Without a session the action declines; a plain refresh then sends the
+    // reader to sign in.
+    const refreshed = await refreshPage().catch(() => false);
+    if (!refreshed) router.refresh();
+  }
 
   function handleOpenChange(open: boolean) {
     if (open || isPending) {
@@ -74,6 +85,7 @@ export function PreprodAccessSection({
     const trimmedReason = reason.trim();
     if (!trimmedReason) {
       setReasonError(t("dialog.reasonRequired"));
+      reasonRef.current?.focus();
       return;
     }
     setReasonError(undefined);
@@ -87,14 +99,16 @@ export function PreprodAccessSection({
           reason: trimmedReason,
         });
       } catch {
+        // The answer is lost and Core may have switched it: read again. An
+        // answered action already rendered the page again itself.
         setFailure({ code: CommonErrorCode.INTERNAL_SERVER_ERROR });
+        await refreshPageData();
         return;
       }
       if (!result.ok) {
         setFailure(result.error);
         return;
       }
-      setAccess(result.value);
       setRequested(null);
       setReason("");
       toast.success(t("saved", { enabled: String(result.value.enabled) }));
@@ -126,51 +140,73 @@ export function PreprodAccessSection({
           </h2>
           <p className="text-muted-foreground text-sm">{t("noEffect")}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id={switchId}
-            checked={access.enabled}
-            onCheckedChange={setRequested}
-            disabled={isPending}
-          />
-          <Label htmlFor={switchId}>
-            {t("state", { enabled: String(access.enabled) })}
-          </Label>
-        </div>
+        {access ? (
+          <div className="flex items-center gap-2">
+            <Switch
+              ref={switchRef}
+              aria-labelledby={titleId}
+              checked={access.enabled}
+              onCheckedChange={setRequested}
+              disabled={isPending}
+            />
+            <span className="text-sm">
+              {t("state", { enabled: String(access.enabled) })}
+            </span>
+          </div>
+        ) : null}
       </div>
 
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">{t("history.title")}</h3>
-        {access.changes.length > 0 ? (
-          <ol className="divide-y text-sm">
-            {access.changes.map((change) => (
-              <li key={change.id} className="space-y-1 py-2">
-                <p>
-                  {t("history.entry", {
-                    enabled: String(change.enabled),
-                    operator: change.operator.name ?? t("history.unknown"),
-                  })}
-                  {" · "}
-                  <time
-                    dateTime={change.createdAt.toISOString()}
-                    className="text-muted-foreground tabular-nums"
-                  >
-                    {formatter.dateTime(change.createdAt, "dateTimeWithYear")}
-                  </time>
-                </p>
-                <p className="text-muted-foreground wrap-anywhere">
-                  {change.reason}
-                </p>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="text-muted-foreground text-sm">{t("history.empty")}</p>
-        )}
-      </div>
+      {access ? (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">{t("history.title")}</h3>
+          {access.changes.length > 0 ? (
+            <ol className="divide-y text-sm">
+              {access.changes.map((change) => (
+                <li key={change.id} className="space-y-1 py-2">
+                  <p>
+                    {t("history.entry", {
+                      enabled: String(change.enabled),
+                      operator: change.operator.name ?? t("history.unknown"),
+                    })}
+                    {" · "}
+                    <time
+                      dateTime={change.createdAt.toISOString()}
+                      className="text-muted-foreground tabular-nums"
+                    >
+                      {formatter.dateTime(change.createdAt, "dateTimeWithYear")}
+                    </time>
+                  </p>
+                  <p className="text-muted-foreground wrap-anywhere">
+                    {change.reason}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t("history.empty")}
+            </p>
+          )}
+        </div>
+      ) : (
+        <LoadErrorState
+          variant="banner"
+          title={t("unavailable.title")}
+          description={t("unavailable.description")}
+          retryLabel={t("unavailable.retry")}
+          retrying={isPending}
+          onRetry={() => startTransition(refreshPageData)}
+        />
+      )}
 
       <Dialog open={requested !== null} onOpenChange={handleOpenChange}>
-        <DialogContent>
+        <DialogContent
+          showCloseButton={false}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            switchRef.current?.focus();
+          }}
+        >
           {requested !== null ? (
             <form
               className="space-y-4"
@@ -193,6 +229,7 @@ export function PreprodAccessSection({
                 </DialogDescription>
               </DialogHeader>
               <ReasonField
+                ref={reasonRef}
                 id={`${id}-reason`}
                 label={t("dialog.reasonLabel")}
                 hint={t("dialog.reasonHint")}
@@ -201,14 +238,9 @@ export function PreprodAccessSection({
                 error={reasonError}
               />
               {failure ? (
-                <div role="alert" className="space-y-1 text-sm">
-                  <p className="text-destructive">{failureMessage(failure)}</p>
-                  {failure.message ? (
-                    <p className="text-muted-foreground wrap-anywhere">
-                      {failure.message}
-                    </p>
-                  ) : null}
-                </div>
+                <p role="alert" className="text-destructive text-sm">
+                  {failureMessage(failure)}
+                </p>
               ) : null}
               <DialogFooter>
                 <Button

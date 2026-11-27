@@ -2970,8 +2970,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /** Null when Core has no such target (404). */
   async function getAdminUserPreprodAccess(id: string) {
-    return executeCoreOperation(
+    const result = await executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminUserPreprodAccess({
@@ -2980,14 +2981,15 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Preprod access",
-    );
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
   }
 
   async function setAdminUserPreprodAccess(
     id: string,
     body: { enabled: boolean; reason: string },
   ) {
-    return executeCoreOperation(
+    const result = await executeCoreOperation(
       getClient,
       (client) =>
         coreSetAdminUserPreprodAccess({
@@ -2998,10 +3000,12 @@ export function createCoreClient(getClient: GetCoreClient) {
         }),
       "Failed to change Preprod access",
     );
+    return result.data;
   }
 
+  /** Null when Core has no such target (404). */
   async function getAdminOrganizationPreprodAccess(slug: string) {
-    return executeCoreOperation(
+    const result = await executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminOrganizationPreprodAccess({
@@ -3010,14 +3014,15 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch Preprod access",
-    );
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
   }
 
   async function setAdminOrganizationPreprodAccess(
     slug: string,
     body: { enabled: boolean; reason: string },
   ) {
-    return executeCoreOperation(
+    const result = await executeCoreOperation(
       getClient,
       (client) =>
         coreSetAdminOrganizationPreprodAccess({
@@ -3028,6 +3033,7 @@ export function createCoreClient(getClient: GetCoreClient) {
         }),
       "Failed to change Preprod access",
     );
+    return result.data;
   }
 
   async function listAdminOrganizations(query: {

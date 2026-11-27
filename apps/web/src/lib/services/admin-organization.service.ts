@@ -1,6 +1,5 @@
 import "server-only";
 
-import type { AdminPreprodAccess } from "@sokosumi/core-client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export interface AdminOrganizationOption {
@@ -196,25 +195,5 @@ export const adminOrganizationService = {
       total: result.meta.pagination.total,
       nextCursor: result.meta.pagination.nextCursor,
     };
-  },
-
-  /** Null when Core has no such Organization. */
-  async getPreprodAccess(slug: string): Promise<AdminPreprodAccess | null> {
-    try {
-      return (await coreClient.getAdminOrganizationPreprodAccess(slug)).data;
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
-  },
-
-  async setPreprodAccess(
-    slug: string,
-    body: { enabled: boolean; reason: string },
-  ): Promise<AdminPreprodAccess> {
-    return (await coreClient.setAdminOrganizationPreprodAccess(slug, body))
-      .data;
   },
 };

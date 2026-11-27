@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { sessionMock } = vi.hoisted(() => ({
+const { sessionMock, refreshMock } = vi.hoisted(() => ({
   sessionMock: { current: null as unknown },
+  refreshMock: vi.fn(),
 }));
+
+vi.mock("next/cache", () => ({ refresh: refreshMock }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
@@ -21,11 +24,9 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: "better-auth.session=admin" }),
 }));
 
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   notFound: vi.fn(),
-  redirect: (url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  },
 }));
 
 vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
@@ -65,6 +66,7 @@ describe("setAdminPreprodAccessAction", () => {
 
   beforeEach(() => {
     sessionMock.current = ADMIN_SESSION;
+    refreshMock.mockReset();
     fetchMock = vi.fn(async () =>
       jsonResponse(200, {
         data: ACCESS,
@@ -110,6 +112,32 @@ describe("setAdminPreprodAccessAction", () => {
     });
   });
 
+  it("renders the page again after Core answered", async () => {
+    await setAdminPreprodAccessAction({
+      target: { type: "user", id: "user_1" },
+      enabled: true,
+      reason: "SOK-123",
+    });
+
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets Core's sign-in redirect through", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { message: "Unauthorized" }),
+    );
+
+    await expect(
+      setAdminPreprodAccessAction({
+        target: { type: "user", id: "user_1" },
+        enabled: true,
+        reason: "SOK-123",
+      }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining("NEXT_REDIRECT"),
+    });
+  });
+
   it("sends an Organization's switch to its slug", async () => {
     await setAdminPreprodAccessAction({
       target: { type: "organization", slug: "acme" },
@@ -134,6 +162,7 @@ describe("setAdminPreprodAccessAction", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       ok: false,
       error: { code: CommonErrorCode.UNAUTHORIZED },
@@ -152,6 +181,7 @@ describe("setAdminPreprodAccessAction", () => {
     });
 
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(refreshMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       ok: false,
       error: { code: CommonErrorCode.BAD_INPUT },
@@ -176,5 +206,6 @@ describe("setAdminPreprodAccessAction", () => {
     });
 
     expect(result).toEqual({ ok: false, error: { code, message } });
+    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 });

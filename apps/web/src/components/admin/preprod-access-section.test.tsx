@@ -1,19 +1,35 @@
 import type { AdminPreprodAccess } from "@sokosumi/core-client";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { setAdminPreprodAccessActionMock } = vi.hoisted(() => ({
+const {
+  setAdminPreprodAccessActionMock,
+  refreshPageMock,
+  routerRefreshMock,
+  toastSuccessMock,
+} = vi.hoisted(() => ({
   setAdminPreprodAccessActionMock: vi.fn(),
+  refreshPageMock: vi.fn(),
+  routerRefreshMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
 }));
 
 vi.mock("@/lib/actions/admin-preprod-access/action", () => ({
   setAdminPreprodAccessAction: setAdminPreprodAccessActionMock,
 }));
 
+vi.mock("@/lib/actions/refresh-page-action", () => ({
+  refreshPage: refreshPageMock,
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: routerRefreshMock }),
+}));
+
 vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: { error: vi.fn(), success: toastSuccessMock },
 }));
 
 import { createFormats } from "@/i18n/time-format";
@@ -58,8 +74,8 @@ const ON_AFTER_SWITCH: AdminPreprodAccess = {
   ],
 };
 
-function renderSection(access: AdminPreprodAccess) {
-  return render(
+function section(access: AdminPreprodAccess | null) {
+  return (
     <NextIntlClientProvider
       locale="en"
       messages={messages}
@@ -71,7 +87,7 @@ function renderSection(access: AdminPreprodAccess) {
         targetName="Grace Hopper"
         access={access}
       />
-    </NextIntlClientProvider>,
+    </NextIntlClientProvider>
   );
 }
 
@@ -83,73 +99,133 @@ function historyItems() {
   );
 }
 
-function theSwitch(name: "On" | "Off") {
-  return screen.getByRole("switch", { name, hidden: true });
+function theSwitch() {
+  return screen.getByRole("switch", { name: "Preprod access", hidden: true });
 }
 
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(theSwitch("Off"));
+  await user.click(theSwitch());
   return await screen.findByRole("dialog");
+}
+
+async function submitReason(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+  reason: string,
+) {
+  await user.type(within(dialog).getByLabelText("Reason"), reason);
+  await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
 }
 
 describe("PreprodAccessSection", () => {
   beforeEach(() => {
     setAdminPreprodAccessActionMock.mockReset();
+    refreshPageMock.mockReset().mockResolvedValue(true);
+    routerRefreshMock.mockReset();
+    toastSuccessMock.mockReset();
   });
 
-  it("shows the flag and the history newest first, with a gone operator as unknown", () => {
-    renderSection(OFF_WITH_HISTORY);
+  it("shows the flag and the history newest first, with its dates and a gone operator as unknown", () => {
+    render(section(OFF_WITH_HISTORY));
 
-    expect(theSwitch("Off")).not.toBeChecked();
+    expect(theSwitch()).not.toBeChecked();
+    expect(screen.getByText("Off")).toBeInTheDocument();
     const items = historyItems();
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent("Switched off by an unknown admin");
+    expect(items[0]).toHaveTextContent("Nov 26, 2026, 9:00 AM");
     expect(items[0]).toHaveTextContent("SOK-2 trial ended");
     expect(items[1]).toHaveTextContent("Switched on by Ada Admin");
+    expect(items[1]).toHaveTextContent("Nov 20, 2026, 9:00 AM");
     expect(items[1]).toHaveTextContent("SOK-1 trial");
   });
 
   it("says so in one line when there is no history", () => {
-    renderSection(OFF_NO_HISTORY);
+    render(section(OFF_NO_HISTORY));
 
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     expect(screen.getByText("No changes yet.")).toBeInTheDocument();
   });
 
-  it("opens a dialog naming the target and the change, without flipping the switch", async () => {
+  it("shows what the page's newest read says", () => {
+    const { rerender } = render(section(OFF_WITH_HISTORY));
+
+    rerender(section(ON_AFTER_SWITCH));
+
+    expect(theSwitch()).toBeChecked();
+    expect(screen.getByText("On")).toBeInTheDocument();
+    expect(historyItems()).toHaveLength(3);
+    expect(historyItems()[0]).toHaveTextContent("SOK-3");
+  });
+
+  it("keeps a failed read inside the section, with a way to read again", async () => {
     const user = userEvent.setup();
-    renderSection(OFF_NO_HISTORY);
+    render(section(null));
+
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Preprod access could not be loaded.",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(refreshPageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a dialog naming the target and the change, with only the translated Cancel to close it", async () => {
+    const user = userEvent.setup();
+    render(section(OFF_NO_HISTORY));
 
     const dialog = await openDialog(user);
 
     expect(
       within(dialog).getByText(/The user Grace Hopper gets Preprod access\./),
     ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Reason")).toBeRequired();
+    expect(within(dialog).getByLabelText("Reason")).toHaveAccessibleDescription(
+      "Ticket id, no personal details.",
+    );
     expect(
-      within(dialog).getByText("Ticket id, no personal details."),
-    ).toBeInTheDocument();
-    expect(theSwitch("Off")).not.toBeChecked();
+      within(dialog).queryByRole("button", { name: "Close" }),
+    ).not.toBeInTheDocument();
+    expect(theSwitch()).not.toBeChecked();
   });
 
-  it("sends nothing without a reason", async () => {
+  it("returns focus to the switch when the dialog is cancelled", async () => {
     const user = userEvent.setup();
-    renderSection(OFF_NO_HISTORY);
+    render(section(OFF_NO_HISTORY));
     const dialog = await openDialog(user);
 
-    await user.type(within(dialog).getByLabelText("Reason"), "   ");
-    await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
-    expect(setAdminPreprodAccessActionMock).not.toHaveBeenCalled();
-    expect(within(dialog).getByLabelText("Reason")).toHaveAttribute(
-      "aria-invalid",
-      "true",
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(within(dialog).getByText("Enter a reason.")).toBeInTheDocument();
+    expect(theSwitch()).toHaveFocus();
+  });
+
+  it("sends nothing without a reason and moves focus to the field, which names the error", async () => {
+    const user = userEvent.setup();
+    render(section(OFF_NO_HISTORY));
+    const dialog = await openDialog(user);
+
+    await submitReason(user, dialog, "   ");
+
+    const field = within(dialog).getByLabelText("Reason");
+    expect(setAdminPreprodAccessActionMock).not.toHaveBeenCalled();
+    expect(field).toHaveFocus();
+    expect(field).toHaveAttribute("aria-invalid", "true");
+    expect(field).toHaveAccessibleDescription(
+      "Ticket id, no personal details. Enter a reason.",
+    );
+    expect(
+      within(dialog).getByRole("button", { name: "Switch on" }),
+    ).toBeEnabled();
   });
 
   it("clears the reason error once a reason is typed", async () => {
     const user = userEvent.setup();
-    renderSection(OFF_NO_HISTORY);
+    render(section(OFF_NO_HISTORY));
     const dialog = await openDialog(user);
     await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
     expect(within(dialog).getByText("Enter a reason.")).toBeInTheDocument();
@@ -164,17 +240,37 @@ describe("PreprodAccessSection", () => {
     );
   });
 
-  it("calls the action with the target, the value and the trimmed reason, then shows the new state and record", async () => {
-    setAdminPreprodAccessActionMock.mockResolvedValue({
-      ok: true,
-      value: ON_AFTER_SWITCH,
-    });
+  it("offers nothing enabled to close the dialog while the request runs", async () => {
+    const pending = Promise.withResolvers<unknown>();
+    setAdminPreprodAccessActionMock.mockReturnValue(pending.promise);
     const user = userEvent.setup();
-    renderSection(OFF_WITH_HISTORY);
+    render(section(OFF_NO_HISTORY));
     const dialog = await openDialog(user);
 
-    await user.type(within(dialog).getByLabelText("Reason"), "  SOK-3  ");
-    await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
+    await submitReason(user, dialog, "SOK-3");
+
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await act(async () => {
+      pending.resolve({ ok: true, value: ON_AFTER_SWITCH });
+      await pending.promise;
+    });
+  });
+
+  it("calls the action with the target, the value and the trimmed reason, then says what Core holds and returns focus", async () => {
+    // Core answers off although on was asked for: another admin got there first.
+    setAdminPreprodAccessActionMock.mockResolvedValue({
+      ok: true,
+      value: OFF_WITH_HISTORY,
+    });
+    const user = userEvent.setup();
+    render(section(OFF_NO_HISTORY));
+    const dialog = await openDialog(user);
+
+    await submitReason(user, dialog, "  SOK-3  ");
 
     expect(setAdminPreprodAccessActionMock).toHaveBeenCalledWith({
       target: { type: "user", id: "user_1" },
@@ -184,65 +280,55 @@ describe("PreprodAccessSection", () => {
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
-    expect(theSwitch("On")).toBeChecked();
-    const items = historyItems();
-    expect(items).toHaveLength(3);
-    expect(items[0]).toHaveTextContent("Switched on by Ada Admin");
-    expect(items[0]).toHaveTextContent("SOK-3");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Preprod access is off.");
+    expect(theSwitch()).not.toBeChecked();
+    expect(theSwitch()).toHaveFocus();
   });
 
   it.each([
     [
       CommonErrorCode.UNAUTHORIZED,
-      "Preprod access cannot be changed while impersonating",
       "Not allowed: only an admin signed in as themselves can change Preprod access.",
     ],
-    [
-      CommonErrorCode.NOT_FOUND,
-      "User not found",
-      "This user no longer exists.",
-    ],
+    [CommonErrorCode.NOT_FOUND, "This user no longer exists."],
     [
       CommonErrorCode.BAD_INPUT,
-      "Reason is required",
       "The change was not accepted. Check the reason and try again.",
     ],
   ])(
-    "shows Core's %s with its message and keeps the switch where Core holds it",
-    async (code, coreMessage, readable) => {
+    "shows %s in the reader's words only and keeps the switch where Core holds it",
+    async (code, readable) => {
       setAdminPreprodAccessActionMock.mockResolvedValue({
         ok: false,
-        error: { code, message: coreMessage },
+        error: { code, message: "Raw Core text" },
       });
       const user = userEvent.setup();
-      renderSection(OFF_WITH_HISTORY);
+      render(section(OFF_WITH_HISTORY));
       const dialog = await openDialog(user);
 
-      await user.type(within(dialog).getByLabelText("Reason"), "SOK-3");
-      await user.click(
-        within(dialog).getByRole("button", { name: "Switch on" }),
-      );
+      await submitReason(user, dialog, "SOK-3");
 
       const alert = await within(dialog).findByRole("alert");
       expect(alert).toHaveTextContent(readable);
-      expect(alert).toHaveTextContent(coreMessage);
-      expect(theSwitch("Off")).not.toBeChecked();
+      expect(dialog).not.toHaveTextContent("Raw Core text");
+      expect(theSwitch()).not.toBeChecked();
       expect(historyItems()).toHaveLength(2);
+      expect(refreshPageMock).not.toHaveBeenCalled();
     },
   );
 
-  it("shows a failed request and keeps the switch off", async () => {
+  it("reads the page again when the answer is lost", async () => {
     setAdminPreprodAccessActionMock.mockRejectedValue(new Error("network"));
     const user = userEvent.setup();
-    renderSection(OFF_NO_HISTORY);
+    render(section(OFF_NO_HISTORY));
     const dialog = await openDialog(user);
 
-    await user.type(within(dialog).getByLabelText("Reason"), "SOK-3");
-    await user.click(within(dialog).getByRole("button", { name: "Switch on" }));
+    await submitReason(user, dialog, "SOK-3");
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
       "The change could not be saved. Try again.",
     );
-    expect(theSwitch("Off")).not.toBeChecked();
+    expect(refreshPageMock).toHaveBeenCalledTimes(1);
+    expect(theSwitch()).not.toBeChecked();
   });
 });

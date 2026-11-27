@@ -8375,7 +8375,7 @@
         "title": "Preprod access",
         "noEffect": "Nothing reads this switch yet: it does not change what anyone can do.",
         "state": "{enabled, select, true {On} other {Off}}",
-        "saved": "{enabled, select, true {Preprod access switched on.} other {Preprod access switched off.}}",
+        "saved": "{enabled, select, true {Preprod access is on.} other {Preprod access is off.}}",
         "history": {
           "title": "Recent changes",
           "entry": "{enabled, select, true {Switched on} other {Switched off}} by {operator}",
@@ -8396,6 +8396,11 @@
           "notFound": "{type, select, user {This user no longer exists.} other {This Organization no longer exists.}}",
           "invalid": "The change was not accepted. Check the reason and try again.",
           "failed": "The change could not be saved. Try again."
+        },
+        "unavailable": {
+          "title": "Preprod access could not be loaded.",
+          "description": "The rest of the page works.",
+          "retry": "Try again"
         }
       }
     },

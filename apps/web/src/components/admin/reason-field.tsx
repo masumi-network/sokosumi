@@ -1,3 +1,5 @@
+import type { Ref } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -5,6 +7,7 @@ import { Label } from "@/components/ui/label";
 export const REASON_MAX_LENGTH = 500;
 
 interface ReasonFieldProps {
+  ref?: Ref<HTMLInputElement>;
   id: string;
   label: string;
   value: string;
@@ -16,6 +19,7 @@ interface ReasonFieldProps {
 
 /** The required audit reason an admin gives before a recorded change. */
 export function ReasonField({
+  ref,
   id,
   label,
   value,
@@ -34,7 +38,9 @@ export function ReasonField({
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
+        ref={ref}
         id={id}
+        required
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}

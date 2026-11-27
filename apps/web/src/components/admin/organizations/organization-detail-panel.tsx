@@ -57,7 +57,8 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 interface OrganizationDetailPanelProps {
   detail: AdminOrganizationOverviewDetail;
   initialMembersPage: AdminOrganizationMemberOverviewPage;
-  preprodAccess: AdminPreprodAccess;
+  /** Null when Core could not answer the read. */
+  preprodAccess: AdminPreprodAccess | null;
 }
 
 export function OrganizationDetailPanel({

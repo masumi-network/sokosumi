@@ -2,6 +2,8 @@
 
 import type { AdminPreprodAccess } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
+import { refresh } from "next/cache";
+import { unstable_rethrow } from "next/navigation";
 import * as z from "zod";
 
 import {
@@ -13,8 +15,10 @@ import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
-import { adminOrganizationService } from "@/lib/services/admin-organization.service";
-import { adminUserService } from "@/lib/services/admin-user.service";
+import {
+  adminPreprodAccessService,
+  type PreprodAccessTarget,
+} from "@/lib/services/admin-preprod-access.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -29,10 +33,6 @@ const setPreprodAccessSchema = z.object({
   reason: z.string().trim().min(1).max(500),
 });
 
-export type PreprodAccessTarget = z.infer<
-  typeof setPreprodAccessSchema
->["target"];
-
 interface SetAdminPreprodAccessRequest extends AuthenticatedRequest {
   target: PreprodAccessTarget;
   enabled: boolean;
@@ -42,6 +42,7 @@ interface SetAdminPreprodAccessRequest extends AuthenticatedRequest {
 /**
  * Switches Preprod access for a user or an Organization. Core accepts only an
  * admin's own browser session; the Core client forwards this request's cookie.
+ * The page's next render shows the result.
  */
 export const setAdminPreprodAccessAction = withSession<
   SetAdminPreprodAccessRequest,
@@ -63,17 +64,17 @@ export const setAdminPreprodAccessAction = withSession<
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
-  const body = { enabled: parsed.data.enabled, reason: parsed.data.reason };
+  const { target: parsedTarget, ...body } = parsed.data;
   try {
-    const access =
-      parsed.data.target.type === "user"
-        ? await adminUserService.setPreprodAccess(parsed.data.target.id, body)
-        : await adminOrganizationService.setPreprodAccess(
-            parsed.data.target.slug,
-            body,
-          );
-    return toActionResult(ok(access));
+    return toActionResult(
+      ok(await adminPreprodAccessService.set(parsedTarget, body)),
+    );
   } catch (error) {
+    unstable_rethrow(error);
     return toActionResult(err(toCoreApiActionError(error)));
+  } finally {
+    // Core answered or the request failed midway: the page reads again, so
+    // the switch shows what Core holds now.
+    refresh();
   }
 });

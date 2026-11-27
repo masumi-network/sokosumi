@@ -8337,9 +8337,9 @@
       },
       "PreprodAccess": {
         "title": "Preprod-Zugang",
-        "noEffect": "Dieser Schalter wird noch nirgends ausgewertet: Er ändert nicht, was jemand tun kann.",
+        "noEffect": "Dieser Schalter ändert noch nicht, was jemand tun kann.",
         "state": "{enabled, select, true {An} other {Aus}}",
-        "saved": "{enabled, select, true {Preprod-Zugang eingeschaltet.} other {Preprod-Zugang ausgeschaltet.}}",
+        "saved": "{enabled, select, true {Preprod-Zugang ist an.} other {Preprod-Zugang ist aus.}}",
         "history": {
           "title": "Letzte Änderungen",
           "entry": "{enabled, select, true {Eingeschaltet} other {Ausgeschaltet}} von {operator}",
@@ -8360,6 +8360,11 @@
           "notFound": "{type, select, user {Diesen Nutzer gibt es nicht mehr.} other {Diese Organisation gibt es nicht mehr.}}",
           "invalid": "Die Änderung wurde nicht angenommen. Prüfe den Grund und versuche es erneut.",
           "failed": "Die Änderung konnte nicht gespeichert werden. Versuche es erneut."
+        },
+        "unavailable": {
+          "title": "Der Preprod-Zugang konnte nicht geladen werden.",
+          "description": "Der Rest der Seite funktioniert.",
+          "retry": "Erneut versuchen"
         }
       }
     },

@@ -8337,9 +8337,9 @@
       },
       "PreprodAccess": {
         "title": "Acceso a Preprod",
-        "noEffect": "Nada lee este interruptor todavía: no cambia lo que nadie puede hacer.",
+        "noEffect": "Este ajuste todavía no cambia el acceso a Preprod.",
         "state": "{enabled, select, true {Activado} other {Desactivado}}",
-        "saved": "{enabled, select, true {Acceso a Preprod activado.} other {Acceso a Preprod desactivado.}}",
+        "saved": "{enabled, select, true {El acceso a Preprod está activado.} other {El acceso a Preprod está desactivado.}}",
         "history": {
           "title": "Cambios recientes",
           "entry": "{enabled, select, true {Activado} other {Desactivado}} por {operator}",
@@ -8360,6 +8360,11 @@
           "notFound": "{type, select, user {Este usuario ya no existe.} other {Esta organización ya no existe.}}",
           "invalid": "El cambio no se aceptó. Revisa el motivo e inténtalo de nuevo.",
           "failed": "No se pudo guardar el cambio. Inténtalo de nuevo."
+        },
+        "unavailable": {
+          "title": "No se pudo cargar el acceso a Preprod.",
+          "description": "El resto de la página funciona.",
+          "retry": "Reintentar"
         }
       }
     },
