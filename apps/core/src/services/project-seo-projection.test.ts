@@ -1056,6 +1056,45 @@ describe("stored SEO workspace projections", () => {
       focused("2026-11-01T12:00:00Z"),
     ];
     expect(ids()).toEqual([]);
+    const tags = () =>
+      projectSeoProjection(input).actions.map(({ id, lastCheckResult }) => ({
+        id,
+        lastCheckResult,
+      }));
+    const h1 = { ...rowOf("pass"), rowId: "h1" };
+    // Fail, pass, then a check of another rule: the pass still answers the fix.
+    input.observations = [
+      check([h1], [], "2026-11-05T12:00:00Z"),
+      check([rowOf("pass")], [], "2026-11-03T12:00:00Z"),
+      check([rowOf("fired")], [finding(null)], "2026-11-01T12:00:00Z", 1),
+    ];
+    expect(ids()).toEqual([]);
+    // Fail, pass, then a row that fires without a finding: the fix fails again.
+    input.observations[0] = check([rowOf("fired")], [], "2026-11-05T12:00:00Z");
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: "failing" }]);
+    // A finding without a device that fired on both devices: desktop passes leave mobile untested.
+    input.observations = [
+      check([rowOf("pass")], [], "2026-11-05T12:00:00Z"),
+      check([rowOf("pass")], [], "2026-11-03T12:00:00Z"),
+      check(
+        [rowOf("fired"), row("mobile", "fired")],
+        [finding(null)],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
+    // A fix for mobile does not fail on a desktop failure.
+    input.observations = [
+      check([rowOf("fired")], [finding("desktop")], "2026-11-05T12:00:00Z"),
+      check(
+        [row("mobile", "fired")],
+        [finding("mobile")],
+        "2026-11-01T12:00:00Z",
+        1,
+      ),
+    ];
+    expect(tags()).toEqual([{ id: "1", lastCheckResult: undefined }]);
   });
 
   it("replaces an unlinked recommendation when a later check proposes its own fix for the finding", () => {

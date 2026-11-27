@@ -1,5 +1,7 @@
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 
+import type { SeoFixIssue } from "./project-seo-fix-results";
+
 type Action = ProjectSeoWorkspace["actions"][number];
 
 /** Per fix action: the findings it fixes as one key, its issues, the time of its check, and whether a Task still works on it. */
@@ -7,7 +9,7 @@ export type SeoFixWork = Map<
   Action,
   {
     work: string;
-    issues: { key: string; device: string | null }[];
+    issues: SeoFixIssue[];
     observedAt: Date;
     live: boolean;
   }

@@ -36,6 +36,10 @@ import {
   type SeoFixWork,
 } from "./project-seo-fix-cards";
 import {
+  seoFixIssues,
+  withSeoLastCheckResults,
+} from "./project-seo-fix-results";
+import {
   indexAuditFindings,
   newestIndexStatus,
   withIndexIssueCounts,
@@ -49,12 +53,7 @@ import {
   projectSeoMetricsRow,
   type SeoMetricsProjection,
 } from "./project-seo-metrics-projection";
-import {
-  issueKey,
-  type SeoRunDiffInput,
-  withSeoLastCheckResults,
-  withSeoRunDiffs,
-} from "./project-seo-run-diff";
+import { type SeoRunDiffInput, withSeoRunDiffs } from "./project-seo-run-diff";
 import {
   projectSearchEvidence,
   type SearchEvidenceSource,
@@ -129,6 +128,7 @@ export function projectSeoProjection(
   const selectedIds = new Set(scope.pageIds),
     selectedUrls = new Set(scope.pages.map((page) => page.url));
   const overlaps = (ids: string[]) => ids.some((id) => selectedIds.has(id));
+  const selected = (url: string) => selectedUrls.has(normalizeSeoUrl(url));
   const findings: ProjectSeoWorkspace["findings"] = [],
     keywords: ProjectSeoWorkspace["keywords"] = [],
     competitors: ProjectSeoWorkspace["competitors"] = [],
@@ -498,10 +498,10 @@ export function projectSeoProjection(
       actions.push(action);
       fixWork.set(action, {
         work: [...identities].sort().join("\n"),
-        issues: fixed.flatMap((finding) =>
-          finding
-            ? [{ key: issueKey(data, finding), device: finding.device }]
-            : [],
+        issues: seoFixIssues(
+          data,
+          fixed.flatMap((finding) => (finding ? [finding] : [])),
+          selected,
         ),
         observedAt: row.observedAt,
         live,
@@ -640,9 +640,11 @@ export function projectSeoProjection(
     findings: [...findings, ...indexing.findings],
     actions: withSeoLastCheckResults(
       actions,
-      runRows,
+      diffSources.filter((source) =>
+        matchesSeoPeriod(source.observedAt, query),
+      ),
+      selected,
       (action) => fixWork.get(action),
-      (observedAt) => matchesSeoPeriod(observedAt, query),
     ),
     metrics,
     searchQueries: search.searchQueries,
@@ -667,7 +669,7 @@ export function projectSeoProjection(
     timeline: timeline.filter((item) =>
       matchesSeoPeriod(new Date(item.at), query),
     ),
-    runs: runRows.map(({ issueResults: _, ...run }) => run),
+    runs: runRows,
     analyses,
     monitors: (input.monitors ?? []).filter((monitor) =>
       overlaps(monitor.pageIds),

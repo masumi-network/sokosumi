@@ -1,5 +1,4 @@
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
-import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import {
   SEO_RUN_DIFF_ITEMS,
   type SeoRunDiff,
@@ -28,7 +27,7 @@ export interface SeoRunDiffInput {
 }
 
 type Issue = SeoRunDiff["new"][number];
-type Selected = (pageUrl: string) => boolean;
+export type Selected = (pageUrl: string) => boolean;
 
 const SEVERITY_ORDER: Issue["severity"][] = ["critical", "major", "minor"];
 
@@ -52,7 +51,7 @@ const stateCache = new WeakMap<
   WeakMap<PublicSeoPayload, ReturnType<typeof readIssueStates>>
 >();
 /** The states of one check, read once for each selection: a check is compared with its neighbour on both sides. */
-function issueStates(payload: PublicSeoPayload, selected: Selected) {
+export function issueStates(payload: PublicSeoPayload, selected: Selected) {
   const cache = stateCache.get(selected) ?? new WeakMap();
   stateCache.set(selected, cache);
   const states = cache.get(payload) ?? readIssueStates(payload, selected);
@@ -204,8 +203,6 @@ export function compareSeoRuns(
 ): Omit<SeoRunDiff, "numbers"> & {
   issues: SeoRunDiff["numbers"]["issues"];
   moves: SeoRunDiff["numbers"]["moves"];
-  /** Each issue the lists count, by its `issueKey`: open in the later check, or fixed since the earlier one. */
-  results: SeoIssueResults;
 } {
   const mismatch = seoRunMismatch(previous.payload, latest.payload);
   // Across a rulebook change only the rules both checks tested are compared. Without such a rule nothing is.
@@ -223,12 +220,10 @@ export function compareSeoRuns(
   const added: Issue[] = [],
     fixed: Issue[] = [],
     stillOpen: Issue[] = [];
-  const results: SeoIssueResults = new Map();
   let notCheckedAgain = 0,
     notCheckedBefore = 0;
   if (!reason) {
     for (const [key, issue] of after.open) {
-      results.set(key, { result: "failing" });
       if (before.open.has(key)) stillOpen.push(issue);
       // New only where the earlier check read the rule on a device that fails now and found no issue there:
       // a pass beside a row that fired on the same device is no clear result.
@@ -289,21 +284,9 @@ export function compareSeoRuns(
         failedOn.length > 0 &&
         failedOn.every((device) => read.has(device)) &&
         !after.failed.has(key)
-      ) {
+      )
         fixed.push(issue);
-        // The devices the later check read the rule on: a fix for another device is not answered by it.
-        results.set(key, { result: "fixed", devices: read });
-      } else notCheckedAgain += 1;
-    }
-    // A rule the later check read and found clear, with no open issue in either check: a fix from an older check
-    // of another kind is answered by it, though the lists count nothing.
-    for (const [key, devices] of after.passed) {
-      if (results.has(key) || before.open.has(key) || after.failed.has(key))
-        continue;
-      results.set(key, {
-        result: "fixed",
-        devices: new Set([...devices, ...(after.noted.get(key) ?? [])]),
-      });
+      else notCheckedAgain += 1;
     }
   }
   const moves = reason
@@ -337,15 +320,8 @@ export function compareSeoRuns(
           to: measuredRules(later) ? after.open.size : null,
         },
     moves,
-    results,
   };
 }
-
-/** The result of each issue a comparison counts, by its `issueKey`. */
-export type SeoIssueResults = Map<
-  string,
-  { result: "failing" } | { result: "fixed"; devices: Set<string | null> }
->;
 
 /** The checks that test the rules of a page. */
 const PAGE_RULE_KINDS = new Set(["page_check", "audit_lite", "audit_full"]);
@@ -412,7 +388,6 @@ function seoRunDiffOf(
         reason: "pages" as const,
         issues: { from: null, to: null },
         moves: [],
-        results: new Map(),
         rulebookChange: undefined,
       },
     };
@@ -444,7 +419,7 @@ export function withSeoRunDiffs<T extends { observationId: string }>(
     selectedIds: ReadonlySet<string>;
     selectedUrls: ReadonlySet<string>;
   },
-): Array<T & { runDiff?: SeoRunDiff; issueResults?: SeoIssueResults }> {
+): Array<T & { runDiff?: SeoRunDiff }> {
   const selected: Selected = (url) => selectedUrls.has(normalizeSeoUrl(url));
   // Behind the checks the read shows, which come newest first: the stable sort pairs a check of the same time with a shown check first.
   const sources = [...shown, ...diffBaselines];
@@ -461,11 +436,9 @@ export function withSeoRunDiffs<T extends { observationId: string }>(
     const source = sources.find((item) => item.id === run.observationId);
     const pair = source && seoRunDiffOf(source, sources, readsAll, selected);
     if (!pair) return run;
-    const { moves, issues, results, ...lists } = pair.diff;
+    const { moves, issues, ...lists } = pair.diff;
     return {
       ...run,
-      // Only a comparable check says which issues it fixed.
-      ...(lists.comparable && { issueResults: results }),
       runDiff: {
         ...lists,
         numbers: {
@@ -475,65 +448,5 @@ export function withSeoRunDiffs<T extends { observationId: string }>(
         },
       },
     };
-  });
-}
-
-type Action = ProjectSeoWorkspace["actions"][number];
-
-/**
- * Each fix with the result of its issues in the page checks after its own, each compared with the one before it. For
- * each issue the newest such check that answers it decides: it fails there, it is fixed on the device the fix names,
- * or it is fixed on other devices only, which leaves the fix untested. A proposal whose issues are all fixed leaves, as one an exact later pass ends: the
- * fixed count of that comparison names it. `shown` limits the checks to the selected period.
- */
-export function withSeoLastCheckResults(
-  actions: Action[],
-  runs: Array<{
-    kind: string;
-    observedAt: string;
-    issueResults?: SeoIssueResults;
-  }>,
-  workOf: (
-    action: Action,
-  ) =>
-    | { issues: { key: string; device: string | null }[]; observedAt: Date }
-    | undefined,
-  shown: (observedAt: Date) => boolean,
-) {
-  const compared = runs
-    .filter(
-      (run) =>
-        PAGE_RULE_KINDS.has(run.kind) &&
-        run.issueResults &&
-        shown(new Date(run.observedAt)),
-    )
-    .sort((a, b) => b.observedAt.localeCompare(a.observedAt));
-  if (!compared.length) return actions;
-  return actions.flatMap((action) => {
-    const work = workOf(action);
-    if (!work?.issues.length) return [action];
-    const later = compared.filter(
-      (run) => new Date(run.observedAt) > work.observedAt,
-    );
-    const read = work.issues.map(({ key, device }) => {
-      for (const run of later) {
-        const answer = run.issueResults?.get(key);
-        if (!answer) continue;
-        if (answer.result === "failing") return "failing";
-        // Fixed on other devices only: this check did not test the fix again, and an older one is out of date.
-        return device === null || answer.devices.has(device)
-          ? "fixed"
-          : undefined;
-      }
-      return undefined;
-    });
-    const result: Action["lastCheckResult"] = read.includes("failing")
-      ? "failing"
-      : read.every((item) => item === "fixed")
-        ? "fixed"
-        : undefined;
-    if (!result) return [action];
-    if (result === "fixed" && action.status === "recommended") return [];
-    return [{ ...action, lastCheckResult: result }];
   });
 }

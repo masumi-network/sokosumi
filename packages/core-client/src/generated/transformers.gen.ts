@@ -4917,6 +4917,9 @@ const projectSeoActionSchemaResponseTransformer = (data: any) => {
     if (data.verifiedAt) {
         data.verifiedAt = new Date(data.verifiedAt);
     }
+    if (data.lastCheckAt) {
+        data.lastCheckAt = new Date(data.lastCheckAt);
+    }
     return data;
 };
 
