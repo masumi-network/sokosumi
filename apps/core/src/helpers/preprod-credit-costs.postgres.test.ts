@@ -288,15 +288,20 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
         `ALTER SCHEMA "${names.DATABASE_SCHEMA_MAINNET}" RENAME TO "${away}"`,
       );
       let result: Awaited<ReturnType<typeof recorded>>;
+      let rerun: Awaited<ReturnType<typeof recorded>>;
       try {
+        // The first run inserts what is missing; the second is the rerun path.
         result = await recorded(() => seedPreprodCreditCosts());
+        rerun = await recorded(() => seedPreprodCreditCosts());
       } finally {
         await prisma.$executeRawUnsafe(
           `ALTER SCHEMA "${away}" RENAME TO "${names.DATABASE_SCHEMA_MAINNET}"`,
         );
       }
       expect(result.error).toBeUndefined();
+      expect(rerun.error).toBeUndefined();
       expect(result.statements.length).toBeGreaterThan(0);
+      expect(rerun.statements.length).toBeGreaterThan(0);
       expect(await seededRows()).toHaveLength(2);
     });
 
@@ -370,6 +375,7 @@ describe.runIf(ON_POSTGRES)("Preprod's seeded rates", () => {
               await holder.query(
                 `SELECT count(DISTINCT pid)::int AS n FROM pg_locks
                  WHERE relation = to_regclass($1)
+                   AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
                    AND mode = 'RowExclusiveLock' AND NOT granted`,
                 [tables.preprod],
               )
