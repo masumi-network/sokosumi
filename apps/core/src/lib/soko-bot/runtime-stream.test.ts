@@ -67,6 +67,10 @@ describe("Soko Bot Eve stream projection", () => {
     expect(shouldPersistSokoBotRuntimeEvent("message.appended")).toBe(false);
     expect(shouldPersistSokoBotRuntimeEvent("reasoning.appended")).toBe(false);
     expect(shouldPersistSokoBotRuntimeEvent("action.partial")).toBe(false);
+    expect(shouldPersistSokoBotRuntimeEvent("decision.step_focus")).toBe(false);
+    expect(
+      shouldPersistSokoBotRuntimeEvent("decision.step_focus.outcome"),
+    ).toBe(false);
     expect(shouldPersistSokoBotRuntimeEvent("message.completed")).toBe(true);
     expect(shouldPersistSokoBotRuntimeEvent("session.waiting")).toBe(true);
   });

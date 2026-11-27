@@ -1291,3 +1291,513 @@ describe("the done check (planLoop)", () => {
     );
   });
 });
+
+describe("step focus selector (stepFocus)", () => {
+  const stream = (content: Answer["content"], finish: "stop" | "tool-calls") =>
+    streamOf({
+      content,
+      finishReason: { unified: finish, raw: finish },
+      warnings: [],
+      usage,
+    });
+
+  it("narrows tools per focus (inspect -> act -> verify with receipts -> answer with no tools)", async () => {
+    const seenToolNames: string[][] = [];
+    const seenToolChoices: unknown[] = [];
+    const verifyNoteCountsPerStep: number[] = [];
+    const executed: string[] = [];
+    const outcomes: unknown[] = [];
+    let callNum = 0;
+
+    const model = new MockLanguageModelV3({
+      doStream: async (options) => {
+        callNum += 1;
+        seenToolNames.push((options.tools ?? []).map((t) => t.name));
+        seenToolChoices.push(options.toolChoice);
+        const verifyCount = options.prompt.filter(
+          (m) =>
+            m.role === "user" &&
+            Array.isArray(m.content) &&
+            m.content
+              .map((part) => ("text" in part ? part.text : ""))
+              .join("")
+              .includes("Core receipts recorded so far"),
+        ).length;
+        verifyNoteCountsPerStep.push(verifyCount);
+        if (callNum === 1) {
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "list_tasks",
+                input: "{}",
+              },
+            ],
+            "tool-calls",
+          );
+        }
+        if (callNum === 2) {
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "c2",
+                toolName: "create_task",
+                input: "{}",
+              },
+            ],
+            "tool-calls",
+          );
+        }
+        if (callNum === 3) {
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "c3",
+                toolName: "list_tasks",
+                input: "{}",
+              },
+            ],
+            "tool-calls",
+          );
+        }
+        return stream([{ type: "text", text: "All done." }], "stop");
+      },
+    });
+
+    const selections = [
+      {
+        decisionId: "d0",
+        appliedFocus: "inspect" as const,
+        usedFallback: false,
+        allowedTools: ["list_tasks"],
+        toolChoice: "auto" as const,
+        verifyNote: null,
+        verifyNoteKey: null,
+      },
+      {
+        decisionId: "d1",
+        appliedFocus: "act" as const,
+        usedFallback: false,
+        allowedTools: ["list_tasks", "create_task"],
+        toolChoice: "auto" as const,
+        verifyNote: null,
+        verifyNoteKey: null,
+      },
+      {
+        decisionId: "d2",
+        appliedFocus: "verify" as const,
+        usedFallback: false,
+        allowedTools: ["list_tasks"],
+        toolChoice: "auto" as const,
+        verifyNote:
+          "[Step focus: verify (read-only). Core receipts recorded so far:\n- create_task (id t1): done]",
+        verifyNoteKey: "k1",
+      },
+      {
+        decisionId: "d3",
+        appliedFocus: "answer" as const,
+        usedFallback: false,
+        allowedTools: [],
+        toolChoice: "none" as const,
+        verifyNote: null,
+        verifyNoteKey: null,
+      },
+    ];
+    const requests: unknown[] = [];
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Check tasks and create one.",
+      tools: {
+        list_tasks: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            executed.push("list_tasks");
+            return { tasks: [] };
+          },
+        }),
+        create_task: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            executed.push("create_task");
+            return { id: "t1" };
+          },
+        }),
+      },
+      maxSteps: 10,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stepFocus: {
+        selectStep: async (req) => {
+          requests.push(req);
+          return selections.shift() ?? null;
+        },
+        recordOutcome: async (outcome) => {
+          outcomes.push(outcome);
+        },
+      },
+    });
+
+    expect(result.text).toBe("All done.");
+    expect(executed).toEqual(["list_tasks", "create_task", "list_tasks"]);
+    expect(seenToolNames).toEqual([
+      ["list_tasks"],
+      ["list_tasks", "create_task"],
+      ["list_tasks"],
+      // After prior tool history, answer keeps lastActiveTools with toolChoice: none
+      ["list_tasks"],
+    ]);
+    expect(seenToolChoices[3]).toEqual({ type: "none" });
+    // Verify note injected once at step 2, stays in history at step 3, never duplicated.
+    expect(verifyNoteCountsPerStep).toEqual([0, 0, 1, 1]);
+    expect(requests[2]).toMatchObject({
+      stepIndex: 2,
+      hasAttemptedWrite: true,
+    });
+    expect(outcomes).toHaveLength(4);
+    expect(outcomes[3]).toMatchObject({
+      decisionId: "d3",
+      appliedFocus: "answer",
+      finishReason: "stop",
+    });
+  });
+
+  it("omits tools on step-0 answer and blocks dispatch if a model calls a tool outside the bundle", async () => {
+    let writeExecuted = false;
+    const outcomes: { toolCalls: { name: string; status: string }[] }[] = [];
+    let call = 0;
+
+    const model = new MockLanguageModelV3({
+      doStream: async (options) => {
+        call += 1;
+        if (call === 1) {
+          // Inspect step: model attempts create_task anyway.
+          expect((options.tools ?? []).map((t) => t.name)).toEqual([
+            "list_tasks",
+          ]);
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "bad_1",
+                toolName: "create_task",
+                input: "{}",
+              },
+            ],
+            "tool-calls",
+          );
+        }
+        return stream([{ type: "text", text: "Asked owner." }], "stop");
+      },
+    });
+
+    const selections = [
+      {
+        decisionId: "d0",
+        appliedFocus: "inspect" as const,
+        usedFallback: false,
+        allowedTools: ["list_tasks"],
+        toolChoice: "auto" as const,
+        verifyNote: null,
+        verifyNoteKey: null,
+      },
+      {
+        decisionId: "d1",
+        appliedFocus: "answer" as const,
+        usedFallback: false,
+        allowedTools: [],
+        toolChoice: "none" as const,
+        verifyNote: null,
+        verifyNoteKey: null,
+      },
+    ];
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Do something ambiguous.",
+      tools: {
+        list_tasks: tool({
+          inputSchema: z.object({}),
+          execute: async () => ({ tasks: [] }),
+        }),
+        create_task: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            writeExecuted = true;
+            return { id: "should_not_run" };
+          },
+        }),
+      },
+      maxSteps: 5,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stepFocus: {
+        selectStep: async () => selections.shift() ?? null,
+        recordOutcome: async (outcome) => {
+          outcomes.push(outcome);
+        },
+      },
+    });
+
+    expect(writeExecuted).toBe(false);
+    expect(result.text).toBe("Asked owner.");
+    expect(outcomes[0]?.toolCalls).toEqual([
+      { name: "create_task", status: "disallowed_by_focus" },
+    ]);
+  });
+
+  it("omits tool definitions on step-0 direct answer and uses a bounded read-only fallback when selector errors", async () => {
+    const model = new MockLanguageModelV3({
+      doStream: async (options) => {
+        expect(options.tools ?? []).toEqual([]);
+        expect(options.toolChoice).toEqual({ type: "none" });
+        return stream([{ type: "text", text: "Hello!" }], "stop");
+      },
+    });
+
+    const direct = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Hi",
+      tools,
+      maxSteps: 5,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stepFocus: {
+        selectStep: async () => ({
+          decisionId: "d_hi",
+          appliedFocus: "answer",
+          usedFallback: false,
+          allowedTools: [],
+          toolChoice: "none",
+          verifyNote: null,
+          verifyNoteKey: null,
+        }),
+      },
+    });
+    expect(direct.text).toBe("Hello!");
+
+    // Mixed tools: selector error falls back to read-only inspect only (never writes).
+    let ranRead = false;
+    let ranWrite = false;
+    const seenFallbackTools: string[][] = [];
+    let mixedStep = 0;
+    const mixedFallbackModel = new MockLanguageModelV3({
+      doStream: async (options) => {
+        mixedStep += 1;
+        seenFallbackTools.push((options.tools ?? []).map((t) => t.name));
+        return mixedStep === 1
+          ? stream(
+              [
+                {
+                  type: "tool-call",
+                  toolCallId: "r1",
+                  toolName: "list_tasks",
+                  input: "{}",
+                },
+                {
+                  type: "tool-call",
+                  toolCallId: "w1",
+                  toolName: "create_task",
+                  input: "{}",
+                },
+              ],
+              "tool-calls",
+            )
+          : stream([{ type: "text", text: "Read-only recovery." }], "stop");
+      },
+    });
+    const mixedRecovered = await runTurnLoop({
+      model: mixedFallbackModel,
+      system: "You are a bot.",
+      message: "Check and act.",
+      tools: {
+        list_tasks: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            ranRead = true;
+            return { tasks: [] };
+          },
+        }),
+        create_task: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            ranWrite = true;
+            return { id: "should_not_run" };
+          },
+        }),
+      },
+      maxSteps: 5,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stepFocus: {
+        selectStep: async () => {
+          throw new Error("selector down");
+        },
+      },
+    });
+    expect(seenFallbackTools[0]).toEqual(["list_tasks"]);
+    expect(ranRead).toBe(true);
+    expect(ranWrite).toBe(false);
+    expect(mixedRecovered.text).toBe("Read-only recovery.");
+
+    // Write-only tools: selector error falls back to tool-less answer (no writes).
+    let ranWork = false;
+    const writeOnlyModel = new MockLanguageModelV3({
+      doStream: async (options) => {
+        expect(options.tools ?? []).toEqual([]);
+        expect(options.toolChoice).toEqual({ type: "none" });
+        return stream(
+          [{ type: "text", text: "Answered without writes." }],
+          "stop",
+        );
+      },
+    });
+    const writeOnlyRecovered = await runTurnLoop({
+      model: writeOnlyModel,
+      system: "You are a bot.",
+      message: "Work.",
+      tools: {
+        work: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            ranWork = true;
+            return "ok";
+          },
+        }),
+      },
+      maxSteps: 5,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stepFocus: {
+        selectStep: async () => {
+          throw new Error("selector down");
+        },
+      },
+    });
+    expect(ranWork).toBe(false);
+    expect(writeOnlyRecovered.text).toBe("Answered without writes.");
+  });
+
+  it("coordinates stepFocus with planLoop doneCheck bounce on continuation round", async () => {
+    const requests: { roundIndex: number; stepsInRound: number }[] = [];
+    let modelCalls = 0;
+    let workRuns = 0;
+
+    const model = new MockLanguageModelV3({
+      doStream: async (options) => {
+        modelCalls += 1;
+        if (modelCalls === 1) {
+          expect(options.toolChoice).toEqual({ type: "none" });
+          return stream([{ type: "text", text: "Premature answer." }], "stop");
+        }
+        if (modelCalls === 2) {
+          expect(options.toolChoice).toEqual({ type: "auto" });
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "b1",
+                toolName: "work",
+                input: "{}",
+              },
+            ],
+            "tool-calls",
+          );
+        }
+        return stream(
+          [{ type: "text", text: "Finished after bounce." }],
+          "stop",
+        );
+      },
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Finish the open plan.",
+      tools: {
+        work: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            workRuns += 1;
+            return { saved: true };
+          },
+        }),
+      },
+      maxSteps: 6,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      plan: {
+        inherited: true,
+        doneCheck: async () => "Your plan still lists open step s2.",
+        openSteps: async () => null,
+        changeTools: new Set(["work"]),
+      },
+      stepFocus: {
+        selectStep: async (req) => {
+          requests.push({
+            roundIndex: req.roundIndex,
+            stepsInRound: req.stepsInRound,
+          });
+          if (req.roundIndex === 0) {
+            return {
+              decisionId: "d0",
+              appliedFocus: "answer",
+              usedFallback: false,
+              allowedTools: [],
+              toolChoice: "none",
+              verifyNote: null,
+              verifyNoteKey: null,
+            };
+          }
+          if (req.stepsInRound === 0) {
+            return {
+              decisionId: "d1",
+              appliedFocus: "act",
+              usedFallback: false,
+              allowedTools: ["work"],
+              toolChoice: "auto",
+              verifyNote: null,
+              verifyNoteKey: null,
+            };
+          }
+          return {
+            decisionId: "d2",
+            appliedFocus: "answer",
+            usedFallback: false,
+            allowedTools: [],
+            toolChoice: "none",
+            verifyNote: null,
+            verifyNoteKey: null,
+          };
+        },
+      },
+    });
+
+    expect(workRuns).toBe(1);
+    expect(result.text).toBe("Finished after bounce.");
+    expect(requests).toEqual([
+      { roundIndex: 0, stepsInRound: 0 },
+      { roundIndex: 1, stepsInRound: 0 },
+      { roundIndex: 1, stepsInRound: 1 },
+    ]);
+  });
+});

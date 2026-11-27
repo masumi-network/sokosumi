@@ -15,6 +15,7 @@ import {
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TURN_TOKEN_HEADER,
   type SokoBotCapability,
+  type StepFocus,
   sokoBotToolInputSchema,
 } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
@@ -58,7 +59,7 @@ import {
   setShellSecrets,
   writeWorkspaceFile,
 } from "./local-tools";
-import { runTurnLoop } from "./loop";
+import { runTurnLoop, type TurnLoopStepFocusSelection } from "./loop";
 import { superviseRunner } from "./supervise";
 
 interface TurnStart {
@@ -91,6 +92,12 @@ interface TurnStart {
   cacheKey?: string | null;
   /** The key once the full save tools replace their short forms. */
   fullCacheKey?: string | null;
+  /** Per-step focus selector enabled on this turn (`stepFocus` experiment). */
+  stepFocus?: boolean;
+  /** Per-focus prompt cache keys (when `skillsOnDemand` and `stepFocus` are on). */
+  focusCacheKeys?: Partial<Record<StepFocus, string>>;
+  /** Per-focus prompt cache keys after short-form save tools expand. */
+  focusFullCacheKeys?: Partial<Record<StepFocus, string>>;
   /** The owner's setup commands and the keys shell commands get (ADR 0074). */
   shell?: { setupCommands: string[]; env: Record<string, string> };
 }
@@ -615,6 +622,25 @@ async function main(): Promise<void> {
               openSteps: async () =>
                 (await callCore<{ note: string | null }>("/plan", {})).note,
               changeTools: new Set(start.changeTools ?? []),
+            },
+          }
+        : {}),
+      ...(start.stepFocus
+        ? {
+            stepFocus: {
+              selectStep: async (stepRequest) =>
+                (
+                  await callCore<{
+                    decision: TurnLoopStepFocusSelection | null;
+                  }>("/step-focus", stepRequest)
+                ).decision,
+              recordOutcome: async (outcome) => {
+                await callCore("/step-focus/outcome", outcome).catch(
+                  () => undefined,
+                );
+              },
+              cacheKeys: start.focusCacheKeys,
+              fullCacheKeys: start.focusFullCacheKeys,
             },
           }
         : {}),

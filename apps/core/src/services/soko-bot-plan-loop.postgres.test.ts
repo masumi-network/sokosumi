@@ -509,6 +509,108 @@ describe.skipIf(!enabled)("planLoop against PostgreSQL", () => {
         sessionId: `session-${turnId}`,
         draft,
       });
+
+    it("keeps verify available with one confirmed save and a publish awaiting the provider, while preserving refusal and save outcomes", async () => {
+      const id = await turn("CHAT");
+      const { buildStepFocusBundles } = await import("@sokosumi/soko-bot");
+      const { summarizeTurnReceipts } = await import(
+        "@/lib/soko-bot/done-check"
+      );
+      const { filterStepFocusCandidates } = await import(
+        "@/lib/soko-bot/step-focus"
+      );
+      const now = Date.now();
+      await prisma.sokoBotToolCall.createMany({
+        data: [
+          {
+            turnId: id,
+            capability: "create_task",
+            toolCallId: "confirmed",
+            inputHash: "1",
+            status: "COMPLETED",
+            disposition: "APPLIED",
+            createdAt: new Date(now - 3_000),
+          },
+          {
+            turnId: id,
+            capability: "publish_social_post",
+            toolCallId: "awaiting",
+            inputHash: "2",
+            status: "PENDING",
+            disposition: "UNKNOWN",
+            verification: "NONE",
+            createdAt: new Date(now - 2_000),
+          },
+          {
+            turnId: id,
+            capability: "publish_social_post",
+            toolCallId: "refused",
+            inputHash: "3",
+            status: "FAILED",
+            disposition: "REJECTED",
+            createdAt: new Date(now - 1_000),
+          },
+        ],
+      });
+      const receipts = await summarizeTurnReceipts(id);
+      const { candidates } = filterStepFocusCandidates({
+        bundles: buildStepFocusBundles(
+          ["read_file", "create_task"],
+          ["read_file", "create_task"],
+        ),
+        stepIndex: 2,
+        roundIndex: 0,
+        stepsInRound: 2,
+        background: false,
+        hasAttemptedWrite: true,
+        receiptCount: receipts.length,
+        hasUnresolvedReceipt: receipts.some((r) => r.outcome !== "done"),
+        openUnblockedPlanCount: 0,
+        hasPendingBlocker: false,
+        justExpandedShortForm: false,
+      });
+      expect(receipts).toMatchObject([
+        { capability: "create_task", outcome: "done" },
+        { capability: "publish_social_post", outcome: "unconfirmed" },
+        { capability: "publish_social_post", outcome: "not done" },
+      ]);
+      expect(candidates).toContain("verify");
+
+      // Negative control: when only a confirmed save exists, verify is omitted.
+      const cleanId = await turn("CHAT");
+      await prisma.sokoBotToolCall.create({
+        data: {
+          turnId: cleanId,
+          capability: "create_task",
+          toolCallId: "confirmed_only",
+          inputHash: "4",
+          status: "COMPLETED",
+          disposition: "APPLIED",
+        },
+      });
+      const cleanReceipts = await summarizeTurnReceipts(cleanId);
+      const cleanMenu = filterStepFocusCandidates({
+        bundles: buildStepFocusBundles(
+          ["read_file", "create_task"],
+          ["read_file", "create_task"],
+        ),
+        stepIndex: 2,
+        roundIndex: 0,
+        stepsInRound: 2,
+        background: false,
+        hasAttemptedWrite: true,
+        receiptCount: cleanReceipts.length,
+        hasUnresolvedReceipt: cleanReceipts.some((r) => r.outcome !== "done"),
+        openUnblockedPlanCount: 0,
+        hasPendingBlocker: false,
+        justExpandedShortForm: false,
+      });
+      expect(cleanReceipts).toMatchObject([
+        { capability: "create_task", outcome: "done" },
+      ]);
+      expect(cleanMenu.candidates).not.toContain("verify");
+    });
+
     const twoSteps = [
       { step: "Write the posts", status: "done" },
       { step: "Schedule them", status: "pending" },

@@ -6,6 +6,8 @@ import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
   redactSokoBotSensitiveText,
+  type StepFocusDecisionOutcome,
+  type StepFocusRecentStep,
 } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
@@ -319,6 +321,51 @@ export async function sandboxPlanNote(
         sessionId: claims.sessionId,
         draft: input.draft,
       });
+}
+
+/**
+ * The runner asks Core to pick this step's focus (`stepFocus` experiment).
+ * Core re-authorizes the turn, asks Jev against a host-filtered menu, records
+ * the decision receipt, and returns the step's allowed tool bundle.
+ */
+export async function sandboxSelectStepFocus(
+  claims: TurnTokenClaims,
+  input: {
+    stepIndex: number;
+    roundIndex: number;
+    stepsInRound: number;
+    stepsRemaining: number;
+    recentSteps: StepFocusRecentStep[];
+    hasAttemptedWrite: boolean;
+    consecutiveInspect: number;
+    consecutiveVerify: number;
+    justExpandedShortForm: boolean;
+  },
+) {
+  await authorizeTurn(claims);
+  const { selectTurnStepFocus } = await import("@/lib/soko-bot/step-focus");
+  return selectTurnStepFocus({
+    turnId: claims.turnId,
+    sessionId: claims.sessionId,
+    sandbox: true,
+    ...input,
+  });
+}
+
+/** Records the observed outcome of one sandbox step-focus decision. */
+export async function sandboxRecordStepFocusOutcome(
+  claims: TurnTokenClaims,
+  outcome: Omit<StepFocusDecisionOutcome, "kind">,
+): Promise<void> {
+  await authorizeTurn(claims);
+  const { recordTurnStepFocusOutcome } = await import(
+    "@/lib/soko-bot/step-focus"
+  );
+  await recordTurnStepFocusOutcome({
+    turnId: claims.turnId,
+    sessionId: claims.sessionId,
+    outcome,
+  });
 }
 
 const MAX_UPLOADS_PER_TURN = 20;

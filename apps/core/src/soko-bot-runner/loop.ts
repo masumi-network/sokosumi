@@ -1,4 +1,11 @@
-import type { CmoShortFormTool } from "@sokosumi/soko-bot";
+import {
+  type CmoShortFormTool,
+  isSokoBotCapability,
+  isStepFocusWriteCapability,
+  type StepFocus,
+  type StepFocusDecisionOutcome,
+  type StepFocusRecentStep,
+} from "@sokosumi/soko-bot";
 import {
   type LanguageModel,
   type ModelMessage,
@@ -76,6 +83,45 @@ export interface TurnLoopInput {
   shortForms?: readonly CmoShortFormTool[];
   /** Core's plan for the request (planLoop); none on other versions. */
   plan?: TurnLoopPlan;
+  /** Per-step focus selector (stepFocus experiment); none on other versions. */
+  stepFocus?: TurnLoopStepFocus;
+}
+
+export interface TurnLoopStepFocusRequest {
+  stepIndex: number;
+  roundIndex: number;
+  stepsInRound: number;
+  stepsRemaining: number;
+  recentSteps: StepFocusRecentStep[];
+  hasAttemptedWrite: boolean;
+  consecutiveInspect: number;
+  consecutiveVerify: number;
+  justExpandedShortForm: boolean;
+}
+
+export interface TurnLoopStepFocusSelection {
+  decisionId: string;
+  appliedFocus: StepFocus;
+  usedFallback: boolean;
+  allowedTools: readonly string[];
+  toolChoice: "auto" | "none";
+  verifyNote: string | null;
+  verifyNoteKey: string | null;
+}
+
+export interface TurnLoopStepFocus {
+  /** Selects the focus and tool bundle before each model step; null falls back to full tools. */
+  selectStep: (
+    input: TurnLoopStepFocusRequest,
+  ) => Promise<TurnLoopStepFocusSelection | null>;
+  /** Records the observed outcome of the step's focus decision. */
+  recordOutcome?: (
+    outcome: Omit<StepFocusDecisionOutcome, "kind">,
+  ) => Promise<void>;
+  /** Per-focus prompt cache keys (versions with skillsOnDemand). */
+  cacheKeys?: Partial<Record<StepFocus, string>>;
+  /** Per-focus prompt cache keys after short-form save tools expand. */
+  fullCacheKeys?: Partial<Record<StepFocus, string>>;
 }
 
 export interface TurnLoopPlan {
@@ -99,6 +145,37 @@ export interface TurnLoopPlan {
 const PLAN_ANSWER_TIMEOUT_MS = 10_000;
 /** The time-up report waits at most this long for the open steps. */
 const REPORT_PLAN_WAIT_MS = 2_000;
+/** A step-focus Jev call must never stall a step past its share of the turn. */
+const STEP_FOCUS_WAIT_MS = 16_000;
+
+async function stepFocusAnswer(
+  ask: () => Promise<TurnLoopStepFocusSelection | null>,
+  withinMs: number,
+): Promise<TurnLoopStepFocusSelection | null> {
+  if (withinMs <= 0) return null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      ask(),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(
+          () => resolve(null),
+          Math.min(STEP_FOCUS_WAIT_MS, withinMs),
+        );
+      }),
+    ]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function stepToolKind(name: string): "read" | "write" {
+  return isSokoBotCapability(name) && !isStepFocusWriteCapability(name)
+    ? "read"
+    : "write";
+}
 
 /** A nudge or time-up prompt that names the plan's open steps, when there are any. */
 async function withOpenSteps(
@@ -197,9 +274,34 @@ export async function runTurnLoop(
   let finishReason = "";
   let idleRounds = 0;
   let short = shortFormsIn(input.tools, input.shortForms ?? []);
+  // Per-step focus state (active only when input.stepFocus is set).
+  let turnStepIndex = 0;
+  let hasAttemptedWrite = false;
+  let consecutiveInspect = 0;
+  let consecutiveVerify = 0;
+  let justExpandedShortForm = false;
+  const recentFocusSteps: StepFocusRecentStep[] = [];
+  let lastActiveTools: string[] | undefined;
+  let lastFocusCacheKey: string | undefined;
+  let lastVerifyNoteKey: string | null = null;
+  let currentFocus: {
+    decisionId: string | null;
+    appliedFocus: StepFocus;
+    usedFallback: boolean;
+    allowedTools: ReadonlySet<string> | null;
+  } | null = null;
+  let stepToolOutcomes: {
+    name: string;
+    kind: "read" | "write";
+    status: "ok" | "error" | "disallowed_by_focus";
+  }[] = [];
+
   // A tool that ran in the done check's extra round counts as work even when
-  // the model call around it then fails.
-  const tools: ToolSet = input.plan
+  // the model call around it then fails. On stepFocus versions, the wrapper
+  // also re-checks tool existence and active focus membership right before
+  // dispatch so a model cannot invoke a tool outside its step bundle.
+  const wrapTools = input.plan !== undefined || input.stepFocus !== undefined;
+  const tools: ToolSet = wrapTools
     ? Object.fromEntries(
         Object.entries(input.tools).map(([name, each]) => {
           const execute = each.execute;
@@ -209,13 +311,68 @@ export async function runTurnLoop(
             {
               ...each,
               execute: async (...args: Parameters<typeof execute>) => {
-                const output = await execute(...args);
-                if (draft) {
-                  workedAfterCheck = true;
-                  if (input.plan?.changeTools.has(name))
-                    changedAfterCheck = true;
+                if (input.stepFocus) {
+                  const kind = stepToolKind(name);
+                  if (
+                    !Object.hasOwn(input.tools, name) ||
+                    typeof input.tools[name]?.execute !== "function"
+                  ) {
+                    stepToolOutcomes.push({
+                      name,
+                      kind,
+                      status: "disallowed_by_focus",
+                    });
+                    throw new Error(`${name} is not available on this turn.`);
+                  }
+                  if (currentFocus?.appliedFocus === "answer") {
+                    stepToolOutcomes.push({
+                      name,
+                      kind,
+                      status: "disallowed_by_focus",
+                    });
+                    throw new Error(
+                      `${name} is not allowed during the answer step (no tools are permitted). Write your response now.`,
+                    );
+                  }
+                  if (
+                    currentFocus?.allowedTools &&
+                    !currentFocus.allowedTools.has(name)
+                  ) {
+                    stepToolOutcomes.push({
+                      name,
+                      kind,
+                      status: "disallowed_by_focus",
+                    });
+                    throw new Error(
+                      `${name} is not allowed during the ${currentFocus.appliedFocus} step. Use only the tools available for this step.`,
+                    );
+                  }
                 }
-                return output;
+                try {
+                  const output = await execute(...args);
+                  if (input.stepFocus) {
+                    stepToolOutcomes.push({
+                      name,
+                      kind: stepToolKind(name),
+                      status: "ok",
+                    });
+                  }
+                  if (draft) {
+                    workedAfterCheck = true;
+                    if (input.plan?.changeTools.has(name))
+                      changedAfterCheck = true;
+                  }
+                  return output;
+                } catch (error) {
+                  if (input.stepFocus) {
+                    stepToolOutcomes.push({
+                      name,
+                      kind: stepToolKind(name),
+                      status: "error",
+                    });
+                  }
+                  throw error;
+                }
               },
             },
           ];
@@ -246,11 +403,13 @@ export async function runTurnLoop(
   for (let round = 0; ; round++) {
     // The turn's other calls may have spent the allowance already.
     if (budgetSpent()) break;
+    const roundTools = short.length ? withShortForms(tools, short) : tools;
+    const stepFocus = input.stepFocus;
     const result = await callModel({
       model: input.model,
       system: input.system,
       messages: compact(messages) ?? messages,
-      tools: short.length ? withShortForms(tools, short) : tools,
+      tools: roundTools,
       // The budget is checked last, so it reserves room only for a step
       // that will run.
       stopWhen: [
@@ -260,10 +419,177 @@ export async function runTurnLoop(
         endedByShortForm(short),
         budgetSpent,
       ],
-      prepareStep: ({ messages: current }) => {
-        const compacted = compact(current);
-        return compacted ? { messages: compacted } : {};
-      },
+      prepareStep: stepFocus
+        ? async ({ messages: current, stepNumber }) => {
+            const compacted = compact(current);
+            stepToolOutcomes = [];
+            const selection = await stepFocusAnswer(
+              () =>
+                stepFocus.selectStep({
+                  stepIndex: turnStepIndex,
+                  roundIndex: round,
+                  stepsInRound: stepNumber,
+                  stepsRemaining: Math.max(0, stepsLeft - stepNumber),
+                  recentSteps: recentFocusSteps.slice(-6),
+                  hasAttemptedWrite,
+                  consecutiveInspect,
+                  consecutiveVerify,
+                  justExpandedShortForm,
+                }),
+              Math.max(0, reportAt - now()),
+            );
+            justExpandedShortForm = false;
+            const baseMessages = compacted ?? current;
+            const focusKeys = short.length
+              ? stepFocus.cacheKeys
+              : (stepFocus.fullCacheKeys ?? stepFocus.cacheKeys);
+            if (!selection) {
+              // Bounded runner fallback when Core returned no current focus
+              // decision (timeout/network error): never unlock write tools;
+              // restrict to read-only inspect tools, or tool-less answer if none.
+              const readOnlyFallback = Object.keys(roundTools).filter(
+                (name) =>
+                  isSokoBotCapability(name) &&
+                  !isStepFocusWriteCapability(name),
+              );
+              if (readOnlyFallback.length > 0) {
+                currentFocus = {
+                  decisionId: null,
+                  appliedFocus: "inspect",
+                  usedFallback: true,
+                  allowedTools: new Set(readOnlyFallback),
+                };
+                const fallbackKey = focusKeys?.inspect;
+                const fallbackProviderOptions = fallbackKey
+                  ? withPromptCache(
+                      modelReasoningSummaryOptions(input.model),
+                      fallbackKey,
+                      modelIdOf(input.model),
+                    )
+                  : undefined;
+                lastActiveTools = readOnlyFallback;
+                lastFocusCacheKey = fallbackKey;
+                return {
+                  ...(compacted ? { messages: compacted } : {}),
+                  ...(fallbackProviderOptions
+                    ? { providerOptions: fallbackProviderOptions }
+                    : {}),
+                  toolChoice: "auto" as const,
+                  activeTools: readOnlyFallback,
+                };
+              }
+              currentFocus = {
+                decisionId: null,
+                appliedFocus: "answer",
+                usedFallback: true,
+                allowedTools: new Set(),
+              };
+              const hasPriorToolHistory = baseMessages.some(
+                (message) => message.role === "tool",
+              );
+              const answerCacheKey = hasPriorToolHistory
+                ? (lastFocusCacheKey ?? focusKeys?.answer)
+                : focusKeys?.answer;
+              const answerProviderOptions = answerCacheKey
+                ? withPromptCache(
+                    modelReasoningSummaryOptions(input.model),
+                    answerCacheKey,
+                    modelIdOf(input.model),
+                  )
+                : undefined;
+              return {
+                ...(compacted ? { messages: compacted } : {}),
+                ...(answerProviderOptions
+                  ? { providerOptions: answerProviderOptions }
+                  : {}),
+                toolChoice: "none" as const,
+                ...(hasPriorToolHistory
+                  ? lastActiveTools
+                    ? { activeTools: lastActiveTools }
+                    : {}
+                  : { activeTools: [] }),
+              };
+            }
+            const registeredNames = new Set(Object.keys(roundTools));
+            const liveAllowed = selection.allowedTools.filter((name) =>
+              registeredNames.has(name),
+            );
+            currentFocus = {
+              decisionId: selection.decisionId,
+              appliedFocus: selection.appliedFocus,
+              usedFallback: selection.usedFallback,
+              allowedTools:
+                selection.appliedFocus === "answer"
+                  ? new Set()
+                  : new Set(liveAllowed),
+            };
+            const shouldInjectVerify =
+              selection.appliedFocus === "verify" &&
+              Boolean(selection.verifyNote) &&
+              selection.verifyNoteKey !== lastVerifyNoteKey;
+            const nextMessages = shouldInjectVerify
+              ? [
+                  ...baseMessages,
+                  {
+                    role: "user" as const,
+                    content: selection.verifyNote as string,
+                  },
+                ]
+              : compacted;
+            if (shouldInjectVerify) {
+              lastVerifyNoteKey = selection.verifyNoteKey;
+            }
+
+            if (selection.appliedFocus === "answer") {
+              const hasPriorToolHistory = baseMessages.some(
+                (message) => message.role === "tool",
+              );
+              const answerCacheKey = hasPriorToolHistory
+                ? (lastFocusCacheKey ?? focusKeys?.answer)
+                : focusKeys?.answer;
+              const answerProviderOptions = answerCacheKey
+                ? withPromptCache(
+                    modelReasoningSummaryOptions(input.model),
+                    answerCacheKey,
+                    modelIdOf(input.model),
+                  )
+                : undefined;
+              return {
+                ...(nextMessages ? { messages: nextMessages } : {}),
+                ...(answerProviderOptions
+                  ? { providerOptions: answerProviderOptions }
+                  : {}),
+                toolChoice: "none" as const,
+                ...(hasPriorToolHistory
+                  ? lastActiveTools
+                    ? { activeTools: lastActiveTools }
+                    : {}
+                  : { activeTools: [] }),
+              };
+            }
+            const focusKey = focusKeys?.[selection.appliedFocus];
+            const stepProviderOptions = focusKey
+              ? withPromptCache(
+                  modelReasoningSummaryOptions(input.model),
+                  focusKey,
+                  modelIdOf(input.model),
+                )
+              : undefined;
+            lastActiveTools = liveAllowed;
+            lastFocusCacheKey = focusKey;
+            return {
+              ...(nextMessages ? { messages: nextMessages } : {}),
+              ...(stepProviderOptions
+                ? { providerOptions: stepProviderOptions }
+                : {}),
+              toolChoice: "auto" as const,
+              activeTools: liveAllowed,
+            };
+          }
+        : ({ messages: current }) => {
+            const compacted = compact(current);
+            return compacted ? { messages: compacted } : {};
+          },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
       providerOptions: withPromptCache(
@@ -276,6 +602,78 @@ export async function runTurnLoop(
         admission.settle(step.usage.inputTokens);
         const summary = stepReasoningSummary(step);
         if (summary) await input.onReasoning?.(summary);
+        if (stepFocus) {
+          const recorded = currentFocus;
+          const executed = [...stepToolOutcomes];
+          // Capture any tool call rejected by the SDK before execute ran.
+          const seenCounts = new Map<string, number>();
+          for (const item of executed) {
+            seenCounts.set(item.name, (seenCounts.get(item.name) ?? 0) + 1);
+          }
+          const callCounts = new Map<string, number>();
+          for (const call of step.toolCalls ?? []) {
+            const nextCount = (callCounts.get(call.toolName) ?? 0) + 1;
+            callCounts.set(call.toolName, nextCount);
+            if (nextCount > (seenCounts.get(call.toolName) ?? 0)) {
+              const outsideBundle =
+                recorded?.appliedFocus === "answer" ||
+                (recorded?.allowedTools !== null &&
+                  recorded?.allowedTools !== undefined &&
+                  !recorded.allowedTools.has(call.toolName));
+              executed.push({
+                name: call.toolName,
+                kind: stepToolKind(call.toolName),
+                status: outsideBundle ? "disallowed_by_focus" : "error",
+              });
+            }
+          }
+          if (
+            executed.some(
+              (item) =>
+                item.kind === "write" &&
+                item.status !== "disallowed_by_focus" &&
+                !(short as readonly string[]).includes(item.name),
+            )
+          ) {
+            hasAttemptedWrite = true;
+          }
+          if (recorded?.appliedFocus === "inspect") {
+            consecutiveInspect += 1;
+            consecutiveVerify = 0;
+          } else if (recorded?.appliedFocus === "verify") {
+            consecutiveVerify += 1;
+            consecutiveInspect = 0;
+          } else {
+            consecutiveInspect = 0;
+            consecutiveVerify = 0;
+          }
+          recentFocusSteps.push({
+            stepIndex: turnStepIndex,
+            focus: recorded?.appliedFocus ?? null,
+            tools: executed,
+            hadText: Boolean(step.text?.trim()),
+          });
+          if (recorded?.decisionId && stepFocus.recordOutcome) {
+            await stepFocus
+              .recordOutcome({
+                decisionId: recorded.decisionId,
+                stepIndex: turnStepIndex,
+                appliedFocus: recorded.appliedFocus,
+                usedFallback: recorded.usedFallback,
+                finishReason: step.finishReason ?? "unknown",
+                toolCalls: executed.map(({ name, status }) => ({
+                  name,
+                  status,
+                })),
+                inputTokens: step.usage.inputTokens ?? 0,
+                outputTokens: step.usage.outputTokens ?? 0,
+                cacheReadTokens:
+                  step.usage.inputTokenDetails?.cacheReadTokens ?? 0,
+              })
+              .catch(() => undefined);
+          }
+          turnStepIndex += 1;
+        }
       },
       abortSignal: signal(),
       maxRetries: 1,
@@ -341,6 +739,7 @@ export async function runTurnLoop(
       })
     ) {
       short = [];
+      justExpandedShortForm = true;
       continue;
     }
     const keepGoing =
