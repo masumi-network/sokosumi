@@ -289,6 +289,7 @@ const DESTRUCTIVE_TOOLS = [
   "projects_cancel_owed",
   "projects_clear_design",
   "projects_close",
+  "projects_image_studio_brand_assets_update",
   "projects_image_studio_brand_kit_update",
   "projects_image_studio_brand_look_update",
   "projects_image_studio_products_update",

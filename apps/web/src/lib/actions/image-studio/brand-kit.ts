@@ -6,8 +6,10 @@ import type {
   StudioBrandKit,
   StudioBrandLookState,
   StudioLogoPosition,
+  StudioProductPhoto,
   StudioWebsiteCopy,
   StudioWebsiteDraft,
+  UpdateStudioBrandAssets,
 } from "@sokosumi/core-client";
 import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
@@ -94,6 +96,13 @@ export const saveStudioBrandCopy = withSession<
     };
   }
 });
+
+export const updateStudioBrandAssets = withSession<
+  ProjectInput & { change: UpdateStudioBrandAssets },
+  StudioProductPhoto[]
+>(({ projectId, change }) =>
+  imageStudioService.updateBrandAssets(projectId, change),
+);
 
 export const saveStudioBrandLook = withSession<
   ProjectInput & SaveStudioBrandLook,

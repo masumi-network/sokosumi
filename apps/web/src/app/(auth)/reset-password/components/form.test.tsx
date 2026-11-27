@@ -223,7 +223,7 @@ describe("ResetPasswordForm", () => {
     }
   });
 
-  it("makes a stalled sign-out retryable after eight seconds", async () => {
+  it("makes a stalled sign-out retryable after twelve seconds", async () => {
     const client = createAuthClient({
       baseURL: `${window.location.origin}/auth`,
       fetchOptions: {
@@ -249,7 +249,7 @@ describe("ResetPasswordForm", () => {
     vi.useFakeTimers();
     try {
       fireEvent.click(screen.getByRole("button", { name: "submit" }));
-      await act(async () => vi.advanceTimersByTimeAsync(7999));
+      await act(async () => vi.advanceTimersByTimeAsync(11_999));
       expect(
         screen.getByRole("button", { name: "continueToSignIn" }),
       ).toHaveAttribute("aria-busy", "true");

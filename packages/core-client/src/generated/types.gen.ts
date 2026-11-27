@@ -6967,8 +6967,14 @@ export type StudioAgentBrandContext = {
         goals: Array<string>;
         themes: Array<string>;
     };
+    assets?: Array<StudioProductPhoto>;
     colors?: Array<string>;
     fonts?: Array<string>;
+};
+
+export type StudioProductPhoto = {
+    id: string;
+    name: string;
 };
 
 export type StudioAgentAdHeadline = {
@@ -7153,6 +7159,7 @@ export type ProjectImageJob = {
     video: ProjectVideoSettings | null;
     talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     exportHeadline?: string;
     useProductCutout?: boolean;
@@ -12396,6 +12403,7 @@ export type StudioModelScoreboard = {
 
 export type StudioBrandKit = {
     logo: string | null;
+    assets?: Array<StudioProductPhoto>;
     studioLogoPosition?: StudioLogoPosition | null;
     colors: Array<string>;
     fonts: Array<string>;
@@ -12431,11 +12439,6 @@ export type StudioProduct = {
     photo?: StudioProductPhoto;
 };
 
-export type StudioProductPhoto = {
-    id: string;
-    name: string;
-};
-
 export type StudioWebsiteVisual = StudioBrandLook & {
     logo: string | null;
 };
@@ -12460,6 +12463,12 @@ export type StudioBrandCopy = {
     tone: string;
     audience: Array<string>;
     approvedLines: Array<string>;
+};
+
+export type UpdateStudioBrandAssets = {
+    add: StudioProductPhoto;
+} | {
+    remove: string;
 };
 
 export type StudioBrandLookState = {
@@ -12487,6 +12496,7 @@ export type CreateProjectImageJobRequest = {
     lettering?: 'overlay' | 'ideogram';
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
+    brandReferenceCount?: number;
     referenceFileIds?: Array<string>;
     parentAssetId?: string | null;
     sessionId?: string | null;
@@ -12698,6 +12708,7 @@ export type ProjectSeoWorkspace = {
     siteEvidence?: ProjectSeoSiteEvidence | null;
     auditSiteEvidence?: Array<ProjectSeoSiteEvidence>;
     strategy?: ProjectSeoStrategy | null;
+    siteSpeed?: ProjectSeoSiteSpeed | null;
     landingEngagementChange?: {
         propertyId: string;
         timeZone: string;
@@ -13160,6 +13171,13 @@ export type ProjectSeoObservation = {
                 first: Date;
                 last: Date;
             } | null;
+            history?: {
+                status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                weeks?: Array<string>;
+                lcp?: Array<number | null>;
+                inp?: Array<number | null>;
+                cls?: Array<number | null>;
+            };
         };
     }>;
     pageSpeedRecoveryFileId?: string;
@@ -13667,6 +13685,100 @@ export type ProjectSeoStrategy = {
     observedAt: Date;
     countryCode: string | null;
     languageCode: string | null;
+};
+
+export type ProjectSeoSiteSpeed = {
+    rows: Array<{
+        url: string;
+        audited: boolean;
+        group?: string;
+        cause?: 'action' | 'keyword' | 'template' | 'entry' | 'risk';
+        why?: string;
+        tier?: 'full' | 'reduced' | 'none';
+        check?: {
+            device: 'mobile' | 'desktop';
+            basis: 'crux-url' | 'crux-origin' | 'page-type' | 'default';
+            mix: {
+                level: 'url' | 'origin';
+                phone: number;
+                desktop: number;
+                tablet: number;
+                period: {
+                    first: string;
+                    last: string;
+                } | null;
+            } | null;
+            notChecked: 'deadline' | 'quota' | 'other' | null;
+        };
+        devices: Array<{
+            pageUrl: string;
+            testedUrl: string;
+            device: 'mobile' | 'desktop';
+            lab: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                median: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    tbt: number | null;
+                    si: number | null;
+                };
+                runs: number;
+                ok: number;
+                lighthouse: string | null;
+                pageSpeed?: {
+                    scores: {
+                        performance?: number;
+                        accessibility?: number;
+                        bestPractices?: number;
+                        seo?: number;
+                        agenticBrowsing?: number;
+                    };
+                    insights: Array<{
+                        id: string;
+                        title: string;
+                        detail: string;
+                        action: string;
+                    }>;
+                    measuredAt?: Date;
+                };
+            };
+            field: {
+                status: 'not_checked' | 'no_data' | 'quota' | 'budget' | 'unsafe' | 'deadline' | 'unavailable';
+            } | {
+                status: 'measured';
+                level: 'url' | 'origin' | 'normalized';
+                url: string;
+                p75: {
+                    lcp: number | null;
+                    cls: number | null;
+                    fcp: number | null;
+                    inp: number | null;
+                    ttfb: number | null;
+                };
+                period: {
+                    first: Date;
+                    last: Date;
+                } | null;
+                history?: {
+                    status: 'comparable' | 'incompatible_population' | 'unavailable' | 'legacy_unverified';
+                    weeks?: Array<string>;
+                    lcp?: Array<number | null>;
+                    inp?: Array<number | null>;
+                    cls?: Array<number | null>;
+                };
+            };
+        }>;
+    }>;
+    dropped: number;
+    notChecked?: {
+        count: number;
+        reason: 'limit' | 'deadline' | 'quota' | 'other';
+    };
+    observationId: string;
+    observedAt: Date;
 };
 
 export type ProjectSeoSerpSeries = {
@@ -80164,6 +80276,117 @@ export type ResearchStudioWebsiteDraftResponses = {
 };
 
 export type ResearchStudioWebsiteDraftResponse = ResearchStudioWebsiteDraftResponses[keyof ResearchStudioWebsiteDraftResponses];
+
+export type UpdateStudioBrandAssetsData = {
+    body: UpdateStudioBrandAssets;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/brand-kit/assets';
+};
+
+export type UpdateStudioBrandAssetsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid reference image or full brand kit
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsError = UpdateStudioBrandAssetsErrors[keyof UpdateStudioBrandAssetsErrors];
+
+export type UpdateStudioBrandAssetsResponses = {
+    /**
+     * Updated brand images
+     */
+    200: {
+        data: Array<StudioProductPhoto>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateStudioBrandAssetsResponse = UpdateStudioBrandAssetsResponses[keyof UpdateStudioBrandAssetsResponses];
 
 export type SaveStudioBrandLookData = {
     body: SaveStudioBrandLook;
