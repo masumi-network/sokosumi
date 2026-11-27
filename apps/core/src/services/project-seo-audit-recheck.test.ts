@@ -120,6 +120,19 @@ describe("recheckSeoAuditActions", () => {
     expect(result?.pairs[0]?.outcome).toBe("not_compared");
   });
 
+  it.each([
+    ["the newer audit", "n"],
+    ["the action's own audit", "e"],
+  ])("closes no action when %s is a focused audit", (_label, focused) => {
+    const kind = (id: string) =>
+      id === focused ? { kind: "audit_lite" as const } : {};
+    const result = recheck(
+      audit("n", 9, [row("pass")], kind("n")),
+      audit("e", 1, [row("fired")], kind("e")),
+    );
+    expect(result?.status).toBe("not_compared");
+  });
+
   it("pairs no row of another market", () => {
     const result = recheck(
       audit("n", 9, [row("pass")], { countryCode: "DE" }),

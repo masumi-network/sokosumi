@@ -60,8 +60,10 @@ function outcome(
 ): RecheckOutcome {
   const before = baseline.check,
     after = next.check;
-  // Only a rule read on the page alone, with the same rule and the same final address, shows the owner's fix.
+  // Only a rule a full audit read on the page alone, with the same rule and the same final address, shows the owner's fix.
   if (
+    baseline.audit.payload.kind === "audit_full" &&
+    next.audit.payload.kind === "audit_full" &&
     before.result === "fired" &&
     after.result === "pass" &&
     before.pageOnly &&

@@ -553,6 +553,25 @@ describe("public SEO report trust boundary", () => {
     expect(report.keywords[0]).not.toHaveProperty("fit");
   });
 
+  it("imports a focused row with an unreadable rule key, and keeps no closing fields from it", () => {
+    const fixture = focusedReport();
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      checks: fixture.checks.map((check) => ({
+        ...check,
+        ruleKey: "not a rule key",
+        pageOnly: "yes",
+        finalUrl: 7,
+      })),
+    });
+    expect(report.checks.length).toBeGreaterThan(0);
+    for (const check of report.checks) {
+      expect(check).not.toHaveProperty("ruleKey");
+      expect(check).not.toHaveProperty("pageOnly");
+      expect(check).not.toHaveProperty("finalUrl");
+    }
+  });
+
   it("refuses private Google evidence before projecting public fields, including nested site pages", () => {
     expect(() =>
       parsePublicSeoArtifact({

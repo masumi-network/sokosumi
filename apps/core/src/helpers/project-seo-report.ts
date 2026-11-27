@@ -300,7 +300,11 @@ const partial = z
             device: seoDeviceSchema,
             result: z.enum(["pass", "fired", "blocked", "not_checked"]),
           })
-          .passthrough(),
+          .passthrough()
+          // Only a full audit's row can close an action: a focused row keeps no rule key, page-only mark or final address.
+          .transform(
+            ({ ruleKey: _r, pageOnly: _p, finalUrl: _f, ...row }) => row,
+          ),
       )
       .max(10000),
     // A focused result carries no estimate: only a page Report does. One sent all the same is not read.
