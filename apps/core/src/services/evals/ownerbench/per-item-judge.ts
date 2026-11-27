@@ -20,12 +20,7 @@ import {
   evalOutcome,
   passRate,
 } from "@/lib/evals/eval-compare";
-import {
-  judgeEvalChain,
-  judgeEvalChainPerItem,
-  type PerItemJudgeItemResult,
-  sokoBotJudgeRunner,
-} from "@/services/soko-bot-lab-judge.service";
+import type { PerItemJudgeItemResult } from "@/services/soko-bot-lab-judge.service";
 import { HOLDOUT_PREFIX } from "./holdout";
 import type { StepRecord } from "./journey-runner";
 import { journeyJudgeScenario, type OwnerJourney } from "./journeys";
@@ -92,6 +87,9 @@ export async function judgeJourneyChain(input: {
 }): Promise<JourneyJudgeOutcome> {
   const mode = input.mode ?? ownerbenchJudgeMode();
   const scenario = journeyJudgeScenario(input.journey);
+  const { judgeEvalChain, judgeEvalChainPerItem } = await import(
+    "@/services/soko-bot-lab-judge.service"
+  );
   if (mode === "holistic") {
     const judged = await judgeEvalChain(
       input.turnIds,
@@ -264,15 +262,19 @@ export async function rejudgeEvalRunReport<
     input.privateSplitsPath,
   );
 
-  if (!input.judgeFn && sokoBotJudgeRunner() !== "claude-code") {
-    throw new Error(
-      "Local --rejudge requires SOKO_BOT_JUDGE_RUNNER=claude-code and refuses the paid AI Gateway.",
+  let judgeFn: PerItemJudgeFn;
+  if (input.judgeFn) {
+    judgeFn = input.judgeFn;
+  } else {
+    const { judgeEvalChainPerItem, sokoBotJudgeRunner } = await import(
+      "@/services/soko-bot-lab-judge.service"
     );
-  }
-
-  const judgeFn: PerItemJudgeFn =
-    input.judgeFn ??
-    (({ journey, split, turnIds, roomLog }) =>
+    if (sokoBotJudgeRunner() !== "claude-code") {
+      throw new Error(
+        "Local --rejudge requires SOKO_BOT_JUDGE_RUNNER=claude-code and refuses the paid AI Gateway.",
+      );
+    }
+    judgeFn = ({ journey, split, turnIds, roomLog }) =>
       judgeEvalChainPerItem({
         turnIds,
         scenario: journeyJudgeScenario(journey),
@@ -280,7 +282,8 @@ export async function rejudgeEvalRunReport<
         items: split.items,
         storeOnTurn: false,
         requireClaudeCode: true,
-      }));
+      });
+  }
 
   const tasks: Array<{
     caseIndex: number;

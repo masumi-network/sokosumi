@@ -150,16 +150,18 @@ if (values.rejudge) {
   process.exit(0);
 }
 
-const { ownerbenchJudgeMode } = await import(
-  "@/services/evals/ownerbench/per-item-judge"
-);
-const judgeMode = ownerbenchJudgeMode();
-
 // `--plan` or the env flag alone: either way this is a plan run.
 const plan = ["1", "true"].includes(
   process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN ?? "",
 );
+// Configure the in-process adapter BEFORE importing any Core service so
+// `getEnv()` never caches `"sandbox"` ahead of ordinary local runs.
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
+
+const { ownerbenchJudgeMode } = await import(
+  "@/services/evals/ownerbench/per-item-judge"
+);
+const judgeMode = ownerbenchJudgeMode();
 
 const { default: prisma } = await import("@/lib/db/prisma");
 const { createEvalRun, tickEvalRuns } = await import(
