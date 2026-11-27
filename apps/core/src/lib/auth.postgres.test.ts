@@ -597,7 +597,10 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
     describe.runIf(onSplitLayout)("with Preprod switched on", () => {
       let enabledAuth: typeof auth;
       let enabledCookie: string;
-      let organizationId: string;
+      let optedInOrganizationId: string;
+      let otherOrganizationId: string;
+      const organizationSlug = (preprodEnabled: boolean) =>
+        `api-key-access-${preprodEnabled}-${apiKeyUserId}`;
       const people = [
         { name: "plain user", role: "user" },
         {
@@ -625,14 +628,19 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
         } finally {
           vi.stubEnv("NETWORK_PREPROD_ENABLED", "false");
         }
-        const organization = await prisma.organization.create({
-          data: {
-            name: "Preprod access fixture",
-            slug: `preprod-access-${apiKeyUserId}`,
-            preprodEnabled: true,
-          },
-        });
-        organizationId = organization.id;
+        const [optedIn, other] = await Promise.all(
+          [true, false].map((preprodEnabled) =>
+            prisma.organization.create({
+              data: {
+                name: "API key access fixture",
+                slug: organizationSlug(preprodEnabled),
+                preprodEnabled,
+              },
+            }),
+          ),
+        );
+        optedInOrganizationId = optedIn.id;
+        otherOrganizationId = other.id;
       }, SETUP_TIMEOUT);
 
       afterAll(async () => {
@@ -643,10 +651,7 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
         await prisma.organization.deleteMany({
           where: {
             slug: {
-              in: [
-                `preprod-access-${apiKeyUserId}`,
-                `mainnet-access-${apiKeyUserId}`,
-              ],
+              in: [organizationSlug(true), organizationSlug(false)],
             },
           },
         });
@@ -666,20 +671,28 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
             role,
             preprodEnabled: optedIn,
           });
-          if (organization === true) {
+          if (organization !== undefined) {
             await prisma.member.create({
-              data: { userId: id, organizationId },
-            });
-          } else if (organization === false) {
-            await prisma.organization.create({
               data: {
-                name: "Mainnet access fixture",
-                slug: `mainnet-access-${apiKeyUserId}`,
-                members: { create: { userId: id } },
+                userId: id,
+                organizationId: otherOrganizationId,
+                createdAt: new Date(0),
               },
             });
           }
+          if (organization) {
+            await prisma.member.create({
+              data: { userId: id, organizationId: optedInOrganizationId },
+            });
+          }
           const cookie = await signInApiKeyUser(enabledAuth, email);
+          if (organization) {
+            const session = await prisma.session.findFirstOrThrow({
+              where: { userId: id },
+              select: { activeOrganizationId: true },
+            });
+            expect(session.activeOrganizationId).toBe(otherOrganizationId);
+          }
           const body = { name: "Preprod key", network: "preprod" };
           if (!allowed) {
             await expectCreateRefused(
