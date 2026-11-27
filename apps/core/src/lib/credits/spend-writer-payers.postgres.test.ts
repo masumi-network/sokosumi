@@ -19,7 +19,11 @@ import { chargeSeoChatReply } from "@/lib/seo/chat-billing";
 import type { TransactionHistoryKind } from "@/schemas/transaction-history.schema";
 import { chargeProjectCompetitorCheck } from "@/services/competitor-check.service";
 import { createSeoAudit } from "@/services/seo-audit.service";
-import { sokoBotUsageCents } from "@/services/soko-bot-billing.service";
+import {
+  chargeSokoBotCredits,
+  sokoBotUsageCents,
+} from "@/services/soko-bot-billing.service";
+import { onSplitLayout } from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -163,6 +167,10 @@ describe.skipIf(!enabled)(
       await prisma.competitorCheck.deleteMany({
         where: { project: { workspaceId: { in: workspaceIds } } },
       });
+      await db.sokoBotUsage.deleteMany({ where: billedTo });
+      await prisma.sokoBot.deleteMany({
+        where: { workspaceId: { in: workspaceIds } },
+      });
       await db.creditConsumption.deleteMany({
         where: { transaction: billedTo },
       });
@@ -298,6 +306,43 @@ describe.skipIf(!enabled)(
         });
 
         expect(await seen(payer, "task", receipts)).toMatchObject({
+          projectHistory: { credits: 3 * ROUNDS, count: ROUNDS },
+        });
+      },
+      CASE_TIMEOUT,
+    );
+
+    // On the split layout the charge stops at its usage check, before any
+    // debit, until ticket 30 (`soko-bot-usage-spend.postgres.test.ts`).
+    it.skipIf(onSplitLayout)(
+      "Soko Bot: keeps a Project bot's charge in its Project's history",
+      async () => {
+        const payer = await organizationWithProject();
+        const bot = await prisma.sokoBot.create({
+          data: {
+            userId: null,
+            workspaceId: payer.workspaceId,
+            projectId: payer.projectId,
+          },
+          select: { id: true },
+        });
+        for (let round = 0; round < ROUNDS; round += 1) {
+          await fund(payer, CREDIT, 2n * CREDIT);
+          const charged = await chargeSokoBotCredits({
+            sokoBotId: bot.id,
+            key: `round-${round}`,
+            credits: 3,
+          });
+          expect(charged.shortfall).toBe(false);
+        }
+        const receipts = await scope.networkDb.sokoBotUsage.findMany({
+          where: { sokoBotId: bot.id },
+          select: { transactionId: true, createdAt: true },
+        });
+
+        // The receipt is written after the debit, as on `origin/main`: its
+        // time is the debit's or later, so no count of equal times here.
+        expect(await seen(payer, "sokoBot", receipts)).toMatchObject({
           projectHistory: { credits: 3 * ROUNDS, count: ROUNDS },
         });
       },
