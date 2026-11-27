@@ -33,6 +33,8 @@ const {
   turnFindManyMock: vi.fn(),
   recordSpendMock: vi.fn(),
 }));
+/** The transaction `serializableTransaction` last opened. */
+const opened = vi.hoisted(() => ({ tx: undefined as unknown }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/db/prisma", () => ({
@@ -49,8 +51,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 vi.mock("@/lib/db/transaction", () => ({
-  serializableTransaction: (run: (tx: unknown) => unknown) =>
-    run(transactionClient()),
+  serializableTransaction: (run: (tx: unknown) => unknown) => {
+    opened.tx = transactionClient();
+    return run(opened.tx);
+  },
 }));
 vi.mock("@/services/cmo-billing.service", () => ({
   isCusoInFreeHiring: freeHiringMock,
@@ -94,6 +98,12 @@ import {
 } from "@/services/soko-bot-billing.service";
 
 const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000001";
+
+/** The debit was written once, on `tx`: the caller's open transaction. */
+function expectDebitOn(tx: unknown) {
+  expect(recordSpendMock).toHaveBeenCalledTimes(1);
+  expect(recordSpendMock.mock.calls[0]?.[2]).toBe(tx);
+}
 
 function transactionClient() {
   return {
@@ -203,6 +213,7 @@ describe("Soko Bot billing", () => {
     ]);
     recordSpendMock.mockResolvedValue("transaction_1");
     usageCreateMock.mockResolvedValue({ id: "usage_1" });
+    const tx = transactionClient();
 
     const result = await recordSokoBotTurnUsage(
       {
@@ -211,7 +222,7 @@ describe("Soko Bot billing", () => {
         userId: "user_1",
         costUsdMicros: 1_000_000n,
       },
-      transactionClient() as never,
+      tx as never,
     );
 
     expect(result).toEqual({
@@ -230,6 +241,7 @@ describe("Soko Bot billing", () => {
       }),
       expect.anything(),
     );
+    expectDebitOn(tx);
     expect(usageCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -288,6 +300,7 @@ describe("Soko Bot billing", () => {
     });
 
     expect(result.chargedCents).toBe(expected);
+    expectDebitOn(opened.tx);
     expect(usageCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -315,6 +328,7 @@ describe("Soko Bot billing", () => {
         { bucketId: "bucket_org", amount: expected },
       ]);
       recordSpendMock.mockResolvedValue("transaction_1");
+      const tx = transactionClient();
 
       const result = await recordSokoBotTurnUsage(
         {
@@ -323,7 +337,7 @@ describe("Soko Bot billing", () => {
           userId: "user_1",
           costUsdMicros: 1_000_000n,
         },
-        transactionClient() as never,
+        tx as never,
       );
 
       // The wallet it drew on, so the low-balance check reads the same one.
@@ -347,6 +361,7 @@ describe("Soko Bot billing", () => {
         expect.objectContaining({ organizationId: "org_1" }),
         expect.anything(),
       );
+      expectDebitOn(tx);
       expect(usageCreateMock).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ organizationId: "org_1" }),
@@ -543,7 +558,8 @@ describe("Soko Bot billing", () => {
         costUsdMicros: 1_000_000n,
       };
 
-      await recordSokoBotTurnUsage(input, transactionClient() as never);
+      const tx = transactionClient();
+      await recordSokoBotTurnUsage(input, tx as never);
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
         "mainnet",
         "user_2",
@@ -560,6 +576,7 @@ describe("Soko Bot billing", () => {
         }),
         expect.anything(),
       );
+      expectDebitOn(tx);
 
       vi.clearAllMocks();
       usageFindUniqueMock.mockResolvedValue(null);
@@ -601,6 +618,7 @@ describe("Soko Bot billing", () => {
       prepareConsumptionMock.mockResolvedValue([
         { bucketId: "bucket_project", amount: balance },
       ]);
+      const tx = transactionClient();
 
       const result = await recordSokoBotTurnUsage(
         {
@@ -609,10 +627,11 @@ describe("Soko Bot billing", () => {
           userId: null,
           costUsdMicros: 1_000_000n,
         },
-        transactionClient() as never,
+        tx as never,
       );
 
       expect(result).toMatchObject({ chargedCents: balance, shortfall: true });
+      expectDebitOn(tx);
       expect(balanceMock).toHaveBeenCalledWith(
         null,
         "org_1",
@@ -653,6 +672,7 @@ describe("Soko Bot billing", () => {
         expect.anything(),
         scope,
       );
+      expectDebitOn(opened.tx);
     });
 
     it("gates his turn on the balance of his Project", async () => {
