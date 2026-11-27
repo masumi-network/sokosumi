@@ -6779,14 +6779,12 @@ export const AdminPreprodPauseSchema = {
     properties: {
         paused: {
             type: 'boolean',
-            description: 'Whether Preprod is paused. Paused until an admin opens it, and when the read fails.'
+            description: 'Whether Preprod is paused. Paused until an admin opens it.'
         },
         generation: {
-            type: [
-                'integer',
-                'null'
-            ],
-            description: 'Preprod\'s generation number, raised by each wipe; 0 before the first. Null when the read failed.'
+            type: 'integer',
+            minimum: 0,
+            description: 'Preprod\'s generation number, raised by each wipe; 0 before the first.'
         },
         changes: {
             type: 'array',

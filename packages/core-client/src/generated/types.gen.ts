@@ -1630,13 +1630,13 @@ export type AdminRemoveMatchedChannelParticipant = {
 
 export type AdminPreprodPause = {
     /**
-     * Whether Preprod is paused. Paused until an admin opens it, and when the read fails.
+     * Whether Preprod is paused. Paused until an admin opens it.
      */
     paused: boolean;
     /**
-     * Preprod's generation number, raised by each wipe; 0 before the first. Null when the read failed.
+     * Preprod's generation number, raised by each wipe; 0 before the first.
      */
-    generation: number | null;
+    generation: number;
     /**
      * The 20 most recent pause changes, newest first
      */

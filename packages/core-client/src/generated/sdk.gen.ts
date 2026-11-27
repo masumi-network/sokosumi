@@ -485,7 +485,7 @@ export const removeAdminMatchedChannelParticipant = <ThrowOnError extends boolea
 });
 
 /**
- * Whether Preprod is paused, its generation number, and the 20 most recent pause changes (admin only).
+ * Whether Preprod is paused, its generation number, and the 20 most recent pause changes (admin only). A value that cannot be read or is not valid answers 500.
  */
 export const getAdminPreprodPause = <ThrowOnError extends boolean = false>(options?: Options<GetAdminPreprodPauseData, ThrowOnError>): RequestResult<GetAdminPreprodPauseResponses, GetAdminPreprodPauseErrors, ThrowOnError> => (options?.client ?? client).get<GetAdminPreprodPauseResponses, GetAdminPreprodPauseErrors, ThrowOnError>({
     responseTransformer: getAdminPreprodPauseResponseTransformer,
