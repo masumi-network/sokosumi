@@ -15,10 +15,7 @@ import {
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { digestJob } from "@/helpers/job-digest";
-import {
-  buildSokoBotReaderJobWhere,
-  buildSokoBotReaderTaskWhere,
-} from "@/helpers/task-visibility";
+import { buildSokoBotReaderJobWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { parseHireAgentInput } from "@/lib/soko-bot/decision-proposal";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
@@ -32,6 +29,23 @@ import { findHireableAgents } from "./agents";
 import { latestEventAt, repeatedPollRefusal } from "./delegated-poll";
 import { type RuntimeOperations } from "./operations";
 import { setTaskParent } from "./task-parent";
+
+/**
+ * Whether the Task's own Coworker turned it down: read through Core's Task
+ * scope (workspace, reader, archive rules), FAILED, assigned to a Coworker,
+ * and that Coworker set the latest FAILED. A Task a person, a bot or the
+ * system failed is not a decline.
+ */
+async function coworkerDeclined(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  taskId: string,
+): Promise<boolean> {
+  const task = await runtime.readTask(authorized, taskId);
+  if (task?.status !== "FAILED" || !task.assigneeCoworkerId) return false;
+  const failed = task.events.findLast((event) => event.status === "FAILED");
+  return failed?.author.coworkerId === task.assigneeCoworkerId;
+}
 
 export async function dispatchTasksTools(
   runtime: RuntimeOperations,
@@ -102,16 +116,7 @@ export async function dispatchTasksTools(
         comment: reply.comment,
         shared: !!authorized.reader.sharedScope,
         declined: getSokoBotVersion(authorized.turn.versionId).declineOptions
-          ? async () =>
-              (
-                await prisma.task.findFirst({
-                  where: {
-                    id: reply.taskId,
-                    ...buildSokoBotReaderTaskWhere(authorized.reader),
-                  },
-                  select: { status: true },
-                })
-              )?.status === "FAILED"
+          ? () => coworkerDeclined(runtime, authorized, reply.taskId)
           : undefined,
       });
       if (chaseRefusal) throw new SokoBotRuntimeValidationError(chaseRefusal);

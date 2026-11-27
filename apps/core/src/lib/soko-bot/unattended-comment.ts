@@ -56,6 +56,6 @@ export async function unattendedChaseRefusal(input: {
     return null;
   const audience = input.shared ? "the team in your shared room" : "your owner";
   if (await input.declined?.())
-    return `Not posted: this Task is FAILED, so asking its Coworker to take it up again repeats a request they turned down. Read their reason with get_task_status. If information you hold would fix it, reply with that information. If they declined or are busy, tell ${audience} what they said and offer options: another Coworker (find_coworkers), doing it yourself, or waiting until the date they gave with a check set for it (create_schedule with runAt).`;
+    return `Not posted: this Task's Coworker set it FAILED, so asking them to take it up again repeats a request they turned down. Read their reason with get_task_status. If information you hold would fix it, reply with that information. If they declined or are busy, tell ${audience} what they said and offer options: another Coworker (find_coworkers), doing it yourself, or waiting until the date they gave with a check set for it (create_schedule with runAt).`;
   return `Not posted: this comment chases people for a status update, and nobody asked you to. Read the Task with get_task_status and tell ${audience} what changed instead; drop the follow-up from memory once it is answered.`;
 }

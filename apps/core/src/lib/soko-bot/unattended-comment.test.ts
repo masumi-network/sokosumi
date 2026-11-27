@@ -62,7 +62,7 @@ describe("unattendedChaseRefusal", () => {
       shared: false,
       declined: async () => true,
     });
-    expect(refusal).toMatch(/this Task is FAILED/);
+    expect(refusal).toMatch(/Coworker set it FAILED/);
     expect(refusal).toMatch(/another Coworker \(find_coworkers\)/);
     expect(refusal).toMatch(/create_schedule with runAt/);
     expect(refusal).not.toMatch(/status update/);
