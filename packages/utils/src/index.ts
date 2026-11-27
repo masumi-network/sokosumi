@@ -2,9 +2,10 @@ export {
   CALENDAR_ACCESS_REVOKED_EVENT_NAME,
   CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsCapabilityResourceName,
-  makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
+  makeJobStatusChannelName,
+  makeMainnetJobsCapabilityResourceName,
   makeOrgPresenceChannelName,
   makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
@@ -407,6 +408,7 @@ export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
+export { NETWORK_QUERY_PARAM, withNetworkQuery } from "./network-link.js";
 export {
   NEWSLETTER_SOCIAL_NETWORKS,
   type NewsletterBlock,
@@ -549,6 +551,7 @@ export {
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   type SocialProviderWorkspace,
+  socialPostAcceptedFormats,
   socialPostFirstCommentLimit,
   socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
@@ -559,6 +562,7 @@ export {
   socialPostSupportsFirstComment,
   socialPostTextLength,
   socialPostTextLimit,
+  socialPostVideoOnlyProviders,
   socialProvidersForWorkspace,
   socialProviderUnavailableMessage,
   splitYouTubePostText,

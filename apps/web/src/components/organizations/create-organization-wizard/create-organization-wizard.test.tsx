@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -586,36 +587,9 @@ describe("CreateOrganizationWizard", () => {
     expect(screen.getByText("Brand.title")).toBeTruthy();
   });
 
-  it.each([
-    [
-      "offers sign in when the person is signed out",
-      { code: "UNAUTHENTICATED" },
-      "Errors.createFailed",
-      true,
-    ],
-    [
-      "shows Core's message at the organization limit",
-      {
-        code: "ORGANIZATION_LIMIT_REACHED",
-        message: "You have reached the maximum number of organizations",
-      },
-      "You have reached the maximum number of organizations",
-      false,
-    ],
-    [
-      "falls back to the generic message",
-      { code: "INTERNAL_SERVER_ERROR" },
-      "Errors.createFailed",
-      false,
-    ],
-  ])("%s", async (_label, error, message, offersSignIn) => {
-    createOrganizationWorkspaceActionMock.mockResolvedValue({
-      ok: false,
-      error,
-    });
+  async function submitDetails() {
     const user = userEvent.setup();
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
-
     await user.type(
       screen.getByPlaceholderText("Details.namePlaceholder"),
       "Acme",
@@ -625,22 +599,78 @@ describe("CreateOrganizationWizard", () => {
       "acme.com",
     );
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    return user;
+  }
+
+  it("offers sign in when the person is signed out", async () => {
+    createOrganizationWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error: { code: "UNAUTHENTICATED" },
+    });
+    await submitDetails();
 
     await waitFor(() => {
-      expect(toastErrorMock).toHaveBeenCalledOnce();
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Errors.createFailed",
+        expect.objectContaining({
+          action: expect.objectContaining({
+            label: "Errors.unauthorizedAction",
+          }),
+        }),
+      );
     });
-    expect(toastErrorMock).toHaveBeenCalledWith(
-      message,
-      ...(offersSignIn
-        ? [
-            expect.objectContaining({
-              action: expect.objectContaining({
-                label: "Errors.unauthorizedAction",
-              }),
-            }),
-          ]
-        : []),
-    );
     expect(onOrganizationReadyMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "shows Core's message at the organization limit",
+      {
+        code: "ORGANIZATION_LIMIT_REACHED",
+        message: "You have reached the maximum number of organizations",
+      },
+      "You have reached the maximum number of organizations",
+    ],
+    [
+      "falls back to the generic message",
+      { code: "INTERNAL_SERVER_ERROR" },
+      "Errors.createFailed",
+    ],
+  ])("%s in the dialog", async (_label, error, message) => {
+    createOrganizationWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error,
+    });
+    await submitDetails();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(screen.getByText("Details.title")).toBeTruthy();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(onOrganizationReadyMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A server action that throws reaches the browser as React's redacted error
+   * #441. The toast it raised was gone before anyone looked, and the dialog
+   * just sat there, so the error belongs in the dialog next to Continue.
+   */
+  it("shows a thrown create in the dialog and clears it on a retry", async () => {
+    expectConsole("error", "Failed to create organization");
+    createOrganizationWorkspaceActionMock
+      .mockRejectedValueOnce(new Error("Minified React error #441"))
+      .mockResolvedValueOnce({ ok: true, value: { organizationId: "org-1" } });
+    const user = await submitDetails();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Errors.createFailed",
+    );
+    const next = screen.getByRole("button", { name: /Nav.next/i });
+    expect(next).toBeEnabled();
+
+    await user.click(next);
+
+    expect(await screen.findByText("Logo.title")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledTimes(2);
   });
 });

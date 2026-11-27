@@ -1,4 +1,8 @@
-import { NotificationKind, SokosumiJobStatus } from "@sokosumi/core-client";
+import {
+  NotificationKind,
+  SokosumiJobStatus,
+  SokosumiNetwork,
+} from "@sokosumi/core-client";
 import { CHAT_ROOM_PINNED_MESSAGE_ACTIONS } from "@sokosumi/utils";
 import * as z from "zod";
 
@@ -6,6 +10,8 @@ import { TYPING_STATES } from "./room-typing-model";
 
 export const jobStatusDataSchema = z.object({
   jobId: z.string().min(1),
+  // Absent from a Core deployed before the event named its Agent.
+  agentId: z.string().optional(),
   jobStatus: z.enum(SokosumiJobStatus),
   jobStatusSettled: z.boolean(),
 });
@@ -42,6 +48,11 @@ export const notificationEventDataSchema = z.object({
    * True for an event published by a Core that only ever wrote rows.
    */
   created: z.boolean().default(true),
+  /**
+   * The Network of the Job the row points at. Null for a row that points at
+   * none, and for an event published by a Core that predates the field.
+   */
+  network: z.enum(SokosumiNetwork).nullable().default(null),
   /**
    * How many messages are waiting for the reader in this room.
    *

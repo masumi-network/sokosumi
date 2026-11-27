@@ -38,7 +38,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: (...args: unknown[]) => notificationFindManyMock(...args),
     },
     task: { findMany: (...args: unknown[]) => taskFindManyMock(...args) },
-    job: { findMany: (...args: unknown[]) => jobFindManyMock(...args) },
     vendorGrant: {
       findMany: (...args: unknown[]) => vendorGrantFindManyMock(...args),
     },
@@ -47,6 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
         coworkerWorkspaceAccessFindManyMock(...args),
     },
   },
+  networkPrisma: () => ({ job: { findMany: jobFindManyMock } }),
 }));
 
 describe("findNeedsActionNotificationIds", () => {
@@ -105,7 +105,10 @@ const FEED_OR = [
       ],
     },
   },
-];
+].map((branch) => ({
+  ...branch,
+  OR: [{ network: null }, { network: { not: "preprod" } }],
+}));
 
 describe("notificationFeedWhere", () => {
   it("lets a mention and a room message into the default in-app feed", () => {

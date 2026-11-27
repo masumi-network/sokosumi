@@ -1,4 +1,5 @@
 import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "../policy.js";
+import { WRITING_SKILLS } from "../writing-skills/index.js";
 import {
   CMO_PRODUCTION_TOOLS,
   cmoCompactProduction,
@@ -7,6 +8,7 @@ import { applyE1Skill } from "./e1-prompts.js";
 import { SKILL_INDEX, type SkillOccasion } from "./skill-index.js";
 import { SOKO_BOT_SKILLS } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
+import { sokoBotReadsPlaybooks } from "./v39-skills.js";
 
 /**
  * A narrower tool set some turns of a version get (cmo-v26's production run),
@@ -57,6 +59,53 @@ const NAMED_WITHOUT_OFFER: Readonly<Record<string, string>> = {
 };
 
 const CAPABILITIES: ReadonlySet<string> = new Set(SOKO_BOT_CAPABILITIES);
+
+/** Skill ids a text could name; one-word ids read as ordinary words. */
+const NAMEABLE_SKILL_IDS: readonly string[] = [
+  ...SOKO_BOT_SKILLS.map((skill) => skill.id),
+  ...WRITING_SKILLS.map((skill) => skill.id),
+].filter((id) => id.includes("-"));
+
+/**
+ * Skill names a text keeps although some versions cannot read them, each with
+ * why. read_skill answers an unknown id with the closest ones it has.
+ */
+const UNREADABLE_NAME_KNOWN: Readonly<Record<string, string>> = {
+  // cmo-v12 to cmo-v25 read cmo-seo-reports instead; the shared text is a
+  // prompt change, handed to Neon (2026-11-27).
+  "cmo-measurement:cmo-seo": "read_skill points to cmo-seo-reports",
+};
+
+/** Skills the version's own texts name that read_skill would refuse. */
+function unreadableSkillNames(version: SokoBotVersion): string[] {
+  const readable = new Set([
+    ...version.skills,
+    ...(version.profile === "cmo"
+      ? WRITING_SKILLS.map((skill) => skill.id)
+      : sokoBotReadsPlaybooks(version.skills)
+        ? WRITING_SKILLS.filter((skill) => skill.group === "playbooks").map(
+            (skill) => skill.id,
+          )
+        : []),
+  ]);
+  const texts: [string, string][] = [
+    ["system prompt", version.systemPrompt],
+    ...version.skills.map((id): [string, string] => {
+      const raw = SOKO_BOT_SKILLS.find((skill) => skill.id === id);
+      return [id, raw ? applyE1Skill(raw, version).content : ""];
+    }),
+  ];
+  const problems: string[] = [];
+  for (const [where, text] of texts)
+    for (const id of NAMEABLE_SKILL_IDS)
+      if (
+        !readable.has(id) &&
+        !(`${where}:${id}` in UNREADABLE_NAME_KNOWN) &&
+        new RegExp(`(?<![\\w-])${id}(?![\\w-])`).test(text)
+      )
+        problems.push(`${where} names skill ${id}, not in this version`);
+  return problems;
+}
 
 /** The tool names a skill text mentions. */
 function namedTools(content: string): string[] {
@@ -124,6 +173,7 @@ export function versionIntegrityProblems(
     if (!SOKO_BOT_SKILLS.some((skill) => skill.id === id))
       problems.push(`${id} is not a skill`);
   }
+  problems.push(...unreadableSkillNames(version));
   const onDemand = version.skillsOnDemand === true;
   problems.push(
     ...missingTools(

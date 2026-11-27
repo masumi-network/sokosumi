@@ -41,6 +41,7 @@ import {
   seoSerpSeriesSchema,
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
+import { seoRunDiffSchema } from "./project-seo-run-diff.schema";
 import { seoWorkspaceSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
@@ -69,6 +70,7 @@ import {
   seoUrlSchema,
 } from "./seo-page.schema";
 import { workspaceSiteEvidenceFields } from "./seo-site-evidence.schema";
+import { workspaceSiteSpeedFields } from "./seo-site-speed.schema";
 
 export {
   SEO_SEARCH_QUERY_ROW_LIMIT,
@@ -634,6 +636,8 @@ export const seoRunSchema = z
     seconds: z.union([z.number().int().nonnegative(), z.null()]),
     /** The SEO monitor whose scheduled Run made this result. Null for a one-off check. */
     monitorId: z.union([seoIdSchema, z.null()]).optional(),
+    /** What this check changed against the earlier comparable check. Absent for the first check of its kind. */
+    runDiff: seoRunDiffSchema.optional(),
   })
   .openapi("ProjectSeoRun");
 export const seoJobSchema = z
@@ -700,6 +704,7 @@ export const projectSeoWorkspaceSchema = z
     ...workspaceSiteEvidenceFields,
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    ...workspaceSiteSpeedFields,
     landingEngagementChange: seoLandingEngagementChange.optional(),
     articleDates: z.array(seoArticleDates).optional(),
     topicLaunches: z.array(seoTopicLaunch).optional(),

@@ -17,6 +17,7 @@ import { resolveStudioWebsiteLogo } from "@/lib/site-icon";
 import { readHomepage } from "@/lib/site-platform";
 import {
   type SaveStudioBrandLook,
+  studioBrandAssetsSchema,
   studioBrandKitSchema,
   studioBrandLookSchema,
   studioBrandLookStateSchema,
@@ -30,7 +31,7 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 const BRAND_BLOCK_MAX_CHARS = 1600;
 
 /** Bump when brand wrapping or the job's provider prompt guidance changes. */
-export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-21.1";
+export const STUDIO_PROMPT_ASSEMBLY_VERSION = "2026-11-27.1";
 
 export interface StudioBrand {
   designMd: string | null;
@@ -158,6 +159,7 @@ export async function readStudioBrandKit(projectId: string) {
   const project = await prisma.project.findUniqueOrThrow({
     where: { id: projectId },
     select: {
+      studioBrandAssets: true,
       logo: true,
       studioLogoPosition: true,
       studioBrandLook: true,
@@ -177,6 +179,7 @@ export async function readStudioBrandKit(projectId: string) {
       : null;
   return studioBrandKitSchema.parse({
     logo,
+    assets: studioBrandAssetsSchema.parse(project.studioBrandAssets ?? []),
     studioLogoPosition: logo ? (project.studioLogoPosition ?? null) : null,
     colors: customLook.data?.colors ?? look.colors,
     fonts: customLook.data?.fonts ?? look.fonts,

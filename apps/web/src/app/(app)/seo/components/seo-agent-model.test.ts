@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   SEO_QUERY_RETRY_MS,
   SEO_SEARCH_STALE_MS,
+  type SeoAgentStep,
+  seoActionHeadline,
   seoAgentBrief,
+  seoFixCheckState,
 } from "./seo-agent-model";
 import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 
@@ -239,5 +242,105 @@ it("uses a measured organic outcome to choose between comparable actions only fo
   expect(seoAgentBrief(workspace, synced).steps[0]).toEqual({
     kind: "action",
     action: a,
+  });
+});
+
+describe("seoActionHeadline", () => {
+  type Action = ProjectSeoWorkspace["actions"][number];
+  const action = (id: string, kind = "fix") => ({ id, kind }) as Action;
+  const steps: SeoAgentStep[] = [
+    { kind: "action", action: action("a") },
+    { kind: "strategy", count: 2, places: false },
+    { kind: "action", action: action("b") },
+    { kind: "action", action: action("c") },
+  ];
+
+  it("counts the fix rows of the list, not its other steps, split by impact worst first", () => {
+    const severity = { a: "minor", b: "major", c: "major" } as const;
+    expect(
+      seoActionHeadline(steps, (row) => severity[row.id as "a" | "b" | "c"]),
+    ).toEqual({
+      fixes: 3,
+      parts: [
+        { severity: "major", count: 2 },
+        { severity: "minor", count: 1 },
+      ],
+      suggestions: 0,
+    });
+  });
+
+  it("names no split when a fix has no issue, so the split never adds up to less than the count", () => {
+    expect(
+      seoActionHeadline(steps, (row) => (row.id === "a" ? null : "major")),
+    ).toEqual({ fixes: 3, parts: [], suggestions: 0 });
+  });
+
+  it("counts suggestions apart from fixes, so a suggestion with no issue keeps the split of the fixes", () => {
+    const ideas: SeoAgentStep[] = ["d", "e"].map((id) => ({
+      kind: "action",
+      action: action(id, "opportunity"),
+    }));
+    expect(
+      seoActionHeadline([...ideas, ...steps], (row) =>
+        row.kind === "opportunity" ? null : "major",
+      ),
+    ).toEqual({
+      fixes: 3,
+      parts: [{ severity: "major", count: 3 }],
+      suggestions: 2,
+    });
+    // No fix row: nothing to call a thing to fix.
+    expect(seoActionHeadline(ideas, () => null)).toEqual({
+      fixes: 0,
+      parts: [],
+      suggestions: 2,
+    });
+  });
+});
+
+describe("seoFixCheckState", () => {
+  type Workspace = Parameters<typeof seoFixCheckState>[1];
+  const newest = {
+    id: "newest",
+    kind: "page_check",
+    observedAt: new Date("2026-11-21T09:00:00Z"),
+  };
+  const older = {
+    id: "older",
+    kind: "audit_full",
+    observedAt: new Date("2026-11-03T09:00:00Z"),
+  };
+  const failedAt = new Date("2026-11-12T09:00:00Z");
+  const workspace = { observations: [newest, older] } as unknown as Workspace;
+  const fix = (
+    observationId: string,
+    lastCheckResult?: "failing" | "fixed",
+    kind: "fix" | "opportunity" = "fix",
+  ) =>
+    ({
+      observationId,
+      lastCheckResult,
+      ...(lastCheckResult && { lastCheckAt: failedAt }),
+      kind,
+    }) as Parameters<typeof seoFixCheckState>[0];
+
+  it("names a fix of an earlier check as failing in the check that found it, or not tested again", () => {
+    expect(seoFixCheckState(fix("older", "failing"), workspace)).toEqual({
+      state: "failing",
+      day: failedAt,
+    });
+    expect(seoFixCheckState(fix("older"), workspace)).toEqual({
+      state: "notTested",
+      day: older.observedAt,
+    });
+  });
+
+  it("says nothing for a fix of the newest check, a suggestion, or a fix a later check fixed", () => {
+    expect(seoFixCheckState(fix("newest", "failing"), workspace)).toBeNull();
+    expect(
+      seoFixCheckState(fix("older", undefined, "opportunity"), workspace),
+    ).toBeNull();
+    // A fix a later check fixed that still carries a Task stays in its place without a claim.
+    expect(seoFixCheckState(fix("older", "fixed"), workspace)).toBeNull();
   });
 });

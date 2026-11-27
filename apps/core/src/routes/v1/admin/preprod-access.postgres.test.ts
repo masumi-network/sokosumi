@@ -9,27 +9,19 @@ import "@hono/zod-openapi";
 
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { MemberRole } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { auth } from "@/lib/auth";
-import {
-  hashStoredOAuthToken,
-  OAUTH_ACCESS_TOKEN_PREFIX,
-} from "@/lib/auth-oauth-token-prefixes";
-import {
-  generateCoworkerApiKeyToken,
-  generateSokoBotApiKeyToken,
-  hashApiKey,
-} from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
 import { rolledBack } from "@/test/split-layout";
+import {
+  type Credential,
+  createAdminCredentials,
+} from "@/test-fixtures/admin-credentials";
 import {
   createCoreApp,
   createPasswordUser,
   ORIGIN,
-  sessionTokenCookie,
   signIn,
 } from "@/test-fixtures/core-session";
 
@@ -64,7 +56,6 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
-type Credential = { cookie: string } | { bearer: string };
 type Account = Awaited<ReturnType<typeof createPasswordUser>>;
 
 interface AccessBody {
@@ -84,8 +75,7 @@ describe.skipIf(!enabled)("Preprod access", () => {
   let app: ReturnType<typeof createCoreApp>;
   const userIds: string[] = [];
   const organizationIds: string[] = [];
-  let vendorId: string;
-  let oauthClientId: string;
+  let credentials: Awaited<ReturnType<typeof createAdminCredentials>>;
 
   let admin: Account;
   let adminCookie: string;
@@ -170,142 +160,24 @@ describe.skipIf(!enabled)("Preprod access", () => {
     ] as const;
   }
 
-  /** Starts an impersonation of `userId` from a session of the admin's own. */
-  async function impersonate(userId: string) {
-    const started = await app.request(`${ORIGIN}/v1/admin/impersonation`, {
-      method: "POST",
-      headers: {
-        origin: ORIGIN,
-        cookie: await signIn(app, admin.email),
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ userId, reason: "SOK-1: test" }),
-    });
-    expect(started.status).toBe(201);
-    return sessionTokenCookie(started);
-  }
-
   beforeAll(async () => {
     app = createCoreApp();
-    admin = await account("Ada Admin", "admin");
-    adminCookie = await signIn(app, admin.email);
-
-    const user = await account("Plain user");
-    refused["a user's session"] = { cookie: await signIn(app, user.email) };
-
-    const owner = await account("Organization owner");
-    const owned = await organization();
-    await prisma.member.create({
-      data: {
-        userId: owner.id,
-        organizationId: owned.id,
-        role: MemberRole.OWNER,
-      },
-    });
-    refused["an Organization owner's session"] = {
-      cookie: await signIn(app, owner.email),
-    };
-
-    const { key } = await auth.api.createApiKey({
-      body: { userId: admin.id, configId: "default", name: "Preprod access" },
-    });
-    refused["an admin's API key"] = { bearer: key };
-
-    oauthClientId = randomUUID();
-    const scopes = ["sokosumi:api"];
-    await prisma.oauthClient.create({
-      // First-party, so a guard that lets only first-party OAuth through fails.
-      data: { clientId: oauthClientId, scopes, skipConsent: true },
-    });
-    await prisma.oauthConsent.create({
-      data: { clientId: oauthClientId, userId: admin.id, scopes },
-    });
-    const oauthToken = OAUTH_ACCESS_TOKEN_PREFIX + randomUUID();
-    await prisma.oauthAccessToken.create({
-      data: {
-        clientId: oauthClientId,
-        userId: admin.id,
-        scopes,
-        expiresAt: new Date(Date.now() + 60 * 60_000),
-        token: hashStoredOAuthToken(oauthToken, OAUTH_ACCESS_TOKEN_PREFIX),
-      },
-    });
-    refused["an admin's OAuth token"] = { bearer: oauthToken };
-
-    const vendor = await prisma.vendor.create({
-      data: { name: "Preprod access", slug: `preprod-access-${randomUUID()}` },
-    });
-    vendorId = vendor.id;
-    const coworker = await prisma.coworker.create({
-      data: {
-        name: "Preprod access",
-        slug: `preprod-access-${randomUUID()}`,
-        vendorId,
-      },
-    });
-    const coworkerToken = generateCoworkerApiKeyToken();
-    await prisma.coworkerApiKey.create({
-      data: {
-        coworkerId: coworker.id,
-        keyHash: await hashApiKey(coworkerToken),
-        keyStart: coworkerToken.slice(0, 12),
-      },
-    });
-    refused["a Coworker key"] = { bearer: coworkerToken };
-
-    // The admin's own Soko Bot: it acts as its owner, and still is no person.
-    const workspace =
-      (await prisma.workspace.findFirst({
-        where: { userId: admin.id, organizationId: null },
-      })) ?? (await prisma.workspace.create({ data: { userId: admin.id } }));
-    const sokoBot = await prisma.sokoBot.create({
-      data: { userId: admin.id, workspaceId: workspace.id },
-    });
-    const sokoBotToken = generateSokoBotApiKeyToken();
-    await prisma.coworkerApiKey.create({
-      data: {
-        sokoBotId: sokoBot.id,
-        keyHash: await hashApiKey(sokoBotToken),
-        keyStart: sokoBotToken.slice(0, 12),
-      },
-    });
-    refused["a Soko Bot key of an admin"] = { bearer: sokoBotToken };
-
-    const impersonated = await account("Impersonated user");
-    refused["an impersonated session"] = {
-      cookie: await impersonate(impersonated.id),
-    };
-
-    // Core starts no impersonation of an admin, so the target is promoted
-    // after the start: the only way such a session can hold the admin role.
-    const promoted = await account("Promoted while impersonated");
-    const promotedCookie = await impersonate(promoted.id);
-    await prisma.user.update({
-      where: { id: promoted.id },
-      data: { role: "admin" },
-    });
-    refused["an impersonated session whose user is an admin"] = {
-      cookie: promotedCookie,
-    };
+    credentials = await createAdminCredentials(app, "preprod-access");
+    admin = credentials.admin;
+    adminCookie = credentials.adminCookie;
+    Object.assign(refused, credentials.refused);
   });
 
   afterAll(async () => {
     await prisma.preprodAccessChange.deleteMany({
       where: {
         OR: [
-          { operatorId: { in: userIds } },
+          { operatorId: { in: [...userIds, admin.id] } },
           { targetId: { in: [...userIds, ...organizationIds] } },
         ],
       },
     });
-    await prisma.apikey.deleteMany({ where: { referenceId: { in: userIds } } });
-    if (oauthClientId) {
-      await prisma.oauthClient.deleteMany({
-        where: { clientId: oauthClientId },
-      });
-    }
-    await prisma.coworker.deleteMany({ where: { vendorId } });
-    await prisma.vendor.deleteMany({ where: { id: vendorId } });
+    await credentials?.cleanup();
     await prisma.organization.deleteMany({
       where: { id: { in: organizationIds } },
     });

@@ -14,9 +14,14 @@ import {
   finalizedOnChainJobStatuses,
 } from "@sokosumi/database/types/job";
 import { APIError } from "better-auth/api";
-import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
+import {
+  findForeignChargeX402Payment,
+  findLiveAuthorizationX402Payment,
+  findUnresolvedX402Payment,
+} from "@/helpers/user-deletion-network";
 import { isLastWorkspace } from "@/helpers/workspace-access";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 export const USER_DELETION_BLOCKER_CODES = [
   "RUNNING_SUBSCRIPTION",
@@ -188,13 +193,28 @@ async function hasRunningPaidSubscription(
   return subscription != null;
 }
 
+/** The first row that `read` finds on one of the Networks, in their order. */
+async function onAnyNetwork<Row>(
+  scopes: readonly NetworkScope[],
+  read: (scope: NetworkScope) => Promise<Row | null | undefined>,
+): Promise<Row | null> {
+  for (const scope of scopes) {
+    const row = await read(scope);
+    if (row) return row;
+  }
+  return null;
+}
+
 /**
  * Current User-deletion blockers. Empty `blockers` means the existing wipe may
- * proceed. Order is throw-priority for submit-only clients.
+ * proceed. Order is throw-priority for submit-only clients. `scopes` holds
+ * one scope for every Network that is on: a Job or a payment blocks on
+ * whichever Network it is.
  */
 export async function evaluateUserDeletion(
   userId: string,
   prisma: Prisma.TransactionClient,
+  scopes: readonly NetworkScope[],
 ): Promise<UserDeletionEvaluation> {
   const blockers: UserDeletionBlocker[] = [];
   const idSelect = { id: true } as const;
@@ -217,34 +237,42 @@ export async function evaluateUserDeletion(
       where: lastVendorAdminBlockerWhere(userId),
       select: { id: true },
     }),
-    prisma.job.findFirst({
-      where: inFlightJobWhere({ ownerId: userId }),
-      select: idSelect,
-    }),
-    prisma.job.findFirst({
-      where: unsettledOnChainJobWhere({ ownerId: userId }),
-      select: idSelect,
-    }),
+    onAnyNetwork(scopes, ({ networkDb }) =>
+      networkDb.job.findFirst({
+        where: inFlightJobWhere({ ownerId: userId }),
+        select: idSelect,
+      }),
+    ),
+    onAnyNetwork(scopes, ({ networkDb }) =>
+      networkDb.job.findFirst({
+        where: unsettledOnChainJobWhere({ ownerId: userId }),
+        select: idSelect,
+      }),
+    ),
     prisma.task.findFirst({
       where: inFlightTaskWhere({ ownerId: userId }),
       select: idSelect,
     }),
-    prisma.taskPaymentClaim.findFirst({
-      where: {
-        status: TaskPaymentClaimStatus.PENDING,
-        reviewRequiredAt: { not: null },
-        transaction: { userId },
-      },
-      select: { id: true, reviewRequiredAt: true },
-    }),
-    prisma.taskPaymentClaim.findFirst({
-      where: {
-        status: TaskPaymentClaimStatus.PENDING,
-        reviewRequiredAt: null,
-        transaction: { userId },
-      },
-      select: { id: true },
-    }),
+    onAnyNetwork(scopes, ({ networkDb }) =>
+      networkDb.taskPaymentClaim.findFirst({
+        where: {
+          status: TaskPaymentClaimStatus.PENDING,
+          reviewRequiredAt: { not: null },
+          transaction: { userId },
+        },
+        select: { id: true, reviewRequiredAt: true },
+      }),
+    ),
+    onAnyNetwork(scopes, ({ networkDb }) =>
+      networkDb.taskPaymentClaim.findFirst({
+        where: {
+          status: TaskPaymentClaimStatus.PENDING,
+          reviewRequiredAt: null,
+          transaction: { userId },
+        },
+        select: { id: true },
+      }),
+    ),
   ]);
 
   if (runningSubscription) {
@@ -280,24 +308,16 @@ export async function evaluateUserDeletion(
     blockers.push("TASK_PAYMENT_CLAIM_PENDING");
   }
 
-  const x402RestrictBranches = {
-    OR: [
-      { transaction: { userId } },
-      { refundTransaction: { userId } },
-      { task: { ownerId: userId } },
-    ],
-  };
-
   // Unlocked preview of the same unresolved-status guard the wipe re-checks
   // under lock. PENDING and any future enum member share this predicate so
   // GET /deletion cannot advertise a wipe that prepareTasks will 400.
-  const unresolvedX402Payment = await prisma.taskX402Payment.findFirst({
-    where: {
-      status: { notIn: [...SWEEPABLE_X402_STATUSES] },
-      ...x402RestrictBranches,
-    },
-    select: { id: true, status: true },
-  });
+  // The payment reads follow a Task across the two sides, so they are the
+  // wipe's own statements, in raw SQL.
+  const unresolvedX402Payment = await onAnyNetwork(
+    scopes,
+    ({ networkDb, network }) =>
+      findUnresolvedX402Payment(networkDb, network, userId),
+  );
   const pendingX402Payment =
     unresolvedX402Payment?.status === TaskX402PaymentStatus.PENDING
       ? { id: unresolvedX402Payment.id }
@@ -316,42 +336,20 @@ export async function evaluateUserDeletion(
     blockers.push("TASK_X402_PAYMENT_UNRESOLVED");
   }
 
-  const liveAuthorizationX402Payment = await prisma.taskX402Payment.findFirst({
-    where: {
-      xPaymentHeader: { not: null },
-      AND: [
-        {
-          OR: [{ validBefore: null }, { validBefore: { gt: new Date() } }],
-        },
-        x402RestrictBranches,
-      ],
-    },
-    select: { id: true },
-  });
+  const liveAuthorizationX402Payment = await onAnyNetwork(
+    scopes,
+    ({ networkDb, network }) =>
+      findLiveAuthorizationX402Payment(networkDb, network, userId, new Date()),
+  );
   if (liveAuthorizationX402Payment) {
     blockers.push("TASK_X402_PAYMENT_AUTHORIZATION_LIVE");
   }
 
-  const foreignChargeRow = await prisma.taskX402Payment.findFirst({
-    where: {
-      status: { in: [...SWEEPABLE_X402_STATUSES] },
-      transaction: { userId: { not: userId } },
-      OR: [{ refundTransaction: { userId } }, { task: { ownerId: userId } }],
-    },
-    select: {
-      id: true,
-      taskId: true,
-      transaction: { select: { userId: true } },
-    },
-  });
-  const foreignChargePayment =
-    foreignChargeRow?.transaction.userId != null
-      ? {
-          id: foreignChargeRow.id,
-          taskId: foreignChargeRow.taskId,
-          chargedUserId: foreignChargeRow.transaction.userId,
-        }
-      : null;
+  const foreignChargePayment = await onAnyNetwork(
+    scopes,
+    ({ networkDb, network }) =>
+      findForeignChargeX402Payment(networkDb, network, userId),
+  );
   if (foreignChargePayment) {
     blockers.push("TASK_X402_PAYMENT_BILLING_OWNER_MISMATCH");
   }

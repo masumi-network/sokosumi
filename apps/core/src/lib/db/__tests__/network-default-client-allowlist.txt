@@ -5,7 +5,6 @@ apps/core/src/helpers/admin-agent.ts
 apps/core/src/helpers/agent-rating.ts
 apps/core/src/helpers/agent.ts
 apps/core/src/helpers/billing-notifications.ts
-apps/core/src/helpers/calendar-erasure.ts
 apps/core/src/helpers/compensating-refund.ts
 apps/core/src/helpers/coworker-task-receipt.ts
 apps/core/src/helpers/cuso-low-credit-notification.ts
@@ -13,7 +12,6 @@ apps/core/src/helpers/cuso-project-credits.ts
 apps/core/src/helpers/deletion-evaluate.ts
 apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
-apps/core/src/helpers/notification-feed.ts
 apps/core/src/helpers/project-needs-attention.ts
 apps/core/src/helpers/project-stats.ts
 apps/core/src/lib/seo/chat-billing.ts
@@ -34,7 +32,6 @@ apps/core/src/routes/v1/agents/[id]/get.ts
 apps/core/src/routes/v1/agents/[id]/input-schema/get.ts
 apps/core/src/routes/v1/agents/[id]/reviews/get.ts
 apps/core/src/routes/v1/agents/[id]/reviews/me/get.ts
-apps/core/src/routes/v1/agents/get.ts
 apps/core/src/routes/v1/categories/get.ts
 apps/core/src/routes/v1/coworkers/me/usage/post.ts
 apps/core/src/routes/v1/credit-costs/[id]/delete.ts

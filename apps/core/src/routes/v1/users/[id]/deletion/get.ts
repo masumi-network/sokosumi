@@ -4,8 +4,10 @@ import { evaluateUserDeletion } from "@/helpers/deletion-evaluate";
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { networksThatAreOn } from "@/lib/network";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -60,7 +62,12 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       throw forbidden("You can only evaluate your own account deletion");
     }
 
-    const evaluation = await evaluateUserDeletion(resolvedUserId, prisma);
+    // An account lives on every Network that is on, whichever the request names.
+    const evaluation = await evaluateUserDeletion(
+      resolvedUserId,
+      prisma,
+      networksThatAreOn().map(createNetworkScope),
+    );
     return ok(
       c,
       userDeletionEvaluationSchema.parse({ blockers: evaluation.blockers }),

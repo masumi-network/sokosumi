@@ -94,6 +94,24 @@ describe("createNetworkScope", () => {
     expect(callback).toHaveBeenCalledExactlyOnceWith(tx);
   });
 
+  it("reads a batch in one transaction on the Network's client", async () => {
+    const { createNetworkScope } = await import("./network-scope");
+    const $transaction = vi.fn().mockResolvedValue(["rows", 2]);
+    const client = { $transaction, tag: { findMany: vi.fn(() => "find") } };
+    networkPrisma.mockReturnValue(client);
+
+    const result = await createNetworkScope("mainnet").netBatch(
+      (db) => [db.tag.findMany()],
+      Prisma.TransactionIsolationLevel.RepeatableRead,
+    );
+
+    expect(result).toEqual(["rows", 2]);
+    expect(networkPrisma).toHaveBeenCalledExactlyOnceWith("mainnet");
+    expect($transaction).toHaveBeenCalledExactlyOnceWith(["find"], {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+  });
+
   it("refuses Preprod while Preprod is off, and an unknown Network", async () => {
     const { createNetworkScope } = await import("./network-scope");
 
@@ -102,6 +120,62 @@ describe("createNetworkScope", () => {
       "Unknown Network",
     );
     expect(networkPrisma).not.toHaveBeenCalled();
+  });
+});
+
+describe("assertMainnetScope", () => {
+  it("passes Mainnet's scope and throws for any other", async () => {
+    const {
+      assertMainnetScope,
+      createNetworkScope,
+      createRefusedNetworkScope,
+    } = await import("./network-scope");
+    const refusal = new Error("refused");
+
+    expect(() =>
+      assertMainnetScope(createNetworkScope("mainnet")),
+    ).not.toThrow();
+    expect(() =>
+      assertMainnetScope({ network: "preprod" } as NetworkScope),
+    ).toThrow("Expected the Mainnet scope, got preprod's");
+    expect(() =>
+      assertMainnetScope(createRefusedNetworkScope(refusal)),
+    ).toThrow(refusal);
+  });
+});
+
+describe("createRefusedNetworkScope", () => {
+  it("throws the refusal on every Network member and serves the shared side", async () => {
+    const { createRefusedNetworkScope } = await import("./network-scope");
+    const refusal = new Error("refused");
+
+    const scope = createRefusedNetworkScope(refusal);
+
+    expect(() => scope.network).toThrow(refusal);
+    expect(() => scope.networkDb).toThrow(refusal);
+    expect(() => scope.networkTable("Job")).toThrow(refusal);
+    await expect(
+      scope.netTransaction(async () => "ran", "conflict"),
+    ).rejects.toBe(refusal);
+    await expect(scope.netBatch(() => [])).rejects.toBe(refusal);
+    expect(scope.sharedDb).toBe(clients.shared);
+    expect(networkPrisma).not.toHaveBeenCalled();
+  });
+
+  it("opens a shared transaction on the shared client", async () => {
+    const { createRefusedNetworkScope } = await import("./network-scope");
+    const $transaction = vi.fn((run: (tx: unknown) => unknown) => run("tx"));
+    Object.assign(clients.shared, { $transaction });
+    onTestFinished(() => {
+      Reflect.deleteProperty(clients.shared, "$transaction");
+    });
+
+    const result = await createRefusedNetworkScope(
+      new Error("refused"),
+    ).sharedTransaction(async (tx) => `ran on ${String(tx)}`, "conflict");
+
+    expect(result).toBe("ran on tx");
+    expect($transaction).toHaveBeenCalledOnce();
   });
 });
 

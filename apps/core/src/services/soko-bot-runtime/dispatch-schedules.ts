@@ -141,7 +141,7 @@ export async function dispatchSchedulesTools(
           } = authorized.turn;
           const scope = { userId, workspaceId, sokoBotId };
           let schedule:
-            | Omit<SokoBotSchedule, "network">
+            | Omit<SokoBotSchedule, "network" | "preprodGeneration">
             | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
           if (input.capability === "create_schedule") {
             const {
@@ -173,7 +173,11 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
-            const { network: _network, ...created } = row;
+            const {
+              network: _network,
+              preprodGeneration: _generation,
+              ...created
+            } = row;
             schedule = created;
           } else if (input.capability === "update_schedule") {
             const {
@@ -215,7 +219,11 @@ export async function dispatchSchedulesTools(
               },
               tx,
             );
-            const { network: _network, ...updated } = row;
+            const {
+              network: _network,
+              preprodGeneration: _generation,
+              ...updated
+            } = row;
             schedule = updated;
           } else {
             schedule = await deleteSokoBotSchedule(

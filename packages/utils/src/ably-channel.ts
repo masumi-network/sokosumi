@@ -61,20 +61,39 @@ function idAfterPrefix(channelName: string, prefix: string): string | null {
   return id.length > 0 ? id : null;
 }
 
-export function makeAgentJobsChannelName(
-  agentId: string,
+/**
+ * The Job status channel of one user in one Workspace on one Network. The
+ * Network is its own segment after the scope: it is the Job's Network, not
+ * the deployment's `NETWORK` the scope names outside production.
+ */
+export function makeJobStatusChannelName(
+  network: "mainnet" | "preprod",
+  workspaceId: string,
   userId: string,
   environment: RealtimeChannelEnvironment,
 ): string {
   return scopeChannelName(
-    `agent_jobs:agent_${agentId}:user_${userId}`,
+    `agent_jobs:${network}:workspace_${workspaceId}:user_${userId}`,
     environment,
   );
 }
 
 /**
- * Token capability resource covering every agent's jobs channel for one user:
- * the agent id sits in the middle segment, so the grant is a wildcard there.
+ * Token capability resource covering one user's Mainnet Job status channel in
+ * every Workspace. Preprod has no such resource: its channels are granted one
+ * by one, per Workspace with access.
+ */
+export function makeMainnetJobsCapabilityResourceName(
+  userId: string,
+  environment: RealtimeChannelEnvironment,
+): string {
+  return scopeChannelName(`agent_jobs:mainnet:*:user_${userId}`, environment);
+}
+
+/**
+ * Token capability resource of the Job channel names from before they named
+ * the Network (`agent_jobs:agent_{id}:user_{id}`). Nothing is published on
+ * them; the grant only keeps tabs opened before the rename attached.
  */
 export function makeAgentJobsCapabilityResourceName(
   userId: string,

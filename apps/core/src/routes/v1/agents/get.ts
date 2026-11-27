@@ -41,8 +41,8 @@ import {
   getX402ReadySources,
   hasValidX402DiscoveryUrl,
 } from "@/helpers/x402-readiness";
-import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, tryUseLiveLogger } from "@/lib/evlog";
+import { publicRequestNetworkScope } from "@/middleware/network-scope";
 import { agentListSchema } from "@/schemas/agent.schema";
 import {
   cursorPaginationMetaSchema,
@@ -317,6 +317,9 @@ const route = createRoute({
       },
       agentsListPaginationMetaSchema,
     ),
+    403: jsonErrorResponse(
+      "Forbidden. Only for Preprod (`X-Sokosumi-Network: preprod`, or a Preprod API key) or a key the header contradicts. Branch on `kind`: preprod_off (Preprod is switched off), preprod_access_required (an anonymous caller, a Coworker or Soko Bot key, or a person without Preprod access in the workspace) or api_key_network_mismatch (an API key of the other Network than the header names)",
+    ),
     422: jsonErrorResponse("Unprocessable Entity"),
   },
 });
@@ -330,12 +333,20 @@ export default function mount(app: OpenAPIHono) {
     const includeCardano = kinds.includes("cardano");
     const includeX402 = kinds.includes("x402");
 
+    // Public router: the route makes its own scope, refused on first use
+    // of Preprod without access.
+    const scope = await publicRequestNetworkScope(c);
     const [creditCosts, cardanoV2ReadySources, readySources] =
       await Promise.all([
-        prisma.creditCost.findMany(),
-        includeCardano ? getCardanoV2ReadySources(prisma) : Promise.resolve([]),
-        includeX402 ? getX402ReadySources(prisma) : Promise.resolve([]),
+        scope.networkDb.creditCost.findMany(),
+        includeCardano
+          ? getCardanoV2ReadySources(scope.sharedDb, scope.network)
+          : Promise.resolve([]),
+        includeX402
+          ? getX402ReadySources(scope.sharedDb, scope.network)
+          : Promise.resolve([]),
       ]);
+    // Masumi configuration per Network is ticket 22.
     const network = getEnv().NETWORK;
 
     const clauses: Prisma.AgentWhereInput[] = [];
@@ -356,9 +367,9 @@ export default function mount(app: OpenAPIHono) {
       clauses.length === 1 ? clauses[0] : { OR: clauses };
 
     const takePlusOne = take + 1;
-    const [agents, count] = await prisma.$transaction(
-      [
-        prisma.agent.findMany({
+    const [agents, count] = await scope.netBatch(
+      (db) => [
+        db.agent.findMany({
           where,
           take: takePlusOne,
           ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -370,9 +381,9 @@ export default function mount(app: OpenAPIHono) {
             ...(includeX402 ? X402_PAYMENT_SOURCES_INCLUDE : {}),
           },
         }),
-        prisma.agent.count({ where }),
+        db.agent.count({ where }),
       ],
-      AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+      AGENT_PRICING_READ_TRANSACTION_OPTIONS.isolationLevel,
     );
 
     const paginationRows = agents.slice(0, take);
@@ -380,7 +391,7 @@ export default function mount(app: OpenAPIHono) {
       ? paginationRows.filter((agent) => agent.type === AgentEntryType.STANDARD)
       : [];
     const cardanoSummaries = includeCardano
-      ? await buildAgentSummaries(cardanoRows, creditCosts, prisma)
+      ? await buildAgentSummaries(cardanoRows, creditCosts, scope.networkDb)
       : [];
     const cardanoById = new Map(
       cardanoSummaries.map((summary) => [summary.id, summary]),

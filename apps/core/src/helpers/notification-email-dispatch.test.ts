@@ -602,6 +602,7 @@ describe("dispatchNotificationEmail", () => {
         userId: "user_1",
         kind: NotificationKind.CHAT,
         referenceId: "room_1",
+        network: null,
         isRead: false,
         emailId: { not: null },
         id: { not: "notification_1" },

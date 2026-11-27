@@ -48,6 +48,9 @@ describe("read_skill", () => {
     await expect(
       readSkill(authorized("v39"), { skill: "linkedin" }),
     ).rejects.toThrow(/No skill "linkedin"/);
+    await expect(
+      readSkill(authorized("v39"), { skill: "cmo-launch-plan" }),
+    ).rejects.toThrow(/Closest: [^.]*\blaunch-plan\b/);
     resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("v37"));
     await expect(
       readSkill(authorized("v37"), { skill: "landing-page" }),
@@ -72,6 +75,19 @@ describe("read_skill", () => {
     expect(writing.skill).toBe("linkedin");
     expect(isSkillRead("read_skill")).toBe(true);
     expect(isSkillRead("read_calendar")).toBe(false);
+  });
+
+  it("answers an unknown id with the closest ids and every id it can read", async () => {
+    resolveSokoBotVersion.mockResolvedValue(getSokoBotVersion("cmo-v24"));
+    const unknown = readSkill(authorized("cmo-v24"), {
+      skill: "cmo-launch-plan",
+    });
+    await expect(unknown).rejects.toThrow(
+      /^No skill "cmo-launch-plan"\. Closest: [^.]*\blaunch-plan\b.*Your skills: .*cmo-strategy-v22.*Writing skills, read the same way:/,
+    );
+    await expect(
+      readSkill(authorized("cmo-v24"), { skill: "cmo-seo" }),
+    ).rejects.toThrow(/Closest: [^.]*\bcmo-seo-reports/);
   });
 
   it("refuses a skill of another version", async () => {

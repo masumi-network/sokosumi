@@ -75,7 +75,29 @@ export async function readSkill(
       ? readWritingSkill(id)
       : null;
   if (writing) return writing;
+  const writingIds =
+    version.profile === "cmo"
+      ? WRITING_SKILLS.map((skill) => skill.id)
+      : sokoBotReadsPlaybooks(version.skills)
+        ? WRITING_SKILLS.filter((skill) => skill.group === "playbooks").map(
+            (skill) => skill.id,
+          )
+        : [];
+  const closest = closestSkillIds(id, [...version.skills, ...writingIds]);
   throw new SokoBotRuntimeValidationError(
-    `No skill "${id}". Your skills: ${version.skills.join(", ")}.`,
+    `No skill "${id}". ${closest.length ? `Closest: ${closest.join(", ")}. ` : ""}Your skills: ${version.skills.join(", ")}.${writingIds.length ? ` Writing skills, read the same way: ${writingIds.join(", ")}.` : ""}`,
   );
+}
+
+/** Known ids that share a word with an unknown one, such as `launch`. */
+function closestSkillIds(id: string, known: readonly string[]): string[] {
+  const words = new Set(
+    id
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length >= 3 && word !== "cmo"),
+  );
+  return known
+    .filter((candidate) => candidate.split("-").some((word) => words.has(word)))
+    .slice(0, 3);
 }
