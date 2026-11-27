@@ -95,6 +95,25 @@ describe("DocumentViewer", () => {
     expect(actionRow).toContainElement(openInNewTab);
   });
 
+  it("puts a caller's download control in place of the Download link", () => {
+    render(
+      <DocumentViewer
+        open
+        onOpenChange={vi.fn()}
+        url="https://blob.example.com/notes.pdf"
+        fileName="notes.pdf"
+        kind="pdf"
+        download={<button type="button">Download as</button>}
+      />,
+    );
+
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(close.parentElement).toContainElement(
+      screen.getByRole("button", { name: "Download as" }),
+    );
+    expect(screen.queryByRole("link", { name: "Download" })).toBeNull();
+  });
+
   describe("PDF embed", () => {
     const originalFetch = global.fetch;
     const originalCreateObjectURL = URL.createObjectURL;

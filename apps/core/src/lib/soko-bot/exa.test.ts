@@ -21,6 +21,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("searchExa in an eval lane", () => {
+  it("answers from the eval world's pages, free and without calling Exa", async () => {
+    const { runInEvalWorld } = await import("@/lib/evals/eval-world-context");
+    const found = await runInEvalWorld("ws-eval", () =>
+      searchExa({ query: "cal.com pricing teams plan", numResults: 3 }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(found.costUsd).toBe(0);
+    expect(found.results[0]).toMatchObject({
+      url: "https://cal.com/pricing",
+      title: "Pricing | Cal.com",
+    });
+  });
+});
+
 describe("searchExa", () => {
   it("asks for passages, drops dates on company searches and reads the company", async () => {
     fetchMock.mockResolvedValueOnce(

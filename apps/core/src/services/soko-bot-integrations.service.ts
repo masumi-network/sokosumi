@@ -18,6 +18,7 @@ import {
   text as str,
 } from "@/lib/contacts/capture-provider";
 import prisma from "@/lib/db/prisma";
+import { evalWorldWorkspace } from "@/lib/evals/eval-world-context";
 import { createCoreLogger, logCoreWarning, recordCoreError } from "@/lib/evlog";
 import {
   invitationAddresses,
@@ -113,6 +114,9 @@ export async function searchSokoBotIntegrationCatalog(
   query: string,
   limit = 20,
 ): Promise<SokoBotIntegrationCatalogEntry[]> {
+  // An eval lane's turn lists the fixed curated toolkits: never the live
+  // Composio catalog, and never the shared cache it fills.
+  if (evalWorldWorkspace()) return curatedCatalog(query, limit);
   if (!catalogCache || Date.now() - catalogCache.at > CATALOG_TTL_MS) {
     const entries = await loadCatalog();
     if (!entries) return curatedCatalog(query, limit);
