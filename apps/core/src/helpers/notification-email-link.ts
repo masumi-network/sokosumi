@@ -1,11 +1,13 @@
-import type { NotificationKind } from "@sokosumi/database";
+import type { Notification, NotificationKind } from "@sokosumi/database";
 import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   taskNotificationHref,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  withNetworkQuery,
 } from "@sokosumi/utils";
 
 import { getWebAppBaseUrl } from "@/config/env";
+import { notificationNetwork } from "@/helpers/notification-item";
 
 /** What the link needs to know about the notification it opens. */
 export interface NotificationEmailLinkInput {
@@ -13,6 +15,7 @@ export interface NotificationEmailLinkInput {
   referenceId: string;
   messageKey: string;
   metadata?: Record<string, unknown> | null;
+  network?: Notification["network"];
 }
 
 /**
@@ -84,6 +87,12 @@ export function notificationEmailLink(
 
     case "BILLING":
       return `${base}/billing?tab=credits`;
+
+    case "JOB":
+      return withNetworkQuery(
+        `${base}/`,
+        notificationNetwork({ network: input.network ?? null }),
+      );
 
     default:
       return `${base}/`;
