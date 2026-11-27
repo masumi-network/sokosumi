@@ -390,6 +390,86 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
     });
   });
 
+  describe("a waiting result", () => {
+    const CONTROL = `${SITE}/control`;
+    // 23:00 on 2026-11-30 and 00:00 on 2026-12-01 in Pacific time.
+    const DAY_BEFORE = new Date("2026-12-01T07:00:00.000Z");
+    const RETRY_DAY = new Date("2026-12-01T08:00:00.000Z");
+
+    /** A change whose worker waits until 2026-12-01, with CONTROL as its comparison page. */
+    async function waitingChange() {
+      // Five pages outrank the control page: only the pin keeps it a candidate.
+      for (const page of ["a", "b", "c", "d", "e"])
+        traffic.set(`${SITE}/${page}`, flat(30));
+      traffic.set(CONTROL, flat(10));
+      const change = await finalChange();
+      await prepareSeoImpactInputs(tick, NOW);
+      const claim = (await claimSeoImpact(NOW))!;
+      await recordSeoImpactVerdict(
+        claim.claimId,
+        {
+          ...resultFor(claim.input, "waiting"),
+          comparison: { ...fixture.result.comparison, pageUrl: CONTROL },
+        },
+        NOW,
+      );
+      return change;
+    }
+
+    it("is read again on its retry day, with its comparison page pinned", async () => {
+      const change = await waitingChange();
+
+      expect(await prepareSeoImpactInputs(tick, DAY_BEFORE)).toMatchObject({
+        prepared: 0,
+      });
+      expect((await rowOf(change.id)).state).toBe("waiting_retry");
+      expect(await prepareSeoImpactInputs(tick, RETRY_DAY)).toMatchObject({
+        prepared: 1,
+        failed: 0,
+      });
+      expect(await rowOf(change.id)).toMatchObject({
+        state: "ready",
+        claimId: null,
+        attempts: 0,
+      });
+      const claim = (await claimSeoImpact(RETRY_DAY))!;
+      expect(claim.input).toMatchObject({
+        impactId: change.id,
+        readAt: RETRY_DAY.toISOString(),
+        pin: { comparisonPage: CONTROL },
+      });
+      expect(claim.input.candidates.map((c) => c.pageUrl)).toContain(CONTROL);
+      expect(claim.input.candidates).toHaveLength(5);
+
+      await recordSeoImpactVerdict(
+        claim.claimId,
+        resultFor(claim.input),
+        RETRY_DAY,
+      );
+      expect(await rowOf(change.id)).toMatchObject({
+        state: "measured",
+        waits: 1,
+        verdictAt: RETRY_DAY,
+      });
+    });
+
+    it("drops the pin of a comparison page that has a tracked change since", async () => {
+      const change = await waitingChange();
+      await finalChange({ pageUrl: CONTROL });
+      await prisma.projectSeoImpactVerdict.updateMany({
+        where: { projectId, pageUrl: CONTROL },
+        data: { state: "measured" },
+      });
+
+      await prepareSeoImpactInputs(tick, RETRY_DAY);
+      const claim = (await claimSeoImpact(RETRY_DAY))!;
+      expect(claim.input).toMatchObject({ impactId: change.id, pin: null });
+      expect(claim.input.candidates.map((c) => c.pageUrl)).not.toContain(
+        CONTROL,
+      );
+    });
+  });
+
   it.each(["change not confirmed", "not crawled after change"])(
     "measures a change on the final state %s",
     async (state) => {
