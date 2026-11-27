@@ -80,9 +80,12 @@ export async function checkProjectDeletion(
       // its raw error; the refusal stays, readable.
       throw createError({
         code: "PROJECT_DELETION_SOKO_BOT_HIRED_JOB",
-        message: `A Job hired by the Project's Soko Bot blocks deleting Project ${projectId}`,
-        why: `Job ${job.id} on ${network} names the Soko Bot as its creator`,
+        message:
+          "A Job hired by the Project's Soko Bot blocks deleting the Project",
+        why: "A Job names one of the Project's Soko Bots as its creator",
         fix: "Keep the Project, or remove the Job's creator link by hand first",
+        // Ids only in id-named fields: redaction masks them anywhere else.
+        data: { projectId, jobId: job.id, network },
       });
     }
   }
