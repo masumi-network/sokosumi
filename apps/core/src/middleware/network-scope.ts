@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { isPreprodOn, NETWORKS, type Network } from "@/lib/network";
+import { USER_API_KEY_PREFIXES } from "@/lib/user-api-key";
 
 import {
   type AuthenticationContext,
@@ -25,6 +26,12 @@ export const NETWORK_HEADER = "X-Sokosumi-Network";
 /** The context key of the Network the request names, once parsed. */
 const PARSED_NETWORK = "requestNetwork";
 
+interface NamedNetwork {
+  network: Network;
+  /** Whether the request sent the header: without it the Network is Mainnet. */
+  sent: boolean;
+}
+
 export interface NetworkScopeVariables {
   networkScope: NetworkScope;
 }
@@ -35,8 +42,12 @@ export interface NetworkScopeVariables {
  * fallback to Mainnet.
  */
 export function requestNetwork(c: Context): Network {
+  return namedNetwork(c).network;
+}
+
+function namedNetwork(c: Context): NamedNetwork {
   // Parsed once per request, by the first caller (`requestNetworkMiddleware`).
-  const parsed: Network | undefined = c.get(PARSED_NETWORK);
+  const parsed: NamedNetwork | undefined = c.get(PARSED_NETWORK);
   if (parsed) return parsed;
   const value = c.req.header(NETWORK_HEADER);
   const network =
@@ -49,8 +60,9 @@ export function requestNetwork(c: Context): Network {
       { kind: CORE_API_ERROR_KINDS.NETWORK_UNKNOWN },
     );
   }
-  c.set(PARSED_NETWORK, network);
-  return network;
+  const named = { network, sent: value !== undefined };
+  c.set(PARSED_NETWORK, named);
+  return named;
 }
 
 /**
@@ -64,18 +76,25 @@ export const requestNetworkMiddleware = createMiddleware(async (c, next) => {
 
 /**
  * Whether the caller may use Preprod in the Workspace of the request: a
- * browser session only (keys, tokens, Coworkers and Soko Bots wait for
- * tickets 21 and 30). A platform admin always; otherwise the user's flag for
- * the personal Workspace, the Organization's flag and the membership for an
- * Organization Workspace. An impersonated session carries the impersonated
- * person's user and role, so it gets their access.
+ * person's browser session, API key or OAuth token (first- or third-party).
+ * A platform admin always; otherwise the user's flag for the personal
+ * Workspace, the Organization's flag and the membership for an Organization
+ * Workspace. An impersonated session carries the impersonated person's user
+ * and role, so it gets their access.
+ *
+ * Still refused: an MCP token (its context has no `oauthClientId`, and its
+ * tool calls send no header; ticket 36), a Coworker key (its payments are
+ * ticket 21's third slice) and a Soko Bot key (ticket 30).
  */
 async function hasPreprodAccess(
   authContext: AuthenticationContext | undefined,
 ): Promise<boolean> {
+  if (authContext?.actor !== "user") return false;
+  const { authenticationMethod, oauthClientId } = authContext;
   if (
-    authContext?.actor !== "user" ||
-    authContext.authenticationMethod !== "session"
+    authenticationMethod !== "session" &&
+    authenticationMethod !== "api_key" &&
+    !(authenticationMethod === "oauth" && oauthClientId)
   ) {
     return false;
   }
@@ -122,6 +141,33 @@ export async function preprodScopeFor(
 }
 
 /**
+ * The scope of an authenticated request. An API key carries its Network while
+ * Preprod is on (`apiKeyNetwork`): without the header the request is for the
+ * key's Network, and a header that names the other one gets a scope that
+ * refuses on its Network side with 403 `api_key_network_mismatch` (shared data
+ * answers as for any key). Otherwise the header decides, Mainnet without it.
+ */
+async function callerScope(
+  c: Context,
+  caller: AuthenticationContext | undefined,
+): Promise<NetworkScope> {
+  const { network, sent } = namedNetwork(c);
+  const keyNetwork =
+    caller?.actor === "user" ? caller.apiKeyNetwork : undefined;
+  if (keyNetwork && sent && keyNetwork !== network) {
+    return createRefusedNetworkScope(
+      forbidden(
+        `This API key is for ${keyNetwork}, and ${NETWORK_HEADER} names ${network}`,
+        { kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH },
+      ),
+    );
+  }
+  return (sent ? network : (keyNetwork ?? network)) === "mainnet"
+    ? createNetworkScope("mainnet")
+    : preprodScopeFor(async () => caller);
+}
+
+/**
  * Creates the Network scope of a request for the Network it names, once the
  * Organization of the request is known. Handlers read `c.var.networkScope`
  * and pass it, or one side of it, down as an argument. A Mainnet request
@@ -134,46 +180,55 @@ export const networkScopeMiddleware = createMiddleware<{
   if (!c.var.networkScope) {
     // The one place an authenticated request names its Network; a public
     // route calls `publicRequestNetworkScope`.
-    c.set(
-      "networkScope",
-      requestNetwork(c) === "mainnet"
-        ? createNetworkScope("mainnet")
-        : await preprodScopeFor(async () => c.var.authContext),
-    );
+    c.set("networkScope", await callerScope(c, c.var.authContext));
   }
   await next();
 });
 
 /**
  * The scope for a public route, which has no authentication middleware:
- * Mainnet as without the header, reading nothing. For Preprod the caller is
+ * Mainnet as without the header, reading nothing. For Preprod, and while
+ * Preprod is on for a bearer that may be a Preprod API key, the caller is
  * authenticated here, as an authenticated router would; an anonymous caller
  * (or one whose credential fails) has no access.
  */
 export async function publicRequestNetworkScope(
   c: Context,
 ): Promise<NetworkScope> {
-  if (requestNetwork(c) === "mainnet") return createNetworkScope("mainnet");
-  return preprodScopeFor(async () => {
-    let caller: AuthenticationContext | undefined;
-    try {
-      await authMiddleware(c, async () => {
-        try {
-          await organizationContextMiddleware(c, async () => {
-            caller = c.var.authContext;
-          });
-        } catch (error) {
-          // A non-member naming an Organization: no access in it.
-          if (error instanceof HTTPException && error.status === 403) return;
-          throw error;
-        }
-      });
-    } catch (error) {
-      if (error instanceof HTTPException && error.status === 401) {
-        return undefined;
+  const network = requestNetwork(c);
+  // A Preprod key's text starts with its prefix; its row decides once verified.
+  const preprodKey = c.req
+    .header("authorization")
+    ?.startsWith(`Bearer ${USER_API_KEY_PREFIXES.preprod}`);
+  if (network === "mainnet" && !(preprodKey && isPreprodOn())) {
+    return createNetworkScope("mainnet");
+  }
+  if (!isPreprodOn()) return preprodScopeFor(async () => undefined);
+  return callerScope(c, await publicCaller(c));
+}
+
+/** The caller of a public route, authenticated as an authenticated router would. */
+async function publicCaller(
+  c: Context,
+): Promise<AuthenticationContext | undefined> {
+  let caller: AuthenticationContext | undefined;
+  try {
+    await authMiddleware(c, async () => {
+      try {
+        await organizationContextMiddleware(c, async () => {
+          caller = c.var.authContext;
+        });
+      } catch (error) {
+        // A non-member naming an Organization: no access in it.
+        if (error instanceof HTTPException && error.status === 403) return;
+        throw error;
       }
-      throw error;
+    });
+  } catch (error) {
+    if (error instanceof HTTPException && error.status === 401) {
+      return undefined;
     }
-    return caller;
-  });
+    throw error;
+  }
+  return caller;
 }
