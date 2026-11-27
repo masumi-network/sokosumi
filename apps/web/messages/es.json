@@ -14779,7 +14779,7 @@
         "researchCompetitors": "Investigar competidores",
         "verdict": {
           "actions": "{count, plural, one {# cosa por corregir} other {# cosas por corregir}}",
-          "issues": "{count, plural, one {# problema por corregir} other {# problemas por corregir}}",
+          "issuesFound": "{count, plural, one {# problema encontrado en la última comprobación} other {# problemas encontrados en la última comprobación}}",
           "waiting": "{count, plural, one {# sugerencia por revisar} other {# sugerencias por revisar}}",
           "clear": "Sin problemas en la última comprobación",
           "noCheck": "Aún no hay comprobación. Inicia una para encontrar problemas.",

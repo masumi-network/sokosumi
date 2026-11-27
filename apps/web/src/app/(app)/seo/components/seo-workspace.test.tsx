@@ -834,7 +834,7 @@ describe("SEO workspace integration", () => {
     const verdict = screen.getByTestId("seo-agent-verdict");
     expect(verdict).toHaveAttribute("lang", "en");
     expect(verdict).toHaveTextContent(
-      "2 issues to fix: 1 high impact and 1 low impact",
+      "2 issues found in the last check: 1 high impact and 1 low impact",
     );
   });
 
@@ -8773,12 +8773,12 @@ describe("SEO workspace integration", () => {
     // The Agent tab says the issue count once, in its headline, and shows the keyword numbers.
     expect(
       await screen.findByRole("heading", {
-        name: "1 issue to fix: 1 high impact",
+        name: "1 issue found in the last check: 1 high impact",
       }),
     ).toBeVisible();
-    expect(screen.getAllByText("1 issue to fix: 1 high impact")).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByText("1 issue found in the last check: 1 high impact"),
+    ).toHaveLength(1);
     expect(
       screen.queryByRole("heading", { name: "The agent proposes" }),
     ).toBeNull();

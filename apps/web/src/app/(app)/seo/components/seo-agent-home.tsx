@@ -398,8 +398,9 @@ function SeoAgentPanel({
               ? headline.suggestions
                 ? report("agent.verdict.waiting", { count: headline.count })
                 : `${report("agent.verdict.actions", { count: headline.count })}${headlineSplit}`
-              : brief.issues
-                ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
+              : // No row to fix them under the headline: it says what the check found, not what to do.
+                brief.issues
+                ? `${report("agent.verdict.issuesFound", { count: brief.issues })}${severitySplit}`
                 : brief.fixes
                   ? report("agent.verdict.fixes", { count: brief.fixes })
                   : brief.opportunities

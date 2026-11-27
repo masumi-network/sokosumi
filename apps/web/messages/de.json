@@ -14779,7 +14779,7 @@
         "researchCompetitors": "Wettbewerber recherchieren",
         "verdict": {
           "actions": "{count, plural, one {# Punkt zu beheben} other {# Punkte zu beheben}}",
-          "issues": "{count, plural, one {# Problem zu beheben} other {# Probleme zu beheben}}",
+          "issuesFound": "{count, plural, one {# Problem in der letzten Prüfung gefunden} other {# Probleme in der letzten Prüfung gefunden}}",
           "waiting": "{count, plural, one {# Vorschlag zu prüfen} other {# Vorschläge zu prüfen}}",
           "clear": "Keine Probleme in der letzten Prüfung",
           "noCheck": "Noch keine Prüfung. Starte eine, um Probleme zu finden.",
