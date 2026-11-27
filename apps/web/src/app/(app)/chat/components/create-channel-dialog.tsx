@@ -423,7 +423,9 @@ export function CreateChannelDialog({
         !rosterError &&
         !membersLoadFailed &&
         wizard.step === "add-people" ? (
-          <div className="space-y-4">
+          // min-w-0: a grid item, so a long email in the people list would
+          // otherwise widen the dialog past a phone screen.
+          <div className="min-w-0 space-y-4">
             <RadioGroup
               value={wizard.mode}
               onValueChange={(value) => {
