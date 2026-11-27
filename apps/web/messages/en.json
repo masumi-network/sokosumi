@@ -8370,6 +8370,33 @@
           "download": "Download JSONL",
           "error": "Failed to export ad data. Try again."
         }
+      },
+      "PreprodAccess": {
+        "title": "Preprod access",
+        "noEffect": "Nothing reads this switch yet: it does not change what anyone can do.",
+        "state": "{enabled, select, true {On} other {Off}}",
+        "saved": "{enabled, select, true {Preprod access switched on.} other {Preprod access switched off.}}",
+        "history": {
+          "title": "Recent changes",
+          "entry": "{enabled, select, true {Switched on} other {Switched off}} by {operator}",
+          "unknown": "an unknown admin",
+          "empty": "No changes yet."
+        },
+        "dialog": {
+          "title": "{enabled, select, true {Switch Preprod access on?} other {Switch Preprod access off?}}",
+          "description": "{enabled, select, true {{type, select, user {The user} other {The Organization}} {name} gets Preprod access.} other {{type, select, user {The user} other {The Organization}} {name} loses Preprod access.}} Your name and the reason are recorded with the change.",
+          "reasonLabel": "Reason",
+          "reasonHint": "Ticket id, no personal details.",
+          "reasonRequired": "Enter a reason.",
+          "cancel": "Cancel",
+          "confirm": "{enabled, select, true {Switch on} other {Switch off}}"
+        },
+        "errors": {
+          "forbidden": "Not allowed: only an admin signed in as themselves can change Preprod access.",
+          "notFound": "{type, select, user {This user no longer exists.} other {This Organization no longer exists.}}",
+          "invalid": "The change was not accepted. Check the reason and try again.",
+          "failed": "The change could not be saved. Try again."
+        }
       }
     },
     "Billing": {
