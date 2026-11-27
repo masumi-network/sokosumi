@@ -19,15 +19,21 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 /** Starts a crawl of the next pages after the person confirms its price. Core decides where it goes on from. */
 export function SeoCrawlNextButton({ model }: { model: SeoWorkspaceModel }) {
   const t = useSeoResultTranslations("App.Seo.siteCrawl.next");
-  // One key per confirmation: a second click of the same dialog replays the first request.
-  const [key, setKey] = useState<string | null>(null);
+  // One key per confirmation: a second click of the same dialog replays the first request. The crawl it goes on
+  // from is the one the dialog opened for, even if a refresh offers another.
+  const [confirming, setConfirming] = useState<{
+    key: string;
+    continues: string;
+  } | null>(null);
   const continues = model.data.availableActions.continueCrawlFrom;
   if (!continues) return null;
   const busy = seoCheckBlocking(model.data, new Date());
   return (
     <AlertDialog
-      open={key !== null}
-      onOpenChange={(open) => setKey(open ? crypto.randomUUID() : null)}
+      open={confirming !== null}
+      onOpenChange={(open) =>
+        setConfirming(open ? { key: crypto.randomUUID(), continues } : null)
+      }
     >
       <AlertDialogTrigger asChild>
         <Button
@@ -49,9 +55,13 @@ export function SeoCrawlNextButton({ model }: { model: SeoWorkspaceModel }) {
           <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
-              if (!key) return;
+              if (!confirming) return;
               void model.execute(
-                { kind: "continue_crawl", continues, idempotencyKey: key },
+                {
+                  kind: "continue_crawl",
+                  continues: confirming.continues,
+                  idempotencyKey: confirming.key,
+                },
                 t("started"),
               );
             }}

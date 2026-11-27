@@ -188,8 +188,7 @@ describe("crawl of the next pages", () => {
       ],
     } as unknown as ProjectSeoWorkspace;
     const execute = vi.fn();
-    const model = { data: workspace, pending: false, execute };
-    render(
+    const ui = (data: ProjectSeoWorkspace) => (
       <NextIntlClientProvider
         locale="en"
         timeZone="UTC"
@@ -197,20 +196,21 @@ describe("crawl of the next pages", () => {
         messages={messages}
       >
         <SeoSiteCrawl
-          workspace={workspace}
+          workspace={data}
           openPage={vi.fn()}
           action={
             <SeoCrawlNextButton
               model={
-                model as unknown as Parameters<
+                { data, pending: false, execute } as unknown as Parameters<
                   typeof SeoCrawlNextButton
                 >[0]["model"]
               }
             />
           }
         />
-      </NextIntlClientProvider>,
+      </NextIntlClientProvider>
     );
+    const { rerender } = render(ui(workspace));
     const fold = screen.getByText(next.heading).closest("details")!;
     await userEvent.click(screen.getByText(next.heading));
     expect(fold).toHaveAttribute("open");
@@ -231,6 +231,18 @@ describe("crawl of the next pages", () => {
       },
       next.started,
     );
+
+    // Core offers a crawl this view does not end at, as a newer audit's: no button here buys it.
+    rerender(
+      ui({
+        ...workspace,
+        availableActions: {
+          ...workspace.availableActions,
+          continueCrawlFrom: "c".repeat(64),
+        },
+      }),
+    );
+    expect(screen.queryByRole("button", { name: next.button })).toBeNull();
   });
 });
 

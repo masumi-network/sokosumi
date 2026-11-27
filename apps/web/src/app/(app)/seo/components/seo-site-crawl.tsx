@@ -85,6 +85,14 @@ export function SeoSiteCrawl({
     workspace.observations,
     full.siteCrawl,
   );
+  // The action goes on from the crawl Core offers: an older audit on screen must not buy a newer audit's pages.
+  const tip =
+    continuations[0]?.siteCrawl.snapshotId ??
+    (full.siteCrawl?.state === "crawled"
+      ? full.siteCrawl.snapshotId
+      : undefined);
+  const offered =
+    tip !== undefined && tip === workspace.availableActions.continueCrawlFrom;
   return (
     <SeoSection
       lang="en"
@@ -94,7 +102,7 @@ export function SeoSiteCrawl({
           <span className="text-xs text-muted-foreground">
             <SeoDate report day value={full.observedAt} />
           </span>
-          {action}
+          {offered && action}
         </div>
       }
     >

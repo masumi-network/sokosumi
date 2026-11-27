@@ -320,7 +320,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       (command.kind === "request_analysis" &&
         command.body.kind === "audit_full") ||
       (command.kind === "create_monitor" &&
-        command.body.analysis.kind === "audit_full");
+        command.body.analysis.kind === "audit_full") ||
+      command.kind === "continue_crawl";
     function rememberLaunch() {
       if (!key || !checkedLaunch) return false;
       const attempt = {
@@ -685,5 +686,6 @@ function seoLaunchKey(command: SeoCommand) {
   if (command.kind === "create_monitor") return command.body.operationId;
   if (command.kind === "monitor_run_now")
     return `run:${command.monitorId}:${command.expectedRevision}`;
+  if (command.kind === "continue_crawl") return command.idempotencyKey;
   return null;
 }
