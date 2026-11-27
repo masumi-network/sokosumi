@@ -1,6 +1,12 @@
 export { ACTION_LABELS, withoutActionReceipts } from "./action-labels.js";
 export * from "./avatar/index.js";
 export {
+  checkPattern,
+  matchesText,
+  mentionsAffirmed,
+  plainQuotes,
+} from "./check-text.js";
+export {
   CMO_BRAND_SECTIONS,
   CMO_MEASUREMENT_SOURCES,
   CMO_PRODUCTION_MEDIA_PER_RUN,

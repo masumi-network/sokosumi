@@ -1,4 +1,8 @@
-import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import {
+  matchesText,
+  mentionsAffirmed,
+  type ScenarioCheck,
+} from "@sokosumi/soko-bot";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
@@ -37,14 +41,13 @@ function cronTime(cron: string): { minute: number; hour: number } | null {
 }
 
 function matchesAll(text: string, patterns: readonly string[] = []) {
-  const missing = patterns.filter(
-    (pattern) => !new RegExp(pattern, "i").test(text),
-  );
+  const missing = patterns.filter((pattern) => !matchesText(text, pattern));
   return { pass: missing.length === 0, missing };
 }
 
-function matchesAny(text: string, patterns: readonly string[] = []) {
-  return patterns.some((pattern) => new RegExp(pattern, "i").test(text));
+/** Whether what the bot wrote says one of the avoided things, not only that it leaves it out. */
+function saysAny(text: string, patterns: readonly string[] = []) {
+  return patterns.some((pattern) => mentionsAffirmed(text, pattern));
 }
 
 function weekdayIn(date: Date, zone = ZONE): number {
@@ -130,8 +133,9 @@ async function scheduleCheck(
     ];
   const problems: string[] = [];
   if (!latest.enabled) problems.push("disabled");
-  // Neither a run nor "move it to 7:30" changes the owner's time zone.
-  if (compared && latest.timezone !== rememberedZone)
+  // Neither a run nor "move it to 7:30" changes the owner's time zone; an
+  // outcome that names a time zone asked for one, and is checked against it below.
+  if (compared && !outcome.timezone && latest.timezone !== rememberedZone)
     problems.push(`time zone ${rememberedZone} → ${latest.timezone}`);
   if (outcome.count !== undefined && schedules.length !== outcome.count)
     problems.push(`${schedules.length} schedules`);
@@ -144,11 +148,12 @@ async function scheduleCheck(
   if (
     outcome.identity === "edited" &&
     latest.cronExpression === rememberedCron &&
-    latest.prompt === rememberedPrompt
+    latest.prompt === rememberedPrompt &&
+    latest.timezone === rememberedZone
   )
     problems.push("not changed");
   const avoided = (outcome.promptAvoids ?? []).filter((pattern) =>
-    new RegExp(pattern, "i").test(latest.prompt),
+    mentionsAffirmed(latest.prompt, pattern),
   );
   if (avoided.length)
     problems.push(`prompt still says /${avoided.join("/, /")}/`);
@@ -266,7 +271,7 @@ async function imagesCheck(
     .filter(
       (job) =>
         !matchesAll(job.prompt, outcome.promptMatches).pass ||
-        matchesAny(job.prompt, outcome.promptAvoids),
+        saysAny(job.prompt, outcome.promptAvoids),
     );
   const countOk =
     made >= outcome.min && (outcome.max === undefined || made <= outcome.max);
@@ -404,7 +409,7 @@ async function postsCheck(
     (post) =>
       post.status !== "CANCELED" &&
       (!outcome.provider || post.provider === outcome.provider) &&
-      (!outcome.about || new RegExp(outcome.about, "i").test(post.text)),
+      (!outcome.about || matchesText(post.text, outcome.about)),
   );
   const problems: string[] = [];
   if (
@@ -446,8 +451,7 @@ async function postsCheck(
     if (long.length) problems.push(`${long[0]?.text.length} chars`);
   }
   const missing = (outcome.textMatches ?? []).filter(
-    (pattern) =>
-      !posts.some((post) => new RegExp(pattern, "i").test(post.text)),
+    (pattern) => !posts.some((post) => matchesText(post.text, pattern)),
   );
   if (missing.length) problems.push(`no post says /${missing.join("/, /")}/`);
   if (outcome.networks !== undefined) {
@@ -547,7 +551,7 @@ async function launchSequenceCheck(
     (post) =>
       post.status !== "CANCELED" &&
       post.scheduledAt &&
-      new RegExp(outcome.about, "i").test(post.text),
+      matchesText(post.text, outcome.about),
   );
   const days = posts.map((post) => dayKey(post.scheduledAt as Date));
   const before = days.filter((day) => day < launch).length;
@@ -669,7 +673,7 @@ async function seededPostCheck(
   const fixed =
     !post ||
     post.status === "CANCELED" ||
-    !new RegExp(outcome.avoids, "i").test(post.text);
+    !matchesText(post.text, outcome.avoids);
   return {
     label: outcome.label,
     pass: fixed,
@@ -999,7 +1003,7 @@ async function fileCheck(
     (file) =>
       file.text !== null &&
       matchesAll(file.text, outcome.textMatches).pass &&
-      !matchesAny(file.text, outcome.textAvoids),
+      !saysAny(file.text, outcome.textAvoids),
   );
   const first = saved[0];
   return {
@@ -1148,7 +1152,7 @@ async function seededPictureCheck(
   const problems = pictureProblems(seeded, post, others, files);
   const off = jobs
     .filter(isMade)
-    .filter((job) => matchesAny(job.prompt, outcome.promptAvoids));
+    .filter((job) => saysAny(job.prompt, outcome.promptAvoids));
   if (off.length)
     problems.push(`${off.length} image(s) matched an avoided prompt pattern`);
   return {
