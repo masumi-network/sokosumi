@@ -462,4 +462,126 @@ describe("evaluateTurnDoneCheck with completionDecider (E3)", () => {
       }),
     );
   });
+
+  it("enforces cross-bot isolation on EVENT wakes", async () => {
+    mocks.findTurn
+      .mockResolvedValueOnce(
+        baseTurn({
+          id: "wake-1",
+          sokoBotId: "bot-1",
+          source: "EVENT",
+          askedByUserId: null,
+          requestedByUserId: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        baseTurn({
+          id: "chat-other-bot",
+          sokoBotId: "bot-2",
+          source: "CHAT",
+        }),
+      );
+    mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
+    mocks.resolveRequestId.mockResolvedValue("chat-other-bot");
+
+    await expect(
+      evaluateTurnDoneCheck({
+        turnId: "wake-1",
+        sessionId: "sess-1",
+        draft: "Update received.",
+      }),
+    ).resolves.toBeNull();
+    expect(mocks.evaluateWithJev).not.toHaveBeenCalled();
+  });
+
+  it("treats FAILED/UNKNOWN external effects (incl. paid investor_warm_paths) as unconfirmed and keeps refusals open when a retry is UNKNOWN", async () => {
+    mocks.findTurn.mockResolvedValue(baseTurn());
+    mocks.resolveVersion.mockResolvedValue({ completionDecider: true });
+    // Returned in desc order (newest first), as Prisma queries it.
+    mocks.findToolCalls.mockResolvedValue([
+      {
+        turnId: "turn-1",
+        capability: "create_social_post",
+        input: {},
+        status: "COMPLETED",
+        disposition: "UNKNOWN",
+        targetId: null,
+        result: null,
+        errorKind: null,
+        errorDetail: null,
+      },
+      {
+        turnId: "turn-1",
+        capability: "create_social_post",
+        input: {},
+        status: "FAILED",
+        disposition: "REJECTED",
+        targetId: null,
+        result: null,
+        errorKind: "refused",
+        errorDetail: "Multiple accounts match.",
+      },
+      {
+        turnId: "turn-1",
+        capability: "investor_warm_paths",
+        input: { research: true },
+        status: "FAILED",
+        disposition: "UNKNOWN",
+        targetId: null,
+        result: null,
+        errorKind: "timeout",
+        errorDetail: "Timed out after dispatch",
+      },
+    ]);
+    mocks.evaluateWithJev.mockResolvedValue({
+      answers: new Map([
+        [
+          "decision",
+          {
+            type: "choice",
+            choice: "finish",
+            probabilities: {
+              finish: 0.9,
+              continue: 0.05,
+              ask_owner: 0.03,
+              abstain: 0.02,
+            },
+          },
+        ],
+      ]),
+      costUsd: 0.00004,
+    });
+
+    await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Checking status.",
+    });
+
+    const jevCall = mocks.evaluateWithJev.mock.calls[0]?.[0] as {
+      state: {
+        coreWriteReceipts: Array<{ capability: string; outcome: string }>;
+        readToolsUsed: Array<{ capability: string }>;
+        unresolvedCoreRefusals: Array<{ capability: string }>;
+      };
+    };
+    expect(jevCall.state.coreWriteReceipts).toEqual([
+      expect.objectContaining({
+        capability: "investor_warm_paths",
+        outcome: "unconfirmed",
+      }),
+      expect.objectContaining({
+        capability: "create_social_post",
+        outcome: "not done",
+      }),
+      expect.objectContaining({
+        capability: "create_social_post",
+        outcome: "unconfirmed",
+      }),
+    ]);
+    expect(jevCall.state.readToolsUsed).toEqual([]);
+    expect(jevCall.state.unresolvedCoreRefusals).toEqual([
+      expect.objectContaining({ capability: "create_social_post" }),
+    ]);
+  });
 });

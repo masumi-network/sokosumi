@@ -1,7 +1,10 @@
 import { SOKO_BOT_TOOL_REFUSED } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
-import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  isExternalEffectToolCall,
+  STUDIO_JOB_CAPABILITIES,
+} from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
 import {
   buildCompletionBouncePrompt,
@@ -442,6 +445,7 @@ async function completionEvidence(
       select: {
         turnId: true,
         capability: true,
+        input: true,
         status: true,
         disposition: true,
         targetId: true,
@@ -457,7 +461,12 @@ async function completionEvidence(
   ]);
   const calls = [...rawCalls].reverse();
 
-  const writeCalls = calls.filter((call) => writes.has(call.capability));
+  const isChangeCall = (call: (typeof calls)[number]) =>
+    writes.has(call.capability) ||
+    call.disposition === "UNKNOWN" ||
+    isExternalEffectToolCall(call.capability, call.input);
+
+  const writeCalls = calls.filter(isChangeCall);
   const receipts: CompletionReceiptSummary[] = await Promise.all(
     writeCalls.slice(-20).map(async (call) => ({
       capability: call.capability,
@@ -470,8 +479,7 @@ async function completionEvidence(
 
   const readsByCap = new Map<string, CompletionReadSummary>();
   for (const call of calls) {
-    if (writes.has(call.capability) || call.capability === "update_plan")
-      continue;
+    if (isChangeCall(call) || call.capability === "update_plan") continue;
     const entry = readsByCap.get(call.capability) ?? {
       capability: call.capability,
       completedCount: 0,
@@ -491,7 +499,10 @@ async function completionEvidence(
       .slice(index + 1)
       .some(
         (later) =>
-          later.capability === call.capability && later.status === "COMPLETED",
+          later.capability === call.capability &&
+          later.status === "COMPLETED" &&
+          later.disposition !== "REJECTED" &&
+          later.disposition !== "UNKNOWN",
       );
     if (!madeGood) {
       unresolvedRefusals.push({
@@ -517,6 +528,7 @@ async function completionEvidence(
 async function completionTurnEligibility(
   turn: {
     id: string;
+    sokoBotId: string;
     source: string;
     chainDepth: number;
     askedByUserId: string | null;
@@ -549,6 +561,7 @@ async function completionTurnEligibility(
     const root = await prisma.sokoBotTurn.findUnique({
       where: { id: requestId },
       select: {
+        sokoBotId: true,
         source: true,
         chainDepth: true,
         askedByUserId: true,
@@ -567,6 +580,7 @@ async function completionTurnEligibility(
     });
     if (
       root &&
+      root.sokoBotId === turn.sokoBotId &&
       root.requestedByUserId !== null &&
       isOwnerRequest(root, { schedules: true })
     ) {
