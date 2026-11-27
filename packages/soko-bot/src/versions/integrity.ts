@@ -1,5 +1,6 @@
 import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "../policy.js";
 import { WRITING_SKILLS } from "../writing-skills/index.js";
+import { applyAutoResultCardsSkill } from "./auto-result-cards.js";
 import { SKILL_INDEX, type SkillOccasion } from "./skill-index.js";
 import { SOKO_BOT_SKILLS } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
@@ -53,6 +54,11 @@ const UNREADABLE_NAME_KNOWN: Readonly<Record<string, string>> = {
   "cmo-measurement:cmo-seo": "read_skill points to cmo-seo-reports",
 };
 
+function skillContentForVersion(id: string, version: SokoBotVersion): string {
+  const skill = SOKO_BOT_SKILLS.find((candidate) => candidate.id === id);
+  return skill ? applyAutoResultCardsSkill(skill, version).content : "";
+}
+
 /** Skills the version's own texts name that read_skill would refuse. */
 function unreadableSkillNames(version: SokoBotVersion): string[] {
   const readable = new Set([
@@ -65,7 +71,7 @@ function unreadableSkillNames(version: SokoBotVersion): string[] {
     ["system prompt", version.systemPrompt],
     ...version.skills.map((id): [string, string] => [
       id,
-      SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content ?? "",
+      skillContentForVersion(id, version),
     ]),
   ];
   const problems: string[] = [];
@@ -97,6 +103,7 @@ function missingTools(
   skills: readonly string[],
   tools: ReadonlySet<string>,
   scanNames: boolean,
+  version: SokoBotVersion,
 ): string[] {
   const problems: string[] = [];
   for (const id of skills) {
@@ -104,8 +111,8 @@ function missingTools(
       if (!tools.has(tool))
         problems.push(`${label}: ${id} requires ${tool}, not offered`);
     if (!scanNames) continue;
-    const content = SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content;
-    for (const tool of namedTools(content ?? ""))
+    const content = skillContentForVersion(id, version);
+    for (const tool of namedTools(content))
       if (!tools.has(tool) && !(tool in NAMED_WITHOUT_OFFER))
         problems.push(`${label}: ${id} names ${tool}, not offered`);
   }
@@ -147,6 +154,7 @@ export function versionIntegrityProblems(
       version.skills,
       new Set(everyTurnTools),
       onDemand,
+      version,
     ),
   );
   const applied = profiles.filter((each) => each.appliesTo(version));
@@ -159,6 +167,7 @@ export function versionIntegrityProblems(
           version.skills,
           new Set(profile.tools),
           false,
+          version,
         ),
       );
     return problems;
@@ -180,6 +189,7 @@ export function versionIntegrityProblems(
         carriedOn(version, profile.occasion),
         new Set(profile.tools),
         true,
+        version,
       ),
     );
   return problems;

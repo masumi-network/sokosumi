@@ -13,6 +13,11 @@ import {
   type SokoBotCapability,
 } from "../policy.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import {
+  AUTO_RESULT_CARDS_SKILL_USE_WHEN_OVERRIDES,
+  applyAutoResultCardsSkill,
+  applyAutoResultCardsToolDescription,
+} from "./auto-result-cards.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
 import { cmoWritesMonthAtOnce } from "./cmo-skills.js";
 import { cmoV1 } from "./cmo-v1.js";
@@ -198,7 +203,15 @@ export function cmoWhatsNew(
 }
 
 export type { SokoBotSkill, SokoBotVersion };
-export { getSokoBotSkill, SOKO_BOT_SKILLS };
+export { applyAutoResultCardsSkill, getSokoBotSkill, SOKO_BOT_SKILLS };
+
+/** One version skill as this version's bot reads it. */
+export function getSokoBotSkillForVersion(
+  id: string,
+  version: Pick<SokoBotVersion, "autoResultCards" | "messaging">,
+): SokoBotSkill {
+  return applyAutoResultCardsSkill(getSokoBotSkill(id), version);
+}
 
 export function getSokoBotVersion(
   id: string | null | undefined,
@@ -226,11 +239,13 @@ export const SHARED_SOKO_BOT_GUIDANCE = [
 /** A tool's description as this version's bot reads it. */
 export function sokoBotToolDescription(
   capability: SokoBotCapability,
-  version: Pick<SokoBotVersion, "texts">,
+  version: Pick<SokoBotVersion, "texts" | "autoResultCards" | "messaging">,
 ): string {
-  return version.texts === "cmo"
-    ? cusoToolDescription(capability)
-    : SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+  const base =
+    version.texts === "cmo"
+      ? cusoToolDescription(capability)
+      : SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+  return applyAutoResultCardsToolDescription(capability, base, version);
 }
 
 /** Who the bot is told it is, ahead of its operating instructions. */
@@ -253,15 +268,20 @@ function systemSkillsPrompt(
 ): string[] {
   if (!version.skillsOnDemand)
     return cmoTurnSkills(version.skills, turn?.clientTurnId).map((id) =>
-      getSokoBotSkill(id).content.trim(),
+      getSokoBotSkillForVersion(id, version).content.trim(),
     );
   const { always, indexed } = splitSkillsForTurn(version, []);
   const index = skillIndexSection(
-    indexed.map(getSokoBotSkill),
+    indexed.map((id) => getSokoBotSkillForVersion(id, version)),
     version.profile === "cmo",
+    version.autoResultCards
+      ? AUTO_RESULT_CARDS_SKILL_USE_WHEN_OVERRIDES
+      : undefined,
   );
   return [
-    ...always.map((id) => getSokoBotSkill(id).content.trim()),
+    ...always.map((id) =>
+      getSokoBotSkillForVersion(id, version).content.trim(),
+    ),
     ...(index ? [index] : []),
   ];
 }
@@ -319,14 +339,20 @@ export function composeTurnPreamble(
   if (!version.skillsOnDemand) return "";
   const { forTurn } = splitSkillsForTurn(version, turn?.occasions ?? []);
   return [
-    turnSkillsSection(forTurn.map(getSokoBotSkill)),
+    turnSkillsSection(
+      forTurn.map((id) => getSokoBotSkillForVersion(id, version)),
+    ),
     ...personaPrompt(version, persona),
   ]
     .filter(Boolean)
     .join("\n\n");
 }
 
-const RESULT_CARD_SKILLS = new Set(["chat-result-previews", "result-cards"]);
+const RESULT_CARD_SKILLS = new Set([
+  "chat-result-previews",
+  "result-cards",
+  "result-cards-send-message",
+]);
 
 /** Whether the version teaches the bot to attach result cards. */
 export function versionShowsResultCards(

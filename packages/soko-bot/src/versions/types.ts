@@ -44,6 +44,14 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * Core attaches result cards automatically from committed write receipts at
+   * turn end, so skills and tool descriptions drop the write-time
+   * `preview_result` requirement (`preview_result` stays for showing an
+   * existing item on request or a `project_selection` picker).
+   * Omitted: model-driven `preview_result` calls and legacy fallback, as before.
+   */
+  autoResultCards?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

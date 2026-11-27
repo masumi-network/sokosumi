@@ -79,6 +79,41 @@ describe("read_skill", () => {
       readSkill(authorized("v36"), { skill: "cmo-strategy-v22" }),
     ).rejects.toThrow(/No skill/);
   });
+
+  it("applies autoResultCards skill rewrites when the version enables the flag and keeps flag-off raw", async () => {
+    const v36 = getSokoBotVersion("v36");
+    resolveSokoBotVersion.mockResolvedValue(v36);
+    const flagOff = await readSkill(authorized("v36"), {
+      skill: "result-cards",
+    });
+    expect(flagOff.content).toBe(
+      SOKO_BOT_SKILLS.find((skill) => skill.id === "result-cards")?.content,
+    );
+
+    resolveSokoBotVersion.mockResolvedValue({ ...v36, autoResultCards: true });
+    const flagOn = await readSkill(authorized("v36"), {
+      skill: "result-cards",
+    });
+    expect(flagOn.content).toContain(
+      "Core attaches result cards automatically from your committed writes",
+    );
+    expect(flagOn.content).toContain(
+      "pass `resultReferences` to `send_message`.",
+    );
+    expect(flagOn.content).not.toContain(
+      "After each successful action below, call `preview_result`",
+    );
+
+    const socialOn = await readSkill(authorized("v36"), {
+      skill: "social-posting-instructions",
+    });
+    expect(socialOn.content).toContain(
+      "Core attaches its approval card automatically",
+    );
+    expect(socialOn.content).not.toContain(
+      'then call `preview_result` with `{kind:"social_post",id,projectId}`',
+    );
+  });
 });
 
 describe("skillOccasions", () => {

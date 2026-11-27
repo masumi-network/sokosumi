@@ -55,6 +55,7 @@ import {
   sokoBotToolCallTimeoutMs,
   stableCapabilities,
   turnRequiresActionProof,
+  turnToolDescriptions,
   WEB_GUIDANCE,
 } from "./turn-loop";
 
@@ -887,5 +888,40 @@ describe("isOwnerDirected and isTaintBlocked", () => {
       );
       expect(guidance).toContain("editing scheduled social posts are refused");
     }
+  });
+
+  it("populates autoResultCards tool descriptions only when flagged and preserves planLoop overrides", () => {
+    const v36 = getSokoBotVersion("v36");
+    const capabilities = [
+      "preview_result",
+      "create_social_post",
+      "schedule_social_post",
+      "publish_social_post",
+      "update_plan",
+    ] as const;
+
+    expect(turnToolDescriptions(v36, capabilities)).toEqual({});
+
+    const flagged = turnToolDescriptions(
+      { ...v36, autoResultCards: true, planLoop: true },
+      capabilities,
+    );
+    expect(flagged.preview_result).toContain(
+      "Core attaches result cards automatically from committed write receipts",
+    );
+    expect(flagged.preview_result).toContain(
+      "Use send_message resultReferences",
+    );
+    expect(flagged.create_social_post).toContain(
+      "Core attaches its approval card automatically.",
+    );
+    expect(flagged.create_social_post).not.toContain("call preview_result");
+    expect(flagged.schedule_social_post).toContain(
+      "Core attaches its approval card automatically",
+    );
+    expect(flagged.publish_social_post).toContain(
+      "call preview_result only if you did not create or edit the post this turn",
+    );
+    expect(flagged.update_plan).toContain("request");
   });
 });

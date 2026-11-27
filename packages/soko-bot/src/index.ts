@@ -181,6 +181,8 @@ export {
   storedBrandBrainSchema,
 } from "./project-marketing.js";
 export {
+  ACTION_RESULT_CARD_KINDS,
+  ACTION_RESULT_REMOVAL_KINDS,
   CHAT_RESULT_PREVIEW_LIMIT,
   type ChatResultReference,
   chatResultReferenceSchema,
@@ -372,6 +374,7 @@ export {
   cmoPostsVideoShapes,
 } from "./versions/cmo-video-shapes-skill.js";
 export {
+  applyAutoResultCardsSkill,
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -379,6 +382,7 @@ export {
   composeSystemPrompt,
   composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkillForVersion,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,
