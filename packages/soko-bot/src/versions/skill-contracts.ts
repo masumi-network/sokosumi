@@ -3,8 +3,9 @@ import { ACTION_LABELS } from "../action-labels.js";
 import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "../policy.js";
 import {
   ACTION_RESULT_CARD_KINDS,
-  type ActionResultCardMapping,
+  ACTION_RESULT_REMOVAL_KINDS,
   CHAT_RESULT_REFERENCE_KINDS,
+  type ChatResultReference,
   chatResultReferenceSchema,
   sokoBotPreviewResultInputSchema,
 } from "../result-previews.js";
@@ -471,10 +472,103 @@ export function checkVersionToolReferences(
   return findings;
 }
 
+/** Tools whose arguments carry `ChatResultReference` objects rather than tool-specific `kind` fields. */
+const CARD_REFERENCE_TOOLS: ReadonlySet<string> = new Set([
+  "preview_result",
+  "post_chat",
+  "send_message",
+]);
+
+interface ToolCallObjectMatch {
+  tool: string;
+  start: number;
+  end: number;
+  body: string;
+}
+
+/** Finds balanced `{...}` argument objects in `tool({...})` and `call("tool", {...})` examples. */
+function findToolCallObjects(content: string): ToolCallObjectMatch[] {
+  const matches: ToolCallObjectMatch[] = [];
+  const opener =
+    /(?:`?([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`?\s*\(\s*\{|call\(\s*"([a-z][a-z0-9]*(?:_[a-z0-9]+)+)"\s*,\s*\{)/g;
+  for (const match of content.matchAll(opener)) {
+    const tool = match[1] ?? match[2]!;
+    const start = match.index + match[0].length - 1;
+    let depth = 0;
+    let quote: string | null = null;
+    let escaped = false;
+    let end = -1;
+    for (let i = start; i < content.length; i += 1) {
+      const ch = content[i]!;
+      if (quote) {
+        if (escaped) {
+          escaped = false;
+        } else if (ch === "\\") {
+          escaped = true;
+        } else if (ch === quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+      } else if (ch === "{") {
+        depth += 1;
+      } else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end > start) {
+      matches.push({ tool, start, end, body: content.slice(start, end) });
+    }
+  }
+  return matches;
+}
+
+function splitTopLevelObjectEntries(body: string): string[] {
+  const entries: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+  let current = "";
+  for (let i = 1; i < body.length - 1; i += 1) {
+    const ch = body[i]!;
+    if (quote) {
+      current += ch;
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      current += ch;
+    } else if (ch === "{" || ch === "[") {
+      depth += 1;
+      current += ch;
+    } else if (ch === "}" || ch === "]") {
+      depth -= 1;
+      current += ch;
+    } else if (ch === "," && depth === 0) {
+      if (current.trim()) entries.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) entries.push(current.trim());
+  return entries;
+}
+
 /**
- * Check 2: validates every `{kind:"…", ...}` reference, `preview_result({...})`
- * JSON example, JSON/object tool call example, and explicit `tool` (`field: value`)
- * / `tool` with `field` input reference against the real Zod schemas.
+ * Check 2: validates every `{kind:"…", ...}` result-card reference,
+ * `preview_result({...})` JSON example, JSON/object tool call example (against
+ * its own schema, including enum values like `wait_for.kind`), and explicit
+ * `tool` (`field: value`) / `tool` with `field` input references.
  */
 export function checkCardAndFieldReferences(
   sources: readonly ContractSource[],
@@ -488,10 +582,106 @@ export function checkCardAndFieldReferences(
   };
 
   for (const source of sources) {
-    // 2a-1: `{kind:"…", ...}` references
+    const nonCardToolSpans: Array<readonly [number, number]> = [];
+
+    // 2b-1: `tool_name({...})` and `call("tool_name", {...})` JSON/object examples
+    for (const call of findToolCallObjects(source.content)) {
+      const info = TOOL_SCHEMA_INDEX.byTool.get(call.tool);
+      if (!info) continue;
+      if (!CARD_REFERENCE_TOOLS.has(call.tool)) {
+        nonCardToolSpans.push([call.start, call.end]);
+      }
+      for (const part of splitTopLevelObjectEntries(call.body)) {
+        const km = /^"?([a-zA-Z][a-zA-Z0-9_]*)"?(?:\s*:\s*([\s\S]*))?$/.exec(
+          part,
+        );
+        if (!km) continue;
+        const field = km[1]!;
+        const valueExpr = km[2]?.trim();
+        if (!info.topKeys.has(field)) {
+          record(
+            "2b",
+            `check2b:${source.label}:call:${call.tool}:${field}`,
+            `${source.label} example ${call.tool}(...) names unknown input field "${field}"`,
+          );
+          continue;
+        }
+        const stringLiteral = valueExpr
+          ? /^"([^"\\]+)"$|^'([^'\\]+)'$/.exec(valueExpr)
+          : null;
+        const rawValue = stringLiteral?.[1] ?? stringLiteral?.[2];
+        const enums = info.enumsByKey.get(field);
+        if (
+          rawValue &&
+          enums &&
+          enums.size > 0 &&
+          !/^[<]/.test(rawValue) &&
+          !enums.has(rawValue)
+        ) {
+          record(
+            "2b",
+            `check2b:${source.label}:call-enum:${call.tool}:${field}:${rawValue}`,
+            `${source.label} example ${call.tool}(...) uses "${rawValue}" for ${field}, not in [${[...enums].join(", ")}]`,
+          );
+        }
+      }
+    }
+
+    // 2b-2: `$SOKO_TOOLS_URL/<tool> ... '{"input":{...}}'` curl examples
+    for (const match of source.content.matchAll(
+      /SOKO_TOOLS_URL\/([a-z][a-z0-9]*(?:_[a-z0-9]+)+)[^\n]*?'(\{"input":\{[^']+\}\})'/g,
+    )) {
+      const tool = match[1]!;
+      const info = TOOL_SCHEMA_INDEX.byTool.get(tool);
+      if (!info) continue;
+      if (!CARD_REFERENCE_TOOLS.has(tool)) {
+        nonCardToolSpans.push([match.index, match.index + match[0].length]);
+      }
+      try {
+        const parsed = JSON.parse(match[2]!) as {
+          input?: Record<string, unknown>;
+        };
+        for (const [field, value] of Object.entries(parsed.input ?? {})) {
+          if (!info.topKeys.has(field)) {
+            record(
+              "2b",
+              `check2b:${source.label}:curl:${tool}:${field}`,
+              `${source.label} curl example for ${tool} names unknown input field "${field}"`,
+            );
+            continue;
+          }
+          const enums = info.enumsByKey.get(field);
+          if (
+            typeof value === "string" &&
+            enums &&
+            enums.size > 0 &&
+            !/^[<]/.test(value) &&
+            !enums.has(value)
+          ) {
+            record(
+              "2b",
+              `check2b:${source.label}:curl-enum:${tool}:${field}:${value}`,
+              `${source.label} curl example for ${tool} uses "${value}" for ${field}, not in [${[...enums].join(", ")}]`,
+            );
+          }
+        }
+      } catch {
+        record(
+          "2b",
+          `check2b:${source.label}:curl-parse:${tool}`,
+          `${source.label} has unparseable curl JSON for ${tool}`,
+        );
+      }
+    }
+
+    const insideNonCardToolCall = (index: number): boolean =>
+      nonCardToolSpans.some(([start, end]) => index >= start && index < end);
+
+    // 2a-1: `{kind:"…", ...}` result-card references (excludes non-card tool inputs such as `wait_for`)
     for (const match of source.content.matchAll(
       /\{\s*"?kind"?\s*:\s*"([^"]+)"([^}]*)\}/g,
     )) {
+      if (insideNonCardToolCall(match.index)) continue;
       const kind = match[1]!;
       const rest = match[2]!;
       const variant = CARD_VARIANTS.get(kind);
@@ -543,65 +733,6 @@ export function checkCardAndFieldReferences(
           "2a",
           `check2a:${source.label}:preview-json-parse:${match[1]}`,
           `${source.label} has unparseable preview_result JSON example ${match[0]}`,
-        );
-      }
-    }
-
-    // 2b-1: `tool_name({...})` and `call("tool_name", {...})` JSON/object examples
-    for (const match of source.content.matchAll(
-      /(?:`?([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`?\s*\(\s*(\{[^)\n]+\})\s*\)|call\(\s*"([a-z][a-z0-9]*(?:_[a-z0-9]+)+)"\s*,\s*(\{[^)]+\})\s*\))/g,
-    )) {
-      const tool = match[1] ?? match[3]!;
-      const body = match[2] ?? match[4]!;
-      const info = TOOL_SCHEMA_INDEX.byTool.get(tool);
-      if (!info) continue;
-      let depth = 0;
-      let topLevel = "";
-      for (let i = 1; i < body.length - 1; i += 1) {
-        const ch = body[i]!;
-        if (ch === "{" || ch === "[") depth += 1;
-        else if (ch === "}" || ch === "]") depth -= 1;
-        else if (depth === 0) topLevel += ch;
-      }
-      for (const part of topLevel.split(",").map((p) => p.trim())) {
-        const km = /^"?([a-zA-Z][a-zA-Z0-9_]*)"?(?:\s*:|$)/.exec(part);
-        if (!km) continue;
-        const field = km[1]!;
-        if (!info.topKeys.has(field)) {
-          record(
-            "2b",
-            `check2b:${source.label}:call:${tool}:${field}`,
-            `${source.label} example ${tool}(...) names unknown input field "${field}"`,
-          );
-        }
-      }
-    }
-
-    // 2b-2: `$SOKO_TOOLS_URL/<tool> ... '{"input":{...}}'` curl examples
-    for (const match of source.content.matchAll(
-      /SOKO_TOOLS_URL\/([a-z][a-z0-9]*(?:_[a-z0-9]+)+)[^\n]*?'(\{"input":\{[^']+\}\})'/g,
-    )) {
-      const tool = match[1]!;
-      const info = TOOL_SCHEMA_INDEX.byTool.get(tool);
-      if (!info) continue;
-      try {
-        const parsed = JSON.parse(match[2]!) as {
-          input?: Record<string, unknown>;
-        };
-        for (const field of Object.keys(parsed.input ?? {})) {
-          if (!info.topKeys.has(field)) {
-            record(
-              "2b",
-              `check2b:${source.label}:curl:${tool}:${field}`,
-              `${source.label} curl example for ${tool} names unknown input field "${field}"`,
-            );
-          }
-        }
-      } catch {
-        record(
-          "2b",
-          `check2b:${source.label}:curl-parse:${tool}`,
-          `${source.label} has unparseable curl JSON for ${tool}`,
         );
       }
     }
@@ -689,15 +820,20 @@ export function checkCardAndFieldReferences(
 }
 
 /**
- * Check 3: every write capability in `ACTION_LABELS` must map to either a
- * valid `ChatResultReferenceKind` or `{ kind: "no_card", reason }`, with zero
- * unmapped or orphaned keys.
+ * Check 3: every write capability in `ACTION_LABELS` must map in
+ * `ACTION_RESULT_CARD_KINDS` to either a valid `ChatResultReference["kind"]`
+ * or `null` (explicit no card), with zero unmapped or orphaned keys, and
+ * `ACTION_RESULT_REMOVAL_KINDS` must name only `null` (no-card) writes with
+ * valid card kinds.
  */
 export function checkActionCardMapping(
   actionLabels: Readonly<Record<string, string>> = ACTION_LABELS,
   cardKinds: Readonly<
-    Record<string, ActionResultCardMapping>
+    Record<string, ChatResultReference["kind"] | null>
   > = ACTION_RESULT_CARD_KINDS,
+  removalKinds: Readonly<
+    Record<string, ChatResultReference["kind"]>
+  > = ACTION_RESULT_REMOVAL_KINDS,
 ): ContractFinding[] {
   const findings: ContractFinding[] = [];
   for (const capability of Object.keys(actionLabels)) {
@@ -708,28 +844,20 @@ export function checkActionCardMapping(
         message: `ACTION_LABELS entry "${capability}" is not in SOKO_BOT_CAPABILITIES`,
       });
     }
-    const mapping = cardKinds[capability];
-    if (!mapping) {
+    if (!Object.hasOwn(cardKinds, capability)) {
       findings.push({
         key: `check3:missing-card-mapping:${capability}`,
         check: "3",
-        message: `ACTION_LABELS write "${capability}" has neither a card kind nor an explicit "no_card" entry in ACTION_RESULT_CARD_KINDS`,
+        message: `ACTION_LABELS write "${capability}" has neither a card kind nor an explicit null ("no card") entry in ACTION_RESULT_CARD_KINDS`,
       });
       continue;
     }
-    if (mapping.kind === "no_card") {
-      if (!mapping.reason.trim()) {
-        findings.push({
-          key: `check3:empty-no-card-reason:${capability}`,
-          check: "3",
-          message: `ACTION_RESULT_CARD_KINDS.${capability} marks "no_card" without a reason`,
-        });
-      }
-    } else if (!CARD_KINDS.has(mapping.kind)) {
+    const mapping = cardKinds[capability];
+    if (mapping !== null && !CARD_KINDS.has(mapping)) {
       findings.push({
-        key: `check3:invalid-card-kind:${capability}:${mapping.kind}`,
+        key: `check3:invalid-card-kind:${capability}:${String(mapping)}`,
         check: "3",
-        message: `ACTION_RESULT_CARD_KINDS.${capability} maps to unknown card kind "${mapping.kind}"`,
+        message: `ACTION_RESULT_CARD_KINDS.${capability} maps to unknown card kind "${String(mapping)}"`,
       });
     }
   }
@@ -739,6 +867,30 @@ export function checkActionCardMapping(
         key: `check3:orphan-card-mapping:${capability}`,
         check: "3",
         message: `ACTION_RESULT_CARD_KINDS entry "${capability}" is not in ACTION_LABELS`,
+      });
+    }
+  }
+  for (const [capability, removalKind] of Object.entries(removalKinds)) {
+    if (!(capability in actionLabels)) {
+      findings.push({
+        key: `check3:orphan-removal-mapping:${capability}`,
+        check: "3",
+        message: `ACTION_RESULT_REMOVAL_KINDS entry "${capability}" is not in ACTION_LABELS`,
+      });
+      continue;
+    }
+    if (cardKinds[capability] !== null) {
+      findings.push({
+        key: `check3:removal-must-be-no-card:${capability}`,
+        check: "3",
+        message: `ACTION_RESULT_REMOVAL_KINDS.${capability} must map to null in ACTION_RESULT_CARD_KINDS`,
+      });
+    }
+    if (!CARD_KINDS.has(removalKind)) {
+      findings.push({
+        key: `check3:invalid-removal-card-kind:${capability}:${String(removalKind)}`,
+        check: "3",
+        message: `ACTION_RESULT_REMOVAL_KINDS.${capability} maps to unknown card kind "${String(removalKind)}"`,
       });
     }
   }
@@ -772,12 +924,12 @@ export function checkUniversalRuleContracts(
     liveVersions.filter((v) => v.profile === "cmo").flatMap((v) => v.skills),
   );
 
-  // Rule 1: Since `ACTION_RESULT_CARD_KINDS` includes explicit `"no_card"`
+  // Rule 1: Since `ACTION_RESULT_CARD_KINDS` includes explicit `null` (no-card)
   // writes (newsletter issues, tables, contacts, projects, ads, emails), live
   // result-card skills and `preview_result` description must explicitly state
   // that items outside the listed kinds have no card.
   const hasNoCardWrites = Object.values(ACTION_RESULT_CARD_KINDS).some(
-    (entry) => entry.kind === "no_card",
+    (kind) => kind === null,
   );
   if (hasNoCardWrites) {
     // Must explicitly bound preview_result to its supported kinds for created
@@ -864,10 +1016,31 @@ export function checkUniversalRuleContracts(
   return findings;
 }
 
-/** Collects all contract text sources across skills, writing skills, prompts, and descriptions. */
+/** Collects all contract text sources across skills, writing skills, prompts, and rendered tool descriptions. */
 export function allContractSources(
   versions: readonly SokoBotVersion[],
 ): ContractSource[] {
+  const renderedDescriptions: ContractSource[] = SOKO_BOT_CAPABILITIES.map(
+    (capability) => ({
+      label: `desc:base:${capability}`,
+      content: SOKO_BOT_TOOL_DESCRIPTIONS[capability],
+    }),
+  );
+  for (const version of versions) {
+    if (isFrozenVersion(version)) continue;
+    for (const capability of applyVersionCapabilities(
+      version,
+      SOKO_BOT_CAPABILITIES,
+    )) {
+      const rendered = sokoBotToolDescription(capability, version);
+      if (rendered !== SOKO_BOT_TOOL_DESCRIPTIONS[capability]) {
+        renderedDescriptions.push({
+          label: `desc:${version.id}:${capability}`,
+          content: rendered,
+        });
+      }
+    }
+  }
   return [
     ...SOKO_BOT_SKILLS.map((skill) => ({
       label: `skill:${skill.id}`,
@@ -885,6 +1058,7 @@ export function allContractSources(
       label: `index:${id}`,
       content: entry.useWhen,
     })),
+    ...renderedDescriptions,
   ];
 }
 

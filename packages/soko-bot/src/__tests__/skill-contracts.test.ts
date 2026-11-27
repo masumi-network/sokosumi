@@ -3,10 +3,14 @@ import { z } from "zod";
 import { ACTION_LABELS } from "../action-labels.js";
 import {
   ACTION_RESULT_CARD_KINDS,
+  ACTION_RESULT_REMOVAL_KINDS,
   CHAT_RESULT_REFERENCE_KINDS,
   chatResultReferenceSchema,
 } from "../result-previews.js";
-import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import {
+  SOKO_BOT_TOOL_DESCRIPTIONS,
+  SOKO_BOT_TOOL_INPUT_SCHEMAS,
+} from "../tool-contracts.js";
 import {
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
@@ -128,20 +132,85 @@ describe("skill and tool contract self-consistency (B4 / R5-B)", () => {
     ]);
   });
 
-  it("Check 3 catches an ACTION_LABELS write missing a card kind or no_card reason", () => {
+  it("Check 3 catches unmapped writes, invalid kinds, and invalid removal entries", () => {
+    // Task-link and reminder receipts target TaskLink/Nudge rows, not Task/Schedule cards.
+    expect(ACTION_RESULT_CARD_KINDS.link_tasks).toBeNull();
+    expect(ACTION_RESULT_CARD_KINDS.manage_reminder).toBeNull();
+    expect(ACTION_RESULT_REMOVAL_KINDS).toEqual({
+      archive_task: "task",
+      delete_schedule: "bot_schedule",
+      delete_task_schedule: "task_schedule",
+      delete_file: "file",
+    });
+
     const findings = checkActionCardMapping(
       {
         create_task: "Created task",
         create_newsletter_issue: "Created newsletter draft",
+        archive_task: "Archived task",
       },
       {
-        create_newsletter_issue: { kind: "no_card", reason: "   " },
+        create_newsletter_issue: "not_a_card" as never,
+        archive_task: "task",
+      },
+      {
+        archive_task: "task",
       },
     );
     expect(findings.map((f) => f.key)).toEqual([
       "check3:missing-card-mapping:create_task",
-      "check3:empty-no-card-reason:create_newsletter_issue",
+      "check3:invalid-card-kind:create_newsletter_issue:not_a_card",
+      "check3:removal-must-be-no-card:archive_task",
     ]);
+  });
+
+  it("accepts a real wait_for example with a chat reply and rejects an invalid wait_for kind", () => {
+    const valid = {
+      kind: "chat_reply",
+      id: "room-one",
+      then: "send the updated estimate",
+    };
+    expect(SOKO_BOT_TOOL_INPUT_SCHEMAS.wait_for.safeParse(valid).success).toBe(
+      true,
+    );
+    expect(
+      checkCardAndFieldReferences([
+        {
+          label: "skill:waiting",
+          content: `wait_for(${JSON.stringify(valid)})`,
+        },
+      ]),
+    ).toEqual([]);
+
+    const invalid = { kind: "not_a_wake_kind", id: "room-one", then: "reply" };
+    expect(
+      checkCardAndFieldReferences([
+        {
+          label: "skill:waiting",
+          content: `wait_for(${JSON.stringify(invalid)})`,
+        },
+      ]).map((f) => f.key),
+    ).toEqual([
+      "check2b:skill:waiting:call-enum:wait_for:kind:not_a_wake_kind",
+    ]);
+  });
+
+  it("catches an unknown tool referenced only in a rendered description", () => {
+    const version = getSokoBotVersion("v36");
+    const old = SOKO_BOT_TOOL_DESCRIPTIONS.search_inbox;
+    const unknownTool = "get_missing_inbox_thread";
+    try {
+      Object.assign(SOKO_BOT_TOOL_DESCRIPTIONS, {
+        search_inbox: `Next call \`${unknownTool}\`.`,
+      });
+      const findings = [
+        ...checkUnknownToolNames(allContractSources([version])),
+        ...checkVersionToolReferences([version]),
+      ];
+      expect(findings.some((f) => f.key.includes(unknownTool))).toBe(true);
+    } finally {
+      Object.assign(SOKO_BOT_TOOL_DESCRIPTIONS, { search_inbox: old });
+    }
   });
 
   it("Check 4 catches universal-rule regressions", () => {
