@@ -545,6 +545,13 @@ export function evaluationClassifierContext(
     pendingIntents: context.pendingIntents?.filter((item) =>
       item.targetIds?.every((id) => binding.taskIds.includes(id)),
     ),
+    ...(context.availableRoutes
+      ? {
+          availableRoutes: context.availableRoutes.filter(
+            (route) => route !== "HIRE_AGENT",
+          ),
+        }
+      : {}),
   };
 }
 

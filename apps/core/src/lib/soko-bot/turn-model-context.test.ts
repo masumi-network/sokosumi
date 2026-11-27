@@ -5,6 +5,8 @@ import {
   contextBlock,
   latestExchange,
   modelContextBlock,
+  modelContextParts,
+  packetForModel,
 } from "./turn-model-context";
 
 vi.mock("@/lib/db/database-now", () => ({
@@ -180,7 +182,6 @@ describe("latestExchange", () => {
 
 describe("modelContextParts", () => {
   it("keeps the packet out of the fixed part", async () => {
-    const { modelContextParts } = await import("./turn-model-context");
     const packet = { memory: "Prefers short answers", recentTurns: [] };
     const parts = await modelContextParts(packet, false);
     expect(parts.fixed.join("\n")).not.toContain("Prefers short answers");
@@ -188,5 +189,50 @@ describe("modelContextParts", () => {
     expect([...parts.fixed, ...parts.perTurn]).toEqual(
       await modelContextBlock(packet, false),
     );
+  });
+
+  it("hides trigger.route, confidence, and unsureRoute only when hideRoute is enabled without mutating the snapshot", async () => {
+    const snapshot = {
+      trigger: {
+        source: "CHAT",
+        route: "CLARIFY",
+        confidence: 0.4,
+        unsureRoute: "MANAGE_WORK",
+        requestedOutcome: "Rename the draft and update the schedule",
+        hints: ["The message likely points back at earlier messages."],
+        askedBy: { kind: "OWNER", name: "Ana", trust: "untrusted-data" },
+      },
+      recentTurns: [],
+    };
+    const projected = packetForModel(snapshot, { hideRoute: true }) as {
+      trigger: Record<string, unknown>;
+    };
+    expect(projected.trigger).not.toHaveProperty("route");
+    expect(projected.trigger).not.toHaveProperty("confidence");
+    expect(projected.trigger).not.toHaveProperty("unsureRoute");
+    expect(projected.trigger).toMatchObject({
+      source: "CHAT",
+      requestedOutcome: "Rename the draft and update the schedule",
+      askedBy: { kind: "OWNER", name: "Ana", trust: "untrusted-data" },
+    });
+    // Stored snapshot stays untouched for diagnostics.
+    expect(snapshot.trigger.route).toBe("CLARIFY");
+    expect(snapshot.trigger.confidence).toBe(0.4);
+    expect(snapshot.trigger.unsureRoute).toBe("MANAGE_WORK");
+
+    const hiddenParts = await modelContextParts(snapshot, false, {
+      hideRoute: true,
+    });
+    const hiddenText = hiddenParts.perTurn.join("\n");
+    expect(hiddenText).not.toContain('"route"');
+    expect(hiddenText).not.toContain('"confidence"');
+    expect(hiddenText).not.toContain('"unsureRoute"');
+    expect(hiddenText).toContain('"askedBy"');
+
+    // Legacy (hideRoute omitted/false) preserves split-vote rendering verbatim.
+    const legacyBlock = (await modelContextBlock(snapshot, false)).join("\n");
+    expect(legacyBlock).toContain('"route":"CLARIFY"');
+    expect(legacyBlock).toContain('"confidence":0.4');
+    expect(legacyBlock).toContain('"unsureRoute":"MANAGE_WORK"');
   });
 });

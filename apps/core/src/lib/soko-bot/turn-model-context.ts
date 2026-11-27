@@ -109,11 +109,46 @@ const meetingRecipient = z.object({
   }),
 });
 
+/**
+ * Projects a stored context packet for the model without mutating the
+ * persisted snapshot. When `hideRoute` is true (E1 route steering on
+ * foreground human chat turns), omits Jev's route, confidence, and unsureRoute
+ * from `trigger` while keeping `source`, `requestedOutcome`, `hints`, and
+ * `askedBy` intact.
+ */
+export function packetForModel(
+  packet: unknown,
+  options?: { hideRoute?: boolean },
+): unknown {
+  if (
+    !options?.hideRoute ||
+    !packet ||
+    typeof packet !== "object" ||
+    Array.isArray(packet)
+  )
+    return packet;
+  const record = packet as Record<string, unknown>;
+  const trigger = record.trigger;
+  if (!trigger || typeof trigger !== "object" || Array.isArray(trigger))
+    return packet;
+  const {
+    route: _route,
+    confidence: _confidence,
+    unsureRoute: _unsureRoute,
+    ...visibleTrigger
+  } = trigger as Record<string, unknown>;
+  return {
+    ...record,
+    trigger: visibleTrigger,
+  };
+}
+
 export async function modelContextBlock(
   packet: unknown,
   meetingPrep: boolean,
+  options?: { hideRoute?: boolean },
 ): Promise<string[]> {
-  const visible = evaluationContext(packet);
+  const visible = packetForModel(evaluationContext(packet), options);
   if (!meetingPrep)
     return contextBlock(visible, (await databaseNow()).getTime());
   return [
@@ -141,13 +176,14 @@ export async function withReplyLanguage<T>(
 export async function modelContextParts(
   packet: unknown,
   meetingPrep: boolean,
+  options?: { hideRoute?: boolean },
 ): Promise<{ fixed: string[]; perTurn: string[] }> {
   if (meetingPrep)
     return { fixed: [], perTurn: await modelContextBlock(packet, true) };
   return {
     fixed: ["", CHAT_IDENTITY_GUIDANCE],
     perTurn: turnContextBlock(
-      evaluationContext(packet),
+      packetForModel(evaluationContext(packet), options),
       (await databaseNow()).getTime(),
     ),
   };
