@@ -3666,6 +3666,8 @@
             "cancel": "Cancel"
           },
           "upload": "Upload",
+          "useOrganization": "Use {organization} brand",
+          "organizationCopied": "Copied the {organization} brand",
           "moreActions": "Brand actions"
         },
         "backToProject": "Back to project",

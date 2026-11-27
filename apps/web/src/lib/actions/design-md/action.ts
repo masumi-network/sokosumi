@@ -3,11 +3,11 @@
 import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import { fetchDesignMdMarkdown } from "@/components/design-md/design-md-edit-page-shared";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { coreClient } from "@/lib/clients/core.client";
@@ -246,6 +246,46 @@ export const removeDesignMd = withSession<
     return toActionResult(ok({ removed: true }));
   } catch (error) {
     console.error("Failed to remove DESIGN.md", error);
+    return toActionResult(err(toActionError(error)));
+  }
+});
+
+/**
+ * Copies the active organization's DESIGN.md into a Project as the Project's
+ * own file. A copy, not a link: later edits on either side stay separate.
+ * The organization file is resolved here from the session, never taken from
+ * the caller, so only a member's own organization brand can be copied.
+ */
+export const copyOrganizationDesignMdToProject = withSession<
+  AuthenticatedRequest & { projectId: string },
+  ActionResultDto<PersistedDesignMd, ActionError>
+>(async ({ projectId }) => {
+  const normalizedProjectId = projectId.trim();
+  if (!normalizedProjectId) {
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+
+  try {
+    const effective = await designMdService.resolveEffectiveDesignMd();
+    if (effective?.owner.type !== "organization") {
+      return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+    }
+
+    const loaded = await fetchDesignMdMarkdown(effective.url);
+    if (!("markdown" in loaded)) {
+      throw new Error("Organization DESIGN.md could not be read");
+    }
+
+    const owner = { type: "project" as const, projectId: normalizedProjectId };
+    const persisted = await designMdService.persistUploadedDesignMd(
+      owner,
+      loaded.markdown,
+    );
+
+    await revalidateOwner(owner);
+    return toActionResult(ok(persisted));
+  } catch (error) {
+    console.error("Failed to copy the organization DESIGN.md", error);
     return toActionResult(err(toActionError(error)));
   }
 });

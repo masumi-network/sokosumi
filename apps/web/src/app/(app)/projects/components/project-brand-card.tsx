@@ -3,6 +3,7 @@
 import type { ProjectDesignMd } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import {
+  Building2,
   ExternalLink,
   FileText,
   Loader2,
@@ -59,6 +60,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useProjectBrandAutoSetup } from "@/hooks/effects/use-project-brand-auto-setup";
+import { copyOrganizationDesignMdToProject } from "@/lib/actions/design-md/action";
 import {
   removeProjectDesignMd,
   updateProject,
@@ -92,6 +94,8 @@ interface ProjectBrandCardProps {
   readOnly?: boolean;
   /** A page's own action on the whole brand, shown beside the menu once a DESIGN.md exists. */
   headerAction?: ReactNode;
+  /** The active organization's name when it has a DESIGN.md to copy. */
+  organizationName?: string | null;
 }
 
 const ProjectBrandDashboardContext =
@@ -224,6 +228,7 @@ export function ProjectBrandCard({
   websiteUrl,
   readOnly = false,
   headerAction,
+  organizationName,
 }: ProjectBrandCardProps) {
   const t = useTranslations("App.Projects.Detail");
   const { designMd, failure, generation, setDesignMd } =
@@ -246,8 +251,13 @@ export function ProjectBrandCard({
   const website = websiteDraft ?? websiteUrl ?? "";
   const [websiteError, setWebsiteError] = useState<string | null>(null);
   const [isSavingWebsite, startSaveWebsite] = useTransition();
+  const [isCopying, startCopy] = useTransition();
   const menuBusy =
-    generation.isRunning || isRemoving || isUploading || isSavingWebsite;
+    generation.isRunning ||
+    isRemoving ||
+    isUploading ||
+    isSavingWebsite ||
+    isCopying;
   // The card's form explains a failure, so read-only cards keep the plain
   // message. A failure on another website than the saved one no longer
   // applies.
@@ -306,6 +316,21 @@ export function ProjectBrandCard({
       } catch {
         setWebsiteError(t("errors.update"));
       }
+    });
+  }
+
+  function handleCopyOrganization(organization: string) {
+    startCopy(async () => {
+      const result = await copyOrganizationDesignMdToProject({ projectId });
+      if (!result.ok) {
+        toast.error(t("errors.brand"));
+        return;
+      }
+      setDesignMd({
+        extractionId: result.value.extractionId,
+        url: result.value.url,
+      });
+      toast.success(t("brandCard.organizationCopied", { organization }));
     });
   }
 
@@ -511,6 +536,22 @@ export function ProjectBrandCard({
                   >
                     <Upload aria-hidden />
                     {t("brandCard.upload")}
+                  </Button>
+                ) : null}
+                {organizationName ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={isCopying}
+                    disabled={menuBusy}
+                    onClick={() => handleCopyOrganization(organizationName)}
+                    className="h-10 grow sm:h-8"
+                  >
+                    <Building2 aria-hidden />
+                    {t("brandCard.useOrganization", {
+                      organization: organizationName,
+                    })}
                   </Button>
                 ) : null}
               </div>

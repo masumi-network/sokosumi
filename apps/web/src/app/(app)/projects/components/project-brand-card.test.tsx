@@ -8,6 +8,7 @@ import {
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
 import { projectBrandJobCallbacks } from "@/app/projects/project-brand-job";
+import { copyOrganizationDesignMdToProject } from "@/lib/actions/design-md/action";
 import {
   removeProjectDesignMd,
   updateProject,
@@ -40,6 +41,8 @@ const MESSAGES: Record<string, string> = {
   "brandCard.edit": "Edit",
   "brandCard.remove": "Remove",
   "brandCard.upload": "Upload",
+  "brandCard.useOrganization": "Use {organization} brand",
+  "brandCard.organizationCopied": "Copied the {organization} brand",
   "brandCard.moreActions": "Brand actions",
   "brandCard.removed": "Brand context removed",
   "brandCard.removeDialog.title": "Remove brand context?",
@@ -76,6 +79,10 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/project/action", () => ({
   removeProjectDesignMd: vi.fn(),
   updateProject: vi.fn(),
+}));
+
+vi.mock("@/lib/actions/design-md/action", () => ({
+  copyOrganizationDesignMdToProject: vi.fn(),
 }));
 
 vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
@@ -137,7 +144,9 @@ function renderBrandDashboard({
   },
   websiteUrl = "https://example.com",
   headerAction,
+  organizationName,
 }: {
+  organizationName?: string | null;
   autoStart?: boolean;
   designMd?: { extractionId: string | null; url: string } | null;
   websiteUrl?: string | null;
@@ -154,6 +163,7 @@ function renderBrandDashboard({
         projectId="project-1"
         websiteUrl={url}
         headerAction={headerAction}
+        organizationName={organizationName}
       />
     </ProjectBrandProvider>
   );
@@ -840,5 +850,39 @@ describe("ProjectBrandCard", () => {
 
     expect(screen.getByText("Not set")).toBeInTheDocument();
     expect(screen.queryByText("Failed")).toBeNull();
+  });
+
+  it("copies the organization's brand into a project without one", async () => {
+    vi.mocked(copyOrganizationDesignMdToProject).mockResolvedValue({
+      ok: true,
+      value: {
+        extractionId: null,
+        previewUrl: null,
+        url: "https://blob.example/project/DESIGN.md",
+      },
+    } as Awaited<ReturnType<typeof copyOrganizationDesignMdToProject>>);
+    const user = userEvent.setup();
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: null,
+      organizationName: "Acme",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Use Acme brand" }));
+
+    expect(copyOrganizationDesignMdToProject).toHaveBeenCalledWith({
+      projectId: "project-1",
+    });
+    expect(await screen.findByText("Ready")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Use Acme brand" })).toBeNull();
+  });
+
+  it("keeps the organization button away from a project that has a brand or no organization", () => {
+    const view = renderBrandDashboard({ organizationName: "Acme" });
+    expect(screen.queryByRole("button", { name: "Use Acme brand" })).toBeNull();
+    view.unmount();
+
+    renderBrandDashboard({ designMd: null, websiteUrl: null });
+    expect(screen.queryByRole("button", { name: /brand$/ })).toBeNull();
   });
 });

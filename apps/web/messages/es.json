@@ -3666,6 +3666,8 @@
             "cancel": "Cancelar"
           },
           "upload": "Subir",
+          "useOrganization": "Usar la marca de {organization}",
+          "organizationCopied": "Marca de {organization} copiada",
           "moreActions": "Acciones de marca"
         },
         "backToProject": "Volver al proyecto",
