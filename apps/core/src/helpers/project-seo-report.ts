@@ -568,7 +568,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         }),
       },
     ],
-    checks: readChecklist(result.checklist, result.couldNotSee, pageUrl),
+    checks: readChecklist(
+      result.checklist,
+      result.couldNotSee,
+      pageUrl,
+      result.header.finalUrl,
+    ),
     keywords,
     competitors,
     findings,

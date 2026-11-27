@@ -24,6 +24,8 @@ export function focusedRuleCoverage(
 
 type WorkerCheck = {
   row: string;
+  ruleKey?: string;
+  pageOnly?: true;
   device: Checks[number]["device"];
   result: "pass" | "fired" | "blocked" | "not checked";
   sourceReason?: string;
@@ -33,6 +35,7 @@ export function readChecklist(
   rows: WorkerCheck[],
   notes: { item: string; reason: string }[],
   pageUrl: string,
+  finalUrl?: Partial<Record<Checks[number]["device"], string | null>> | null,
 ): Checks {
   const reasons = new Map(notes.map((note) => [note.item, note.reason]));
   return rows.map((row) => {
@@ -43,12 +46,16 @@ export function readChecklist(
           reasons.get(row.row + " on " + row.device) ||
           row.detail
         : undefined;
+    const read = finalUrl?.[row.device];
     return {
       rowId: row.row,
       device: row.device,
       pageUrl,
       result,
       ...(reason && { reason: reason.slice(0, MAX_REASON_CHARS) }),
+      ...(row.ruleKey && { ruleKey: row.ruleKey }),
+      ...(row.pageOnly && { pageOnly: true as const }),
+      ...(read && { finalUrl: read }),
     };
   });
 }

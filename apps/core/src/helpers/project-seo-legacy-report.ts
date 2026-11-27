@@ -5,6 +5,7 @@ import {
   seoSeveritySchema,
 } from "@/schemas/project-seo.schema";
 import { seoBodyDraftSchema } from "@/schemas/project-seo-action.schema";
+import { seoRuleKeySchema } from "@/schemas/seo-audit-coverage.schema";
 import { seoAuditFinalUrls, seoUrlSchema } from "@/schemas/seo-page.schema";
 import { difficulty, estimate } from "./project-seo-report-keywords";
 
@@ -160,6 +161,8 @@ export const legacySeoReportSchema = z.object({
     .array(
       z.object({
         row: text,
+        ruleKey: seoRuleKeySchema.optional().catch(undefined),
+        pageOnly: z.literal(true).optional().catch(undefined),
         device: seoDeviceSchema,
         result: z.enum(["pass", "fired", "blocked", "not checked"]),
         sourceReason: z.string().optional().catch(undefined),
