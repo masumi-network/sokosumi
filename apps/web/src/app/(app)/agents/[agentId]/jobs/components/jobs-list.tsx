@@ -34,6 +34,7 @@ const JOB_STATUS_EVENT_NAME = "job_status_data";
 
 interface JobStatusUpdateData {
   jobId: string;
+  agentId?: string;
   jobStatus: SokosumiJobStatus;
   jobStatusSettled: boolean;
 }
@@ -49,6 +50,8 @@ interface JobsListProps {
   jobsNextCursor: string | null;
   userId: string;
   agentId: string;
+  /** The active Workspace, whose Jobs the list shows; null without one. */
+  workspaceId: string | null;
   selectedJobId?: string;
   /** Rendered above the search field. */
   header?: ReactNode;
@@ -77,6 +80,7 @@ function JobsStatusRealtimeListener({
 
     enqueueStatusUpdate({
       jobId: parsedResult.data.jobId,
+      agentId: parsedResult.data.agentId,
       jobStatus: parsedResult.data.jobStatus,
       jobStatusSettled: parsedResult.data.jobStatusSettled,
     });
@@ -90,6 +94,7 @@ export function JobsList({
   jobsNextCursor,
   userId,
   agentId,
+  workspaceId,
   selectedJobId,
   header,
 }: JobsListProps) {
@@ -151,9 +156,6 @@ export function JobsList({
     [filteredJobs, locale],
   );
 
-  // The list is one Workspace's, so its first Job names the channel. An empty
-  // list has no status to keep live.
-  const workspaceId = jobs[0]?.workspace.id;
   const channelName = workspaceId
     ? jobStatusChannelName(workspaceId, userId)
     : null;
@@ -161,9 +163,16 @@ export function JobsList({
   function handleStatusUpdate(received: JobStatusUpdateData[]) {
     // The channel carries every Job of the Workspace, other Agents' too.
     const listedJobIds = new Set(localJobs.map((job) => job.id));
-    const updates = received.filter((update) => listedJobIds.has(update.jobId));
+    const updates = received.filter(
+      (update) => listedJobIds.has(update.jobId) || update.agentId === agentId,
+    );
     if (updates.length === 0) {
       return;
+    }
+    // A Job of this Agent the list does not hold yet: its status is kept for
+    // the row, and the list is read again so the row comes from Core.
+    if (updates.some((update) => !listedJobIds.has(update.jobId))) {
+      router.refresh();
     }
 
     const completedAtFallback = new Date();

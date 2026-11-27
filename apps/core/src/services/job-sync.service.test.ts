@@ -1792,6 +1792,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
     });
@@ -2076,6 +2077,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
@@ -2254,6 +2256,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
@@ -2338,6 +2341,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
@@ -2512,6 +2516,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.REFUND_RESOLVED,
       jobStatusSettled: false,
     });
@@ -2579,6 +2584,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       workspaceId: "11111111-1111-7111-8111-111111111111",
       userId: "user_1",
       jobId: "job_1",
+      agentId: "agent_1",
       jobStatus: SokosumiJobStatus.DISPUTE_RESOLVED,
       jobStatusSettled: false,
     });

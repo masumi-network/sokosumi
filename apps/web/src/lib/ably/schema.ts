@@ -6,6 +6,8 @@ import { TYPING_STATES } from "./room-typing-model";
 
 export const jobStatusDataSchema = z.object({
   jobId: z.string().min(1),
+  // Absent from a Core deployed before the event named its Agent.
+  agentId: z.string().optional(),
   jobStatus: z.enum(SokosumiJobStatus),
   jobStatusSettled: z.boolean(),
 });

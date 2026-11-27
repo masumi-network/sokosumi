@@ -254,6 +254,7 @@ export async function finalizeJobSyncResult(
       workspaceId: updatedJob.workspaceId,
       userId: ownerId,
       jobId: updatedJob.id,
+      agentId: updatedJob.agentId,
       jobStatus: updatedJob.status,
       jobStatusSettled: updatedJob.jobStatusSettled,
     });

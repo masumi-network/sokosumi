@@ -10,6 +10,7 @@ const channel = vi.hoisted(() => ({
   names: [] as string[],
   handler: null as ((message: { name: string; data: unknown }) => void) | null,
   badgeRenders: 0,
+  refresh: vi.fn(),
 }));
 
 vi.mock("next-intl", () => ({
@@ -20,7 +21,7 @@ vi.mock("next-intl", () => ({
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({}),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: channel.refresh }),
 }));
 
 vi.mock("ably/react", () => ({
@@ -55,7 +56,7 @@ vi.mock("@/hooks/effects/use-animation-frame-batch", () => ({
       onFlush([item]),
 }));
 
-vi.mock("../jobs-search", () => ({
+vi.mock("./jobs-search", () => ({
   JobsSearch: () => null,
   filterJobsByQuery: (jobs: JobSummary[]) => jobs,
   useJobsSearchQuery: () => ({
@@ -65,7 +66,7 @@ vi.mock("../jobs-search", () => ({
   }),
 }));
 
-vi.mock("../jobs-list.utils", () => ({
+vi.mock("./jobs-list.utils", () => ({
   buildJobDayGroups: (jobs: JobSummary[]) => [{ key: "day", jobs }],
 }));
 
@@ -101,12 +102,13 @@ function createJob(id: string): JobSummary {
   };
 }
 
-function receive(jobId: string) {
+function receive(jobId: string, agentId = "agent-1") {
   act(() => {
     channel.handler?.({
       name: "job_status_data",
       data: {
         jobId,
+        agentId,
         jobStatus: SokosumiJobStatus.COMPLETED,
         jobStatusSettled: true,
       },
@@ -114,14 +116,15 @@ function receive(jobId: string) {
   });
 }
 
-function renderList(jobs: JobSummary[]) {
-  render(
+function list(jobs: JobSummary[]) {
+  return (
     <JobsList
       jobs={jobs}
       jobsNextCursor={null}
       userId="user-1"
       agentId="agent-1"
-    />,
+      workspaceId="workspace-1"
+    />
   );
 }
 
@@ -130,36 +133,85 @@ describe("JobsList live status", () => {
     channel.names = [];
     channel.handler = null;
     channel.badgeRenders = 0;
+    channel.refresh.mockReset();
   });
 
-  it("attaches the Workspace channel of its Jobs on Mainnet", () => {
-    renderList([createJob("job-1")]);
+  it("attaches the active Workspace's channel on Mainnet, also while it lists no Job", () => {
+    render(list([]));
 
     expect(new Set(channel.names)).toEqual(
       new Set(["agent_jobs:mainnet:workspace_workspace-1:user_user-1"]),
     );
   });
 
-  it("attaches no channel for an empty list", () => {
-    renderList([]);
-
-    expect(channel.names).toEqual([]);
-  });
-
   // The channel is the Workspace's: it carries Jobs of other Agents too.
-  it("ignores an event of a Job it does not list and takes a listed Job's", () => {
-    renderList([createJob("job-1")]);
+  it("ignores an event of another Agent's Job and takes a listed Job's", () => {
+    render(list([createJob("job-1")]));
     const rendersBefore = channel.badgeRenders;
 
-    receive("job-of-another-agent");
+    receive("job-of-another-agent", "agent-2");
     expect(channel.badgeRenders).toBe(rendersBefore);
+    expect(channel.refresh).not.toHaveBeenCalled();
     expect(screen.getByTestId("status")).toHaveTextContent(
       SokosumiJobStatus.PROCESSING,
     );
 
     receive("job-1");
+    expect(channel.refresh).not.toHaveBeenCalled();
     expect(screen.getByTestId("status")).toHaveTextContent(
       SokosumiJobStatus.COMPLETED,
     );
+  });
+
+  // Core read the row as processing, the Job completed, and the row arrives
+  // after its event: the row shows the event's status, as before the rename.
+  it.each([
+    ["an empty list", []],
+    ["a list of other Jobs", [createJob("job-0")]],
+  ])(
+    "shows a Job that arrives after its event as completed, in %s",
+    (_list, held) => {
+      const { rerender } = render(list(held));
+
+      receive("job-1");
+      // The list is read again, so the row comes from Core.
+      expect(channel.refresh).toHaveBeenCalledTimes(1);
+
+      rerender(list([createJob("job-1"), ...held]));
+      expect(screen.getAllByTestId("status")[0]).toHaveTextContent(
+        SokosumiJobStatus.COMPLETED,
+      );
+    },
+  );
+
+  it("shows a Job that arrives before its event as completed", () => {
+    const { rerender } = render(list([]));
+
+    rerender(list([createJob("job-1")]));
+    receive("job-1");
+
+    expect(channel.refresh).not.toHaveBeenCalled();
+    expect(screen.getByTestId("status")).toHaveTextContent(
+      SokosumiJobStatus.COMPLETED,
+    );
+  });
+
+  it("ignores an unlisted Job's event that names no Agent, as an older Core sends it", () => {
+    render(list([createJob("job-0")]));
+    const rendersBefore = channel.badgeRenders;
+
+    act(() => {
+      channel.handler?.({
+        name: "job_status_data",
+        data: {
+          jobId: "job-1",
+          jobStatus: SokosumiJobStatus.COMPLETED,
+          jobStatusSettled: true,
+        },
+      });
+    });
+
+    expect(channel.badgeRenders).toBe(rendersBefore);
+    expect(channel.refresh).not.toHaveBeenCalled();
   });
 });

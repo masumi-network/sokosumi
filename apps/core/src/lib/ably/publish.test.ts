@@ -148,6 +148,7 @@ describe("publishJobStatusData", () => {
     workspaceId: WORKSPACE_ID,
     userId: "user_123",
     jobId: "job_123",
+    agentId: "agent_123",
     jobStatus: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
   };
@@ -183,6 +184,7 @@ describe("publishJobStatusData", () => {
           "job_status_data",
           {
             jobId: "job_123",
+            agentId: "agent_123",
             jobStatus: SokosumiJobStatus.PROCESSING,
             jobStatusSettled: false,
           },
@@ -201,7 +203,10 @@ describe("publishJobStatusData", () => {
       "an opted-in person in their personal Workspace",
       owner({ preprodEnabled: true, workspace: { id: WORKSPACE_ID } }),
     ],
-    ["a platform admin", owner({ role: "admin" })],
+    [
+      "a platform admin in their Workspace",
+      owner({ role: "admin", workspace: { id: WORKSPACE_ID } }),
+    ],
   ])("publishes a Preprod status to %s", async (_who, row) => {
     envMock.NETWORK_PREPROD_ENABLED = true;
     findOwnerMock.mockResolvedValue(row);
@@ -228,6 +233,10 @@ describe("publishJobStatusData", () => {
     [
       "an opted-in person in a Workspace that is not theirs",
       owner({ preprodEnabled: true }),
+    ],
+    [
+      "a platform admin in a Workspace that is not theirs",
+      owner({ role: "admin" }),
     ],
     ["an Owner who is gone", null],
   ])("drops a Preprod status for %s, with a warning", async (_who, row) => {

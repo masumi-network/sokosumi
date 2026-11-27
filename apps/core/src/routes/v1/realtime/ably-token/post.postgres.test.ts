@@ -287,6 +287,7 @@ const preprodChannel = (workspaceId: string, userId: string) =>
 
 const status = (jobId = "job_1") => ({
   jobId,
+  agentId: "agent_1",
   jobStatus: "completed" as const,
   jobStatusSettled: true,
 });
@@ -588,6 +589,44 @@ describe.runIf(enabled && onSplitLayout)(
 
       expect(published).toEqual([]);
       expect(warnings).toHaveLength(withoutAccess.length);
+    });
+
+    it("drops a Preprod Job status of a platform admin who has left the Job's Organization", async () => {
+      const left = await rows.organization([admin.id, member.id], true);
+      const publish = () =>
+        loaded.publishJobStatusData({
+          network: "preprod",
+          workspaceId: left.workspaceId,
+          userId: admin.id,
+          ...status(),
+        });
+      const channel = preprodChannel(left.workspaceId, admin.id);
+
+      published.length = 0;
+      await publish();
+      expect(published).toEqual([[channel, "job_status_data"]]);
+
+      await loaded.prisma.member.delete({
+        where: {
+          userId_organizationId: {
+            userId: admin.id,
+            organizationId: left.id,
+          },
+        },
+      });
+      // The token no longer grants the channel; an attached tab keeps its
+      // earlier grant for up to five minutes, which the publish closes.
+      const refreshed = await token(loaded, { cookie: admin.cookie });
+      expect(refreshed.capability).not.toHaveProperty(channel);
+
+      published.length = 0;
+      const warnings = expectCoreLog(
+        "warn",
+        "Dropped a Preprod job status event",
+      );
+      await publish();
+      expect(published).toEqual([]);
+      expect(warnings).toHaveLength(1);
     });
   },
 );

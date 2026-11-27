@@ -37,6 +37,8 @@ import { getRealtimeChannelEnvironment } from "./realtime-channel-environment";
 
 interface JobStatusData {
   jobId: string;
+  /** Lets an Agent's job list tell its own Jobs on the Workspace's channel. */
+  agentId: string;
   jobStatus: SokosumiJobStatus;
   jobStatusSettled: boolean;
 }
@@ -277,11 +279,13 @@ async function ownerHasPreprodAccess(
     },
   });
   if (!owner) return false;
-  const organization =
-    owner.members[0]?.organization ??
-    // Neither their own Workspace nor one they are a member of: no flag counts.
-    (owner.workspace?.id === workspaceId ? null : { preprodEnabled: false });
-  return canUsePreprodInWorkspace(owner, owner.role, { organization });
+  const membership = owner.members[0];
+  // The rule is for a Workspace the user is in: neither a flag nor the admin
+  // role opens another one, such as an Organization's they have left.
+  if (!membership && owner.workspace?.id !== workspaceId) return false;
+  return canUsePreprodInWorkspace(owner, owner.role, {
+    organization: membership?.organization ?? null,
+  });
 }
 
 /**
@@ -295,6 +299,7 @@ export async function publishJobStatusData({
   workspaceId,
   userId,
   jobId,
+  agentId,
   jobStatus,
   jobStatusSettled,
 }: PublishJobStatusDataInput) {
@@ -323,6 +328,7 @@ export async function publishJobStatusData({
   );
   await channel.publish("job_status_data", {
     jobId,
+    agentId,
     jobStatus,
     jobStatusSettled,
   });
