@@ -18,6 +18,8 @@ import {
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
+import { isPreprodOn, type Network } from "@/lib/network";
+import { networkFromUserApiKeyPrefix } from "@/lib/user-api-key";
 
 import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
 import { checkOAuthGrant, OAUTH_GRANT_CLIENT_SELECT } from "./auth-oauth-grant";
@@ -41,6 +43,12 @@ export interface UserAuthenticationContext {
   firstPartyClient?: boolean;
   /** The OAuth client that issued the token, for `authenticationMethod: "oauth"`. */
   oauthClientId?: string;
+  /**
+   * The Network of the API key's stored prefix, for `authenticationMethod:
+   * "api_key"`, set only while Preprod is on: the Network scope holds it
+   * against `X-Sokosumi-Network` (`src/middleware/network-scope.ts`).
+   */
+  apiKeyNetwork?: Network;
   /**
    * Admin user id when this session impersonates another user (Better Auth
    * `impersonatedBy`). Absent otherwise. `userId`/`role` always describe the
@@ -518,6 +526,15 @@ async function verifyApiKey(
         organizationId: null,
         role: dbUser.role,
         authenticationMethod: "api_key",
+        // From the row the plugin verified, so no read. While Preprod is off
+        // the prefix is not read: every key is a Mainnet key, as before.
+        ...(isPreprodOn()
+          ? {
+              apiKeyNetwork: networkFromUserApiKeyPrefix(
+                apiKeyResult.key.prefix,
+              ),
+            }
+          : {}),
       },
     });
     return true;
