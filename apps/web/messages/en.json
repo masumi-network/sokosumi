@@ -464,6 +464,7 @@
           "exportDocxError": "Failed to export Word document",
           "exportAsPdf": "Export as PDF",
           "exportAsDocx": "Export as Word document",
+          "exportTooLarge": "This file is too large to export. The limit is {limit, number} MB.",
           "exportAsMarkdown": "Export as Markdown",
           "Refund": {
             "error": "Failed to request refund",
@@ -11026,6 +11027,8 @@
         "previewHeading": "Preview",
         "previewOpen": "Open",
         "previewDownload": "Download",
+        "previewDownloadOriginal": "Original file",
+        "previewExportTooLarge": "Too large to export as PDF or Word. The limit is {limit, number} MB; the original file still downloads.",
         "previewLoading": "Loading preview",
         "previewUnavailable": "This preview could not be loaded. The download still works.",
         "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it.",
