@@ -59,6 +59,18 @@ export interface ReferenceScript {
   jev?: Record<string, number | string>;
 }
 
+let pendingAudit: ((turnId: string) => Promise<void>) | null = null;
+
+/**
+ * Runs once, at the journey's first agent step: after the runner's reset and
+ * setup, before the agent acts, which is where leftovers would show.
+ */
+export function auditBeforeFirstStep(
+  audit: (turnId: string) => Promise<void>,
+): void {
+  pendingAudit = audit;
+}
+
 const NOOP_ANSWER = "OK";
 let reference: ReferenceScript = { turns: [] };
 
@@ -111,6 +123,9 @@ export function worldCheckModel(
   let callId = 0;
   return new MockLanguageModelV3({
     doStream: async (options) => {
+      const audit = pendingAudit;
+      pendingAudit = null;
+      await audit?.(turnId);
       const next = script?.steps[step];
       step += 1;
       const played = next

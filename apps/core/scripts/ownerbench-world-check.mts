@@ -5,15 +5,18 @@
  *
  *   1. A do-nothing agent ("OK", no tools) must FAIL the journey.
  *   2. The journey's reference script must PASS every check.
- *   3. Each journey runs twice in a row: the second pass must give the same
- *      checks, and nothing may be left running on the lane after it.
+ *   3. Each journey runs twice in a row: every pass must give the same
+ *      checks, and right after the runner's reset the lane must hold nothing
+ *      from earlier work.
  *
  * Nothing asks a model: the agent and Jev answer from a script, the judge is
- * off, and the Gateway key is a dummy, so any other model call fails loudly.
+ * off, and every provider key is a dummy, so any other call fails loudly.
  * Held-out journeys print as counts only; per-case detail goes to --json-out.
+ * Exits 1 when any journey fails a check, a run is invalid or a reference
+ * script is missing.
  *
- *   pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-world-check.mts --suite soko-bot
- *   pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-world-check.mts --cases owner-pdf-to-x-posts --modes noop
+ *   pnpm --filter @sokosumi/core ownerbench:world-check --suite soko-bot
+ *   pnpm --filter @sokosumi/core ownerbench:world-check --cases owner-pdf-to-x-posts --modes reference --passes 1
  */
 import { writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
@@ -29,12 +32,38 @@ const { values } = parseArgs({
   },
 });
 
+type Mode = "noop" | "reference";
+const MODES: readonly Mode[] = ["noop", "reference"];
+
+/** An invocation that could reach a provider or a shared database never starts. */
+function admissionProblem(): string | null {
+  const modes = values.modes.split(",");
+  const bad = modes.filter((mode) => !MODES.includes(mode as Mode));
+  if (bad.length)
+    return `Unknown mode(s): ${bad.join(", ")}; use noop,reference`;
+  if (!(Number(values.passes) >= 1)) return "--passes must be 1 or more";
+  if (process.env.VERCEL || process.env.NODE_ENV === "production")
+    return "A world check runs locally only (VERCEL or NODE_ENV=production is set)";
+  for (const key of ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]) {
+    const url = process.env[key];
+    if (!url) return `${key} must point at a local database`;
+    const host = new URL(url).hostname;
+    if (!["localhost", "127.0.0.1", "::1"].includes(host))
+      return `${key} points at ${host}; a world check runs on a local database only`;
+  }
+  return null;
+}
+const refused = admissionProblem();
+if (refused) {
+  console.error(refused);
+  process.exit(2);
+}
+
 if (values.holdout) process.env.OWNERBENCH_HOLDOUT_FILE = values.holdout;
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 process.env.SOKO_BOT_LOCAL_CHATGPT_PLAN = "";
 // No model, media, search, mail or payment provider is reachable: a call to
-// one fails loudly instead of spending or sending. Set before `.env` loads,
-// which never overrides what is already set.
+// one fails loudly instead of spending or sending.
 for (const key of [
   "AI_GATEWAY_API_KEY",
   "SOKO_BOT_AI_GATEWAY_API_KEY",
@@ -58,11 +87,18 @@ const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
 );
 const { EVAL_CASES } = await import("@/services/evals/eval-cases");
-const { setReferenceScript } = await import("@/lib/evals/world-check");
+const { auditBeforeFirstStep, setReferenceScript, worldCheckMode } =
+  await import("@/lib/evals/world-check");
 const { REFERENCE_SCRIPTS } = await import("@/lib/evals/reference-scripts");
+const { journeyProblems, resultInvalid } = await import(
+  "@/lib/evals/world-check-verdict"
+);
+type WorldCheckCheck =
+  import("@/lib/evals/world-check-verdict").WorldCheckCheck;
+type WorldCheckRun = import("@/lib/evals/world-check-verdict").WorldCheckRun;
+type ResultRun = import("@/lib/evals/world-check-verdict").WorldCheckResult;
 const { HOLDOUT_PREFIX } = await import("@/services/evals/ownerbench/holdout");
 
-type Mode = "noop" | "reference";
 const modes = values.modes.split(",") as Mode[];
 const suites = values.suite as ("soko-bot" | "cmo")[] | undefined;
 const named = values.cases?.split(",").map((id) => id.trim());
@@ -72,6 +108,13 @@ const journeys = EVAL_CASES.filter(
     (!suites || suites.includes(evalCase.suite)) &&
     (!named || named.includes(evalCase.id)),
 );
+const unknown = (named ?? []).filter(
+  (id) => !journeys.some((journey) => journey.id === id),
+);
+if (unknown.length) {
+  console.error(`Not an owner journey: ${unknown.join(", ")}`);
+  process.exit(2);
+}
 
 if (
   (await prisma.evalRun.count({
@@ -81,40 +124,66 @@ if (
   console.error(
     "An eval run is already queued or running on this database; point DATABASE_URL at your own.",
   );
-  process.exit(1);
+  process.exit(2);
 }
 
-interface Check {
-  label: string;
-  pass: boolean;
-  actual?: string;
+type Check = WorldCheckCheck;
+interface CaseRun extends WorldCheckRun {
+  /** Work this journey left unfinished when it ended (the next reset clears it). */
+  atEnd: Record<string, number> | null;
 }
 
-interface CaseRun {
-  mode: Mode;
-  pass: number;
-  status: string;
-  error: string | null;
-  checks: Check[];
-  leftovers: Record<string, number>;
-}
+const OPEN_TURNS = [
+  "QUEUED",
+  "STARTING",
+  "RUNNING",
+  "CANCEL_REQUESTED",
+] as const;
+const OPEN_IMAGE_JOBS = ["PENDING", "SUBMITTING", "QUEUED", "RUNNING"] as const;
+const OPEN_POSTS = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+  "PUBLISHING",
+] as const;
 
-/** What a finished journey left running, for the next journey's reset to clear. */
-async function leftovers(since: Date): Promise<Record<string, number>> {
-  const createdAt = { gte: since };
-  const [turns, watches, imageJobs] = await Promise.all([
+/** Earlier work on the lane's workspace: open things, and work made before the journey began. */
+async function laneState(
+  workspaceId: string,
+  before: Date,
+  exceptTurnId?: string,
+): Promise<Record<string, number>> {
+  const [turns, watches, imageJobs, posts, tables] = await Promise.all([
     prisma.sokoBotTurn.count({
-      where: { createdAt, status: { in: ["QUEUED", "STARTING", "RUNNING"] } },
+      where: {
+        workspaceId,
+        status: { in: [...OPEN_TURNS] },
+        ...(exceptTurnId ? { id: { not: exceptTurnId } } : {}),
+      },
     }),
-    prisma.sokoBotWatch.count({ where: { createdAt, status: "WAITING" } }),
+    prisma.sokoBotWatch.count({
+      where: { status: "WAITING", sokoBot: { workspaceId } },
+    }),
     prisma.projectImageJob.count({
-      where: { createdAt, status: { in: ["QUEUED", "RUNNING"] } },
+      where: { workspaceId, status: { in: [...OPEN_IMAGE_JOBS] } },
+    }),
+    prisma.socialPost.count({
+      where: {
+        project: { workspaceId },
+        createdAt: { lt: before },
+        status: { in: [...OPEN_POSTS] },
+      },
+    }),
+    prisma.dataTable.count({
+      where: { workspaceId, createdAt: { lt: before } },
     }),
   ]);
   return {
-    activeTurns: turns,
+    openTurns: turns,
     waitingWatches: watches,
     openImageJobs: imageJobs,
+    earlierOpenPosts: posts,
+    earlierTables: tables,
   };
 }
 
@@ -124,12 +193,26 @@ async function runOnce(
   pass: number,
 ): Promise<CaseRun> {
   process.env.OWNERBENCH_WORLD_CHECK = mode;
+  if (worldCheckMode() !== mode)
+    throw new Error(`The scripted runtime did not switch on (${mode})`);
   setReferenceScript(
     mode === "reference"
       ? (REFERENCE_SCRIPTS[caseId] ?? { turns: [] })
       : { turns: [] },
   );
-  const startedAt = new Date();
+  const seen: {
+    workspaceId: string | null;
+    afterReset: Record<string, number> | null;
+  } = { workspaceId: null, afterReset: null };
+  const journeyStart = new Date();
+  auditBeforeFirstStep(async (turnId) => {
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: turnId },
+      select: { workspaceId: true },
+    });
+    seen.workspaceId = turn.workspaceId;
+    seen.afterReset = await laneState(turn.workspaceId, journeyStart, turnId);
+  });
   const run = await createEvalRun({
     trigger: "MANUAL",
     caseIds: [caseId],
@@ -145,37 +228,40 @@ async function runOnce(
     if (tick.completed || (status !== "QUEUED" && status !== "RUNNING")) break;
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
-  const result = await prisma.evalResult.findFirstOrThrow({
+  const rows = await prisma.evalResult.findMany({
     where: { runId: run.id },
-    select: { status: true, error: true, checks: true },
+    orderBy: { repeat: "asc" },
+    select: {
+      repeat: true,
+      status: true,
+      error: true,
+      checks: true,
+      finishedAt: true,
+    },
+  });
+  const results = rows.map((row): ResultRun => {
+    const checks = (row.checks ?? []) as unknown as Check[];
+    return {
+      repeat: row.repeat,
+      checks,
+      invalid: resultInvalid({ ...row, checks }),
+    };
   });
   return {
     mode,
     pass,
-    status: result.status,
-    error: result.error,
-    checks: (result.checks ?? []) as unknown as Check[],
-    leftovers: await leftovers(startedAt),
+    results,
+    afterReset: seen.afterReset,
+    atEnd: seen.workspaceId
+      ? await laneState(seen.workspaceId, new Date(0))
+      : null,
   };
 }
-
-const allPass = (checks: readonly Check[]) =>
-  checks.length > 0 && checks.every((check) => check.pass);
-const signature = (checks: readonly Check[]) =>
-  checks.map((check) => `${check.label}:${check.pass}`).join("|");
 
 interface Verdict {
   caseId: string;
   heldOut: boolean;
-  /** Check 1: the do-nothing run passes. */
-  noopPasses: boolean | null;
-  /** The checks a do-nothing run passes (negative checks are expected here). */
-  noopPassing: string[];
-  /** Check 2: the reference run fails, with the checks it fails. */
-  referenceFails: string[] | null;
-  /** Check 3: a mode whose second pass gave different checks. */
-  notRepeatable: string[];
-  leftovers: Record<string, number>;
+  problems: string[];
   runs: CaseRun[];
 }
 
@@ -184,59 +270,34 @@ for (const evalCase of journeys) {
   const runs: CaseRun[] = [];
   for (let pass = 1; pass <= Number(values.passes); pass += 1)
     for (const mode of modes) runs.push(await runOnce(evalCase.id, mode, pass));
-  const first = (mode: Mode) => runs.find((run) => run.mode === mode);
-  const noop = first("noop");
-  const reference = first("reference");
-  const leftover: Record<string, number> = {};
-  for (const run of runs)
-    for (const [key, count] of Object.entries(run.leftovers))
-      leftover[key] = Math.max(leftover[key] ?? 0, count);
+  const problems = journeyProblems(runs, {
+    modes,
+    hasScript: Boolean(REFERENCE_SCRIPTS[evalCase.id]),
+  });
   verdicts.push({
     caseId: evalCase.id,
     heldOut: evalCase.id.startsWith(HOLDOUT_PREFIX),
-    noopPasses: noop ? allPass(noop.checks) : null,
-    noopPassing:
-      noop?.checks.filter((check) => check.pass).map((check) => check.label) ??
-      [],
-    referenceFails: reference
-      ? reference.checks
-          .filter((check) => !check.pass)
-          .map((check) => `${check.label} => ${check.actual ?? ""}`)
-      : null,
-    notRepeatable: modes.filter((mode) => {
-      const [a, b] = runs.filter((run) => run.mode === mode);
-      return a && b && signature(a.checks) !== signature(b.checks);
-    }),
-    leftovers: leftover,
+    problems,
     runs,
   });
 }
 
-const dev = verdicts.filter((verdict) => !verdict.heldOut);
-for (const verdict of dev) {
-  const problems = [
-    verdict.noopPasses ? "do-nothing PASSES (checks too loose)" : null,
-    verdict.referenceFails?.length
-      ? `reference FAILS: ${verdict.referenceFails.join("; ")}`
-      : null,
-    verdict.notRepeatable.length
-      ? `second pass differs (${verdict.notRepeatable.join(", ")})`
-      : null,
-    Object.values(verdict.leftovers).some(Boolean)
-      ? `left running: ${JSON.stringify(verdict.leftovers)}`
-      : null,
-  ].filter(Boolean);
+for (const verdict of verdicts.filter((each) => !each.heldOut))
   console.log(
-    `${verdict.caseId}: ${problems.length ? problems.join(" | ") : "ok"}`,
+    `${verdict.caseId}: ${verdict.problems.length ? verdict.problems.join(" | ") : "ok"}`,
+  );
+const held = verdicts.filter((verdict) => verdict.heldOut);
+if (held.length) {
+  const count = (pattern: RegExp) =>
+    held.filter((verdict) =>
+      verdict.problems.some((problem) => pattern.test(problem)),
+    ).length;
+  console.log(
+    `held-out: ${held.length} journeys; invalid runs ${count(/INVALID RUN/)}, do-nothing passes ${count(/do-nothing PASSES/)}, reference fails ${count(/reference FAILS/)}, uncovered ${count(/UNCOVERED/)}, passes differ ${count(/passes give different/)}, leftovers ${count(/left over|not checked/)}`,
   );
 }
-const held = verdicts.filter((verdict) => verdict.heldOut);
-if (held.length)
-  console.log(
-    `held-out: ${held.length} journeys; do-nothing passes ${held.filter((v) => v.noopPasses).length}, reference fails ${held.filter((v) => v.referenceFails?.length).length}, second pass differs ${held.filter((v) => v.notRepeatable.length).length}, left running ${held.filter((v) => Object.values(v.leftovers).some(Boolean)).length}`,
-  );
 if (values["json-out"]) {
   await writeFile(values["json-out"], JSON.stringify(verdicts, null, 2));
   console.log(`Per-journey detail written to ${values["json-out"]}`);
 }
-process.exit(0);
+process.exit(verdicts.some((verdict) => verdict.problems.length) ? 1 : 0);
