@@ -390,8 +390,14 @@ export async function summarizeTurnReceipts(
   return Promise.all(
     calls.map(async (call) => {
       const label = receiptLabel(call.targetId, call.result);
+      // Preserve recorded disposition before checking FAILED status: a lost
+      // provider response is stored as FAILED/UNKNOWN and may have taken effect.
       const outcome: ReceiptOutcome =
-        call.status === "FAILED" ? "not done" : await receiptOutcome(call);
+        call.disposition === "UNKNOWN"
+          ? "unconfirmed"
+          : call.disposition === "REJECTED" || call.status === "FAILED"
+            ? "not done"
+            : await receiptOutcome(call);
       return {
         capability: call.capability,
         label,

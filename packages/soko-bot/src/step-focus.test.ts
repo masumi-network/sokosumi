@@ -64,6 +64,7 @@ const KNOWN_WRITE_CAPABILITIES: readonly SokoBotCapability[] = [
   "find_people",
   "enrich_contact",
   "find_investors",
+  "investor_warm_paths",
   "create_project",
   "update_project",
   "run_integration_tool",
@@ -130,8 +131,13 @@ describe("step-focus tool bundles", () => {
     expect(unclassifiedWrites).toEqual([]);
   });
 
-  it("includes every direct read capability in inspect and keeps verify a subset of inspect", () => {
+  it("includes every pure direct read capability in inspect and keeps verify a subset of inspect", () => {
     for (const capability of SOKO_BOT_DIRECT_READ_CAPABILITIES) {
+      if (capability === "investor_warm_paths") {
+        expect(STEP_FOCUS_INSPECT_CAPABILITIES.has(capability)).toBe(false);
+        expect(STEP_FOCUS_VERIFY_CAPABILITIES.has(capability)).toBe(false);
+        continue;
+      }
       expect(STEP_FOCUS_INSPECT_CAPABILITIES.has(capability)).toBe(true);
     }
     for (const capability of STEP_FOCUS_VERIFY_CAPABILITIES) {

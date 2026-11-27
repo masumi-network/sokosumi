@@ -71,6 +71,14 @@ const INSPECT_ONLY_CAPABILITIES: ReadonlySet<SokoBotCapability> = new Set([
   "find_coworkers",
   "get_agent_input_schema",
   "workspace_import_file",
+]);
+
+/**
+ * Capabilities in `SOKO_BOT_DIRECT_READ_CAPABILITIES` that can incur paid
+ * external spend or write data depending on input (`investor_warm_paths` with
+ * `research: true`), so they stay reserved for `act` only.
+ */
+const ACT_ONLY_DIRECT_CAPABILITIES: ReadonlySet<SokoBotCapability> = new Set([
   "investor_warm_paths",
 ]);
 
@@ -79,10 +87,12 @@ const INSPECT_ONLY_CAPABILITIES: ReadonlySet<SokoBotCapability> = new Set([
  * explicitly listed here is treated as a write/action tool (`act` only).
  */
 export const STEP_FOCUS_INSPECT_CAPABILITIES: ReadonlySet<SokoBotCapability> =
-  new Set<SokoBotCapability>([
-    ...SOKO_BOT_DIRECT_READ_CAPABILITIES,
-    ...EXTRA_INSPECT_CAPABILITIES,
-  ]);
+  new Set<SokoBotCapability>(
+    [
+      ...SOKO_BOT_DIRECT_READ_CAPABILITIES,
+      ...EXTRA_INSPECT_CAPABILITIES,
+    ].filter((capability) => !ACT_ONLY_DIRECT_CAPABILITIES.has(capability)),
+  );
 
 /** Capabilities permitted in `verify` steps (read-back tools + `update_plan`). */
 export const STEP_FOCUS_VERIFY_CAPABILITIES: ReadonlySet<SokoBotCapability> =

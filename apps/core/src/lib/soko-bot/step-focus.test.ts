@@ -1,6 +1,8 @@
 import {
   buildStepFocusBundles,
   type SokoBotCapability,
+  STEP_FOCUS_INSPECT_CAPABILITIES,
+  STEP_FOCUS_VERIFY_CAPABILITIES,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -596,6 +598,112 @@ describe("selectStepFocusWithEvaluator", () => {
     expect(result.toolChoice).toBe("none");
     expect(result.receipt.validation).toBe("stale_bundle");
   });
+
+  it("preserves uncertainty in a failed provider receipt while marking confirmed refusals not done", async () => {
+    const { summarizeTurnReceipts } = await import("./done-check");
+    toolCallFindManyMock.mockResolvedValueOnce([
+      {
+        status: "FAILED",
+        disposition: "UNKNOWN",
+        capability: "publish_social_post",
+        targetId: null,
+        result: null,
+      },
+      {
+        status: "FAILED",
+        disposition: "REJECTED",
+        capability: "publish_social_post",
+        targetId: null,
+        result: null,
+      },
+    ]);
+
+    const receipts = await summarizeTurnReceipts("turn_uncertain");
+    expect(receipts[0]).toMatchObject({
+      capability: "publish_social_post",
+      outcome: "unconfirmed",
+      line: "publish_social_post: Core could not confirm whether it happened",
+    });
+    expect(receipts[1]).toMatchObject({
+      capability: "publish_social_post",
+      outcome: "not done",
+      line: "publish_social_post: did not happen",
+    });
+
+    const { note } = buildVerifyReceiptsNote([receipts[0]!]);
+    expect(note).toContain("Core could not confirm whether it happened");
+    expect(note).not.toContain("did not happen");
+    expect(note).toContain("never call an unconfirmed action failed or done");
+  });
+
+  it("rechecks the current menu when a fallback or a single option selects act, and fails closed if writes were revoked", async () => {
+    const unchanged = buildStepFocusBundles(MIXED_TOOLS, MIXED_TOOLS);
+    const readOnly = buildStepFocusBundles(MIXED_TOOLS, READ_ONLY_TOOLS);
+
+    for (const justExpandedShortForm of [false, true]) {
+      const recheckBundles = vi.fn(() => unchanged);
+      const result = await selectStepFocusWithEvaluator(
+        baseInput({
+          bundles: unchanged,
+          justExpandedShortForm,
+          recheckBundles,
+        }),
+        async () => ({ costUsd: 0, answers: new Map() }),
+      );
+      expect(result.appliedFocus).toBe("act");
+      expect(recheckBundles).toHaveBeenCalledWith("act");
+    }
+
+    // Revoked writes on fallback / single-candidate act must fall back cleanly with zero writes.
+    for (const justExpandedShortForm of [false, true]) {
+      const recheckBundles = vi.fn(() => readOnly);
+      const result = await selectStepFocusWithEvaluator(
+        baseInput({
+          bundles: unchanged,
+          justExpandedShortForm,
+          recheckBundles,
+        }),
+        async () => ({ costUsd: 0, answers: new Map() }),
+      );
+      expect(recheckBundles).toHaveBeenCalledWith("act");
+      expect(result.appliedFocus).toBe("answer");
+      expect(result.usedFallback).toBe(true);
+      expect(result.allowedTools).toEqual([]);
+      expect(result.receipt.validation).toBe("stale_bundle");
+    }
+  });
+
+  it("keeps paid research (investor_warm_paths) and all Core action-receipt capabilities out of inspect and verify", async () => {
+    const {
+      ACTION_RECEIPT_CAPABILITIES,
+      EXTERNAL_EFFECT_CAPABILITIES,
+      isExternalEffectToolCall,
+    } = await import("./action-receipts");
+    const name: SokoBotCapability = "investor_warm_paths";
+    expect(
+      isExternalEffectToolCall(name, {
+        contactId: "00000000-0000-4000-8000-000000000001",
+        research: true,
+      }),
+    ).toBe(true);
+    expect(buildStepFocusBundles([name], [name]).inspect).not.toContain(name);
+    expect(buildStepFocusBundles([name], [name]).verify).not.toContain(name);
+    expect(buildStepFocusBundles([name], [name]).act).toContain(name);
+
+    for (const cap of [
+      ...ACTION_RECEIPT_CAPABILITIES,
+      ...EXTERNAL_EFFECT_CAPABILITIES,
+    ]) {
+      expect(
+        STEP_FOCUS_INSPECT_CAPABILITIES.has(cap as SokoBotCapability),
+        `${cap} must not be in inspect`,
+      ).toBe(false);
+      expect(
+        STEP_FOCUS_VERIFY_CAPABILITIES.has(cap as SokoBotCapability),
+        `${cap} must not be in verify`,
+      ).toBe(false);
+    }
+  });
 });
 
 describe("selectTurnStepFocus and recordTurnStepFocusOutcome", () => {
@@ -762,5 +870,60 @@ describe("selectTurnStepFocus and recordTurnStepFocusOutcome", () => {
         }),
       }),
     );
+  });
+
+  it("re-authorizes live grants before returning a fallback or single-candidate act and fails closed on revocation", async () => {
+    resolveVersionMock.mockResolvedValue({
+      id: "v40",
+      profile: "assistant",
+      stepFocus: true,
+      capabilities: ["list_tasks", "create_task"],
+    });
+    authorizeMock
+      .mockResolvedValueOnce({
+        turn: {
+          id: "turn_1",
+          sokoBotId: "bot_1",
+          versionId: "v40",
+          source: "CHAT",
+          chainDepth: 0,
+        },
+        grant: { capabilities: ["list_tasks", "create_task"] },
+      })
+      .mockResolvedValueOnce({
+        turn: {
+          id: "turn_1",
+          sokoBotId: "bot_1",
+          versionId: "v40",
+          source: "CHAT",
+          chainDepth: 0,
+        },
+        grant: { capabilities: ["list_tasks"] },
+      });
+
+    const selection = await selectTurnStepFocus(
+      {
+        turnId: "turn_1",
+        sessionId: "sess_1",
+        sandbox: false,
+        stepIndex: 0,
+        roundIndex: 0,
+        stepsInRound: 0,
+        stepsRemaining: 10,
+        recentSteps: [],
+        hasAttemptedWrite: false,
+        consecutiveInspect: 0,
+        consecutiveVerify: 0,
+        justExpandedShortForm: false,
+      },
+      // Empty Jev answer triggers fallback -> act, which must still re-authorize.
+      async () => ({ answers: new Map(), costUsd: 0 }),
+    );
+
+    expect(authorizeMock).toHaveBeenCalledTimes(2);
+    expect(selection?.appliedFocus).toBe("answer");
+    expect(selection?.usedFallback).toBe(true);
+    expect(selection?.allowedTools).toEqual([]);
+    expect(selection?.toolChoice).toBe("none");
   });
 });

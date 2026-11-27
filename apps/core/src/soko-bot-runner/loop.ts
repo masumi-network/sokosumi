@@ -285,7 +285,7 @@ export async function runTurnLoop(
   let lastFocusCacheKey: string | undefined;
   let lastVerifyNoteKey: string | null = null;
   let currentFocus: {
-    decisionId: string;
+    decisionId: string | null;
     appliedFocus: StepFocus;
     usedFallback: boolean;
     allowedTools: ReadonlySet<string> | null;
@@ -439,9 +439,76 @@ export async function runTurnLoop(
               Math.max(0, reportAt - now()),
             );
             justExpandedShortForm = false;
+            const baseMessages = compacted ?? current;
+            const focusKeys = short.length
+              ? stepFocus.cacheKeys
+              : (stepFocus.fullCacheKeys ?? stepFocus.cacheKeys);
             if (!selection) {
-              currentFocus = null;
-              return compacted ? { messages: compacted } : {};
+              // Bounded runner fallback when Core returned no current focus
+              // decision (timeout/network error): never unlock write tools;
+              // restrict to read-only inspect tools, or tool-less answer if none.
+              const readOnlyFallback = Object.keys(roundTools).filter(
+                (name) =>
+                  isSokoBotCapability(name) &&
+                  !isStepFocusWriteCapability(name),
+              );
+              if (readOnlyFallback.length > 0) {
+                currentFocus = {
+                  decisionId: null,
+                  appliedFocus: "inspect",
+                  usedFallback: true,
+                  allowedTools: new Set(readOnlyFallback),
+                };
+                const fallbackKey = focusKeys?.inspect;
+                const fallbackProviderOptions = fallbackKey
+                  ? withPromptCache(
+                      modelReasoningSummaryOptions(input.model),
+                      fallbackKey,
+                      modelIdOf(input.model),
+                    )
+                  : undefined;
+                lastActiveTools = readOnlyFallback;
+                lastFocusCacheKey = fallbackKey;
+                return {
+                  ...(compacted ? { messages: compacted } : {}),
+                  ...(fallbackProviderOptions
+                    ? { providerOptions: fallbackProviderOptions }
+                    : {}),
+                  toolChoice: "auto" as const,
+                  activeTools: readOnlyFallback,
+                };
+              }
+              currentFocus = {
+                decisionId: null,
+                appliedFocus: "answer",
+                usedFallback: true,
+                allowedTools: new Set(),
+              };
+              const hasPriorToolHistory = baseMessages.some(
+                (message) => message.role === "tool",
+              );
+              const answerCacheKey = hasPriorToolHistory
+                ? (lastFocusCacheKey ?? focusKeys?.answer)
+                : focusKeys?.answer;
+              const answerProviderOptions = answerCacheKey
+                ? withPromptCache(
+                    modelReasoningSummaryOptions(input.model),
+                    answerCacheKey,
+                    modelIdOf(input.model),
+                  )
+                : undefined;
+              return {
+                ...(compacted ? { messages: compacted } : {}),
+                ...(answerProviderOptions
+                  ? { providerOptions: answerProviderOptions }
+                  : {}),
+                toolChoice: "none" as const,
+                ...(hasPriorToolHistory
+                  ? lastActiveTools
+                    ? { activeTools: lastActiveTools }
+                    : {}
+                  : { activeTools: [] }),
+              };
             }
             const registeredNames = new Set(Object.keys(roundTools));
             const liveAllowed = selection.allowedTools.filter((name) =>
@@ -456,7 +523,6 @@ export async function runTurnLoop(
                   ? new Set()
                   : new Set(liveAllowed),
             };
-            const baseMessages = compacted ?? current;
             const shouldInjectVerify =
               selection.appliedFocus === "verify" &&
               Boolean(selection.verifyNote) &&
@@ -473,9 +539,6 @@ export async function runTurnLoop(
             if (shouldInjectVerify) {
               lastVerifyNoteKey = selection.verifyNoteKey;
             }
-            const focusKeys = short.length
-              ? stepFocus.cacheKeys
-              : (stepFocus.fullCacheKeys ?? stepFocus.cacheKeys);
 
             if (selection.appliedFocus === "answer") {
               const hasPriorToolHistory = baseMessages.some(
@@ -590,7 +653,7 @@ export async function runTurnLoop(
             tools: executed,
             hadText: Boolean(step.text?.trim()),
           });
-          if (recorded && stepFocus.recordOutcome) {
+          if (recorded?.decisionId && stepFocus.recordOutcome) {
             await stepFocus
               .recordOutcome({
                 decisionId: recorded.decisionId,

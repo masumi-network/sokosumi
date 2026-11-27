@@ -1555,7 +1555,7 @@ describe("step focus selector (stepFocus)", () => {
     ]);
   });
 
-  it("omits tool definitions on step-0 direct answer and fails open when selector errors", async () => {
+  it("omits tool definitions on step-0 direct answer and uses a bounded read-only fallback when selector errors", async () => {
     const model = new MockLanguageModelV3({
       doStream: async (options) => {
         expect(options.tools ?? []).toEqual([]);
@@ -1588,28 +1588,86 @@ describe("step focus selector (stepFocus)", () => {
     });
     expect(direct.text).toBe("Hello!");
 
-    let ranWork = false;
-    let step = 0;
-    const fallbackModel = new MockLanguageModelV3({
-      doStream: async () => {
-        step += 1;
-        return step === 1
+    // Mixed tools: selector error falls back to read-only inspect only (never writes).
+    let ranRead = false;
+    let ranWrite = false;
+    const seenFallbackTools: string[][] = [];
+    let mixedStep = 0;
+    const mixedFallbackModel = new MockLanguageModelV3({
+      doStream: async (options) => {
+        mixedStep += 1;
+        seenFallbackTools.push((options.tools ?? []).map((t) => t.name));
+        return mixedStep === 1
           ? stream(
               [
                 {
                   type: "tool-call",
+                  toolCallId: "r1",
+                  toolName: "list_tasks",
+                  input: "{}",
+                },
+                {
+                  type: "tool-call",
                   toolCallId: "w1",
-                  toolName: "work",
+                  toolName: "create_task",
                   input: "{}",
                 },
               ],
               "tool-calls",
             )
-          : stream([{ type: "text", text: "Recovered." }], "stop");
+          : stream([{ type: "text", text: "Read-only recovery." }], "stop");
       },
     });
-    const recovered = await runTurnLoop({
-      model: fallbackModel,
+    const mixedRecovered = await runTurnLoop({
+      model: mixedFallbackModel,
+      system: "You are a bot.",
+      message: "Check and act.",
+      tools: {
+        list_tasks: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            ranRead = true;
+            return { tasks: [] };
+          },
+        }),
+        create_task: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            ranWrite = true;
+            return { id: "should_not_run" };
+          },
+        }),
+      },
+      maxSteps: 5,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stepFocus: {
+        selectStep: async () => {
+          throw new Error("selector down");
+        },
+      },
+    });
+    expect(seenFallbackTools[0]).toEqual(["list_tasks"]);
+    expect(ranRead).toBe(true);
+    expect(ranWrite).toBe(false);
+    expect(mixedRecovered.text).toBe("Read-only recovery.");
+
+    // Write-only tools: selector error falls back to tool-less answer (no writes).
+    let ranWork = false;
+    const writeOnlyModel = new MockLanguageModelV3({
+      doStream: async (options) => {
+        expect(options.tools ?? []).toEqual([]);
+        expect(options.toolChoice).toEqual({ type: "none" });
+        return stream(
+          [{ type: "text", text: "Answered without writes." }],
+          "stop",
+        );
+      },
+    });
+    const writeOnlyRecovered = await runTurnLoop({
+      model: writeOnlyModel,
       system: "You are a bot.",
       message: "Work.",
       tools: {
@@ -1632,8 +1690,8 @@ describe("step focus selector (stepFocus)", () => {
         },
       },
     });
-    expect(ranWork).toBe(true);
-    expect(recovered.text).toBe("Recovered.");
+    expect(ranWork).toBe(false);
+    expect(writeOnlyRecovered.text).toBe("Answered without writes.");
   });
 
   it("coordinates stepFocus with planLoop doneCheck bounce on continuation round", async () => {

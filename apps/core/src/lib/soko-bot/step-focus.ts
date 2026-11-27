@@ -350,7 +350,7 @@ export function buildVerifyReceiptsNote(
     .join("\n");
   const key = createHash("sha256").update(lines).digest("hex").slice(0, 12);
   return {
-    note: `[Step focus: verify (read-only). Core receipts recorded so far:\n${lines}\nVerify created or changed items against what was requested using read tools, update your plan if needed, and never repeat an unconfirmed action blind.]`,
+    note: `[Step focus: verify (read-only). Core receipts recorded so far:\n${lines}\nVerify created or changed items against what was requested using read tools, update your plan if needed, never call an unconfirmed action failed or done, read back first to check whether an unconfirmed action took effect, and never repeat an unconfirmed action blind.]`,
     key,
   };
 }
@@ -536,30 +536,31 @@ export async function selectStepFocusWithEvaluator(
             consecutiveVerify: input.consecutiveVerify,
           });
         } else {
-          // Host execution-time re-check against current state before acting.
-          if (picked !== "answer" && input.recheckBundles) {
-            const refreshed = await input.recheckBundles(picked);
-            if (refreshed) activeBundles = refreshed;
-          }
-          if (!isRunnableIn(picked, activeBundles)) {
-            validation = "stale_bundle";
-            usedFallback = true;
-            const liveCandidates = candidates.filter((c) =>
-              isRunnableIn(c, activeBundles),
-            );
-            appliedFocus = fallbackFocusFor({
-              candidates:
-                liveCandidates.length > 0 ? liveCandidates : ["answer"],
-              preferAnswerOnRepeat: picked === "act",
-              consecutiveVerify: input.consecutiveVerify,
-            });
-          } else {
-            validation = "accepted";
-            usedFallback = false;
-            appliedFocus = picked;
-          }
+          validation = "accepted";
+          usedFallback = false;
+          appliedFocus = picked;
         }
       }
+    }
+  }
+
+  // Host execution-time re-check for EVERY final tool-bearing focus
+  // (accepted Jev pick, single-candidate, and every fallback branch).
+  if (appliedFocus !== "answer" && input.recheckBundles) {
+    const refreshed = await input.recheckBundles(appliedFocus);
+    if (refreshed) activeBundles = refreshed;
+    if (!isRunnableIn(appliedFocus, activeBundles)) {
+      const staleFocus = appliedFocus;
+      validation = "stale_bundle";
+      usedFallback = true;
+      const liveCandidates = candidates.filter((c) =>
+        isRunnableIn(c, activeBundles),
+      );
+      appliedFocus = fallbackFocusFor({
+        candidates: liveCandidates.length > 0 ? liveCandidates : ["answer"],
+        preferAnswerOnRepeat: staleFocus === "act",
+        consecutiveVerify: input.consecutiveVerify,
+      });
     }
   }
 
@@ -802,9 +803,10 @@ export async function selectTurnStepFocus(
       consecutiveInspect: input.consecutiveInspect,
       consecutiveVerify: input.consecutiveVerify,
       justExpandedShortForm: input.justExpandedShortForm,
-      // Re-verify live grants right before unlocking write tools (`act`).
+      // Re-verify live grants before enabling any tool-bearing focus
+      // (accepted choice, single-candidate, or fallback).
       recheckBundles: async (picked) => {
-        if (picked !== "act") return null;
+        if (picked === "answer") return null;
         try {
           const latestAuthorized = await sokoBotRuntimeService.authorize({
             sessionId: input.sessionId,
