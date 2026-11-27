@@ -397,14 +397,18 @@ export function ScenarioLab({
       await historyQuery.refetch();
       onTurnFinished?.();
     } finally {
-      setRunning((current) => {
-        const next = new Set(current);
-        next.delete(scenario.id);
-        return next;
-      });
-      setLive((current) =>
-        current?.scenarioId === scenario.id ? null : current,
-      );
+      // A run woken from its poll sleep after the lab closed has no state left
+      // to clear, and React reads `window` on every update.
+      if (mountedRef.current) {
+        setRunning((current) => {
+          const next = new Set(current);
+          next.delete(scenario.id);
+          return next;
+        });
+        setLive((current) =>
+          current?.scenarioId === scenario.id ? null : current,
+        );
+      }
     }
   }
 
