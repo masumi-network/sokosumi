@@ -13,6 +13,7 @@ import {
   PREPROD_API_URL,
   resolveCliConfig,
   resolveTargetScope,
+  sanitizeApiUrl,
   targetFromUserApiKey,
 } from "./config.js";
 
@@ -238,7 +239,12 @@ export async function requireAuthenticatedSession(session: {
     targetExplicit: session.targetExplicit,
   });
   if (!auth.authenticated) {
-    throw new CliError("AUTH_REQUIRED", AUTHENTICATION_REQUIRED_MESSAGE);
+    throw new CliError(
+      "AUTH_REQUIRED",
+      session.config.target === "custom" && !session.config.clientId
+        ? `Authentication required for this API URL. Sign in with \`sokosumi --api-url ${sanitizeApiUrl(session.config.apiUrl)} --client-id <id> auth login\`, or set SOKOSUMI_OAUTH_CLIENT_ID.`
+        : AUTHENTICATION_REQUIRED_MESSAGE,
+    );
   }
   return auth;
 }

@@ -232,12 +232,16 @@ export function createAuthCredentialStores<
   oauth: CredentialStore<TOAuth>;
   apiKey: CredentialStore<TApiKey>;
 } {
-  const safeClientId = clientId.replace(/[^a-zA-Z0-9._-]/g, "_");
+  // A custom host has no built-in client id, so its session is keyed by host
+  // alone and carries the client id it was issued to (see OAuthCredentials).
+  const oauthAccountName = targetScope.startsWith("custom-")
+    ? `${targetScope}:oauth`
+    : `${targetScope}:oauth:${clientId.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
   return {
     oauth: createCredentialStore({
       ...options,
       serviceName: DEFAULT_SERVICE_NAME,
-      accountName: `${targetScope}:oauth:${safeClientId}`,
+      accountName: oauthAccountName,
     }),
     apiKey: createCredentialStore({
       ...options,
