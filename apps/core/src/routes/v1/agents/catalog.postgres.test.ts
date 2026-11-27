@@ -5,17 +5,14 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
 import { afterAll, expect, it, vi } from "vitest";
-import { createPersonalWorkspace } from "@/helpers/personal-workspace";
-import { createNetworkScope } from "@/lib/db/network-scope";
-import { coreEvlogMiddleware } from "@/lib/evlog";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { observing, statements } from "@/test/spend-comparison";
 import { onSplitLayout } from "@/test/split-layout";
-import {
-  createApiKey,
-  createCoreApp,
-  createPasswordUser,
-} from "@/test-fixtures/core-session";
+
+let catalogDatabase:
+  | Awaited<ReturnType<typeof copyPostgresTestDatabase>>
+  | undefined;
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
@@ -42,9 +39,39 @@ vi.mock("@vercel/functions", async (load) => {
     },
   };
 });
-afterAll(async () => {
-  await Promise.all(state.pools.map((pool) => pool.end()));
-});
+async function prepareCatalogDatabase() {
+  // Snapshot the migrated layout before Core or Better Auth can write to it.
+  const source =
+    process.env.POSTGRES_TEST_TEMPLATE_URL ?? process.env.DATABASE_URL;
+  if (!source)
+    throw new Error("Catalog comparison requires a PostgreSQL database");
+  catalogDatabase = await copyPostgresTestDatabase(source, "catalog_test");
+  vi.stubEnv("DATABASE_URL", catalogDatabase.url);
+  vi.stubEnv("DATABASE_URL_UNPOOLED", catalogDatabase.url);
+  // A standalone run can clone a populated database, including our fixed ids.
+  // Connect only to the private copy when clearing its catalog.
+  const { Client } = await import("pg");
+  const { testSchemaNames } = await import("@/test/split-layout");
+  const names = testSchemaNames();
+  const network = names.DATABASE_SCHEMA_MAINNET;
+  const client = new Client({ connectionString: catalogDatabase.url });
+  await client.connect();
+  try {
+    await client.query(`TRUNCATE "${network}"."Agent", "${network}"."AgentPricing",
+      "${network}"."CreditCost", "${network}"."Category",
+      "${names.DATABASE_SCHEMA_SHARED}"."sync_metadata" CASCADE`);
+  } finally {
+    await client.end();
+  }
+}
+async function releaseCatalogDatabase() {
+  try {
+    await Promise.all(state.pools.map((pool) => pool.end()));
+  } finally {
+    vi.unstubAllEnvs();
+    await catalogDatabase?.drop();
+  }
+}
 
 const clock = new Date("2026-11-27T12:00:00.000Z");
 const createdAt = new Date("2026-11-25T01:02:03.456Z");
@@ -60,10 +87,32 @@ const key = "x402-buy-side-readiness";
 const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
 const recording = process.env.RECORD_AGENT_CATALOG_BASE === "true";
 
+// Import the full /v1 router during file collection, as the recording did.
+// A busy worker can take minutes to transform it before any test starts.
+if (enabled) {
+  try {
+    await prepareCatalogDatabase();
+    await import("@/test-fixtures/core-session");
+  } catch (error) {
+    await releaseCatalogDatabase();
+    throw error;
+  }
+  afterAll(releaseCatalogDatabase);
+}
+
 it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   "preserves catalog responses and SQL with deployment NETWORK=%s",
   async (network) => {
     state.network = network;
+    // Core builds its pool on import. The private database must already exist.
+    const { createNetworkScope } = await import("@/lib/db/network-scope");
+    const { coreEvlogMiddleware } = await import("@/lib/evlog");
+    const { createPersonalWorkspace } = await import(
+      "@/helpers/personal-workspace"
+    );
+    const { createApiKey, createCoreApp, createPasswordUser } = await import(
+      "@/test-fixtures/core-session"
+    );
     const scope = createNetworkScope("mainnet");
     const shared = scope.sharedDb;
     const app = new Hono();
