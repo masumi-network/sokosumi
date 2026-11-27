@@ -43,7 +43,7 @@ const DONE_PREFIX = /^[\s#>*_\-–—✅✔\uFE0F]*DONE\b[\s*_:–—-]*/iu;
 export const MAX_IDLE_ROUNDS = 2;
 
 const READ_TOOL =
-  /^(get|list|read|search|find)_|^(refresh_context|preview_result|read_memory|workspace_read|workspace_list|workspace_search)$/;
+  /^(get|list|read|search|find|count)_|^(refresh_context|preview_result|read_memory|read_skill|read_writing_skill|workspace_read|workspace_list|workspace_search)$/;
 
 /** A shell command that only waits: `sleep 60`, `sleep 5m; sleep 5m`. */
 const SLEEP_ONLY =
@@ -54,7 +54,11 @@ export interface RoundToolCall {
   input: unknown;
 }
 
-function waitsOnly(call: RoundToolCall): boolean {
+export function isReadOnlyToolName(toolName: string): boolean {
+  return READ_TOOL.test(toolName);
+}
+
+export function isSleepOnlyToolCall(call: RoundToolCall): boolean {
   if (call.toolName !== "bash") return false;
   const command =
     typeof call.input === "object" &&
@@ -74,7 +78,7 @@ function waitsOnly(call: RoundToolCall): boolean {
  */
 export function isIdleRound(calls: readonly RoundToolCall[]): boolean {
   return calls.every(
-    (call) => READ_TOOL.test(call.toolName) || waitsOnly(call),
+    (call) => isReadOnlyToolName(call.toolName) || isSleepOnlyToolCall(call),
   );
 }
 

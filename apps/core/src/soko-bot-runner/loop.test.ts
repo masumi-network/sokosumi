@@ -10,6 +10,7 @@ import {
   REPORT_RESERVE_MS,
   TIME_UP_PROMPT,
 } from "./rounds";
+import type { TurnStallEvent } from "./stall-detector";
 
 const MINUTE = 60_000;
 const usage = {
@@ -1289,5 +1290,312 @@ describe("the done check (planLoop)", () => {
     expect(report?.lastUser).toBe(
       `${TIME_UP_PROMPT}\n\nOpen steps in your plan (revision 2):\n- s2 [pending] Rows 13 to 30`,
     );
+  });
+});
+
+describe("the stall detector (E8)", () => {
+  function stuckPollTools() {
+    let waitForCalls = 0;
+    let pollCalls = 0;
+    let sleepCalls = 0;
+    const set = {
+      get_task_status: tool({
+        inputSchema: z.object({ taskId: z.string() }),
+        execute: async ({ taskId }) => {
+          pollCalls += 1;
+          return {
+            taskId,
+            status: "RUNNING",
+            checkedAt: `2026-11-27T01:0${pollCalls}:00Z`,
+          };
+        },
+      }),
+      bash: tool({
+        inputSchema: z.object({ command: z.string() }),
+        execute: async () => {
+          sleepCalls += 1;
+          return { exitCode: 0, stdout: "" };
+        },
+      }),
+      wait_for: tool({
+        inputSchema: z.object({ kind: z.string(), id: z.string() }),
+        execute: async ({ id }) => {
+          waitForCalls += 1;
+          return { watchId: `watch-${id}`, status: "WAITING" };
+        },
+      }),
+    };
+    return {
+      tools: set,
+      counts: () => ({ pollCalls, sleepCalls, waitForCalls }),
+    };
+  }
+
+  function pollingModel(options: { recoverAfterNudge: boolean }) {
+    const prompts: { toolChoice: unknown; lastUser: string }[] = [];
+    let callNum = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async (callOptions) => {
+        callNum += 1;
+        const last = callOptions.prompt.findLast((m) => m.role === "user");
+        const lastUser =
+          last && Array.isArray(last.content)
+            ? last.content.map((p) => ("text" in p ? p.text : "")).join("")
+            : "";
+        prompts.push({ toolChoice: callOptions.toolChoice, lastUser });
+        if (callOptions.toolChoice?.type === "none") {
+          return streamOf({
+            content: [
+              {
+                type: "text",
+                text: "DONE: Blocked waiting for task-1; existing follow-up remains active.",
+              },
+            ],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          });
+        }
+        if (
+          options.recoverAfterNudge &&
+          lastUser.includes("Stop repeating that loop")
+        ) {
+          if (
+            callOptions.prompt.some(
+              (m) =>
+                m.role === "tool" &&
+                Array.isArray(m.content) &&
+                m.content.some(
+                  (part) =>
+                    part.type === "tool-result" && part.toolName === "wait_for",
+                ),
+            )
+          ) {
+            return streamOf({
+              content: [
+                {
+                  type: "text",
+                  text: "DONE: Registered wait_for on task-1 and ended without polling.",
+                },
+              ],
+              finishReason: { unified: "stop", raw: "stop" },
+              warnings: [],
+              usage,
+            });
+          }
+          return streamOf({
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: `wait_${callNum}`,
+                toolName: "wait_for",
+                input: JSON.stringify({ kind: "background_run", id: "task-1" }),
+              },
+            ],
+            finishReason: { unified: "tool-calls", raw: "tool_calls" },
+            warnings: [],
+            usage,
+          });
+        }
+        // Alternates get_task_status and bash sleep 120 on a stuck Task.
+        const isSleepStep = callNum % 2 === 0;
+        return streamOf({
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: `poll_${callNum}`,
+              toolName: isSleepStep ? "bash" : "get_task_status",
+              input: JSON.stringify(
+                isSleepStep ? { command: "sleep 120" } : { taskId: "task-1" },
+              ),
+            },
+          ],
+          finishReason: { unified: "tool-calls", raw: "tool_calls" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+    return { model, prompts };
+  }
+
+  it("nudges on Strike 1 so a stuck-Coworker polling run switches to wait_for instead of timing out", async () => {
+    const { tools: pollTools, counts } = stuckPollTools();
+    const { model, prompts } = pollingModel({ recoverAfterNudge: true });
+    const events: TurnStallEvent[] = [];
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Watch task-1.",
+      tools: pollTools,
+      maxSteps: 60,
+      background: true,
+      deadline: 20 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stallDetector: true,
+      onStall: (event) => {
+        events.push(event);
+      },
+    });
+
+    expect(events).toEqual([
+      {
+        pattern: "poll_no_progress",
+        tools: ["get_task_status"],
+        count: 3,
+        strike: 1,
+        action: "nudged",
+      },
+    ]);
+    expect(counts().pollCalls).toBe(3);
+    expect(counts().waitForCalls).toBe(1);
+    expect(prompts.some((p) => p.lastUser.includes("wait_for"))).toBe(true);
+    expect(result.text).toBe(
+      "Registered wait_for on task-1 and ended without polling.",
+    );
+  });
+
+  it("ends a background run cleanly with a blocked report on Strike 2 without deleting watches", async () => {
+    const { tools: pollTools, counts } = stuckPollTools();
+    const { model, prompts } = pollingModel({ recoverAfterNudge: false });
+    const events: TurnStallEvent[] = [];
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Watch task-1.",
+      tools: pollTools,
+      maxSteps: 60,
+      background: true,
+      deadline: 20 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stallDetector: true,
+      onStall: (event) => {
+        events.push(event);
+      },
+    });
+
+    expect(events).toEqual([
+      {
+        pattern: "poll_no_progress",
+        tools: ["get_task_status"],
+        count: 3,
+        strike: 1,
+        action: "nudged",
+      },
+      {
+        pattern: "poll_no_progress",
+        tools: ["get_task_status"],
+        count: 3,
+        strike: 2,
+        action: "stopped",
+      },
+    ]);
+    // Stopped after 6 unchanged polls (instead of spinning 60 steps / 20 min).
+    expect(counts().pollCalls).toBe(6);
+    const finalCall = prompts.at(-1);
+    expect(finalCall?.toolChoice).toEqual({ type: "none" });
+    expect(finalCall?.lastUser).toContain(
+      "watch or follow-up remains in place",
+    );
+    expect(result.text).toBe(
+      "Blocked waiting for task-1; existing follow-up remains active.",
+    );
+  });
+
+  it("leaves flag-off versions unchanged when polling repeats", async () => {
+    const { tools: pollTools, counts } = stuckPollTools();
+    const { model } = pollingModel({ recoverAfterNudge: false });
+
+    await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Watch task-1.",
+      tools: pollTools,
+      maxSteps: 10,
+      background: true,
+      deadline: 20 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    // Without stallDetector, all 10 steps run before wrap-up (5 polls + 5 sleeps).
+    expect(counts().pollCalls).toBe(5);
+    expect(counts().sleepCalls).toBe(5);
+  });
+
+  it("catches foreground repeat_same and skips doneCheck bounce after Strike 2 stop", async () => {
+    let calls = 0;
+    let doneCheckCalls = 0;
+    const events: TurnStallEvent[] = [];
+    const readTools = {
+      list_tasks: tool({
+        inputSchema: z.object({ state: z.string() }),
+        execute: async () => ({ tasks: [{ id: "t1", status: "RUNNING" }] }),
+      }),
+    };
+    const model = new MockLanguageModelV3({
+      doStream: async (callOptions) => {
+        calls += 1;
+        if (callOptions.toolChoice?.type === "none") {
+          return streamOf({
+            content: [
+              { type: "text", text: "Blocked: task list never changed." },
+            ],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          });
+        }
+        return streamOf({
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: `list_${calls}`,
+              toolName: "list_tasks",
+              input: JSON.stringify({ state: "open" }),
+            },
+          ],
+          finishReason: { unified: "tool-calls", raw: "tool_calls" },
+          warnings: [],
+          usage,
+        });
+      },
+    });
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Check tasks.",
+      tools: readTools,
+      maxSteps: 40,
+      background: false,
+      deadline: 10 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+      stallDetector: true,
+      onStall: (event) => {
+        events.push(event);
+      },
+      plan: {
+        inherited: true,
+        doneCheck: async () => {
+          doneCheckCalls += 1;
+          return "Go back.";
+        },
+        openSteps: async () => "- s1 [pending] Wait for t1",
+        changeTools: new Set(),
+      },
+    });
+
+    expect(events.map((e) => [e.pattern, e.strike, e.action])).toEqual([
+      ["repeat_same", 1, "nudged"],
+      ["repeat_same", 2, "stopped"],
+    ]);
+    expect(doneCheckCalls).toBe(0);
+    expect(result.text).toBe("Blocked: task list never changed.");
   });
 });

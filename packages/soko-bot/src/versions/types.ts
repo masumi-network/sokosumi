@@ -44,6 +44,13 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * E8 deterministic stall detector inside the runner loop: flags repeated
+   * identical successful calls, alternating A-B loops, and no-progress status
+   * polling with one corrective note and ends cleanly on a second fire.
+   * Omitted on all live and control versions.
+   */
+  stallDetector?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

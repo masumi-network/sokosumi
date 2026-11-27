@@ -82,6 +82,8 @@ interface TurnStart {
   preamble?: string;
   /** Core runs update_plan for the whole request; an older Core sends none. */
   planLoop?: boolean;
+  /** E8 deterministic stall detector; an older Core sends none. */
+  stallDetector?: boolean;
   /** The turn starts with a plan from earlier in its request. */
   planInherited?: boolean;
   /** Tools whose completed call Core records as a change (planLoop). */
@@ -544,6 +546,7 @@ async function main(): Promise<void> {
       shortForms: start.shortForms ?? [],
       cacheKey: start.cacheKey,
       fullCacheKey: start.fullCacheKey,
+      stallDetector: Boolean(start.stallDetector),
       ...(start.planLoop
         ? {
             plan: {
