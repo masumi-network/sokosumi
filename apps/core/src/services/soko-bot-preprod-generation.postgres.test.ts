@@ -220,6 +220,10 @@ describe.skipIf(!enabled)(
           await tx.task.deleteMany({ where: { workspaceId } });
           // The free plan `createPersonalWorkspace` grants is not tied to
           // the user.
+          // The pause history names its operator without a relation.
+          await tx.preprodAccessChange.deleteMany({
+            where: { operatorId: userId },
+          });
           await tx.subscription.deleteMany({ where: { referenceId: userId } });
           await tx.user.delete({ where: { id: userId } });
         });
@@ -649,6 +653,229 @@ describe.skipIf(!enabled)(
           await expect(raising).resolves.toBe(raised);
         },
       );
+
+      class RolledBack extends Error {}
+
+      /**
+       * Like `holdOpen`, but the second session rolls back on release: an
+       * uncommitted generation row holds a raise at its upsert, after its
+       * fence, and leaves no row behind.
+       */
+      async function holdRaiseAtUpsert() {
+        let locked!: () => void;
+        const isLocked = new Promise<void>((resolve) => {
+          locked = resolve;
+        });
+        let release!: () => void;
+        const released = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        const holder = prisma.$transaction(
+          async (tx) => {
+            await tx.syncMetadata.create({
+              data: {
+                key: control.PREPROD_GENERATION_KEY,
+                cursorId: "9",
+                lastSyncedAt: new Date(),
+              },
+            });
+            locked();
+            await released;
+            throw new RolledBack();
+          },
+          { timeout: 30_000 },
+        );
+        await Promise.race([isLocked, holder]);
+        return async () => {
+          release();
+          await holder.catch((error: unknown) => {
+            if (!(error instanceof RolledBack)) throw error;
+          });
+        };
+      }
+
+      /** Preprod open, with no generation row yet: generation 0. */
+      async function openWithoutGeneration() {
+        await writeControl("open", "0");
+        await prisma.syncMetadata.delete({
+          where: { key: control.PREPROD_GENERATION_KEY },
+        });
+      }
+
+      // The two isolation levels a Preprod writer uses: the schedule's
+      // serializable transaction and the message POST's Read Committed one.
+      const WRITERS = {
+        serializable: {
+          hold: () => holdScheduleInserts(),
+          write: async (fixture: Fixture) =>
+            (await schedule(fixture, "preprod")).preprodGeneration,
+        },
+        "Read Committed": {
+          hold: () =>
+            holdOpen(
+              (tx) =>
+                tx.$executeRaw`LOCK TABLE ${sharedTable("chat_room_mention")} IN SHARE MODE`,
+            ),
+          write: async (fixture: Fixture) => {
+            expect((await postMention(fixture, "preprod")).status).toBe(201);
+            const [mention] = await mentionsOf(fixture);
+            return mention?.preprodGeneration;
+          },
+        },
+      } as const;
+
+      it.each(["serializable", "Read Committed"] as const)(
+        "orders a %s writer and the first raise, the writer first",
+        async (kind) => {
+          const fixture = await seed();
+          await openWithoutGeneration();
+          const writer = WRITERS[kind];
+          const release = await writer.hold();
+          const writing = writer.write(fixture);
+          void writing.catch(() => {});
+          await untilWaiting(1);
+          const raising = control.raisePreprodGeneration();
+          void raising.catch(() => {});
+          // The raise waits for the writer's lock on the pause row.
+          await untilWaiting(2);
+          await release();
+          await expect(writing).resolves.toBe(0);
+          await expect(raising).resolves.toBe(1);
+        },
+      );
+
+      it.each(["serializable", "Read Committed"] as const)(
+        "orders a %s writer and the first raise, the raise first",
+        async (kind) => {
+          const fixture = await seed();
+          await openWithoutGeneration();
+          const release = await holdRaiseAtUpsert();
+          const raising = control.raisePreprodGeneration();
+          void raising.catch(() => {});
+          await untilWaiting(1);
+          const writing = WRITERS[kind].write(fixture);
+          void writing.catch(() => {});
+          // The writer waits for the raise's update of the pause row.
+          await untilWaiting(2);
+          await release();
+          await expect(raising).resolves.toBe(1);
+          await expect(writing).resolves.toBe(1);
+        },
+      );
+
+      it("creates a missing pause row as paused for a raise and an open, and the raise's no-op changes nothing the admin read shows", async () => {
+        const fixture = await seed();
+        const keys = [
+          control.PREPROD_PAUSE_KEY,
+          control.PREPROD_GENERATION_KEY,
+        ];
+        await prisma.syncMetadata.deleteMany({ where: { key: { in: keys } } });
+        const { changes: history } = await control.preprodControlOf(prisma);
+        await expect(control.raisePreprodGeneration()).resolves.toBe(1);
+        await expect(control.preprodControlOf(prisma)).resolves.toEqual({
+          paused: true,
+          generation: 1,
+          changes: history,
+        });
+        await expect(schedule(fixture, "preprod")).rejects.toMatchObject({
+          status: 503,
+        });
+
+        await prisma.syncMetadata.deleteMany({ where: { key: { in: keys } } });
+        const opened = await control.setPreprodPaused({
+          paused: false,
+          operatorId: fixture.userId,
+          reason: "Open with no row",
+        });
+        expect(opened).toMatchObject({ paused: false, generation: 0 });
+        expect(opened.changes).toHaveLength(history.length + 1);
+
+        const pauseRow = () =>
+          prisma.syncMetadata.findUniqueOrThrow({
+            where: { key: control.PREPROD_PAUSE_KEY },
+          });
+        const before = await pauseRow();
+        await expect(control.raisePreprodGeneration()).resolves.toBe(1);
+        expect(await pauseRow()).toEqual(before);
+        await expect(control.preprodControlOf(prisma)).resolves.toEqual({
+          ...opened,
+          generation: 1,
+        });
+      });
+
+      it("completes a raise and a writer without a deadlock when the generation row comes first in the heap", async () => {
+        const fixture = await seed();
+        const keys = [
+          control.PREPROD_PAUSE_KEY,
+          control.PREPROD_GENERATION_KEY,
+        ];
+        await prisma.syncMetadata.deleteMany({ where: { key: { in: keys } } });
+        // Generation first, then pause: a scan meets them in this order.
+        for (const [key, cursorId] of [
+          [control.PREPROD_GENERATION_KEY, "3"],
+          [control.PREPROD_PAUSE_KEY, "open"],
+        ] as const) {
+          await prisma.syncMetadata.create({
+            data: { key, cursorId, lastSyncedAt: new Date() },
+          });
+        }
+        // Holds the raise after its fence, at the generation row.
+        const release = await holdOpen(
+          (tx) => tx.$queryRaw`
+            SELECT 1 FROM ${sharedTable("sync_metadata")}
+            WHERE "key" = ${control.PREPROD_GENERATION_KEY} FOR UPDATE`,
+        );
+        const raising = control.raisePreprodGeneration();
+        void raising.catch(() => {});
+        await untilWaiting(1);
+        const writing = schedule(fixture, "preprod");
+        void writing.catch(() => {});
+        await untilWaiting(2);
+        await release();
+        await expect(raising).resolves.toBe(4);
+        await expect(writing).resolves.toMatchObject({ preprodGeneration: 4 });
+      });
+
+      it("answers 503 for a control read that fails, and recorded once", async () => {
+        await writeControl("open", "3");
+        expectCoreLog(
+          "error",
+          "Could not read the Preprod pause and generation",
+        );
+        const release = await holdOpen(
+          (tx) =>
+            tx.$executeRaw`LOCK TABLE ${sharedTable("sync_metadata")} IN ACCESS EXCLUSIVE MODE`,
+        );
+        try {
+          const refusal = await prisma
+            .$transaction(async (tx) => {
+              await tx.$executeRawUnsafe("SET LOCAL lock_timeout = '100ms'");
+              return control.networkStamp("preprod", tx);
+            })
+            .catch((error: unknown) => error);
+          expect(refusal).toBeInstanceOf(HTTPException);
+          expect((refusal as HTTPException).status).toBe(503);
+          expect(shouldReportHttpException(refusal as HTTPException)).toBe(
+            false,
+          );
+        } finally {
+          await release();
+        }
+      });
+
+      it("hands a serialization failure in the control read to the caller's retry", async () => {
+        await writeControl("open", "3");
+        let attempts = 0;
+        const stamp = await transactions.serializableTransaction(async (tx) => {
+          attempts += 1;
+          // The snapshot is taken here, before the raise commits.
+          await tx.$queryRaw`SELECT 1`;
+          if (attempts === 1) await control.raisePreprodGeneration();
+          return control.networkStamp("preprod", tx);
+        }, "Stamp retried");
+        expect(attempts).toBe(2);
+        expect(stamp).toEqual({ network: "preprod", preprodGeneration: 4 });
+      });
     });
   },
 );
