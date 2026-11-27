@@ -407,6 +407,7 @@ export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
+export { NETWORK_QUERY_PARAM, withNetworkQuery } from "./network-link.js";
 export {
   NEWSLETTER_SOCIAL_NETWORKS,
   type NewsletterBlock,
