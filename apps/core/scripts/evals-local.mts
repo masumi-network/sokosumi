@@ -73,6 +73,16 @@ const plan = ["1", "true"].includes(
 );
 process.env.SOKO_BOT_RUNTIME_ADAPTER = "in-process";
 
+// EVAL_OUTBOUND_GUARD=record|enforce: before any Core module, so no client
+// keeps the unguarded fetch. Every non-allowed host goes to EVAL_OUTBOUND_LOG.
+const guardMode = process.env.EVAL_OUTBOUND_GUARD;
+if (guardMode === "record" || guardMode === "enforce") {
+  const { installEvalOutboundGuard } = await import(
+    "@/lib/evals/outbound-guard"
+  );
+  installEvalOutboundGuard(guardMode, process.env.EVAL_OUTBOUND_LOG);
+}
+
 const { default: prisma } = await import("@/lib/db/prisma");
 const { createEvalRun, tickEvalRuns } = await import(
   "@/services/evals/eval-runs.service"
