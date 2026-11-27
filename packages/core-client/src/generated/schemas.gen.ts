@@ -26404,6 +26404,11 @@ export const UserWorkspaceSchema = {
             type: 'boolean',
             description: 'Whether a new session opens this workspace',
             example: true
+        },
+        canUsePreprod: {
+            type: 'boolean',
+            description: 'Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person\'s own Preprod access for the personal workspace and the organization\'s for an organization workspace',
+            example: false
         }
     },
     required: [
@@ -26417,7 +26422,8 @@ export const UserWorkspaceSchema = {
         'role',
         'memberCount',
         'enabledSocialProviders',
-        'preferred'
+        'preferred',
+        'canUsePreprod'
     ]
 } as const;
 

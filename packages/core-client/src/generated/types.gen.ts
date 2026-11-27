@@ -7380,6 +7380,10 @@ export type UserWorkspace = {
      * Whether a new session opens this workspace
      */
     preferred: boolean;
+    /**
+     * Whether the person may send `X-Sokosumi-Network: preprod` in this workspace: always false while Preprod is switched off; otherwise true for a platform admin, and else the person's own Preprod access for the personal workspace and the organization's for an organization workspace
+     */
+    canUsePreprod: boolean;
 };
 
 export const ProjectSocialProvider = {
@@ -19085,6 +19089,16 @@ export type ContextOrganizationId = string;
  */
 export type SokosumiClient = string;
 
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ */
+export const SokosumiNetwork = { MAINNET: 'mainnet', PREPROD: 'preprod' } as const;
+
+/**
+ * The Network the request is for, `mainnet` or `preprod`. Without it the request is for Mainnet. Any other value gets 400 with `kind: network_unknown` on every operation. On Preprod, an operation on Network data (such as the Agent catalog) answers 403 with `kind: preprod_off` while Preprod is switched off and `kind: preprod_access_required` when the caller has no Preprod access in the workspace; operations on shared data are never refused because of the Network.
+ */
+export type SokosumiNetwork = typeof SokosumiNetwork[keyof typeof SokosumiNetwork];
+
 export type StopAdminImpersonationData = {
     body?: never;
     path?: never;
@@ -26599,6 +26613,21 @@ export type GetAgentsData = {
 };
 
 export type GetAgentsErrors = {
+    /**
+     * Forbidden. Only with `X-Sokosumi-Network: preprod`. Branch on `kind`: preprod_off (Preprod is switched off) or preprod_access_required (an anonymous caller, a credential other than a browser session, or a person without Preprod access in the workspace)
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */

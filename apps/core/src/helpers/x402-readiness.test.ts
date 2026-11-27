@@ -59,6 +59,17 @@ describe("getX402ReadySources", () => {
     });
   });
 
+  it("reads Preprod's own readiness row", async () => {
+    const { tx, findUnique } = createSyncMetadataTransactionClient(null);
+
+    await getX402ReadySources(tx, "mainnet");
+    await getX402ReadySources(tx, "preprod");
+    expect(findUnique.mock.calls).toEqual([
+      [{ where: { key: X402_BUY_SIDE_READINESS_KEY } }],
+      [{ where: { key: `preprod:${X402_BUY_SIDE_READINESS_KEY}` } }],
+    ]);
+  });
+
   it("returns no pairs when the cached readiness is empty", async () => {
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: "[]",
