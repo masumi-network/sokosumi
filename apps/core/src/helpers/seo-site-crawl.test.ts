@@ -816,6 +816,12 @@ describe("crawl continuation tip", () => {
     ).toBeNull();
   });
 
+  it("has no tip, and does not throw, when a stored crawl names a start that is no URL", () => {
+    expect(
+      crawlContinuationTip([audit(crawl(PARENT, { startUrl: "/home" }))]),
+    ).toBeNull();
+  });
+
   it("has no tip when a continuation reports an earlier crawl's Snapshot as its own", () => {
     expect(
       crawlContinuationTip([next(PARENT, CHILD), next(CHILD, PARENT), audit()]),

@@ -27,6 +27,7 @@ import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
 } from "./project-seo.service";
+import { SEO_WORKSPACE_EVIDENCE_LIMIT } from "./project-seo-store";
 import { requestSeoCrawlNext } from "./seo-crawl-next.service";
 
 vi.mock("@/middleware/auth", async (original) => ({
@@ -296,6 +297,15 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
       status: 409,
       message: expect.stringContaining("has not arrived yet"),
     });
+    // A rejected Report fails the analysis, yet a corrected Report can still arrive: the wait holds.
+    await prisma.projectSeoAnalysis.update({
+      where: { id: first.id },
+      data: { status: "failed", failureReason: "rejected" },
+    });
+    await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("has not arrived yet"),
+    });
     // A Report that never arrives stops blocking: the balance check is next.
     await prisma.task.update({
       where: { id: first.taskId! },
@@ -326,6 +336,35 @@ describe.skipIf(!enabled)("crawl continuation request", () => {
     } finally {
       await prisma.projectSeoPage.delete({ where: { id: related.id } });
     }
+  });
+
+  it("offers and sells no continuation of a full audit past the history the workspace loads", async () => {
+    await storeCrawl(
+      "audit_full",
+      { snapshotId: AUDIT_CRAWL, stop: "page cap" },
+      new Date("2026-11-01"),
+    );
+    await setBalance(100n);
+    // Newer evidence of the same page: crawls of another chain, as many as the workspace loads.
+    await Promise.all(
+      Array.from({ length: SEO_WORKSPACE_EVIDENCE_LIMIT }, (_, i) =>
+        storeCrawl(
+          "crawl_next",
+          {
+            snapshotId: i.toString(16).padStart(64, "0"),
+            continues: "f".repeat(64),
+            stop: "page cap",
+          },
+          new Date("2026-11-02"),
+        ),
+      ),
+    );
+    expect(await continueFrom()).toBeNull();
+    await expect(requestSeoCrawlNext(actor, request())).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining("older than the history"),
+    });
+    expect(await prisma.task.count({ where: { workspaceId } })).toBe(0);
   });
 
   it("refuses a continuation through the audit of a CMO Project", async () => {

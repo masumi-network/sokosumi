@@ -151,13 +151,17 @@ export function assertCrawlNextMatchesRequest(
     !request.success ||
     crawl?.state !== "crawled" ||
     !crawl.startUrl ||
-    auditedSeoPageKey(crawl.startUrl) !== auditedSeoPageKey(request.data.url) ||
+    pageKey(crawl.startUrl) !== pageKey(request.data.url) ||
     crawl.continues !== request.data.continues
   )
     throw badRequest(
       "The crawl continuation does not match its requested crawl",
     );
 }
+
+/** A page's key, or null for a URL that is not one: a stored crawl may name any text. */
+const pageKey = (url: string) =>
+  URL.canParse(url) ? auditedSeoPageKey(url) : null;
 
 /** The stops after which the SEO bot can go on with a crawl (its crawl-resume.ts `continuable`). */
 const CONTINUABLE_STOPS: ReadonlySet<string> = new Set(["page cap", "time"]);
@@ -179,8 +183,8 @@ export function crawlContinuationTip(
   if (audit?.state !== "crawled" || !audit.snapshotId || !audit.startUrl)
     return null;
   // Every continuation crawls from this URL: it must be a page the audit was approved for.
-  const start = auditedSeoPageKey(audit.startUrl);
-  if (!root?.pageUrls.some((url) => auditedSeoPageKey(url) === start))
+  const start = pageKey(audit.startUrl);
+  if (!start || !root?.pageUrls.some((url) => pageKey(url) === start))
     return null;
   const children = new Map<string, SeoSiteCrawl & { state: "crawled" }>();
   for (const row of rows) {

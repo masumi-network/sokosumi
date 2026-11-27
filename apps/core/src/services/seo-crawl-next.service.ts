@@ -24,6 +24,8 @@ import {
   requireLockedSeoOwner,
   requireSeoOwner,
   resolveSeoScope,
+  SEO_EVIDENCE_ORDER,
+  SEO_WORKSPACE_EVIDENCE_LIMIT,
   type SeoMutationHooks,
   seoOwnerUnique,
   seoOwnerWhere,
@@ -60,11 +62,12 @@ export async function readSeoCrawls(
     },
     orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }],
     take: MAX_CRAWLS,
-    select: { kind: true, payload: true },
+    select: { id: true, kind: true, payload: true },
   });
   return rows.map((row) => {
     const payload = reportObject(row.payload);
     return {
+      id: row.id,
       kind: row.kind,
       siteCrawl: seoSiteCrawlSchema.safeParse(payload?.siteCrawl).data,
       pageUrls: PAGE_URLS.safeParse(payload?.pageUrls).data ?? [],
@@ -72,20 +75,35 @@ export async function readSeoCrawls(
   });
 }
 
+/** The crawl a continuation goes on from, with the full audit it starts at. */
+async function readCrawlTip(
+  tx: Pick<Prisma.TransactionClient, "projectSeoObservation">,
+  actor: Pick<SeoActor, "owner">,
+) {
+  const rows = await readSeoCrawls(tx, actor);
+  const tip = crawlContinuationTip(rows);
+  const root = rows.find((row) => row.kind === "audit_full");
+  return tip && root ? { ...tip, rootId: root.id } : null;
+}
+
 /** The workspace projection's dispatch inputs: what the SEO check service runs here, and the crawl a continuation goes on from. */
 export async function seoDispatchInputs(
   actor: SeoActor,
   executor: Awaited<ReturnType<typeof findSeoAnalysisExecutor>>,
   visiblePages: readonly { url: string }[],
+  /** The evidence the workspace loaded: the crawl ledger shows only these rows. */
+  loaded: readonly { id: string }[],
 ) {
   const tip =
     executor?.canUsePaidSearchData && isSeoCrawlNextEnabled()
-      ? crawlContinuationTip(await readSeoCrawls(prisma, actor))
+      ? await readCrawlTip(prisma, actor)
       : null;
   // The continuation's Task and result link only to its start page: a view without that page could not show them.
+  // A full audit past the loaded history has no ledger to show the result in.
   const shown =
     tip &&
-    visiblePages.some((page) => page.url === normalizeSeoUrl(tip.startUrl));
+    visiblePages.some((page) => page.url === normalizeSeoUrl(tip.startUrl)) &&
+    loaded.some((row) => row.id === tip.rootId);
   return {
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
@@ -127,7 +145,7 @@ export async function requestSeoCrawlNext(
     }
     await requireNoActiveSeoAnalysis(tx, actor);
     await requireNoArrivingCrawl(tx, actor);
-    const tip = crawlContinuationTip(await readSeoCrawls(tx, actor));
+    const tip = await readCrawlTip(tx, actor);
     if (!tip)
       throw conflict(
         "This crawl cannot go on: it read the whole site, or it stopped at a limit that a continuation does not lift.",
@@ -167,6 +185,21 @@ export async function requestSeoCrawlNext(
     if (!page)
       throw conflict(
         "The crawl's start page is no longer in this audit. Add it again to go on with the crawl.",
+      );
+    // As the workspace loads its evidence: a full audit past it has no ledger to show the result in.
+    const loaded = await tx.projectSeoObservation.findMany({
+      where: {
+        ...seoOwnerWhere(actor),
+        ownerId: null,
+        pageIds: { hasSome: scope.pageIds },
+      },
+      orderBy: SEO_EVIDENCE_ORDER,
+      take: SEO_WORKSPACE_EVIDENCE_LIMIT,
+      select: { id: true },
+    });
+    if (!loaded.some((row) => row.id === tip.rootId))
+      throw conflict(
+        "The crawl's full audit is older than the history Sokosumi shows. Run a new full audit to crawl further.",
       );
     // The SEO bot's seo_crawl_next line: exactly these keys.
     const packet: Prisma.InputJsonObject = {
@@ -226,7 +259,7 @@ export async function requestSeoCrawlNext(
   }, RETRY);
 }
 
-/** Refuses while a completed continuation's Report has not arrived: its crawl is not yet the chain's tip. */
+/** Refuses while a completed continuation's Report has not imported: its crawl is not yet the chain's tip. */
 async function requireNoArrivingCrawl(
   tx: Prisma.TransactionClient,
   actor: Pick<SeoActor, "owner">,
@@ -235,7 +268,8 @@ async function requireNoArrivingCrawl(
     where: {
       ...seoOwnerWhere(actor),
       kind: "crawl_next",
-      status: "requested",
+      // A rejected Report fails the analysis, yet the corrected Report can still arrive.
+      status: { not: "completed" },
       taskId: { not: null },
     },
     select: { taskId: true },
