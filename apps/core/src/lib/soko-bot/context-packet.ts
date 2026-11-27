@@ -137,6 +137,31 @@ const UNLIKELY_SIGNAL = 0.2;
 const OFF_TOPIC_TASKS = 8;
 
 /**
+ * True when the owner explicitly asks for a proposal/review-only draft,
+ * asks to leave existing/scheduled posts unchanged, or scopes the rule to
+ * future months only.
+ */
+export function preservesCurrentCmoPosts(
+  message: string | null | undefined,
+): boolean {
+  if (!message) return false;
+  return (
+    /\b(?:for\s+(?:my|our)\s+review|proposal\s+only|just\s+a\s+(?:proposal|draft|option|alternative)|alternat(?:e|ive)\s+strategy|wait\s+for\s+(?:my|our)\s+approval|(?:don'?t|do\s+not)\s+apply\s+(?:it|this|yet))\b/i.test(
+      message,
+    ) ||
+    /\b(?:leave|keep)\b[^.!?\n]{0,45}\b(?:scheduled|existing|current|live|upcoming)\b[^.!?\n]{0,25}\b(?:posts?|calendar|month)\b[^.!?\n]{0,25}\b(?:as\s+they\s+are|alone|unchanged|untouched|intact)\b/i.test(
+      message,
+    ) ||
+    /\b(?:don'?t|do\s+not)\s+(?:touch|change|edit|modify|update|cancel|move)\b[^.!?\n]{0,45}\b(?:scheduled|existing|current|live|upcoming|already[- ]scheduled)\b[^.!?\n]{0,20}\b(?:posts?|calendar|month)\b/i.test(
+      message,
+    ) ||
+    /\b(?:starting\s+next\s+month|for\s+next\s+month|future\s+months?\s+only|only\s+for\s+(?:next|future)\s+months?|going\s+forward\s+next\s+month)\b/i.test(
+      message,
+    )
+  );
+}
+
+/**
  * What Core noticed about a typed message, in plain words. Each hint adds
  * context; none narrows the turn, which holds every tool whatever Jev said.
  */
@@ -157,7 +182,9 @@ export function triggerHints(input: BuildContextPacketInput): string[] {
     ...(input.capturedPreference
       ? [
           input.cmoApplyChanges
-            ? `Saved to your memory's preferences from this message: "${input.capturedPreference}". Apply this change to any affected upcoming unpublished posts on the running month too (not only memory or a new unapproved strategy draft), and report what actually changed from receipts; correct memory with update_memory if it is wrong.`
+            ? preservesCurrentCmoPosts(input.turnMessage)
+              ? `Saved to your memory's preferences from this message: "${input.capturedPreference}". Keep the owner's proposal-only or future-only scope and leave existing scheduled posts unchanged; correct memory with update_memory if it is wrong.`
+              : `Saved to your memory's preferences from this message: "${input.capturedPreference}". Unless the owner asked for a proposal-only or future-only change (or asked to leave existing posts as they are), apply this change to any affected upcoming unpublished posts on the approved running month too — not only memory or an unapproved strategy draft — and report what actually changed from receipts; correct memory with update_memory if it is wrong.`
             : `Saved to your memory's preferences from this message: "${input.capturedPreference}". Tell the owner in one line what you will do differently; correct it with update_memory if it is wrong.`,
         ]
       : (signals?.statesPreference ?? 0) >= LIKELY_SIGNAL

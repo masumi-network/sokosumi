@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   toolCallFindFirst: vi.fn(),
   marketingStrategyFindFirst: vi.fn(),
   socialPostCount: vi.fn(),
+  socialPostFindFirst: vi.fn(),
   appendUnless: vi.fn(),
 }));
 
@@ -65,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     socialPost: {
       count: mocks.socialPostCount,
+      findFirst: mocks.socialPostFindFirst,
     },
   },
 }));
@@ -82,6 +84,7 @@ function cmoTurn(overrides: Record<string, unknown> = {}) {
     sokoBotId: "bot-cuso",
     versionId: "cmo-v25",
     source: "CHAT",
+    userMessage: "From now on, no posts on Fridays.",
     chainDepth: 0,
     askedByUserId: "user-1",
     requestedByUserId: "user-1",
@@ -120,6 +123,7 @@ beforeEach(() => {
       where.approvedAt === null ? { id: "strat-new" } : { id: "strat-live" },
   );
   mocks.socialPostCount.mockResolvedValue(4);
+  mocks.socialPostFindFirst.mockResolvedValue(null);
   mocks.appendUnless.mockResolvedValue(true);
 });
 
@@ -161,11 +165,21 @@ describe("cmoApplyChanges preference hint", () => {
 
     const on = triggerHints({ ...baseInput, cmoApplyChanges: true });
     expect(on[0]).toContain(
-      "Apply this change to any affected upcoming unpublished posts",
+      "apply this change to any affected upcoming unpublished posts",
     );
-    expect(on[0]).toContain(
-      "not only memory or a new unapproved strategy draft",
+    expect(on[0]).toContain("not only memory or an unapproved strategy draft");
+    expect(on[0]).toContain("Unless the owner asked for a proposal-only");
+
+    const proposalOnly = triggerHints({
+      ...baseInput,
+      cmoApplyChanges: true,
+      turnMessage:
+        "Draft an alternate strategy for my review. Leave the scheduled posts as they are.",
+    });
+    expect(proposalOnly[0]).toContain(
+      "leave existing scheduled posts unchanged",
     );
+    expect(proposalOnly[0]).not.toContain("apply this change to any affected");
   });
 });
 
@@ -256,16 +270,79 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
     ).toBeNull();
   });
 
-  it("does not bounce when the request already executed a completed social post mutation", async () => {
-    mocks.toolCallFindFirst.mockResolvedValue({ id: "tc-post-update" });
+  it("does not bounce when the request already updated a post on the approved strategy, but still bounces if only an unrelated manual draft was edited", async () => {
+    mocks.toolCallFindMany.mockImplementation(
+      async ({ where }: { where?: { capability?: unknown } }) =>
+        where?.capability
+          ? [{ targetId: "post-manual", result: { id: "post-manual" } }]
+          : [],
+    );
+    mocks.socialPostFindFirst.mockResolvedValueOnce(null);
+    const unrelatedEdit = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "Updated the strategy and a manual draft.",
+    });
+    expect(unrelatedEdit).toContain("4 upcoming unpublished social posts");
 
+    mocks.toolCallFindMany.mockImplementation(
+      async ({ where }: { where?: { capability?: unknown } }) =>
+        where?.capability
+          ? [{ targetId: "post-strat-1", result: { id: "post-strat-1" } }]
+          : [],
+    );
+    mocks.socialPostFindFirst.mockResolvedValueOnce({ id: "post-strat-1" });
     expect(
       await evaluateTurnDoneCheck({
         turnId: "turn-1",
         sessionId: "sess-1",
-        draft: "Updated the strategy and moved all 3 Friday posts.",
+        draft: "Updated the strategy and moved the Friday posts.",
       }),
     ).toBeNull();
+  });
+
+  it("preserves the live posts when the owner asks for a proposal only or future-only change", async () => {
+    mocks.turnFindUnique.mockResolvedValue(
+      cmoTurn({
+        userMessage:
+          "Draft an alternate strategy for my review. Leave the scheduled posts as they are.",
+      }),
+    );
+    const proposal = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft:
+        "Your proposed strategy is ready for review. The running month is unchanged.",
+    });
+    expect(proposal ?? "").not.toContain(
+      "apply the requested change to every affected post",
+    );
+    expect(proposal).toBeNull();
+
+    mocks.turnFindUnique.mockResolvedValue(
+      cmoTurn({
+        userMessage: "Starting next month, skip Fridays.",
+      }),
+    );
+    expect(
+      await evaluateTurnDoneCheck({
+        turnId: "turn-1",
+        sessionId: "sess-1",
+        draft: "Saved the updated strategy for next month.",
+      }),
+    ).toBeNull();
+  });
+
+  it("does not count independent manual drafts as upcoming posts in the approved strategy", async () => {
+    mocks.socialPostCount.mockImplementation(async ({ where }) =>
+      where.marketingStrategyId === undefined ? 1 : 0,
+    );
+    const result = await evaluateTurnDoneCheck({
+      turnId: "turn-1",
+      sessionId: "sess-1",
+      draft: "There are no posts in this strategy to update.",
+    });
+    expect(result).toBeNull();
   });
 
   it("does not bounce when a background run/watch is active, when blocked by a tool refusal, or when 0 upcoming posts exist", async () => {
@@ -278,13 +355,18 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
       }),
     ).toBeNull();
 
-    mocks.toolCallFindMany.mockResolvedValueOnce([
-      {
-        capability: "update_social_posts",
-        status: "FAILED",
-        errorKind: SOKO_BOT_TOOL_REFUSED,
-      },
-    ]);
+    mocks.toolCallFindMany.mockImplementation(
+      async ({ where }: { where?: { capability?: unknown } }) =>
+        where?.capability
+          ? []
+          : [
+              {
+                capability: "update_social_posts",
+                status: "FAILED",
+                errorKind: SOKO_BOT_TOOL_REFUSED,
+              },
+            ],
+    );
     expect(
       await evaluateTurnDoneCheck({
         turnId: "turn-1",
@@ -292,6 +374,7 @@ describe("evaluateTurnDoneCheck with cmoApplyChanges", () => {
         draft: "Could not update posts because the action was refused.",
       }),
     ).toBeNull();
+    mocks.toolCallFindMany.mockResolvedValue([]);
 
     mocks.socialPostCount.mockResolvedValueOnce(0);
     expect(

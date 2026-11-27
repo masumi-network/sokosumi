@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/db/prisma";
 import { STUDIO_JOB_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { parseActionNarrativeText } from "@/lib/soko-bot/action-response";
+import { preservesCurrentCmoPosts } from "@/lib/soko-bot/context-packet";
 import { isOwnerRequest, ownerAskedIn } from "@/lib/soko-bot/owner-request";
 import {
   type ChainPlan,
@@ -85,6 +86,7 @@ const OWNER_TURN = {
   sokoBotId: true,
   versionId: true,
   source: true,
+  userMessage: true,
   chainDepth: true,
   askedByUserId: true,
   requestedByUserId: true,
@@ -455,16 +457,59 @@ async function ownerBlocker(turnId: string): Promise<boolean> {
   );
 }
 
+const socialWriteResultSchema = z.object({
+  id: z.string().optional(),
+  postId: z.string().optional(),
+  updated: z
+    .array(
+      z.object({ id: z.string().optional(), postId: z.string().optional() }),
+    )
+    .optional(),
+  results: z
+    .array(
+      z.object({ id: z.string().optional(), postId: z.string().optional() }),
+    )
+    .optional(),
+  posts: z
+    .array(
+      z.object({ id: z.string().optional(), postId: z.string().optional() }),
+    )
+    .optional(),
+});
+
+function affectedSocialPostIds(
+  calls: ReadonlyArray<{ targetId: string | null; result: unknown }>,
+): string[] {
+  const ids = new Set<string>();
+  for (const call of calls) {
+    if (call.targetId) ids.add(call.targetId);
+    const parsed = socialWriteResultSchema.safeParse(call.result).data;
+    if (!parsed) continue;
+    if (parsed.id) ids.add(parsed.id);
+    if (parsed.postId) ids.add(parsed.postId);
+    for (const list of [parsed.updated, parsed.results, parsed.posts]) {
+      for (const item of list ?? []) {
+        if (item.id) ids.add(item.id);
+        if (item.postId) ids.add(item.postId);
+      }
+    }
+  }
+  return [...ids];
+}
+
 /**
  * CMO `cmoApplyChanges` check: on a foreground chat turn where Cuso saved a
  * new unapproved strategy version for a project that already has an approved
- * running month and upcoming unpublished posts, bounce once if no upcoming
- * posts have been updated yet (and nothing is in flight or blocked).
+ * running month and upcoming unpublished posts belonging to that approved
+ * strategy, bounce once if no approved-strategy posts were updated yet (and
+ * the owner did not ask for a proposal-only/future-only draft, and nothing is
+ * in flight or blocked).
  */
 async function checkCmoUnappliedStrategyChange(input: {
   turn: {
     sokoBotId: string;
     source: string | null;
+    userMessage?: string | null;
     chainDepth: number;
     askedByUserId: string | null;
     requestedByUserId: string | null;
@@ -479,7 +524,8 @@ async function checkCmoUnappliedStrategyChange(input: {
     !projectId ||
     input.turn.source !== "CHAT" ||
     input.turn.parentTurnId !== null ||
-    !ownerAskedIn(input.turn)
+    !ownerAskedIn(input.turn) ||
+    preservesCurrentCmoPosts(input.turn.userMessage)
   ) {
     return null;
   }
@@ -508,28 +554,42 @@ async function checkCmoUnappliedStrategyChange(input: {
   ]);
   if (!pending || !approved) return null;
 
-  const [waiting, blocked, postWrite, upcomingCount] = await Promise.all([
+  const [waiting, blocked, postWrites, upcomingCount] = await Promise.all([
     waitingOnOthers(input.turnId, turnIds),
     ownerBlocker(input.turnId),
-    prisma.sokoBotToolCall.findFirst({
+    prisma.sokoBotToolCall.findMany({
       where: {
         turnId: { in: turnIds },
         status: "COMPLETED",
         capability: { in: [...CMO_SOCIAL_POST_MUTATION_CAPABILITIES] },
         OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
       },
-      select: { id: true },
+      select: { targetId: true, result: true },
     }),
     prisma.socialPost.count({
       where: {
         projectId,
+        marketingStrategyId: approved.id,
         canceledAt: null,
         publishedAt: null,
         status: { in: [...CMO_UPCOMING_UNPUBLISHED_STATUSES] },
       },
     }),
   ]);
-  if (waiting || blocked || postWrite || upcomingCount === 0) return null;
+  if (waiting || blocked || upcomingCount === 0) return null;
+
+  const touchedPostIds = affectedSocialPostIds(postWrites);
+  if (touchedPostIds.length > 0) {
+    const editedApprovedPost = await prisma.socialPost.findFirst({
+      where: {
+        projectId,
+        marketingStrategyId: approved.id,
+        id: { in: touchedPostIds },
+      },
+      select: { id: true },
+    });
+    if (editedApprovedPost) return null;
+  }
 
   const claimed = await new RuntimeEventLog(
     input.turnId,
@@ -538,6 +598,7 @@ async function checkCmoUnappliedStrategyChange(input: {
     runtimeEvent(CMO_UPCOMING_POSTS_BOUNCED_EVENT, {
       projectId,
       strategyVersionId: pending.id,
+      approvedStrategyId: approved.id,
       upcomingCount,
     }),
     [CMO_UPCOMING_POSTS_BOUNCED_EVENT],
@@ -545,7 +606,7 @@ async function checkCmoUnappliedStrategyChange(input: {
   if (!claimed) return null;
 
   const postWord = upcomingCount === 1 ? "post" : "posts";
-  return `This turn saved a new unapproved strategy version, so none of the running month's posts changed yet, and this project currently has ${upcomingCount} upcoming unpublished social ${postWord}. Before finishing, inspect the upcoming posts with list_social_posts and apply the requested change to every affected post (update_social_post, update_social_posts, create_social_post, schedule_social_post, or cancel_social_post), then report what actually changed from receipts. If none of the upcoming posts are affected, confirm that from the live list and state plainly that the new strategy version still waits for approval.`;
+  return `This turn saved a new unapproved strategy version, so none of the approved running month's posts changed yet, and the approved strategy currently has ${upcomingCount} upcoming unpublished social ${postWord}. If the owner asked for a change to take effect now (not a proposal-only or future-only draft), inspect those upcoming posts with list_social_posts and apply the requested change to every affected post (update_social_post, update_social_posts, create_social_post, schedule_social_post, or cancel_social_post), then report what actually changed from receipts. If none of the approved strategy's upcoming posts are affected (or the owner asked only for a proposal to review), confirm that plainly and state that the new strategy version still waits for approval.`;
 }
 
 /**
