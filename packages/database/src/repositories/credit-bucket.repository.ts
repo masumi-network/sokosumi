@@ -98,17 +98,12 @@ export const creditBucketRepository = {
     tx: Prisma.TransactionClient,
     options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
-    const now = new Date();
-    const scopeContext = await resolveCreditBucketScopeContext(
+    return await creditBucketRepository.getNetworkBalance(
+      "mainnet",
       userId,
       organizationId,
       tx,
-      now,
-    );
-    return await sumAvailableCents(
-      buildCreditBucketScopeSql(scopeContext, options),
-      now,
-      tx,
+      options,
     );
   },
 

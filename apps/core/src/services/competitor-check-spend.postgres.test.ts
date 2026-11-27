@@ -16,51 +16,21 @@
  * a second transaction in the statements.
  */
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { Pool, PoolClient } from "pg";
+import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-interface SentStatement {
-  connection: number;
-  text: string;
-  values: unknown[];
-}
-/** What Core's pool sent while a check was observed, per connection. */
-const sent = vi.hoisted(() => ({
-  observing: false,
-  connections: 0,
-  log: [] as SentStatement[],
-}));
 const readers = vi.hoisted(() => ({
   readCompetitorPage: vi.fn(),
   searchExa: vi.fn(),
 }));
 vi.mock("@vercel/functions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@vercel/functions")>();
+  const { observePool } = await import("@/test/spend-comparison");
   return {
     ...actual,
     attachDatabasePool: (pool: Pool) => {
-      pool.on("connect", (client: PoolClient) => {
-        sent.connections += 1;
-        const connection = sent.connections;
-        const query = client.query.bind(client) as (...a: unknown[]) => unknown;
-        (client as { query: unknown }).query = (...args: unknown[]) => {
-          if (sent.observing) {
-            const [first, second] = args;
-            const config =
-              typeof first === "string"
-                ? { text: first, values: second }
-                : (first as { text: string; values?: unknown });
-            sent.log.push({
-              connection,
-              text: config.text,
-              values: Array.isArray(config.values) ? config.values : [],
-            });
-          }
-          return query(...args);
-        };
-      });
+      observePool(pool);
       actual.attachDatabasePool(pool);
     },
   };
@@ -99,6 +69,12 @@ import {
   addTrackedCompetitor,
   setCompetitorChecks,
 } from "@/services/competitors.service";
+import {
+  baseFile,
+  observing,
+  plain,
+  statements,
+} from "@/test/spend-comparison";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -120,109 +96,10 @@ const PRICE = convertCreditsToCents(COMPETITOR_CHECK_CREDITS * 2);
 const BASE_FILE = fileURLToPath(
   new URL("./competitor-check-spend.base.json", import.meta.url),
 );
-const recording = process.env.RECORD_COMPETITOR_CHECK_SPEND_BASE === "true";
-
-function recorded(): Record<string, unknown> {
-  return existsSync(BASE_FILE)
-    ? (JSON.parse(readFileSync(BASE_FILE, "utf8")) as Record<string, unknown>)
-    : {};
-}
-
-interface Statement {
-  sql: string;
-  values: unknown[];
-}
-interface Observed {
-  statements: { transactions: Statement[][] };
-}
-
-/*
- * The one difference from `origin/main`, statement by statement. There the
- * debit was Prisma's nested create: three statements.
- */
-const MAIN_INSERT_DEBIT =
-  'INSERT INTO "public"."Transaction" ("id","createdAt","updatedAt","amount","userId","organizationId") VALUES ($1,$2,$3,$4,$5,$6) RETURNING "public"."Transaction"."id"';
-const mainInsertConsumptions = (count: number) =>
-  `INSERT INTO "public"."credit_consumption" ("id","createdAt","amount","bucketId","transactionId") VALUES ${Array.from(
-    { length: count },
-    (_unused, row) =>
-      `(${[1, 2, 3, 4, 5].map((column) => `$${row * 5 + column}`).join(",")})`,
-  ).join(", ")}`;
-const MAIN_READ_DEBIT_BACK =
-  'SELECT "public"."Transaction"."id" FROM "public"."Transaction" WHERE "public"."Transaction"."id" = $1 LIMIT $2 OFFSET $3';
-/*
- * Now the credit bucket repository's `recordSpend` writes it, as it has
- * written the Task charge since #8224: two statements of raw SQL, which name
- * the Network's schema.
- */
-const NOW_INSERT_DEBIT =
-  'INSERT INTO "public"."Transaction" (id, "createdAt", "updatedAt", amount, "userId", "organizationId") VALUES ($1, $2, $3, $4, $5, $6)';
-const NOW_INSERT_CONSUMPTIONS =
-  'INSERT INTO "public"."credit_consumption" (id, "createdAt", amount, "bucketId", "transactionId") SELECT c.id, $1::timestamp(3), c.amount, c."bucketId", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, "bucketId")';
-
-/**
- * A transaction recorded on `origin/main`, with its debit written as
- * `recordSpend` writes it: the same values in the same place, every other
- * statement untouched. It refuses a debit that is not exactly the three
- * statements above.
- */
-function withTheDebitAsWrittenNow(transaction: Statement[]): Statement[] {
-  const at = transaction.findIndex(({ sql }) => sql === MAIN_INSERT_DEBIT);
-  if (at === -1) return transaction;
-  const [debit, consumptions, readBack] = transaction.slice(at, at + 3);
-  if (!debit || !consumptions || !readBack) throw new Error("A debit is cut");
-  const debitId = debit.values[0];
-  const written = Array.from(
-    { length: consumptions.values.length / 5 },
-    (_unused, row) => consumptions.values.slice(row * 5, row * 5 + 5),
-  );
-  expect([consumptions.sql, readBack]).toEqual([
-    mainInsertConsumptions(written.length),
-    { sql: MAIN_READ_DEBIT_BACK, values: [debitId, "1", "0"] },
-  ]);
-  // One time and one debit for every consumption, as the one statement binds.
-  expect(written.map((row) => [row[1], row[4]])).toEqual(
-    written.map(() => [debit.values[1], debitId]),
-  );
-  return [
-    ...transaction.slice(0, at),
-    { sql: NOW_INSERT_DEBIT, values: debit.values },
-    {
-      sql: NOW_INSERT_CONSUMPTIONS,
-      values: [
-        debit.values[1],
-        debitId,
-        written.map((row) => row[0]),
-        written.map((row) => row[2]),
-        written.map((row) => row[3]),
-      ],
-    },
-    ...transaction.slice(at + 3),
-  ];
-}
-
-/**
- * Compares with what `origin/main` did, or records it while run there. The
- * answer, the rows and every statement are `origin/main`'s; only the debit's
- * own statements are the ones above.
- */
-function expectAsOnBase(key: string, observed: unknown) {
-  if (recording) {
-    writeFileSync(
-      BASE_FILE,
-      `${JSON.stringify({ ...recorded(), [key]: observed }, null, 2)}\n`,
-    );
-    return;
-  }
-  const base = recorded()[key] as Observed;
-  expect(observed).toEqual({
-    ...base,
-    statements: {
-      ...base.statements,
-      transactions: base.statements.transactions.map(withTheDebitAsWrittenNow),
-    },
-  });
-}
+const { expectAsOnBase } = baseFile(
+  BASE_FILE,
+  process.env.RECORD_COMPETITOR_CHECK_SPEND_BASE === "true",
+);
 
 const mainnet = () => createNetworkScope("mainnet").networkDb;
 
@@ -375,64 +252,6 @@ async function organization(
   return { userId: null, organizationId, projectId };
 }
 
-const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
-const TIME =
-  /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?/g;
-
-/**
- * Plain data without what differs between two runs: a named value is its
- * name, a time is `<time>`, and an id the run made is `<id n>`, numbered in
- * the order the ids first appear, so two places that hold one id still agree.
- */
-function plain(value: unknown): unknown {
-  let text = JSON.stringify(value, (_key, item) =>
-    typeof item === "bigint" ? item.toString() : item,
-  );
-  for (const [random, name] of labels) text = text.replaceAll(random, name);
-  const made = new Map<string, string>();
-  text = text.replace(UUID, (id) => {
-    if (!made.has(id)) made.set(id, `<id ${made.size + 1}>`);
-    return made.get(id) ?? id;
-  });
-  return JSON.parse(text.replace(TIME, "<time>"));
-}
-
-/**
- * The statements as PostgreSQL received them. A transaction is the statements
- * of one connection from its BEGIN to its COMMIT or ROLLBACK, in the order
- * sent, with the values bound. Statements outside a transaction can run side
- * by side, so they are counted per text. On the split layout the schema names
- * differ and are written as today's.
- */
-function statements(log: readonly SentStatement[]) {
-  const open = new Map<number, { sql: string; values: unknown[] }[]>();
-  const transactions: { sql: string; values: unknown[] }[][] = [];
-  const outside = new Map<string, number>();
-  for (const { connection, text, values } of log) {
-    const sql = text
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/"(shared|mainnet)"\./g, '"public".');
-    const transaction = open.get(connection);
-    if (/^BEGIN\b/i.test(sql)) {
-      const started = [{ sql, values }];
-      open.set(connection, started);
-      transactions.push(started);
-    } else if (transaction) {
-      transaction.push({ sql, values });
-      if (/^(COMMIT|ROLLBACK)\b/i.test(sql)) open.delete(connection);
-    } else {
-      outside.set(sql, (outside.get(sql) ?? 0) + 1);
-    }
-  }
-  return {
-    transactions,
-    outsideTransactions: Object.fromEntries(
-      [...outside].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-    ),
-  };
-}
-
 /** Every credit row of the payer and every check of its Project. */
 async function rows(payer: Payer) {
   const billedTo = payer.organizationId
@@ -476,17 +295,9 @@ async function observe(payer: Payer, now: Date) {
   readers.readCompetitorPage.mockClear();
   readers.searchExa.mockClear();
   const started = Date.now();
-  sent.log = [];
-  sent.observing = true;
-  let result: unknown;
-  try {
-    result = await runProjectCompetitorCheck(payer.projectId, now);
-  } catch (error) {
-    if (!(error instanceof Error)) throw error;
-    result = { threw: { name: error.name, message: error.message } };
-  } finally {
-    sent.observing = false;
-  }
+  const { outcome: result, log } = await observing(() =>
+    runProjectCompetitorCheck(payer.projectId, now),
+  );
   const ended = Date.now();
   const left = await rows(payer);
   // Before `plain` turns every time into `<time>`: a debit is one instant, its
@@ -507,21 +318,24 @@ async function observe(payer: Payer, now: Date) {
     ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),
     ...left.consumptions.map((row) => row.createdAt),
   ];
-  return plain({
-    result,
-    pagesRead: readers.readCompetitorPage.mock.calls.length,
-    newsSearches: readers.searchExa.mock.calls.length,
-    statements: statements(sent.log),
-    rows: left,
-    // What `plain` hides of the debit's rows: the kind of id, and that their
-    // times are this check's.
-    debit: {
-      uuidVersions: debitRows.map((row) => row.id.charAt(14)),
-      timesWithinTheCheck: debitTimes.map(
-        (time) => time.getTime() >= started && time.getTime() <= ended,
-      ),
+  return plain(
+    {
+      result,
+      pagesRead: readers.readCompetitorPage.mock.calls.length,
+      newsSearches: readers.searchExa.mock.calls.length,
+      statements: statements(log),
+      rows: left,
+      // What `plain` hides of the debit's rows: the kind of id, and that their
+      // times are this check's.
+      debit: {
+        uuidVersions: debitRows.map((row) => row.id.charAt(14)),
+        timesWithinTheCheck: debitTimes.map(
+          (time) => time.getTime() >= started && time.getTime() <= ended,
+        ),
+      },
     },
-  });
+    labels,
+  );
 }
 
 describe.skipIf(!enabled)(

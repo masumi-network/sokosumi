@@ -572,18 +572,16 @@ export function chargeProjectCompetitorCheck(
   return ({ id, credits }) => {
     const expectedCents = convertCreditsToCents(credits);
     return serializableTransaction(async (tx) => {
-      const [check, project] = await Promise.all([
-        tx.competitorCheck.findUnique({
-          where: { id },
-          select: { transactionId: true, chargedCents: true },
-        }),
-        tx.project.findUnique({
-          where: { id: projectId },
-          select: {
-            workspace: { select: { userId: true, organizationId: true } },
-          },
-        }),
-      ]);
+      const check = await tx.competitorCheck.findUnique({
+        where: { id },
+        select: { transactionId: true, chargedCents: true },
+      });
+      const project = await tx.project.findUnique({
+        where: { id: projectId },
+        select: {
+          workspace: { select: { userId: true, organizationId: true } },
+        },
+      });
       if (check?.transactionId)
         return { chargedCents: check.chargedCents, shortfall: false };
       if (!check || !project) return { chargedCents: 0n, shortfall: true };

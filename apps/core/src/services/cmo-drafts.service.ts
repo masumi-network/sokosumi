@@ -12,6 +12,10 @@ import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
 import { publicDriveUrl } from "@/lib/drive-blob";
 import {
+  EVAL_TIKTOK_CREATOR_INFO,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
+import {
   CmoConflictError,
   CmoNotFoundError,
   type CusoTarget,
@@ -361,6 +365,11 @@ export async function readCmoTikTokCreator(
     },
   });
   if (!post) throw new CmoNotFoundError("No such TikTok post");
+  if (
+    post.socialConnection?.status === "active" &&
+    isEvalSocialAccount(post.socialConnection.composioConnectedAccountId)
+  )
+    return { ...EVAL_TIKTOK_CREATOR_INFO };
   const accountId =
     post.socialConnection?.status === "active"
       ? getZernioAccountId(post.socialConnection.composioConnectedAccountId)

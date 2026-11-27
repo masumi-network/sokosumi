@@ -57,7 +57,11 @@ import {
 } from "@/helpers/social-post-quote";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { evalWorkspaceIds, isEvalWorkspaceNow } from "@/lib/evals/eval-guard";
+import {
+  EVAL_CONNECTED_ACCOUNT_PREFIX,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
@@ -97,6 +101,8 @@ const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
 /** A test copy schedules real posts and never sends one (ADR 0073). */
 export const TEST_COPY_NEVER_PUBLISHES = "A test copy never publishes";
+export const EVAL_REAL_ACCOUNT_NEVER_PUBLISHES =
+  "An eval lane publishes only on its stand-in accounts";
 const PROJECT_CLOSED_ERROR =
   "Cannot publish Social posts in a closing or closed Project";
 const AUTHORIZATION_REVOKED_ERROR =
@@ -742,7 +748,8 @@ async function attemptPublish(
   const ownTikTokApp =
     provider === "tiktok" &&
     !!post.socialConnection &&
-    !getZernioAccountId(post.socialConnection.composioConnectedAccountId);
+    !getZernioAccountId(post.socialConnection.composioConnectedAccountId) &&
+    !isEvalSocialAccount(post.socialConnection.composioConnectedAccountId);
   let closedMessage = disabledProvider
     ? socialProviderUnavailableMessage(
         disabledProvider,
@@ -1236,7 +1243,9 @@ async function claimDuePost(held: string[]): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
-      // An eval lane's posts sit on stand-in accounts: never publish them.
+      // An eval lane never publishes: not its stand-in accounts, and not a
+      // real account someone connected inside a lane.
+      workspaceId: { notIn: await evalWorkspaceIds() },
       NOT: {
         socialConnection: {
           is: {
@@ -1406,6 +1415,16 @@ export async function publishSocialPostNow(
         throw conflict(
           `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
         );
+      }
+      // An eval lane publishes on its stand-in accounts only, never a real one.
+      if (
+        (await isEvalWorkspaceNow(tx, input.workspaceId)) &&
+        !(
+          post.socialConnection &&
+          isEvalSocialAccount(post.socialConnection.composioConnectedAccountId)
+        )
+      ) {
+        throw conflict(EVAL_REAL_ACCOUNT_NEVER_PUBLISHES);
       }
       requireSocialProviderEnabled(post.provider, post.project);
       if (post.socialConnection) {

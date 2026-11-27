@@ -15,7 +15,6 @@ import {
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import {
   cmoPlanLevel,
   grantCmoTesterCredits,
@@ -42,6 +41,7 @@ import {
   linkedInOpeningChecks,
   pictureVarietyChecks,
 } from "@/services/evals/eval-cmo-variety";
+import { connectEvalSocialAccount } from "@/services/evals/eval-social-accounts";
 import {
   approveMarketingStrategy,
   isMarketingFilePiece,
@@ -149,19 +149,11 @@ async function connectPlanChannels(
       select: { id: true },
     });
     if (existing) continue;
-    await prisma.projectSocialConnection.create({
-      data: {
-        projectId: lane.cusoProjectId,
-        provider,
-        externalAccountId: key,
-        externalHandle: "evalbrand",
-        displayName: "Eval brand",
-        composioConnectedAccountId: `${EVAL_CONNECTED_ACCOUNT_PREFIX}${key}`,
-        status: "active",
-        activeExternalAccountKey: key,
-        connectorUserId: lane.userId,
-        connectedAt: new Date(),
-      },
+    await connectEvalSocialAccount({
+      projectId: lane.cusoProjectId,
+      connectorUserId: lane.userId,
+      network: provider,
+      key,
     });
   }
 }
