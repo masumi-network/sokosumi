@@ -25,7 +25,14 @@ import { seoWorklistEvidence } from "./seo-worklist-evidence";
 
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
+export function SeoActions({
+  model,
+  openPage,
+}: {
+  model: SeoWorkspaceModel;
+  /** Shows the Audit's checks of one of its pages, from a page the site crawl names. */
+  openPage: (pageId: string) => void;
+}) {
   const t = useTranslations("App.Seo");
   const overview = seoOverviewModel(model.data);
   const result = useSeoResultTranslations("App.Seo");
@@ -153,7 +160,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         ) : null}
         <SeoPageDetails model={model} overview={overview} />
       </SeoSection>
-      <SeoSiteCrawl workspace={model.data} />
+      <SeoSiteCrawl workspace={model.data} openPage={openPage} />
       {research}
       <SeoStrategicPlanning model={model} />
       <SeoCurrentDiscoveryActions

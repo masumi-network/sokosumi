@@ -15811,6 +15811,24 @@
         "noSitemapPage": "The sitemap names no page on this site.",
         "olderReport": "This report is from before this check.",
         "stopped": "The crawl stopped before it read each page and link.",
+        "undecided": "Not determined: {count} checks",
+        "openPage": "show the Audit's checks of this page",
+        "copy": {
+          "button": "Copy agent instructions",
+          "lead": "Fix this problem that the site crawl found on the website. Change only what it names, then run the site audit again.",
+          "partial": "{stop}. Pages that the crawl did not read can have this problem too.",
+          "fix": {
+            "brokenLinks": "Fix or remove each link to the URLs below. Each URL answers with an error.",
+            "redirectChains": "Find the links to the first URL of each chain below, and point each one to the URL where the chain ends. Where a chain loops, or ends at a URL that does not answer with status 200, fix the redirects first.",
+            "duplicateTitles": "Give each page below a title that no other page has.",
+            "missingTitle": "Give each page below a title.",
+            "missingH1": "Give each page below one h1 heading.",
+            "noindexInSitemap": "Remove each page below from the sitemap, or remove its noindex if search must show the page.",
+            "badCanonicals": "Give each page below one canonical URL on this site that answers with status 200.",
+            "orphans": "Check first that no page of the site links to each page below. Then link to it from another page of the site, or remove it from the sitemap.",
+            "javascript": "Put the links and the main text of each page group below in the HTML that the server sends."
+          }
+        },
         "checks": {
           "brokenLinks": "Broken links",
           "noindexInSitemap": "Noindex pages in the sitemap",
