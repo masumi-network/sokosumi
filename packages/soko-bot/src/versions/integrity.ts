@@ -124,7 +124,10 @@ function missingTools(
   skills: readonly string[],
   tools: ReadonlySet<string>,
   scanNames: boolean,
-  version: Pick<SokoBotVersion, "e1Prompts">,
+  version: Pick<SokoBotVersion, "e1Prompts"> & {
+    skillsOnDemand?: boolean;
+    skills?: readonly string[];
+  },
   allowed: Readonly<Record<string, string>> = {},
 ): string[] {
   const problems: string[] = [];

@@ -1,3 +1,4 @@
+import type { WritingSkill } from "../writing-skills/types.js";
 import type { SokoBotSkill } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
 
@@ -41,7 +42,19 @@ const LEGACY_DELETE_SCHEDULE_SENTENCE =
   "When a schedule's purpose is done, `delete_schedule` it; one-time schedules remove themselves.";
 
 const E1_RECURRING_SCHEDULE_SENTENCE =
-  "Delete a recurring schedule only when the owner explicitly asks to stop or remove it; one-time and watched-work schedules retire themselves when done. When replacing a schedule's prompt with `update_schedule`, pass `keepCapabilities: true` (unless changing its capabilities) so the update succeeds on the first call.";
+  "Delete a recurring schedule only when the owner explicitly asks to stop or remove it; one-time and watched-work schedules retire themselves when done.";
+
+const LEGACY_REPLY_TO_TASK_RULE =
+  "- When a Coworker asks a question on a Task, answer it on the Task with reply_to_task: choose sensible defaults, say which and why, and set it READY. Ask the owner only what spends money, changes their scope, or is theirs alone, as one question.";
+
+const E1_REPLY_TO_TASK_RULE =
+  "- When a Coworker asks a question on a Task, answer it on the Task with reply_to_task: choose sensible defaults, say which and why, and set status READY only when the Task is in a resumable state and has an assignee (omit status to leave a plain comment; only the owner's own Tasks can be completed or canceled). Ask the owner only what spends money, changes their scope, or is theirs alone, as one question.";
+
+const LEGACY_MEMORY_RULE =
+  "- Memory holds only durable goals, decisions, preferences, follow-ups, and blockers. Never store credentials, tokens, private keys, payment data, or raw sensitive content.";
+
+const E1_MEMORY_RULE =
+  "- Memory holds only durable goals, decisions, preferences, follow-ups, and blockers. Never store credentials, tokens, private keys, payment data, or raw sensitive content. `update_memory` replaces the whole document and accepts only the five standard `##` headings (`## Active goals`, `## Decisions`, `## Preferences`, `## Follow-ups`, `## Blockers`); call `read_memory` first whenever context shows partial memory.";
 
 const LEGACY_COWORKER_REPORT_RULE =
   "- A Coworker's or Agent's words are their report, not a checked fact: \"Hannah reports the brief is done\". Never call work delivered or verified unless a tool result shows it; a RUNNING Task is not finished. Chat messages marked `fromYou` are what you said.";
@@ -65,7 +78,16 @@ const LEGACY_V29_SCHEDULE_ONLY_BULLET =
   '- Check-ins, reminders, monitoring, and "tell me when" are schedules, not promises: `create_schedule` this turn (cron, timezone, a prompt naming the ids and what to check), after `list_schedules` to avoid duplicates; `update_schedule` / `delete_schedule` when plans change or work is done.';
 
 const E1_CUSO_FOLLOW_UPS_BULLET = `- "When X is done, do Y" is a follow-up plan, not a polling loop: if X is already running, watch the existing Task, Job, or Studio job ID with \`wait_for\` (never create or hire a duplicate); only when X is new, authorized work, create or hire it once with \`followUp\` saying what to do with its result. Finish independent steps now and let Core wake you when X completes, fails, or needs input.
-- Check-ins at a set time, reminders, and recurring monitoring are schedules, not promises: \`create_schedule\` this turn (cron, timezone, a prompt naming the ids and what to check), after \`list_schedules\` to avoid duplicates; pass \`taskId\` or \`jobId\` when it only watches that work. Delete a recurring schedule only when the owner explicitly asks to stop or remove it. When replacing a schedule's prompt with \`update_schedule\`, pass \`keepCapabilities: true\` (unless changing its capabilities) so the update succeeds on the first call.`;
+- Check-ins at a set time, reminders, and recurring monitoring are schedules, not promises: \`create_schedule\` this turn (cron, timezone, a prompt naming the ids and what to check), after \`list_schedules\` to avoid duplicates; pass \`taskId\` or \`jobId\` when it only watches that work. Delete a recurring schedule only when the owner explicitly asks to stop or remove it.`;
+
+const LEGACY_CUSO_WRITING_SKILLS_LINE =
+  "- Before you write any piece (a post, an ad, a newsletter, an article, a page fix), read its writing skill and brand-voice with read_writing_skill (writingSkills in your context lists them; for a social post or an ad also post-formatting and hooks-and-endings), and check the piece against each 'Before you save' list. A production run's brief already holds them.";
+
+const E1_CUSO_WRITING_SKILLS_ON_DEMAND =
+  "- Before you write any piece (a post, an ad, a newsletter, an article, a page fix), read its writing skill and brand-voice with read_skill (writingSkills in your context lists them; for a social post or an ad also post-formatting and hooks-and-endings), and check the piece against each 'Before you save' list. A production run's brief already holds them.";
+
+const E1_CUSO_WRITING_SKILLS_COMPACT =
+  "- Before you write any piece (a post, an ad, a newsletter, an article, a page fix), read its writing skill and brand-voice with read_skill (writingSkills in your context lists them; for a social post or an ad also post-formatting and hooks-and-endings), and check the piece against each 'Before you save' list. In a compact production run, the brief lists their ids — read each needed skill with read_skill before writing or fixing a piece.";
 
 const LEGACY_CUSO_SPONTANEOUS_RULE =
   '- The owner\'s words win. A spontaneous request ("post this today", "change the strategy") is done in the same turn, and the strategy is updated to match.';
@@ -144,7 +166,10 @@ const DURABLE_WAIT_PHRASE =
  */
 export function applyE1SystemPrompt(
   systemPrompt: string,
-  version: Pick<SokoBotVersion, "e1Prompts" | "profile">,
+  version: Pick<SokoBotVersion, "e1Prompts" | "profile"> & {
+    skillsOnDemand?: boolean;
+    skills?: readonly string[];
+  },
 ): string {
   const trimmed = systemPrompt.trim();
   if (!version.e1Prompts) return trimmed;
@@ -153,6 +178,8 @@ export function applyE1SystemPrompt(
     .replace(LEGACY_NO_APPROVAL_RULE, E1_APPROVAL_TRUTH_RULE)
     .replace(LEGACY_PICK_DESTINATION, E1_PICK_DESTINATION)
     .replace(LEGACY_DELETE_SCHEDULE_SENTENCE, E1_RECURRING_SCHEDULE_SENTENCE)
+    .replace(LEGACY_REPLY_TO_TASK_RULE, E1_REPLY_TO_TASK_RULE)
+    .replace(LEGACY_MEMORY_RULE, E1_MEMORY_RULE)
     .replace(LEGACY_COWORKER_REPORT_RULE, E1_COWORKER_REPORT_RULE)
     .replace(LEGACY_NOTHING_TO_ADD_RULE, E1_NOTHING_TO_ADD_RULE);
   if (version.profile === "cmo") {
@@ -163,11 +190,59 @@ export function applyE1SystemPrompt(
       .replace(LEGACY_CUSO_PLAN_FIRST_RULE, E1_CUSO_PLAN_FIRST_RULE)
       .replace(LEGACY_CUSO_DONE_LINE, E1_CUSO_DONE_LINE)
       .replace(LEGACY_CUSO_NEVER_REPORT_LEFT, E1_CUSO_REPORT_OPEN_DELIVERABLES);
+    if (version.skillsOnDemand) {
+      updated = updated.replace(
+        LEGACY_CUSO_WRITING_SKILLS_LINE,
+        version.skills?.includes("cmo-compact-production")
+          ? E1_CUSO_WRITING_SKILLS_COMPACT
+          : E1_CUSO_WRITING_SKILLS_ON_DEMAND,
+      );
+    }
   }
   const sections = [updated, E1_FINISHING_SECTION];
   if (version.profile === "cmo") sections.push(E1_CUSO_CHANGE_SCOPE_SECTION);
   return sections.join("\n\n");
 }
+
+const LEGACY_CMO_PRODUCTION_OPENING =
+  "- The first line earns the rest. Use a different kind of opening across the month: a specific claim, a question the buyer is asking, a short story, a number from the Brand Brain, a contrast between two real choices, a result a customer had.";
+
+const E1_CMO_PRODUCTION_OPENING =
+  "- The first line earns the rest. Use a different kind of opening across the month: a specific claim, a short story, a number from the Brand Brain, a contrast between two real choices, a result a customer had, or — outside LinkedIn — a question the buyer is asking. On LinkedIn, line 1 (before the first newline) must carry a concrete result with its number, a business number/price, a named customer and what they did, or a surprising decision — never advice or a question, and never echoed from another LinkedIn post.";
+
+const LEGACY_CMO_PRODUCTION_SUBSTANCE =
+  '- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not.';
+
+const E1_CMO_PRODUCTION_SUBSTANCE =
+  '- Vary the substance too: one fact ("an 11-piece collection") in at most two pieces a month, a tagline in at most one piece a week. Each piece says something the others do not, and each post gets its own unique image or video — never attach a file already used on another post in the month, except a video shared across its cross-network sibling posts (`videoOf` short videos and talking videos; still images stay unique per post).';
+
+const LEGACY_CMO_PRODUCTION_FIX_LINE =
+  "read its network's writing skill (read_writing_skill), then a Social post with get_social_post and update_social_post, its visual or script with save_strategy part pieces.";
+
+const E1_CMO_PRODUCTION_FIX_LINE =
+  "read its network's writing skill (read_skill), then fix Social posts together with get_social_post and update_social_posts, and its visual or script with save_strategy part pieces.";
+
+const LEGACY_CMO_MEASUREMENT_CONNECTED =
+  "Only connected sources work; never ask the owner how to set one up, CMO shows them that.";
+
+const E1_CMO_MEASUREMENT_CONNECTED =
+  "Only connected sources work; check the connected integrations listed in your context first and do not call list_integration_tools or read_integration_tool for a provider that is not connected. Never ask the owner how to set one up, CMO shows them that.";
+
+const LEGACY_CMO_MEASUREMENT_SEO_REF = "(see the cmo-seo skill)";
+const E1_CMO_SEO_SKILL_IDS = [
+  "cmo-seo-reports-plain",
+  "cmo-seo-reports",
+] as const;
+
+const LEGACY_CMO_COMPETITOR_ADS_READ =
+  "Read the google-ads writing skill first (read_writing_skill).";
+const E1_CMO_COMPETITOR_ADS_READ =
+  "Read the google-ads writing skill first (read_skill).";
+
+const LEGACY_CMO_NEWSLETTER_READ =
+  "and the newsletter writing skill with `read_writing_skill` before you write.";
+const E1_CMO_NEWSLETTER_READ =
+  "and the newsletter writing skill with `read_skill` before you write.";
 
 /**
  * Applies E1 skill text updates when `version.e1Prompts` is enabled.
@@ -175,7 +250,10 @@ export function applyE1SystemPrompt(
  */
 export function applyE1Skill(
   skill: SokoBotSkill,
-  version: Pick<SokoBotVersion, "e1Prompts">,
+  version: Pick<SokoBotVersion, "e1Prompts"> & {
+    skillsOnDemand?: boolean;
+    skills?: readonly string[];
+  },
 ): SokoBotSkill {
   if (!version.e1Prompts) return skill;
   let content = skill.content;
@@ -218,5 +296,99 @@ export function applyE1Skill(
       E1_CMO_ASKS_BEFORE_CHANGE_LINES,
     );
   }
+  if (skill.id.startsWith("cmo-production")) {
+    content = content
+      .replace(LEGACY_CMO_PRODUCTION_OPENING, E1_CMO_PRODUCTION_OPENING)
+      .replace(LEGACY_CMO_PRODUCTION_SUBSTANCE, E1_CMO_PRODUCTION_SUBSTANCE);
+    if (version.skillsOnDemand) {
+      content = content.replace(
+        LEGACY_CMO_PRODUCTION_FIX_LINE,
+        E1_CMO_PRODUCTION_FIX_LINE,
+      );
+    }
+  }
+  if (skill.id === "cmo-measurement") {
+    content = content.replace(
+      LEGACY_CMO_MEASUREMENT_CONNECTED,
+      E1_CMO_MEASUREMENT_CONNECTED,
+    );
+    if (version.skills) {
+      const seoSkillId = E1_CMO_SEO_SKILL_IDS.find((id) =>
+        version.skills?.includes(id),
+      );
+      if (seoSkillId && !version.skills.includes("cmo-seo")) {
+        content = content.replace(
+          LEGACY_CMO_MEASUREMENT_SEO_REF,
+          `(see the ${seoSkillId} skill)`,
+        );
+      }
+    }
+  }
+  if (skill.id === "cmo-competitor-ads" && version.skillsOnDemand) {
+    content = content.replace(
+      LEGACY_CMO_COMPETITOR_ADS_READ,
+      E1_CMO_COMPETITOR_ADS_READ,
+    );
+  }
+  if (skill.id === "cmo-newsletter" && version.skillsOnDemand) {
+    content = content.replace(
+      LEGACY_CMO_NEWSLETTER_READ,
+      E1_CMO_NEWSLETTER_READ,
+    );
+  }
   return content === skill.content ? skill : { ...skill, content };
+}
+
+const LEGACY_HOOKS_QUESTION_BULLET =
+  '- **A question the reader has**: "How much should a first website cost?"';
+const E1_HOOKS_QUESTION_BULLET =
+  '- **A question the reader has** (on X, Instagram, or TikTok — on LinkedIn, never open with a question or advice; open on line 1 with a concrete result, number, named customer, or surprising decision): "How much should a first website cost?"';
+
+const LEGACY_HOOKS_CHECKLIST_RULE =
+  "The first line leads with the point (a claim, a number, a real question or a moment), with no preamble or label.";
+const E1_HOOKS_CHECKLIST_RULE =
+  "The first line leads with the point (a claim, a number, a moment, or — outside LinkedIn — a real question; on LinkedIn, open line 1 with a concrete result, number, named customer, or surprising decision, never a question or advice), with no preamble or label.";
+
+const LEGACY_LINKEDIN_FIRST_TWO_LINES =
+  '- **The first two lines are the hook.** They must make someone tap "see more".';
+const E1_LINKEDIN_FIRST_LINE =
+  '- **The very first line (before the first newline) is the hook.** It must make someone tap "see more" on its own — never put a flat warm-up on line 1 and the proof on line 2, and never open with advice or a question.';
+
+const LEGACY_LINKEDIN_SHAPE_HOOK =
+  "[Hook: the surprising true thing, one or two lines]";
+const E1_LINKEDIN_SHAPE_HOOK =
+  "[Hook: the surprising true thing on line 1 — concrete result with its number, business number, named customer, or surprising decision; never advice or a question]";
+
+/**
+ * Applies E1 writing-skill clarifications when `version.e1Prompts` is enabled,
+ * aligning `hooks-and-endings` and `linkedin` with Core's enforced line-1
+ * `LINKEDIN_HOOK_RULE`. Leaves legacy versions 100% untouched.
+ */
+export function applyE1WritingSkill(
+  skill: WritingSkill,
+  version: Pick<SokoBotVersion, "e1Prompts">,
+): WritingSkill {
+  if (!version.e1Prompts) return skill;
+  if (skill.id === "hooks-and-endings") {
+    const content = skill.content.replace(
+      LEGACY_HOOKS_QUESTION_BULLET,
+      E1_HOOKS_QUESTION_BULLET,
+    );
+    const checklist = skill.checklist.map((item) =>
+      item.rule === LEGACY_HOOKS_CHECKLIST_RULE
+        ? { ...item, rule: E1_HOOKS_CHECKLIST_RULE }
+        : item,
+    );
+    return content === skill.content &&
+      checklist.every((item, idx) => item === skill.checklist[idx])
+      ? skill
+      : { ...skill, content, checklist };
+  }
+  if (skill.id === "linkedin") {
+    const content = skill.content
+      .replace(LEGACY_LINKEDIN_FIRST_TWO_LINES, E1_LINKEDIN_FIRST_LINE)
+      .replace(LEGACY_LINKEDIN_SHAPE_HOOK, E1_LINKEDIN_SHAPE_HOOK);
+    return content === skill.content ? skill : { ...skill, content };
+  }
+  return skill;
 }
