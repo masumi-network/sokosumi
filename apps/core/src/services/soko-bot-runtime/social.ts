@@ -609,18 +609,28 @@ export async function executeSocialTool(
         const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
           input.input,
         );
-        // Compared by meaning, which waits on the embedding model, so it
-        // runs before the transaction. Deterministic formatting, caveats, and
-        // reused-picture checks run alongside them so one refusal names
-        // everything to fix at once instead of failing one check per retry.
-        if (params.text) {
-          const post = {
-            postId: params.postId,
-            workspaceId,
-            text: params.text,
-          };
-          const stamp = await monthSiblingsStamp(post);
-          if (stamp !== null) checkedAgainst = { postId: post.postId, stamp };
+        // Run deterministic formatting, caveat, and reused-picture checks on
+        // every edit that changes checked fields, and pair them with semantic
+        // copy checks when `text` is edited so one refusal names everything.
+        const checksDeterministic =
+          params.text !== undefined ||
+          params.firstComment !== undefined ||
+          params.threadParts !== undefined ||
+          params.media !== undefined ||
+          params.socialConnectionId !== undefined;
+        if (checksDeterministic) {
+          const textPost = params.text
+            ? {
+                postId: params.postId,
+                workspaceId,
+                text: params.text,
+              }
+            : null;
+          if (textPost) {
+            const stamp = await monthSiblingsStamp(textPost);
+            if (stamp !== null)
+              checkedAgainst = { postId: textPost.postId, stamp };
+          }
           const [deterministicProblems, own, opening] = await Promise.all([
             botSocialPostUpdateProblems({
               projectId: params.projectId,
@@ -635,15 +645,17 @@ export async function executeSocialTool(
               media,
               threadParts,
             }),
-            ownMessageProblem(post),
-            cmoMakesVariedMonth(authorized.turn.versionId)
-              ? linkedInOpeningProblem(post)
+            textPost ? ownMessageProblem(textPost) : null,
+            textPost && cmoMakesVariedMonth(authorized.turn.versionId)
+              ? linkedInOpeningProblem(textPost)
               : null,
           ]);
-          await chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
+          if (own) await chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
           if (opening)
             await chargeCheck(input, SOKO_BOT_JEV_MODEL, opening.costUsd);
-          const checks = [own, ...(opening ? [opening] : [])];
+          const checks = [own, opening].filter(
+            (check): check is NonNullable<typeof check> => check !== null,
+          );
           const problems = [
             ...deterministicProblems,
             ...checks.flatMap((check) =>

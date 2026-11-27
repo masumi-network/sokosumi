@@ -3405,6 +3405,29 @@ describe("social posts service", () => {
       });
       expect(updated.id).toBe(POST_ID);
 
+      // The sibling relationship shares the video only; an unrelated still image is still refused.
+      socialPostUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+      socialPostFindManyMock.mockResolvedValueOnce([
+        {
+          id: OTHER_POST_ID,
+          text: "Original video",
+          media: [JPEG_REF],
+          planning: { id: "piece-tiktok" },
+        },
+      ]);
+      await expect(
+        updateSocialPost({
+          projectId: PROJECT_ID,
+          postId: POST_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          sokoBotId: "55555555-5555-4555-8555-555555555555",
+          revision: 1,
+          media: [JPEG_REF],
+        }),
+      ).rejects.toThrow(/another picture/);
+
       // Distinct month post still refused inside transaction with holder id + recovery hint.
       const distinctPost = {
         ...draftPost,

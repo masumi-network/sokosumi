@@ -23,13 +23,14 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Every preview_result resource except `task` (whose id column is text) lives
- * in a Postgres UUID column; reject malformed ids before Prisma throws a raw
- * invalid-uuid error.
+ * Every preview_result resource except `task` and `job` (whose id columns are
+ * text and can hold legacy CUIDs) lives in a Postgres UUID column; reject
+ * malformed ids before Prisma throws a raw invalid-uuid error.
  */
 function previewReferenceUuidRefusal(ref: ChatResultReference): string | null {
   switch (ref.kind) {
     case "task":
+    case "job":
       return null;
     case "project_selection": {
       const bad = ref.projectIds.find((id) => !UUID_RE.test(id));

@@ -696,12 +696,17 @@ async function monthMediaReuseProblems(
     },
     select: { id: true, text: true, media: true, planning: true },
   });
-  const eligibleSiblings = siblings.filter(
-    (sibling) => video === null || monthVideoGroup(sibling.planning) !== video,
-  );
   const problems: string[] = [];
   for (const item of media) {
-    const holder = eligibleSiblings.find((sibling) =>
+    // Only the shared talking video itself may be reused across videoOf siblings;
+    // still images must still be unique across every post of the month.
+    const candidates =
+      item.kind === "video" && video !== null
+        ? siblings.filter(
+            (sibling) => monthVideoGroup(sibling.planning) !== video,
+          )
+        : siblings;
+    const holder = candidates.find((sibling) =>
       parseSocialPostMedia(sibling.media, sibling.id).some(
         (other) => other.pathname === item.pathname,
       ),

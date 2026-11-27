@@ -781,6 +781,7 @@ vi.mock("@/routes/v1/chats/rooms/room-unread", () => ({
   getChatRoomUnreadCounts: unreadCountsMock,
 }));
 vi.mock("@/helpers/access-control", () => ({
+  requireJobRead: vi.fn().mockResolvedValue(undefined),
   requireTaskReadForWorkspace: taskFindFirstMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   buildTaskWriteAccessWhere: (userId: string) => ({
@@ -1456,6 +1457,56 @@ describe("SokoBotRuntimeService authorization", () => {
         },
       }),
     ).rejects.toThrow("not a valid file UUID");
+  });
+
+  it.each([
+    "cjd9pxjb80001fz3fp1l6oade",
+    "01960001-0001-7001-8001-000000000009",
+  ])("opens an authorized job preview for stored ID %s", async (id) => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Show the finished job",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      requestedByUserId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["preview_result"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "OWNER" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    jobFindFirstMock.mockResolvedValue({
+      id,
+      name: "Completed work",
+      jobType: "FREE",
+      agentId: "agent",
+      agent: { name: "Researcher", icon: null },
+      input: null,
+      inputSchema: null,
+      result: "Finished.",
+      events: [],
+    });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "preview_result",
+        toolCallId: "call_preview_saved_job",
+        input: { reference: { kind: "job", id } },
+      }),
+    ).resolves.toMatchObject({
+      reference: { kind: "job", id },
+      data: { title: "Completed work" },
+    });
   });
   it("stops a turn already running when the administrator switch is thrown", async () => {
     // The switch has to reach work that started before it was thrown, not only
@@ -10759,6 +10810,29 @@ describe("Soko Bot project social tools", () => {
     expect(message).toContain("it has an em dash");
     expect(message).toContain("Use another picture");
     expect(message).toContain('it says nearly what the post "Fees" says');
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
+  it("combines problems when the owner changes only the comment and picture", async () => {
+    const formatting = "Rewrite the post: it has an em dash.";
+    const reuse =
+      "Use another picture: this one is already on a different post.";
+    social.updateProblems.mockResolvedValueOnce([formatting, reuse]);
+    social.update.mockRejectedValueOnce(new Error(formatting));
+    const result = new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_social_post",
+      toolCallId: "comment-picture",
+      input: {
+        projectId,
+        postId,
+        revision: 1,
+        firstComment: "Details — here.",
+        media: [media],
+      },
+    });
+    await expect(result).rejects.toThrow(reuse);
+    expect(social.ownMessage).not.toHaveBeenCalled();
     expect(social.update).not.toHaveBeenCalled();
   });
 
