@@ -664,6 +664,9 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         expect: {
           asksQuestion: true,
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
+          // That refusal is Core working as designed, not a failed call; a
+          // bot that asks without trying passes too.
+          allowFailedTools: ["create_social_post"],
         },
         outcomes: [
           {
