@@ -20,6 +20,8 @@ type BootRoute = "boot" | "auth" | "signed-in";
 
 export const AUTHENTICATION_REQUIRED_MESSAGE =
   "Authentication required. Run `sokosumi auth login` first.";
+const CUSTOM_HOST_AUTHENTICATION_REQUIRED_MESSAGE =
+  "Authentication required for this API URL. Sign in with `sokosumi --api-url <url> --client-id <id> auth login`, or set SOKOSUMI_OAUTH_CLIENT_ID.";
 
 export interface InitialAuthState {
   authenticated: boolean;
@@ -238,7 +240,12 @@ export async function requireAuthenticatedSession(session: {
     targetExplicit: session.targetExplicit,
   });
   if (!auth.authenticated) {
-    throw new CliError("AUTH_REQUIRED", AUTHENTICATION_REQUIRED_MESSAGE);
+    throw new CliError(
+      "AUTH_REQUIRED",
+      session.config.target === "custom" && !session.config.clientId
+        ? CUSTOM_HOST_AUTHENTICATION_REQUIRED_MESSAGE
+        : AUTHENTICATION_REQUIRED_MESSAGE,
+    );
   }
   return auth;
 }
