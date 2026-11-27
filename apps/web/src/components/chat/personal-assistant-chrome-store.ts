@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { createContext, useSyncExternalStore } from "react";
 import type { LiveSokoBotFields } from "@/hooks/effects/use-live-soko-bot-poll";
 
 /**
@@ -100,3 +100,11 @@ export function useLiveSokoBotStatus(): LiveSokoBotStatus | null {
     () => null,
   );
 }
+
+/**
+ * The bot whose Direct the sidebar's Direct messages list shows as your bot's
+ * one row: status under the name, the team's Soko Bots at its end. That bot's
+ * own row below the list stands down, still polling, so the bot is listed
+ * once. Null where no listed Direct is with your bot.
+ */
+export const SokoBotDirectRowContext = createContext<string | null>(null);

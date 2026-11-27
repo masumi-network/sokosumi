@@ -154,14 +154,16 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
     subtitle,
     status,
     reorderHandle,
+    trailingLink,
     itemProps,
     ...props
   }: {
     room: ChatRoom;
     label: string;
-    subtitle?: string;
+    subtitle?: ReactNode;
     status?: ReactNode;
     reorderHandle?: ReactNode;
+    trailingLink?: ReactNode;
     itemProps?: ComponentProps<"li">;
   }) => {
     harnessRowProps.set(props.room.id, props);
@@ -171,6 +173,7 @@ vi.mock("@/components/chat/chat-room-sidebar-row", () => ({
         {subtitle ? <span>{subtitle}</span> : null}
         {status}
         {reorderHandle}
+        {trailingLink}
       </li>
     );
   },
@@ -413,6 +416,8 @@ export interface OrganizationChatListHarnessOptions {
   paintOnly?: boolean;
   /** As the sidebar mounts it; the phone's Chats page leaves it out. */
   withChatsHeading?: boolean;
+  /** As the sidebar mounts it: your Soko Bot's row under Direct messages. */
+  directFooter?: ReactNode;
 }
 
 export function emptyListResult(rooms: ChatRoom[] = []) {
@@ -509,6 +514,7 @@ export function createOrganizationChatList({
   organizationId = "org-1",
   paintOnly = false,
   withChatsHeading = false,
+  directFooter,
 }: OrganizationChatListHarnessOptions = {}): ReactElement {
   return (
     <QueryClientProvider client={harnessQueryClient}>
@@ -523,6 +529,7 @@ export function createOrganizationChatList({
         dismissSheetOnNavigate={false}
         paintOnly={paintOnly}
         withChatsHeading={withChatsHeading}
+        directFooter={directFooter}
       />
     </QueryClientProvider>
   );

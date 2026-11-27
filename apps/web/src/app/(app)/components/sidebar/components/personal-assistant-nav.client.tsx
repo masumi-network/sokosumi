@@ -5,6 +5,8 @@ import { avatarStateOf } from "@sokosumi/soko-bot";
 import { Bot, Users } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { use } from "react";
+import { SokoBotDirectRowContext } from "@/components/chat/personal-assistant-chrome-store";
 import { useNavPathname } from "@/components/navigation-progress.client";
 import { BotFace } from "@/components/soko-bot/bot-face";
 import { SOKO_BOT_STATUS_TONE } from "@/components/soko-bot/soko-bot-badges";
@@ -139,6 +141,9 @@ function LiveSokoBotRow({ bot: rendered }: { bot: SidebarSokoBotLive }) {
   const pathname = useNavPathname();
   const isActive = isPathActive(pathname, SOKO_BOT_ROUTE);
   const isTeamActive = !isActive && isPathActive(pathname, AGENTS_ROUTE);
+
+  // The Direct above is this bot's row now; this one keeps polling for it.
+  if (use(SokoBotDirectRowContext) === bot.id) return null;
 
   return (
     <SidebarMenuItem className="relative">

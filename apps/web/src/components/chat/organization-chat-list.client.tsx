@@ -6,7 +6,9 @@ import {
   SokoBotStatus,
   type StarredChatRoomOrder,
 } from "@sokosumi/core-client";
+import { Users } from "lucide-react";
 import { MotionConfig, useReducedMotion } from "motion/react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
@@ -20,19 +22,25 @@ import {
   useRoomWorkspaceName,
 } from "@/app/chat/components/use-room-display-name";
 import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
+import { AGENTS_ROUTE } from "@/app/components/sidebar/components/sidebar-sections";
 import { SokoBotStatusLine } from "@/components/soko-bot/soko-bot-status-line";
 import { Collapsible } from "@/components/ui/collapsible";
+import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_INSET_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ICON_ACTION_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { SidebarSectionContent } from "@/components/ui/sidebar-section";
 import { useChatUnreadsFilter } from "@/hooks/effects/use-chat-unreads-filter";
 import { useRememberPinnedRooms } from "@/hooks/effects/use-remember-pinned-rooms";
 import { cn } from "@/lib/utils";
+import { isPathActive } from "@/lib/utils/is-path-active";
 import { moveIdToSlot } from "@/lib/utils/move-id";
 import {
   getActiveRoomIdFromPathname,
@@ -77,7 +85,10 @@ import {
   reorderPinnedOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
-import { useLiveSokoBotStatus } from "./personal-assistant-chrome-store";
+import {
+  SokoBotDirectRowContext,
+  useLiveSokoBotStatus,
+} from "./personal-assistant-chrome-store";
 import {
   resolveChatsAttention,
   resolveSectionAttention,
@@ -144,6 +155,7 @@ export function OrganizationChatList({
   const roomDisplayName = useRoomDisplayName();
   const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
+  const tSokoBot = useTranslations("App.Sidebar.Content.SokoBot");
   const liveSokoBot = useLiveSokoBotStatus();
   const roomWorkspaceName = useRoomWorkspaceName();
   const pathname = usePathname();
@@ -445,6 +457,47 @@ export function OrganizationChatList({
     };
   }
 
+  // With the sidebar's bot row below it, a listed Direct with your bot
+  // becomes that bot's one row, and the bot row stands down.
+  const directBot =
+    directFooter && liveSokoBot
+      ? (directRows.visible.find((room) =>
+          isDirectWithSokoBot(room, currentUserId, liveSokoBot.id),
+        ) ?? null)
+      : null;
+  const isTeamActive = isPathActive(pathname, AGENTS_ROUTE);
+  const teamLink = (
+    <Link
+      href={AGENTS_ROUTE}
+      title={tSokoBot("team")}
+      aria-current={isTeamActive ? "page" : undefined}
+      className={SIDEBAR_ICON_ACTION_CLASS}
+    >
+      <Users className="size-4 md:size-3.5" aria-hidden />
+      <span className="sr-only">{tSokoBot("team")}</span>
+    </Link>
+  );
+
+  function directRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
+    const props = roomRowProps(room);
+    if (room !== directBot || !liveSokoBot) return props;
+    return {
+      ...props,
+      // Under the name, as the bot row had it. The avatar announces it.
+      status: undefined,
+      subtitle: (
+        <span aria-hidden>
+          <SokoBotStatusLine bot={liveSokoBot} />
+        </span>
+      ),
+      trailingLink: dismissSheetOnNavigate ? (
+        <SheetClose asChild>{teamLink}</SheetClose>
+      ) : (
+        teamLink
+      ),
+    };
+  }
+
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
@@ -627,7 +680,7 @@ export function OrganizationChatList({
             <SidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {directRows.visible.map((room) => (
-                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                  <ChatRoomSidebarRow key={room.id} {...directRowProps(room)} />
                 ))}
                 {directRows.hiddenCount > 0 ? (
                   <SidebarSectionShowMoreRow
@@ -659,7 +712,11 @@ export function OrganizationChatList({
                   </SidebarMenuItem>
                 ) : null}
               </SidebarMenu>
-              {directFooter}
+              <SokoBotDirectRowContext
+                value={directBot ? (liveSokoBot?.id ?? null) : null}
+              >
+                {directFooter}
+              </SokoBotDirectRowContext>
             </SidebarSectionContent>
           </Collapsible>
         ) : null}

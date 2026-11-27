@@ -379,11 +379,13 @@ for (const { name, ...viewport } of PROJECTS) {
       }
       // They picked Personal, so the switcher says Personal, not their name.
       if (await showSidebar.isVisible()) await showSidebar.click();
-      // The bot's own row and the phone's All chats sit on the same column
-      // as the rows around them, not 8px further in.
+      // The bot is one row under Direct messages: its Direct, with the
+      // team's Soko Bots at its end. It and the phone's All chats sit on the
+      // same column as the rows around them, not 8px further in.
       const rows: Record<string, string> = {
         home: '[data-sidebar="menu-button"][href$="/chat"]',
-        sokoBot: '[data-sidebar="menu-button"][href$="/personal-assistant"]',
+        sokoBot:
+          '[data-slot="room-row-main"]:has(a[href$="/agents"]) [data-sidebar="menu-button"]',
         ...(viewport.width < 768 && {
           allChats: '[data-sidebar="menu-button"][href$="/chat/rooms"]',
         }),
@@ -425,6 +427,16 @@ for (const { name, ...viewport } of PROJECTS) {
       for (const [key, left] of Object.entries(lefts)) {
         assert.equal(left, lefts.home, `${key} starts where Home does`);
       }
+      const botRows = await saved
+        .locator('[data-sidebar="menu-button"][href$="/personal-assistant"]')
+        .filter({ visible: true })
+        .count();
+      assert.equal(botRows, 0, `${BOT} is listed once`);
+      await saved
+        .getByRole("link", { name: "Your team's Soko Bots", exact: true })
+        .filter({ visible: true })
+        .first()
+        .waitFor();
       await saved
         .getByRole("button", { name: "Personal", exact: true })
         .click();
