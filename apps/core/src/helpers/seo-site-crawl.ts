@@ -289,10 +289,13 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
       ? {
           pages: pageChecks.pages,
           // Web counts the pages past `checked` as undecided: more checked than there are would cancel other undecided
-          // pages, and a page whose head the bot could not read is in no check.
-          checked: Math.min(
-            pageChecks.checked,
-            pageChecks.pages - (pageChecks.notDetermined ?? 0),
+          // pages, and a page whose head the bot could not read is in no check. Below zero would refuse the crawl.
+          checked: Math.max(
+            0,
+            Math.min(
+              pageChecks.checked,
+              pageChecks.pages - (pageChecks.notDetermined ?? 0),
+            ),
           ),
           missingTitle: urls(pageChecks.missingTitle),
           missingH1: urls(pageChecks.missingH1),

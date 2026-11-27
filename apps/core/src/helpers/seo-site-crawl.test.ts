@@ -398,6 +398,10 @@ describe("imported site crawl", () => {
       checked: raw.pageChecks.pages - raw.pageChecks.notDetermined,
       noindexInSitemap: { checked: raw.pageChecks.sitemap.urls },
     });
+    // More pages without a head than pages read still keeps the crawl.
+    raw.pageChecks.notDetermined = raw.pageChecks.pages + 1;
+    const noHead = stored(siteReport({ crawl: raw }));
+    expect(noHead?.state === "crawled" && noHead.pageChecks?.checked).toBe(0);
   });
 
   it("keeps only text PostgreSQL can store", () => {
