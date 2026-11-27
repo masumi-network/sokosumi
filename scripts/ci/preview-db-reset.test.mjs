@@ -775,6 +775,17 @@ describe("runDeployWithResetComment", () => {
     assert.deepEqual(neonCalls, []);
   });
 
+  it("refuses --force: a reset needs the branch an earlier /deploy made", async () => {
+    const { options, posted, created, neonCalls } = deployReset({
+      commentBody: "/deploy mainnet --reset-db --force",
+    });
+    const result = await runDeployWithResetComment(options);
+    assert.equal(result.kind, "usage");
+    assert.deepEqual(posted, [usageMessage()]);
+    assert.deepEqual(created, []);
+    assert.deepEqual(neonCalls, []);
+  });
+
   it("gives the /deploy form in the retry advice", async () => {
     const { options, posted, created } = deployReset({
       neon: { restoreStatus: { "prj-preprod": 409 } },
