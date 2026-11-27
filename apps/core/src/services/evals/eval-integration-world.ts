@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 
 /**
  * The connected accounts an eval lane's bots have: Gmail, Google Calendar,

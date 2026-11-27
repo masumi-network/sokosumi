@@ -29,6 +29,7 @@ import {
 } from "./eval-guard";
 
 describe("isEvalWorkspaceNow", () => {
+  const lanes = { evalLane: { findUnique: laneFindUnique } } as never;
   it("fails closed: a lane another worker registered after this cache filled still counts", async () => {
     forgetEvalWorkspaces();
     // This process cached the lanes before lane 2 existed.
@@ -41,7 +42,7 @@ describe("isEvalWorkspaceNow", () => {
     ]);
     await expect(isEvalWorkspace("ws-lane-2")).resolves.toBe(false);
     laneFindUnique.mockResolvedValueOnce({ lane: 2 });
-    await expect(isEvalWorkspaceNow("ws-lane-2")).resolves.toBe(true);
+    await expect(isEvalWorkspaceNow(lanes, "ws-lane-2")).resolves.toBe(true);
     expect(laneFindUnique).toHaveBeenCalledWith({
       where: { workspaceId: "ws-lane-2" },
       select: { lane: true },
@@ -60,10 +61,10 @@ describe("isEvalWorkspaceNow", () => {
       },
     ]);
     laneFindUnique.mockClear();
-    await expect(isEvalWorkspaceNow("ws-lane-1")).resolves.toBe(true);
+    await expect(isEvalWorkspaceNow(lanes, "ws-lane-1")).resolves.toBe(true);
     expect(laneFindUnique).not.toHaveBeenCalled();
     laneFindUnique.mockResolvedValueOnce(null);
-    await expect(isEvalWorkspaceNow("ws-customer")).resolves.toBe(false);
+    await expect(isEvalWorkspaceNow(lanes, "ws-customer")).resolves.toBe(false);
   });
 });
 

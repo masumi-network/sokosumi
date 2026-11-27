@@ -59,25 +59,6 @@ export async function isEvalWorkspace(workspaceId: string): Promise<boolean> {
   return (await evalLanes())?.workspaceIds.has(workspaceId) ?? false;
 }
 
-/**
- * Fail-closed: whether the workspace is a lane's, read at call time. The
- * cache is per process, so another worker can lack a lane registered a
- * moment ago; a "no" from the cache is checked against the table, so a new
- * lane is never treated as live.
- */
-export async function isEvalWorkspaceNow(
-  workspaceId: string,
-): Promise<boolean> {
-  if (await isEvalWorkspace(workspaceId)) return true;
-  if (typeof prisma.evalLane?.findUnique !== "function") return false;
-  const lane = await prisma.evalLane.findUnique({
-    where: { workspaceId },
-    select: { lane: true },
-  });
-  if (lane) forgetEvalWorkspaces();
-  return lane !== null;
-}
-
 /** isEvalWorkspaceNow for a lane's organization (its chat rooms). */
 export async function isEvalOrganizationNow(
   organizationId: string,
@@ -100,21 +81,25 @@ export async function isEvalOrganization(
 }
 
 /**
- * Read now, in the caller's transaction: a guard that keeps a lane from
- * sending must see a lane another Core process registered a moment ago,
- * which the cache above can miss for a minute.
+ * Fail-closed: whether the workspace is a lane's, read now (in the caller's
+ * transaction when given one). A guard that keeps a lane from sending, or
+ * selects the eval world, must see a lane another Core process registered a
+ * moment ago, which the per-process cache above can miss for a minute. A
+ * cached lane answers at once: lanes are only ever added for a run, so a
+ * cached "yes" can only make the guard stricter.
  */
 export async function isEvalWorkspaceNow(
   db: Pick<typeof prisma, "evalLane">,
   workspaceId: string,
 ): Promise<boolean> {
+  if (await isEvalWorkspace(workspaceId)) return true;
   if (typeof db.evalLane?.findUnique !== "function") return false;
-  return (
-    (await db.evalLane.findUnique({
-      where: { workspaceId },
-      select: { lane: true },
-    })) !== null
-  );
+  const lane = await db.evalLane.findUnique({
+    where: { workspaceId },
+    select: { lane: true },
+  });
+  if (lane) forgetEvalWorkspaces();
+  return lane !== null;
 }
 
 /**

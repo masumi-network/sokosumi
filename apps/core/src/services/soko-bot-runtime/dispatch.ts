@@ -1,4 +1,5 @@
 import { isSokoBotSeoCapability } from "@sokosumi/soko-bot";
+import prisma from "@/lib/db/prisma";
 import {
   evalCoworkerRefusal,
   isEvalWorkspaceNow,
@@ -49,7 +50,7 @@ async function executeTool(
     input: await runtime.resolveTaskIds(authorized, raw.input),
   };
 
-  if (await isEvalWorkspaceNow(authorized.turn.workspaceId)) {
+  if (await isEvalWorkspaceNow(prisma, authorized.turn.workspaceId)) {
     const refusal = await evalCoworkerRefusal(
       authorized.turn.workspaceId,
       input.input,

@@ -60,7 +60,7 @@ async function evalTurnWorkspace(turnId: string): Promise<string | null> {
     where: { id: turnId },
     select: { workspaceId: true },
   });
-  return turn && (await isEvalWorkspaceNow(turn.workspaceId))
+  return turn && (await isEvalWorkspaceNow(prisma, turn.workspaceId))
     ? turn.workspaceId
     : null;
 }
