@@ -392,9 +392,10 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
 
   describe("a waiting result", () => {
     const CONTROL = `${SITE}/control`;
-    // 23:00 on 2026-11-30 and 00:00 on 2026-12-01 in Pacific time.
+    // 23:00 on 2026-11-30, 00:00 on 2026-12-01 and 00:00 on 2026-12-02 in Pacific time.
     const DAY_BEFORE = new Date("2026-12-01T07:00:00.000Z");
     const RETRY_DAY = new Date("2026-12-01T08:00:00.000Z");
+    const DAY_AFTER = new Date("2026-12-02T08:00:00.000Z");
 
     /**
      * A change whose worker waits until 2026-12-01 with `comparisonPage`,
@@ -453,6 +454,48 @@ describe.skipIf(!enabled)("SEO impact queue against PostgreSQL", () => {
         waits: 1,
         verdictAt: RETRY_DAY,
       });
+    });
+
+    it("is read again after a missed retry day", async () => {
+      const { change } = await waitingChange();
+
+      expect(await prepareSeoImpactInputs(tick, DAY_AFTER)).toMatchObject({
+        prepared: 1,
+      });
+      expect((await rowOf(change.id)).state).toBe("ready");
+    });
+
+    it("keeps waiting, behind the other changes, when its retry read fails", async () => {
+      const { change } = await waitingChange();
+      vi.mocked(readNativeSeoTool).mockRejectedValueOnce(new Error("refused"));
+      expectCoreLog("warn", "SEO impact tracking could not prepare a change");
+
+      expect(await prepareSeoImpactInputs(tick, RETRY_DAY)).toMatchObject({
+        prepared: 0,
+        failed: 1,
+      });
+      expect(await rowOf(change.id)).toMatchObject({
+        state: "waiting_retry",
+        updatedAt: RETRY_DAY,
+      });
+    });
+
+    it("refuses the waiting result under the last claim of its retry after the change ended", async () => {
+      const { change, waiting } = await waitingChange();
+      await prepareSeoImpactInputs(tick, RETRY_DAY);
+      let at = RETRY_DAY;
+      let claim = (await claimSeoImpact(at))!;
+      for (let used = 1; used < SEO_IMPACT_MAX_CLAIMS; used += 1) {
+        at = new Date(at.getTime() + SEO_IMPACT_CLAIM_MS);
+        claim = (await claimSeoImpact(at))!;
+      }
+      at = new Date(at.getTime() + SEO_IMPACT_CLAIM_MS);
+      expect(await claimSeoImpact(at)).toBeNull();
+      expect((await rowOf(change.id)).state).toBe("not_measurable");
+
+      await expect(
+        recordSeoImpactVerdict(claim.claimId, waiting, at),
+      ).rejects.toMatchObject({ status: 422 });
     });
 
     it("refuses the waiting result again under the claim of its retry", async () => {
