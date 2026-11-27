@@ -1,0 +1,118 @@
+/* Masumi family palette and neutrals, from "Masumi Family design.md" */
+:root {
+  --iris-flower: #ff51ff;
+  --vivid-sakura: #ff6ed2;
+  --peach-blossom: #ffc8f0;
+  --sand: #d7be8c;
+  --golden-yellow: #ffd300;
+  --positive: #00d43b;
+  --neutral-950: #0c0c0c;
+  --neutral-900: #171717;
+  --neutral-600: #525252;
+  --neutral-500: #737373;
+  --neutral-300: #d4d4d4;
+  --neutral-200: #e5e5e5;
+  --neutral-100: #f5f5f5;
+  --neutral-50: #fafafa;
+  --white: #ffffff;
+
+  --color-paper: var(--neutral-100);
+  --color-surface: var(--white);
+  --color-tray: rgb(0 0 0 / 0.022);
+  --color-side: var(--neutral-50);
+  --color-ink: var(--neutral-900);
+  --color-ink-2: var(--neutral-600);
+  --color-ink-3: #6b6b6b;
+  --color-rule: rgb(0 0 0 / 0.07);
+  --color-field: rgb(0 0 0 / 0.13);
+  --color-fill: rgb(0 0 0 / 0.04);
+  --color-fill-2: rgb(0 0 0 / 0.07);
+  --color-fill-3: rgb(0 0 0 / 0.1);
+  --color-glass: rgb(245 245 245 / 0.78);
+  --color-black: var(--neutral-950);
+  --color-on-black: var(--neutral-50);
+  --color-on-black-2: #a3a3a3;
+  --color-accent: var(--iris-flower);
+  --color-on-accent: var(--neutral-950);
+  --color-accent-soft: color-mix(
+    in srgb,
+    var(--peach-blossom) 60%,
+    var(--white)
+  );
+  --color-ok: var(--positive);
+  --color-wait: var(--golden-yellow);
+  --color-focus: var(--neutral-950);
+  --disc-1: var(--neutral-900);
+  --disc-2: var(--neutral-300);
+  --disc-4: var(--sand);
+
+  --font-sans: "PP Mori", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* six sizes: two for product panels, four for the page */
+  --text-xs: 0.75rem;
+  --text-ui: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-lead: 1.125rem;
+  --text-heading: clamp(1.5rem, 1rem + 1.5vw, 2.25rem);
+  --text-display: clamp(2.25rem, 1.2rem + 3.6vw, 4rem);
+
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 112px;
+  --space-4xl: clamp(120px, 14vw, 200px);
+  --page-x: clamp(20px, 4vw, 48px);
+  --wrap: 1120px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 20px;
+  --radius-pill: 999px;
+  --rule: 1px solid var(--color-rule);
+  --rule-segmented:
+    repeating-linear-gradient(
+      90deg,
+      var(--color-rule) 0 calc(25% - 12px),
+      transparent 0 25%
+    )
+    top / 100% 1px no-repeat;
+  --shadow-float:
+    0 0 0 1px rgb(0 0 0 / 0.06), 0 12px 28px -8px rgb(0 0 0 / 0.16),
+    0 4px 8px -4px rgb(0 0 0 / 0.08);
+  --shadow-panel:
+    0 0 0 1px rgb(0 0 0 / 0.05), 0 1px 2px rgb(0 0 0 / 0.03),
+    0 20px 48px -20px rgb(0 0 0 / 0.1);
+  --shadow-card: 0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+
+  /* critically damped spring: fast start, no overshoot */
+  --ease-out: linear(
+    0,
+    0.2 6%,
+    0.52 14%,
+    0.75 23%,
+    0.88 33%,
+    0.95 44%,
+    0.985 58%,
+    1
+  );
+  /* slight overshoot, only after a drag or a card move */
+  --ease-bounce: linear(
+    0,
+    0.33 9%,
+    0.7 19%,
+    0.93 29%,
+    1.03 39%,
+    1.05 47%,
+    1.03 58%,
+    1.005 73%,
+    1
+  );
+  --dur-fast: 150ms;
+  --dur: 200ms;
+}
