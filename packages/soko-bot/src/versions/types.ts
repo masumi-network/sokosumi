@@ -44,6 +44,15 @@ export interface SokoBotVersion {
    */
   planLoop?: true;
   /**
+   * When true on a CMO bot (`profile === "cmo"`), an authenticated CMO project
+   * owner (the workspace member who hired Cuso, or an organization `OWNER` in
+   * Cuso's paying organization) is framed as `OWNER` in chat dispatch and
+   * `trigger.askedBy`, while other workspace members stay `TEAMMATE` and
+   * shared-bot data isolation (`sharedScope`) remains unchanged.
+   * Omitted on all live and control versions.
+   */
+  cmoOwnerAudience?: true;
+  /**
    * `send_message`: the bot reaches anyone through send_message and
    * list_recipients, and has no post_chat, open_direct_chat or ask_coworker.
    * Omitted: the reverse, as every version before v35 was written.

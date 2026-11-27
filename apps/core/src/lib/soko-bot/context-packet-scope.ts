@@ -40,6 +40,12 @@ export interface ContextPacketReaderInput {
   roomId?: string | null;
   /** Null for a personal bot. */
   sharedScope: SokoBotScope | null;
+  /**
+   * True only when Core verified that the human speaking to a flagged CMO
+   * project bot is an authenticated CMO project owner. Allows `askedBy.kind`
+   * to stay `"OWNER"` while keeping every shared-scope data filter intact.
+   */
+  cmoProjectOwner?: boolean;
   /** What started the turn; a shared bot's self-started turn has no asker. */
   source?: string;
 }
@@ -167,11 +173,20 @@ function sharedPacketScope(
   input: ContextPacketReaderInput,
   scope: SokoBotScope,
 ): ContextPacketScope {
-  const askedByKind = sharedSokoBotAudience(input.askedByKind);
   // A turn the bot started itself runs for a member nobody asked on behalf
   // of: naming them as the asker would say they asked.
   const selfStarted =
     input.source !== undefined && needsProactiveDestination(input.source);
+  const allowSharedOwner =
+    input.cmoProjectOwner === true &&
+    scope.projectId !== null &&
+    input.userId !== null &&
+    !selfStarted &&
+    input.askedByKind === "OWNER" &&
+    (input.askedByUserId == null || input.askedByUserId === input.userId);
+  const askedByKind: SokoBotPacketAudience = allowSharedOwner
+    ? "OWNER"
+    : sharedSokoBotAudience(input.askedByKind);
   const askerUserId =
     askedByKind === "TEAMMATE" && !selfStarted
       ? (input.askedByUserId ?? input.userId)
