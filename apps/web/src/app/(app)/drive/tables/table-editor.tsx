@@ -29,6 +29,8 @@ import {
   ListFilter,
   MoreHorizontal,
   Plus,
+  RotateCcw,
+  Table2,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +47,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
+import { EmptyState } from "@/components/common/empty-state";
 import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
 import {
   GRID_HEAD_CHROME,
@@ -267,7 +270,12 @@ export function TableEditor({ id }: { id: string }) {
     enabled: !!session,
     queryKey: ["data-table", id, workspaceId],
     queryFn: () => dataTableService.get(id),
-    refetchInterval: 5000,
+    // A missing or forbidden table does not come back by asking again.
+    retry: (failures, error) => !isTableRejection(error) && failures < 3,
+    // Poll only a table that loaded. TanStack puts a query without data back
+    // to pending on every refetch, so polling a failed load kept the error
+    // hidden behind "Loading…" for as long as the page stayed open.
+    refetchInterval: (query) => (query.state.data ? 5000 : false),
   });
   const [viewId, setViewId] = useQueryState("view");
   if (!session || table.isPending)
@@ -278,10 +286,31 @@ export function TableEditor({ id }: { id: string }) {
     );
   if (!table.data)
     return (
-      <div role="alert" className="space-y-3 p-6">
-        <p>{tableError(table.error, t)}</p>
-        <Button onClick={() => void table.refetch()}>{t("retry")}</Button>
-      </div>
+      <EmptyState
+        messageRole="alert"
+        icon={Table2}
+        title={t("openFailed")}
+        description={tableError(table.error, t)}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild variant="outline" className="min-h-11 md:min-h-10">
+              <Link href="/drive?view=tables">
+                <ArrowLeft aria-hidden />
+                {t("backToFiles")}
+              </Link>
+            </Button>
+            {/* Only a failed request is worth repeating. */}
+            {!isTableRejection(table.error) && (
+              <Button
+                className="min-h-11 md:min-h-10"
+                onClick={() => void table.refetch()}
+              >
+                {t("retry")}
+              </Button>
+            )}
+          </div>
+        }
+      />
     );
   const view = table.data.views.find((view) => view.id === viewId);
   return (
@@ -344,9 +373,21 @@ function TableWorkspace({
   const [findReplace, setFindReplace] = useState(false);
   const [appendCsv, setAppendCsv] = useState(false);
   const tableMenu = useRef<HTMLButtonElement>(null);
+  // The notice's Restore table, which opened the dialog without a Radix
+  // trigger. Focus returns to it, or to Table options once the restore
+  // removes the notice.
+  const restoreOpener = useRef<HTMLButtonElement | null>(null);
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
+  // What the archive dialog was opened to do. Polling can change
+  // `archivedAt` while the dialog is open; the dialog keeps its action.
+  const [archiving, setArchiving] = useState(true);
+  // The dialog last opened. It keeps the closing dialog's words while it
+  // animates out and the table refreshes, instead of flashing "Save".
+  const [shownDialog, setShownDialog] = useState(dialog);
+  if (dialog !== null && dialog !== shownDialog) setShownDialog(dialog);
+  const dialogKind = dialog ?? shownDialog;
   const [historyCursor, setHistoryCursor] = useState<string>();
   const [historyCell, setHistoryCell] = useState<{
     rowId?: string;
@@ -837,7 +878,12 @@ function TableWorkspace({
                 {t("showArchivedRows")}
               </DropdownMenuCheckboxItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setDialog("archive")}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setArchiving(!table.archivedAt);
+                  setDialog("archive");
+                }}
+              >
                 {table.archivedAt ? t("restore") : t("archive")}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -845,9 +891,26 @@ function TableWorkspace({
         </div>
       </div>
       {table.archivedAt && (
-        <p role="status" className="bg-muted rounded-md p-3 text-sm">
-          {t("archivedNotice")}
-        </p>
+        // Restore sits in the notice that asks for it, not only in the menu.
+        // Same confirmation and save as the menu item.
+        <div className="bg-muted flex flex-wrap items-center justify-between gap-3 rounded-md p-3">
+          <p role="status" className="text-sm">
+            {t("archivedNotice")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            className="min-h-11 gap-1.5 md:min-h-8"
+            onClick={(event) => {
+              restoreOpener.current = event.currentTarget;
+              setArchiving(false);
+              setDialog("archive");
+            }}
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            {t("restore")}
+          </Button>
+        </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -1448,7 +1511,15 @@ function TableWorkspace({
         ) : (
           !displayedRows.length && (
             <p className="text-muted-foreground p-8 text-center text-sm">
-              {t("noRows")}
+              {/* A filter or archived-rows mode can hide rows; then the
+                  filter hint still applies, without the disabled Add row. */}
+              {t(
+                !table.archivedAt
+                  ? "noRows"
+                  : definition.filters?.length || archivedRows
+                    ? "noRowsArchivedFiltered"
+                    : "noRowsArchived",
+              )}
             </p>
           )
         )}
@@ -1529,28 +1600,37 @@ function TableWorkspace({
           if (!open) setDialog(null);
         }}
       >
-        <DialogContent className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-xl">
+        <DialogContent
+          className="app-scrollbar max-h-[85dvh] overflow-y-auto sm:max-w-xl"
+          onCloseAutoFocus={(event) => {
+            const opener = restoreOpener.current;
+            if (!opener) return;
+            restoreOpener.current = null;
+            event.preventDefault();
+            (opener.isConnected ? opener : tableMenu.current)?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
-              {dialog === "views"
+              {dialogKind === "views"
                 ? t("configureView")
-                : dialog === "history"
+                : dialogKind === "history"
                   ? t("history")
-                  : dialog === "enrich"
+                  : dialogKind === "enrich"
                     ? t("askAgent")
-                    : dialog === "rename"
+                    : dialogKind === "rename"
                       ? t("rename")
-                      : table.archivedAt
-                        ? t("restore")
-                        : t("archive")}
+                      : archiving
+                        ? t("archive")
+                        : t("restore")}
             </DialogTitle>
             <DialogDescription>
-              {dialog === "enrich"
+              {dialogKind === "enrich"
                 ? t("enrichDescription")
-                : dialog === "history"
+                : dialogKind === "history"
                   ? t("historyDescription")
-                  : dialog === "archive"
-                    ? t("archiveDescription")
+                  : dialogKind === "archive"
+                    ? t(archiving ? "archiveDescription" : "restoreDescription")
                     : t("tableSettings")}
             </DialogDescription>
           </DialogHeader>
@@ -1937,7 +2017,12 @@ function TableWorkspace({
           {dialog !== "history" && (
             <DialogFooter>
               <Button
-                disabled={dialog === "enrich" && !!taskId}
+                disabled={
+                  (dialog === "enrich" && !!taskId) ||
+                  // An unresolved archive or restore is only ever retried as
+                  // sent; polling must not turn it into the opposite action.
+                  (dialog === "archive" && retrySlot === "archive")
+                }
                 loading={pending}
                 onClick={() =>
                   void run(
@@ -1968,16 +2053,20 @@ function TableWorkspace({
                           { version: renameVersion, title },
                           (body) => dataTableService.update(table.id, body),
                         );
-                      else if (dialog === "archive")
+                      else if (dialog === "archive") {
                         await mutate(
                           "archive",
                           {
                             version: table.version,
-                            archived: !table.archivedAt,
+                            archived: archiving,
                           },
                           (body) => dataTableService.update(table.id, body),
                         );
-                      else if (dialog === "enrich") {
+                        // Saved: the notice goes once the table refreshes,
+                        // however long that takes, so focus Table options.
+                        if (restoreOpener.current)
+                          restoreOpener.current = tableMenu.current;
+                      } else if (dialog === "enrich") {
                         const [kind, id] = agent.split(":");
                         const request = enrichmentRequest ?? {
                           key: enrichmentKey,
@@ -2025,7 +2114,11 @@ function TableWorkspace({
                   )
                 }
               >
-                {dialog === "enrich" ? t("createTask") : t("save")}
+                {dialogKind === "enrich"
+                  ? t("createTask")
+                  : dialogKind === "archive"
+                    ? t(archiving ? "archive" : "restore")
+                    : t("save")}
               </Button>
             </DialogFooter>
           )}
