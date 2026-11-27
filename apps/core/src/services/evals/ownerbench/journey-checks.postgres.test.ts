@@ -33,6 +33,7 @@ import {
   freshConversationCheck,
   isolationFailed,
   journeyTokens,
+  journeyTurns,
   organizerFailures,
   packetTaskIds,
   routingFailures,
@@ -900,6 +901,57 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       });
       await prisma.agentFixedPricing.deleteMany({ where: { id: fixedId } });
     }
+  });
+
+  it("counts only this journey's work: an earlier run's watch firing mid-step is not the step's", async () => {
+    const botId = (
+      await prisma.sokoBot.create({
+        data: { userId, workspaceId, versionId: "cmo-v27" },
+        select: { id: true },
+      })
+    ).id;
+    const turn = (
+      versionId: string,
+      kind: string,
+      parentTurnId?: string,
+      createdAt?: Date,
+    ) =>
+      prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requestedByUserId: userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          versionId,
+          clientTurnId: `${kind}:${randomUUID()}`,
+          userMessage: "fixture",
+          capabilityNames: [],
+          deadlineAt: new Date(Date.now() + 60_000),
+          ...(parentTurnId ? { parentTurnId } : {}),
+          ...(createdAt ? { createdAt } : {}),
+        },
+        select: { id: true },
+      });
+    // A previous run (another version) left a watch behind.
+    const previousRun = await turn(
+      "cmo-v23",
+      "chat",
+      undefined,
+      new Date(Date.now() - 13 * 3_600_000),
+    );
+    const journeyStartedAt = new Date(Date.now() - 1_000);
+    const stepStartedAt = new Date(Date.now() - 500);
+    const owner = await turn("cmo-v27", "chat");
+    const oldWatch = await turn("cmo-v23", "watch", previousRun.id);
+    const oldWatchSameVersion = await turn("cmo-v27", "watch", previousRun.id);
+    const ownWatch = await turn("cmo-v27", "watch", owner.id);
+    const own = await journeyTurns(botId, stepStartedAt, journeyStartedAt);
+    expect(own.map((entry) => entry.id)).toEqual([owner.id, ownWatch.id]);
+    expect(own.map((entry) => entry.id)).not.toContain(oldWatch.id);
+    expect(own.map((entry) => entry.id)).not.toContain(oldWatchSameVersion.id);
+    await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });
 
   it("seats the journey's own bot in the teammate room", async () => {

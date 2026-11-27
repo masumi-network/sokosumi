@@ -368,13 +368,72 @@ async function wakeOnDelegatedWork(botId: string): Promise<void> {
   );
 }
 
-async function stepTurnIds(botId: string, since: Date): Promise<string[]> {
-  const turns = await prisma.sokoBotTurn.findMany({
-    where: { sokoBotId: botId, createdAt: { gte: since } },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-  return turns.map((turn) => turn.id);
+/**
+ * The step's own turns: this bot's turns since the step began that ran the
+ * journey's version and whose request chain started in this journey. A watch
+ * or follow-up that an earlier run left on the same bot can fire mid-step;
+ * it is not this journey's work, so it is neither scored nor waited for.
+ */
+export async function journeyTurns(
+  botId: string,
+  since: Date,
+  journeyStartedAt: Date,
+) {
+  const [bot, turns] = await Promise.all([
+    prisma.sokoBot.findUnique({
+      where: { id: botId },
+      select: { versionId: true },
+    }),
+    prisma.sokoBotTurn.findMany({
+      where: { sokoBotId: botId, createdAt: { gte: since } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        versionId: true,
+        parentTurnId: true,
+        source: true,
+        status: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+  const own: typeof turns = [];
+  for (const turn of turns) {
+    if (bot?.versionId && turn.versionId && turn.versionId !== bot.versionId)
+      continue;
+    if (await chainStartedBefore(turn.parentTurnId, journeyStartedAt)) continue;
+    own.push(turn);
+  }
+  return own;
+}
+
+/** Whether a turn's chain of parents reaches a turn from before `start`. */
+async function chainStartedBefore(
+  parentId: string | null,
+  start: Date,
+): Promise<boolean> {
+  const seen = new Set<string>();
+  for (let id = parentId; id && !seen.has(id); ) {
+    seen.add(id);
+    const parent = await prisma.sokoBotTurn.findUnique({
+      where: { id },
+      select: { createdAt: true, parentTurnId: true },
+    });
+    if (!parent) return false;
+    if (parent.createdAt < start) return true;
+    id = parent.parentTurnId;
+  }
+  return false;
+}
+
+async function stepTurnIds(
+  botId: string,
+  since: Date,
+  journeyStartedAt: Date,
+): Promise<string[]> {
+  return (await journeyTurns(botId, since, journeyStartedAt)).map(
+    (turn) => turn.id,
+  );
 }
 
 /**
@@ -385,16 +444,15 @@ async function stepTurnIds(botId: string, since: Date): Promise<string[]> {
 async function stepSettled(
   botId: string,
   since: Date,
+  journeyStartedAt: Date,
   now: Date,
   awaits: "wake" | "schedule" | null,
   memo: JourneyState["memo"],
 ): Promise<boolean> {
   if (awaits === "wake") {
     await wakeOnDelegatedWork(botId);
-    const woken = await prisma.sokoBotTurn.count({
-      where: { sokoBotId: botId, source: "EVENT", createdAt: { gte: since } },
-    });
-    if (woken === 0) return false;
+    const own = await journeyTurns(botId, since, journeyStartedAt);
+    if (!own.some((turn) => turn.source === "EVENT")) return false;
   }
   if (awaits === "schedule") {
     const run = await claimedRunState(memo, botId);
@@ -402,19 +460,13 @@ async function stepSettled(
     if (run === "failed") return true;
     if (run === "waiting") return false;
   }
-  const active = await prisma.sokoBotTurn.count({
-    where: {
-      sokoBotId: botId,
-      createdAt: { gte: since },
-      status: { in: ACTIVE },
-    },
-  });
-  if (active > 0) return false;
-  const last = await prisma.sokoBotTurn.findFirst({
-    where: { sokoBotId: botId, createdAt: { gte: since } },
-    orderBy: { updatedAt: "desc" },
-    select: { updatedAt: true },
-  });
+  const own = await journeyTurns(botId, since, journeyStartedAt);
+  if (own.some((turn) => ACTIVE.includes(turn.status))) return false;
+  const last = own.reduce<{ updatedAt: Date } | null>(
+    (latest, turn) =>
+      !latest || turn.updatedAt > latest.updatedAt ? turn : latest,
+    null,
+  );
   // Nobody answers a chat question or connects an app in an eval lane.
   if (last && now.getTime() - last.updatedAt.getTime() > QUIET_MS)
     await prisma.sokoBotWatch.updateMany({
@@ -638,6 +690,7 @@ async function finishStep(
   const turnIds = await stepTurnIds(
     botOf(journey, lane),
     new Date(record.startedAt),
+    new Date(state.journeyStartedAt),
   );
   const checks: ScenarioCheck[] = [];
   let merged: Awaited<ReturnType<typeof loadA2aChain>>["merged"] | null = null;
@@ -838,6 +891,10 @@ export async function startJourney(
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
   await forgetEarlierJourneys(lane, botId);
+  // A watch an earlier run left waiting would fire into this journey.
+  await prisma.sokoBotWatch.deleteMany({
+    where: { sokoBotId: botId, status: "WAITING" },
+  });
   // A journey's schedule runs and Coworker wakes are turns nobody started:
   // the owner's daily cap (20) would defer them once earlier journeys used
   // it up, as prepareEvalLane already avoids for Cuso.
@@ -954,7 +1011,14 @@ export async function pollJourney(
           : null;
     if (
       !timedOut &&
-      !(await stepSettled(botId, since, now, awaits, state.memo)) &&
+      !(await stepSettled(
+        botId,
+        since,
+        new Date(state.journeyStartedAt),
+        now,
+        awaits,
+        state.memo,
+      )) &&
       !(await coworkerCanAnswer(journey, current, lane, state))
     )
       return { kind: "waiting" };
