@@ -2,13 +2,14 @@ import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
   globSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { expect, it } from "vitest";
@@ -46,8 +47,13 @@ function readPrismaModels(): Model[] {
   const scratch = mkdtempSync(join(tmpdir(), "crossing-keys-"));
   const output = join(scratch, "datamodel.json");
   try {
-    for (const name of globSync("*.prisma", { cwd: schema })) {
-      copyFileSync(join(schema, name), join(scratch, name));
+    for (const name of globSync("**/*.prisma", {
+      cwd: schema,
+      exclude: ["migrations/**"],
+    })) {
+      const destination = join(scratch, name);
+      mkdirSync(dirname(destination), { recursive: true });
+      copyFileSync(join(schema, name), destination);
     }
     writeFileSync(
       join(scratch, "crossing-keys.prisma"),
