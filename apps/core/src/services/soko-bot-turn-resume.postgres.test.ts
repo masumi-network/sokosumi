@@ -54,6 +54,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
   let mainnet: ReturnType<
     typeof import("@/lib/db/network-scope").createNetworkScope
   >;
+  let preprod: typeof mainnet | undefined;
   let keys: string[];
 
   beforeAll(async () => {
@@ -78,6 +79,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     ));
     const { createNetworkScope } = await import("@/lib/db/network-scope");
     mainnet = createNetworkScope("mainnet");
+    if (onSplitLayout) preprod = createNetworkScope("preprod");
     const control = await import("@/helpers/preprod-control");
     keys = [control.PREPROD_PAUSE_KEY, control.PREPROD_GENERATION_KEY];
     const { errorHandler } = await import("@/helpers/error-handler");
@@ -106,11 +108,13 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       },
     });
     onTestFinished(async () => {
-      await mainnet.networkDb.sokoBotUsage.deleteMany({
-        where: { userId },
-      });
-      await mainnet.networkDb.creditBucket.deleteMany({ where: { userId } });
-      await mainnet.networkDb.transaction.deleteMany({ where: { userId } });
+      const scopes =
+        network === "preprod" && preprod ? [mainnet, preprod] : [mainnet];
+      for (const { networkDb } of scopes) {
+        await networkDb.sokoBotUsage.deleteMany({ where: { userId } });
+        await networkDb.creditBucket.deleteMany({ where: { userId } });
+        await networkDb.transaction.deleteMany({ where: { userId } });
+      }
       await prisma.subscription.deleteMany({ where: { referenceId: userId } });
       await prisma.user.delete({ where: { id: userId } });
     });
@@ -188,16 +192,25 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     });
   }
 
-  function tick(sokoBotId: string) {
+  function tick(...sokoBotIds: string[]) {
     return cron.syncActiveTurns({
       abortSignal: new AbortController().signal,
       shouldContinue: () => true,
-      sokoBotIds: [sokoBotId],
+      sokoBotIds,
     });
   }
 
   function loadTurn(id: string) {
     return prisma.sokoBotTurn.findUniqueOrThrow({ where: { id } });
+  }
+
+  async function fund(userId: string) {
+    const grant = await mainnet.networkDb.transaction.create({
+      data: { userId, amount: 100_000n * 10_000_000_000n },
+    });
+    await mainnet.networkDb.creditBucket.create({
+      data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
+    });
   }
 
   it("keeps the Mainnet callback's statements and attachment on the original rows", async () => {
@@ -231,12 +244,7 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
   it("keeps the Mainnet expiry settlement and charge", async () => {
     await control("open", "8");
     const { bot, turn, userId } = await seed("mainnet", { expired: true });
-    const grant = await mainnet.networkDb.transaction.create({
-      data: { userId, amount: 100_000n * 10_000_000_000n },
-    });
-    await mainnet.networkDb.creditBucket.create({
-      data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
-    });
+    await fund(userId);
     const recorder = recordStatements();
     try {
       const settlement = controlPlane.expireTurn(turn.id);
@@ -286,6 +294,87 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     ).rejects.toThrow("Unknown Network: null");
     expect(await loadTurn(turn.id)).toEqual(turn);
   });
+
+  it("skips an untagged stalled turn and reconciles the next turn", async () => {
+    // The open queue is where a missing tag can still reach the claim loop.
+    flag.on = true;
+    onTestFinished(() => {
+      flag.on = onSplitLayout;
+    });
+    await control("open", "7");
+    const untagged = await seed(null, { attached: true, staleLease: true });
+    const tagged = await seed("mainnet", {
+      attached: true,
+      staleLease: true,
+    });
+    await prisma.sokoBotTurn.update({
+      where: { id: tagged.turn.id },
+      data: { reconcilerHeartbeatAt: new Date(1) },
+    });
+    const reconcile = vi
+      .spyOn(controlPlane, "reconcileTurn")
+      .mockResolvedValue();
+    onTestFinished(() => reconcile.mockRestore());
+
+    await expect(tick(untagged.bot.id, tagged.bot.id)).resolves.toMatchObject({
+      claimed: 1,
+      reconciled: 1,
+    });
+    expect(reconcile).toHaveBeenCalledExactlyOnceWith(
+      tagged.turn.id,
+      expect.any(AbortSignal),
+      expect.any(String),
+    );
+    expect(await loadTurn(untagged.turn.id)).toEqual(untagged.turn);
+  });
+
+  // Public lets the original billing code reach the ledger. A split-layout
+  // failure could otherwise hide an accidental charge behind P2021.
+  it.skipIf(onSplitLayout).each(["callback", "expiry"] as const)(
+    "fails a stale Preprod %s without a usage row or debit",
+    async (path) => {
+      await control("open", "8");
+      flag.on = true;
+      onTestFinished(() => {
+        flag.on = false;
+      });
+      const { turn, sessionId, userId } = await seed("preprod", {
+        attached: true,
+        expired: path === "expiry",
+      });
+      await fund(userId);
+
+      if (path === "callback") {
+        const response = await postReasoning(turn.id, sessionId);
+        expect(response.status).toBe(409);
+        expect(await response.json()).toMatchObject({
+          kind: "soko_bot_network_stale",
+        });
+      } else {
+        await expect(controlPlane.expireTurn(turn.id)).resolves.toBe(true);
+      }
+      await Promise.all(background.splice(0));
+      expect(await loadTurn(turn.id)).toMatchObject({
+        status: "FAILED",
+        errorKind: "soko_bot_network_stale",
+      });
+      expect
+        .soft(
+          await mainnet.networkDb.sokoBotUsage.count({
+            where: { referenceId: turn.id },
+          }),
+        )
+        .toBe(0);
+      expect
+        .soft(
+          await mainnet.networkDb.transaction.findMany({
+            where: { userId, amount: { lt: 0 } },
+            select: { amount: true },
+          }),
+        )
+        .toEqual([]);
+    },
+  );
 
   it.skipIf(!onSplitLayout)(
     "returns the saved Preprod scope and attaches the session",
@@ -369,6 +458,13 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       status: 409,
       kind: "soko_bot_network_stale",
     },
+    {
+      name: "stale while paused",
+      pause: "paused",
+      generation: "8",
+      status: 409,
+      kind: "soko_bot_network_stale",
+    },
   ])("refuses a $name Preprod callback and cron pickup", async (state) => {
     if (state.name === "unavailable") {
       expectCoreLog(
@@ -408,9 +504,19 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       expect(
         await prisma.sokoBotRuntimeEvent.count({ where: { turnId: turn.id } }),
       ).toBe(0);
-      expect(
-        await mainnet.networkDb.sokoBotUsage.count({ where: { userId } }),
-      ).toBe(0);
+      if (!preprod) throw new Error("Expected a split-layout Preprod scope");
+      for (const { networkDb } of [mainnet, preprod]) {
+        expect(
+          await networkDb.sokoBotUsage.count({
+            where: { referenceId: turn.id },
+          }),
+        ).toBe(0);
+        expect(
+          await networkDb.transaction.count({
+            where: { userId, amount: { lt: 0 } },
+          }),
+        ).toBe(0);
+      }
     }
   });
 
