@@ -411,27 +411,32 @@ type Observation = { siteCrawl?: ProjectSeoSiteCrawl };
 /**
  * The continuations of an audit's crawl, newest first: the chain that goes on from `audit`'s snapshot. Only a
  * continuation names the crawl it goes on from. A parent crawl's oldest continuation is the chain's, as in Core
- * (crawlContinuationTip). `rows` come newest first.
+ * (crawlContinuationTip), so the tip comes first. A later continuation of the same parent is a paid result too:
+ * it is listed after the chain's crawl of that parent. `rows` come newest first.
  */
 export function seoCrawlContinuations<Row extends Observation>(
   rows: readonly Row[],
   audit: ProjectSeoSiteCrawl | undefined,
 ): (Row & { siteCrawl: Crawled })[] {
-  const children = new Map<string, Row & { siteCrawl: Crawled }>();
+  const children = new Map<string, (Row & { siteCrawl: Crawled })[]>();
   for (const row of rows) {
     const crawl = row.siteCrawl;
-    if (crawl?.state !== "crawled") continue;
-    if (crawl.continues && crawl.snapshotId)
-      children.set(crawl.continues, row as Row & { siteCrawl: Crawled });
+    if (crawl?.state !== "crawled" || !crawl.continues || !crawl.snapshotId)
+      continue;
+    const siblings = children.get(crawl.continues) ?? [];
+    siblings.push(row as Row & { siteCrawl: Crawled });
+    children.set(crawl.continues, siblings);
   }
   const chain: (Row & { siteCrawl: Crawled })[] = [];
   let parent = audit?.state === "crawled" ? audit.snapshotId : undefined;
   const seen = new Set<string>();
   while (parent && !seen.has(parent)) {
     seen.add(parent);
-    const child = children.get(parent);
-    if (!child) break;
-    chain.push(child);
+    // Newest first: the last one is the oldest, the chain's.
+    const siblings = children.get(parent);
+    const child = siblings?.at(-1);
+    if (!siblings || !child) break;
+    chain.push(...siblings);
     parent = child.siteCrawl.snapshotId;
   }
   return chain.reverse();

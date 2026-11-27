@@ -407,7 +407,7 @@ describe("crawl continuations", () => {
     id,
   });
 
-  it("follows the chain from the audit's crawl, newest first, and leaves out an older audit's continuations", () => {
+  it("follows the chain from the audit's crawl, newest first, keeps a later continuation of the same crawl, and leaves out an older audit's continuations", () => {
     const [OLD, AUDIT, A, B, OTHER] = ["o", "a", "1", "2", "x"].map((c) =>
       c.repeat(64),
     );
@@ -420,10 +420,16 @@ describe("crawl continuations", () => {
       row("audit_full", crawl(AUDIT), "audit"),
       row("audit_full", crawl(OLD), "older audit"),
     ];
+    // The tip comes first. The later continuation of the audit's crawl was paid for too, so it shows.
     expect(seoCrawlContinuations(rows, crawl(AUDIT)).map((r) => r.id)).toEqual([
       "second",
       "first",
+      "later retry",
     ]);
+    // With no continuation of its own yet, the chain's crawl still comes first.
+    expect(
+      seoCrawlContinuations(rows.slice(2), crawl(AUDIT)).map((r) => r.id),
+    ).toEqual(["first", "later retry"]);
   });
 
   it("has no continuations when the audit's crawl has no snapshot", () => {

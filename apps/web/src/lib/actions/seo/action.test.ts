@@ -461,7 +461,21 @@ it("asks Core for a crawl continuation on the server's price terms and keeps Cor
     continues: "b".repeat(64),
     idempotencyKey: "crawl-next-1",
   } as const;
-  expect(await mutate(command)).toMatchObject({ ok: true });
+  const viewer = {
+    userId: "reader",
+    organizationId: "team",
+    sessionId: CURRENT_SESSION_ID,
+  };
+  const send = (briefViewer?: typeof viewer) =>
+    mutateSeo({ owner: OWNER, command, briefViewer });
+  // The price was confirmed by one session: another session's cookie never buys it.
+  for (const stale of [undefined, { ...viewer, sessionId: "previous" }])
+    expect(await send(stale)).toMatchObject({
+      ok: false,
+      error: { kind: "seo_viewer_changed" },
+    });
+  expect(continueCrawlMock).not.toHaveBeenCalled();
+  expect(await send(viewer)).toMatchObject({ ok: true });
   expect(continueCrawlMock).toHaveBeenCalledExactlyOnceWith(OWNER, {
     continues: command.continues,
     price: seoCrawlNextPrice(),
@@ -471,7 +485,7 @@ it("asks Core for a crawl continuation on the server's price terms and keeps Cor
   continueCrawlMock.mockRejectedValueOnce(
     new CoreApiRequestError("Not enough credits", { status: 422 }),
   );
-  expect(await mutate(command)).toMatchObject({
+  expect(await send(viewer)).toMatchObject({
     ok: false,
     error: { status: 422 },
   });
