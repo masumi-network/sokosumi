@@ -117,7 +117,8 @@ export function SeoSiteCrawl({
         const next = seoSiteCrawlView(row.siteCrawl);
         if (next?.state !== "crawled") return null;
         return (
-          <details key={row.siteCrawl.snapshotId} className="border-t">
+          // A paid continuation may repeat an earlier Snapshot: its own observation keys its fold.
+          <details key={row.id} className="border-t">
             <SeoFoldSummary className="min-h-11 gap-3 px-2 py-2.5 text-sm">
               <span className="font-medium">{t("next.heading")}</span>
               <span className="text-xs text-muted-foreground">

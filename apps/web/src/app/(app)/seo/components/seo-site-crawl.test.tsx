@@ -176,11 +176,13 @@ describe("crawl of the next pages", () => {
       availableActions: { ...base.availableActions, continueCrawlFrom: NEXT },
       observations: [
         {
+          id: "next",
           kind: "crawl_next",
           observedAt: new Date("2026-11-21T12:00:00Z"),
           siteCrawl: continuation,
         },
         {
+          id: "audit",
           kind: "audit_full",
           observedAt: new Date("2026-11-20T12:00:00Z"),
           siteCrawl: { ...crawl(), stop: "page cap", snapshotId: AUDIT },
