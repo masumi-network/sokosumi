@@ -31,6 +31,7 @@ import "@hono/zod-openapi";
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { Client, type Pool } from "pg";
@@ -55,10 +56,19 @@ const outside = vi.hoisted(() => ({
   failAfterCharge: false,
   /** Projects whose first charge waits for its release after its debit. */
   held: new Map<string, { reached: () => void; release: Promise<void> }>(),
+  /**
+   * `observing` of the recorder instance every pool reports to. The mock's
+   * factory runs once and survives `vi.resetModules()`, so a recorder
+   * imported after a reload would be another instance, with an empty log.
+   */
+  observing: undefined as
+    | typeof import("@/test/spend-comparison").observing
+    | undefined,
 }));
 vi.mock("@vercel/functions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@vercel/functions")>();
-  const { observePool } = await import("@/test/spend-comparison");
+  const { observePool, observing } = await import("@/test/spend-comparison");
+  outside.observing = observing;
   return {
     ...actual,
     waitUntil: vi.fn((work: Promise<unknown>) => {
@@ -167,8 +177,9 @@ async function load(env: Record<string, string>) {
   const { workspaceRepository } = await import(
     "@sokosumi/database/repositories"
   );
-  // The instance the reloaded pool reports to, which holds what it sent.
-  const { observing } = await import("@/test/spend-comparison");
+  // The pool exists once Prisma is loaded: its recorder is the mock's.
+  const { observing } = outside;
+  if (!observing) throw new Error("No pool reports to a recorder");
   return {
     observing,
     fixture,
@@ -573,7 +584,7 @@ function createWorld(loaded: Loaded, deploymentNetwork: DeploymentNetwork) {
             preferredNetwork: asked.preferredNetwork,
             preferredAsset: asked.preferredAsset,
           };
-          if (JSON.stringify(forwarded) !== JSON.stringify(expected)) {
+          if (!isDeepStrictEqual(forwarded, expected)) {
             return err({
               kind: "refused" as const,
               status: 400,
@@ -831,6 +842,16 @@ async function observe(
     return result;
   });
   if (node) outside.payX402.mockImplementation(node);
+  // Every request reads its payment row first, with its Task and key bound:
+  // an observation without that read recorded nothing, even while recording.
+  expect(
+    log.filter(
+      ({ text, values }) =>
+        text.includes("task_x402_payment") &&
+        text.trimStart().startsWith("SELECT") &&
+        world.made.taskIds.includes(String(values[0])),
+    ).length,
+  ).toBeGreaterThan(0);
   const left = await world.rows();
   // Two Tasks made in the same millisecond have no order of their own: by
   // their names, each Task's events in the order they were written.
