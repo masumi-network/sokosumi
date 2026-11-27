@@ -5,7 +5,7 @@ import { toMasumiAgent } from "@/helpers/agent";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { getAgentEndpoint } from "@/lib/agent-catalog/endpoint";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -43,20 +43,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const agent = await prisma.agent.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        blockchainIdentifier: true,
-        apiBaseUrl: true,
-        metadataOverride: {
-          select: {
-            apiBaseUrl: true,
-          },
-        },
-      },
-    });
+    const agent = await getAgentEndpoint(c.var.networkScope, id);
 
     if (!agent) {
       throw notFound("Agent not found");

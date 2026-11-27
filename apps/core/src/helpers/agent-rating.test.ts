@@ -1,7 +1,6 @@
-import type { Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
-import type { NetworkDb } from "@/lib/db/network-scope";
+import type { NetworkDb, NetworkScope } from "@/lib/db/network-scope";
 
 import {
   calculateAgentRating,
@@ -120,7 +119,7 @@ describe("getAgentRatingDistribution", () => {
       userAgentRating: {
         groupBy,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await getAgentRatingDistribution("agent-1", tx);
 
@@ -138,7 +137,7 @@ describe("getAgentRatingDistribution", () => {
 });
 
 describe("getRecentAgentReviews", () => {
-  it("filters out ratings without meaningful comments", async () => {
+  it("filters out ratings without meaningful comments and hydrates users from sharedDb", async () => {
     const findMany = vi.fn().mockResolvedValue([
       {
         id: "rating-1",
@@ -146,20 +145,31 @@ describe("getRecentAgentReviews", () => {
         comment: "Helpful review",
         createdAt: new Date("2026-03-17T10:00:00.000Z"),
         updatedAt: new Date("2026-03-17T10:00:00.000Z"),
-        user: {
-          id: "user-1",
-          name: "Jane Doe",
-          image: "https://example.com/avatar.png",
-        },
+        userId: "user-1",
       },
     ]);
-    const tx = {
-      userAgentRating: {
-        findMany,
+    const userFindMany = vi.fn().mockResolvedValue([
+      {
+        id: "user-1",
+        name: "Jane Doe",
+        image: "https://example.com/avatar.png",
       },
-    } as unknown as Prisma.TransactionClient;
+    ]);
+    const scope = {
+      network: "mainnet",
+      networkDb: {
+        userAgentRating: {
+          findMany,
+        },
+      },
+      sharedDb: {
+        user: {
+          findMany: userFindMany,
+        },
+      },
+    } as unknown as NetworkScope;
 
-    const result = await getRecentAgentReviews("agent-1", 10, tx);
+    const result = await getRecentAgentReviews("agent-1", 10, scope);
 
     expect(findMany).toHaveBeenCalledWith({
       where: {
@@ -167,17 +177,16 @@ describe("getRecentAgentReviews", () => {
         isHidden: false,
         AND: [{ comment: { not: null } }, { comment: { not: "" } }],
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
       orderBy: { createdAt: "desc" },
       take: 10,
+    });
+    expect(userFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ["user-1"] } },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+      },
     });
     expect(result).toEqual([
       {
@@ -193,6 +202,28 @@ describe("getRecentAgentReviews", () => {
         },
       },
     ]);
+  });
+
+  it("skips sharedDb lookup when no commented reviews exist", async () => {
+    const userFindMany = vi.fn();
+    const scope = {
+      network: "mainnet",
+      networkDb: {
+        userAgentRating: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      },
+      sharedDb: {
+        user: {
+          findMany: userFindMany,
+        },
+      },
+    } as unknown as NetworkScope;
+
+    await expect(getRecentAgentReviews("agent-1", 10, scope)).resolves.toEqual(
+      [],
+    );
+    expect(userFindMany).not.toHaveBeenCalled();
   });
 });
 
@@ -210,7 +241,7 @@ describe("getUserAgentReview", () => {
       userAgentRating: {
         findUnique,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await getUserAgentReview("agent-1", "user-1", tx);
 
@@ -237,7 +268,7 @@ describe("getUserAgentReview", () => {
       userAgentRating: {
         findUnique,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await getUserAgentReview("agent-1", "user-1", tx);
 
@@ -257,7 +288,7 @@ describe("upsertUserAgentReview", () => {
       userAgentRating: {
         upsert,
       },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const result = await upsertUserAgentReview(
       "agent-1",
@@ -287,7 +318,7 @@ describe("doesUserHaveFinishedJobWithAgent", () => {
     const count = vi.fn().mockResolvedValue(1);
     const tx = {
       job: { count },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     const eligible = await doesUserHaveFinishedJobWithAgent(
       "user-1",
@@ -307,7 +338,7 @@ describe("doesUserHaveFinishedJobWithAgent", () => {
   it("returns false when no finished job exists", async () => {
     const tx = {
       job: { count: vi.fn().mockResolvedValue(0) },
-    } as unknown as Prisma.TransactionClient;
+    } as unknown as NetworkDb;
 
     await expect(
       doesUserHaveFinishedJobWithAgent("user-1", "agent-1", tx),

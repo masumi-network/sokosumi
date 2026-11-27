@@ -451,9 +451,12 @@ vi.mock("@vercel/blob", () => ({
   put: files.put,
   BlobNotFoundError: files.BlobNotFoundError,
 }));
+vi.mock("@/lib/agent-catalog/bot", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/agent-catalog/bot")>()),
+  searchForBot: marketplace.list,
+}));
 vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
-  listHireableAgents: marketplace.list,
   rateAgentFit: marketplace.rate,
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
@@ -554,6 +557,7 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ agent: { findFirst: agentFindFirstMock } }),
   default: {
     // The search for text only a full audit's hidden line holds finds none.
     $queryRaw: () => Promise.resolve([]),
@@ -640,7 +644,6 @@ vi.mock("@/lib/db/prisma", () => ({
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
     },
-    agent: { findFirst: agentFindFirstMock },
     coworker: { findMany: coworkerFindManyMock },
     task: {
       findFirst: taskFindFirstMock,

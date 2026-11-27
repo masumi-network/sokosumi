@@ -6,6 +6,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   CAIP2_EVM_NETWORK_PATTERN,
   EVM_ADDRESS_PATTERN,
@@ -13,7 +14,7 @@ import {
 } from "@sokosumi/masumi";
 import { getEnv } from "@/config/env";
 import { listCardanoBillableUnitSpellings } from "@/helpers/agent-cost";
-import { internalServerError } from "@/helpers/error";
+import { internalServerError, notFound } from "@/helpers/error";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import { type Network, networkKey } from "@/lib/network";
@@ -130,19 +131,15 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
  * process-local memo in front of it would only add staleness on top of the
  * cron's own lag while letting instances disagree with each other.
  */
-export const getCardanoV2ReadySources = async (
-  tx: SharedDb,
-  network: Network,
-): Promise<CardanoV2ReadySource[]> => {
-  const readiness = await tx.syncMetadata.findUnique({
-    where: { key: networkKey(network, CARDANO_V2_RAIL_READINESS_KEY) },
-  });
-  if (!readiness?.cursorId) {
+function parseCardanoV2ReadySources(
+  cursorId: string | null | undefined,
+): CardanoV2ReadySource[] {
+  if (!cursorId) {
     return [];
   }
 
   try {
-    const payload: unknown = JSON.parse(readiness.cursorId);
+    const payload: unknown = JSON.parse(cursorId);
     if (!Array.isArray(payload)) {
       return [];
     }
@@ -160,7 +157,60 @@ export const getCardanoV2ReadySources = async (
   } catch {
     return [];
   }
+}
+
+export const getCardanoV2ReadySources = async (
+  tx: SharedDb,
+  network: Network,
+): Promise<CardanoV2ReadySource[]> => {
+  const readiness = await tx.syncMetadata.findUnique({
+    where: { key: networkKey(network, CARDANO_V2_RAIL_READINESS_KEY) },
+  });
+  return parseCardanoV2ReadySources(readiness?.cursorId);
 };
+
+async function getCardanoV2ReadySourcesInTransaction(
+  tx: NetworkDb,
+  network: Network,
+): Promise<CardanoV2ReadySource[]> {
+  const key = networkKey(network, CARDANO_V2_RAIL_READINESS_KEY);
+  const [readiness] = await tx.$queryRaw<{ cursorId: string | null }[]>`
+    SELECT "cursorId"
+    FROM ${sharedTable("sync_metadata")}
+    WHERE "key" = ${key}
+    LIMIT 1
+  `;
+  return parseCardanoV2ReadySources(readiness?.cursorId);
+}
+
+/**
+ * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
+ * throwing a 404 otherwise. Pass `tx` when running inside an open Network
+ * transaction so readiness and agent reads stay on the same connection.
+ */
+export async function requireAvailableAgent(
+  scope: NetworkScope,
+  id: string,
+  tx?: NetworkDb,
+): Promise<void> {
+  const db = tx ?? scope.networkDb;
+  const creditCosts = await getCreditCostsOrThrow(db.creditCost);
+  const cardanoV2ReadySources = tx
+    ? await getCardanoV2ReadySourcesInTransaction(tx, scope.network)
+    : await getCardanoV2ReadySources(scope.sharedDb, scope.network);
+
+  const agent = await db.agent.findFirst({
+    where: {
+      id,
+      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+    },
+    select: { id: true },
+  });
+
+  if (!agent) {
+    throw notFound("Agent not found");
+  }
+}
 
 export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],

@@ -15,6 +15,7 @@ import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { digestJob } from "@/helpers/job-digest";
 import { buildSokoBotReaderJobWhere } from "@/helpers/task-visibility";
+import { forBotTool } from "@/lib/agent-catalog/bot";
 import prisma from "@/lib/db/prisma";
 import { parseHireAgentInput } from "@/lib/soko-bot/decision-proposal";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
@@ -131,7 +132,7 @@ export async function dispatchTasksTools(
 
     case "find_agents": {
       const { query } = searchInputSchema.parse(input.input);
-      return findHireableAgents(query);
+      return findHireableAgents(authorized.scope, query);
     }
 
     case "get_agent_input_schema": {
@@ -142,17 +143,7 @@ export async function dispatchTasksTools(
       // id it already had right. `isShown` stays in the lookup, though —
       // an unlisted Agent must read as absent, or a bot holding a stray
       // UUID could enumerate rows `find_agents` deliberately hides.
-      const agent = await prisma.agent.findFirst({
-        where: { id: agentId, isShown: true },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          blockchainIdentifier: true,
-          apiBaseUrl: true,
-          metadataOverride: { select: { apiBaseUrl: true } },
-        },
-      });
+      const agent = await forBotTool(authorized.scope, agentId);
       if (!agent) throw new SokoBotRuntimeValidationError("Agent not found");
       // The same endpoint `toMasumiAgent` will use: an Agent reachable only
       // through its metadata override is hireable, and reporting it as

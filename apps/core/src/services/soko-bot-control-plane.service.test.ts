@@ -13,6 +13,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { recordCoreError } from "@/lib/evlog";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
@@ -251,6 +252,7 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ agent: { findMany: agentFindManyMock } }),
   default: {
     $transaction: transactionMock,
     // The only raw read here is the fleet move's selection; it returns the
@@ -269,7 +271,6 @@ vi.mock("@/lib/db/prisma", () => ({
         sokoBotMembers: [],
       }),
     },
-    agent: { findMany: agentFindManyMock },
     // Creation resolves the promoted default version before its transaction.
     sokoBotSetting: { findUnique: settingFindUniqueMock },
     sokoBotAuthoredVersion: { findFirst: authoredVersionFindFirstMock },
@@ -1854,6 +1855,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       },
     ]);
     const context = await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
       'What is the status of "Apollo launch"?',
@@ -1882,6 +1884,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       { id: "apollo-two", name: "Apollo launch engineering" },
     ]);
     const context = await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
       "What is the status of Apollo launch?",
@@ -1892,6 +1895,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("does not expand a teammate request through owner-only descriptive search", async () => {
     taskFindManyMock.mockResolvedValue([]);
     const context = await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("user_1", "TEAMMATE", null),
       "workspace_1",
       'Find "Apollo launch"',

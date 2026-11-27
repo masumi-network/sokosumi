@@ -1,0 +1,623 @@
+{
+  "search before rate": {
+    "outcome": {
+      "count": 51,
+      "agents": [
+        {
+          "id": "bot-catalog-10",
+          "name": "bot-catalog-10 <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FIXED",
+            "fixedPricing": {
+              "amounts": [
+                {
+                  "amount": "3",
+                  "unit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              ]
+            }
+          },
+          "price": {
+            "pricingType": "FIXED",
+            "credits": null,
+            "maxCreditsRequired": true,
+            "minimumMaxCredits": null
+          }
+        },
+        {
+          "id": "bot-catalog-override",
+          "name": "bot-catalog-override <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FREE",
+            "fixedPricing": null
+          },
+          "price": {
+            "pricingType": "FREE",
+            "credits": 0,
+            "maxCreditsRequired": false,
+            "minimumMaxCredits": null
+          }
+        },
+        {
+          "id": "bot-catalog-59",
+          "name": "bot-catalog-59 <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FIXED",
+            "fixedPricing": {
+              "amounts": [
+                {
+                  "amount": "3",
+                  "unit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                }
+              ]
+            }
+          },
+          "price": {
+            "pricingType": "FIXED",
+            "credits": null,
+            "maxCreditsRequired": true,
+            "minimumMaxCredits": null
+          }
+        },
+        {
+          "id": "bot-catalog-58",
+          "name": "bot-catalog-58 <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FREE",
+            "fixedPricing": null
+          },
+          "price": {
+            "pricingType": "FREE",
+            "credits": 0,
+            "maxCreditsRequired": false,
+            "minimumMaxCredits": null
+          }
+        }
+      ]
+    },
+    "count": 9,
+    "transactions": [
+      [
+        {
+          "sql": "BEGIN",
+          "values": []
+        },
+        {
+          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+          "values": []
+        },
+        {
+          "sql": "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"pricingId\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"isShown\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL)))) ORDER BY \"public\".\"Agent\".\"jobCount\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $3 OFFSET $4",
+          "values": [true, "ONLINE", "4", "0"]
+        },
+        {
+          "sql": "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1,$2,$3,$4) OFFSET $5",
+          "values": [
+            "bot-catalog-10-price",
+            "bot-catalog-override-price",
+            "bot-catalog-59-price",
+            "bot-catalog-58-price",
+            "0"
+          ]
+        },
+        {
+          "sql": "SELECT \"public\".\"AgentFixedPricing\".\"id\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1,$2,$3,$4) OFFSET $5",
+          "values": [
+            "bot-catalog-10-fixed",
+            null,
+            "bot-catalog-59-fixed",
+            null,
+            "0"
+          ]
+        },
+        {
+          "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1,$2) OFFSET $3",
+          "values": ["bot-catalog-10-fixed", "bot-catalog-59-fixed", "0"]
+        },
+        {
+          "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"isShown\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL)))) OFFSET $3) AS \"sub\"",
+          "values": [true, "ONLINE", "0"]
+        },
+        {
+          "sql": "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1",
+          "values": ["0"]
+        },
+        {
+          "sql": "COMMIT",
+          "values": []
+        }
+      ]
+    ],
+    "outsideTransactions": {},
+    "outsideValues": []
+  },
+  "search with rate": {
+    "outcome": {
+      "count": 51,
+      "agents": [
+        {
+          "id": "bot-catalog-10",
+          "name": "bot-catalog-10 <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FIXED",
+            "fixedPricing": {
+              "amounts": [
+                {
+                  "amount": "3",
+                  "unit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              ]
+            }
+          },
+          "price": {
+            "pricingType": "FIXED",
+            "credits": 1.5,
+            "maxCreditsRequired": true,
+            "minimumMaxCredits": 1.5
+          }
+        },
+        {
+          "id": "bot-catalog-override",
+          "name": "bot-catalog-override <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FREE",
+            "fixedPricing": null
+          },
+          "price": {
+            "pricingType": "FREE",
+            "credits": 0,
+            "maxCreditsRequired": false,
+            "minimumMaxCredits": null
+          }
+        },
+        {
+          "id": "bot-catalog-59",
+          "name": "bot-catalog-59 <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FIXED",
+            "fixedPricing": {
+              "amounts": [
+                {
+                  "amount": "3",
+                  "unit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                }
+              ]
+            }
+          },
+          "price": {
+            "pricingType": "FIXED",
+            "credits": null,
+            "maxCreditsRequired": true,
+            "minimumMaxCredits": null
+          }
+        },
+        {
+          "id": "bot-catalog-58",
+          "name": "bot-catalog-58 <run>",
+          "summary": null,
+          "description": null,
+          "capabilityName": null,
+          "paymentType": "WEB3_CARDANO_V1",
+          "riskClassification": "MINIMAL",
+          "pricing": {
+            "pricingType": "FREE",
+            "fixedPricing": null
+          },
+          "price": {
+            "pricingType": "FREE",
+            "credits": 0,
+            "maxCreditsRequired": false,
+            "minimumMaxCredits": null
+          }
+        }
+      ]
+    },
+    "count": 9,
+    "transactions": [
+      [
+        {
+          "sql": "BEGIN",
+          "values": []
+        },
+        {
+          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+          "values": []
+        },
+        {
+          "sql": "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"pricingId\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"isShown\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL)))) ORDER BY \"public\".\"Agent\".\"jobCount\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $3 OFFSET $4",
+          "values": [true, "ONLINE", "4", "0"]
+        },
+        {
+          "sql": "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1,$2,$3,$4) OFFSET $5",
+          "values": [
+            "bot-catalog-10-price",
+            "bot-catalog-override-price",
+            "bot-catalog-59-price",
+            "bot-catalog-58-price",
+            "0"
+          ]
+        },
+        {
+          "sql": "SELECT \"public\".\"AgentFixedPricing\".\"id\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1,$2,$3,$4) OFFSET $5",
+          "values": [
+            "bot-catalog-10-fixed",
+            null,
+            "bot-catalog-59-fixed",
+            null,
+            "0"
+          ]
+        },
+        {
+          "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1,$2) OFFSET $3",
+          "values": ["bot-catalog-10-fixed", "bot-catalog-59-fixed", "0"]
+        },
+        {
+          "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"isShown\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL)))) OFFSET $3) AS \"sub\"",
+          "values": [true, "ONLINE", "0"]
+        },
+        {
+          "sql": "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1",
+          "values": ["0"]
+        },
+        {
+          "sql": "COMMIT",
+          "values": []
+        }
+      ]
+    ],
+    "outsideTransactions": {},
+    "outsideValues": []
+  },
+  "packet count only": {
+    "outcome": {
+      "count": 51,
+      "agents": []
+    },
+    "count": 5,
+    "transactions": [
+      [
+        {
+          "sql": "BEGIN",
+          "values": []
+        },
+        {
+          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+          "values": []
+        },
+        {
+          "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"isShown\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL)))) OFFSET $3) AS \"sub\"",
+          "values": [true, "ONLINE", "0"]
+        },
+        {
+          "sql": "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1",
+          "values": ["0"]
+        },
+        {
+          "sql": "COMMIT",
+          "values": []
+        }
+      ]
+    ],
+    "outsideTransactions": {},
+    "outsideValues": []
+  },
+  "classifier names": {
+    "outcome": [
+      {
+        "id": "bot-catalog-10",
+        "name": "bot-catalog-10 <run>"
+      },
+      {
+        "id": "bot-catalog-11",
+        "name": "bot-catalog-11 <run>"
+      },
+      {
+        "id": "bot-catalog-12",
+        "name": "bot-catalog-12 <run>"
+      },
+      {
+        "id": "bot-catalog-13",
+        "name": "bot-catalog-13 <run>"
+      },
+      {
+        "id": "bot-catalog-14",
+        "name": "bot-catalog-14 <run>"
+      },
+      {
+        "id": "bot-catalog-15",
+        "name": "bot-catalog-15 <run>"
+      },
+      {
+        "id": "bot-catalog-16",
+        "name": "bot-catalog-16 <run>"
+      },
+      {
+        "id": "bot-catalog-17",
+        "name": "bot-catalog-17 <run>"
+      },
+      {
+        "id": "bot-catalog-18",
+        "name": "bot-catalog-18 <run>"
+      },
+      {
+        "id": "bot-catalog-19",
+        "name": "bot-catalog-19 <run>"
+      },
+      {
+        "id": "bot-catalog-20",
+        "name": "bot-catalog-20 <run>"
+      },
+      {
+        "id": "bot-catalog-21",
+        "name": "bot-catalog-21 <run>"
+      },
+      {
+        "id": "bot-catalog-22",
+        "name": "bot-catalog-22 <run>"
+      },
+      {
+        "id": "bot-catalog-23",
+        "name": "bot-catalog-23 <run>"
+      },
+      {
+        "id": "bot-catalog-24",
+        "name": "bot-catalog-24 <run>"
+      },
+      {
+        "id": "bot-catalog-25",
+        "name": "bot-catalog-25 <run>"
+      },
+      {
+        "id": "bot-catalog-26",
+        "name": "bot-catalog-26 <run>"
+      },
+      {
+        "id": "bot-catalog-27",
+        "name": "bot-catalog-27 <run>"
+      },
+      {
+        "id": "bot-catalog-28",
+        "name": "bot-catalog-28 <run>"
+      },
+      {
+        "id": "bot-catalog-29",
+        "name": "bot-catalog-29 <run>"
+      },
+      {
+        "id": "bot-catalog-30",
+        "name": "bot-catalog-30 <run>"
+      },
+      {
+        "id": "bot-catalog-31",
+        "name": "bot-catalog-31 <run>"
+      },
+      {
+        "id": "bot-catalog-32",
+        "name": "bot-catalog-32 <run>"
+      },
+      {
+        "id": "bot-catalog-33",
+        "name": "bot-catalog-33 <run>"
+      },
+      {
+        "id": "bot-catalog-34",
+        "name": "bot-catalog-34 <run>"
+      },
+      {
+        "id": "bot-catalog-35",
+        "name": "bot-catalog-35 <run>"
+      },
+      {
+        "id": "bot-catalog-36",
+        "name": "bot-catalog-36 <run>"
+      },
+      {
+        "id": "bot-catalog-37",
+        "name": "bot-catalog-37 <run>"
+      },
+      {
+        "id": "bot-catalog-38",
+        "name": "bot-catalog-38 <run>"
+      },
+      {
+        "id": "bot-catalog-39",
+        "name": "bot-catalog-39 <run>"
+      },
+      {
+        "id": "bot-catalog-40",
+        "name": "bot-catalog-40 <run>"
+      },
+      {
+        "id": "bot-catalog-41",
+        "name": "bot-catalog-41 <run>"
+      },
+      {
+        "id": "bot-catalog-42",
+        "name": "bot-catalog-42 <run>"
+      },
+      {
+        "id": "bot-catalog-43",
+        "name": "bot-catalog-43 <run>"
+      },
+      {
+        "id": "bot-catalog-44",
+        "name": "bot-catalog-44 <run>"
+      },
+      {
+        "id": "bot-catalog-45",
+        "name": "bot-catalog-45 <run>"
+      },
+      {
+        "id": "bot-catalog-46",
+        "name": "bot-catalog-46 <run>"
+      },
+      {
+        "id": "bot-catalog-47",
+        "name": "bot-catalog-47 <run>"
+      },
+      {
+        "id": "bot-catalog-48",
+        "name": "bot-catalog-48 <run>"
+      },
+      {
+        "id": "bot-catalog-49",
+        "name": "bot-catalog-49 <run>"
+      },
+      {
+        "id": "bot-catalog-50",
+        "name": "bot-catalog-50 <run>"
+      },
+      {
+        "id": "bot-catalog-51",
+        "name": "bot-catalog-51 <run>"
+      },
+      {
+        "id": "bot-catalog-52",
+        "name": "bot-catalog-52 <run>"
+      },
+      {
+        "id": "bot-catalog-53",
+        "name": "bot-catalog-53 <run>"
+      },
+      {
+        "id": "bot-catalog-54",
+        "name": "bot-catalog-54 <run>"
+      },
+      {
+        "id": "bot-catalog-55",
+        "name": "bot-catalog-55 <run>"
+      },
+      {
+        "id": "bot-catalog-56",
+        "name": "bot-catalog-56 <run>"
+      },
+      {
+        "id": "bot-catalog-57",
+        "name": "bot-catalog-57 <run>"
+      },
+      {
+        "id": "bot-catalog-58",
+        "name": "bot-catalog-58 <run>"
+      },
+      {
+        "id": "bot-catalog-59",
+        "name": "bot-catalog-59 <run>"
+      }
+    ],
+    "count": 4,
+    "transactions": [],
+    "outsideTransactions": {
+      "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"isShown\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL) ORDER BY \"public\".\"Agent\".\"id\" ASC LIMIT $3 OFFSET $4": 1,
+      "SELECT \"public\".\"coworker\".\"id\", \"public\".\"coworker\".\"name\" FROM \"public\".\"coworker\" WHERE (\"public\".\"coworker\".\"archivedAt\" IS NULL AND (\"public\".\"coworker\".\"isWhitelisted\" = $1 OR EXISTS(SELECT \"t0\".\"coworkerId\" FROM \"public\".\"coworker_assignment\" AS \"t0\" WHERE (\"t0\".\"userId\" = $2 AND (\"public\".\"coworker\".\"id\") = (\"t0\".\"coworkerId\") AND \"t0\".\"coworkerId\" IS NOT NULL)) OR EXISTS(SELECT \"t1\".\"coworkerId\" FROM \"public\".\"coworker_workspace_access\" AS \"t1\" WHERE (\"t1\".\"workspaceId\" = $3 AND \"t1\".\"status\" = CAST($4::text AS \"public\".\"CoworkerWorkspaceAccessStatus\") AND (\"public\".\"coworker\".\"id\") = (\"t1\".\"coworkerId\") AND \"t1\".\"coworkerId\" IS NOT NULL)))) ORDER BY \"public\".\"coworker\".\"id\" ASC LIMIT $5 OFFSET $6": 1,
+      "SELECT \"public\".\"project\".\"id\", \"public\".\"project\".\"name\" FROM \"public\".\"project\" WHERE \"public\".\"project\".\"workspaceId\" = $1 ORDER BY \"public\".\"project\".\"id\" ASC LIMIT $2 OFFSET $3": 1,
+      "SELECT \"public\".\"task\".\"id\", \"public\".\"task\".\"name\", \"public\".\"task\".\"status\"::text, \"public\".\"task\".\"ownerId\", \"public\".\"task\".\"assigneeId\", \"public\".\"task\".\"assigneeSokoBotId\", \"public\".\"task\".\"projectId\", \"public\".\"task\".\"updatedAt\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"workspaceId\" = $1 AND \"public\".\"task\".\"archivedAt\" IS NULL AND (\"public\".\"task\".\"visibility\" = CAST($2::text AS \"public\".\"TaskVisibility\") OR (\"public\".\"task\".\"visibility\" = CAST($3::text AS \"public\".\"TaskVisibility\") AND \"public\".\"task\".\"ownerId\" = $4))) ORDER BY \"public\".\"task\".\"updatedAt\" DESC LIMIT $5 OFFSET $6": 1
+    },
+    "outsideValues": [
+      "[\"01960001-0001-7001-8001-000000000002\",\"50\",\"0\"]",
+      "[\"01960001-0001-7001-8001-000000000002\",\"PUBLIC\",\"PRIVATE\",\"01960001-0001-7001-8001-000000000001\",\"50\",\"0\"]",
+      "[true,\"01960001-0001-7001-8001-000000000001\",\"01960001-0001-7001-8001-000000000002\",\"GRANTED\",\"50\",\"0\"]",
+      "[true,\"ONLINE\",\"50\",\"0\"]"
+    ]
+  },
+  "approval bot-catalog-hidden": {
+    "outcome": "Hire Agent \"bot-catalog-hidden <run>\" with a maximum of 3 credits",
+    "count": 1,
+    "transactions": [],
+    "outsideTransactions": {
+      "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
+    },
+    "outsideValues": ["[\"bot-catalog-hidden\",\"1\",\"0\"]"]
+  },
+  "approval bot-catalog-missing": {
+    "outcome": "Hire Agent bot-catalog-missing with a maximum of 3 credits",
+    "count": 1,
+    "transactions": [],
+    "outsideTransactions": {
+      "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3": 1
+    },
+    "outsideValues": ["[\"bot-catalog-missing\",\"1\",\"0\"]"]
+  },
+  "tool override": {
+    "outcome": {
+      "input_data": []
+    },
+    "count": 2,
+    "transactions": [],
+    "outsideTransactions": {
+      "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"apiBaseUrl\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"isShown\" = $2) LIMIT $3 OFFSET $4": 1,
+      "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1
+    },
+    "outsideValues": [
+      "[\"bot-catalog-override\",\"0\"]",
+      "[\"bot-catalog-override\",true,\"1\",\"0\"]"
+    ]
+  },
+  "tool bot-catalog-hidden": {
+    "outcome": {
+      "threw": {
+        "name": "Error",
+        "message": "Agent not found"
+      }
+    },
+    "count": 2,
+    "transactions": [],
+    "outsideTransactions": {
+      "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"apiBaseUrl\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"isShown\" = $2) LIMIT $3 OFFSET $4": 1,
+      "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN (NULL) OFFSET $1": 1
+    },
+    "outsideValues": ["[\"0\"]", "[\"bot-catalog-hidden\",true,\"1\",\"0\"]"]
+  },
+  "tool bot-catalog-offline": {
+    "outcome": {
+      "threw": {
+        "name": "Error",
+        "message": "This Agent is not available to hire right now (offline). Pick another from find_agents."
+      }
+    },
+    "count": 2,
+    "transactions": [],
+    "outsideTransactions": {
+      "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"apiBaseUrl\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"isShown\" = $2) LIMIT $3 OFFSET $4": 1,
+      "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2": 1
+    },
+    "outsideValues": [
+      "[\"bot-catalog-offline\",\"0\"]",
+      "[\"bot-catalog-offline\",true,\"1\",\"0\"]"
+    ]
+  }
+}

@@ -1,13 +1,9 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 
-import {
-  buildAvailableAgentWhereClause,
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-} from "@/helpers/agent";
 import { jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { listCategoriesInUse } from "@/lib/agent-catalog/categories";
+import { publicRequestNetworkScope } from "@/middleware/network-scope";
 import { categorySchema, mapCategoryForApi } from "@/schemas/category.schema";
 
 const route = createRoute({
@@ -27,19 +23,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
-    const creditCosts = await getCreditCostsOrThrow(prisma);
-    const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
-    const agentWhere = buildAvailableAgentWhereClause(
-      creditCosts,
-      cardanoV2ReadySources,
-    );
-
-    const categories = await prisma.category.findMany({
-      where: {
-        agents: { some: agentWhere },
-      },
-      orderBy: [{ priority: "asc" }, { name: "asc" }],
-    });
+    const scope = await publicRequestNetworkScope(c);
+    const categories = await listCategoriesInUse(scope);
 
     return ok(
       c,
