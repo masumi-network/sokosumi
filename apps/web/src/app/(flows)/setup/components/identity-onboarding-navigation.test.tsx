@@ -300,7 +300,9 @@ describe("IdentityOnboardingForm navigation", () => {
       error: { code: "INTERNAL_SERVER_ERROR" },
     });
     const user = await openCreatedWizard();
-    expect(mocks.toast).toHaveBeenCalledWith("Errors.createFailed");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Errors.createFailed",
+    );
     expect(mocks.setActive).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2));

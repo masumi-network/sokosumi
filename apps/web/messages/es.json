@@ -671,7 +671,7 @@
           "emailError": "No se pudieron enviar las invitaciones"
         },
         "Errors": {
-          "createFailed": "No se pudo crear la organización",
+          "createFailed": "No se pudo crear la organización. Inténtalo de nuevo.",
           "unauthorizedAction": "Iniciar sesión"
         }
       },

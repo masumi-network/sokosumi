@@ -423,6 +423,18 @@ function CreateOrganizationWizardContent({
   );
 
   /**
+   * Shown in the dialog under the fields, not as a toast: a toast was gone
+   * before anyone looked, and the dialog sat there unchanged. The next
+   * Continue clears it (react-hook-form drops `root` errors on submit).
+   */
+  const showCreateError = useCallback(
+    (message?: string | null) => {
+      form.setError("root", { message: message ?? t("Errors.createFailed") });
+    },
+    [form, t],
+  );
+
+  /**
    * Creates the organization on first continue, and on later passes applies
    * any edits made after stepping back. A changed website invalidates both
    * derived artifacts, so the logo and brand guidelines are re-derived from
@@ -464,7 +476,7 @@ function CreateOrganizationWizardContent({
         });
 
         if (result.error) {
-          toast.error(result.error.message ?? t("Errors.createFailed"));
+          showCreateError(result.error.message);
           return null;
         }
 
@@ -485,7 +497,7 @@ function CreateOrganizationWizardContent({
         return { id: organizationId, url };
       } catch (error) {
         console.error("Failed to update organization", error);
-        toast.error(t("Errors.createFailed"));
+        showCreateError();
         return null;
       } finally {
         orgCreateInFlightRef.current = false;
@@ -504,16 +516,15 @@ function CreateOrganizationWizardContent({
       });
 
       if (!created.ok) {
-        const message = created.error.message ?? t("Errors.createFailed");
         if (created.error.code === CommonErrorCode.UNAUTHENTICATED) {
-          toast.error(message, {
+          toast.error(created.error.message ?? t("Errors.createFailed"), {
             action: {
               label: t("Errors.unauthorizedAction"),
               onClick: () => router.push("/signin"),
             },
           });
         } else {
-          toast.error(message);
+          showCreateError(created.error.message);
         }
         return null;
       }
@@ -526,13 +537,13 @@ function CreateOrganizationWizardContent({
       return { id: createdId, url };
     } catch (error) {
       console.error("Failed to create organization", error);
-      toast.error(t("Errors.createFailed"));
+      showCreateError();
       return null;
     } finally {
       orgCreateInFlightRef.current = false;
       setIsCreatingOrg(false);
     }
-  }, [brand, form, organizationId, router, t]);
+  }, [brand, form, organizationId, router, showCreateError, t]);
 
   const handleDetailsContinue = form.handleSubmit(async () => {
     const org = await handleCreateOrganization();
@@ -816,9 +827,10 @@ function CreateOrganizationWizardContent({
                       {/* Below the card, not <FormMessage> inside it, so the
                           card keeps its shape. Each field's error is its own
                           line, so both show at once and each field's
-                          aria-describedby names only its own error.
+                          aria-describedby names only its own error. A failed
+                          create (`root`) shares the slot, next to Continue.
                           FormControl aria-invalid still comes from field state. */}
-                      {(["name", "url"] as const).map((field) => {
+                      {(["name", "url", "root"] as const).map((field) => {
                         const message = form.formState.errors[field]?.message;
                         return message ? (
                           <FormErrorText

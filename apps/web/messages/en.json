@@ -687,7 +687,7 @@
           "emailError": "Failed to send invites"
         },
         "Errors": {
-          "createFailed": "Failed to create organization",
+          "createFailed": "Could not create the organization. Try again.",
           "unauthorizedAction": "Log in"
         }
       },
