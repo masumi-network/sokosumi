@@ -216,6 +216,18 @@ describe("site crawl ledger", () => {
     });
   });
 
+  it("passes no check when Core stored only part of the crawl's gaps", () => {
+    const crawl = cleanCrawl();
+    crawl.gaps = [{ item: "More gaps", reason: "11 more gaps" }];
+    const result = view(crawl);
+    expect(result.clear).toEqual([]);
+    expect(result.otherGaps).toEqual([]);
+    expect(row(crawl, "noindexInSitemap")).toMatchObject({
+      state: "not determined",
+      reasons: ["11 more gaps"],
+    });
+  });
+
   it("passes page groups the crawl rendered, with the caveat about other pages shown apart", () => {
     const crawl = cleanCrawl();
     const caveat = {

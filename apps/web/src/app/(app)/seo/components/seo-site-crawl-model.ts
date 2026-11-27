@@ -125,6 +125,8 @@ const GAP_CHECKS: {
       // A page that gave no response hides its links, and a sitemap URL that gave none may start a chain.
       item.endsWith(" that gave no response"),
   },
+  // Core's last gap when the crawl gave more than it stores: a dropped gap may be about any check.
+  { check: [...SEO_CRAWL_CHECKS], item: (item) => item === "More gaps" },
   { check: ["duplicateTitles"], item: (item) => item === "Duplicate titles" },
   { check: ["orphans"], item: (item) => item === "Orphan pages" },
   {
