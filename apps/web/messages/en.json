@@ -8043,6 +8043,9 @@
         "states": {
           "waiting_crawl": "Waits for crawl",
           "waiting_window": "Waits for window",
+          "ready": "Ready for verdict",
+          "waiting_retry": "Waits for more data",
+          "measured": "Measured",
           "not_measurable": "Not measurable"
         },
         "reasons": {
@@ -8050,7 +8053,8 @@
           "not_connected": "Search Console is not connected.",
           "no_property": "No Search Console property covers the page.",
           "inspection_failed": "URL Inspection failed or was refused.",
-          "not_crawled_yet": "Google has not crawled the page since the change."
+          "not_crawled_yet": "Google has not crawled the page since the change.",
+          "worker_failed": "The SEO worker gave no verdict after three claims."
         }
       },
       "CmoSpend": {

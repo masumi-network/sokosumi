@@ -19,7 +19,21 @@ export interface McpTool {
    */
   toolset?: string;
   description: string;
-  /** Deletes or overwrites data. Only meaningful for writes. */
+  /**
+   * Whether clients must confirm the call (`destructiveHint`); read it
+   * through `isDestructive`, which defaults a `DELETE` to true. True when the
+   * call takes away what a person cannot get back in Sokosumi:
+   * - deletes or erases data, or merges records away;
+   * - revokes or denies someone's access, or a pending grant;
+   * - replaces a whole document or list a person wrote (a DESIGN.md, a
+   *   brief, a catalog, a list of terms or people);
+   * - ends something for good (closes a Project, ends a Schedule);
+   * - can lead to money spent outside Sokosumi (ad campaign writes, ADR 0077).
+   *
+   * False for plain updates: changing fields or settings, renaming, moving,
+   * ordering, and anything with a way back (archive and restore, undo,
+   * pause, stop). When one tool does both, the worst case decides.
+   */
   destructive?: boolean;
   /**
    * Spends workspace credits. Annotated destructive and open-world so
@@ -31,6 +45,15 @@ export interface McpTool {
    * Annotated open-world.
    */
   openWorld?: boolean;
+}
+
+/** The one rule for `destructiveHint`: see `McpTool.destructive`. */
+export function isDestructive(tool: McpTool): boolean {
+  if (tool.operation.startsWith("GET ")) return false;
+  return (
+    Boolean(tool.spendsCredits) ||
+    (tool.destructive ?? tool.operation.startsWith("DELETE "))
+  );
 }
 
 export const MCP_TOOLS: readonly McpTool[] = [
@@ -74,12 +97,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /tasks/{id}",
     description:
       "Change a Task's name, description, assignee, priority, project or dates. Only the fields in `body` change. Use tasks_comment to change its status.",
-    destructive: true,
   },
   {
     name: "tasks_archive",
     operation: "DELETE /tasks/{id}",
     description: "Archive a Task. It leaves every list.",
+    destructive: false,
   },
   {
     name: "tasks_events",
@@ -114,6 +137,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "tasks_unlink",
     operation: "DELETE /tasks/{id}/links/{linkId}",
     description: "Remove a link between two Tasks. `linkId` from tasks_links.",
+    destructive: false,
   },
   {
     name: "tasks_move",
@@ -148,7 +172,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /tasks/view",
     description:
       "Save the Tasks page view the signed-in user sees next in a workspace: `body.query`, a URL query string without `?`.",
-    destructive: true,
   },
   {
     name: "tasks_move_overdue",
@@ -156,7 +179,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /tasks/due-dates/move-overdue",
     description:
       "Move the signed-in user's overdue open Tasks to a new due day: `body.today` and `body.to` (YYYY-MM-DD). At most 100. Keep the returned moves to undo with tasks_undo_move_overdue.",
-    destructive: true,
   },
   {
     name: "tasks_undo_move_overdue",
@@ -164,7 +186,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /tasks/due-dates/undo",
     description:
       "Undo tasks_move_overdue: `body.to` and `body.tasks` (`id`, `from`, `version`) from its result. A Task changed since keeps its day.",
-    destructive: true,
   },
   {
     name: "tasks_list_schedules",
@@ -201,7 +222,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /tasks/schedules/{id}",
     description:
       "Change a Task Schedule's name, blueprint or rule. `body.expectedRevision` from tasks_get_schedule; `body.rule` replaces the whole rule. Future Runs only.",
-    destructive: true,
   },
   {
     name: "tasks_delete_schedule",
@@ -231,6 +251,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /tasks/schedules/{id}/end",
     description:
       "End a Task Schedule for good. It stays readable with the Tasks it created.",
+    destructive: true,
   },
   {
     name: "tasks_schedule_runs",
@@ -253,14 +274,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /tasks/schedules/{id}/runs/{runId}",
     description:
       "Skip, move or restore one planned Run: `body.action` (`skip`, `move` with `body.scheduledAt`, `restore`) and `body.expectedRevision`. The rule stays.",
-    destructive: true,
   },
   {
     name: "tasks_update_link",
     operation: "PATCH /tasks/{id}/links/{linkId}",
     description:
       "Change a link's `body.relation` or `body.note`. `linkId` from tasks_links. Use tasks_move for parent and sub-task.",
-    destructive: true,
   },
   {
     name: "tasks_join",
@@ -311,7 +330,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /tasks/{id}/workspace",
     description:
       "Move a Task to another workspace: `body.organizationId`, or null for the personal workspace. Only its owner may move it.",
-    destructive: true,
   },
   {
     name: "tasks_restore",
@@ -374,14 +392,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "jobs_update",
     operation: "PATCH /jobs/{id}",
     description: "Rename a Job: `body.name`, or null to clear the custom name.",
-    destructive: true,
   },
   {
     name: "jobs_move",
     operation: "PUT /jobs/{id}/workspace",
     description:
       "Move a Job to another workspace: `body.organizationId`, or null for your personal workspace. People in the old workspace lose access. Only the Job's owner may move it; an organization owner or admin moves one without an owner.",
-    destructive: true,
   },
   {
     name: "jobs_unshare",
@@ -459,7 +475,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /coworkers/{id}",
     description:
       "Change a Coworker's name, caption, description, URLs, capabilities or metadata. Only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "coworkers_connect",
@@ -509,7 +524,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /coworkers/{id}/api-keys/{keyId}",
     description:
       "Rename a Coworker API key or change its expiry: `body.name`, `body.expiresAt` (null for none). `keyId` from coworkers_list_api_keys.",
-    destructive: true,
   },
   {
     name: "coworkers_list_access",
@@ -536,7 +550,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /vendors/{id}",
     description:
       "Change a vendor you admin: `body.name` or `body.logos`. Only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "vendors_logo_cleanup",
@@ -555,7 +568,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /vendors/{id}/members/{userId}",
     description:
       "Change a vendor member's role: `body.role` is `admin` or `developer`.",
-    destructive: true,
   },
   {
     name: "vendors_remove_member",
@@ -864,7 +876,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /users/{id}",
     description:
       "Change the signed-in user's display name (`body.name`, the name members see) and/or first and last name (`body.firstName` with `body.lastName`). Pass id `me`.",
-    destructive: true,
   },
   {
     name: "workspaces_credits",
@@ -890,7 +901,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /users/{id}/preferences",
     description:
       "Change the signed-in user's preferences. Pass id `me`; only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "users_files",
@@ -908,6 +918,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /users/{id}/coworker-access/{accessId}/deny",
     description:
       "Deny a Coworker's pending request for the personal workspace. Pass id `me` and `accessId` from users_coworker_access.",
+    destructive: true,
   },
   {
     name: "users_revoke_coworker_access",
@@ -947,7 +958,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /users/{id}/workspaces/preferred",
     description:
       "Set the workspace a new session opens. Pass id `me` and `body.workspaceId` from workspaces_list.",
-    destructive: true,
   },
   {
     name: "users_delete_workspace",
@@ -1054,6 +1064,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /organizations/{id}/coworker-access/{accessId}/deny",
     description:
       "Deny a Coworker's pending request for an organization workspace. `accessId` from organizations_coworker_access.",
+    destructive: true,
   },
   {
     name: "organizations_revoke_coworker_access",
@@ -1100,7 +1111,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /organizations/{id}/standup",
     description:
       "Turn an organization's daily agent stand-up on or off and set its time (HH:MM), weekdays and time zone. Owners and admins only.",
-    destructive: true,
   },
   // SOKD-370: categories, history, transactions and notifications.
   {
@@ -1292,7 +1302,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /projects/{id}/image-studio/assets/{assetId}/headline",
     description:
       "Set the headline an image is exported with, or `text: null` to clear it.",
-    destructive: true,
   },
   {
     name: "projects_image_studio_asset_caption",
@@ -1315,7 +1324,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /projects/{id}/social-posts/{postId}",
     description:
       "Edit a Social post. `body.revision` is the revision you last read. The post goes back to Needs approval, whatever its status was.",
-    destructive: true,
   },
   {
     name: "projects_social_post_schedule",
@@ -1586,6 +1594,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "DELETE /projects/{id}/competitors/{competitorId}",
     description:
       "Stop tracking a competitor. What the checks found about it is kept.",
+    destructive: false,
   },
   {
     name: "projects_restore_competitor",
@@ -1662,7 +1671,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /projects/{id}/newsletter",
     description:
       "Create or replace a Project's newsletter settings: `body.name`, `senderName`, `replyTo`, `brand` and `welcomeEmailEnabled`. Read them with newsletter_get first.",
-    destructive: true,
   },
   {
     name: "newsletter_analytics",
@@ -1717,7 +1725,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /projects/{id}/newsletter/issues/{issueId}",
     description:
       "Edit a DRAFT or NEEDS_APPROVAL issue. `body.revision` is its current revision. An edit returns it to DRAFT and withdraws any approval.",
-    destructive: true,
   },
   {
     name: "newsletter_delete_issue",
@@ -1735,7 +1742,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /projects/{id}/newsletter/sending-domain",
     description:
       "Set a Project's newsletter From address (`body.fromAddress`). A new domain returns the DNS records the person must publish.",
-    destructive: true,
   },
   {
     name: "newsletter_remove_sending_domain",
@@ -1766,6 +1772,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /projects/{id}/newsletter/subscribers/{subscriberId}",
     description:
       "Change a subscriber's name, or unsubscribe an active subscriber (`body.status: UNSUBSCRIBED`).",
+    destructive: true,
   },
   {
     name: "newsletter_remove_subscriber",
@@ -1828,7 +1835,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /seo/audits/{id}",
     description:
       "Archive an SEO audit and its Tasks with `body.archived: true`, or restore them with `false`.",
-    destructive: true,
   },
   {
     name: "seo_audit_chat",
@@ -2167,7 +2173,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /drive/resources/{id}/metadata",
     description:
       "Change one Drive file's category, tags and confirmed projects. Pass its current `metadataRevision` from drive_get as `body.expectedMetadataRevision`; a stale one answers 409.",
-    destructive: true,
   },
   {
     name: "drive_decide_suggestion",
@@ -2186,7 +2191,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /drive/resources/metadata-batch",
     description:
       "Add or remove tags, or set the category, on up to 100 Drive files: `body.resourceIds` or a `body.selectionToken` from drive_select, with an `idempotencyKey`. Each file succeeds or fails on its own; `outcomes` lists each.",
-    destructive: true,
   },
   {
     name: "drive_reindex",
@@ -2211,7 +2215,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /drive/resources/{id}/google-sheet/refresh",
     description:
       "Read a Drive file's Google Sheet now and rewrite the copy if it changed. A failure comes back in `error`; the copy stays as it was.",
-    destructive: true,
   },
   {
     name: "drive_tasks",
@@ -2300,7 +2303,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "drive_update_table",
     operation: "PATCH /drive/tables/{id}",
     description:
-      "Change a table's title, description, columns or archived state. Pass its current `version` and a retry `key`.",
+      "Change a table's title, description, columns or archived state; `body.removeColumnIds` deletes columns with their values. Pass its current `version` and a retry `key`.",
     destructive: true,
   },
   {
@@ -2314,7 +2317,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /drive/tables/{id}/rows",
     description:
       "Insert rows (`body.insert`) and change cells (`body.patch`) in one batch with a retry `key`. drive_undo_table reverts the batch.",
-    destructive: true,
   },
   {
     name: "drive_save_view",
@@ -2327,7 +2329,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /drive/tables/{id}/undo",
     description:
       "Undo one batch of row edits by `body.batchId`, with a retry `key`.",
-    destructive: true,
   },
   {
     name: "drive_table_history",
@@ -2395,7 +2396,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /drive/data-rooms/{id}/order",
     description:
       "Set the order of a data room's folders and files (`body.entries`), which also numbers them for viewers.",
-    destructive: true,
   },
   {
     name: "drive_set_data_room_colleagues",
@@ -2448,14 +2448,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /contacts/stage",
     description:
       "Set `body.stage` on up to 500 `body.contactIds` at once; all or none change. Keep the returned `undo` for contacts_undo_stage.",
-    destructive: true,
   },
   {
     name: "contacts_undo_stage",
     operation: "POST /contacts/stage/undo",
     description:
       "Put contacts back on their earlier stage: `body.contacts` is the `undo` contacts_set_stage returned. A contact edited since is skipped.",
-    destructive: true,
   },
   {
     name: "contacts_list_organizations",
@@ -2480,7 +2478,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /contacts/companies/{companyId}",
     description:
       "Change a company's facts. `body.version` must be the one last read. Omitted fields stay; null clears.",
-    destructive: true,
   },
   {
     name: "contacts_list_company_lists",
@@ -2498,7 +2495,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /contacts/company-lists/{listId}",
     description:
       "Rename a company list or change its color or description. Only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "contacts_delete_company_list",
@@ -2510,7 +2506,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /contacts/company-lists/{listId}/members",
     description:
       "Add `body.add` and remove `body.remove` (company ids, up to 500 each) on a company list.",
-    destructive: true,
   },
   {
     name: "contacts_breakdown",
@@ -2529,7 +2524,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /contacts/{id}",
     description:
       "Change a contact's fields. `body.version` must be the one last read (409 otherwise). Omitted fields stay; null clears.",
-    destructive: true,
   },
   {
     name: "contacts_archive",
@@ -2576,14 +2570,12 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /contacts/{id}/importance",
     description:
       "Set how much a contact matters to you, 0–100, in `body.importance`; null lets Sokosumi judge it. Teammates keep their own.",
-    destructive: true,
   },
   {
     name: "contacts_set_user",
     operation: "PUT /contacts/{id}/user",
     description:
       "Say which workspace member a contact is, in `body.userId`; null says it is no member. A member is one contact at most, so another contact linked to them lets go.",
-    destructive: true,
   },
   {
     name: "contacts_enrich",
@@ -2626,7 +2618,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "POST /contact-lists/{id}/members",
     description:
       "Add `body.add` and remove `body.remove` (contact ids, up to 500 each) on a manual contact list.",
-    destructive: true,
   },
   {
     name: "contacts_list_suggestions",
@@ -2676,6 +2667,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "chats_decline_invitation",
     operation: "POST /chats/invitations/{id}/decline",
     description: "Decline a chat-room invitation sent to your email.",
+    destructive: true,
   },
   {
     name: "chats_people",
@@ -2712,7 +2704,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /chats/rooms/starred",
     description:
       "Reorder your starred rooms: `body.roomIds` in the order you want them. Rooms you leave out keep their places.",
-    destructive: true,
   },
   {
     name: "chats_pinned",
@@ -2729,7 +2720,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /chats/rooms/{id}",
     description:
       "Change a Channel's `name`, `slug`, `topic` or `discoverability` (organization owner or admin), or a group Direct's `groupName`. Only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "chats_archive_room",
@@ -2900,8 +2890,8 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: "chats_edit_message",
     operation: "PATCH /chats/rooms/{id}/messages/{messageId}",
-    description: "Replace the text of a message you wrote with `body.content`.",
-    destructive: true,
+    description:
+      "Edit the text of a message you wrote: `body.content` is the new text.",
   },
   {
     name: "chats_delete_message",
@@ -3011,7 +3001,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PUT /chats/signals/messages/{messageId}/corrections",
     description:
       "Correct one tag on a message for every reader: `body.tag` (such as `decisionMade`) and `body.applies`.",
-    destructive: true,
   },
   {
     name: "chats_set_loop",
@@ -3054,6 +3043,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "DELETE /soko-bots/me",
     description:
       "Archive your personal Soko Bot. soko_bots_create_mine brings it back with its memory.",
+    destructive: false,
   },
   {
     name: "soko_bots_my_activity",
@@ -3133,7 +3123,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /soko-bots/me/schedules/{scheduleId}",
     description:
       "Change a schedule of your personal Soko Bot: `body.name`, `prompt`, `cronExpression`, `timezone` or `enabled`, or skip, move or restore one run with `body.run`. Only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "soko_bots_delete_my_schedule",
@@ -3150,21 +3139,18 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_rename_mine",
     operation: "PUT /soko-bots/me/name",
     description: "Rename your personal Soko Bot: `body.name`.",
-    destructive: true,
   },
   {
     name: "soko_bots_set_my_avatar",
     operation: "PUT /soko-bots/me/avatar-code",
     description:
       "Set your personal Soko Bot's avatar from its code: `body.code`.",
-    destructive: true,
   },
   {
     name: "soko_bots_set_my_version",
     operation: "PUT /soko-bots/me/version",
     description:
       "Move your personal Soko Bot to another version: `body.versionId` from soko_bots_versions.",
-    destructive: true,
   },
   {
     name: "soko_bots_set_my_proactive",
@@ -3352,7 +3338,6 @@ export const MCP_TOOLS: readonly McpTool[] = [
     operation: "PATCH /soko-bots/{sokoBotId}/schedules/{scheduleId}",
     description:
       "Change a schedule of a Soko Bot: `body.name`, `prompt`, `cronExpression`, `timezone` or `enabled`, or skip, move or restore one run with `body.run`. Only the fields in `body` change.",
-    destructive: true,
   },
   {
     name: "soko_bots_delete_schedule",
@@ -3363,20 +3348,17 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: "soko_bots_rename",
     operation: "PUT /soko-bots/{sokoBotId}/name",
     description: "Rename a Soko Bot: `body.name`.",
-    destructive: true,
   },
   {
     name: "soko_bots_set_avatar",
     operation: "PUT /soko-bots/{sokoBotId}/avatar-code",
     description: "Set a Soko Bot's avatar from its code: `body.code`.",
-    destructive: true,
   },
   {
     name: "soko_bots_set_version",
     operation: "PUT /soko-bots/{sokoBotId}/version",
     description:
       "Move a Soko Bot to another version: `body.versionId` from soko_bots_versions.",
-    destructive: true,
   },
   {
     name: "soko_bots_set_proactive",

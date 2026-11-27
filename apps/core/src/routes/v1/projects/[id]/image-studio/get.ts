@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -62,7 +63,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     // Settle anything the provider has already finished before reporting
     // state. Without this a deployment fal cannot call back would show
     // "Generating" for ever.
-    await reconcileProjectJobs(projectId);
+    // Image Studio is Mainnet only: the charge does not follow the request's Network.
+    await reconcileProjectJobs(createNetworkScope("mainnet"), projectId);
 
     const [assetPage, jobs, sessions] = await Promise.all([
       listAssets({

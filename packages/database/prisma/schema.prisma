@@ -3580,9 +3580,9 @@ model PreprodAccessChange {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
 
-  /// "user" | "organization"
+  /// "user" | "organization" | "network" (the Preprod pause)
   targetType String
-  /// User.id or Organization.id. Intentionally not a relation.
+  /// User.id, Organization.id, or "preprod". Intentionally not a relation.
   targetId   String
   /// The value the flag was switched to.
   enabled    Boolean

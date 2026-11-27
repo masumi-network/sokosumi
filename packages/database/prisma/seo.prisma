@@ -279,7 +279,7 @@ model ProjectSeoImpactVerdict {
   kind            String?
   /// The Search Console property the page was inspected in.
   property        String?
-  /// waiting_crawl | waiting_window | not_measurable
+  /// waiting_crawl | waiting_window | ready | waiting_retry | measured | not_measurable
   state           String                @default("waiting_crawl")
   /// Why the row waits or cannot be measured, as a code.
   reason          String?
@@ -287,12 +287,17 @@ model ProjectSeoImpactVerdict {
   lastInspectedAt DateTime?
   /// The first Google crawl seen after changedAt.
   crawledAt       DateTime?
+  /// The URL Google reports the page's traffic under: the page, or its www alias that Google confirmed at that crawl.
+  measuredUrl     String?
   /// The compared weeks, as Search Console (Pacific) dates.
   windowStart     DateTime?             @db.Date
   windowEnd       DateTime?             @db.Date
   attempts        Int                   @default(0)
   waits           Int                   @default(0)
   taskId          String?               @unique
+  /// The worker's current claim on a ready row, and when it ends.
+  claimId         String?               @unique @db.Uuid
+  claimedUntil    DateTime?
   input           Json?
   verdict         Json?
   verdictAt       DateTime?

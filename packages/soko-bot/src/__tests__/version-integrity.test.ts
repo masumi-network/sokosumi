@@ -26,6 +26,17 @@ describe("version integrity", () => {
     },
   );
 
+  it("names a skill a version's text points to but cannot read", () => {
+    const v36 = getSokoBotVersion("v36");
+    const pointing = {
+      ...v36,
+      systemPrompt: `${v36.systemPrompt}\nFor a launch, read_skill cmo-launch-video first.`,
+    };
+    expect(versionIntegrityProblems(pointing, everyTurn(v36))).toContain(
+      "system prompt names skill cmo-launch-video, not in this version",
+    );
+  });
+
   it("names the skill and the missing tool when a version drops one", () => {
     const v24 = getSokoBotVersion("cmo-v24");
     const tools = everyTurn(v24).filter((tool) => tool !== "read_file");

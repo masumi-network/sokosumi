@@ -8007,6 +8007,9 @@
         "states": {
           "waiting_crawl": "Wartet auf Crawl",
           "waiting_window": "Wartet auf Zeitfenster",
+          "ready": "Bereit für Urteil",
+          "waiting_retry": "Wartet auf mehr Daten",
+          "measured": "Gemessen",
           "not_measurable": "Nicht messbar"
         },
         "reasons": {
@@ -8014,7 +8017,8 @@
           "not_connected": "Search Console ist nicht verbunden.",
           "no_property": "Keine Search-Console-Property deckt die Seite ab.",
           "inspection_failed": "Die URL-Prüfung ist fehlgeschlagen oder wurde abgelehnt.",
-          "not_crawled_yet": "Google hat die Seite seit der Änderung nicht gecrawlt."
+          "not_crawled_yet": "Google hat die Seite seit der Änderung nicht gecrawlt.",
+          "worker_failed": "Der SEO-Worker hat nach drei Übernahmen kein Urteil geliefert."
         }
       },
       "CmoSpend": {
