@@ -4,6 +4,7 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { createAgentClient } from "@sokosumi/masumi";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { createAgentJobForUser } from "@/helpers/job";
+import { networkStamp } from "@/helpers/preprod-control";
 import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
@@ -241,7 +242,7 @@ export async function applyDecision(
             } else {
               await tx.sokoBotDelegation.create({
                 data: {
-                  network: DETACHED_SOKO_BOT_NETWORK,
+                  ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
                   turnId: decision.turnId,
                   toolCallId: decisionToolCallId,
                   kind: "JOB",
@@ -414,7 +415,7 @@ export async function applyDecision(
           } else {
             await tx.sokoBotDelegation.create({
               data: {
-                network: DETACHED_SOKO_BOT_NETWORK,
+                ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
                 turnId: decision.turnId,
                 toolCallId: decisionToolCallId,
                 kind: "JOB",

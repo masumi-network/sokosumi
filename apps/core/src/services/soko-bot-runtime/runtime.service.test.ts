@@ -9109,6 +9109,7 @@ describe("post_chat chain depth", () => {
       expect.objectContaining({
         data: [
           {
+            network: "mainnet",
             messageId: "msg_1",
             coworkerId: "cow_other",
             sokoBotId: null,
