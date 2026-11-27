@@ -314,7 +314,9 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     virtualFolder,
     onMoveFiles,
     dataRoomPaths,
+    emptyActions,
   }: {
+    emptyActions?: React.ReactNode;
     initialQuery?: string;
     initialFolder?: string;
     onFolderChange?: (folder: string) => void;
@@ -354,6 +356,9 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
       >
         move
       </button>
+      {/* The page's create controls, which the real panel shows only in an
+          empty catalog. */}
+      <div data-testid="drive-all-files-empty">{emptyActions}</div>
       {virtualFolder ? (
         <button
           type="button"
@@ -2635,6 +2640,55 @@ describe("one catalog, not two", () => {
     await waitFor(() => {
       expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
     });
+  });
+
+  it("empty Workspace uploads and creates folders in the folder being shown", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+    postDriveFoldersMock.mockResolvedValue({ response: { ok: true } });
+
+    const { container } = renderDrive();
+    await user.click(await screen.findByTestId("drive-all-files-apply-folder"));
+
+    const empty = screen.getByTestId("drive-all-files-empty");
+    const input = container.querySelector<HTMLInputElement>("#file-upload")!;
+    const pick = vi.spyOn(input, "click");
+    await user.click(
+      within(empty).getByRole("button", { name: "uploadButton" }),
+    );
+    expect(pick).toHaveBeenCalledOnce();
+
+    await user.click(
+      within(empty).getByRole("button", { name: "emptyNewFolder" }),
+    );
+    await user.type(screen.getByPlaceholderText("folderName"), "Q4");
+    await user.click(
+      screen.getByRole("button", { name: "createFolderDialogConfirm" }),
+    );
+    await waitFor(() => {
+      expect(postDriveFoldersMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({ folderPath: "Reports/Q4" }),
+        }),
+      );
+    });
+  });
+
+  it("closing New folder returns focus to the empty state's New folder", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+    const opener = within(
+      await screen.findByTestId("drive-all-files-empty"),
+    ).getByRole("button", { name: "emptyNewFolder" });
+    await user.click(opener);
+    await screen.findByRole("dialog", { name: "createFolderDialogTitle" });
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 
   it("follows a folder the reader navigated to rather than applied", async () => {

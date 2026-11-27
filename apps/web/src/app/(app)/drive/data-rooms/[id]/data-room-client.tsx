@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { FundraisingLink } from "@/app/fundraising/components/fundraising-link";
+import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,9 +68,28 @@ export function DataRoomClient({ roomId }: { roomId: string }) {
 
   if (query.isError)
     return (
-      <p className="text-muted-foreground p-4 text-sm" role="alert">
-        {t("loadFailed")}
-      </p>
+      <EmptyState
+        messageRole="alert"
+        icon={LockKeyhole}
+        title={t("loadFailed")}
+        description={t("loadFailedDescription")}
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild variant="outline" className="min-h-11 md:min-h-10">
+              <Link href="/drive?view=workspace">
+                <ArrowLeft aria-hidden />
+                {t("backToFiles")}
+              </Link>
+            </Button>
+            <Button
+              className="min-h-11 md:min-h-10"
+              onClick={() => void query.refetch()}
+            >
+              {t("retry")}
+            </Button>
+          </div>
+        }
+      />
     );
   if (!query.data)
     return (

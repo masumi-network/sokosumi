@@ -5,7 +5,10 @@ import {
   MAX_DOCX_IMAGES,
   MAX_DOCX_REMOTE_IMAGE_BYTES,
 } from "@/lib/utils/docx-export-budget";
-import { ExportLimitError } from "@/lib/utils/export-operation";
+import {
+  EXPORT_MAX_BYTES,
+  ExportLimitError,
+} from "@/lib/utils/export-operation";
 
 /** Hard cap on each remote image fetched during DOCX export. */
 export const MAX_DOCX_IMAGE_BYTES = 5_000_000;
@@ -21,7 +24,7 @@ export const MAX_DOCX_IMAGE_BYTES = 5_000_000;
 export const DOCX_IMAGE_FETCH_TIMEOUT_MS = 10_000;
 
 /** Hard cap on the DOCX export JSON body (markdown + optional logos). */
-export const MAX_MARKDOWN_BYTES = 1_500_000;
+export const MAX_MARKDOWN_BYTES = EXPORT_MAX_BYTES;
 
 function resolveFetchUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") {

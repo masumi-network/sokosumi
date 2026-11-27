@@ -1386,7 +1386,13 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
 
     it("fails a case whose opening packet carries another case's Task", async () => {
       const leaked = await runCase("delegated");
-      const startedAt = new Date();
+      // The cutoff comes from the leaked Task's own stored createdAt, one
+      // millisecond later, so it can never land on or before the insert.
+      const { createdAt } = await prisma.task.findUniqueOrThrow({
+        where: { id: leaked },
+        select: { createdAt: true },
+      });
+      const startedAt = new Date(createdAt.getTime() + 1);
       const { turnId, taskIds } = await openingTurn();
       expect(taskIds).toContain(leaked);
       expect(await earlierCaseTasksCheck(turnId, startedAt)).toMatchObject({
