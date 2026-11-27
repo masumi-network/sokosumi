@@ -730,11 +730,6 @@ export function packetTurnIds(packet: unknown): string[] {
     : [];
 }
 
-/** The thing a tool acts on: `update_schedule` and `create_schedule` share "schedule". */
-function toolObject(capability: string): string {
-  return capability.split("_").slice(1).join("_").replace(/s$/, "");
-}
-
 /** Reads change nothing, so a working read never makes a failed call good. */
 const READ_VERB = /^(list|get|read|search|find|count|preview|refresh)_/;
 
@@ -753,17 +748,22 @@ function callTarget(input: unknown): string {
     "tableId",
     "fileId",
     "id",
+    "filename",
+    "name",
+    "title",
+    "key",
   ]
     .map((key) => (fields[key] == null ? "" : `${key}=${String(fields[key])}`))
+    .filter(Boolean)
     .join("|");
 }
 
 /**
  * Whether `later` makes the failed `call` good: a write, in the same turn,
- * that either repeats the call on the same target (a refusal's hint
- * followed) or creates the same kind of thing (the alternative the hint
- * points to, e.g. a new schedule beside a built-in one). Another target's
- * edit, or any read, does not.
+ * that repeats the same call on the same identified item (a refusal's hint
+ * followed). Credit needs that positive evidence: another item, another
+ * kind of call, any read, or a call whose item can't be told apart does not
+ * make it good.
  */
 function makesGood(
   call: { turnId: string; capability: string; input: unknown },
@@ -777,13 +777,9 @@ function makesGood(
   if (later.turnId !== call.turnId || later.status !== "COMPLETED")
     return false;
   if (READ_VERB.test(later.capability)) return false;
-  if (later.capability === call.capability)
-    return callTarget(later.input) === callTarget(call.input);
-  return (
-    later.capability.startsWith("create_") &&
-    !READ_VERB.test(call.capability) &&
-    toolObject(later.capability) === toolObject(call.capability)
-  );
+  if (later.capability !== call.capability) return false;
+  const target = callTarget(call.input);
+  return target !== "" && callTarget(later.input) === target;
 }
 
 /**

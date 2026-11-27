@@ -175,4 +175,14 @@ console.log(
 );
 if (values["json-out"]) await writeReport(run.id, values["json-out"]);
 await prisma.$disconnect();
+// A caller may swallow the refused request (best-effort notifications do),
+// so the run itself reports it: under enforce, any attempt fails the run.
+if (guardMode === "record" || guardMode === "enforce") {
+  const { outboundAttempts } = await import("@/lib/evals/outbound-guard");
+  const hosts = [...new Set(outboundAttempts().map((attempt) => attempt.host))];
+  console.log(
+    `\nOutbound guard (${guardMode}): ${outboundAttempts().length} call(s) to non-allowed hosts${hosts.length ? `: ${hosts.join(", ")}` : ""}`,
+  );
+  if (guardMode === "enforce" && hosts.length) process.exit(3);
+}
 process.exit(0);

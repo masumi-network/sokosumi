@@ -32,23 +32,48 @@ export class EvalOutboundCallError extends Error {
 }
 
 let installed: OutboundGuardMode | null = null;
+const attempts: { host: string; via: string }[] = [];
+
+/** Every request the guard refused (enforce) or would have (record). */
+export function outboundAttempts(): readonly { host: string; via: string }[] {
+  return attempts;
+}
 
 /**
- * Our own storage, not a third party: Files and Drive uploads go to the Blob
- * store `BLOB_READ_WRITE_TOKEN` names (point it at an eval-only store).
+ * One storage exception, and only when it is configured: the eval-only
+ * Vercel Blob store named by EVAL_BLOB_STORE_ID. Its objects live on
+ * `<id>.<access>.blob.vercel-storage.com`; its API (vercel.com/api/blob)
+ * is let through only with that store's token. Any other store is refused.
  */
-const ALLOWED_SUFFIXES = [".blob.vercel-storage.com"];
+function evalBlobStoreId(): string | null {
+  return process.env.EVAL_BLOB_STORE_ID?.toLowerCase() || null;
+}
 
-export function outboundAllowed(host: string): boolean {
+function storeOfToken(authorization: string | null): string | null {
+  const token = authorization?.replace(/^Bearer\s+/i, "") ?? "";
+  // vercel_blob_rw_<storeId>_<secret>
+  return token.split("_")[3]?.toLowerCase() || null;
+}
+
+export function outboundAllowed(
+  host: string,
+  request?: { path: string; authorization: string | null },
+): boolean {
   const bare = host.replace(/^\[|\]$/g, "");
+  if (ALLOWED_HOSTS.has(bare)) return true;
+  const store = evalBlobStoreId();
+  if (!store) return false;
+  if (bare.startsWith(`${store}.`) && bare.endsWith(".blob.vercel-storage.com"))
+    return true;
   return (
-    ALLOWED_HOSTS.has(bare) ||
-    bare === "blob.vercel-storage.com" ||
-    ALLOWED_SUFFIXES.some((suffix) => bare.endsWith(suffix))
+    bare === "vercel.com" &&
+    Boolean(request?.path.startsWith("/api/blob")) &&
+    storeOfToken(request?.authorization ?? null) === store
   );
 }
 
 function note(logFile: string | undefined, host: string, via: string): void {
+  attempts.push({ host, via });
   if (!logFile) return;
   appendFileSync(
     logFile,
@@ -71,7 +96,15 @@ export function installEvalOutboundGuard(
     const url = new URL(
       typeof input === "string" || input instanceof URL ? input : input.url,
     );
-    if (!outboundAllowed(url.hostname)) {
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    if (
+      !outboundAllowed(url.hostname, {
+        path: url.pathname,
+        authorization: headers.get("authorization"),
+      })
+    ) {
       note(logFile, url.hostname, "fetch");
       if (mode === "enforce")
         return Promise.reject(new EvalOutboundCallError(url.hostname));

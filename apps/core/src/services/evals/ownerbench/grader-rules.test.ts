@@ -44,12 +44,54 @@ describe("a refusal recovered in the same turn", () => {
 
   it.each([
     [
-      "the same edit on the same schedule",
-      later("update_schedule", { scheduleId: "schedule-a" }),
+      "a new schedule beside the refused one",
+      later("create_schedule", { name: "Monday report" }),
+    ],
+  ])(
+    "is not recovered by %s (no evidence of the same work)",
+    async (_reason, call) => {
+      db.sokoBotToolCall.findMany.mockResolvedValue([failedEdit, call]);
+      expect((await failedCallsByRecovery(["turn"], {})).recovered).toEqual([]);
+    },
+  );
+
+  it.each([
+    [
+      "delete_schedule",
+      { scheduleId: "schedule-a" },
+      "create_schedule",
+      { name: "Weekly receipts" },
     ],
     [
-      "a new schedule beside a built-in one",
-      later("create_schedule", { name: "Monday report" }),
+      "upload_file",
+      { filename: "invoices.csv" },
+      "upload_file",
+      { filename: "minutes.md" },
+    ],
+    [
+      "create_social_post",
+      { text: "too long" },
+      "create_social_post",
+      { text: "short" },
+    ],
+  ])(
+    "keeps the failed %s apart from other work",
+    async (capability, input, laterCapability, laterInput) => {
+      db.sokoBotToolCall.findMany.mockResolvedValue([
+        { turnId: "turn", capability, input, status: "FAILED" },
+        later(laterCapability, laterInput),
+      ]);
+      expect(await failedCallsByRecovery(["turn"], {})).toEqual({
+        unrecovered: [capability],
+        recovered: [],
+      });
+    },
+  );
+
+  it.each([
+    [
+      "the same edit on the same schedule",
+      later("update_schedule", { scheduleId: "schedule-a" }),
     ],
   ])("is recovered by %s", async (_reason, call) => {
     db.sokoBotToolCall.findMany.mockResolvedValue([failedEdit, call]);
@@ -64,6 +106,8 @@ describe("a split daily brief", () => {
   it.each([
     ["0 8 * * *", true],
     ["0 8 * * 1", false],
+    ["0 8 1 * *", false],
+    ["0 8 * 1 *", false],
   ])(
     "counts the Coworker's part only on the asked days (%s)",
     async (expr, pass) => {

@@ -187,11 +187,17 @@ async function scheduleCheck(
     : [];
   // A Coworker's part counts only when it runs on the days the owner asked
   // for: a weekly delivery is not the daily hand-off.
-  const onTheDays = coworkerParts.filter(
-    (part) =>
-      !outcome.days ||
-      cronDays(part.expr).join() === [...outcome.days].sort().join(),
-  );
+  const onTheDays = coworkerParts.filter((part) => {
+    if (!outcome.days) return true;
+    // The whole recurrence: every day of the month and every month, on the
+    // asked weekdays. "0 8 1 * *" runs on the 1st only, not daily.
+    const [, , dayOfMonth, month] = part.expr.trim().split(/\s+/);
+    return (
+      dayOfMonth === "*" &&
+      month === "*" &&
+      cronDays(part.expr).join() === [...outcome.days].sort().join()
+    );
+  });
   const prompt = matchesAll(
     [
       latest.prompt,
