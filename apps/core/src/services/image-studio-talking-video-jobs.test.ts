@@ -156,7 +156,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import { TALKING_VIDEO_PRESENTERS } from "@/lib/image-studio/talking-video";
 import {
   createTalkingVideoJob,
@@ -167,7 +167,7 @@ import {
 } from "@/services/image-studio-jobs.service";
 
 /** The charge's Network, handed down as the entry point would. */
-const scope = { network: "mainnet" } as NetworkScope;
+const scope = { network: "mainnet" } as MainnetScope;
 
 /** 130 characters: quoted at 10 seconds. */
 const SCRIPT = `${"Stop scrolling. ".repeat(8)}ok`;

@@ -1,7 +1,7 @@
 import { type Context, Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope, NetworkScope } from "@/lib/db/network-scope";
 import { expectCoreLog } from "@/test/core-log";
 
 const {
@@ -339,6 +339,22 @@ describe("handleSyncRequest with a Network", () => {
  */
 export function _noScopeWithoutTheNetworkOption(c: Context) {
   const takesScope = (_scope: NetworkScope) => {};
+  const takesMainnet = (_scope: MainnetScope) => {};
+
+  // A cron that declares Mainnet is handed a scope known to be Mainnet's.
+  void handleSyncRequest(
+    c,
+    "lock-key",
+    async (context) => takesMainnet(context.scope),
+    { network: "mainnet" },
+  );
+  void handleSyncRequest(
+    c,
+    "lock-key",
+    // @ts-expect-error Preprod's scope is not Mainnet's
+    async (context) => takesMainnet(context.scope),
+    { network: "preprod" },
+  );
 
   void handleSyncRequest(
     c,

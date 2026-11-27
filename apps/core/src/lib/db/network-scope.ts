@@ -73,11 +73,16 @@ export interface NetworkScope {
   ): Promise<T>;
 }
 
+/** A scope the type checker knows is Mainnet's: for a Mainnet-only feature. */
+export type MainnetScope = NetworkScope & { readonly network: "mainnet" };
+
 /**
  * The only way to a Network's client. Throws for an unknown Network and for
  * Preprod while Preprod is off. Builds no client and reads nothing from the
  * client module, which most unit tests mock with a default export only.
  */
+export function createNetworkScope(network: "mainnet"): MainnetScope;
+export function createNetworkScope(network: Network): NetworkScope;
 export function createNetworkScope(network: Network): NetworkScope {
   const known = requireNetworkOn(network);
   return {

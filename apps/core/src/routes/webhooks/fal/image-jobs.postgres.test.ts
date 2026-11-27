@@ -21,7 +21,8 @@ import {
  * The expected rows were recorded from `origin/main` at `170ba780a`, before
  * the handler named the Network, by running this file against that tree.
  *
- * Only fal's key endpoint, the media download and Blob are stubbed.
+ * Only fal's key endpoint, the media download, Blob and the copy into Files
+ * are stubbed.
  */
 
 const { downloadMediaMock, putMock } = vi.hoisted(() => ({
@@ -69,27 +70,18 @@ const JWKS_URL = "https://rest.fal.ai/.well-known/jwks.json";
 const QUOTE = convertCreditsToCents(8);
 const { privateKey, publicKey } = crypto.generateKeyPairSync("ed25519");
 
-/**
- * A client on one Network's schema, for the fixture's credits and the reads.
- * On the split layout the `Transaction` history trigger reads shared tables
- * by bare name, so the fixture's own inserts get the search path it needs.
- */
-function networkClient(schema: string) {
-  const clientUrl = new URL(url ?? "");
-  if (onSplitLayout) {
-    clientUrl.searchParams.set(
-      "options",
-      `-c search_path=${schema},${testSchemaNames().DATABASE_SCHEMA_SHARED}`,
-    );
-  }
-  return createPrismaClient(clientUrl.href, { schema });
-}
-const mainnet = enabled
-  ? networkClient(testSchemaNames().DATABASE_SCHEMA_MAINNET)
-  : null;
+/** A client on one Network's schema, for the fixture's credits and the reads. */
+const mainnet =
+  enabled && url
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_MAINNET,
+      })
+    : null;
 const preprod =
-  enabled && onSplitLayout
-    ? networkClient(testSchemaNames().DATABASE_SCHEMA_PREPROD)
+  enabled && url && onSplitLayout
+    ? createPrismaClient(url, {
+        schema: testSchemaNames().DATABASE_SCHEMA_PREPROD,
+      })
     : null;
 
 let userId: string;
@@ -126,16 +118,22 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (!enabled || !mainnet) return;
-  await prisma.projectImageAsset.deleteMany({ where: { projectId } });
-  await prisma.projectImageJob.deleteMany({ where: { projectId } });
-  await prisma.project.deleteMany({ where: { id: projectId } });
-  await mainnet.creditConsumption.deleteMany({
-    where: { transaction: { userId } },
-  });
-  await mainnet.creditBucket.deleteMany({ where: { userId } });
-  await mainnet.transaction.deleteMany({ where: { userId } });
-  await prisma.workspace.deleteMany({ where: { id: workspaceId } });
-  await prisma.user.deleteMany({ where: { id: userId } });
+  // A setup that failed early leaves these unset: an undefined filter would
+  // match every row.
+  if (projectId) {
+    await prisma.projectImageAsset.deleteMany({ where: { projectId } });
+    await prisma.projectImageJob.deleteMany({ where: { projectId } });
+    await prisma.project.deleteMany({ where: { id: projectId } });
+  }
+  if (userId) {
+    await mainnet.creditConsumption.deleteMany({
+      where: { transaction: { userId } },
+    });
+    await mainnet.creditBucket.deleteMany({ where: { userId } });
+    await mainnet.transaction.deleteMany({ where: { userId } });
+    await prisma.workspace.deleteMany({ where: { id: workspaceId } });
+    await prisma.user.deleteMany({ where: { id: userId } });
+  }
   await mainnet.$disconnect();
   await preprod?.$disconnect();
 }, 30_000);
@@ -277,7 +275,7 @@ describe.skipIf(!enabled)("fal's callback on PostgreSQL", () => {
     });
   });
 
-  it("charges a finished job its quote once, on Mainnet", async () => {
+  it("charges a finished job its quote once, on Mainnet only", async () => {
     const job = await makeJob();
     const body = {
       request_id: job.falRequestId,
@@ -320,24 +318,15 @@ describe.skipIf(!enabled)("fal's callback on PostgreSQL", () => {
         },
       ],
     });
-  });
-
-  it.runIf(onSplitLayout)("never charges in Preprod", async () => {
-    const job = await makeJob();
-
-    await deliver({
-      request_id: job.falRequestId,
-      status: "OK",
-      payload: { images: [{ url: "https://v3b.fal.media/files/a.png" }] },
-    });
-
-    expect((await rows(job.id)).job.charged).toBe(true);
-    expect(await preprod!.transaction.count({ where: { userId } })).toBe(0);
-    expect(
-      await preprod!.creditConsumption.count({
-        where: { transaction: { userId } },
-      }),
-    ).toBe(0);
+    // On the split layout Preprod has its own ledger, and it stays empty.
+    if (preprod) {
+      expect(await preprod.transaction.count({ where: { userId } })).toBe(0);
+      expect(
+        await preprod.creditConsumption.count({
+          where: { transaction: { userId } },
+        }),
+      ).toBe(0);
+    }
   });
 
   it("answers an unsigned delivery 401 and changes nothing", async () => {

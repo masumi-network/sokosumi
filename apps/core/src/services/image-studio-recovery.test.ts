@@ -106,7 +106,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
@@ -119,7 +119,7 @@ import {
 import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 
 /** The charge's Network, handed down as the entry point would. */
-const scope = { network: "mainnet" } as NetworkScope;
+const scope = { network: "mainnet" } as MainnetScope;
 
 /** The default model's generate endpoint, from the catalog. */
 const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;

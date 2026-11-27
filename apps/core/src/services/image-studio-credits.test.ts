@@ -132,7 +132,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
@@ -144,7 +144,7 @@ import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import { pngBytes } from "@/test/image-bytes";
 
 /** The charge's Network, handed down as the entry point would. */
-const scope = { network: "mainnet" } as NetworkScope;
+const scope = { network: "mainnet" } as MainnetScope;
 
 const BASE_INPUT = {
   modelId: "gemini-flash",

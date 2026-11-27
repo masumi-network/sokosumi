@@ -39,7 +39,7 @@ import {
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
 import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
@@ -2448,7 +2448,7 @@ export async function sweepStalledSubmissions(
  * keyed on the job row, so concurrent callers converge on one asset.
  */
 export async function reconcileJob(
-  scope: NetworkScope,
+  scope: MainnetScope,
   jobId: string,
 ): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({ where: { id: jobId } });
@@ -2757,7 +2757,7 @@ async function noteReachable(
  */
 export async function failImageJob(
   /** The charge's Network: delivering a talking video without captions charges. */
-  scope: NetworkScope,
+  scope: MainnetScope,
   jobId: string,
   reason: ImageJobFailureReason,
   /** The provider's own words. Logged, never shown. */
@@ -2865,7 +2865,7 @@ type StudioMediaInfo = Pick<FalMedia, "width" | "height"> &
  */
 export async function settleWithMedia(
   /** The charge's Network. */
-  scope: NetworkScope,
+  scope: MainnetScope,
   jobId: string,
   sourceUrl: string,
   mediaInfo?: StudioMediaInfo,
@@ -2959,7 +2959,7 @@ function onlyEdited(talking: TalkingVideoSettings): boolean {
  * for: deliver it as its presenter model made it. True when it was handled.
  */
 async function deliverUncaptionedTalkingVideo(
-  scope: NetworkScope,
+  scope: MainnetScope,
   jobId: string,
 ): Promise<boolean> {
   const job = await prisma.projectImageJob.findUnique({
@@ -3111,7 +3111,7 @@ function loggableMediaType(contentType: string | null | undefined): string {
  * a poll arriving together produce one asset and one of them loses the insert.
  */
 async function storeMedia(
-  scope: NetworkScope,
+  scope: MainnetScope,
   jobId: string,
   sourceUrl: string,
   /**
@@ -3805,7 +3805,7 @@ export async function requestVideoShape(
  * job's shape. A source that did not deliver takes its shapes with it.
  */
 async function settleVideoShapeJob(
-  scope: NetworkScope,
+  scope: MainnetScope,
   job: {
     id: string;
     settings: Prisma.JsonValue;
@@ -3882,7 +3882,7 @@ async function settleVideoShapeJob(
  */
 async function insertAsset(input: {
   /** The Network the charge is taken on. */
-  scope: NetworkScope;
+  scope: MainnetScope;
   job: {
     id: string;
     projectId: string;
@@ -4139,7 +4139,7 @@ function isUniqueViolation(error: unknown): boolean {
  * Bounded on purpose: a handful of provider reads per page load, never a scan.
  */
 export async function reconcileProjectJobs(
-  scope: NetworkScope,
+  scope: MainnetScope,
   projectId: string,
 ): Promise<void> {
   await sweepStalledSubmissions(new Date(), { projectId });
@@ -4201,7 +4201,7 @@ const WORKSPACE_RECONCILE_PROJECTS = 5;
  * once. The cron sweep catches whatever this leaves.
  */
 export async function reconcileWorkspaceJobs(
-  scope: NetworkScope,
+  scope: MainnetScope,
   workspaceId: string,
 ): Promise<void> {
   const projects = await prisma.projectImageJob.findMany({
@@ -4225,7 +4225,7 @@ export async function reconcileWorkspaceJobs(
  * `reconcileProjectJobs` exists as well.
  */
 export async function reconcileStaleJobs(options: {
-  scope: NetworkScope;
+  scope: MainnetScope;
   olderThanMs: number;
   limit: number;
 }): Promise<{
@@ -4287,7 +4287,7 @@ export async function reconcileStaleJobs(options: {
  * we write says "we asked", and the UI says the same.
  */
 export async function requestCancel(options: {
-  scope: NetworkScope;
+  scope: MainnetScope;
   jobId: string;
   projectId: string;
   workspaceId: string;
@@ -4340,7 +4340,7 @@ export async function requestCancel(options: {
  * result coming.
  */
 async function finaliseCancellations(
-  scope: NetworkScope,
+  scope: MainnetScope,
   limit: number,
 ): Promise<number> {
   const requested = await prisma.projectImageJob.findMany({

@@ -98,7 +98,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import {
   reconcileJob,
   settleWithMedia,
@@ -106,7 +106,7 @@ import {
 import { pngBytes } from "@/test/image-bytes";
 
 /** The charge's Network, handed down as the entry point would. */
-const scope = { network: "mainnet" } as NetworkScope;
+const scope = { network: "mainnet" } as MainnetScope;
 
 function uncertainJob(overrides: Record<string, unknown> = {}) {
   return {

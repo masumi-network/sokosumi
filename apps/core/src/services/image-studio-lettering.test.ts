@@ -128,7 +128,7 @@ vi.mock("@/lib/db/transaction", () => ({
     run((await import("@/lib/db/prisma")).default),
 }));
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import {
   getImageCatalog,
   imageModel,
@@ -144,7 +144,7 @@ import {
 } from "./image-studio-jobs.service";
 
 /** The charge's Network, handed down as the entry point would. */
-const scope = { network: "mainnet" } as NetworkScope;
+const scope = { network: "mainnet" } as MainnetScope;
 
 const SETTINGS = {
   aspectRatio: "1:1",
