@@ -157,6 +157,25 @@ export const SKILL_INDEX: Readonly<Record<string, SkillIndexEntry>> = {
       "read_file",
     ],
   },
+  "cmo-core-writes-strategy": {
+    useWhen:
+      "every turn: writing the strategy, or any change the owner asks for to it, goes through write_strategy.",
+    preloadOn: ["always"],
+  },
+  "cmo-playbooks": {
+    useWhen:
+      "work outside the month's posts: a landing, pricing or comparison page, a page fix, an email sequence, cold outreach, a press pitch, a launch, an offer, a free download or a referral ask.",
+  },
+  "cmo-asks-before-strategy-change": {
+    useWhen:
+      "an owner's chat message about the strategy: do the clear parts, ask about a part left to guess, decide when they leave it to you.",
+    preloadOn: ["chat"],
+  },
+  "cmo-compact-production": {
+    useWhen:
+      "a production run: what its small context holds and how to read the rest.",
+    preloadOn: ["production"],
+  },
   "cmo-tool-highlights": {
     useWhen: "every turn: the tools for this turn and the short save tools.",
     preloadOn: ["always"],
