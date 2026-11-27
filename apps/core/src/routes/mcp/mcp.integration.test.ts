@@ -151,8 +151,8 @@ vi.mock("@/lib/sokosumi-mcp/auth", () => ({
         }
       : { status: "invalid_token" },
 }));
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
     user: { findUnique: async () => USER },
     // The hire form's twin reads the agent, then asks it for its input schema.
     // An empty agent list: the agents view test needs a successful agents_list.
@@ -163,10 +163,7 @@ vi.mock("@/lib/db/prisma", () => {
     },
     creditCost: { findMany: async () => [] },
     syncMetadata: { findUnique: async () => null },
-    // The agent list reads its page in a transaction on its scope's client.
-    $transaction: (
-      work: Promise<unknown>[] | ((tx: unknown) => Promise<unknown>),
-    ) => (typeof work === "function" ? work(client) : Promise.all(work)),
+    $transaction: (queries: Promise<unknown>[]) => Promise.all(queries),
     // An empty Task list: the board test needs a successful tasks_list.
     // No Task by id: tasks_get answers 404 (the Task detail test).
     task: {
@@ -177,9 +174,8 @@ vi.mock("@/lib/db/prisma", () => {
     // One completed Job: the Job status test needs a successful jobs_get.
     job: { findFirst: async () => JOB },
     taskEventMention: { findMany: async () => [] },
-  };
-  return { default: client, networkPrisma: () => client };
-});
+  },
+}));
 vi.mock("@sokosumi/masumi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@sokosumi/masumi")>();
   const { ok } = await import("neverthrow");

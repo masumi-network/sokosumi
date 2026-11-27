@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import prisma from "@/lib/db/prisma";
 import {
   BASE_SEPOLIA,
   createAgentRow,
@@ -46,8 +45,8 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
@@ -55,20 +54,19 @@ vi.mock("@/lib/db/prisma", () => {
     // second argument, and a mock that discarded it left the option free to
     // delete with every test still green.
     $transaction: prismaTransactionMock,
-  };
-  // The list reads its Network's rows through its scope's client.
-  return { default: client, networkPrisma: () => client };
-});
+  },
+}));
 
 describe("GET /agents?kind=x402 catalog query", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     networkState.value = "Preprod";
 
-    // One transaction on the scope's client: the callback gets the client,
-    // whose mocks stand for the transaction.
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma),
+    // Batch form: Prisma resolves the array of operations together, which is
+    // what gives the page and its count one snapshot. The mock mirrors that
+    // while recording the options argument.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
     );
     syncMetadataFindUniqueMock.mockResolvedValue(
       createReadinessRow([
@@ -276,8 +274,8 @@ describe("GET /agents?kind=x402 catalog query", () => {
     // COMMITTED a registry replay committing between them returns a FIXED
     // payment source whose amount rows are already gone, so the listing
     // advertises a price whose row no longer exists — listed but unpayable,
-    // the one invariant this route exists to hold. One REPEATABLE READ
-    // transaction gives the page and its count one snapshot.
+    // the one invariant this route exists to hold. The BATCH form gets a
+    // shared snapshot without holding a pool connection across app code.
     const app = createApp();
 
     const response = await app.request("http://localhost/?kind=x402");
@@ -285,7 +283,7 @@ describe("GET /agents?kind=x402 catalog query", () => {
     expect(response.status).toBe(200);
     // The real AGENT_PRICING_READ_TRANSACTION_OPTIONS — this file does not
     // mock @/helpers/agent — so the literal pins the shipped value.
-    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function), {
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
       isolationLevel: "RepeatableRead",
     });
     expect(agentFindManyMock).toHaveBeenCalled();

@@ -367,24 +367,22 @@ export default function mount(app: OpenAPIHono) {
       clauses.length === 1 ? clauses[0] : { OR: clauses };
 
     const takePlusOne = take + 1;
-    const [agents, count] = await scope.netTransaction(
-      async (tx) =>
-        [
-          await tx.agent.findMany({
-            where,
-            take: takePlusOne,
-            ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-            orderBy: [...agentOrderBy, { id: "desc" }],
-            include: {
-              ...agentPricingInclude,
-              ...agentCategoriesInclude,
-              ...agentMetadataOverrideScalarsInclude,
-              ...(includeX402 ? X402_PAYMENT_SOURCES_INCLUDE : {}),
-            },
-          }),
-          await tx.agent.count({ where }),
-        ] as const,
-      "The agent catalog changed while it was read; try again",
+    const [agents, count] = await scope.netBatch(
+      (db) => [
+        db.agent.findMany({
+          where,
+          take: takePlusOne,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+          orderBy: [...agentOrderBy, { id: "desc" }],
+          include: {
+            ...agentPricingInclude,
+            ...agentCategoriesInclude,
+            ...agentMetadataOverrideScalarsInclude,
+            ...(includeX402 ? X402_PAYMENT_SOURCES_INCLUDE : {}),
+          },
+        }),
+        db.agent.count({ where }),
+      ],
       AGENT_PRICING_READ_TRANSACTION_OPTIONS.isolationLevel,
     );
 

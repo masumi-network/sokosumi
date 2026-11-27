@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import prisma from "@/lib/db/prisma";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import {
   BASE_MAINNET,
@@ -55,17 +54,15 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
     userAgentRating: { groupBy: () => Promise.resolve([]) },
     $transaction: prismaTransactionMock,
-  };
-  // The list reads its Network's rows through its scope's client.
-  return { default: client, networkPrisma: () => client };
-});
+  },
+}));
 
 function seedReadiness(pairs: ReadinessPairFixture[]) {
   syncMetadataFindUniqueMock.mockResolvedValue(createReadinessRow(pairs));
@@ -75,10 +72,10 @@ describe("GET /agents?kind=x402", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // One transaction on the scope's client: the callback gets the client,
-    // whose mocks stand for the transaction.
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma),
+    // Batch form: Prisma resolves the array of operations together, which is
+    // what gives the page and its count one snapshot.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
     );
     seedReadiness([
       {

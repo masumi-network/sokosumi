@@ -3,7 +3,6 @@ import { PricingType } from "@sokosumi/database";
 import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import prisma from "@/lib/db/prisma";
 import { expectCoreLogWhys } from "@/test/core-log";
 import mountGetAgents from "./get";
 
@@ -60,8 +59,8 @@ vi.mock("@/helpers/agent-cost", () => ({
   getAgentCost: getAgentCostMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
@@ -70,10 +69,8 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: vi.fn().mockResolvedValue([]),
     },
     $transaction: prismaTransactionMock,
-  };
-  // The list reads its Network's rows through its scope's client.
-  return { default: client, networkPrisma: () => client };
-});
+  },
+}));
 
 function createApp() {
   const app = new OpenAPIHono({
@@ -97,10 +94,11 @@ describe("GET /agents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // The list reads its page in one transaction on its scope's client: the
-    // callback gets the client, whose mocks stand for the transaction.
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma),
+    // Batch form: Prisma resolves the array of operations together. The route
+    // relies on that for a shared snapshot, so the mock must mirror it rather
+    // than handing back a callback result.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
     );
     buildAvailableAgentWhereClauseMock.mockReturnValue({
       isAvailable: true,
@@ -177,16 +175,16 @@ describe("GET /agents", () => {
     agentCountMock.mockResolvedValue(1);
   });
 
-  it("reads the page in one repeatable-read snapshot on its Network", async () => {
+  it("reads the page in one snapshot without an interactive transaction", async () => {
     // Prisma loads included relations as separate statements, so at READ
     // COMMITTED a registry replay can land mid-read and return FIXED pricing
-    // whose amount rows are gone — which prices as zero. One REPEATABLE READ
-    // transaction gives the page and its count one snapshot.
+    // whose amount rows are gone — which prices as zero. The BATCH form gets
+    // one snapshot without holding a pool connection across application code.
     const app = createApp();
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function), {
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
       isolationLevel: "RepeatableRead",
     });
     expect(agentFindManyMock).toHaveBeenCalled();
