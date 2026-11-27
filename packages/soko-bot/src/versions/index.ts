@@ -13,6 +13,7 @@ import {
   type SokoBotCapability,
 } from "../policy.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
+import { ASK_POLICY_SECTION } from "./ask-policy.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
 import { cmoWritesMonthAtOnce } from "./cmo-skills.js";
 import { cmoV1 } from "./cmo-v1.js";
@@ -49,6 +50,7 @@ import {
   SOKO_BOT_SKILLS,
   type SokoBotSkill,
 } from "./skills.js";
+import { TARGET_RESOLVER_SECTION } from "./target-resolver.js";
 import type { SokoBotVersion } from "./types.js";
 import { v1 } from "./v1.js";
 import { v2 } from "./v2.js";
@@ -287,6 +289,8 @@ export function composeSystemPrompt(
   return [
     ...perBot.slice(0, 1),
     version.systemPrompt.trim(),
+    ...(version.askPolicy ? [ASK_POLICY_SECTION] : []),
+    ...(version.targetResolver ? [TARGET_RESOLVER_SECTION] : []),
     ...systemSkillsPrompt(version, turn),
     ...perBot.slice(1),
   ].join("\n\n");

@@ -305,6 +305,7 @@ export {
   sokoBotUpdateScheduleInputSchema,
   sokoBotUploadFileInputSchema,
 } from "./tool-contracts.js";
+export { ASK_POLICY_SECTION } from "./versions/ask-policy.js";
 export {
   CMO_PLAYBOOKS_SKILL,
   cmoReadsPlaybooks,
@@ -399,6 +400,7 @@ export {
   type SkillOccasion,
   splitSkillsForTurn,
 } from "./versions/skill-index.js";
+export { TARGET_RESOLVER_SECTION } from "./versions/target-resolver.js";
 export { sokoBotReadsXDms, X_DMS_SKILL_ID } from "./versions/x-dms-skills.js";
 export { sokoBotContextPacketSchema } from "./wire-contracts.js";
 export {

@@ -12,6 +12,10 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import {
+  type ResolvedTargetMetadata,
+  resolveBotScheduleTargetForWrite,
+} from "@/lib/soko-bot/target-resolver";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
 import {
   createSokoBotSchedule,
@@ -143,6 +147,7 @@ export async function dispatchSchedulesTools(
           let schedule:
             | Omit<SokoBotSchedule, "network">
             | Awaited<ReturnType<typeof deleteSokoBotSchedule>>;
+          let resolvedTarget: ResolvedTargetMetadata | undefined;
           if (input.capability === "create_schedule") {
             const {
               stopRule,
@@ -183,6 +188,19 @@ export async function dispatchSchedulesTools(
               keepCapabilities: _keepCapabilities,
               ...scheduleInput
             } = updateScheduleInputSchema.parse(input.input);
+            const target = await resolveBotScheduleTargetForWrite(
+              authorized,
+              {
+                scheduleId: scheduleInput.scheduleId,
+                scheduleName: scheduleInput.scheduleName,
+                capability: "update_schedule",
+                changesPromptOrName:
+                  scheduleInput.prompt !== undefined ||
+                  scheduleInput.name !== undefined,
+              },
+              tx,
+            );
+            resolvedTarget = target.resolvedTarget;
             const capabilityNames =
               capabilities !== undefined
                 ? resolveRequestedScheduleCapabilities(
@@ -194,6 +212,7 @@ export async function dispatchSchedulesTools(
               {
                 ...scope,
                 ...scheduleInput,
+                ...(target.scheduleId ? { scheduleId: target.scheduleId } : {}),
                 ...(capabilityNames !== undefined
                   ? { capabilityNames, explicitCapabilities: true }
                   : {}),
@@ -218,16 +237,34 @@ export async function dispatchSchedulesTools(
             const { network: _network, ...updated } = row;
             schedule = updated;
           } else {
+            const deleteRef = scheduleIdInputSchema.parse(input.input);
+            const target = await resolveBotScheduleTargetForWrite(
+              authorized,
+              {
+                scheduleId: deleteRef.scheduleId,
+                scheduleName: deleteRef.scheduleName,
+                capability: "delete_schedule",
+              },
+              tx,
+            );
+            resolvedTarget = target.resolvedTarget;
             schedule = await deleteSokoBotSchedule(
               scope.userId,
-              { ...scope, ...scheduleIdInputSchema.parse(input.input) },
+              {
+                ...scope,
+                ...deleteRef,
+                ...(target.scheduleId ? { scheduleId: target.scheduleId } : {}),
+              },
               tx,
             );
           }
-          const result =
+          const baseResult =
             input.capability === "delete_schedule"
               ? { ...schedule, deleted: true }
               : schedule;
+          const result = resolvedTarget
+            ? { ...baseResult, resolvedTarget }
+            : baseResult;
           await commitActionReceipt(tx, {
             turnId: authorized.turn.id,
             toolCallId: input.toolCallId,

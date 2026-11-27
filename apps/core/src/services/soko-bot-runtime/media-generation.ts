@@ -11,6 +11,7 @@ import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { DEFAULT_TALKING_VIDEO_VOICE } from "@/lib/image-studio/talking-video";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { resolveProjectTargetForWrite } from "@/lib/soko-bot/target-resolver";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import {
   cmoStylePrompt,
@@ -91,6 +92,13 @@ export async function imageReferenceFiles(
   return ids;
 }
 
+function rawProjectId(raw: unknown): string | undefined {
+  if (!raw || typeof raw !== "object" || !("projectId" in raw))
+    return undefined;
+  const value = (raw as { projectId?: unknown }).projectId;
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
 /** Starts an image in a Project's Content Studio, once checked. */
 export async function generateImage(
   runtime: RuntimeOperations,
@@ -98,6 +106,11 @@ export async function generateImage(
   raw: unknown,
   toolCallId: string,
 ) {
+  const projectTarget = await resolveProjectTargetForWrite(authorized, {
+    projectId: rawProjectId(raw),
+    mode: "studio_media",
+    capability: "generate_image",
+  });
   // Checked again here, after the reservation: a price or access change
   // since the preflight still refuses before anything is sent.
   const { input, model, settings, credits, referenceFileIds, style } =
@@ -167,6 +180,9 @@ export async function generateImage(
     model: model.id,
     credits,
     studioUrl: studioLink(input.projectId),
+    ...(projectTarget.resolvedTarget
+      ? { resolvedTarget: projectTarget.resolvedTarget }
+      : {}),
     note:
       job.status === "SUBMISSION_UNCERTAIN"
         ? uncertain
@@ -294,6 +310,11 @@ export async function generateVideo(
   raw: unknown,
   toolCallId: string,
 ) {
+  const projectTarget = await resolveProjectTargetForWrite(authorized, {
+    projectId: rawProjectId(raw),
+    mode: "studio_media",
+    capability: "generate_video",
+  });
   const { input, model, settings, credits, sourceAssetId } = await runtime
     .checkVideoRequest(authorized, raw, toolCallId)
     .catch((error: unknown) => {
@@ -326,6 +347,9 @@ export async function generateVideo(
     credits,
     durationSeconds: settings.durationSeconds,
     studioUrl: studioLink(input.projectId),
+    ...(projectTarget.resolvedTarget
+      ? { resolvedTarget: projectTarget.resolvedTarget }
+      : {}),
     note:
       job.status === "SUBMISSION_UNCERTAIN"
         ? "The provider did not confirm this request. Do not start it again; tell the owner."
@@ -340,6 +364,11 @@ export async function generateTalkingVideo(
   raw: unknown,
   toolCallId: string,
 ) {
+  const projectTarget = await resolveProjectTargetForWrite(authorized, {
+    projectId: rawProjectId(raw),
+    mode: "studio_media",
+    capability: "generate_talking_video",
+  });
   const { input, model, credits } = await runtime
     .checkTalkingVideoRequest(authorized, raw, toolCallId)
     .catch((error: unknown) => {
@@ -383,6 +412,9 @@ export async function generateTalkingVideo(
     status: job.status,
     credits,
     studioUrl: studioLink(input.projectId),
+    ...(projectTarget.resolvedTarget
+      ? { resolvedTarget: projectTarget.resolvedTarget }
+      : {}),
     note:
       job.status === "SUBMISSION_UNCERTAIN"
         ? "The provider did not confirm this request. Do not start it again; tell the owner."

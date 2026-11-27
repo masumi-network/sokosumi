@@ -1,4 +1,5 @@
 import {
+  getSokoBotVersion,
   sokoBotAskCoworkerInputSchema,
   sokoBotListRecipientsInputSchema,
   sokoBotOpenDirectChatInputSchema,
@@ -7,11 +8,14 @@ import {
   sokoBotReadChatInputSchema,
   sokoBotSendMessageInputSchema,
 } from "@sokosumi/soko-bot";
+import { validateAskPolicyProjectSelection } from "@/lib/soko-bot/ask-policy-candidates";
+
 import { resolveChatResultReference } from "@/services/chat-result-preview.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeAuthorizationError,
+  SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf } from "./acting-scope";
 import { listRecipients, sendMessage } from "./chat-message";
@@ -67,6 +71,24 @@ export async function dispatchChatTools(
         throw new SokoBotRuntimeAuthorizationError(
           "Result previews are prepared for the owner's requests",
         );
+      }
+      if (
+        reference.kind === "project_selection" &&
+        authorized.turn.source === "CHAT" &&
+        authorized.turn.chainDepth === 0 &&
+        (() => {
+          const version = getSokoBotVersion(authorized.turn.versionId);
+          return Boolean(version.askPolicy || version.targetResolver);
+        })()
+      ) {
+        const refusal = await validateAskPolicyProjectSelection({
+          workspaceId: authorized.turn.workspaceId,
+          botProjectId: authorized.turn.botProjectId ?? null,
+          projectIds: reference.projectIds,
+        });
+        if (refusal) {
+          throw new SokoBotRuntimeValidationError(refusal);
+        }
       }
       return resolveChatResultReference({
         reference,

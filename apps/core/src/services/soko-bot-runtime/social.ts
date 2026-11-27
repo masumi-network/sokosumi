@@ -29,6 +29,13 @@ import {
 } from "@/lib/soko-bot/owner-authority";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import {
+  buildSocialAccountsTargetResolution,
+  buildSocialPostsTargetResolution,
+  isTargetResolverEnabled,
+  type ResolvedTargetMetadata,
+  resolveSocialPostTargetForWrite,
+} from "@/lib/soko-bot/target-resolver";
+import {
   BEARER_USER_SELECT,
   isActiveUser,
 } from "@/middleware/auth-active-user";
@@ -421,6 +428,15 @@ export async function executeSocialTool(
       const enabledProviders = socialProvidersForWorkspace(
         socialProviderWorkspaceForProject(project),
       );
+      const targetResolution = isTargetResolverEnabled(
+        authorized.turn.versionId,
+      )
+        ? await buildSocialAccountsTargetResolution(
+            authorized,
+            params.projectId,
+            accounts,
+          )
+        : undefined;
       return {
         enabledProviders,
         // Read before drafting: how a good post reads on each network.
@@ -459,6 +475,7 @@ export async function executeSocialTool(
               ),
             };
           }),
+        ...(targetResolution !== undefined ? { targetResolution } : {}),
       };
     }
     case "get_posting_instructions": {
@@ -482,9 +499,36 @@ export async function executeSocialTool(
       );
       await runtime.requireSocialAccess(authorized);
       const result = await listSocialPosts({ ...params, workspaceId });
+      const parsedPosts = result.posts.map((post) =>
+        socialPostSchema.parse(post),
+      );
+      const pagination = result.pagination as
+        | {
+            cursor?: string | null;
+            nextCursor?: string | null;
+            total?: number;
+            hasMore?: boolean;
+          }
+        | undefined;
+      const hasMore = Boolean(
+        pagination?.nextCursor ||
+          pagination?.hasMore ||
+          (typeof pagination?.total === "number" &&
+            pagination.total > parsedPosts.length),
+      );
+      const hasCursor = Boolean(params.cursor || pagination?.cursor);
       return {
         ...result,
-        posts: result.posts.map((post) => socialPostSchema.parse(post)),
+        posts: parsedPosts,
+        ...(isTargetResolverEnabled(authorized.turn.versionId)
+          ? {
+              targetResolution: buildSocialPostsTargetResolution(
+                params.projectId,
+                parsedPosts,
+                { hasMore, hasCursor },
+              ),
+            }
+          : {}),
       };
     }
     case "list_social_post_statistics": {
@@ -561,11 +605,19 @@ export async function executeSocialTool(
         input.input,
       );
       await runtime.requireSocialAccess(authorized);
+      const postTarget = await resolveSocialPostTargetForWrite(authorized, {
+        projectId: params.projectId,
+        postId: params.postId,
+        capability: "publish_social_post",
+      });
       // The external-effect reservation fences retries before the provider call.
       // The publisher owns revision checks, claiming, and delivery reconciliation.
-      return socialPostSchema.parse(
+      const published = socialPostSchema.parse(
         await publishSocialPostNow({ ...params, workspaceId, userId }),
       );
+      return postTarget.resolvedTarget
+        ? { ...published, resolvedTarget: postTarget.resolvedTarget }
+        : published;
     }
     case "update_social_posts":
       return updateSocialPosts(runtime, input, authorized, batchDeadline);
@@ -585,13 +637,53 @@ export async function executeSocialTool(
           postId: params.postId,
         });
       }
-      const { answersQuestionId, answeringTurnId } =
+      let resolvedTarget: ResolvedTargetMetadata | undefined;
+      let existingPostConnectionId: string | null | undefined;
+      if (
+        input.capability === "update_social_post" ||
+        input.capability === "schedule_social_post" ||
+        input.capability === "cancel_social_post"
+      ) {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(
+          input.input,
+        );
+        const postTarget = await resolveSocialPostTargetForWrite(authorized, {
+          projectId: params.projectId,
+          postId: params.postId,
+          capability: input.capability,
+        });
+        resolvedTarget = postTarget.resolvedTarget;
+        existingPostConnectionId = postTarget.existingSocialConnectionId;
+      }
+      const socialDest: Awaited<
+        ReturnType<typeof requireChosenSocialDestination>
+      > =
         input.capability === "create_social_post"
           ? await requireChosenSocialDestination(
               authorized,
               SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.parse(input.input),
             )
-          : {};
+          : input.capability === "update_social_post" &&
+              isTargetResolverEnabled(authorized.turn.versionId)
+            ? await (async () => {
+                const params =
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
+                    input.input,
+                  );
+                return params.socialConnectionId &&
+                  params.socialConnectionId !== existingPostConnectionId
+                  ? requireChosenSocialDestination(authorized, {
+                      projectId: params.projectId,
+                      socialConnectionId: params.socialConnectionId,
+                    })
+                  : {};
+              })()
+            : {};
+      const { answersQuestionId, answeringTurnId, resolvedSocialConnectionId } =
+        socialDest;
+      if (socialDest.resolvedTarget) {
+        resolvedTarget = socialDest.resolvedTarget;
+      }
       // Resolved before the transaction: it reads the blob store, and a
       // serializable transaction should not wait on the network.
       let { media, threadParts } =
@@ -648,6 +740,11 @@ export async function executeSocialTool(
         const workspace = await runtime.requireSocialAccess(authorized);
         const prepared = await prepareSocialPostMutationMedia({
           ...params,
+          ...(input.capability === "create_social_post" &&
+          resolvedSocialConnectionId &&
+          !("socialConnectionId" in params && params.socialConnectionId)
+            ? { socialConnectionId: resolvedSocialConnectionId }
+            : {}),
           workspaceId,
           userId,
           organizationId: workspace.organizationId,
@@ -687,6 +784,9 @@ export async function executeSocialTool(
                 const created = await createSocialPost(
                   {
                     ...params,
+                    ...(resolvedSocialConnectionId && !params.socialConnectionId
+                      ? { socialConnectionId: resolvedSocialConnectionId }
+                      : {}),
                     ...scope,
                     media,
                     threadParts,
@@ -771,7 +871,10 @@ export async function executeSocialTool(
                 );
             }
           })();
-          const result = socialPostSchema.parse(post);
+          const parsedPost = socialPostSchema.parse(post);
+          const result = resolvedTarget
+            ? { ...parsedPost, resolvedTarget }
+            : parsedPost;
           await commitActionReceipt(tx, {
             turnId: authorized.turn.id,
             toolCallId: input.toolCallId,

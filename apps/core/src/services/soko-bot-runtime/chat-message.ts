@@ -8,6 +8,7 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import { createOrGetCoworkerQuestionRoom } from "@/lib/soko-bot/coworker-question-room";
 import { directChatNeedle } from "@/lib/soko-bot/direct-chat-target";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import { resolveProjectTargetForWrite } from "@/lib/soko-bot/target-resolver";
 import { resolveMentionedSokoBotIds } from "@/routes/v1/chats/rooms/helpers";
 import {
   type AuthorizedSokoBotRuntime,
@@ -548,7 +549,18 @@ export async function sendMessage(
       `You have sent ${describe(recipient)} ${sent.toThem} messages in this conversation. Stop and report what you have and what is still open.`,
     );
   const toThem = sent.toThem + 1;
-  const { message, handoff } = await composeHandoff(authorized, input);
+  const projectTarget = await resolveProjectTargetForWrite(authorized, {
+    projectId: input.projectId,
+    mode: "optional",
+    capability: "send_message",
+  });
+  const effectiveInput =
+    projectTarget.projectId !== undefined &&
+    projectTarget.projectId !== null &&
+    projectTarget.projectId !== input.projectId
+      ? { ...input, projectId: projectTarget.projectId }
+      : input;
+  const { message, handoff } = await composeHandoff(authorized, effectiveInput);
   const origin = await prisma.sokoBotTurn.findUnique({
     where: { id: conversation[0] },
     select: { userMessage: true },
