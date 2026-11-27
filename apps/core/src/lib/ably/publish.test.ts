@@ -163,6 +163,7 @@ describe("publishNotificationEvent", () => {
     isRead: false,
     readAt: null,
     createdAt: "2026-06-17T12:00:00.000Z",
+    network: null,
     inApp: true,
     osBanner: false,
     created: true,
@@ -402,6 +403,34 @@ describe("publishNotificationEvent", () => {
     expect(pushData?.messageParams).toBe(
       JSON.stringify(notification.messageParams),
     );
+  });
+
+  it("names the Network in the push data of a row that has one", async () => {
+    const tagged = { ...notification, network: "preprod" as const };
+    await publishNotificationEvent({
+      userId: "user_123",
+      notification: tagged,
+      push: true,
+    });
+
+    expect(publishMock).toHaveBeenCalledWith({
+      name: "notification_created",
+      data: tagged,
+      extras: {
+        push: {
+          data: {
+            id: notification.id,
+            kind: notification.kind,
+            referenceId: notification.referenceId,
+            messageKey: notification.messageKey,
+            createdAt: notification.createdAt,
+            messageParams: JSON.stringify(notification.messageParams),
+            metadata: JSON.stringify(notification.metadata),
+            network: "preprod",
+          },
+        },
+      },
+    });
   });
 });
 

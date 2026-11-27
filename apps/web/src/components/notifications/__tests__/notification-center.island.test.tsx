@@ -230,6 +230,7 @@ function row(
     isRead: true,
     readAt: new Date("2026-06-18T09:30:00.000Z"),
     createdAt: new Date("2026-06-18T09:00:00.000Z"),
+    network: null,
     ...overrides,
   };
 }

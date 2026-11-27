@@ -28,6 +28,7 @@ import {
   dispatchNotificationEmail,
   EMAILED_NOTIFICATION_COLUMNS,
 } from "@/helpers/notification-email-dispatch";
+import { notificationNetwork } from "@/helpers/notification-item";
 import {
   notificationPublishFields,
   scheduleNotificationPublish,
@@ -362,6 +363,7 @@ export async function publishNotificationRow(
         isRead: notification.isRead,
         readAt: notification.readAt?.toISOString() ?? null,
         createdAt: notification.createdAt.toISOString(),
+        network: notificationNetwork(notification),
         inApp: notification.inApp,
         osBanner: delivery.osBanner,
         created,

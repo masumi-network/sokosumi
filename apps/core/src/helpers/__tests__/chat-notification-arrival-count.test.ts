@@ -32,9 +32,9 @@ vi.mock("@/helpers/notification-publish-queue", async (importOriginal) => ({
 vi.mock("@/lib/db/prisma", () => {
   type NotificationData = Omit<
     Notification,
-    "id" | "isRead" | "readAt" | "createdAt"
+    "id" | "isRead" | "readAt" | "createdAt" | "network"
   > &
-    Partial<Pick<Notification, "isRead" | "readAt">>;
+    Partial<Pick<Notification, "isRead" | "readAt" | "network">>;
   function insert(data: NotificationData) {
     const row = {
       ...data,
@@ -42,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => {
       isRead: data.isRead ?? false,
       readAt: data.readAt ?? null,
       createdAt: new Date(),
+      network: data.network ?? null,
     };
     rows.push(row);
     return row;
