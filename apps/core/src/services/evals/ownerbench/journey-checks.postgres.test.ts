@@ -34,6 +34,7 @@ import {
   isolationFailed,
   journeyTokens,
   journeyTurns,
+  journeyWorkToStop,
   organizerFailures,
   packetTaskIds,
   routingFailures,
@@ -946,10 +947,66 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     const oldWatch = await turn("cmo-v23", "watch", previousRun.id);
     const oldWatchSameVersion = await turn("cmo-v27", "watch", previousRun.id);
     const ownWatch = await turn("cmo-v27", "watch", owner.id);
+    // Delegation wakes are parentless EVENT turns linked by followUpTurnId:
+    // one answers the previous run's hand-over, one this journey's. Both are
+    // still running when the step times out.
+    const oldDelegationWake = await turn("cmo-v27", "foreign-event");
+    const ownDelegationWake = await turn("cmo-v27", "current-event");
+    await prisma.sokoBotTurn.updateMany({
+      where: { id: { in: [oldDelegationWake.id, ownDelegationWake.id] } },
+      data: { source: "EVENT", status: "RUNNING" },
+    });
+    await prisma.sokoBotDelegation.createMany({
+      data: [
+        {
+          turnId: previousRun.id,
+          toolCallId: `earlier-${randomUUID()}`,
+          kind: "TASK",
+          action: "create_task",
+          followUpTurnId: oldDelegationWake.id,
+        },
+        {
+          turnId: owner.id,
+          toolCallId: `current-${randomUUID()}`,
+          kind: "TASK",
+          action: "create_task",
+          followUpTurnId: ownDelegationWake.id,
+        },
+      ],
+    });
+    const watch = (turnId: string) =>
+      prisma.sokoBotWatch.create({
+        data: {
+          sokoBotId: botId,
+          turnId,
+          kind: "chat_reply",
+          targetId: randomUUID(),
+          then: "fixture",
+          expiresAt: new Date(Date.now() + 3_600_000),
+        },
+        select: { id: true },
+      });
+    const foreignWatch = await watch(previousRun.id);
+    const ownWaiting = await watch(owner.id);
     const own = await journeyTurns(botId, stepStartedAt, journeyStartedAt);
-    expect(own.map((entry) => entry.id)).toEqual([owner.id, ownWatch.id]);
+    expect(own.map((entry) => entry.id)).toEqual([
+      owner.id,
+      ownWatch.id,
+      ownDelegationWake.id,
+    ]);
     expect(own.map((entry) => entry.id)).not.toContain(oldWatch.id);
     expect(own.map((entry) => entry.id)).not.toContain(oldWatchSameVersion.id);
+    expect(own.map((entry) => entry.id)).not.toContain(oldDelegationWake.id);
+    // A timeout stops only this journey's work: the foreign wake is neither
+    // cancelled nor its watch expired.
+    expect(
+      await journeyWorkToStop(botId, stepStartedAt, journeyStartedAt),
+    ).toEqual({ turnIds: [ownDelegationWake.id], watchIds: [ownWaiting.id] });
+    expect(foreignWatch.id).not.toBe(ownWaiting.id);
+    await prisma.sokoBotWatch.deleteMany({ where: { sokoBotId: botId } });
+    await prisma.sokoBotDelegation.deleteMany({
+      where: { turnId: { in: [previousRun.id, owner.id] } },
+    });
     await prisma.sokoBotTurn.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBot.deleteMany({ where: { id: botId } });
   });

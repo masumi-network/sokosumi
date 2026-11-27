@@ -14,6 +14,7 @@ import { localChatGptPlanEnabled } from "@/lib/local-chatgpt-plan";
 import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
+import { resolveRequestId } from "@/lib/soko-bot/request-chain";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
@@ -401,29 +402,57 @@ export async function journeyTurns(
   for (const turn of turns) {
     if (bot?.versionId && turn.versionId && turn.versionId !== bot.versionId)
       continue;
-    if (await chainStartedBefore(turn.parentTurnId, journeyStartedAt)) continue;
+    if (await requestStartedBefore(turn.id, journeyStartedAt)) continue;
     own.push(turn);
   }
   return own;
 }
 
-/** Whether a turn's chain of parents reaches a turn from before `start`. */
-async function chainStartedBefore(
-  parentId: string | null,
+/**
+ * Whether the owner request a turn belongs to started before `start`, by
+ * Core's own request ancestry: a background run or watch wake belongs to the
+ * turn that started it, a Coworker or Agent follow-up wake to the turn that
+ * handed the work over (a parentless EVENT turn linked by followUpTurnId).
+ */
+async function requestStartedBefore(
+  turnId: string,
   start: Date,
 ): Promise<boolean> {
-  const seen = new Set<string>();
-  for (let id = parentId; id && !seen.has(id); ) {
-    seen.add(id);
-    const parent = await prisma.sokoBotTurn.findUnique({
-      where: { id },
-      select: { createdAt: true, parentTurnId: true },
-    });
-    if (!parent) return false;
-    if (parent.createdAt < start) return true;
-    id = parent.parentTurnId;
-  }
-  return false;
+  const root = await resolveRequestId(turnId);
+  if (root === turnId) return false;
+  const request = await prisma.sokoBotTurn.findUnique({
+    where: { id: root },
+    select: { createdAt: true },
+  });
+  return !!request && request.createdAt < start;
+}
+
+/**
+ * What a timed-out step stops: this journey's turns still running in the
+ * step, and the watches its turns still wait on. Another request's turn or
+ * watch on the same bot is left alone.
+ */
+export async function journeyWorkToStop(
+  botId: string,
+  since: Date,
+  journeyStartedAt: Date,
+): Promise<{ turnIds: string[]; watchIds: string[] }> {
+  const step = await journeyTurns(botId, since, journeyStartedAt);
+  const journey = await journeyTurns(botId, journeyStartedAt, journeyStartedAt);
+  const watches = await prisma.sokoBotWatch.findMany({
+    where: {
+      sokoBotId: botId,
+      status: "WAITING",
+      turnId: { in: journey.map((turn) => turn.id) },
+    },
+    select: { id: true },
+  });
+  return {
+    turnIds: step
+      .filter((turn) => ACTIVE.includes(turn.status))
+      .map((turn) => turn.id),
+    watchIds: watches.map((watch) => watch.id),
+  };
 }
 
 async function stepTurnIds(
@@ -473,6 +502,7 @@ async function stepSettled(
       where: {
         sokoBotId: botId,
         status: "WAITING",
+        turnId: { in: own.map((turn) => turn.id) },
         kind: { in: ["chat_reply", "app_connected"] },
         expiresAt: { gt: now },
       },
@@ -1023,23 +1053,20 @@ export async function pollJourney(
     )
       return { kind: "waiting" };
     if (timedOut) {
-      const open = await prisma.sokoBotTurn.findMany({
-        where: {
-          sokoBotId: botId,
-          createdAt: { gte: since },
-          status: { in: ACTIVE },
-        },
-        select: { id: true },
-      });
+      const work = await journeyWorkToStop(
+        botId,
+        since,
+        new Date(state.journeyStartedAt),
+      );
       await Promise.all(
-        open.map((turn) =>
+        work.turnIds.map((turnId) =>
           sokoBotControlPlane
-            .cancelTurn(lane.userId, turn.id)
+            .cancelTurn(lane.userId, turnId)
             .catch(() => undefined),
         ),
       );
       await prisma.sokoBotWatch.updateMany({
-        where: { sokoBotId: botId, status: "WAITING" },
+        where: { id: { in: work.watchIds } },
         data: { expiresAt: now },
       });
     }
