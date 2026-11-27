@@ -268,8 +268,11 @@ export async function unknownPersonRefusal(
     await directory(runtime, authorized, searchWords(person)),
     person,
   ).filter((recipient) => recipient.kind !== "person");
-  if (notPeople.length > 0)
-    return `"${person}" is ${notPeople.map(describe).join(", or ")}, not a member of this organization. ${reachInstead(
+  // With two candidates, any tool would pick one of them for the owner.
+  if (notPeople.length > 1)
+    return `"${person}" is not a member of this organization; it could be ${notPeople.map(describe).join(", or ")}. Ask the owner which one they mean.`;
+  if (notPeople.length === 1)
+    return `"${person}" is ${describe(notPeople[0]!)}, not a member of this organization. ${reachInstead(
       notPeople[0]!.kind,
       authorized.grant.capabilities,
     )}`;

@@ -162,6 +162,25 @@ describe("unknownPersonRefusal", () => {
     ).toMatch(/Tell the owner you would reach it there\.$/);
   });
 
+  it("asks which recipient was meant when a Coworker and an assistant share a name", async () => {
+    db.sokoBot.findMany.mockResolvedValueOnce([
+      {
+        id: "bot-two",
+        name: "Mira",
+        userId: "hannah",
+        user: { name: "Hannah Weber" },
+      },
+    ]);
+    const refusal = await unknownPersonRefusal(
+      runtime as never,
+      withTools(["open_direct_chat", "ask_coworker", "post_chat"]),
+      "Mira",
+    );
+    expect(refusal).toBe(
+      '"Mira" is not a member of this organization; it could be Mira (Coworker), or Mira (Hannah Weber\'s assistant). Ask the owner which one they mean.',
+    );
+  });
+
   it("sends a Coworker, an assistant or a room to send_message", async () => {
     const refuse = (person: string) =>
       unknownPersonRefusal(
