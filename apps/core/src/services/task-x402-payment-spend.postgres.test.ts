@@ -839,6 +839,7 @@ async function observe(
     named(a) < named(b) ? -1 : named(a) > named(b) ? 1 : 0;
   left.tasks.sort((a, b) => byName(a.id, b.id));
   left.events.sort((a, b) => byName(a.taskId, b.taskId));
+  const sent = statements(log, { asSent: true });
   // Before `plain` turns ids and times into names: a debit's rows are UUID v7,
   // and a debit is one instant, its update time and each consumption's
   // creation time equal its creation time.
@@ -856,12 +857,30 @@ async function observe(
     expect(times.map((time) => time.getTime())).toEqual(
       times.map(() => debit.createdAt.getTime()),
     );
+    // The history reader names a spend's Project by its first consumption
+    // (lowest createdAt, then id): in the request that wrote the debit, that
+    // order is the order the buckets were chosen in, as the write bound them.
+    const write = sent.transactions
+      .flat()
+      .find(
+        ({ sql, values }) =>
+          sql.includes("credit_consumption") && values[1] === debit.id,
+      );
+    if (write) {
+      expect(
+        [...consumptions]
+          .sort(
+            (a, b) =>
+              a.createdAt.getTime() - b.createdAt.getTime() ||
+              (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+          )
+          .map((consumption) => consumption.bucketId),
+      ).toEqual(write.values[4]);
+    }
     // The receipts are written after the debit, in the same transaction: its
     // charge event, then the payment row, each no earlier than the one before.
-    // shortcut: on origin/main the debit reads its own clock and its
-    // consumption ids are independent UUID v7s, so only this order holds; the
-    // shared writer's fix (`mrosberghaus/c2-writer-order`) tightens it to one
-    // shared time and consumption ids in allocation order.
+    // Not one instant: the Task writer returns only the debit's id, so they
+    // keep their own clock, not `spend`'s `createdAt`.
     const receipts = [
       ...left.events.filter((event) => event.transactionId === debit.id),
       ...left.payments.filter((payment) => payment.transactionId === debit.id),
@@ -871,7 +890,6 @@ async function observe(
     );
     expect(receiptTimes).toEqual([...receiptTimes].sort((a, b) => a - b));
   }
-  const sent = statements(log, { asSent: true });
   // Made plain one by one and sorted: work beside the request can interleave.
   const outsideTransactions = sent.outsideTransactions
     .map((statement) => plain(statement, world.labels))
