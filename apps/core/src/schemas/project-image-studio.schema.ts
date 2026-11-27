@@ -279,6 +279,12 @@ export const imageStudioJobSchema = z
     talkingVideo: imageStudioTalkingVideoSchema.optional(),
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
+    brandReferenceCount: z
+      .number()
+      .int()
+      .min(0)
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     referenceFileIds: z.array(z.string().uuid()).optional(),
     exportHeadline: studioHeadlineTextSchema.optional(),
     useProductCutout: z.boolean().optional(),
@@ -363,6 +369,12 @@ export const createImageJobRequestSchema = z
     lettering: z.enum(["overlay", "ideogram"]).optional(),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
+    brandReferenceCount: z
+      .number()
+      .int()
+      .min(0)
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     referenceFileIds: z
       .array(z.string().uuid())
       .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
@@ -873,6 +885,7 @@ export const recordImageStudioInitialTurnSchema = z.object({
 
 export const createAgentImageJobSchema = createImageJobRequestSchema
   .omit({
+    brandReferenceCount: true,
     exportHeadline: true,
     useProductCutout: true,
     letterExistingBackdrop: true,
@@ -880,6 +893,10 @@ export const createAgentImageJobSchema = createImageJobRequestSchema
   .extend({
     route: imageStudioRouteSchema.optional(),
     experimentArm: studioRouterArmSchema.optional(),
+    brandAssetIds: z
+      .array(z.uuid())
+      .max(LIMITS.IMAGE_STUDIO_MAX_REFERENCES_PER_JOB)
+      .optional(),
     catalogProductId: z.string().uuid().optional(),
     modelId: z
       .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])

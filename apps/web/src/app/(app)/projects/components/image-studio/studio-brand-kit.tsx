@@ -5,6 +5,7 @@ import type {
   StudioLogoPosition,
   StudioWebsiteCopy,
   StudioWebsiteVisual,
+  UpdateStudioBrandAssets,
 } from "@sokosumi/core-client";
 import {
   ENTITY_IMAGE_MAX_SIZE_BYTES,
@@ -40,10 +41,11 @@ import {
   saveStudioBrandLook,
   saveStudioLogoPosition,
   saveStudioWebsiteLogo,
+  updateStudioBrandAssets,
   uploadStudioProjectLogo,
 } from "@/lib/actions/image-studio/brand-kit";
-
 import { StudioLogoPositionSelect } from "./studio-logo-position-select";
+import { StudioProductPhotoControl } from "./studio-product-photo";
 import {
   STUDIO_TOOLBAR_LABEL_CLASS,
   StudioToolbarTip,
@@ -106,12 +108,18 @@ export function StudioBrandKitDialog({
   const [message, setMessage] = useState<
     "saved" | "loadError" | "saveError" | "conflict" | null
   >(null);
+  const [assetUploading, setAssetUploading] = useState(false);
+  const [assetPending, startAssetTransition] = useTransition();
+  const [failedAssetChange, setFailedAssetChange] =
+    useState<UpdateStudioBrandAssets | null>(null);
   const [brandPending, startTransition] = useTransition();
   const [logoPending, startLogoTransition] = useTransition();
   const [websiteLogoPending, startWebsiteLogoTransition] = useTransition();
   const [websitePending, startWebsiteTransition] = useTransition();
   const [lookPending, startLookTransition] = useTransition();
   const pending =
+    assetUploading ||
+    assetPending ||
     brandPending ||
     logoPending ||
     websiteLogoPending ||
@@ -227,6 +235,18 @@ export function StudioBrandKitDialog({
         : current.fonts
       ).join("\n"),
       websiteColors: websiteVisual.colors,
+    });
+  }
+
+  function updateAssets(change: UpdateStudioBrandAssets) {
+    startAssetTransition(async () => {
+      setFailedAssetChange(null);
+      try {
+        const assets = await updateStudioBrandAssets({ projectId, change });
+        setKit((current) => current && { ...current, assets });
+      } catch {
+        setFailedAssetChange(change);
+      }
     });
   }
 
@@ -628,6 +648,68 @@ export function StudioBrandKitDialog({
                     {t(`BrandKit.${logoMessage}`)}
                   </p>
                 ) : null}
+                <section
+                  className="space-y-2"
+                  aria-label={t("BrandKit.assets")}
+                >
+                  <h3 className="text-sm font-medium">
+                    {t("BrandKit.assets")}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    {t("BrandKit.assetHint")}
+                  </p>
+                  {kit.assets?.length ? (
+                    <ul className="space-y-1">
+                      {kit.assets.map((asset) => (
+                        <li
+                          key={asset.id}
+                          className="flex min-w-0 items-center justify-between gap-2"
+                        >
+                          <span className="truncate text-sm" title={asset.name}>
+                            {asset.name}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            aria-label={t("BrandKit.removeAsset", {
+                              name: asset.name,
+                            })}
+                            onClick={() => updateAssets({ remove: asset.id })}
+                          >
+                            {t("BrandKit.removeImage")}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {(kit.assets?.length ?? 0) < 20 && (
+                    <StudioProductPhotoControl
+                      photo={null}
+                      uploading={assetUploading}
+                      onUploadingChange={setAssetUploading}
+                      addLabel={t("BrandKit.addAsset")}
+                      onPhotoChange={(photo) => {
+                        if (photo) updateAssets({ add: photo });
+                      }}
+                    />
+                  )}
+                  {failedAssetChange && (
+                    <div className="flex items-center gap-2">
+                      <span role="status" className="text-sm">
+                        {t("BrandKit.assetError")}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateAssets(failedAssetChange)}
+                      >
+                        {t("BrandKit.retryAsset")}
+                      </Button>
+                    </div>
+                  )}
+                </section>
                 {swatches.length ? (
                   <ul
                     aria-hidden={lookDraft ? true : undefined}
