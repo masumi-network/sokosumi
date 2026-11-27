@@ -20,10 +20,7 @@ import {
   EXPORT_MAX_BYTES,
   ExportLimitError,
 } from "@/lib/utils/export-operation";
-import {
-  sanitizeMarkdown,
-  sanitizeRenderedMarkdown,
-} from "@/lib/utils/sanitizeMarkdown";
+import { markdownToSafeHtml } from "@/lib/utils/sanitizeMarkdown";
 
 interface DownloadButtonProps {
   markdown: string;
@@ -45,13 +42,7 @@ const EXPORT_STYLES = {
 
 /** The document the PDF export prints. Exported for its test. */
 export async function markdownToExportHtml(markdownContent: string) {
-  const { marked } = await import("marked");
-  const sanitized = sanitizeMarkdown(markdownContent);
-  // The pass above reads the markdown, and `marked` can read a fence
-  // differently than it did. This one reads what `marked` wrote.
-  const html = sanitizeRenderedMarkdown(
-    marked.parse(sanitized, { async: false }),
-  );
+  const html = await markdownToSafeHtml(markdownContent);
 
   return `
       <div style="${EXPORT_STYLES.container}">

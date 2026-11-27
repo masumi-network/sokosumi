@@ -450,6 +450,7 @@
           "download": "Download",
           "copy": "Copy",
           "copySuccess": "Result copied to clipboard",
+          "copyFormattedSuccess": "Result copied with formatting",
           "copyError": "Failed to copy result",
           "maximize": "Maximize",
           "expand": "Expand",
