@@ -38,6 +38,14 @@ describe("routeSteering prompt replacement (E1)", () => {
     expect(steeredPrompt).toContain("# How you work");
     expect(steeredPrompt).toContain("# Truth");
     expect(steeredPrompt).toContain("# Turns nobody asked for");
+    // Explicitly asks for missing time and account/audience target on publish/schedule/spend.
+    expect(steeredPrompt).toContain("when (date, time, or time zone)");
+    expect(steeredPrompt).toContain(
+      "which account, recipient, or audience (target)",
+    );
+    expect(steeredPrompt).toContain(
+      "publishes, schedules, sends externally, or spends credits",
+    );
   });
 
   it("applies cleanly to Cuso versions and keeps speaker authority explicit", () => {
