@@ -15,6 +15,7 @@ import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import { searchFiles } from "@/services/file-search.service";
 import {
   clearEarlierCaseArtifacts,
+  closeLaneImageJobs,
   type DeleteBlobs,
   type EvalLaneRecord,
   PENDING_BLOB_PREFIX,
@@ -227,6 +228,38 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       const check = await outcomeCheck(outcome, context);
       expect(check.label, outcome.kind).toBe(outcome.label);
     }
+  });
+
+  it("starts a journey with no earlier case's unfinished image job filling the project's limit", async () => {
+    const job = (status: "QUEUED" | "RUNNING" | "SUCCEEDED") =>
+      prisma.projectImageJob.create({
+        data: {
+          projectId,
+          workspaceId,
+          requestedByUserId: userId,
+          kind: "GENERATE",
+          model: "fixture",
+          prompt: "an earlier case's banner",
+          settings: {},
+          status,
+          idempotencyKey: randomUUID(),
+        },
+        select: { id: true },
+      });
+    const stuck = [await job("QUEUED"), await job("RUNNING")];
+    const done = await job("SUCCEEDED");
+    expect(await closeLaneImageJobs(workspaceId)).toBeGreaterThanOrEqual(2);
+    const after = await prisma.projectImageJob.findMany({
+      where: { id: { in: [...stuck, done].map((row) => row.id) } },
+      select: { id: true, status: true },
+    });
+    expect(
+      after.filter((row) => row.status === "CANCELED").map((row) => row.id),
+    ).toEqual(expect.arrayContaining(stuck.map((row) => row.id)));
+    expect(after.find((row) => row.id === done.id)?.status).toBe("SUCCEEDED");
+    await prisma.projectImageJob.deleteMany({
+      where: { id: { in: [...stuck, done].map((row) => row.id) } },
+    });
   });
 
   it("counts made images from Files and studio jobs, failed ones aside", async () => {
@@ -1031,6 +1064,33 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         {},
       ),
     ).toBe(true);
+    // Once the foreign watch is due, the step still settles and nothing
+    // dispatches it: the sync only reads this journey's own waits.
+    await prisma.sokoBotWatch.update({
+      where: { id: foreignWatch.id },
+      data: { expiresAt: new Date(0) },
+    });
+    const { sokoBotControlPlane, SokoBotBusyError } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    const start = vi
+      .spyOn(sokoBotControlPlane, "startTurn")
+      .mockRejectedValue(new SokoBotBusyError("fixture"));
+    try {
+      expect(
+        await stepSettled(
+          botId,
+          stepStartedAt,
+          journeyStartedAt,
+          new Date(),
+          null,
+          {},
+        ),
+      ).toBe(true);
+      expect(start).not.toHaveBeenCalled();
+    } finally {
+      start.mockRestore();
+    }
     await prisma.sokoBotWatch.deleteMany({ where: { sokoBotId: botId } });
     await prisma.sokoBotDelegation.deleteMany({
       where: { turnId: { in: [previousRun.id, owner.id] } },

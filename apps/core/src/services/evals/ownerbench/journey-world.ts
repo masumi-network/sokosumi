@@ -13,6 +13,7 @@ import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   forgetEvalWorkspaces,
 } from "@/lib/evals/eval-guard";
+import { EVAL_AGENT_BASE_URL } from "@/lib/evals/fake-agent";
 import { EVAL_COWORKER } from "@/lib/evals/fake-coworker";
 import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { writeOwnerDriveFile } from "@/services/image-studio-drive.service";
@@ -787,7 +788,7 @@ export async function seedAgent(
     name: agent.name,
     description: agent.description,
     summary: agent.description,
-    apiBaseUrl: "https://agent.evals.invalid",
+    apiBaseUrl: EVAL_AGENT_BASE_URL,
     isShown: true,
     status: "ONLINE" as const,
   };

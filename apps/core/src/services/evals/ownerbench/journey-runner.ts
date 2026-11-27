@@ -15,6 +15,7 @@ import { planJevMode, planJevStandInDuring } from "@/lib/plan-jev";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { effectiveSokoBotRuntimeAdapter } from "@/lib/soko-bot/factory";
 import { resolveRequestId } from "@/lib/soko-bot/request-chain";
+import { reconcileWorkspaceJobs } from "@/services/image-studio-jobs.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   SOKO_EVENTS_SYNC_KEY,
@@ -34,6 +35,7 @@ import type {
 import { prepareCmoChatCase } from "../eval-cmo-runner";
 import {
   clearEarlierCaseArtifacts,
+  closeLaneImageJobs,
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
@@ -359,12 +361,16 @@ async function deliverCoworkerAnswer(
 }
 
 /** The events cron's scan, for this bot only; a busy bot is woken on a later poll. */
-async function wakeOnDelegatedWork(botId: string): Promise<void> {
+async function wakeOnDelegatedWork(
+  botId: string,
+  turnIds: readonly string[],
+): Promise<void> {
   await whileUnpaused(botId, () =>
     sokoBotEventsSyncService.syncDelegatedWork({
       abortSignal: new AbortController().signal,
       shouldContinue: () => true,
       sokoBotId: botId,
+      turnIds,
     }),
   );
 }
@@ -478,8 +484,14 @@ export async function stepSettled(
   awaits: "wake" | "schedule" | null,
   memo: JourneyState["memo"],
 ): Promise<boolean> {
+  // Only this journey's own work is synced: another request's watch or
+  // hand-over is never claimed or dispatched inside it.
+  const journeyTurnIds = async () =>
+    (await journeyTurns(botId, journeyStartedAt, journeyStartedAt)).map(
+      (turn) => turn.id,
+    );
   if (awaits === "wake") {
-    await wakeOnDelegatedWork(botId);
+    await wakeOnDelegatedWork(botId, await journeyTurnIds());
     const own = await journeyTurns(botId, since, journeyStartedAt);
     if (!own.some((turn) => turn.source === "EVENT")) return false;
   }
@@ -511,16 +523,17 @@ export async function stepSettled(
   const sync = await syncSokoBotWatches({
     shouldContinue: () => true,
     sokoBotId: botId,
+    turnIds: await journeyTurnIds(),
   });
   if (sync.fired > 0 || sync.deferred > 0) return false;
-  // Only a watch this journey's own turns wait on holds the step open.
-  const journey = await journeyTurns(botId, journeyStartedAt, journeyStartedAt);
+  // Only a watch this journey's own turns wait on holds the step open,
+  // counted after dispatch.
   const waiting = await prisma.sokoBotWatch.count({
     where: {
       sokoBotId: botId,
       status: "WAITING",
       createdAt: { gte: since },
-      turnId: { in: journey.map((turn) => turn.id) },
+      turnId: { in: await journeyTurnIds() },
     },
   });
   return waiting === 0;
@@ -932,6 +945,8 @@ export async function startJourney(
   await prisma.sokoBotWatch.deleteMany({
     where: { sokoBotId: botId, status: "WAITING" },
   });
+  // An earlier case's uncollected image job would fill the project's limit.
+  await closeLaneImageJobs(lane.workspaceId);
   // A journey's schedule runs and Coworker wakes are turns nobody started:
   // the owner's daily cap (20) would defer them once earlier journeys used
   // it up, as prepareEvalLane already avoids for Cuso.
@@ -1037,6 +1052,9 @@ export async function pollJourney(
   const now = await databaseNow();
   if (!current.finishedAt) {
     const since = new Date(current.startedAt);
+    // Nothing collects a lane's image jobs locally (no webhook or cron):
+    // settle them each tick, as a watched project's page does.
+    await reconcileWorkspaceJobs(lane.workspaceId).catch(() => undefined);
     const timedOut =
       now.getTime() - since.getTime() > (journey.stepMinutes ?? 20) * 60_000;
     const kind = journey.steps[current.index]?.kind;

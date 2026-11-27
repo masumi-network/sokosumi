@@ -477,6 +477,29 @@ export async function seedEvalXDms(
   });
 }
 
+/** Image job states that still count toward a project's concurrent-job limit. */
+const UNFINISHED_IMAGE_JOBS = [
+  "PENDING",
+  "SUBMITTING",
+  "QUEUED",
+  "RUNNING",
+  "SUBMISSION_UNCERTAIN",
+] as const;
+
+/**
+ * Ends every image job in the lane that never finished. An earlier case's
+ * job nobody collected stays QUEUED and counts toward a project's limit of
+ * concurrent jobs, so the next case's generate_image is refused before it
+ * starts. Returns how many it closed.
+ */
+export async function closeLaneImageJobs(workspaceId: string): Promise<number> {
+  const { count } = await prisma.projectImageJob.updateMany({
+    where: { workspaceId, status: { in: [...UNFINISHED_IMAGE_JOBS] } },
+    data: { status: "CANCELED" },
+  });
+  return count;
+}
+
 /**
  * What earlier benchmark cases made in the lane, known by who made it, not
  * by its title: Tasks and Task Schedules (with their Runs) a bot created, the

@@ -599,6 +599,8 @@ const OPERATION = "soko_bot_watches_sync";
 export async function syncSokoBotWatches(input: {
   shouldContinue: () => boolean;
   sokoBotId?: string;
+  /** Only waits these turns set: the owner benchmark passes a journey's own. */
+  turnIds?: readonly string[];
 }): Promise<SokoBotWatchesSyncResult> {
   const result: SokoBotWatchesSyncResult = {
     checked: 0,
@@ -610,6 +612,7 @@ export async function syncSokoBotWatches(input: {
     where: {
       status: "WAITING",
       ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
+      ...(input.turnIds ? { turnId: { in: [...input.turnIds] } } : {}),
     },
     orderBy: { createdAt: "asc" },
     take: BATCH,

@@ -112,6 +112,12 @@ export interface SokoBotEventsSyncInput {
    * cursor where it is. The owner benchmark wakes its fixture bot this way.
    */
   sokoBotId?: string;
+  /**
+   * Scan only delegations these turns made. The owner benchmark passes its
+   * journey's own turns, so another request's hand-over never wakes the bot
+   * inside a journey.
+   */
+  turnIds?: readonly string[];
 }
 
 export interface SokoBotEventsSyncResult {
@@ -549,6 +555,7 @@ export class SokoBotEventsSyncService {
       prisma.sokoBotDelegation.findMany({
         where: {
           ...(cursor ? { id: { gt: cursor } } : {}),
+          ...(input.turnIds ? { turnId: { in: [...input.turnIds] } } : {}),
           OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
           ...INVOLVING_DELEGATION,
           // Unattended work the bot starts itself honours the owner's pause,
