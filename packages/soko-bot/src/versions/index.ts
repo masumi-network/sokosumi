@@ -40,6 +40,11 @@ import { cmoV24 } from "./cmo-v24.js";
 import { cmoV25 } from "./cmo-v25.js";
 import { cmoWritesStrategyStep } from "./cmo-v25-skills.js";
 import {
+  applyE1Skill,
+  applyE1SystemPrompt,
+  E1_SKILL_USE_WHEN_OVERRIDES,
+} from "./e1-prompts.js";
+import {
   skillIndexSection,
   splitSkillsForTurn,
   turnSkillsSection,
@@ -242,6 +247,14 @@ export function sokoBotIdentity(
     : "You are Soko Bot, the owner's autonomous Sokosumi project manager. Your operating instructions arrive each turn as the versioned OPERATING INSTRUCTIONS block; follow them exactly.";
 }
 
+/** Resolves a skill by id with any version-flagged text transforms applied. */
+export function getSokoBotSkillForVersion(
+  id: string,
+  version: Pick<SokoBotVersion, "e1Prompts">,
+): SokoBotSkill {
+  return applyE1Skill(getSokoBotSkill(id), version);
+}
+
 /**
  * The skills in the system prompt: every one in full, or for a version that
  * loads skills on demand, the every-turn ones and the index. That prompt is
@@ -253,15 +266,18 @@ function systemSkillsPrompt(
 ): string[] {
   if (!version.skillsOnDemand)
     return cmoTurnSkills(version.skills, turn?.clientTurnId).map((id) =>
-      getSokoBotSkill(id).content.trim(),
+      getSokoBotSkillForVersion(id, version).content.trim(),
     );
   const { always, indexed } = splitSkillsForTurn(version, []);
   const index = skillIndexSection(
-    indexed.map(getSokoBotSkill),
+    indexed.map((id) => getSokoBotSkillForVersion(id, version)),
     version.profile === "cmo",
+    version.e1Prompts ? E1_SKILL_USE_WHEN_OVERRIDES : undefined,
   );
   return [
-    ...always.map((id) => getSokoBotSkill(id).content.trim()),
+    ...always.map((id) =>
+      getSokoBotSkillForVersion(id, version).content.trim(),
+    ),
     ...(index ? [index] : []),
   ];
 }
@@ -286,7 +302,7 @@ export function composeSystemPrompt(
   const perBot = version.skillsOnDemand ? [] : personaPrompt(version, persona);
   return [
     ...perBot.slice(0, 1),
-    version.systemPrompt.trim(),
+    applyE1SystemPrompt(version.systemPrompt, version),
     ...systemSkillsPrompt(version, turn),
     ...perBot.slice(1),
   ].join("\n\n");
@@ -319,7 +335,9 @@ export function composeTurnPreamble(
   if (!version.skillsOnDemand) return "";
   const { forTurn } = splitSkillsForTurn(version, turn?.occasions ?? []);
   return [
-    turnSkillsSection(forTurn.map(getSokoBotSkill)),
+    turnSkillsSection(
+      forTurn.map((id) => getSokoBotSkillForVersion(id, version)),
+    ),
     ...personaPrompt(version, persona),
   ]
     .filter(Boolean)

@@ -1,4 +1,5 @@
 import { SOKO_BOT_CAPABILITIES, type SokoBotCapability } from "../policy.js";
+import { applyE1Skill } from "./e1-prompts.js";
 import { SKILL_INDEX, type SkillOccasion } from "./skill-index.js";
 import { SOKO_BOT_SKILLS } from "./skills.js";
 import type { SokoBotVersion } from "./types.js";
@@ -53,6 +54,7 @@ function missingTools(
   skills: readonly string[],
   tools: ReadonlySet<string>,
   scanNames: boolean,
+  version: Pick<SokoBotVersion, "e1Prompts">,
 ): string[] {
   const problems: string[] = [];
   for (const id of skills) {
@@ -60,7 +62,8 @@ function missingTools(
       if (!tools.has(tool))
         problems.push(`${label}: ${id} requires ${tool}, not offered`);
     if (!scanNames) continue;
-    const content = SOKO_BOT_SKILLS.find((skill) => skill.id === id)?.content;
+    const raw = SOKO_BOT_SKILLS.find((skill) => skill.id === id);
+    const content = raw ? applyE1Skill(raw, version).content : undefined;
     for (const tool of namedTools(content ?? ""))
       if (!tools.has(tool) && !(tool in NAMED_WITHOUT_OFFER))
         problems.push(`${label}: ${id} names ${tool}, not offered`);
@@ -102,6 +105,7 @@ export function versionIntegrityProblems(
       version.skills,
       new Set(everyTurnTools),
       onDemand,
+      version,
     ),
   );
   const applied = profiles.filter((each) => each.appliesTo(version));
@@ -114,6 +118,7 @@ export function versionIntegrityProblems(
           version.skills,
           new Set(profile.tools),
           false,
+          version,
         ),
       );
     return problems;
@@ -135,6 +140,7 @@ export function versionIntegrityProblems(
         carriedOn(version, profile.occasion),
         new Set(profile.tools),
         true,
+        version,
       ),
     );
   return problems;

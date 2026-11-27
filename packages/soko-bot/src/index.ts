@@ -371,6 +371,13 @@ export {
   cmoPostsVideoShapes,
 } from "./versions/cmo-video-shapes-skill.js";
 export {
+  applyE1Skill,
+  applyE1SystemPrompt,
+  E1_CUSO_CHANGE_SCOPE_SECTION,
+  E1_FINISHING_SECTION,
+  E1_SKILL_USE_WHEN_OVERRIDES,
+} from "./versions/e1-prompts.js";
+export {
   applyVersionCapabilities,
   CMO_SOKO_BOT_VERSION_ID,
   CMO_SOKO_BOT_VERSION_IDS,
@@ -378,6 +385,7 @@ export {
   composeSystemPrompt,
   composeTurnPreamble,
   DEFAULT_SOKO_BOT_VERSION_ID,
+  getSokoBotSkillForVersion,
   getSokoBotVersion,
   SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SKILLS,

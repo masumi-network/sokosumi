@@ -1,4 +1,5 @@
 import {
+  getSokoBotSkillForVersion,
   renderWritingSkill,
   SOKO_BOT_SKILLS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
@@ -56,9 +57,11 @@ export async function readSkill(
   const { skill: id } = SOKO_BOT_TOOL_INPUT_SCHEMAS.read_skill.parse(input);
   const version = await resolveSokoBotVersion(authorized.turn.versionId);
   if (version.skills.includes(id)) {
-    const skill = SOKO_BOT_SKILLS.find((candidate) => candidate.id === id);
-    if (skill)
+    const exists = SOKO_BOT_SKILLS.some((candidate) => candidate.id === id);
+    if (exists) {
+      const skill = getSokoBotSkillForVersion(id, version);
       return { skill: skill.id, name: skill.name, content: skill.content };
+    }
   }
   const writing = version.profile === "cmo" ? readWritingSkill(id) : null;
   if (writing) return writing;
