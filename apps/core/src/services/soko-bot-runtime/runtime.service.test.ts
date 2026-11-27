@@ -3258,7 +3258,6 @@ describe("SokoBotRuntimeService authorization", () => {
       {
         scheduleId: "01960001-0001-7001-8001-0000000000cc",
         prompt: "New",
-        keepCapabilities: true,
       },
     ],
   ] as const)(
@@ -3302,6 +3301,11 @@ describe("SokoBotRuntimeService authorization", () => {
           }),
           expect.anything(),
         );
+        if (capability === "update_schedule") {
+          const [updateInput] = spy.mock.calls[0] ?? [];
+          expect(updateInput).not.toHaveProperty("capabilityNames");
+          expect(updateInput).not.toHaveProperty("explicitCapabilities");
+        }
       } finally {
         spy.mockRestore();
       }

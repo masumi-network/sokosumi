@@ -2476,27 +2476,26 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
       expect(bgFirstRun?.capabilities).toContain("read_table");
       expect(bgFirstRun?.capabilities).not.toContain("write_table_rows");
 
-      // Background run cannot replace a read-only schedule's prompt without declaring
-      // capabilities or keepCapabilities: true, and cannot add write_table_rows.
-      await expect(
-        sokoBotRuntimeService.executeTool({
-          sessionId: ownerSessionId,
-          turnId: bgBroadTurn.id,
-          capability: "update_schedule",
-          toolCallId: `bg-edit-undeclared-${randomUUID()}`,
-          input: {
-            scheduleId: bgReadSchedule.id,
-            prompt: "Update the pipeline table rows.",
-          },
-        }),
-      ).rejects.toThrow(/capabilities|keepCapabilities/);
+      // A prompt-only edit keeps the schedule's existing tools: the new prompt
+      // asks for writes, but write_table_rows is never added.
+      const undeclared = (await sokoBotRuntimeService.executeTool({
+        sessionId: ownerSessionId,
+        turnId: bgBroadTurn.id,
+        capability: "update_schedule",
+        toolCallId: `bg-edit-undeclared-${randomUUID()}`,
+        input: {
+          scheduleId: bgReadSchedule.id,
+          prompt: "Update the pipeline table rows.",
+        },
+      })) as { capabilityNames?: string[] };
+      expect(undeclared.capabilityNames).toEqual(["read_table"]);
       expect(
         await prisma.sokoBotSchedule.findUniqueOrThrow({
           where: { id: bgReadSchedule.id },
           select: { prompt: true, capabilityNames: true },
         }),
       ).toEqual({
-        prompt: "Check the pipeline table and report anomalies.",
+        prompt: "Update the pipeline table rows.",
         capabilityNames: ["read_table"],
       });
 

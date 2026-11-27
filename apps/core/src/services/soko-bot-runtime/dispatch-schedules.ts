@@ -180,18 +180,9 @@ export async function dispatchSchedulesTools(
               stopRule,
               allowScheduledPosts,
               capabilities,
-              keepCapabilities,
+              keepCapabilities: _keepCapabilities,
               ...scheduleInput
             } = updateScheduleInputSchema.parse(input.input);
-            if (
-              scheduleInput.prompt !== undefined &&
-              capabilities === undefined &&
-              keepCapabilities !== true
-            ) {
-              throw new SokoBotRuntimeValidationError(
-                "Replacing a schedule's prompt requires declaring the tools the updated job needs in capabilities (bounded by your current tools), or passing keepCapabilities: true if it only uses the schedule's existing tools.",
-              );
-            }
             const capabilityNames =
               capabilities !== undefined
                 ? resolveRequestedScheduleCapabilities(
