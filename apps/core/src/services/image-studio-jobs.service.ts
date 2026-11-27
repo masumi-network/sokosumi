@@ -2417,12 +2417,17 @@ async function submitPreparedJob(
  * reason the row is stuck is that we do not know whether the first attempt
  * reached fal. The row stays, and it keeps counting against the hourly window,
  * because it may represent money.
+ *
+ * A read sweeps only the Project it reads: one workspace's page load must not
+ * touch another's jobs. Only the maintenance cron sweeps every Project.
  */
 export async function sweepStalledSubmissions(
   now: Date = new Date(),
+  scope?: { projectId: string },
 ): Promise<number> {
   const result = await prisma.projectImageJob.updateMany({
     where: {
+      ...(scope ? { projectId: scope.projectId } : {}),
       status: ProjectImageJobStatus.SUBMITTING,
       submitLeaseAt: { lt: new Date(now.getTime() - SUBMIT_LEASE_MS) },
     },
@@ -4110,7 +4115,7 @@ function isUniqueViolation(error: unknown): boolean {
  * Bounded on purpose: a handful of provider reads per page load, never a scan.
  */
 export async function reconcileProjectJobs(projectId: string): Promise<void> {
-  await sweepStalledSubmissions();
+  await sweepStalledSubmissions(new Date(), { projectId });
   // Deployments without a reachable webhook settle here, so this is also where
   // a reservation stranded by a crashed request gets picked back up.
   await recoverUnclaimedReservations({ projectId }).catch((error) => {
