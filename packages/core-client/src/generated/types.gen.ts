@@ -36587,7 +36587,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         };
     };
     /**
-     * Mention is not failed
+     * Mention is not failed or its Network is stale
      */
     409: {
         error: string;
@@ -36605,6 +36605,21 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
      * Internal Server Error
      */
     500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod is paused or unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;

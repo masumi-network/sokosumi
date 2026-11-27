@@ -1,5 +1,7 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { v7 as uuidv7 } from "uuid";
 
 import { serviceUnavailable } from "@/helpers/error";
@@ -46,6 +48,23 @@ export type PreprodControl =
 
 type KnownPreprodControl = Exclude<PreprodControl, { state: "unavailable" }>;
 
+const controlLog = new AsyncLocalStorage<{ reported: boolean }>();
+
+/** Share the unavailable log across a batch while keeping its reads fresh. */
+export function reportPreprodControlUnavailableOnce<T>(work: () => T): T {
+  return controlLog.run({ reported: false }, work);
+}
+
+function reportUnavailable(error: unknown): void {
+  const log = controlLog.getStore();
+  if (log?.reported) return;
+  if (log) log.reported = true;
+  recordCoreError(
+    { operation: "read_preprod_control" },
+    { ...UNREADABLE, cause: error },
+  );
+}
+
 /** One statement for both rows. Throws on a failed read or an invalid value. */
 async function readControl(db: DbClient): Promise<KnownPreprodControl> {
   return controlOf(
@@ -87,10 +106,7 @@ export async function readPreprodControl(
   try {
     return await readControl(db);
   } catch (error) {
-    recordCoreError(
-      { operation: "read_preprod_control" },
-      { ...UNREADABLE, cause: error },
-    );
+    reportUnavailable(error);
     return { state: "unavailable" };
   }
 }
@@ -139,19 +155,20 @@ export async function networkStamp(
     control = controlOf([...pause, ...generation]);
   } catch (error) {
     if (isPrismaTransactionConflict(error)) throw error;
-    recordCoreError(
-      { operation: "read_preprod_control" },
-      { ...UNREADABLE, cause: error },
-    );
+    reportUnavailable(error);
     // Recorded above; a planned refusal is no Sentry Issue.
     throw serviceUnavailable(
       "Preprod's state could not be read; try again later",
-      { reportToSentry: false },
+      {
+        kind: CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+        reportToSentry: false,
+      },
     );
   }
   if (control.state !== "open") {
     // An operator's pause: planned, so no Sentry Issue.
     throw serviceUnavailable("Preprod is paused; try again later", {
+      kind: CORE_API_ERROR_KINDS.PREPROD_PAUSED,
       reportToSentry: false,
     });
   }

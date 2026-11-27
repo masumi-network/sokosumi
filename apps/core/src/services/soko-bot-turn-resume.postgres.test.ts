@@ -291,11 +291,14 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     const { turn, sessionId } = await seed(null);
     await expect(
       runtime.authorize({ turnId: turn.id, sessionId }),
-    ).rejects.toThrow("Unknown Network: null");
-    expect(await loadTurn(turn.id)).toEqual(turn);
+    ).rejects.toMatchObject({ status: 409, kind: "soko_bot_network_stale" });
+    expect(await loadTurn(turn.id)).toMatchObject({
+      status: "FAILED",
+      errorKind: "soko_bot_network_stale",
+    });
   });
 
-  it("skips an untagged stalled turn and reconciles the next turn", async () => {
+  it("retires an untagged stalled turn and reconciles the next turn", async () => {
     // The open queue is where a missing tag can still reach the claim loop.
     flag.on = true;
     onTestFinished(() => {
@@ -325,8 +328,54 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
       expect.any(AbortSignal),
       expect.any(String),
     );
-    expect(await loadTurn(untagged.turn.id)).toEqual(untagged.turn);
+    expect(await loadTurn(untagged.turn.id)).toMatchObject({
+      status: "FAILED",
+      errorKind: "soko_bot_network_stale",
+    });
+    expect(
+      await mainnet.networkDb.sokoBotUsage.count({
+        where: { referenceId: untagged.turn.id },
+      }),
+    ).toBe(0);
   });
+
+  it.each(["expired", "cancelled", "abandoned"] as const)(
+    "retires an untagged %s turn without charging",
+    async (path) => {
+      flag.on = true;
+      onTestFinished(() => {
+        flag.on = onSplitLayout;
+      });
+      await control("open", "7");
+      const { bot, turn, userId } = await seed(null, {
+        expired: path === "expired",
+        staleLease: true,
+      });
+      if (path !== "expired") {
+        await prisma.sokoBotTurn.update({
+          where: { id: turn.id },
+          data: {
+            status: path === "cancelled" ? "CANCEL_REQUESTED" : "STARTING",
+          },
+        });
+      }
+      await expect(tick(bot.id)).resolves.toMatchObject({ interrupted: 0 });
+      expect(await loadTurn(turn.id)).toMatchObject({
+        status: "FAILED",
+        errorKind: "soko_bot_network_stale",
+      });
+      expect(
+        await mainnet.networkDb.sokoBotUsage.count({
+          where: { referenceId: turn.id },
+        }),
+      ).toBe(0);
+      expect(
+        await mainnet.networkDb.transaction.count({
+          where: { userId, amount: { lt: 0 } },
+        }),
+      ).toBe(0);
+    },
+  );
 
   // Public lets the original billing code reach the ledger. A split-layout
   // failure could otherwise hide an accidental charge behind P2021.
