@@ -451,9 +451,9 @@ describe("ChatRoomSidebarRow trailing link", () => {
     );
     // Menu, gap and the link's own 40px box (32px from `md`).
     expect(spacer?.className).toContain("[@media(hover:hover)]:w-20");
-    expect(spacer?.className).toContain("[@media(hover:hover)]:md:w-16");
+    expect(spacer?.className).toContain("[@media(hover:hover)]:md:w-14");
     expect(spacer?.className).toContain("[@media(hover:none)]:w-20");
-    expect(spacer?.className).toContain("[@media(hover:none)]:md:w-16");
+    expect(spacer?.className).toContain("[@media(hover:none)]:md:w-14");
   });
 });
 
