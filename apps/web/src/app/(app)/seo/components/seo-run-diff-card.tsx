@@ -51,7 +51,7 @@ export function SeoRunDiffCard({
     >
       <div>
         <h4 className="font-medium">{title}</h4>
-        {/* Before and now, so the counts add up to the issue total of the check. */}
+        {/* Before and now, or now alone after a check with no issue count, so the counts add up to the issue total. */}
         <p className="text-muted-foreground text-xs">
           {view.issues.from === null
             ? t("runDiff.issuesNow", { to: view.issues.to })

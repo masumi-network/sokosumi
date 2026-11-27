@@ -220,6 +220,12 @@ it("opens the card with the issues now when the earlier check counted no page is
   show(value, <SeoRunDiffCard diff={value} outside={1} />);
   const card = screen.getByTestId("seo-agent-run-diff-card");
   expect(within(card).getAllByText("Open page issues now: 1")).toHaveLength(2);
+  // New, fixed and still open are 0: this note beside them says where the open issue went.
+  expect(
+    within(card).getAllByText(
+      "1 open issue has no clear result in the earlier check. It does not count as new.",
+    ),
+  ).toHaveLength(2);
   expect(
     within(card).getByText(
       "1 more open issue comes from Search Console indexing. It is outside this comparison.",
