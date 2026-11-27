@@ -285,7 +285,7 @@ export function sokoBotIdentity(
 /** Resolves a skill by id with any version-flagged text transforms applied. */
 export function getSokoBotSkillForVersion(
   id: string,
-  version: Pick<SokoBotVersion, "e1Prompts">,
+  version: Pick<SokoBotVersion, "e1Prompts"> & { skills?: readonly string[] },
 ): SokoBotSkill {
   return applyE1Skill(getSokoBotSkill(id), version);
 }

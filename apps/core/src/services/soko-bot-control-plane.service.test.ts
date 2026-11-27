@@ -3416,6 +3416,111 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(flagOn.written.capabilityNames).toContain("send_message");
   });
 
+  it("classifies clean chat.said instead of CONTEXT or room-mention wrappers only on E1 flags while preserving full userMessage and flag-off inputs", async () => {
+    const versions = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const base = getSokoBotVersion("v36");
+
+    const runChat = async (
+      flags: { routeSteering?: true; classifierPolicy?: "v4" },
+      wrappedMessage: string,
+      said: string,
+      clientTurnId: string,
+    ) => {
+      jevEvaluate.mockReset();
+      jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK"));
+      turnCreateMock.mockClear();
+      const pin = vi
+        .spyOn(versions, "resolveRunnableSokoBotVersion")
+        .mockResolvedValue({ ...base, ...flags });
+      try {
+        botFindFirstMock.mockResolvedValue(adminBot({ versionId: "v36" }));
+        botFindUniqueMock.mockResolvedValue(adminBot({ versionId: "v36" }));
+        turnFindUniqueMock.mockResolvedValue(null);
+        turnFindFirstMock.mockResolvedValue(null);
+        turnCreateMock.mockResolvedValue({
+          id: `turn_${clientTurnId}`,
+          leaseToken: "turn_lease",
+        });
+        const runtime = runtimeWithReset(vi.fn());
+        runtime.createSession = vi.fn().mockResolvedValue({
+          sessionId: `session_${clientTurnId}`,
+          runtimeVersion: "eve-test",
+          acceptedAt: "2026-08-18T12:00:00.000Z",
+        });
+        const contextBuilder = {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder;
+        await new SokoBotControlPlane(
+          runtime,
+          contextBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          network: "mainnet",
+          userId: "user_1",
+          workspaceId: "workspace_1",
+          clientTurnId,
+          message: wrappedMessage,
+          source: "CHAT",
+          chat: {
+            mentionId: `mention_${clientTurnId}`,
+            responseMessageId: `reply_${clientTurnId}`,
+            classifyMessage: wrappedMessage,
+            said,
+          },
+        });
+        return {
+          classifiedMessage: jevEvaluate.mock.calls[0]?.[0]?.state?.message,
+          storedUserMessage:
+            turnCreateMock.mock.calls[0]?.[0]?.data?.userMessage,
+        };
+      } finally {
+        pin.mockRestore();
+      }
+    };
+
+    const dmWrapped =
+      "CONTEXT (last 2 messages in this chat):\n- Assistant: Morning briefing.\n\nNew message:\nDraft an X post, don't publish yet.";
+    const dmSaid = "Draft an X post, don't publish yet.";
+    const roomWrapped =
+      "Robin Keller mentioned you in #Marketing:\n\nUse this video in our posts.";
+    const roomSaid = "Use this video in our posts.";
+
+    // Flag-off stays byte-identical (classifies classifyMessage).
+    const flagOff = await runChat({}, dmWrapped, dmSaid, "clean-said-off");
+    expect(flagOff.classifiedMessage).toBe(dmWrapped);
+    expect(flagOff.storedUserMessage).toBe(dmWrapped);
+
+    // routeSteering classifies clean `said` while preserving full `userMessage`.
+    const steered = await runChat(
+      { routeSteering: true },
+      dmWrapped,
+      dmSaid,
+      "clean-said-route",
+    );
+    expect(steered.classifiedMessage).toBe(dmSaid);
+    expect(steered.storedUserMessage).toBe(dmWrapped);
+
+    // classifierPolicy v4 also classifies clean `said` on room-mention wrappers.
+    const v4Only = await runChat(
+      { classifierPolicy: "v4" },
+      roomWrapped,
+      roomSaid,
+      "clean-said-v4",
+    );
+    expect(v4Only.classifiedMessage).toBe(roomSaid);
+    expect(v4Only.storedUserMessage).toBe(roomWrapped);
+
+    // Blank `said` falls back cleanly to `classifyMessage` rather than sending "".
+    const blankFallback = await runChat(
+      { routeSteering: true, classifierPolicy: "v4" },
+      roomWrapped,
+      "   ",
+      "clean-said-blank",
+    );
+    expect(blankFallback.classifiedMessage).toBe(roomWrapped);
+  });
+
   it("grants a self-started turn the same spend it grants the owner", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("HIRE_AGENT"));
     // Withholding only `hire_agent` from scheduled turns read as a spend limit

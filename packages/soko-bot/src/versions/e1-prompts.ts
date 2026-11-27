@@ -169,13 +169,19 @@ export function applyE1SystemPrompt(
   return sections.join("\n\n");
 }
 
+const LEGACY_CMO_MEASUREMENT_SEO_REF = "(see the cmo-seo skill)";
+const E1_CMO_SEO_SKILL_IDS = [
+  "cmo-seo-reports-plain",
+  "cmo-seo-reports",
+] as const;
+
 /**
  * Applies E1 skill text updates when `version.e1Prompts` is enabled.
  * Leaves legacy versions 100% untouched.
  */
 export function applyE1Skill(
   skill: SokoBotSkill,
-  version: Pick<SokoBotVersion, "e1Prompts">,
+  version: Pick<SokoBotVersion, "e1Prompts"> & { skills?: readonly string[] },
 ): SokoBotSkill {
   if (!version.e1Prompts) return skill;
   let content = skill.content;
@@ -217,6 +223,17 @@ export function applyE1Skill(
       LEGACY_CMO_ASKS_BEFORE_CHANGE_LINES,
       E1_CMO_ASKS_BEFORE_CHANGE_LINES,
     );
+  }
+  if (skill.id === "cmo-measurement" && version.skills) {
+    const seoSkillId = E1_CMO_SEO_SKILL_IDS.find((id) =>
+      version.skills?.includes(id),
+    );
+    if (seoSkillId && !version.skills.includes("cmo-seo")) {
+      content = content.replace(
+        LEGACY_CMO_MEASUREMENT_SEO_REF,
+        `(see the ${seoSkillId} skill)`,
+      );
+    }
   }
   return content === skill.content ? skill : { ...skill, content };
 }

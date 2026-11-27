@@ -1055,4 +1055,21 @@ describe("failing closed", () => {
       menuRoutes: [...menu],
     });
   });
+
+  it("distinguishes draft-without-sending from refusal only in v4 questions, leaving legacy v3 untouched", () => {
+    const v3 = routeQuestions(false, undefined, "v3");
+    const v4 = routeQuestions(false, undefined, "v4");
+    expect(v3.route.criteria.CLARIFY).not.toContain(
+      "drafting, preparing, or saving an item while holding off on sending or publishing it",
+    );
+    expect(v3.route.instructions).not.toContain(
+      "drafting/preparing an item without sending or publishing it",
+    );
+    expect(v4.route.criteria.CLARIFY).toContain(
+      "drafting, preparing, or saving an item while holding off on sending or publishing it",
+    );
+    expect(v4.route.instructions).toContain(
+      "drafting/preparing an item without sending or publishing it",
+    );
+  });
 });
