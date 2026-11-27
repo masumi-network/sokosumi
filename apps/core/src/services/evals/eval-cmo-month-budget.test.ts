@@ -42,6 +42,17 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+/** Set only where a test runs on mainnet's production deploy. */
+const network = vi.hoisted(() => ({
+  NETWORK: undefined as "Mainnet" | undefined,
+}));
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), ...(network.NETWORK ? network : {}) }),
+  };
+});
 vi.mock("./eval-report-email", () => ({
   sendEvalRegressionEmail: boundary.email,
 }));
@@ -374,7 +385,15 @@ describe("monthly eval hard-budget guard", () => {
   describe("a daily run's regression email", () => {
     const EMAIL_WHY = "Sending the report email failed";
 
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      network.NETWORK = undefined;
+    });
+
     beforeEach(() => {
+      // The email is sent only where the daily run is created.
+      vi.stubEnv("VERCEL_ENV", "production");
+      network.NETWORK = "Mainnet";
       boundary.run.mockResolvedValue({
         id: "run",
         repeats: 1,
