@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { expectCoreLog } from "@/test/core-log";
 import { onSplitLayout } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
@@ -84,6 +85,11 @@ const ORIGIN = "https://example.com";
  */
 const SETUP_TIMEOUT = 60_000;
 const HEADER = "X-Sokosumi-Network";
+/**
+ * A test that sends many requests: under a second here alone, past Vitest's
+ * 5 s default once on a loaded machine, as CI's runner can be.
+ */
+const MANY_REQUESTS = 30_000;
 /** An origin Core's CORS allows (`resolveCorsAllowOrigin`). */
 const BROWSER = "https://app.sokosumi.com";
 
@@ -404,6 +410,49 @@ const OLD_PREPROD_CATALOG = {
   },
 };
 
+/**
+ * `/v1/users/me` for each of the admin's keys and for the token, as the first
+ * suite counts it (two warm-up calls first): 6 statements, with no header and
+ * with `mainnet`, on both layouts and both deployments, recorded on
+ * origin/main at d8da3ca70, before ticket 21.
+ */
+const BEARER_READS = 6;
+
+/**
+ * The fixed list's statuses for an admin's key where they are not 200,
+ * recorded with `BEARER_READS`: Better Auth's Organization list wants a
+ * session.
+ */
+const BEARER_STATUS: Record<string, number> = {
+  "/auth/organization/list": 401,
+};
+
+/**
+ * The fixed list's statements for each of the admin's keys and the token,
+ * recorded with the fix round of ticket 21 on origin/main's middleware
+ * (d8da3ca70) and on the change: equal on both layouts and deployments.
+ */
+const BEARER_PATH_READS: Record<string, number> = {
+  "/v1/users/me": 6,
+  "/v1/users/{id}/workspaces": 11,
+  "/v1/users/{id}/organizations": 7,
+  "/v1/tasks": 28,
+  "/v1/chats/rooms": 15,
+  "/v1/notifications": 10,
+  "/auth/get-session": 0,
+  "/auth/organization/list": 0,
+  "/v1/agents": 15,
+  "/v1/credit-costs": 5,
+  "/v1/agents/{agentId}": 19,
+  "/v1/jobs": 19,
+};
+
+/** Statements for an old or `soko_mainnet_` key with Preprod on, after two warm-up calls. */
+const PREPROD_ON_KEY_READS = { me: 6, catalog: 15 };
+
+/** The catalog for a bearer `soko_preprod_` text that is no key, Preprod on. */
+const UNKNOWN_PREPROD_KEY_READS = 17;
+
 afterAll(async () => {
   vi.unstubAllEnvs();
   await Promise.all(pools.map((pool) => pool.end()));
@@ -420,6 +469,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
     let admin: { id: string; cookie: string };
     let optedIn: { id: string; cookie: string };
     let plain: { id: string; cookie: string };
+    const oauthClientIds: string[] = [];
+    /** The admin's keys and token, each as the headers that send it. */
+    let bearers: [string, Record<string, string>][];
 
     async function person(name: string, role?: string) {
       const user = await loaded.fixture.createPasswordUser(name, role);
@@ -465,6 +517,24 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         catalog = await seedCatalogAgent(loaded.createNetworkScope("mainnet"), {
           name: agentName,
         });
+        // Rows as each kind of key has its prefix: older than ticket 11, minted
+        // by it, and one made with `soko_preprod_` before ticket 11 refused a
+        // caller's prefix. While Preprod is off the prefix is not read.
+        bearers = [];
+        for (const [name, prefix] of [
+          ["an old key", null],
+          ["a soko_mainnet_ key", "soko_mainnet_"],
+          ["a key stored as soko_preprod_", "soko_preprod_"],
+        ] as const) {
+          const key = await loaded.fixture.createApiKey(admin.id, prefix);
+          bearers.push([name, { authorization: `Bearer ${key}` }]);
+        }
+        const oauth = await loaded.fixture.createOAuthToken(admin.id);
+        oauthClientIds.push(oauth.clientId);
+        bearers.push([
+          "an OAuth token",
+          { authorization: `Bearer ${oauth.token}` },
+        ]);
       })();
       return setup;
     }, SETUP_TIMEOUT);
@@ -475,6 +545,13 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       await setup?.catch(() => undefined);
       if (!loaded) return;
       await catalog?.remove();
+      // Rows no foreign key ties to the fixture's people.
+      await loaded.prisma.apikey.deleteMany({
+        where: { referenceId: { in: userIds } },
+      });
+      await loaded.prisma.oauthClient.deleteMany({
+        where: { clientId: { in: oauthClientIds } },
+      });
       await loaded.prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
@@ -489,9 +566,10 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
      * The first reads of a path can write once (an Organization's missing
      * workspace row; the Task list's second read), so counts start after two.
      */
-    async function warm(path: string, cookie: string) {
-      await call(loaded, path, { cookie });
-      await call(loaded, path, { cookie });
+    async function warm(path: string, cookie: string | Record<string, string>) {
+      const headers = typeof cookie === "string" ? { cookie } : cookie;
+      await call(loaded, path, headers);
+      await call(loaded, path, headers);
     }
 
     /** Routes that serve shared data, each read by a session. */
@@ -747,7 +825,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       },
     );
 
-    it("reads for a Mainnet request what it read before this ticket", async () => {
+    it("reads for a Mainnet request what it read before this ticket", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       // `/v1/users/me` for a session in its personal workspace: 4 statements,
       // counted on both layouts with ticket 58's literal Mainnet scope in the
       // middleware. An access-flag read on a Mainnet request adds one.
@@ -762,6 +842,21 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             ...headers,
           });
           expect(answer.statements).toBe(4);
+        }
+      }
+      // The admin's keys and token, counted the same way on origin/main at
+      // d8da3ca70, before ticket 21: the key's Network costs no read.
+      for (const [name, credential] of bearers) {
+        await warm("/v1/users/me", credential);
+        for (const headers of [{}, { [HEADER]: "mainnet" }] as Record<
+          string,
+          string
+        >[]) {
+          const answer = await call(loaded, "/v1/users/me", {
+            ...credential,
+            ...headers,
+          });
+          expect([name, answer.statements]).toEqual([name, BEARER_READS]);
         }
       }
     });
@@ -779,6 +874,34 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       }
     });
 
+    it("answers a key or token without the header as with mainnet, and every key as an old one", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
+      for (const path of fixedPaths(admin.id)) {
+        let oldKey: Answer | undefined;
+        for (const [name, credential] of bearers) {
+          await warm(path, credential);
+          const none = await call(loaded, path, credential);
+          const mainnet = await call(loaded, path, {
+            ...credential,
+            [HEADER]: "mainnet",
+          });
+          expect([name, path, mainnet]).toEqual([name, path, none]);
+          // The token too: it answers as the key of the same person.
+          oldKey ??= none;
+          expect([name, path, none]).toEqual([name, path, oldKey]);
+        }
+        const pinned = path
+          .replace(admin.id, "{id}")
+          .replace(catalog.agentId, "{agentId}");
+        expect([path, oldKey?.status, oldKey?.statements]).toEqual([
+          path,
+          BEARER_STATUS[path] ?? 200,
+          BEARER_PATH_READS[pinned],
+        ]);
+      }
+    });
+
     it("lists the fixture's Agent to an anonymous caller, with or without mainnet", async () => {
       const none = await call(loaded, "/v1/agents", {});
       const mainnet = await call(loaded, "/v1/agents", { [HEADER]: "mainnet" });
@@ -787,7 +910,9 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       expect(mainnet).toEqual(none);
     });
 
-    it("serves shared data to preprod as without the header, reading nothing more", async () => {
+    it("serves shared data to preprod as without the header, reading nothing more", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       for (const who of [plain, optedIn, admin]) {
         for (const path of sharedPaths(who.id)) {
           await warm(path, who.cookie);
@@ -800,9 +925,22 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
           expect([path, preprod]).toEqual([path, none]);
         }
       }
+      for (const [name, credential] of bearers) {
+        for (const path of sharedPaths(admin.id)) {
+          await warm(path, credential);
+          const none = await call(loaded, path, credential);
+          const preprod = await call(loaded, path, {
+            ...credential,
+            [HEADER]: "preprod",
+          });
+          expect([name, path, preprod]).toEqual([name, path, none]);
+        }
+      }
     });
 
-    it("refuses Network data to preprod with preprod_off, before any read", async () => {
+    it("refuses Network data to preprod with preprod_off, before any read", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const anonymous = await call(loaded, "/v1/agents", {
         [HEADER]: "preprod",
       });
@@ -824,6 +962,20 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             [HEADER]: "preprod",
           });
           expect([path, answer.status, answer.body]).toEqual([
+            path,
+            403,
+            expect.objectContaining({ kind: "preprod_off" }),
+          ]);
+        }
+      }
+      for (const [name, credential] of bearers) {
+        for (const path of ["/v1/agents", "/v1/credit-costs"]) {
+          const answer = await call(loaded, path, {
+            ...credential,
+            [HEADER]: "preprod",
+          });
+          expect([name, path, answer.status, answer.body]).toEqual([
+            name,
             path,
             403,
             expect.objectContaining({ kind: "preprod_off" }),
@@ -997,8 +1149,11 @@ describe.runIf(enabled && onSplitLayout)(
     const oauthClientIds: string[] = [];
     const vendorIds: string[] = [];
 
-    async function oauthToken(userId: string) {
-      const { token, clientId } = await loaded.fixture.createOAuthToken(userId);
+    async function oauthToken(userId: string, firstParty = true) {
+      const { token, clientId } = await loaded.fixture.createOAuthToken(
+        userId,
+        firstParty,
+      );
       oauthClientIds.push(clientId);
       return token;
     }
@@ -1059,6 +1214,18 @@ describe.runIf(enabled && onSplitLayout)(
       kind: "preprod_access_required",
       names: undefined,
     };
+    const mismatch = {
+      status: 403,
+      kind: "api_key_network_mismatch",
+      names: undefined,
+    };
+    const bearer = (token: string) => ({ authorization: `Bearer ${token}` });
+    const slug = (organization: { slug: string }) => ({
+      "X-Organization-Slug": organization.slug,
+    });
+    /** A key of the person, its row and text with this prefix (null: none). */
+    const key = async (who: Person, prefix: string | null) =>
+      bearer(await loaded.fixture.createApiKey(who.id, prefix));
 
     it("lists each Network's own row for the same Agent id", async () => {
       expect(await listed({})).toEqual(allowed("mainnet"));
@@ -1068,10 +1235,9 @@ describe.runIf(enabled && onSplitLayout)(
       ).toEqual(allowed("preprod"));
     });
 
-    it("opens the Preprod catalog to the callers that have access, and only to them", async () => {
-      const slug = (organization: { slug: string }) => ({
-        "X-Organization-Slug": organization.slug,
-      });
+    it("opens the Preprod catalog to the callers that have access, and only to them", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const cases: [string, Record<string, string>, unknown][] = [
         ["anonymous", {}, refused],
         ["an admin's session", { cookie: admin.cookie }, allowed("preprod")],
@@ -1125,24 +1291,52 @@ describe.runIf(enabled && onSplitLayout)(
           },
           refused,
         ],
+        // A key without a prefix, or with Mainnet's, is Mainnet only.
+        ["an admin's old key", await key(admin, null), mismatch],
+        ["an opted-in person's old key", await key(optedIn, null), mismatch],
         [
-          "an admin's API key",
-          {
-            authorization: `Bearer ${await loaded.fixture.createApiKey(admin.id)}`,
-          },
-          refused,
+          "an opted-in person's soko_mainnet_ key",
+          await key(optedIn, "soko_mainnet_"),
+          mismatch,
         ],
         [
-          "an opted-in person's API key",
-          {
-            authorization: `Bearer ${await loaded.fixture.createApiKey(optedIn.id)}`,
-          },
-          refused,
+          "an admin's OAuth token",
+          bearer(await oauthToken(admin.id)),
+          allowed("preprod"),
         ],
         [
           "an opted-in person's OAuth token",
+          bearer(await oauthToken(optedIn.id)),
+          allowed("preprod"),
+        ],
+        [
+          "an opted-in person's third-party OAuth token",
+          bearer(await oauthToken(optedIn.id, false)),
+          allowed("preprod"),
+        ],
+        [
+          "the OAuth token of a person not opted in",
+          bearer(await oauthToken(notOptedIn.id)),
+          refused,
+        ],
+        [
+          "a member's OAuth token, in the opted-in Organization",
           {
-            authorization: `Bearer ${await oauthToken(optedIn.id)}`,
+            ...bearer(await oauthToken(memberOfOptedIn.id)),
+            ...slug(optedInOrganization),
+          },
+          allowed("preprod"),
+        ],
+        [
+          "a member's OAuth token, personal, the Organization opted in",
+          bearer(await oauthToken(memberOfOptedIn.id)),
+          refused,
+        ],
+        [
+          "a member's OAuth token, in an Organization not opted in",
+          {
+            ...bearer(await oauthToken(memberOfNotOptedIn.id)),
+            ...slug(notOptedInOrganization),
           },
           refused,
         ],
@@ -1172,6 +1366,205 @@ describe.runIf(enabled && onSplitLayout)(
           [names.mainnet],
         ]);
       }
+    });
+
+    it("lists a Preprod key's own Network, and refuses it where the header names Mainnet", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
+      const cases: [string, Record<string, string>, unknown][] = [
+        ["an admin's", await key(admin, "soko_preprod_"), allowed("preprod")],
+        [
+          "an opted-in person's",
+          await key(optedIn, "soko_preprod_"),
+          allowed("preprod"),
+        ],
+        [
+          "a member's, in the opted-in Organization",
+          {
+            ...(await key(memberOfOptedIn, "soko_preprod_")),
+            ...slug(optedInOrganization),
+          },
+          allowed("preprod"),
+        ],
+        [
+          "a member's, personal, the Organization opted in",
+          await key(memberOfOptedIn, "soko_preprod_"),
+          refused,
+        ],
+        [
+          "the key of a person not opted in",
+          await key(notOptedIn, "soko_preprod_"),
+          refused,
+        ],
+      ];
+      for (const [caller, headers, expected] of cases) {
+        expect([caller, await listed(headers)]).toEqual([caller, expected]);
+        expect([
+          caller,
+          await listed({ ...headers, [HEADER]: "preprod" }),
+        ]).toEqual([caller, expected]);
+        expect([
+          caller,
+          await listed({ ...headers, [HEADER]: "mainnet" }),
+        ]).toEqual([caller, mismatch]);
+      }
+    });
+
+    it("refuses an MCP caller that names Preprod", async () => {
+      // The context `verifyMcpAccessToken` gives an opted-in person's MCP
+      // token, on a request Core builds itself, as a tool call would (whose
+      // own requests never carry the header).
+      const { preAuthenticatedRequests, DEFAULT_USER_ROLE } = await import(
+        "@/middleware/auth"
+      );
+      const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+      const { errorHandler } = await import("@/helpers/error-handler");
+      const probe = new OpenAPIHonoWithAuth();
+      probe.onError(errorHandler);
+      probe.get("/", (c) => c.text(c.var.networkScope.network));
+      // The catalog, and a route on an authenticated router that names its
+      // scope's Network.
+      for (const [name, app, path] of [
+        ["the catalog", loaded.app, "/v1/agents"],
+        ["an authenticated router", probe, "/"],
+      ] as const) {
+        const request = new Request(`${ORIGIN}${path}`, {
+          headers: { origin: ORIGIN, [HEADER]: "preprod" },
+        });
+        preAuthenticatedRequests.set(request, {
+          isAuthenticated: true,
+          authContext: {
+            actor: "user",
+            userId: optedIn.id,
+            organizationId: null,
+            role: DEFAULT_USER_ROLE,
+            authenticationMethod: "oauth",
+          },
+        });
+        const response = await app.request(request);
+        expect([name, response.status, (await response.json()).kind]).toEqual([
+          name,
+          403,
+          "preprod_access_required",
+        ]);
+      }
+    });
+
+    it("keeps a verified Preprod key's Network when its Organization refuses it", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
+      // Without and with the person's own opt-in: the refused Workspace
+      // decides, not the personal one.
+      for (const who of [outsider, optedIn]) {
+        const where = {
+          userId_organizationId: {
+            userId: who.id,
+            organizationId: optedInOrganization.id,
+          },
+        };
+        await loaded.prisma.member.create({
+          data: { ...where.userId_organizationId, role: "member" },
+        });
+        const preprodKey = {
+          ...(await key(who, "soko_preprod_")),
+          ...slug(optedInOrganization),
+        };
+        const named = [
+          { cookie: who.cookie, ...slug(optedInOrganization) },
+          {
+            ...bearer(await oauthToken(who.id)),
+            ...slug(optedInOrganization),
+          },
+        ].map((headers) => ({ ...headers, [HEADER]: "preprod" }));
+        try {
+          expect([who.id, await listed(preprodKey)]).toEqual([
+            who.id,
+            allowed("preprod"),
+          ]);
+          for (const headers of named) {
+            expect([who.id, await listed(headers)]).toEqual([
+              who.id,
+              allowed("preprod"),
+            ]);
+          }
+          await loaded.prisma.member.delete({ where });
+          // The former member: never Mainnet's rows, never Preprod's.
+          for (const [headers, expected] of [
+            [preprodKey, refused],
+            [{ ...preprodKey, [HEADER]: "preprod" }, refused],
+            [{ ...preprodKey, [HEADER]: "mainnet" }, mismatch],
+            ...named.map((headers) => [headers, refused] as const),
+          ] as const) {
+            expect([who.id, await listed(headers)]).toEqual([who.id, expected]);
+          }
+        } finally {
+          await loaded.prisma.member.deleteMany({
+            where: where.userId_organizationId,
+          });
+        }
+      }
+    });
+
+    it("reads a Preprod key in every bearer syntax authentication accepts", async () => {
+      const token = (await key(optedIn, "soko_preprod_")).authorization.slice(
+        "Bearer ".length,
+      );
+      for (const authorization of [
+        `bearer ${token}`,
+        `Bearer  ${token}`,
+        `BEARER \t${token}`,
+      ]) {
+        expect([authorization, await listed({ authorization })]).toEqual([
+          authorization,
+          allowed("preprod"),
+        ]);
+        expect([
+          authorization,
+          await listed({ authorization, [HEADER]: "mainnet" }),
+        ]).toEqual([authorization, mismatch]);
+      }
+    });
+
+    it("reads for a Mainnet key with Preprod on what it read before ticket 21", async () => {
+      // Recorded with the fix round on origin/main's middleware (d8da3ca70)
+      // and on the change, with Preprod on.
+      for (const credential of [
+        await key(optedIn, null),
+        await key(optedIn, "soko_mainnet_"),
+      ]) {
+        for (const [path, statements] of [
+          ["/v1/users/me", PREPROD_ON_KEY_READS.me],
+          ["/v1/agents", PREPROD_ON_KEY_READS.catalog],
+        ] as const) {
+          await call(loaded, path, credential);
+          await call(loaded, path, credential);
+          for (const headers of [{}, { [HEADER]: "mainnet" }] as Record<
+            string,
+            string
+          >[]) {
+            const answer = await call(loaded, path, {
+              ...credential,
+              ...headers,
+            });
+            expect([path, answer.status, answer.statements]).toEqual([
+              path,
+              200,
+              statements,
+            ]);
+          }
+        }
+      }
+    });
+
+    it("lists Mainnet to an unknown key with the Preprod prefix", async () => {
+      const failures = expectCoreLog("error", "Failed to validate API key:", 2);
+      const unknown = bearer(`soko_preprod_${"x".repeat(64)}`);
+      // The text asks for the key's row, which is not there: anonymous.
+      const answer = await call(loaded, "/v1/agents", unknown);
+      expect(answer.status).toBe(200);
+      expect(await listed(unknown)).toEqual(allowed("mainnet"));
+      expect(answer.statements).toBe(UNKNOWN_PREPROD_KEY_READS);
+      expect(failures).toHaveLength(2);
     });
 
     it("refuses a non-member who names an opted-in Organization", async () => {
@@ -1262,6 +1655,89 @@ describe.runIf(enabled && onSplitLayout)(
       ]);
     });
 
+    it("gives an authenticated router the scope of a key or token", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
+      const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+      const { errorHandler } = await import("@/helpers/error-handler");
+      const probe = new OpenAPIHonoWithAuth();
+      probe.onError(errorHandler);
+      probe.get("/", (c) => c.text(c.var.networkScope.network));
+      const network = async (headers: Record<string, string>) => {
+        const response = await probe.request(`${ORIGIN}/`, {
+          headers: { origin: ORIGIN, ...headers },
+        });
+        const text = await response.text();
+        return [response.status, response.ok ? text : JSON.parse(text).kind];
+      };
+      const preprodKey = await key(optedIn, "soko_preprod_");
+      const oldKey = await key(optedIn, null);
+      const token = {
+        ...bearer(await oauthToken(memberOfOptedIn.id)),
+        ...slug(optedInOrganization),
+      };
+      const cases: [string, Record<string, string>, unknown[]][] = [
+        ["a Preprod key", preprodKey, [200, "preprod"]],
+        [
+          "a Preprod key, preprod",
+          { ...preprodKey, [HEADER]: "preprod" },
+          [200, "preprod"],
+        ],
+        [
+          "a Preprod key, mainnet",
+          { ...preprodKey, [HEADER]: "mainnet" },
+          [403, "api_key_network_mismatch"],
+        ],
+        [
+          "a Preprod key without access",
+          await key(notOptedIn, "soko_preprod_"),
+          [403, "preprod_access_required"],
+        ],
+        ["an old key", oldKey, [200, "mainnet"]],
+        [
+          "an old key, preprod",
+          { ...oldKey, [HEADER]: "preprod" },
+          [403, "api_key_network_mismatch"],
+        ],
+        ["a member's token", token, [200, "mainnet"]],
+        [
+          "a member's token, preprod",
+          { ...token, [HEADER]: "preprod" },
+          [200, "preprod"],
+        ],
+      ];
+      for (const [caller, headers, expected] of cases) {
+        expect([caller, await network(headers)]).toEqual([caller, expected]);
+      }
+    });
+
+    it("serves shared data to a key the header contradicts as without the header", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
+      for (const [caller, headers, header] of [
+        ["an old key", await key(optedIn, null), "preprod"],
+        ["a Preprod key", await key(optedIn, "soko_preprod_"), "mainnet"],
+      ] as const) {
+        for (const path of [
+          "/v1/users/me",
+          `/v1/users/${optedIn.id}/workspaces`,
+        ]) {
+          const none = await call(loaded, path, headers);
+          const named = await call(loaded, path, {
+            ...headers,
+            [HEADER]: header,
+          });
+          expect([caller, path, none.status]).toEqual([caller, path, 200]);
+          expect([caller, path, named.status, named.body]).toEqual([
+            caller,
+            path,
+            none.status,
+            none.body,
+          ]);
+        }
+      }
+    });
+
     it("gives an authenticated router the Preprod scope of a caller with access", async () => {
       const answer = await call(loaded, "/v1/credit-costs", {
         cookie: admin.cookie,
@@ -1296,7 +1772,9 @@ describe.runIf(enabled && onSplitLayout)(
       }
     });
 
-    it("reads the access flag once, only for a Preprod request that needs it", async () => {
+    it("reads the access flag once, only for a Preprod request that needs it", {
+      timeout: MANY_REQUESTS,
+    }, async () => {
       const reads = async (headers: Record<string, string>) => {
         await call(loaded, "/v1/users/me", headers);
         await call(loaded, "/v1/users/me", headers);
@@ -1324,6 +1802,19 @@ describe.runIf(enabled && onSplitLayout)(
       ).toEqual([0, 1]);
       // An admin's role is in the session: no read.
       expect(await reads({ cookie: admin.cookie })).toEqual([0, 0]);
+      // The same for a token: its role is read with the token.
+      expect(await reads(bearer(await oauthToken(optedIn.id)))).toEqual([0, 1]);
+      expect(
+        await reads({
+          ...bearer(await oauthToken(memberOfOptedIn.id)),
+          ...slug(optedInOrganization),
+        }),
+      ).toEqual([0, 1]);
+      expect(await reads(bearer(await oauthToken(admin.id)))).toEqual([0, 0]);
+      // A Preprod key is for Preprod without the header (one read); with
+      // `mainnet` it is refused before any read.
+      expect(await reads(await key(optedIn, "soko_preprod_"))).toEqual([-1, 0]);
+      expect(await reads(await key(admin, "soko_preprod_"))).toEqual([0, 0]);
     });
 
     it("answers canUsePreprod per workspace", async () => {

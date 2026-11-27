@@ -2,7 +2,7 @@
 // `/v1` router needs it on the ones `@sokosumi/utils` exports.
 import "@hono/zod-openapi";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { hashPassword } from "better-auth/crypto";
 import { Hono } from "hono";
@@ -98,21 +98,40 @@ export async function signIn(
   }
 }
 
-/** A Better Auth API key of the user. */
-export async function createApiKey(userId: string): Promise<string> {
+/**
+ * A Better Auth API key of the user, minted by the plugin with the
+ * deployment's prefix. With `prefix`, the row and the key text are made over
+ * with that prefix instead (`null`: none), as a key minted elsewhere or
+ * before ticket 11 has it; the plugin verifies by the hash of the whole text.
+ */
+export async function createApiKey(
+  userId: string,
+  prefix?: string | null,
+): Promise<string> {
   const { auth } = await import("@/lib/auth");
-  const { key } = await auth.api.createApiKey({
+  const minted = await auth.api.createApiKey({
     body: { userId, configId: "default", name: "Fixture" },
+  });
+  if (prefix === undefined) return minted.key;
+  const key = `${prefix ?? ""}${minted.key.slice(minted.prefix?.length ?? 0)}`;
+  await prisma.apikey.update({
+    where: { id: minted.id },
+    data: {
+      prefix,
+      key: createHash("sha256").update(key).digest("base64url"),
+      start: key.slice(0, (prefix?.length ?? 0) + 6),
+    },
   });
   return key;
 }
 
 /**
- * An access token of a new first-party OAuth client with `sokosumi:api`, and
- * the client's id, which the test deletes.
+ * An access token of a new OAuth client with `sokosumi:api`, first-party
+ * unless `firstParty` is false, and the client's id, which the test deletes.
  */
 export async function createOAuthToken(
   userId: string,
+  firstParty = true,
 ): Promise<{ token: string; clientId: string }> {
   const { hashStoredOAuthToken, OAUTH_ACCESS_TOKEN_PREFIX } = await import(
     "@/lib/auth-oauth-token-prefixes"
@@ -120,7 +139,7 @@ export async function createOAuthToken(
   const clientId = randomUUID();
   const scopes = ["sokosumi:api"];
   await prisma.oauthClient.create({
-    data: { clientId, scopes, skipConsent: true },
+    data: { clientId, scopes, skipConsent: firstParty },
   });
   await prisma.oauthConsent.create({ data: { clientId, userId, scopes } });
   const token = OAUTH_ACCESS_TOKEN_PREFIX + randomUUID();
