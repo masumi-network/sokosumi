@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import {
+  CLASSIFIER_VERSION_V3,
+  CLASSIFIER_VERSION_V4,
   type ClassifierContextSummary,
   classifierAttemptTimeoutMs,
   JevTurnClassifier,
@@ -388,102 +390,147 @@ describe("Jev route selection", () => {
       expect(capabilities).not.toContain(write);
   });
 
-  it("keeps the leading scope when MANAGE_WORK is sure and two scopes split the mass", async () => {
+  it("keeps the leading scope under v4 when MANAGE_WORK is sure and two scopes split the mass, while legacy v3 stays unset", async () => {
     const evaluation = jevRoute("MANAGE_WORK", { writeScope: "FILE" });
-    const result = await new JevTurnClassifier(
-      answering({
-        ...evaluation,
-        answers: {
-          ...(evaluation.answers as object),
-          route: {
-            choice: "MANAGE_WORK",
-            probabilities: { MANAGE_WORK: 0.87 },
-          },
-          writeScope: {
-            choice: "FILE",
-            probabilities: { FILE: 0.63, SOCIAL: 0.37 },
-          },
+    const answer = {
+      ...evaluation,
+      answers: {
+        ...(evaluation.answers as object),
+        route: {
+          choice: "MANAGE_WORK",
+          probabilities: { MANAGE_WORK: 0.87 },
         },
-      }),
-    ).classify("Make two images for a post", EMPTY_CONTEXT);
-    expect(result.classification).toMatchObject({
+        writeScope: {
+          choice: "FILE",
+          probabilities: { FILE: 0.63, SOCIAL: 0.37 },
+        },
+      },
+    };
+    const legacy = await new JevTurnClassifier(answering(answer)).classify(
+      "Make two images for a post",
+      EMPTY_CONTEXT,
+    );
+    expect(legacy.version).toBe(CLASSIFIER_VERSION_V3);
+    expect(legacy.classification.route).toBe("MANAGE_WORK");
+    expect(legacy.classification.writeScope).toBeUndefined();
+    expect(capabilitiesForClassification(legacy.classification)).not.toContain(
+      "generate_image",
+    );
+
+    const v4 = await new JevTurnClassifier(answering(answer)).classify(
+      "Make two images for a post",
+      { ...EMPTY_CONTEXT, classifierPolicy: "v4" },
+    );
+    expect(v4.version).toBe(CLASSIFIER_VERSION_V4);
+    expect(v4.classification).toMatchObject({
       route: "MANAGE_WORK",
       writeScope: "FILE",
     });
-    expect(capabilitiesForClassification(result.classification)).toContain(
+    expect(capabilitiesForClassification(v4.classification)).toContain(
       "generate_image",
     );
   });
 
-  it("acts in a high-confidence write scope when work routes hold a clear majority and CLARIFY is negligible", async () => {
+  it("acts in a high-confidence write scope under v4 when work routes hold a clear majority, while legacy v3 stays read-only", async () => {
     const evaluation = jevRoute("MANAGE_WORK", { writeScope: "CHAT" });
-    const result = await new JevTurnClassifier(
-      answering({
-        ...evaluation,
-        answers: {
-          ...(evaluation.answers as object),
-          route: {
-            choice: "MANAGE_WORK",
-            probabilities: {
-              MANAGE_WORK: 0.42,
-              DELEGATE_TASK: 0.26,
-              DIRECT_RESPONSE: 0.29,
-              CLARIFY: 0.03,
-            },
-          },
-          writeScope: {
-            choice: "CHAT",
-            probabilities: { CHAT: 0.93, INTEGRATION: 0.05 },
+    const answer = {
+      ...evaluation,
+      answers: {
+        ...(evaluation.answers as object),
+        route: {
+          choice: "MANAGE_WORK",
+          probabilities: {
+            MANAGE_WORK: 0.42,
+            DELEGATE_TASK: 0.26,
+            DIRECT_RESPONSE: 0.29,
+            CLARIFY: 0.03,
           },
         },
-      }),
-    ).classify("Ask the other assistant for an update", EMPTY_CONTEXT);
-    expect(result.classification).toMatchObject({
+        writeScope: {
+          choice: "CHAT",
+          probabilities: { CHAT: 0.93, INTEGRATION: 0.05 },
+        },
+      },
+    };
+    const legacy = await new JevTurnClassifier(answering(answer)).classify(
+      "Ask the other assistant for an update",
+      EMPTY_CONTEXT,
+    );
+    expect(legacy.version).toBe(CLASSIFIER_VERSION_V3);
+    expect(legacy.classification.route).toBe("DIRECT_RESPONSE");
+    expect(legacy.classification.writeScope).toBeUndefined();
+    expect(capabilitiesForClassification(legacy.classification)).not.toContain(
+      "send_message",
+    );
+
+    const v4 = await new JevTurnClassifier(answering(answer)).classify(
+      "Ask the other assistant for an update",
+      { ...EMPTY_CONTEXT, classifierPolicy: "v4" },
+    );
+    expect(v4.version).toBe(CLASSIFIER_VERSION_V4);
+    expect(v4.classification).toMatchObject({
       route: "MANAGE_WORK",
       writeScope: "CHAT",
     });
-    expect(capabilitiesForClassification(result.classification)).toContain(
+    expect(capabilitiesForClassification(v4.classification)).toContain(
       "send_message",
     );
   });
 
-  it("delegates when MANAGE_WORK and DELEGATE_TASK nearly tie under generic WORK scope", async () => {
+  it("delegates under v4 when MANAGE_WORK and DELEGATE_TASK nearly tie under generic WORK scope, while legacy v3 stays MANAGE_WORK", async () => {
     const evaluation = jevRoute("MANAGE_WORK", { writeScope: "WORK" });
-    const result = await new JevTurnClassifier(
-      answering({
-        ...evaluation,
-        answers: {
-          ...(evaluation.answers as object),
-          route: {
-            choice: "MANAGE_WORK",
-            probabilities: {
-              MANAGE_WORK: 0.49,
-              DELEGATE_TASK: 0.45,
-              DIRECT_RESPONSE: 0.04,
-            },
+    const answer = {
+      ...evaluation,
+      answers: {
+        ...(evaluation.answers as object),
+        route: {
+          choice: "MANAGE_WORK",
+          probabilities: {
+            MANAGE_WORK: 0.49,
+            DELEGATE_TASK: 0.45,
+            DIRECT_RESPONSE: 0.04,
           },
-          writeScope: { choice: "WORK", probabilities: { WORK: 0.95 } },
         },
-      }),
-    ).classify("Start a research task on the topic", EMPTY_CONTEXT);
-    expect(result.classification.route).toBe("DELEGATE_TASK");
+        writeScope: { choice: "WORK", probabilities: { WORK: 0.95 } },
+      },
+    };
+    const legacy = await new JevTurnClassifier(answering(answer)).classify(
+      "Start a research task on the topic",
+      EMPTY_CONTEXT,
+    );
+    expect(legacy.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "WORK",
+    });
+
+    const v4 = await new JevTurnClassifier(answering(answer)).classify(
+      "Start a research task on the topic",
+      { ...EMPTY_CONTEXT, classifierPolicy: "v4" },
+    );
+    expect(v4.classification.route).toBe("DELEGATE_TASK");
   });
 
-  it("distinguishes standing preferences from refusals and covers tables, contacts, newsletters, and conditional hires in route criteria", () => {
-    const questions = routeQuestions(false);
-    expect(questions.route.instructions).toContain("standing preference");
-    expect(questions.route.criteria.HIRE_AGENT).toContain(
+  it("gates v4 route and write-scope criteria behind policy v4 while leaving default v3 untouched", () => {
+    const v3 = routeQuestions(false);
+    expect(v3.route.instructions).toContain(
+      "Choose how a personal project-manager assistant should handle",
+    );
+    expect(v3.writeScope.criteria.MEMORY).toBe(
+      "remembering or forgetting something",
+    );
+
+    const v4 = routeQuestions(false, "v4");
+    expect(v4.route.instructions).toContain("standing preference");
+    expect(v4.route.criteria.HIRE_AGENT).toContain(
       "conditional or standing future rule",
     );
-    expect(questions.route.criteria.DIRECT_RESPONSE).toContain(
+    expect(v4.route.criteria.DIRECT_RESPONSE).toContain(
       "polite closings or thanks",
     );
-    expect(questions.route.criteria.MANAGE_WORK).toContain("table in Files");
-    expect(questions.route.criteria.MANAGE_WORK).toContain("newsletter issue");
-    expect(questions.writeScope.criteria.FILE).toContain("contacts");
-    expect(questions.writeScope.criteria.MEMORY).toContain(
-      "standing behavior rule",
-    );
+    expect(v4.route.criteria.MANAGE_WORK).toContain("table in Files");
+    expect(v4.route.criteria.MANAGE_WORK).toContain("newsletter issue");
+    expect(v4.writeScope.criteria.FILE).toContain("contacts");
+    expect(v4.writeScope.criteria.MEMORY).toContain("standing behavior rule");
   });
 });
 

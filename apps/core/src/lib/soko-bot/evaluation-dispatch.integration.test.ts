@@ -326,6 +326,7 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
       expect(
         fence.evaluationClassifierContext({
           previousReply: "Which draft should I update?",
+          classifierPolicy: "v4",
           taskIds: [task, "other"],
           projectIds: ["private"],
           agentIds: [],
@@ -334,6 +335,7 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         }),
       ).toMatchObject({
         previousReply: "Which draft should I update?",
+        classifierPolicy: "v4",
         taskIds: [task],
         projectIds: [],
       });

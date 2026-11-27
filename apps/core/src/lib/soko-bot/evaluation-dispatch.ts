@@ -541,6 +541,9 @@ export function evaluationClassifierContext(
     ...(context.previousReply !== undefined
       ? { previousReply: context.previousReply }
       : {}),
+    ...(context.classifierPolicy
+      ? { classifierPolicy: context.classifierPolicy }
+      : {}),
     taskIds: context.taskIds.filter((id) => binding.taskIds.includes(id)),
     candidates: context.candidates?.filter((item) =>
       binding.taskIds.includes(item.id),

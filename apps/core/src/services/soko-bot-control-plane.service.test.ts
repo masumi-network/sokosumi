@@ -3082,6 +3082,97 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(openOwnerRoomMock).not.toHaveBeenCalled();
   });
 
+  it("keeps legacy v3 questions, thresholds and grants on a flag-off autonomous turn while opting into v4 only when classifierPolicy is v4", async () => {
+    const versions = await import("@/services/soko-bot-version.service");
+    const { getSokoBotVersion } = await import("@sokosumi/soko-bot");
+    const { CLASSIFIER_VERSION_V3, CLASSIFIER_VERSION_V4, routeQuestions } =
+      await import("@/lib/soko-bot/classifier");
+    const base = getSokoBotVersion("v36");
+    const fixedEvaluation = jevRoute("MANAGE_WORK", { writeScope: "CHAT" });
+    const fixedAnswer = {
+      ...fixedEvaluation,
+      answers: {
+        ...(fixedEvaluation.answers as object),
+        route: {
+          choice: "MANAGE_WORK",
+          probabilities: {
+            MANAGE_WORK: 0.42,
+            DELEGATE_TASK: 0.26,
+            DIRECT_RESPONSE: 0.29,
+            CLARIFY: 0.03,
+          },
+        },
+        writeScope: {
+          choice: "CHAT",
+          probabilities: { CHAT: 0.93, INTEGRATION: 0.05 },
+        },
+      },
+    };
+
+    const runScheduled = async (policy?: "v4") => {
+      jevEvaluate.mockReset();
+      jevEvaluate.mockResolvedValue(fixedAnswer);
+      turnCreateMock.mockClear();
+      const pin = vi
+        .spyOn(versions, "resolveRunnableSokoBotVersion")
+        .mockResolvedValue(
+          policy ? { ...base, classifierPolicy: policy } : base,
+        );
+      try {
+        botFindFirstMock.mockResolvedValue(adminBot({ versionId: "v36" }));
+        botFindUniqueMock.mockResolvedValue(adminBot({ versionId: "v36" }));
+        turnFindUniqueMock.mockResolvedValue(null);
+        turnFindFirstMock.mockResolvedValue(null);
+        turnCreateMock.mockResolvedValue({
+          id: policy ? "turn_sched_v4" : "turn_sched_v3",
+          leaseToken: "turn_lease",
+        });
+        const runtime = runtimeWithReset(vi.fn());
+        runtime.createSession = vi.fn().mockResolvedValue({
+          sessionId: "session_scheduled",
+          runtimeVersion: "eve-test",
+          acceptedAt: "2026-08-18T12:00:00.000Z",
+        });
+        const contextBuilder = {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder;
+        await new SokoBotControlPlane(
+          runtime,
+          contextBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          network: "mainnet",
+          userId: "user_1",
+          workspaceId: "workspace_1",
+          clientTurnId: policy
+            ? "client-turn-scheduled-v4"
+            : "client-turn-scheduled-v3",
+          message: "Ask the other assistant for an update.",
+          source: "SCHEDULE",
+        });
+        return {
+          questions: jevEvaluate.mock.calls[0]?.[0]?.questions,
+          written: turnCreateMock.mock.calls[0]?.[0]?.data,
+        };
+      } finally {
+        pin.mockRestore();
+      }
+    };
+
+    const flagOff = await runScheduled();
+    expect(flagOff.questions).toEqual(routeQuestions(false, "v3"));
+    expect(flagOff.written.classifierVersion).toBe(CLASSIFIER_VERSION_V3);
+    expect(flagOff.written.route).toBe("DIRECT_RESPONSE");
+    expect(flagOff.written.capabilityNames).not.toContain("send_message");
+
+    const flagOn = await runScheduled("v4");
+    expect(flagOn.questions).toEqual(routeQuestions(false, "v4"));
+    expect(flagOn.written.classifierVersion).toBe(CLASSIFIER_VERSION_V4);
+    expect(flagOn.written.route).toBe("MANAGE_WORK");
+    expect(flagOn.written.classification.writeScope).toBe("CHAT");
+    expect(flagOn.written.capabilityNames).toContain("send_message");
+  });
+
   it("grants a self-started turn the same spend it grants the owner", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("HIRE_AGENT"));
     // Withholding only `hire_agent` from scheduled turns read as a spend limit
