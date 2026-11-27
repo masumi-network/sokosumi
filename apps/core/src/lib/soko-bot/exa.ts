@@ -2,6 +2,7 @@ import type { sokoBotSearchExaInputSchema } from "@sokosumi/soko-bot";
 import type { z } from "zod";
 
 import { getEnv } from "@/config/env";
+import { evalWorldWorkspace } from "@/lib/evals/eval-world-context";
 
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const DEFAULT_RESULTS = 8;
@@ -88,6 +89,14 @@ export async function searchExa(
   input: ExaSearchInput,
   options: { userIdentifier?: string } = {},
 ): Promise<ExaSearchResult> {
+  // An eval lane's turn searches its fixed web, free and the same every run.
+  if (evalWorldWorkspace()) {
+    const { evalWebSearch } = await import("@/services/evals/eval-web-world");
+    return {
+      results: evalWebSearch(input.query, input.numResults ?? DEFAULT_RESULTS),
+      costUsd: 0,
+    };
+  }
   const key = getEnv().EXA_API_KEY;
   if (!key) throw new ExaUnavailableError("Exa is not configured");
   const dated = !input.category || !UNDATED_CATEGORIES.has(input.category);

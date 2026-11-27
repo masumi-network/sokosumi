@@ -13,7 +13,6 @@ apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
 apps/core/src/helpers/project-needs-attention.ts
 apps/core/src/helpers/project-stats.ts
-apps/core/src/lib/seo/chat-billing.ts
 apps/core/src/lib/soko-bot/action-response.ts
 apps/core/src/lib/soko-bot/agent-search.ts
 apps/core/src/lib/soko-bot/classification-context.ts
@@ -57,7 +56,6 @@ apps/core/src/services/agent-sync.service.ts
 apps/core/src/services/chat-result-preview.service.ts
 apps/core/src/services/cmo-billing.service.ts
 apps/core/src/services/cmo-chat-work.service.ts
-apps/core/src/services/competitor-check.service.ts
 apps/core/src/services/invoice-admin.service.ts
 apps/core/src/services/job-purchase-diff.service.ts
 apps/core/src/services/job-refund.ts
@@ -68,7 +66,6 @@ apps/core/src/services/polar-subscription.service.ts
 apps/core/src/services/polar-yearly-grant-sync.service.ts
 apps/core/src/services/soko-bot-activity-stats.service.ts
 apps/core/src/services/soko-bot-billing.service.ts
-apps/core/src/services/soko-bot-deletion.service.ts
 apps/core/src/services/soko-bot-events-sync.service.ts
 apps/core/src/services/soko-bot-runtime/decision-apply.ts
 apps/core/src/services/soko-bot-runtime/decision-claim.ts

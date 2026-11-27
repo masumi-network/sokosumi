@@ -297,6 +297,7 @@ describe.skipIf(!enabled)(
       const future = new Date(Date.now() + 60_000);
       const turn = await prisma.sokoBotTurn.create({
         data: {
+          network: "mainnet",
           sokoBotId: bot.id,
           requestedByUserId: userId,
           workspaceId,

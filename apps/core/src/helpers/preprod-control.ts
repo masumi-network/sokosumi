@@ -81,9 +81,11 @@ function controlOf(
 }
 
 /** Preprod's control, read now. A failed read is `unavailable`, and recorded. */
-export async function readPreprodControl(): Promise<PreprodControl> {
+export async function readPreprodControl(
+  db: DbClient = prisma,
+): Promise<PreprodControl> {
   try {
-    return await readControl(prisma);
+    return await readControl(db);
   } catch (error) {
     recordCoreError(
       { operation: "read_preprod_control" },

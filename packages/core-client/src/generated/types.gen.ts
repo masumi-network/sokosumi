@@ -13323,6 +13323,7 @@ export type ProjectSeoAction = {
         before: string | null;
         after: string;
     } | null;
+    bodyDraft?: ProjectSeoBodyDraft;
     decision?: {
         kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability' | 'open_strategy_opportunity';
         alternative: string;
@@ -13367,6 +13368,17 @@ export type ProjectSeoAction = {
     lastCheckAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
+};
+
+export type ProjectSeoBodyDraft = {
+    target: 'opening';
+    devices: Array<'mobile' | 'desktop'>;
+    heldBack: string;
+} | {
+    target: 'opening';
+    devices: Array<'mobile' | 'desktop'>;
+    before: string;
+    after: string;
 };
 
 export type ProjectSeoMetric = {

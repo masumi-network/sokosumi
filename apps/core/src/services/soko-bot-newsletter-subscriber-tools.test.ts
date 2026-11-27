@@ -13,6 +13,7 @@ import {
   NEWSLETTER_SUBSCRIBER,
   NEWSLETTER_WORKSPACE_ID,
 } from "@/test/newsletter";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 // The Subscribers page's services run for real against these mocks; only the
 // database, the contact links, Jev and the outgoing email are stand-ins.
@@ -162,6 +163,7 @@ const AUTHORIZED: AuthorizedSokoBotRuntime = {
   },
   reader: { userId: "user", audience: "OWNER", sharedScope: null },
   classificationConfidence: 1,
+  scope: testNetworkScope(),
   toolCallLimit: 10,
   askedByKind: "OWNER",
 };

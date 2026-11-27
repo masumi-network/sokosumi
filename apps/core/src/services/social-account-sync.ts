@@ -10,7 +10,7 @@
 import { waitUntil } from "@vercel/functions";
 import { err, ok, type Result } from "neverthrow";
 import prisma from "@/lib/db/prisma";
-import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-social-account";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { socialAccountStatisticsSchema } from "@/schemas/social-account-statistics.schema";
 import {

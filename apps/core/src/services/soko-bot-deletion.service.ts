@@ -8,6 +8,10 @@ import {
 import { forfeitCusoProjectCredits } from "@/helpers/cuso-project-credits";
 import { notFound } from "@/helpers/error";
 import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
+import {
+  applySokoBotRules,
+  countSokoBotNetworkRows,
+} from "@/helpers/soko-bot-deletion-crossing-rules";
 import { assertSokoBotManagement } from "@/helpers/soko-bot-management";
 import {
   ME_SOKO_BOT,
@@ -178,9 +182,8 @@ export async function deleteSokoBot(
     const taskEvents = await tx.taskEvent.count({
       where: { sokoBotId: bot.id },
     });
-    const billingRecords = await tx.sokoBotUsage.count({
-      where: { sokoBotId: bot.id },
-    });
+    // Usage rows and hired Jobs live in each Network that is on.
+    const { billingRecords, jobs } = await countSokoBotNetworkRows(tx, bot.id);
     const chatMessages = await tx.chatRoomMessage.count({
       where: { senderSokoBotId: bot.id },
     });
@@ -192,9 +195,6 @@ export async function deleteSokoBot(
       where: { uploadedBySokoBotId: bot.id },
     });
     const taskSchedules = await tx.taskSchedule.count({
-      where: { creatorSokoBotId: bot.id },
-    });
-    const jobs = await tx.job.count({
       where: { creatorSokoBotId: bot.id },
     });
     const socialPosts = await tx.socialPost.count({
@@ -225,6 +225,7 @@ export async function deleteSokoBot(
       socialPosts === 0
     ) {
       await tx.sokoBot.delete({ where: { id: bot.id } });
+      await applySokoBotRules(tx, bot.id);
       return {
         result: {
           outcome: "deleted" as const,

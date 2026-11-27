@@ -120,6 +120,8 @@ function runtimeEvent(
 function activeTurn(overrides: Record<string, unknown> = {}) {
   return {
     id: TURN_ID,
+    network: "mainnet",
+    preprodGeneration: null,
     sokoBotId: "01960001-0001-7001-8001-000000000001",
     requestedByUserId: "user_1",
     workspaceId: "01960001-0001-7001-8001-000000000002",

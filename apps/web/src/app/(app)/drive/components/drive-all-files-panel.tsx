@@ -28,6 +28,7 @@ import {
   childFolders,
   DriveFolderNav,
 } from "@/app/drive/components/drive-folder-nav";
+import { DriveFolderReadme } from "@/app/drive/components/drive-folder-readme";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import { PageSearchField } from "@/components/page-search-field";
@@ -780,6 +781,22 @@ export function DriveAllFilesPanel({
           roomHint={t(
             store.scope === "org" ? "dataRoomAccessOrg" : "dataRoomAccess",
           )}
+        />
+      ) : null}
+
+      {browsing ? (
+        <DriveFolderReadme
+          store={store}
+          folder={filters.folder}
+          onOpen={(file) =>
+            setOpenFile({
+              id: file.id,
+              displayName: file.displayName,
+              mimeType: file.mimeType,
+              sizeBytes: file.sizeBytes,
+              pathname: file.pathname,
+            })
+          }
         />
       ) : null}
 

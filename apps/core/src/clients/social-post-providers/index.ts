@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type SocialPostProvider,
   socialPostProviderLabel,
@@ -13,6 +14,10 @@ import type {
 } from "@/clients/social-post-providers/types";
 import { publishXPost } from "@/clients/social-post-providers/x";
 import { publishYouTubeVideo } from "@/clients/social-post-providers/youtube";
+import {
+  evalExternalId,
+  isEvalSocialAccount,
+} from "@/lib/evals/eval-social-account";
 
 /** Create/publish tool recorded on an attempt before the adapter runs. */
 export const SOCIAL_POST_ATTEMPT_TOOL_SLUGS: Record<
@@ -30,6 +35,21 @@ export const SOCIAL_POST_ATTEMPT_TOOL_SLUGS: Record<
 export async function publishSocialPostToProvider(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
+  if (isEvalSocialAccount(context.connectedAccountId)) {
+    const key = createHash("sha256")
+      .update(
+        `${context.postId ?? ""}\n${context.replyToExternalId ?? ""}\n${context.text}`,
+      )
+      .digest("hex")
+      .slice(0, 16);
+    const externalId = evalExternalId(context.provider, key);
+    return {
+      externalId,
+      publishedUrl: `https://evals.invalid/${context.provider}/${externalId}`,
+      providerOutcome: "eval stand-in: not sent",
+      firstCommentIncluded: context.firstComment !== undefined,
+    };
+  }
   switch (context.provider) {
     case "x":
       return publishXPost(context);

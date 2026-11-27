@@ -9,8 +9,10 @@ import { CropForSocial } from "@/app/drive/components/crop-for-social";
 import {
   contentUrl,
   effectiveType,
+  rendersAsMarkdown,
 } from "@/app/drive/components/drive-file-preview";
 import { GoogleSheetBar } from "@/app/drive/components/google-sheet-bar";
+import { MarkdownDownloadMenu } from "@/app/drive/components/markdown-download-menu";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { CapTableFileView } from "@/components/cap-table/cap-table-view";
 import { SpreadsheetFileView } from "@/components/spreadsheet/spreadsheet-view";
@@ -145,6 +147,18 @@ export function DriveFileViewer({
         fileName={file.displayName}
         kind={kind.documentKind}
         mediaType={type}
+        download={
+          rendersAsMarkdown(type) ? (
+            <MarkdownDownloadMenu
+              url={url}
+              downloadUrl={media.downloadUrl}
+              fileName={file.displayName}
+              sizeBytes={file.sizeBytes ?? null}
+              className="size-10 gap-1.5 px-0 sm:w-auto sm:px-3 md:h-8"
+              labelClassName="hidden sm:inline"
+            />
+          ) : undefined
+        }
         banner={
           <GoogleSheetBar
             resourceId={file.id}
