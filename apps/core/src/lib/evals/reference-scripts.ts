@@ -179,8 +179,7 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         ],
       },
       {
-        // "The Sokosumi one." before the journey named the account Core's way.
-        match: "The Sokosumi",
+        match: "The Sokosumi one.",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
           async (_results, { turnId }) => [
@@ -362,8 +361,14 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         match: "Routing Forms AI",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
-          async (_results, { turnId }) => {
+          async (_results, { turnId }) => [
+            call("list_project_social_accounts", {
+              projectId: await cusoProject(turnId),
+            }),
+          ],
+          async (results, { turnId }) => {
             const project = await cusoProject(turnId);
+            const accounts = cusoAccounts(results);
             return [
               ["Something new for sales teams lands Tuesday.", -1],
               [
@@ -374,9 +379,10 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
                 "One day in with Routing Forms AI: leads reach the right rep without anyone sorting them.",
                 1,
               ],
-            ].map(([text, offset]) =>
+            ].map(([text, offset], index) =>
               call("create_social_post", {
                 projectId: project,
+                socialConnectionId: accounts[index % accounts.length],
                 text,
                 scheduledAt: nextWeekday(2, offset as number),
               }),
@@ -432,13 +438,23 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
         match: "I made a YouTube video",
         route: { route: "MANAGE_WORK", writeScope: "SOCIAL" },
         steps: [
-          async (_results, { turnId }) => {
+          async (_results, { turnId }) => [
+            call("list_project_social_accounts", {
+              projectId: await cusoProject(turnId),
+            }),
+          ],
+          async (results, { turnId }) => {
             const project = await cusoProject(turnId);
+            const accounts = cusoAccounts(results);
             return [
               "New video: how routing sends every lead to the right person. Watch it on YouTube.",
               "Two minutes on routing forms, from our new YouTube video.",
-            ].map((text) =>
-              call("create_social_post", { projectId: project, text }),
+            ].map((text, index) =>
+              call("create_social_post", {
+                projectId: project,
+                socialConnectionId: accounts[index % accounts.length],
+                text,
+              }),
             );
           },
           () =>
@@ -726,6 +742,7 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
               projectId: await projectId(turnId, "utxo AG Outreach"),
             }),
           ],
+          (results) => readImages(results),
           async (results, { turnId }) => [
             call("create_social_post", {
               projectId: await projectId(turnId, "utxo AG Outreach"),
@@ -799,6 +816,7 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
               call("list_project_social_accounts", { projectId: project }),
             ];
           },
+          (results) => readImages(results),
           async (results, { turnId }) => [
             call("create_social_post", {
               projectId: await projectId(turnId, "Padierfind"),
@@ -854,13 +872,47 @@ export const REFERENCE_SCRIPTS: Record<string, ReferenceScript> = {
   },
 };
 
+/** get_image for every image job the turn started, so each lands in Files. */
+function readImages(results: Results): ScriptedToolCall[] {
+  return results.flatMap((result) => {
+    const job = result as { jobId?: unknown; projectId?: unknown } | null;
+    return typeof job?.jobId === "string" && typeof job.projectId === "string"
+      ? [call("get_image", { projectId: job.projectId, jobId: job.jobId })]
+      : [];
+  });
+}
+
+/** What a private (held-out) scripts file is given to write its scripts with. */
+export const SCRIPT_HELPERS = {
+  call,
+  latest,
+  openPosts,
+  projectId,
+  cusoProject,
+  coworkerId,
+  nextWeekday,
+  mediaFrom,
+  readImages,
+  xAccount,
+};
+
 /** Media for a post: the Drive files of images made earlier in the turn, if any. */
 function mediaFrom(results: Results): { media?: { fileId: string }[] } {
+  // get_image answers a ready image with its Files copy as `file`.
   const fileIds = results.flatMap((result) => {
-    const fileId = (result as { fileId?: unknown } | null)?.fileId;
+    const fileId = (result as { file?: { id?: unknown } } | null)?.file?.id;
     return typeof fileId === "string" ? [fileId] : [];
   });
   return fileIds.length ? { media: fileIds.map((fileId) => ({ fileId })) } : {};
+}
+
+/** Cuso's connected accounts, LinkedIn first: one id per network. */
+function cusoAccounts(results: Results): string[] {
+  return latest<{ id: string; provider: string }[]>(results, "accounts")
+    .sort((a, b) =>
+      a.provider === "linkedin" ? -1 : b.provider === "linkedin" ? 1 : 0,
+    )
+    .map((account) => account.id);
 }
 
 function xAccount(results: Results): string {

@@ -29,6 +29,8 @@ const { values } = parseArgs({
     passes: { type: "string", default: "2" },
     holdout: { type: "string" },
     "json-out": { type: "string" },
+    /** A private module whose default export, given SCRIPT_HELPERS, returns held-out scripts. */
+    scripts: { type: "string" },
   },
 });
 
@@ -93,7 +95,17 @@ const {
   takeScriptErrors,
   worldCheckMode,
 } = await import("@/lib/evals/world-check");
-const { REFERENCE_SCRIPTS } = await import("@/lib/evals/reference-scripts");
+const { REFERENCE_SCRIPTS, SCRIPT_HELPERS } = await import(
+  "@/lib/evals/reference-scripts"
+);
+if (values.scripts) {
+  const { pathToFileURL } = await import("node:url");
+  const { resolve } = await import("node:path");
+  const privateScripts = await import(
+    pathToFileURL(resolve(values.scripts)).href
+  );
+  Object.assign(REFERENCE_SCRIPTS, privateScripts.default(SCRIPT_HELPERS));
+}
 const { journeyProblems, resultInvalid } = await import(
   "@/lib/evals/world-check-verdict"
 );
