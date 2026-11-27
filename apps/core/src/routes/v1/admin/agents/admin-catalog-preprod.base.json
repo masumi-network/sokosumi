@@ -1,0 +1,1365 @@
+{
+  "sql": [
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE \"public\".\"Agent\".\"id\" IN ($1,$2,$3) OFFSET $4",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1,$2,$3) OFFSET $4",
+    "SELECT \"public\".\"apikey\".\"id\", \"public\".\"apikey\".\"configId\", \"public\".\"apikey\".\"name\", \"public\".\"apikey\".\"start\", \"public\".\"apikey\".\"prefix\", \"public\".\"apikey\".\"key\", \"public\".\"apikey\".\"referenceId\", \"public\".\"apikey\".\"refillInterval\", \"public\".\"apikey\".\"refillAmount\", \"public\".\"apikey\".\"lastRefillAt\", \"public\".\"apikey\".\"enabled\", \"public\".\"apikey\".\"rateLimitEnabled\", \"public\".\"apikey\".\"rateLimitTimeWindow\", \"public\".\"apikey\".\"rateLimitMax\", \"public\".\"apikey\".\"requestCount\", \"public\".\"apikey\".\"remaining\", \"public\".\"apikey\".\"lastRequest\", \"public\".\"apikey\".\"expiresAt\", \"public\".\"apikey\".\"createdAt\", \"public\".\"apikey\".\"updatedAt\", \"public\".\"apikey\".\"permissions\", \"public\".\"apikey\".\"metadata\" FROM \"public\".\"apikey\" WHERE \"public\".\"apikey\".\"key\" = $1 LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"user\".\"id\", \"public\".\"user\".\"role\", \"public\".\"user\".\"banned\", \"public\".\"user\".\"banExpires\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) OFFSET $4) AS \"sub\"",
+    "SELECT a.id FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ORDER BY COALESCE(o.name, a.name) ASC, a.id ASC LIMIT $3",
+    "UPDATE \"public\".\"apikey\" SET \"lastRequest\" = $1 WHERE (\"public\".\"apikey\".\"id\" = $2 AND 1=1) RETURNING \"public\".\"apikey\".\"id\", \"public\".\"apikey\".\"configId\", \"public\".\"apikey\".\"name\", \"public\".\"apikey\".\"start\", \"public\".\"apikey\".\"prefix\", \"public\".\"apikey\".\"key\", \"public\".\"apikey\".\"referenceId\", \"public\".\"apikey\".\"refillInterval\", \"public\".\"apikey\".\"refillAmount\", \"public\".\"apikey\".\"lastRefillAt\", \"public\".\"apikey\".\"enabled\", \"public\".\"apikey\".\"rateLimitEnabled\", \"public\".\"apikey\".\"rateLimitTimeWindow\", \"public\".\"apikey\".\"rateLimitMax\", \"public\".\"apikey\".\"requestCount\", \"public\".\"apikey\".\"remaining\", \"public\".\"apikey\".\"lastRequest\", \"public\".\"apikey\".\"expiresAt\", \"public\".\"apikey\".\"createdAt\", \"public\".\"apikey\".\"updatedAt\", \"public\".\"apikey\".\"permissions\", \"public\".\"apikey\".\"metadata\"",
+    "UPDATE \"public\".\"apikey\" SET \"updatedAt\" = $1 WHERE (\"public\".\"apikey\".\"id\" = $2 AND 1=1) RETURNING \"public\".\"apikey\".\"id\", \"public\".\"apikey\".\"configId\", \"public\".\"apikey\".\"name\", \"public\".\"apikey\".\"start\", \"public\".\"apikey\".\"prefix\", \"public\".\"apikey\".\"key\", \"public\".\"apikey\".\"referenceId\", \"public\".\"apikey\".\"refillInterval\", \"public\".\"apikey\".\"refillAmount\", \"public\".\"apikey\".\"lastRefillAt\", \"public\".\"apikey\".\"enabled\", \"public\".\"apikey\".\"rateLimitEnabled\", \"public\".\"apikey\".\"rateLimitTimeWindow\", \"public\".\"apikey\".\"rateLimitMax\", \"public\".\"apikey\".\"requestCount\", \"public\".\"apikey\".\"remaining\", \"public\".\"apikey\".\"lastRequest\", \"public\".\"apikey\".\"expiresAt\", \"public\".\"apikey\".\"createdAt\", \"public\".\"apikey\".\"updatedAt\", \"public\".\"apikey\".\"permissions\", \"public\".\"apikey\".\"metadata\"",
+    "WITH ordered AS ( SELECT a.id, ROW_NUMBER() OVER ( ORDER BY COALESCE(o.name, a.name) ASC, a.id ASC ) AS rn FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ) SELECT id FROM ordered WHERE rn > (SELECT rn FROM ordered WHERE id = $3) ORDER BY rn LIMIT $4",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE \"public\".\"Agent\".\"id\" IN ($1) OFFSET $2",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2",
+    "SELECT a.id FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ORDER BY COALESCE(o.name, a.name) DESC, a.id DESC LIMIT $3",
+    "WITH ordered AS ( SELECT a.id, ROW_NUMBER() OVER ( ORDER BY COALESCE(o.name, a.name) DESC, a.id DESC ) AS rn FROM \"public\".\"Agent\" a LEFT JOIN \"public\".\"AgentMetadataOverride\" o ON o.\"agentId\" = a.id WHERE ( $1::text IS NULL OR a.name ILIKE $1 ESCAPE '\\' OR a.\"blockchainIdentifier\" ILIKE $1 ESCAPE '\\' OR o.name ILIKE $1 ESCAPE '\\' ) AND ($2::\"public\".\"AgentStatus\" IS NULL OR a.status = $2::\"public\".\"AgentStatus\") ) SELECT id FROM ordered WHERE rn > (SELECT rn FROM ordered WHERE id = $3) ORDER BY rn LIMIT $4",
+    "BEGIN",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"public\".\"Agent\".\"name\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $4 OFFSET $5",
+    "COMMIT",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"public\".\"Agent\".\"name\" = (SELECT \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" >= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"public\".\"Agent\".\"name\" > (SELECT \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"public\".\"Agent\".\"name\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $7 OFFSET $8",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"public\".\"Agent\".\"name\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"public\".\"Agent\".\"name\" = (SELECT \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" <= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"public\".\"Agent\".\"name\" < (SELECT \"public\".\"Agent\".\"name\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"public\".\"Agent\".\"name\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $7 OFFSET $8",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"orderby_1\".\"id\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"orderby_1\".\"id\" = (SELECT \"orderby_1\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" >= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"orderby_1\".\"id\" > (SELECT \"orderby_1\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"orderby_1\".\"id\" ASC, \"public\".\"Agent\".\"id\" ASC OFFSET $7",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"orderby_1\".\"id\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"orderby_1\".\"id\" = (SELECT \"orderby_1\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" <= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"orderby_1\".\"id\" < (SELECT \"orderby_1\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"orderby_1\" ON (\"orderby_1\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"orderby_1\".\"id\" DESC, \"public\".\"Agent\".\"id\" DESC OFFSET $7",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"public\".\"Agent\".\"status\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"public\".\"Agent\".\"status\" = (SELECT \"public\".\"Agent\".\"status\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" >= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"public\".\"Agent\".\"status\" > (SELECT \"public\".\"Agent\".\"status\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"public\".\"Agent\".\"status\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $7 OFFSET $8",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"public\".\"Agent\".\"status\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"public\".\"Agent\".\"status\" = (SELECT \"public\".\"Agent\".\"status\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" <= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"public\".\"Agent\".\"status\" < (SELECT \"public\".\"Agent\".\"status\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"public\".\"Agent\".\"status\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $7 OFFSET $8",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"public\".\"Agent\".\"createdAt\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"public\".\"Agent\".\"createdAt\" = (SELECT \"public\".\"Agent\".\"createdAt\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" >= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"public\".\"Agent\".\"createdAt\" > (SELECT \"public\".\"Agent\".\"createdAt\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"public\".\"Agent\".\"createdAt\" ASC, \"public\".\"Agent\".\"id\" ASC LIMIT $7 OFFSET $8",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE (\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) ORDER BY \"public\".\"Agent\".\"createdAt\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $4 OFFSET $5",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND ((\"public\".\"Agent\".\"createdAt\" = (SELECT \"public\".\"Agent\".\"createdAt\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($4)) AND \"public\".\"Agent\".\"id\" <= (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($5))) OR (\"public\".\"Agent\".\"createdAt\" < (SELECT \"public\".\"Agent\".\"createdAt\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\") = ($6))))) ORDER BY \"public\".\"Agent\".\"createdAt\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $7 OFFSET $8",
+    "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND \"public\".\"Agent\".\"status\" = CAST($4::text AS \"public\".\"AgentStatus\")) OFFSET $5) AS \"sub\"",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") WHERE ((\"public\".\"Agent\".\"name\" ILIKE ('%' || $1 || '%') OR \"public\".\"Agent\".\"blockchainIdentifier\" ILIKE ('%' || $2 || '%') OR (\"j0\".\"name\" ILIKE ('%' || $3 || '%') AND (\"j0\".\"id\" IS NOT NULL))) AND \"public\".\"Agent\".\"status\" = CAST($4::text AS \"public\".\"AgentStatus\")) ORDER BY \"public\".\"Agent\".\"createdAt\" DESC, \"public\".\"Agent\".\"id\" DESC LIMIT $5 OFFSET $6",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"image\", \"public\".\"AgentMetadataOverride\".\"agentId\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1,$2) OFFSET $3",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" = $1 OFFSET $2",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"agentId\" = $1 ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $2",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"metadataOverrideId\" IN ($1) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $2",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t0\".\"A\" AS \"AgentTag@Agent\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentTag\" AS \"t0\" ON \"t0\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t0\".\"A\" = $1) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $2",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t1\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t1\" ON \"t1\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t1\".\"A\" IN ($1)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $2",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\" FROM \"public\".\"AgentMetadataOverride\" WHERE (\"public\".\"AgentMetadataOverride\".\"agentId\" = $1 AND 1=1) OFFSET $2",
+    "INSERT INTO \"public\".\"AgentMetadataOverride\" (\"id\",\"createdAt\",\"updatedAt\",\"agentId\",\"name\",\"description\",\"capabilityName\",\"capabilityVersion\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING \"public\".\"AgentMetadataOverride\".\"id\"",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"id\" = $1 LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t1\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t1\" ON \"t1\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t1\".\"A\" = $1) OFFSET $2",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"metadataOverrideId\" = $1 OFFSET $2",
+    "SELECT \"public\".\"Tag\".\"id\" FROM \"public\".\"Tag\" WHERE (\"public\".\"Tag\".\"name\" = $1 AND 1=1) OFFSET $2",
+    "INSERT INTO \"public\".\"Tag\" (\"id\",\"createdAt\",\"updatedAt\",\"name\") VALUES ($1,$2,$3,$4) RETURNING \"public\".\"Tag\".\"id\"",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\" FROM \"public\".\"Tag\" WHERE \"public\".\"Tag\".\"id\" = $1 LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE (\"public\".\"AgentMetadataOverride\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"Tag\".\"id\", \"t0\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t0\" ON \"t0\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t0\".\"A\" IN ($1)) OFFSET $2",
+    "DELETE FROM \"public\".\"_AgentMetadataOverrideToTag\" WHERE (\"public\".\"_AgentMetadataOverrideToTag\".\"A\" = ($1) AND \"public\".\"_AgentMetadataOverrideToTag\".\"B\" IN (NULL))",
+    "SELECT \"public\".\"Tag\".\"id\" FROM \"public\".\"Tag\" WHERE ((\"public\".\"Tag\".\"id\" = $1 AND 1=1) OR (\"public\".\"Tag\".\"id\" = $2 AND 1=1)) OFFSET $3",
+    "INSERT INTO \"public\".\"_AgentMetadataOverrideToTag\" (\"A\",\"B\") VALUES ($1,$2),($3,$4) ON CONFLICT DO NOTHING",
+    "DELETE FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"metadataOverrideId\" = $1",
+    "INSERT INTO \"public\".\"ExampleOutput\" (\"id\",\"createdAt\",\"updatedAt\",\"name\",\"mimeType\",\"url\",\"metadataOverrideId\") VALUES ($1,$2,$3,$4,$5,$6,$7), ($8,$9,$10,$11,$12,$13,$14), ($15,$16,$17,$18,$19,$20,$21)",
+    "SELECT \"public\".\"Tag\".\"id\", \"t0\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t0\" ON \"t0\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t0\".\"A\" = $1) ORDER BY \"public\".\"Tag\".\"id\" ASC LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"metadataOverrideId\" = $1 ORDER BY \"public\".\"ExampleOutput\".\"id\" ASC LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"Agent\".\"id\" FROM \"public\".\"Agent\" WHERE (\"public\".\"Agent\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "UPDATE \"public\".\"AgentMetadataOverride\" SET \"apiBaseUrl\" = $1, \"capabilityName\" = $2, \"capabilityVersion\" = $3, \"updatedAt\" = $4 WHERE (\"public\".\"AgentMetadataOverride\".\"id\" IN ($5) AND (\"public\".\"AgentMetadataOverride\".\"agentId\" = $6 AND 1=1)) RETURNING \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\"",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t0\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t0\" ON \"t0\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t0\".\"A\" = $1) OFFSET $2",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\" FROM \"public\".\"Tag\" WHERE ((\"public\".\"Tag\".\"name\" = $1 AND 1=1) AND \"public\".\"Tag\".\"id\" IN ($2)) LIMIT $3 OFFSET $4",
+    "DELETE FROM \"public\".\"_AgentMetadataOverrideToTag\" WHERE (\"public\".\"_AgentMetadataOverrideToTag\".\"A\" = ($1) AND \"public\".\"_AgentMetadataOverrideToTag\".\"B\" IN ($2,$3))",
+    "SELECT \"public\".\"Tag\".\"id\" FROM \"public\".\"Tag\" WHERE (\"public\".\"Tag\".\"id\" = $1 AND 1=1) OFFSET $2",
+    "INSERT INTO \"public\".\"_AgentMetadataOverrideToTag\" (\"A\",\"B\") VALUES ($1,$2) ON CONFLICT DO NOTHING",
+    "INSERT INTO \"public\".\"ExampleOutput\" (\"id\",\"createdAt\",\"updatedAt\",\"name\",\"mimeType\",\"url\",\"metadataOverrideId\") VALUES ($1,$2,$3,$4,$5,$6,$7), ($8,$9,$10,$11,$12,$13,$14), ($15,$16,$17,$18,$19,$20,$21), ($22,$23,$24,$25,$26,$27,$28)",
+    "UPDATE \"public\".\"AgentMetadataOverride\" SET \"description\" = $1, \"capabilityName\" = $2, \"capabilityVersion\" = $3, \"updatedAt\" = $4 WHERE (\"public\".\"AgentMetadataOverride\".\"id\" IN ($5) AND (\"public\".\"AgentMetadataOverride\".\"agentId\" = $6 AND 1=1)) RETURNING \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\"",
+    "UPDATE \"public\".\"AgentMetadataOverride\" SET \"name\" = $1, \"apiBaseUrl\" = $2, \"capabilityName\" = $3, \"capabilityVersion\" = $4, \"updatedAt\" = $5 WHERE (\"public\".\"AgentMetadataOverride\".\"id\" IN ($6) AND (\"public\".\"AgentMetadataOverride\".\"agentId\" = $7 AND 1=1)) RETURNING \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\"",
+    "DELETE FROM \"public\".\"_AgentMetadataOverrideToTag\" WHERE (\"public\".\"_AgentMetadataOverrideToTag\".\"A\" = ($1) AND \"public\".\"_AgentMetadataOverrideToTag\".\"B\" IN ($2))",
+    "DELETE FROM \"public\".\"AgentMetadataOverride\" WHERE (\"public\".\"AgentMetadataOverride\".\"id\" = $1 AND 1=1) RETURNING \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\"",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"metadataOverrideId\" IN (NULL) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $1",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t1\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t1\" ON \"t1\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t1\".\"A\" IN (NULL)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $1",
+    "DELETE FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" = $1",
+    "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE (\"public\".\"CreditCost\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($13) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $14 OFFSET $15",
+    "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"Category\".\"id\", \"public\".\"Category\".\"createdAt\", \"public\".\"Category\".\"updatedAt\", \"public\".\"Category\".\"name\", \"public\".\"Category\".\"slug\", \"public\".\"Category\".\"description\", \"public\".\"Category\".\"image\", \"public\".\"Category\".\"icon\", \"public\".\"Category\".\"styles\", \"public\".\"Category\".\"priority\", \"t5\".\"A\" AS \"AgentCategory@Agent\" FROM \"public\".\"Category\" INNER JOIN \"public\".\"_AgentCategory\" AS \"t5\" ON \"t5\".\"B\" = \"public\".\"Category\".\"id\" WHERE (1=1 AND \"t5\".\"A\" IN (NULL)) ORDER BY \"public\".\"Category\".\"priority\" ASC, \"public\".\"Category\".\"name\" ASC OFFSET $1",
+    "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE 1=1 OFFSET $1",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"agentId\" IN (NULL) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $1",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t6\".\"A\" AS \"AgentTag@Agent\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentTag\" AS \"t6\" ON \"t6\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t6\".\"A\" IN (NULL)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $1",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t7\".\"A\" AS \"AgentMetadataOverrideToTag@AgentMetadataOverride\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentMetadataOverrideToTag\" AS \"t7\" ON \"t7\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t7\".\"A\" IN (NULL)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $1",
+    "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"vendor_grant\".\"id\" FROM \"public\".\"vendor_grant\" WHERE ((\"public\".\"vendor_grant\".\"vendorId\" = $1 AND \"public\".\"vendor_grant\".\"workspaceId\" = $2) AND 1=1) LIMIT $3 OFFSET $4",
+    "SELECT \"public\".\"workspace\".\"id\", \"public\".\"workspace\".\"createdAt\", \"public\".\"workspace\".\"updatedAt\", \"public\".\"workspace\".\"calendarRevision\", \"public\".\"workspace\".\"userId\", \"public\".\"workspace\".\"organizationId\" FROM \"public\".\"workspace\" WHERE (\"public\".\"workspace\".\"userId\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN (NULL)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $4",
+    "SELECT \"public\".\"AgentPaymentSourceAmount\".\"id\", \"public\".\"AgentPaymentSourceAmount\".\"createdAt\", \"public\".\"AgentPaymentSourceAmount\".\"updatedAt\", \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\", \"public\".\"AgentPaymentSourceAmount\".\"unit\", \"public\".\"AgentPaymentSourceAmount\".\"amount\", \"public\".\"AgentPaymentSourceAmount\".\"decimals\" FROM \"public\".\"AgentPaymentSourceAmount\" WHERE \"public\".\"AgentPaymentSourceAmount\".\"paymentSourceId\" IN (NULL) OFFSET $1",
+    "SELECT \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\" FROM \"public\".\"CreditCost\" WHERE (\"public\".\"CreditCost\".\"unit\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "INSERT INTO \"public\".\"CreditCost\" (\"id\",\"createdAt\",\"updatedAt\",\"unit\",\"centsPerUnit\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\"",
+    "ROLLBACK",
+    "SELECT \"public\".\"Agent\".\"id\", \"public\".\"Agent\".\"createdAt\", \"public\".\"Agent\".\"updatedAt\", \"public\".\"Agent\".\"blockchainIdentifier\", \"public\".\"Agent\".\"registryIdentity\", \"public\".\"Agent\".\"registryVersion\", \"public\".\"Agent\".\"name\", \"public\".\"Agent\".\"description\", \"public\".\"Agent\".\"apiBaseUrl\", \"public\".\"Agent\".\"type\"::text, \"public\".\"Agent\".\"openApiSpecUrl\", \"public\".\"Agent\".\"x402ResourcesUrl\", \"public\".\"Agent\".\"supersededByAgentIdentifier\", \"public\".\"Agent\".\"capabilityName\", \"public\".\"Agent\".\"capabilityVersion\", \"public\".\"Agent\".\"authorName\", \"public\".\"Agent\".\"authorImage\", \"public\".\"Agent\".\"authorContactEmail\", \"public\".\"Agent\".\"authorContactOther\", \"public\".\"Agent\".\"authorOrganization\", \"public\".\"Agent\".\"legalPrivacyPolicy\", \"public\".\"Agent\".\"legalDpa\", \"public\".\"Agent\".\"legalTerms\", \"public\".\"Agent\".\"legalOther\", \"public\".\"Agent\".\"lastUptimeCheck\", \"public\".\"Agent\".\"uptimeCount\", \"public\".\"Agent\".\"uptimeCheckCount\", \"public\".\"Agent\".\"image\", \"public\".\"Agent\".\"icon\", \"public\".\"Agent\".\"metadataVersion\", \"public\".\"Agent\".\"paymentType\"::text, \"public\".\"Agent\".\"pricingId\", \"public\".\"Agent\".\"status\"::text, \"public\".\"Agent\".\"isShown\", \"public\".\"Agent\".\"riskClassification\"::text, \"public\".\"Agent\".\"summary\", \"public\".\"Agent\".\"summaryDeclinedAt\", \"public\".\"Agent\".\"jobCount\" FROM \"public\".\"Agent\" LEFT JOIN \"public\".\"AgentMetadataOverride\" AS \"j0\" ON (\"j0\".\"agentId\") = (\"public\".\"Agent\".\"id\") LEFT JOIN \"public\".\"AgentPricing\" AS \"j1\" ON (\"j1\".\"id\") = (\"public\".\"Agent\".\"pricingId\") LEFT JOIN \"public\".\"AgentFixedPricing\" AS \"j2\" ON (\"j2\".\"id\") = (\"j1\".\"agentFixedPricingId\") WHERE (\"public\".\"Agent\".\"id\" = $1 AND \"public\".\"Agent\".\"status\" = CAST($2::text AS \"public\".\"AgentStatus\") AND \"public\".\"Agent\".\"isShown\" = $3 AND \"public\".\"Agent\".\"type\" = CAST($4::text AS \"public\".\"AgentEntryType\") AND \"public\".\"Agent\".\"paymentType\" IN (CAST($5::text AS \"public\".\"PaymentType\"),CAST($6::text AS \"public\".\"PaymentType\")) AND (\"public\".\"Agent\".\"apiBaseUrl\" IS NOT NULL OR (\"j0\".\"apiBaseUrl\" IS NOT NULL AND (\"j0\".\"id\" IS NOT NULL))) AND (NOT (\"public\".\"Agent\".\"paymentType\" = CAST($7::text AS \"public\".\"PaymentType\") OR \"public\".\"Agent\".\"blockchainIdentifier\"::text LIKE ($8 || '%'))) AND (\"j1\".\"pricingType\" <> CAST($9::text AS \"public\".\"PricingType\") AND (\"j1\".\"pricingType\" = CAST($10::text AS \"public\".\"PricingType\") OR (\"j1\".\"pricingType\" = CAST($11::text AS \"public\".\"PricingType\") AND (NOT EXISTS(SELECT \"t3\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t3\" WHERE ((NOT \"t3\".\"unit\" IN ($12,$13)) AND (\"j2\".\"id\") = (\"t3\".\"agentFixedPricingId\") AND \"t3\".\"agentFixedPricingId\" IS NOT NULL)) AND EXISTS(SELECT \"t4\".\"agentFixedPricingId\" FROM \"public\".\"UnitValue\" AS \"t4\" WHERE (\"t4\".\"unit\" IN ($14,$15) AND (\"j2\".\"id\") = (\"t4\".\"agentFixedPricingId\") AND \"t4\".\"agentFixedPricingId\" IS NOT NULL)) AND (\"j2\".\"id\" IS NOT NULL)))) AND (\"j1\".\"id\" IS NOT NULL))) LIMIT $16 OFFSET $17",
+    "SELECT \"public\".\"AgentFixedPricing\".\"id\", \"public\".\"AgentFixedPricing\".\"createdAt\", \"public\".\"AgentFixedPricing\".\"updatedAt\" FROM \"public\".\"AgentFixedPricing\" WHERE \"public\".\"AgentFixedPricing\".\"id\" IN ($1) OFFSET $2",
+    "SELECT \"public\".\"AgentMetadataOverride\".\"id\", \"public\".\"AgentMetadataOverride\".\"createdAt\", \"public\".\"AgentMetadataOverride\".\"updatedAt\", \"public\".\"AgentMetadataOverride\".\"agentId\", \"public\".\"AgentMetadataOverride\".\"name\", \"public\".\"AgentMetadataOverride\".\"description\", \"public\".\"AgentMetadataOverride\".\"apiBaseUrl\", \"public\".\"AgentMetadataOverride\".\"capabilityName\", \"public\".\"AgentMetadataOverride\".\"capabilityVersion\", \"public\".\"AgentMetadataOverride\".\"authorName\", \"public\".\"AgentMetadataOverride\".\"authorImage\", \"public\".\"AgentMetadataOverride\".\"authorContactEmail\", \"public\".\"AgentMetadataOverride\".\"authorContactOther\", \"public\".\"AgentMetadataOverride\".\"authorOrganization\", \"public\".\"AgentMetadataOverride\".\"legalPrivacyPolicy\", \"public\".\"AgentMetadataOverride\".\"legalDpa\", \"public\".\"AgentMetadataOverride\".\"legalTerms\", \"public\".\"AgentMetadataOverride\".\"legalOther\", \"public\".\"AgentMetadataOverride\".\"image\" FROM \"public\".\"AgentMetadataOverride\" WHERE \"public\".\"AgentMetadataOverride\".\"agentId\" IN ($1) OFFSET $2",
+    "SELECT \"public\".\"AgentPricing\".\"id\", \"public\".\"AgentPricing\".\"createdAt\", \"public\".\"AgentPricing\".\"updatedAt\", \"public\".\"AgentPricing\".\"pricingType\"::text, \"public\".\"AgentPricing\".\"agentFixedPricingId\" FROM \"public\".\"AgentPricing\" WHERE \"public\".\"AgentPricing\".\"id\" IN ($1) OFFSET $2",
+    "SELECT \"public\".\"Category\".\"id\", \"public\".\"Category\".\"createdAt\", \"public\".\"Category\".\"updatedAt\", \"public\".\"Category\".\"name\", \"public\".\"Category\".\"slug\", \"public\".\"Category\".\"description\", \"public\".\"Category\".\"image\", \"public\".\"Category\".\"icon\", \"public\".\"Category\".\"styles\", \"public\".\"Category\".\"priority\", \"t5\".\"A\" AS \"AgentCategory@Agent\" FROM \"public\".\"Category\" INNER JOIN \"public\".\"_AgentCategory\" AS \"t5\" ON \"t5\".\"B\" = \"public\".\"Category\".\"id\" WHERE (1=1 AND \"t5\".\"A\" IN ($1)) ORDER BY \"public\".\"Category\".\"priority\" ASC, \"public\".\"Category\".\"name\" ASC OFFSET $2",
+    "SELECT \"public\".\"ExampleOutput\".\"id\", \"public\".\"ExampleOutput\".\"createdAt\", \"public\".\"ExampleOutput\".\"updatedAt\", \"public\".\"ExampleOutput\".\"name\", \"public\".\"ExampleOutput\".\"mimeType\", \"public\".\"ExampleOutput\".\"url\", \"public\".\"ExampleOutput\".\"agentId\", \"public\".\"ExampleOutput\".\"metadataOverrideId\" FROM \"public\".\"ExampleOutput\" WHERE \"public\".\"ExampleOutput\".\"agentId\" IN ($1) ORDER BY \"public\".\"ExampleOutput\".\"createdAt\" ASC, \"public\".\"ExampleOutput\".\"id\" ASC OFFSET $2",
+    "SELECT \"public\".\"Tag\".\"id\", \"public\".\"Tag\".\"createdAt\", \"public\".\"Tag\".\"updatedAt\", \"public\".\"Tag\".\"name\", \"t6\".\"A\" AS \"AgentTag@Agent\" FROM \"public\".\"Tag\" INNER JOIN \"public\".\"_AgentTag\" AS \"t6\" ON \"t6\".\"B\" = \"public\".\"Tag\".\"id\" WHERE (1=1 AND \"t6\".\"A\" IN ($1)) ORDER BY \"public\".\"Tag\".\"name\" ASC OFFSET $2",
+    "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
+    "SELECT AVG(EXTRACT(EPOCH FROM (completed_event.\"createdAt\" - j.\"createdAt\"))) as avg_duration_seconds FROM \"public\".\"Job\" j INNER JOIN LATERAL ( SELECT js.\"createdAt\" FROM \"public\".\"jobEvent\" js WHERE js.\"jobId\" = j.id AND js.\"status\" = 'COMPLETED'::\"public\".\"AgentJobStatus\" ORDER BY js.\"createdAt\" DESC LIMIT 1 ) completed_event ON true WHERE j.\"agentId\" = $1 AND j.\"createdAt\" >= $2",
+    "SELECT COUNT(\"rating\") AS \"_count$rating\", AVG(\"rating\") AS \"_avg$rating\" FROM (SELECT \"public\".\"UserAgentRating\".\"rating\" FROM \"public\".\"UserAgentRating\" WHERE (\"public\".\"UserAgentRating\".\"agentId\" = $1 AND \"public\".\"UserAgentRating\".\"isHidden\" = $2) OFFSET $3) AS \"sub\"",
+    "SELECT \"public\".\"AgentPaymentSource\".\"id\", \"public\".\"AgentPaymentSource\".\"createdAt\", \"public\".\"AgentPaymentSource\".\"updatedAt\", \"public\".\"AgentPaymentSource\".\"agentId\", \"public\".\"AgentPaymentSource\".\"sourceIndex\", \"public\".\"AgentPaymentSource\".\"chain\", \"public\".\"AgentPaymentSource\".\"network\", \"public\".\"AgentPaymentSource\".\"paymentSourceType\", \"public\".\"AgentPaymentSource\".\"address\", \"public\".\"AgentPaymentSource\".\"payTo\", \"public\".\"AgentPaymentSource\".\"scheme\", \"public\".\"AgentPaymentSource\".\"resource\", \"public\".\"AgentPaymentSource\".\"pricingType\"::text FROM \"public\".\"AgentPaymentSource\" WHERE ((\"public\".\"AgentPaymentSource\".\"chain\" = $1 AND \"public\".\"AgentPaymentSource\".\"network\" = $2 AND \"public\".\"AgentPaymentSource\".\"paymentSourceType\" = $3) AND \"public\".\"AgentPaymentSource\".\"agentId\" IN ($4)) ORDER BY \"public\".\"AgentPaymentSource\".\"sourceIndex\" ASC OFFSET $5",
+    "UPDATE \"public\".\"CreditCost\" SET \"centsPerUnit\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"CreditCost\".\"id\" = $3 AND 1=1) RETURNING \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\"",
+    "DELETE FROM \"public\".\"CreditCost\" WHERE (\"public\".\"CreditCost\".\"id\" = $1 AND 1=1) RETURNING \"public\".\"CreditCost\".\"id\", \"public\".\"CreditCost\".\"createdAt\", \"public\".\"CreditCost\".\"updatedAt\", \"public\".\"CreditCost\".\"unit\", \"public\".\"CreditCost\".\"centsPerUnit\""
+  ],
+  "results": [
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-d\"}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [0, 1],
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [5, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-d\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [0, 1],
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [6, 1],
+        [7, 1],
+        [8, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [9, 1],
+        [10, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [6, 1],
+        [7, 1],
+        [8, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [0, 1],
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [11, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-d\"}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [0, 1],
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [6, 1],
+        [7, 1],
+        [12, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-d\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [9, 1],
+        [10, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [6, 1],
+        [7, 1],
+        [12, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-b\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [14, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-d", "adm-b", "adm-e", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-b\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [16, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
+          [1, ["adm-e", "adm-c", "adm-a", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [16, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
+          [10, ["adm-a", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [17, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-a", "adm-c", "adm-e", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-b\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [18, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
+          [1, ["adm-e", "adm-b", "adm-d", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-b\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [18, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
+          [10, ["adm-d", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [19, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-a", "adm-c", "adm-b", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [20, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "0"]],
+          [21, ["0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-d\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [22, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-e", "adm-d", "adm-b", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-d\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [23, ["adm", "adm", "adm", "adm-d", "adm-d", "adm-d", "0"]],
+          [21, ["0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-b\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [24, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-a", "adm-b", "adm-e", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-b\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [25, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
+          [1, ["adm-e", "adm-c", "adm-d", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [25, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
+          [10, ["adm-d", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-c\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [26, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-d", "adm-c", "adm-e", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-c\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-b\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [27, ["adm", "adm", "adm", "adm-c", "adm-c", "adm-c", "3", "1"]],
+          [1, ["adm-e", "adm-b", "adm-a", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-b\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [27, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
+          [10, ["adm-a", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-b\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [28, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-a", "adm-b", "adm-c", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-b\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-d\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [29, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
+          [1, ["adm-c", "adm-d", "adm-e", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-d\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [29, ["adm", "adm", "adm", "adm-d", "adm-d", "adm-d", "3", "1"]],
+          [10, ["adm-e", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":2,\"total\":5,\"nextCursor\":\"adm-d\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [30, ["adm", "adm", "adm", "3", "0"]],
+          [1, ["adm-e", "adm-d", "adm-c", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-d\",\"limit\":2,\"total\":5,\"nextCursor\":\"adm-b\"}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [31, ["adm", "adm", "adm", "adm-d", "adm-d", "adm-d", "3", "1"]],
+          [1, ["adm-c", "adm-b", "adm-a", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-b\",\"limit\":2,\"total\":5,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [31, ["adm", "adm", "adm", "adm-b", "adm-b", "adm-b", "3", "1"]],
+          [10, ["adm-a", "0"]],
+          [4, ["adm", "adm", "adm", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"registryName\":\"adm Zeta\",\"hasOverride\":true,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"registryName\":\"adm Beta\",\"hasOverride\":false,\"displayName\":\"adm Beta\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-e\",\"blockchainIdentifier\":\"adm-chain-e\",\"registryName\":\"adm Epsilon\",\"hasOverride\":false,\"displayName\":\"adm Epsilon\",\"displayImage\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":20,\"total\":3,\"nextCursor\":null}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [0, 1],
+        [1, 1],
+        [2, 1],
+        [3, 1],
+        [32, 1],
+        [5, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-d\",\"blockchainIdentifier\":\"adm-chain-d\",\"registryName\":\"adm Alpha\",\"hasOverride\":false,\"displayName\":\"adm Alpha\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T09:00:00.000Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":20,\"total\":2,\"nextCursor\":null}}}",
+      "count": 9,
+      "transactions": [
+        [
+          [13, []],
+          [33, ["adm", "adm", "adm", "OFFLINE", "21", "0"]],
+          [34, ["adm-d", "adm-c", "0"]],
+          [32, ["adm", "adm", "adm", "OFFLINE", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[{\"id\":\"adm-c\",\"blockchainIdentifier\":\"adm-chain-c\",\"registryName\":\"adm Gamma\",\"hasOverride\":true,\"displayName\":\"adm Delta\",\"displayImage\":null,\"status\":\"OFFLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"}],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":null,\"limit\":20,\"total\":1,\"nextCursor\":null}}}",
+      "count": 8,
+      "transactions": [],
+      "outside": [
+        [9, 1],
+        [10, 1],
+        [2, 1],
+        [3, 1],
+        [4, 1],
+        [5, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":[],\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"pagination\":{\"cursor\":\"adm-none\",\"limit\":20,\"total\":5,\"nextCursor\":null}}}",
+      "count": 6,
+      "transactions": [],
+      "outside": [[2, 1], [3, 1], [4, 1], [6, 1], [7, 1], [8, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"registry\":{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"name\":\"adm Zeta\",\"description\":\"Admin catalog fixture\",\"apiBaseUrl\":\"https://agent.example.com\",\"type\":\"STANDARD\",\"openApiSpecUrl\":null,\"x402ResourcesUrl\":null,\"paymentType\":\"WEB3_CARDANO_V1\",\"metadataVersion\":1,\"supersededByAgentIdentifier\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"icon\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},\"override\":{\"name\":\"adm Alpha\",\"description\":null,\"apiBaseUrl\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"tags\":[],\"exampleOutputs\":[]},\"resolved\":{\"name\":\"adm Alpha\",\"description\":\"Admin catalog fixture\",\"image\":null,\"apiBaseUrl\":\"https://agent.example.com\",\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"tags\":[],\"exampleOutputs\":[]}},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 10,
+      "transactions": [],
+      "outside": [
+        [35, 1],
+        [36, 1],
+        [37, 1],
+        [38, 1],
+        [39, 1],
+        [40, 1],
+        [2, 1],
+        [3, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/admin/agents/adm-none\",\"method\":\"GET\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[35, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"registry\":{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"name\":\"adm Beta\",\"description\":\"Admin catalog fixture\",\"apiBaseUrl\":\"https://agent.example.com\",\"type\":\"STANDARD\",\"openApiSpecUrl\":null,\"x402ResourcesUrl\":null,\"paymentType\":\"WEB3_CARDANO_V1\",\"metadataVersion\":1,\"supersededByAgentIdentifier\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"icon\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},\"override\":{\"name\":\"adm Override\",\"description\":\"Overridden\",\"apiBaseUrl\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"tags\":[\"adm-tag-a\",\"adm-tag-z\"],\"exampleOutputs\":[{\"name\":\"three\",\"mimeType\":\"text/plain\",\"url\":\"https://example.com/three\"},{\"name\":\"one\",\"mimeType\":\"text/plain\",\"url\":\"https://example.com/one\"},{\"name\":\"two\",\"mimeType\":\"text/plain\",\"url\":\"https://example.com/two\"}]},\"resolved\":{\"name\":\"adm Override\",\"description\":\"Overridden\",\"image\":null,\"apiBaseUrl\":\"https://agent.example.com\",\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"tags\":[\"adm-tag-a\",\"adm-tag-z\"],\"exampleOutputs\":[{\"name\":\"three\",\"mimeType\":\"text/plain\",\"url\":\"https://example.com/three\"},{\"name\":\"one\",\"mimeType\":\"text/plain\",\"url\":\"https://example.com/one\"},{\"name\":\"two\",\"mimeType\":\"text/plain\",\"url\":\"https://example.com/two\"}]}},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 35,
+      "transactions": [
+        [
+          [13, []],
+          [41, ["adm-b", "0"]],
+          [
+            42,
+            [
+              "<id 1>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "adm-b",
+              "adm Override",
+              "Overridden",
+              null,
+              null
+            ]
+          ],
+          [43, ["<id 1>", "1", "0"]],
+          [44, ["<id 1>", "0"]],
+          [45, ["<id 1>", "0"]],
+          [46, ["adm-tag-z", "0"]],
+          [
+            47,
+            [
+              "<id 2>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "adm-tag-z"
+            ]
+          ],
+          [48, ["<id 2>", "1", "0"]],
+          [46, ["adm-tag-a", "0"]],
+          [
+            47,
+            [
+              "<id 3>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "adm-tag-a"
+            ]
+          ],
+          [48, ["<id 3>", "1", "0"]],
+          [49, ["<id 1>", "1", "0"]],
+          [50, ["<id 1>", "0"]],
+          [51, ["<id 1>"]],
+          [52, ["<id 2>", "<id 3>", "0"]],
+          [53, ["<id 1>", "<id 2>", "<id 1>", "<id 3>"]],
+          [43, ["<id 1>", "1", "0"]],
+          [54, ["<id 1>"]],
+          [
+            55,
+            [
+              "<id 4>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "three",
+              "text/plain",
+              "https://example.com/three",
+              "<id 1>",
+              "<id 5>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "one",
+              "text/plain",
+              "https://example.com/one",
+              "<id 1>",
+              "<id 6>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "two",
+              "text/plain",
+              "https://example.com/two",
+              "<id 1>"
+            ]
+          ],
+          [49, ["<id 1>", "1", "0"]],
+          [56, ["<id 1>", "1", "0"]],
+          [57, ["<id 1>", "1", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [
+        [58, 1],
+        [35, 1],
+        [36, 1],
+        [37, 1],
+        [38, 1],
+        [39, 1],
+        [40, 1],
+        [2, 1],
+        [3, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "readOrder": ["three", "one", "two"],
+      "sentOrder": ["three", "one", "two"],
+      "idOrderIsReadOrder": true,
+      "oneCreatedAt": 1,
+      "createdAtIsClock": true
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"registry\":{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"name\":\"adm Beta\",\"description\":\"Admin catalog fixture\",\"apiBaseUrl\":\"https://agent.example.com\",\"type\":\"STANDARD\",\"openApiSpecUrl\":null,\"x402ResourcesUrl\":null,\"paymentType\":\"WEB3_CARDANO_V1\",\"metadataVersion\":1,\"supersededByAgentIdentifier\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"icon\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},\"override\":{\"name\":\"adm Override\",\"description\":\"Overridden\",\"apiBaseUrl\":\"https://override.example.com\",\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"tags\":[\"adm-tag-a\"],\"exampleOutputs\":[{\"name\":\"b\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/b.png\"},{\"name\":\"c\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/c.png\"},{\"name\":\"a\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/a.png\"},{\"name\":\"d\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/d.png\"}]},\"resolved\":{\"name\":\"adm Override\",\"description\":\"Overridden\",\"image\":null,\"apiBaseUrl\":\"https://override.example.com\",\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"tags\":[\"adm-tag-a\"],\"exampleOutputs\":[{\"name\":\"b\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/b.png\"},{\"name\":\"c\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/c.png\"},{\"name\":\"a\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/a.png\"},{\"name\":\"d\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/d.png\"}]}},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 32,
+      "transactions": [
+        [
+          [13, []],
+          [41, ["adm-b", "0"]],
+          [
+            59,
+            [
+              "https://override.example.com",
+              null,
+              null,
+              "2026-11-27 12:00:00",
+              "<id 1>",
+              "adm-b"
+            ]
+          ],
+          [43, ["<id 1>", "1", "0"]],
+          [60, ["<id 1>", "0"]],
+          [45, ["<id 1>", "0"]],
+          [46, ["adm-tag-a", "0"]],
+          [61, ["adm-tag-a", "<id 3>", "1", "0"]],
+          [48, ["<id 3>", "1", "0"]],
+          [49, ["<id 1>", "1", "0"]],
+          [50, ["<id 1>", "0"]],
+          [62, ["<id 1>", "<id 2>", "<id 3>"]],
+          [63, ["<id 3>", "0"]],
+          [64, ["<id 1>", "<id 3>"]],
+          [43, ["<id 1>", "1", "0"]],
+          [54, ["<id 1>"]],
+          [
+            65,
+            [
+              "<id 7>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "b",
+              "image/png",
+              "https://example.com/b.png",
+              "<id 1>",
+              "<id 8>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "c",
+              "image/png",
+              "https://example.com/c.png",
+              "<id 1>",
+              "<id 9>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "a",
+              "image/png",
+              "https://example.com/a.png",
+              "<id 1>",
+              "<id 10>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "d",
+              "image/png",
+              "https://example.com/d.png",
+              "<id 1>"
+            ]
+          ],
+          [49, ["<id 1>", "1", "0"]],
+          [56, ["<id 1>", "1", "0"]],
+          [57, ["<id 1>", "1", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [
+        [58, 1],
+        [35, 1],
+        [36, 1],
+        [37, 1],
+        [38, 1],
+        [39, 1],
+        [40, 1],
+        [2, 1],
+        [3, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "readOrder": ["b", "c", "a", "d"],
+      "sentOrder": ["b", "c", "a", "d"],
+      "idOrderIsReadOrder": true,
+      "oneCreatedAt": 1,
+      "createdAtIsClock": true
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"registry\":{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"name\":\"adm Beta\",\"description\":\"Admin catalog fixture\",\"apiBaseUrl\":\"https://agent.example.com\",\"type\":\"STANDARD\",\"openApiSpecUrl\":null,\"x402ResourcesUrl\":null,\"paymentType\":\"WEB3_CARDANO_V1\",\"metadataVersion\":1,\"supersededByAgentIdentifier\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"icon\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},\"override\":{\"name\":\"adm Override\",\"description\":null,\"apiBaseUrl\":\"https://override.example.com\",\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"tags\":[\"adm-tag-a\"],\"exampleOutputs\":[{\"name\":\"b\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/b.png\"},{\"name\":\"c\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/c.png\"},{\"name\":\"a\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/a.png\"},{\"name\":\"d\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/d.png\"}]},\"resolved\":{\"name\":\"adm Override\",\"description\":\"Admin catalog fixture\",\"image\":null,\"apiBaseUrl\":\"https://override.example.com\",\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"tags\":[\"adm-tag-a\"],\"exampleOutputs\":[{\"name\":\"b\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/b.png\"},{\"name\":\"c\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/c.png\"},{\"name\":\"a\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/a.png\"},{\"name\":\"d\",\"mimeType\":\"image/png\",\"url\":\"https://example.com/d.png\"}]}},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 21,
+      "transactions": [
+        [
+          [13, []],
+          [41, ["adm-b", "0"]],
+          [66, [null, null, null, "2026-11-27 12:00:00", "<id 1>", "adm-b"]],
+          [43, ["<id 1>", "1", "0"]],
+          [60, ["<id 1>", "0"]],
+          [45, ["<id 1>", "0"]],
+          [49, ["<id 1>", "1", "0"]],
+          [56, ["<id 1>", "1", "0"]],
+          [57, ["<id 1>", "1", "0"]],
+          [15, []]
+        ]
+      ],
+      "outside": [
+        [58, 1],
+        [35, 1],
+        [36, 1],
+        [37, 1],
+        [38, 1],
+        [39, 1],
+        [40, 1],
+        [2, 1],
+        [3, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"registry\":{\"id\":\"adm-b\",\"blockchainIdentifier\":\"adm-chain-b\",\"name\":\"adm Beta\",\"description\":\"Admin catalog fixture\",\"apiBaseUrl\":\"https://agent.example.com\",\"type\":\"STANDARD\",\"openApiSpecUrl\":null,\"x402ResourcesUrl\":null,\"paymentType\":\"WEB3_CARDANO_V1\",\"metadataVersion\":1,\"supersededByAgentIdentifier\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"icon\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},\"override\":null,\"resolved\":{\"name\":\"adm Beta\",\"description\":\"Admin catalog fixture\",\"image\":null,\"apiBaseUrl\":\"https://agent.example.com\",\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"tags\":[],\"exampleOutputs\":[]}},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 27,
+      "transactions": [
+        [
+          [13, []],
+          [41, ["adm-b", "0"]],
+          [
+            67,
+            [null, null, null, null, "2026-11-27 12:00:00", "<id 1>", "adm-b"]
+          ],
+          [43, ["<id 1>", "1", "0"]],
+          [60, ["<id 1>", "0"]],
+          [45, ["<id 1>", "0"]],
+          [49, ["<id 1>", "1", "0"]],
+          [50, ["<id 1>", "0"]],
+          [68, ["<id 1>", "<id 3>"]],
+          [43, ["<id 1>", "1", "0"]],
+          [54, ["<id 1>"]],
+          [49, ["<id 1>", "1", "0"]],
+          [56, ["<id 1>", "1", "0"]],
+          [57, ["<id 1>", "1", "0"]],
+          [69, ["<id 1>"]],
+          [15, []]
+        ]
+      ],
+      "outside": [
+        [58, 1],
+        [35, 1],
+        [36, 1],
+        [37, 1],
+        [70, 1],
+        [39, 1],
+        [71, 1],
+        [2, 1],
+        [3, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/admin/agents/adm-none/metadata-override\",\"method\":\"PATCH\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[58, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"registry\":{\"id\":\"adm-a\",\"blockchainIdentifier\":\"adm-chain-a\",\"name\":\"adm Zeta\",\"description\":\"Admin catalog fixture\",\"apiBaseUrl\":\"https://agent.example.com\",\"type\":\"STANDARD\",\"openApiSpecUrl\":null,\"x402ResourcesUrl\":null,\"paymentType\":\"WEB3_CARDANO_V1\",\"metadataVersion\":1,\"supersededByAgentIdentifier\":null,\"capabilityName\":null,\"capabilityVersion\":null,\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"image\":null,\"icon\":null,\"status\":\"ONLINE\",\"isShown\":true,\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\"},\"override\":null,\"resolved\":{\"name\":\"adm Zeta\",\"description\":\"Admin catalog fixture\",\"image\":null,\"apiBaseUrl\":\"https://agent.example.com\",\"authorName\":null,\"authorImage\":null,\"authorContactEmail\":null,\"authorContactOther\":null,\"authorOrganization\":null,\"legalPrivacyPolicy\":null,\"legalDpa\":null,\"legalTerms\":null,\"legalOther\":null,\"tags\":[],\"exampleOutputs\":[]}},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 12,
+      "transactions": [],
+      "outside": [
+        [72, 1],
+        [58, 1],
+        [35, 1],
+        [36, 1],
+        [37, 1],
+        [70, 1],
+        [39, 1],
+        [71, 1],
+        [2, 1],
+        [3, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/admin/agents/adm-none/metadata-override\",\"method\":\"DELETE\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[58, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/adm-none\",\"method\":\"GET\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a\",\"method\":\"GET\"}}",
+      "count": 18,
+      "transactions": [],
+      "outside": [
+        [74, 1],
+        [75, 1],
+        [76, 1],
+        [77, 1],
+        [78, 1],
+        [79, 1],
+        [80, 1],
+        [70, 1],
+        [81, 1],
+        [82, 1],
+        [83, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [85, 1],
+        [86, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-b\",\"method\":\"GET\"}}",
+      "count": 17,
+      "transactions": [],
+      "outside": [
+        [74, 1],
+        [75, 1],
+        [76, 1],
+        [77, 1],
+        [78, 1],
+        [79, 1],
+        [80, 1],
+        [70, 1],
+        [81, 1],
+        [82, 1],
+        [83, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a/jobs\",\"method\":\"POST\"}}",
+      "count": 14,
+      "transactions": [],
+      "outside": [
+        [74, 1],
+        [75, 1],
+        [76, 1],
+        [87, 1],
+        [88, 1],
+        [77, 1],
+        [79, 1],
+        [83, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 201,
+      "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 8,
+      "transactions": [
+        [
+          [13, []],
+          [89, ["admunit", "1", "0"]],
+          [
+            90,
+            [
+              "<id 11>",
+              "2026-11-27 12:00:00",
+              "2026-11-27 12:00:00",
+              "admunit",
+              "200000"
+            ]
+          ],
+          [15, []]
+        ]
+      ],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    "admunit",
+    {
+      "status": 409,
+      "body": "{\"error\":\"Conflict\",\"message\":\"Unit already exists\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs\",\"method\":\"POST\"}}",
+      "count": 7,
+      "transactions": [[[13, []], [89, ["admunit", "1", "0"]], [91, []]]],
+      "outside": [[2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00002},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-a\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Zeta\",\"image\":null,\"icon\":null,\"credits\":60,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, 1],
+        [93, 1],
+        [94, 1],
+        [95, 1],
+        [96, 1],
+        [79, 1],
+        [97, 1],
+        [70, 1],
+        [98, 1],
+        [82, 1],
+        [99, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [100, 1],
+        [101, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-b\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Beta\",\"image\":null,\"icon\":null,\"credits\":100,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, 1],
+        [93, 1],
+        [94, 1],
+        [95, 1],
+        [96, 1],
+        [79, 1],
+        [97, 1],
+        [70, 1],
+        [98, 1],
+        [82, 1],
+        [99, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [100, 1],
+        [101, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 400,
+      "body": "{\"error\":\"BadRequest\",\"message\":\"Credit cost exceeds maximum accepted credits\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a/jobs\",\"method\":\"POST\"}}",
+      "count": 14,
+      "transactions": [],
+      "outside": [
+        [92, 1],
+        [93, 1],
+        [94, 1],
+        [102, 1],
+        [88, 1],
+        [95, 1],
+        [79, 1],
+        [99, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00005},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 6,
+      "transactions": [],
+      "outside": [[73, 1], [2, 1], [3, 1], [103, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-a\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Zeta\",\"image\":null,\"icon\":null,\"credits\":150,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, 1],
+        [93, 1],
+        [94, 1],
+        [95, 1],
+        [96, 1],
+        [79, 1],
+        [97, 1],
+        [70, 1],
+        [98, 1],
+        [82, 1],
+        [99, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [100, 1],
+        [101, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"adm-b\",\"createdAt\":\"2026-11-25T01:02:03.456Z\",\"updatedAt\":\"2026-11-26T04:05:06.789Z\",\"name\":\"adm Beta\",\"image\":null,\"icon\":null,\"credits\":250,\"summary\":null,\"description\":\"Admin catalog fixture\",\"metrics\":{\"executions\":{\"count\":0,\"averageTime\":null},\"ratings\":{\"total\":0,\"average\":null}},\"author\":{\"name\":null,\"image\":null,\"organization\":null,\"email\":null,\"other\":null},\"legal\":{\"privacyPolicy\":null,\"terms\":null,\"dpa\":null,\"other\":null},\"categories\":[],\"riskClassification\":\"MINIMAL\",\"tags\":[],\"exampleOutputs\":[]},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 19,
+      "transactions": [],
+      "outside": [
+        [92, 1],
+        [93, 1],
+        [94, 1],
+        [95, 1],
+        [96, 1],
+        [79, 1],
+        [97, 1],
+        [70, 1],
+        [98, 1],
+        [82, 1],
+        [99, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [100, 1],
+        [101, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/adm-none\",\"method\":\"PATCH\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 200,
+      "body": "{\"data\":{\"id\":\"<id 11>\",\"createdAt\":\"2026-11-27T12:00:00.000Z\",\"updatedAt\":\"2026-11-27T12:00:00.000Z\",\"unit\":\"admunit\",\"creditsPerUnit\":0.00005},\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[104, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/<id 11>\",\"method\":\"DELETE\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[104, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Credit cost not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/credit-costs/<id 11>\",\"method\":\"GET\"}}",
+      "count": 5,
+      "transactions": [],
+      "outside": [[73, 1], [2, 1], [3, 1], [6, 1], [7, 1]]
+    },
+    {
+      "status": 404,
+      "body": "{\"error\":\"NotFound\",\"message\":\"Agent not found\",\"meta\":{\"timestamp\":\"2026-11-27T12:00:00.000Z\",\"requestId\":\"admin-catalog-request\",\"path\":\"/v1/agents/adm-a\",\"method\":\"GET\"}}",
+      "count": 17,
+      "transactions": [],
+      "outside": [
+        [74, 1],
+        [75, 1],
+        [76, 1],
+        [77, 1],
+        [78, 1],
+        [79, 1],
+        [80, 1],
+        [70, 1],
+        [81, 1],
+        [82, 1],
+        [83, 1],
+        [2, 1],
+        [84, 1],
+        [3, 1],
+        [86, 1],
+        [6, 1],
+        [7, 1]
+      ]
+    }
+  ],
+  "calls": {
+    "list displayName asc page 1/absent": 0,
+    "list displayName asc page 2/absent": 1,
+    "list displayName asc page 3/absent": 2,
+    "list displayName desc page 1/absent": 3,
+    "list displayName desc page 2/absent": 4,
+    "list displayName desc page 3/absent": 5,
+    "list registryName asc page 1/absent": 6,
+    "list registryName asc page 2/absent": 7,
+    "list registryName asc page 3/absent": 8,
+    "list registryName desc page 1/absent": 9,
+    "list registryName desc page 2/absent": 10,
+    "list registryName desc page 3/absent": 11,
+    "list hasOverride asc page 1/absent": 12,
+    "list hasOverride asc page 2/absent": 13,
+    "list hasOverride desc page 1/absent": 14,
+    "list hasOverride desc page 2/absent": 15,
+    "list status asc page 1/absent": 16,
+    "list status asc page 2/absent": 17,
+    "list status asc page 3/absent": 18,
+    "list status desc page 1/absent": 19,
+    "list status desc page 2/absent": 20,
+    "list status desc page 3/absent": 21,
+    "list createdAt asc page 1/absent": 22,
+    "list createdAt asc page 2/absent": 23,
+    "list createdAt asc page 3/absent": 24,
+    "list createdAt desc page 1/absent": 25,
+    "list createdAt desc page 2/absent": 26,
+    "list createdAt desc page 3/absent": 27,
+    "list displayName online/absent": 28,
+    "list createdAt offline/absent": 29,
+    "list override name/absent": 30,
+    "list missing cursor/absent": 31,
+    "detail with override/absent": 32,
+    "detail missing/absent": 33,
+    "patch create/absent": 34,
+    "patch create example outputs/absent": 35,
+    "patch replace/absent": 36,
+    "patch replace example outputs/absent": 37,
+    "patch keep collections/absent": 38,
+    "patch keep collections example outputs/absent": 37,
+    "patch prune/absent": 39,
+    "patch missing/absent": 40,
+    "delete override/absent": 41,
+    "delete override again/absent": 41,
+    "delete override missing/absent": 42,
+    "rate missing/absent": 43,
+    "no rate detail a/absent": 44,
+    "no rate detail b/absent": 45,
+    "no rate hire under the price/absent": 46,
+    "rate create/absent": 47,
+    "rate create stored unit/absent": 48,
+    "rate duplicate/absent": 49,
+    "rate read/absent": 50,
+    "first rate detail a/absent": 51,
+    "first rate detail b/absent": 52,
+    "first rate hire under the price/absent": 53,
+    "rate update/absent": 54,
+    "updated rate detail a/absent": 55,
+    "updated rate detail b/absent": 56,
+    "updated rate hire under the price/absent": 53,
+    "rate update missing/absent": 57,
+    "rate delete/absent": 58,
+    "rate delete again/absent": 59,
+    "rate read deleted/absent": 60,
+    "deleted rate detail a/absent": 61,
+    "deleted rate detail b/absent": 45,
+    "deleted rate hire under the price/absent": 46,
+    "list displayName asc page 1/mainnet": 0,
+    "list displayName asc page 2/mainnet": 1,
+    "list displayName asc page 3/mainnet": 2,
+    "list displayName desc page 1/mainnet": 3,
+    "list displayName desc page 2/mainnet": 4,
+    "list displayName desc page 3/mainnet": 5,
+    "list registryName asc page 1/mainnet": 6,
+    "list registryName asc page 2/mainnet": 7,
+    "list registryName asc page 3/mainnet": 8,
+    "list registryName desc page 1/mainnet": 9,
+    "list registryName desc page 2/mainnet": 10,
+    "list registryName desc page 3/mainnet": 11,
+    "list hasOverride asc page 1/mainnet": 12,
+    "list hasOverride asc page 2/mainnet": 13,
+    "list hasOverride desc page 1/mainnet": 14,
+    "list hasOverride desc page 2/mainnet": 15,
+    "list status asc page 1/mainnet": 16,
+    "list status asc page 2/mainnet": 17,
+    "list status asc page 3/mainnet": 18,
+    "list status desc page 1/mainnet": 19,
+    "list status desc page 2/mainnet": 20,
+    "list status desc page 3/mainnet": 21,
+    "list createdAt asc page 1/mainnet": 22,
+    "list createdAt asc page 2/mainnet": 23,
+    "list createdAt asc page 3/mainnet": 24,
+    "list createdAt desc page 1/mainnet": 25,
+    "list createdAt desc page 2/mainnet": 26,
+    "list createdAt desc page 3/mainnet": 27,
+    "list displayName online/mainnet": 28,
+    "list createdAt offline/mainnet": 29,
+    "list override name/mainnet": 30,
+    "list missing cursor/mainnet": 31,
+    "detail with override/mainnet": 32,
+    "detail missing/mainnet": 33,
+    "patch create/mainnet": 34,
+    "patch create example outputs/mainnet": 35,
+    "patch replace/mainnet": 36,
+    "patch replace example outputs/mainnet": 37,
+    "patch keep collections/mainnet": 38,
+    "patch keep collections example outputs/mainnet": 37,
+    "patch prune/mainnet": 39,
+    "patch missing/mainnet": 40,
+    "delete override/mainnet": 41,
+    "delete override again/mainnet": 41,
+    "delete override missing/mainnet": 42,
+    "rate missing/mainnet": 43,
+    "no rate detail a/mainnet": 61,
+    "no rate detail b/mainnet": 45,
+    "no rate hire under the price/mainnet": 46,
+    "rate create/mainnet": 47,
+    "rate create stored unit/mainnet": 48,
+    "rate duplicate/mainnet": 49,
+    "rate read/mainnet": 50,
+    "first rate detail a/mainnet": 51,
+    "first rate detail b/mainnet": 52,
+    "first rate hire under the price/mainnet": 53,
+    "rate update/mainnet": 54,
+    "updated rate detail a/mainnet": 55,
+    "updated rate detail b/mainnet": 56,
+    "updated rate hire under the price/mainnet": 53,
+    "rate update missing/mainnet": 57,
+    "rate delete/mainnet": 58,
+    "rate delete again/mainnet": 59,
+    "rate read deleted/mainnet": 60,
+    "deleted rate detail a/mainnet": 61,
+    "deleted rate detail b/mainnet": 45,
+    "deleted rate hire under the price/mainnet": 46
+  }
+}
