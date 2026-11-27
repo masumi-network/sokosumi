@@ -18,6 +18,37 @@ import type {
 } from "@/schemas/user-workspace.schema";
 import { pickActiveOrganizationId } from "@/services/preferred-workspace.service";
 
+function preprodAccessForRole(preprodOn: boolean, role: string | undefined) {
+  const admin = preprodOn && hasAdminRole(role);
+  return (preprodEnabled: boolean | undefined) =>
+    preprodOn && (admin || preprodEnabled === true);
+}
+
+/** A user API key can be used in any of its owner's workspaces. */
+export async function canUserUsePreprod(userId: string): Promise<boolean> {
+  const preprodOn = isPreprodOn();
+  if (!preprodOn) return false;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      preprodEnabled: true,
+      members: {
+        where: { organization: { preprodEnabled: true } },
+        take: 1,
+        select: { id: true },
+      },
+    },
+  });
+  if (!user) return false;
+
+  const canUsePreprod = preprodAccessForRole(preprodOn, user.role);
+  return (
+    canUsePreprod(user.preprodEnabled) || canUsePreprod(user.members.length > 0)
+  );
+}
+
 /**
  * The workspaces a person can act in (personal first, then organizations),
  * which one a new session opens, and their pending organization invitations.
@@ -80,9 +111,7 @@ export async function listUserWorkspaces(
 
   // The listed person's role, not the caller's: a Coworker listing its
   // context user gets that user's answer.
-  const admin = preprodOn && hasAdminRole(user.role);
-  const canUsePreprod = (preprodEnabled: boolean | undefined) =>
-    preprodOn && (admin || preprodEnabled === true);
+  const canUsePreprod = preprodAccessForRole(preprodOn, user.role);
 
   const workspaces: UserWorkspace[] = [];
 
