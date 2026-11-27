@@ -10,7 +10,10 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import type { CreditBucketProjectOption } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
+import {
+  creditBucketRepository,
+  InsufficientBalanceError,
+} from "@sokosumi/database/repositories";
 import {
   type JobWithListSummaryRelations,
   jobListSummaryInclude,
@@ -51,6 +54,8 @@ import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
+import { spend } from "@/lib/credits/spend";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
@@ -163,17 +168,36 @@ async function createPaidJob(
   tx: Prisma.TransactionClient,
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
-  const consumptions = await creditBucketRepository.prepareConsumption(
-    "mainnet",
-    input.ownerId,
-    input.organizationId,
-    cost.cents,
+  // The debit first, then the Job that links it, in the same transaction.
+  const spent = await spend({
+    // shortcut: the hire charges Mainnet, as it did; ticket 25 passes the Job's Network.
+    scope: createNetworkScope("mainnet"),
     tx,
-    { projectId: resolveCreditProjectId(input) },
-  );
+    payer: {
+      // An empty id is no payer: the debit was connected only to a present
+      // owner and Organization, so an empty one is null, for the read and
+      // the write.
+      userId: input.ownerId || null,
+      organizationId: input.organizationId || null,
+      projectId: resolveCreditProjectId(input),
+    },
+    quotedCents: cost.cents,
+    mode: "in_full",
+  });
+  // The balance read just before covered the price, so only a bucket read
+  // that counts otherwise falls short: it throws as that read always did.
+  if (spent.shortfall) {
+    throw new InsufficientBalanceError(cost.cents, spent.availableCents);
+  }
+  // The debit's time is the Job's, its first event's and its input's: one
+  // nested create gave all four one instant, and the history reads the Job's
+  // spend at it.
+  const { transactionId, createdAt } = spent;
+  const at = { createdAt, updatedAt: createdAt };
 
   const job = await tx.job.create({
     data: {
+      ...at,
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
       agent: { connect: { id: input.agentId } },
@@ -191,36 +215,20 @@ async function createPaidJob(
       }),
       events: {
         create: {
+          ...at,
           status: AgentJobStatus.INITIATED,
           result: null,
           inputSchema: inputSchemaSnapshot,
           input: {
             create: {
+              ...at,
               input: JSON.stringify(input.inputData),
               inputHash: agentJobResponse.input_hash,
             },
           },
         },
       },
-      transaction: {
-        create: {
-          amount: -cost.cents,
-          ...(input.ownerId && {
-            user: { connect: { id: input.ownerId } },
-          }),
-          ...(input.organizationId && {
-            organization: { connect: { id: input.organizationId } },
-          }),
-          creditConsumptions: {
-            createMany: {
-              data: consumptions.map((consumption) => ({
-                bucketId: consumption.bucketId,
-                amount: consumption.amount,
-              })),
-            },
-          },
-        },
-      },
+      transaction: { connect: { id: transactionId } },
       name: input.name,
       payByTime: new Date(agentJobResponse.payByTime),
       externalDisputeUnlockTime: new Date(

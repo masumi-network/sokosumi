@@ -17,17 +17,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   doesUserHaveFinishedJobWithAgentMock,
   prismaTransactionMock,
-  requireAvailableAgentOrThrowMock,
+  requireAvailableAgentMock,
   upsertUserAgentReviewMock,
 } = vi.hoisted(() => ({
   doesUserHaveFinishedJobWithAgentMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireAvailableAgentOrThrowMock: vi.fn(),
+  requireAvailableAgentMock: vi.fn(),
   upsertUserAgentReviewMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/agent", () => ({
-  requireAvailableAgentOrThrow: requireAvailableAgentOrThrowMock,
+vi.mock("@/lib/agent-catalog/availability", () => ({
+  requireAvailableAgent: requireAvailableAgentMock,
 }));
 
 vi.mock("@/helpers/agent-rating", () => ({
@@ -36,9 +36,10 @@ vi.mock("@/helpers/agent-rating", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
+  default: {},
+  networkPrisma: () => ({
     $transaction: prismaTransactionMock,
-  },
+  }),
 }));
 
 function createApp(
@@ -74,7 +75,7 @@ describe("POST /agents/{id}/ratings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    requireAvailableAgentOrThrowMock.mockResolvedValue(undefined);
+    requireAvailableAgentMock.mockResolvedValue(undefined);
     doesUserHaveFinishedJobWithAgentMock.mockResolvedValue(true);
     upsertUserAgentReviewMock.mockResolvedValue({
       id: "rating_123",
@@ -94,6 +95,11 @@ describe("POST /agents/{id}/ratings", () => {
     const body = await response.json();
 
     expect(response.status).toBe(201);
+    expect(requireAvailableAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      "agent_123",
+      expect.anything(),
+    );
     expect(doesUserHaveFinishedJobWithAgentMock).toHaveBeenCalledWith(
       "user_123",
       "agent_123",
@@ -124,9 +130,7 @@ describe("POST /agents/{id}/ratings", () => {
   });
 
   it("returns 404 when the agent is not available", async () => {
-    requireAvailableAgentOrThrowMock.mockRejectedValue(
-      notFound("Agent not found"),
-    );
+    requireAvailableAgentMock.mockRejectedValue(notFound("Agent not found"));
 
     const app = createApp();
     const response = await app.request(postRating({ rating: 5 }));
@@ -140,6 +144,6 @@ describe("POST /agents/{id}/ratings", () => {
     const response = await app.request(postRating({ rating: 6 }));
 
     expect(response.status).toBe(422);
-    expect(requireAvailableAgentOrThrowMock).not.toHaveBeenCalled();
+    expect(requireAvailableAgentMock).not.toHaveBeenCalled();
   });
 });

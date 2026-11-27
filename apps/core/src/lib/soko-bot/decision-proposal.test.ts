@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const { taskFindUnique, coworkerFindUnique } = vi.hoisted(() => ({
   taskFindUnique: vi.fn(),
@@ -18,6 +19,7 @@ import {
   parseDecisionProposal,
 } from "./decision-proposal";
 
+const scope = createNetworkScope("mainnet");
 const PROJECT = "01960001-0001-7001-8001-0000000000a1";
 const UPDATED_AT = "2026-10-15T10:00:00.000Z";
 const PARENT_TASK = "01960001-0001-7001-8001-0000000000b1";
@@ -48,7 +50,10 @@ describe("describeDecision", () => {
     coworkerFindUnique.mockResolvedValue({ name: "Ada" });
 
     await expect(
-      describeDecision("assign_task", { taskId: "t1", coworkerId: "c1" }),
+      describeDecision(scope, "assign_task", {
+        taskId: "t1",
+        coworkerId: "c1",
+      }),
     ).resolves.toBe(
       'Assign Task "Write the spec" to Coworker "Ada" and start it',
     );
@@ -59,7 +64,7 @@ describe("describeDecision", () => {
     coworkerFindUnique.mockResolvedValue({ name: "  " });
 
     await expect(
-      describeDecision("assign_task", {
+      describeDecision(scope, "assign_task", {
         taskId: "t1",
         coworkerId: "c1",
         ready: false,
@@ -71,7 +76,7 @@ describe("describeDecision", () => {
     taskFindUnique.mockResolvedValue({ name: "Old work" });
 
     await expect(
-      describeDecision("archive_task", {
+      describeDecision(scope, "archive_task", {
         taskId: "t1",
         expectedUpdatedAt: UPDATED_AT,
       }),
@@ -82,13 +87,13 @@ describe("describeDecision", () => {
     taskFindUnique.mockRejectedValue(new Error("db down"));
 
     await expect(
-      describeDecision("update_task", { taskId: "t1", name: "B" }),
+      describeDecision(scope, "update_task", { taskId: "t1", name: "B" }),
     ).resolves.toBe("Update Task t1");
   });
 
   it("describes a proposal with no lookup from its input", async () => {
     await expect(
-      describeDecision("create_task", { name: "A", status: "DRAFT" }),
+      describeDecision(scope, "create_task", { name: "A", status: "DRAFT" }),
     ).resolves.toBe("Create DRAFT Task");
     expect(taskFindUnique).not.toHaveBeenCalled();
   });

@@ -85,5 +85,5 @@ src/services/soko-bot-lease-clock.postgres.test.ts 27  # the shared client reach
 src/services/soko-bot-plan-loop.postgres.test.ts 17  # runtime authorize locks bare soko_bot
 src/services/soko-bot-reconcile-writers.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/soko-bot-schedule-run-changes.postgres.test.ts 30  # the shared client reaches the Network table Job
-src/services/soko-bot-shared-background-runs.postgres.test.ts 30  # the shared client reaches the Network table Agent
+src/services/soko-bot-shared-background-runs.postgres.test.ts 30  # the shared client still reaches the Network table Job
 src/services/studio-campaign.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)

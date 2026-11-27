@@ -1177,6 +1177,7 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       taskIds: string[];
     }> {
       const built = await new ContextPacketBuilder().build({
+        networkScope: createNetworkScope("mainnet"),
         userId,
         sokoBotId: botId,
         workspaceId,
