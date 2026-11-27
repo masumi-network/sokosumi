@@ -11,7 +11,7 @@ import { runFfmpeg } from "@/lib/ffmpeg";
  * lifecycle (reserved, queued, settled with an asset) but its "provider" is
  * this stub: deterministic bytes made in process, no paid call. Media the
  * stub can't stand in for (a talking video's voice and lip-sync, a
- * voice-over) fails closed before anything is bought.
+ * voice-over) is refused unsent: no job, no receipt, nothing bought.
  */
 
 /** The request id a stubbed job records instead of fal's. */
@@ -43,6 +43,16 @@ export async function stubImage(
     .png()
     .toBuffer();
   return { bytes: new Uint8Array(bytes), contentType: "image/png" };
+}
+
+/** A one-rectangle SVG coloured like `stubImage`, for a vector model's job. */
+export function stubVector(seed: string): {
+  bytes: Uint8Array;
+  contentType: string;
+} {
+  const colour = createHash("sha256").update(seed).digest("hex").slice(0, 6);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#${colour}"/></svg>`;
+  return { bytes: new TextEncoder().encode(svg), contentType: "image/svg+xml" };
 }
 
 /** A one-second silent 640x360 black MP4. */

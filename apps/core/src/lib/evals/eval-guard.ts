@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
+import { BENCHMARK_PAID_MEDIA_REFUSAL } from "./media-stub";
 
 /**
  * Eval lanes run on mainnet, so what an eval bot does must stay inside its
@@ -97,18 +98,25 @@ const SIMULATED: Record<string, (input: unknown) => Record<string, unknown>> = {
   edit_ad_campaign: () => ({ updated: true }),
   delete_ad_campaign: () => ({ deleted: true }),
   handle_social_comment: () => ({ handled: true }),
-  // A real one costs more than a dollar of provider time per run.
-  generate_talking_video: () => ({
-    jobId: "eval-simulated-talking-video",
-    status: "QUEUED",
-    note: "Started. A talking video takes a few minutes; it lands in the owner's Files when it is ready.",
-  }),
   // A paid check by the global SEO service; the case checks that Cuso asked.
   check_search_rankings: () => ({
     status: "started",
     note: "The SEO specialist is checking now; it usually takes a few minutes. End your turn: tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. Core wakes you with it.",
   }),
 };
+
+/** Paid media with no benchmark stub: refused unsent in an eval workspace. */
+const UNSTUBBED_PAID_MEDIA = new Set([
+  "generate_talking_video",
+  "generate_voiceover",
+]);
+
+/** Why an eval workspace refuses this tool unsent; null lets it run. */
+export function evalPaidMediaRefusal(capability: string): string | null {
+  return UNSTUBBED_PAID_MEDIA.has(capability)
+    ? BENCHMARK_PAID_MEDIA_REFUSAL
+    : null;
+}
 
 /** What a tool answers in an eval workspace instead of running; null runs it. */
 export function simulatedEvalTool(

@@ -901,13 +901,37 @@ export function isolationFailed(
   journey: OwnerJourney,
   blobsPending: readonly string[],
 ): CaseStart {
+  return unscored(
+    journey,
+    { blobsPending },
+    `The lane was not cleaned: ${blobsPending.length} earlier upload blob(s) could not be deleted (${blobsPending.slice(0, 3).join(", ")}), so an earlier case's file may still be found; unscored until a reset deletes them`,
+  );
+}
+
+/** An earlier real image job a provider may still finish: the lane is not clean. */
+export function imageJobsUnresolved(
+  journey: OwnerJourney,
+  unresolvedImageJobs: readonly string[],
+): CaseStart {
+  return unscored(
+    journey,
+    { unresolvedImageJobs },
+    `The lane was not cleaned: ${unresolvedImageJobs.length} earlier image job(s) sent to a provider are unresolved (${unresolvedImageJobs.slice(0, 3).join(", ")}); unscored until reconciliation settles them`,
+  );
+}
+
+function unscored(
+  journey: OwnerJourney,
+  setup: Record<string, readonly string[]>,
+  error: string,
+): CaseStart {
   return {
     kind: "done",
     outcome: {
       status: "ERROR",
       checks: [],
-      output: { journey: journey.id, setup: { blobsPending } },
-      error: `The lane was not cleaned: ${blobsPending.length} earlier upload blob(s) could not be deleted (${blobsPending.slice(0, 3).join(", ")}), so an earlier case's file may still be found; unscored until a reset deletes them`,
+      output: { journey: journey.id, setup },
+      error,
       turnIds: [],
     },
   };
@@ -945,7 +969,8 @@ export async function startJourney(
     where: { sokoBotId: botId, status: "WAITING" },
   });
   // An earlier case's uncollected image job would fill the project's limit.
-  await closeLaneImageJobs(lane.workspaceId);
+  const { unresolved } = await closeLaneImageJobs(lane.workspaceId);
+  if (unresolved.length) return imageJobsUnresolved(journey, unresolved);
   // A journey's schedule runs and Coworker wakes are turns nobody started:
   // the owner's daily cap (20) would defer them once earlier journeys used
   // it up, as prepareEvalLane already avoids for Cuso.

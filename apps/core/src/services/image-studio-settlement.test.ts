@@ -111,7 +111,12 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
+import {
+  EVAL_STUB_REQUEST_PREFIX,
+  EVAL_STUB_SOURCE,
+} from "@/lib/evals/media-stub";
 import { coreEvlogMiddleware } from "@/lib/evlog";
+import { RECRAFT_VECTOR_ENDPOINT } from "@/lib/image-studio/catalog-overrides";
 import {
   reconcileJob,
   reconcileProjectJobs,
@@ -218,6 +223,32 @@ describe("vector settlement", () => {
           contentType: "image/png",
           bytes: png.length,
         }),
+      }),
+    );
+  });
+  it("settles a benchmark stub vector job through the normal source-and-PNG path", async () => {
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      model: RECRAFT_VECTOR_ENDPOINT,
+      falRequestId: `${EVAL_STUB_REQUEST_PREFIX}job-1`,
+    });
+    await settleWithMedia(JOB.id, EVAL_STUB_SOURCE);
+    expect(downloadMediaMock).not.toHaveBeenCalled();
+    expect(jobUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          failureReason: "invalid_vector_image",
+        }),
+      }),
+    );
+    expect(putMock).toHaveBeenCalledWith(
+      sourceKey,
+      expect.anything(),
+      expect.objectContaining({ contentType: "image/svg+xml" }),
+    );
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ contentType: "image/png" }),
       }),
     );
   });

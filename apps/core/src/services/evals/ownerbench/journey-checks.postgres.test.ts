@@ -230,6 +230,40 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
     }
   });
 
+  it("closes a stub image job but keeps a provider-backed one until it settles", async () => {
+    const job = (falRequestId: string) =>
+      prisma.projectImageJob.create({
+        data: {
+          workspaceId,
+          projectId,
+          requestedByUserId: userId,
+          kind: "GENERATE",
+          model: "fixture",
+          prompt: "fixture",
+          settings: {},
+          status: "RUNNING",
+          falRequestId,
+          idempotencyKey: randomUUID(),
+        },
+        select: { id: true },
+      });
+    const stub = await job(`eval-stub:${randomUUID()}`);
+    const live = await job(randomUUID());
+    try {
+      const { unresolved } = await closeLaneImageJobs(workspaceId);
+      const status = async (id: string) =>
+        (await prisma.projectImageJob.findUniqueOrThrow({ where: { id } }))
+          .status;
+      expect(await status(stub.id)).toBe("CANCELED");
+      expect(await status(live.id)).toBe("RUNNING");
+      expect(unresolved).toEqual([live.id]);
+    } finally {
+      await prisma.projectImageJob.deleteMany({
+        where: { id: { in: [stub.id, live.id] } },
+      });
+    }
+  });
+
   it("starts a journey with no earlier case's unfinished image job filling the project's limit", async () => {
     const job = (status: "QUEUED" | "RUNNING" | "SUCCEEDED") =>
       prisma.projectImageJob.create({
@@ -282,7 +316,9 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       },
       select: { id: true },
     });
-    expect(await closeLaneImageJobs(workspaceId)).toBeGreaterThanOrEqual(2);
+    expect(
+      (await closeLaneImageJobs(workspaceId)).closed,
+    ).toBeGreaterThanOrEqual(2);
     const after = await prisma.projectImageJob.findMany({
       where: { id: { in: [...stuck, done].map((row) => row.id) } },
       select: { id: true, status: true },
@@ -299,6 +335,34 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
         })
       ).status,
     ).toBe("QUEUED");
+    // A benchmark read of a missing job leaves other workspaces' jobs alone.
+    await prisma.projectImageJob.update({
+      where: { id: foreign.id },
+      data: { status: "SUBMITTING", submitLeaseAt: new Date(0) },
+    });
+    const guard = await import("@/lib/evals/eval-guard");
+    const evalWorkspace = vi
+      .spyOn(guard, "isEvalWorkspace")
+      .mockImplementation(async (id) => id === workspaceId);
+    try {
+      const { getStudioJob } = await import(
+        "@/services/soko-bot-runtime/media-generation"
+      );
+      await getStudioJob(
+        { requireImageProject: vi.fn() } as never,
+        { turn: { workspaceId, actingUserId: userId } } as never,
+        { projectId, jobId: randomUUID() },
+      );
+      expect(
+        (
+          await prisma.projectImageJob.findUniqueOrThrow({
+            where: { id: foreign.id },
+          })
+        ).status,
+      ).toBe("SUBMITTING");
+    } finally {
+      evalWorkspace.mockRestore();
+    }
     await prisma.projectImageJob.deleteMany({
       where: { id: { in: [...stuck, done, foreign].map((row) => row.id) } },
     });

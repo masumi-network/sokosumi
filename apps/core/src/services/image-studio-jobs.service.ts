@@ -51,6 +51,7 @@ import {
   isEvalStubRequest,
   isEvalStubSource,
   stubImage,
+  stubVector,
   stubVideo,
 } from "@/lib/evals/media-stub";
 import {
@@ -3274,7 +3275,9 @@ async function storeMedia(
     downloaded = isEvalStubSource(sourceUrl)
       ? video
         ? await stubVideo()
-        : await stubImage(job.id)
+        : job.model === RECRAFT_VECTOR_ENDPOINT
+          ? stubVector(job.id)
+          : await stubImage(job.id)
       : video
         ? await downloadMedia(
             clipUrl,
