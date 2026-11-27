@@ -4,11 +4,13 @@ import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
   type CmoCalendarEntry,
+  cmoCompactProduction,
   cmoWritesMonthAtOnce,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
+  writingSkillsForChannels,
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
@@ -484,6 +486,8 @@ export function cmoProductionMessage(input: {
   styles?: boolean;
   /** Core writes the social pieces (write_month_pieces); Cuso gets the rest. */
   coreWrites?: boolean;
+  /** cmo-v26: name the writing skills by id; Cuso reads each with read_skill. */
+  skillsById?: boolean;
 }): string {
   const { strategy } = input;
   const forCore = input.coreWrites ? cmoWriterPieces(input.pending) : [];
@@ -540,11 +544,24 @@ export function cmoProductionMessage(input: {
       : "",
     "",
     // A piece Core hands back names its network: read_writing_skill opens it.
-    writingSkillsBrief(batch.map((piece) => piece.channel)),
+    input.skillsById
+      ? writingSkillIds([
+          ...batch.map((piece) => piece.channel),
+          ...forCore.map((piece) => piece.channel),
+        ])
+      : writingSkillsBrief(batch.map((piece) => piece.channel)),
     "When every piece is made, report with report_update kind production: how many pieces you made per channel, what is scheduled and what waits for a connection. Then end with DONE: and one sentence for the owner. A reply without DONE: is treated as a progress note and you will be asked to continue.",
   ]
     .filter((line) => line !== "")
     .join("\n");
+}
+
+/** The writing skills a run's pieces need, by id, for read_skill (cmo-v26). */
+function writingSkillIds(channels: readonly string[]): string {
+  const ids = writingSkillsForChannels(channels).map((skill) => skill.id);
+  return ids.length > 0
+    ? `Writing skills for this month's pieces: ${ids.join(", ")}. Read the ones a piece needs with read_skill before you write or fix it yourself.`
+    : "";
 }
 
 /** Whether Cuso's version has Core write the month (cmo-v6 on). */
@@ -554,6 +571,15 @@ async function cmoCoreWritesMonth(sokoBotId: string): Promise<boolean> {
     select: { versionId: true },
   });
   return cmoWritesMonthAtOnce(getSokoBotVersion(bot?.versionId).skills);
+}
+
+/** Whether Cuso's version runs production on a small context (cmo-v26). */
+async function cmoBriefNamesSkills(sokoBotId: string): Promise<boolean> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return cmoCompactProduction(getSokoBotVersion(bot?.versionId).skills);
 }
 
 /** Whether a Cuso's version picks each picture from five alternatives (cmo-v11). */
@@ -1118,6 +1144,7 @@ export async function advanceCmoProduction(
     failedMedia,
     styles: referenceLibraryAvailable(),
     coreWrites: await cmoCoreWritesMonth(cuso.sokoBotId),
+    skillsById: await cmoBriefNamesSkills(cuso.sokoBotId),
   });
   const started = await onlyOnce(cuso.sokoBotId, runId, () =>
     startProductionRun(cuso, message, `${runId}${current.ready}`),

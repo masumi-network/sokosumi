@@ -5,6 +5,7 @@ import {
   cmoHighlightsTools,
   cmoReadsOnDemand,
   cmoRoutineSkipReason,
+  cmoWritesStrategyStep,
   cmoWritingSkills,
   getSokoBotVersion,
   type MarketingStrategyPlan,
@@ -187,6 +188,7 @@ export async function loadCmoMarketingContext(
       turn: options.turn,
       now,
       highlights: cmoHighlightsTools(skills),
+      strategyStep: cmoWritesStrategyStep(skills),
     });
   return fitCmoMarketingContext(fullCmoMarketingContext(sources, now), now);
 }

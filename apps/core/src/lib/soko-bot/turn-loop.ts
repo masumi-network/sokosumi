@@ -3,8 +3,10 @@ import type { Prisma } from "@sokosumi/database";
 import {
   ACTION_LABELS,
   applyVersionCapabilities,
+  CMO_PRODUCTION_TOOLS,
   CMO_SHORT_FORM_TOOLS,
   type CmoShortFormTool,
+  cmoCompactProduction,
   cmoHighlightsTools,
   cmoShortFormAnswer,
   isCmoShortFormCall,
@@ -449,12 +451,24 @@ export function offeredCapabilities(
     AuthorizedSokoBotRuntime,
     "grant" | "meetingPrep" | "askedByKind" | "turn"
   >,
-  options: { sandbox: boolean; web?: boolean },
+  options: {
+    sandbox: boolean;
+    web?: boolean;
+    /**
+     * cmo-v26: a production run is offered only the production tools, the
+     * same set on every such run, so its steps stay small and cached. Both
+     * sets hold action tools, so the answer format is the same either way.
+     */
+    production?: boolean;
+  },
 ): SokoBotCapability[] {
-  const offerable =
-    version.skillsOnDemand &&
-    !authorized.meetingPrep &&
-    authorized.askedByKind !== "ASSISTANT"
+  const offerable = options.production
+    ? CMO_PRODUCTION_TOOLS.filter((capability) =>
+        authorized.grant.capabilities.includes(capability),
+      )
+    : version.skillsOnDemand &&
+        !authorized.meetingPrep &&
+        authorized.askedByKind !== "ASSISTANT"
       ? stableCapabilities(version, authorized.grant.capabilities)
       : authorized.grant.capabilities;
   return (
@@ -482,6 +496,35 @@ export function turnRequiresActionProof(
   capabilities: readonly SokoBotCapability[],
 ): boolean {
   return capabilities.some((capability) => ACTION_CAPABILITIES.has(capability));
+}
+
+/**
+ * A production run's packet (cmo-v26): what making the month reads, the
+ * marketing context Core organized for it, and who and what started it.
+ * Recent turns, Tasks, Coworkers and source coverage stay out.
+ */
+export function productionPacket(packet: unknown): unknown {
+  if (!packet || typeof packet !== "object") return packet;
+  const {
+    workspace,
+    trigger,
+    actor,
+    projects,
+    memory,
+    generatedAt,
+    schemaVersion,
+  } = packet as Record<string, unknown>;
+  const marketing = (workspace as { marketing?: unknown } | null)?.marketing;
+  return {
+    schemaVersion,
+    generatedAt,
+    trigger,
+    actor,
+    projects,
+    // The owner's preferences and corrections bind every piece of the month.
+    memory,
+    workspace: { marketing },
+  };
 }
 
 /** One key per system prompt and tool set, so equal prefixes share a cache. */
@@ -515,7 +558,13 @@ export async function prepareTurn(
     authorized.turn.versionId ?? null,
   );
   const stable = version.skillsOnDemand === true;
-  const capabilities = offeredCapabilities(version, authorized, options);
+  const compactProduction =
+    cmoCompactProduction(version.skills) &&
+    (context.version.skillOccasions ?? []).includes("production");
+  const capabilities = offeredCapabilities(version, authorized, {
+    ...options,
+    production: compactProduction,
+  });
   const requiresActionProof = turnRequiresActionProof(capabilities);
   // Core runs a planLoop version's plan: it alone is no sandbox to guide.
   const hasSandbox =
@@ -533,7 +582,10 @@ export async function prepareTurn(
     : [];
   const meetingPrep = authorized.meetingPrep === true;
   const contextParts = stable
-    ? await modelContextParts(context.packet, meetingPrep)
+    ? await modelContextParts(
+        compactProduction ? productionPacket(context.packet) : context.packet,
+        meetingPrep,
+      )
     : {
         fixed: await modelContextBlock(context.packet, meetingPrep),
         perTurn: [],

@@ -88,6 +88,10 @@ import {
   shortFormChecks,
 } from "./eval-cmo-short-forms";
 import { CMO_SKILL_CASE_IDS, skillChecks } from "./eval-cmo-skills";
+import {
+  cmoStrategyRequestChecks,
+  STRATEGY_REQUEST_CASE_IDS,
+} from "./eval-cmo-strategy-request";
 import { CMO_CORRECTION_CASE_ID, correctionChecks } from "./eval-cmo-variety";
 import {
   CMO_WEEKLY_REVIEW_CASE_ID,
@@ -481,6 +485,12 @@ async function pollScenario(
   }
   if (scenario.id === CHANGE_THEN_DRAFTS_CASE_ID) {
     const extra = await cmoChangeThenDraftsChecks(lane, context.startedAt);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (STRATEGY_REQUEST_CASE_IDS.includes(scenario.id)) {
+    const extra = await cmoStrategyRequestChecks(scenario.id, lane, turnId);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
