@@ -2082,6 +2082,76 @@ describe("POST /{id}/x402-payments", () => {
         expectNothingCharged();
       });
 
+      describe.each([
+        [
+          "a PENDING retry",
+          () =>
+            tx.taskX402Payment.findUnique.mockResolvedValue(
+              createPaymentRecord(),
+            ),
+        ],
+        [
+          "a VERIFIED replay",
+          () =>
+            preflightPaymentFindUniqueMock.mockResolvedValue(
+              createPaymentRecord({
+                status: "VERIFIED",
+                attemptId: "attempt_stored",
+                xPaymentHeader: normalizedPaymentHeader(),
+                validBefore: new Date(VALID_BEFORE_SECONDS * 1000),
+              }),
+            ),
+        ],
+      ])("%s of a payment on Preprod's chain", (_name, store) => {
+        beforeEach(store);
+
+        /** No lease, no sign attempt, no signer call, no row, no stored authorization. */
+        async function expectNothingReplayed(response: Response) {
+          expect(await response.json()).not.toHaveProperty("data");
+          expect(tx.taskX402Payment.update).not.toHaveBeenCalled();
+          expect(tx.taskX402Payment.updateMany).not.toHaveBeenCalled();
+          expect(outerPaymentUpdateMock).not.toHaveBeenCalled();
+          expectNothingCharged();
+        }
+
+        it("is refused with a header that names the other Network", async () => {
+          const response = await pay(COWORKER_AGENT_CONTEXT, {
+            "X-Sokosumi-Network": "mainnet",
+          });
+
+          expect(response.status).toBe(400);
+          expect(await response.clone().json()).toMatchObject({
+            kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH,
+          });
+          await expectNothingReplayed(response);
+        });
+
+        it("is refused once the billed party lost Preprod access", async () => {
+          billedUser.mockResolvedValue({ preprodEnabled: false });
+
+          const response = await pay(COWORKER_AGENT_CONTEXT, {
+            "X-Sokosumi-Network": "preprod",
+          });
+
+          expect(response.status).toBe(403);
+          expect(await response.clone().json()).toMatchObject({
+            kind: CORE_API_ERROR_KINDS.PREPROD_ACCESS_REQUIRED,
+          });
+          await expectNothingReplayed(response);
+        });
+
+        it("goes on for a billed party with access", async () => {
+          const response = await pay(COWORKER_AGENT_CONTEXT);
+
+          expect(response.status).toBe(200);
+          expect(billedUser).toHaveBeenCalledWith({
+            where: { id: USER_ID },
+            select: { preprodEnabled: true },
+          });
+          expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+        });
+      });
+
       it.each([
         ["without the header", {}],
         ["with the header that names it", { "X-Sokosumi-Network": "preprod" }],

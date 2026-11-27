@@ -93,6 +93,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -214,6 +215,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -310,6 +312,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -433,6 +436,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -583,6 +587,7 @@
               "blockchainIdentifier": "<first payment>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -754,6 +759,7 @@
               "blockchainIdentifier": "<named payment>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -946,6 +952,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -1113,6 +1120,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -1280,6 +1288,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -1447,6 +1456,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -1649,6 +1659,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -1785,6 +1796,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -1871,6 +1883,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -1950,6 +1963,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -2050,6 +2064,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -2151,6 +2166,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -2245,6 +2261,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -2354,6 +2371,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -2454,6 +2478,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -2574,6 +2605,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -2698,6 +2736,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -2821,6 +2866,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -2944,6 +2996,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -2958,6 +3017,426 @@
               "caip2Network": "eip155:8453",
               "amount": "2000000",
               "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the lost key again once its lease ran out, signed": {
+      "status": 200,
+      "body": {
+        "data": {
+          "paymentId": "<id>",
+          "attemptId": "fixture-attempt",
+          "paymentHeader": {
+            "x402Version": 2,
+            "name": "PAYMENT-SIGNATURE",
+            "value": "<signed header>"
+          },
+          "caip2Network": "eip155:8453",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "amount": "2000000",
+          "payTo": "0x1111111111111111111111111111111111111111"
+        },
+        "meta": {}
+      },
+      "statements": 19,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [
+        {
+          "evmWalletId": "fixture-wallet",
+          "preferredNetwork": "eip155:8453",
+          "preferredAsset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
+        }
+      ],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "VERIFIED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 2,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the signed key again": {
+      "status": 200,
+      "body": {
+        "data": {
+          "paymentId": "<id>",
+          "attemptId": "fixture-attempt",
+          "paymentHeader": {
+            "x402Version": 2,
+            "name": "PAYMENT-SIGNATURE",
+            "value": "<signed header>"
+          },
+          "caip2Network": "eip155:8453",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "amount": "2000000",
+          "payTo": "0x1111111111111111111111111111111111111111"
+        },
+        "meta": {}
+      },
+      "statements": 11,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "VERIFIED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 2,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the signed key again, preprod": {
+      "status": 200,
+      "body": {
+        "data": {
+          "paymentId": "<id>",
+          "attemptId": "fixture-attempt",
+          "paymentHeader": {
+            "x402Version": 2,
+            "name": "PAYMENT-SIGNATURE",
+            "value": "<signed header>"
+          },
+          "caip2Network": "eip155:8453",
+          "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          "amount": "2000000",
+          "payTo": "0x1111111111111111111111111111111111111111"
+        },
+        "meta": {}
+      },
+      "statements": 11,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "VERIFIED",
+              "caip2Network": "eip155:8453",
+              "amount": "2000000",
+              "signAttemptCount": 2,
               "failureReason": null,
               "refundTransactionId": null
             }
@@ -3082,6 +3561,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -3203,6 +3683,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -3299,6 +3780,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -3422,6 +3904,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -3572,6 +4055,7 @@
               "blockchainIdentifier": "<first payment>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -3743,6 +4227,7 @@
               "blockchainIdentifier": "<named payment>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -3935,6 +4420,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -4102,6 +4588,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -4269,6 +4756,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -4436,6 +4924,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -4638,6 +5127,7 @@
               "blockchainIdentifier": "<named payment with header>"
             }
           ],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": []
         },
@@ -4774,6 +5264,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -4860,6 +5351,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -4939,6 +5431,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -5039,6 +5532,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -5140,6 +5634,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -5234,6 +5729,7 @@
             }
           ],
           "claims": [],
+          "x402Actions": [],
           "x402Payments": [],
           "usage": [
             {
@@ -5343,6 +5839,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -5443,6 +5946,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -5563,6 +6073,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -5687,6 +6204,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -5810,6 +6334,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -5933,6 +6464,13 @@
             }
           ],
           "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
           "x402Payments": [
             {
               "status": "FAILED",
@@ -5947,6 +6485,426 @@
               "caip2Network": "eip155:84532",
               "amount": "2000000",
               "signAttemptCount": 1,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the lost key again once its lease ran out, signed": {
+      "status": 200,
+      "body": {
+        "data": {
+          "paymentId": "<id>",
+          "attemptId": "fixture-attempt",
+          "paymentHeader": {
+            "x402Version": 2,
+            "name": "PAYMENT-SIGNATURE",
+            "value": "<signed header>"
+          },
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "amount": "2000000",
+          "payTo": "0x1111111111111111111111111111111111111111"
+        },
+        "meta": {}
+      },
+      "statements": 19,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [
+        {
+          "evmWalletId": "fixture-wallet",
+          "preferredNetwork": "eip155:84532",
+          "preferredAsset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e"
+        }
+      ],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "VERIFIED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 2,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the signed key again": {
+      "status": 200,
+      "body": {
+        "data": {
+          "paymentId": "<id>",
+          "attemptId": "fixture-attempt",
+          "paymentHeader": {
+            "x402Version": 2,
+            "name": "PAYMENT-SIGNATURE",
+            "value": "<signed header>"
+          },
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "amount": "2000000",
+          "payTo": "0x1111111111111111111111111111111111111111"
+        },
+        "meta": {}
+      },
+      "statements": 11,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "VERIFIED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 2,
+              "failureReason": null,
+              "refundTransactionId": null
+            }
+          ],
+          "usage": []
+        },
+        "events": [
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          },
+          {
+            "status": null,
+            "cents": "20000000000",
+            "network": "mainnet",
+            "transactionId": "<id>",
+            "comment": null
+          }
+        ],
+        "tasks": [
+          {
+            "status": "RUNNING"
+          }
+        ]
+      }
+    },
+    "the signed key again, preprod": {
+      "status": 200,
+      "body": {
+        "data": {
+          "paymentId": "<id>",
+          "attemptId": "fixture-attempt",
+          "paymentHeader": {
+            "x402Version": 2,
+            "name": "PAYMENT-SIGNATURE",
+            "value": "<signed header>"
+          },
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "amount": "2000000",
+          "payTo": "0x1111111111111111111111111111111111111111"
+        },
+        "meta": {}
+      },
+      "statements": 11,
+      "lowBalanceAlerts": [],
+      "nodeSigns": [],
+      "rows": {
+        "mainnet": {
+          "transactions": [
+            {
+              "amount": "2500000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "30000000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "100000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            },
+            {
+              "amount": "20000000000",
+              "_count": {
+                "creditConsumptions": 0
+              }
+            },
+            {
+              "amount": "-20000000000",
+              "_count": {
+                "creditConsumptions": 1
+              }
+            }
+          ],
+          "consumptions": [
+            {
+              "amount": "20000000000"
+            },
+            {
+              "amount": "20000000000"
+            }
+          ],
+          "buckets": [
+            {
+              "amount": "2500000000000",
+              "referenceType": "STRIPE_SUBSCRIPTION_PERIOD"
+            },
+            {
+              "amount": "30000000000000",
+              "referenceType": "SIGNUP_BONUS"
+            },
+            {
+              "amount": "100000000000",
+              "referenceType": null
+            },
+            {
+              "amount": "20000000000",
+              "referenceType": "REFUND"
+            }
+          ],
+          "claims": [],
+          "x402Actions": [
+            {
+              "action": "failure",
+              "operatorId": "system:x402",
+              "reason": "node_refused_payload"
+            }
+          ],
+          "x402Payments": [
+            {
+              "status": "FAILED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 1,
+              "failureReason": "node_refused_payload",
+              "refundTransactionId": "<id>"
+            },
+            {
+              "status": "VERIFIED",
+              "caip2Network": "eip155:84532",
+              "amount": "2000000",
+              "signAttemptCount": 2,
               "failureReason": null,
               "refundTransactionId": null
             }

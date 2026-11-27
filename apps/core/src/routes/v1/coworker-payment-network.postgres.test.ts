@@ -19,8 +19,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { convertCreditsToCents } from "@sokosumi/utils";
-import { err } from "neverthrow";
+import { err, ok } from "neverthrow";
 import type { Pool, PoolClient } from "pg";
+import { privateKeyToAccount } from "viem/accounts";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { onSplitLayout } from "@/test/split-layout";
@@ -207,6 +208,14 @@ function createWorld(loaded: Loaded, networks: readonly NetworkName[]) {
     ],
   };
 
+  const x402PaymentIds = async (db: ReturnType<typeof networkDb>) =>
+    (
+      await db.taskX402Payment.findMany({
+        where: { taskId: { in: taskIds } },
+        select: { id: true },
+      })
+    ).map((payment) => payment.id);
+
   return {
     labels,
     removals,
@@ -364,6 +373,12 @@ function createWorld(loaded: Loaded, networks: readonly NetworkName[]) {
             orderBy: { id: "asc" },
             select: { network: true, status: true, blockchainIdentifier: true },
           }),
+          // The audit rows of the fixture's payments: no foreign key ties them.
+          x402Actions: await db.taskX402PaymentAction.findMany({
+            where: { paymentId: { in: await x402PaymentIds(db) } },
+            orderBy: { id: "asc" },
+            select: { action: true, operatorId: true, reason: true },
+          }),
           x402Payments: await db.taskX402Payment.findMany({
             where: { taskId: { in: taskIds } },
             orderBy: { id: "asc" },
@@ -413,6 +428,9 @@ function createWorld(loaded: Loaded, networks: readonly NetworkName[]) {
     async remove() {
       for (const network of networks) {
         const db = networkDb(network);
+        await db.taskX402PaymentAction.deleteMany({
+          where: { paymentId: { in: await x402PaymentIds(db) } },
+        });
         await db.taskX402Payment.deleteMany({
           where: { taskId: { in: taskIds } },
         });
@@ -493,6 +511,10 @@ async function send(
   }
   const statements = sent.statements - before;
   const answer = text ? (JSON.parse(text) as Record<string, unknown>) : null;
+  // A signed authorization carries its own expiry and signature.
+  const signed = (answer?.data as { paymentHeader?: { value?: string } })
+    ?.paymentHeader;
+  if (signed?.value) signed.value = "<signed header>";
   const meta = answer?.meta as Record<string, unknown> | undefined;
   if (meta) {
     delete meta.timestamp;
@@ -608,6 +630,8 @@ const X402_CHAINS = {
   },
 } as const;
 const PAY_TO = "0x1111111111111111111111111111111111111111";
+/** The managed wallet the fixture's node signs with. */
+const PAYER = privateKeyToAccount(`0x${"01".repeat(32)}`);
 
 /**
  * A listed x402 Agent that asks 2 credits on the chain of the deployment's
@@ -634,7 +658,7 @@ async function x402Agent(
       asset,
       decimals: 6,
       evmWalletId: "fixture-wallet",
-      evmWalletAddress: PAY_TO,
+      evmWalletAddress: PAYER.address.toLowerCase(),
     },
   ]);
   await prisma.syncMetadata.upsert({
@@ -677,26 +701,89 @@ async function x402Agent(
       },
     },
   });
-  return (idempotencyKey: string) => {
-    world.labels.set(idempotencyKey, `<${idempotencyKey.split(":")[0]}>`);
-    return {
-      idempotencyKey,
-      agentId: ids.agent,
-      paymentRequired: {
-        x402Version: 2,
-        accepts: [
-          {
-            scheme: "exact",
-            network: caip2Network,
-            asset,
-            amount: "2000000",
-            payTo: PAY_TO,
-            maxTimeoutSeconds: 60,
-            extra: { name, version: "2" },
-          },
-        ],
-      },
-    };
+  const accepted = {
+    scheme: "exact",
+    network: caip2Network,
+    asset,
+    amount: "2000000",
+    payTo: PAY_TO,
+    maxTimeoutSeconds: 60,
+    extra: { name, version: "2" },
+  };
+  return {
+    /** The request that pays the Agent's 402 under this key. */
+    pay(idempotencyKey: string) {
+      world.labels.set(idempotencyKey, `<${idempotencyKey.split(":")[0]}>`);
+      return {
+        idempotencyKey,
+        agentId: ids.agent,
+        paymentRequired: { x402Version: 2, accepts: [accepted] },
+      };
+    },
+    /** The node's answer with a real EIP-3009 authorization, which Core verifies. */
+    async signed() {
+      const nonce = `0x${randomBytes(32).toString("hex")}` as const;
+      const validBefore = Math.floor(Date.now() / 1000) + 60;
+      const signature = await PAYER.signTypedData({
+        domain: {
+          name,
+          version: "2",
+          chainId: Number(caip2Network.split(":")[1]),
+          verifyingContract: asset,
+        },
+        types: {
+          TransferWithAuthorization: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" },
+          ],
+        },
+        primaryType: "TransferWithAuthorization",
+        message: {
+          from: PAYER.address,
+          to: PAY_TO,
+          value: 2_000_000n,
+          validAfter: 0n,
+          validBefore: BigInt(validBefore),
+          nonce,
+        },
+      });
+      const authorization = {
+        from: PAYER.address.toLowerCase(),
+        to: PAY_TO,
+        value: "2000000",
+        validAfter: "0",
+        validBefore: String(validBefore),
+        nonce,
+      };
+      return ok({
+        attemptId: "fixture-attempt",
+        payer: PAYER.address.toLowerCase(),
+        caip2Network,
+        asset,
+        amount: "2000000",
+        payTo: PAY_TO,
+        xPaymentHeader: Buffer.from(
+          JSON.stringify({
+            x402Version: 2,
+            accepted,
+            payload: { signature, authorization },
+          }),
+        ).toString("base64"),
+        paymentPayload: { payload: { authorization } },
+        paymentPayloadHash: `0x${randomBytes(32).toString("hex")}`,
+        paymentIdentifier: null,
+      });
+    },
+    /** Lets the lease of the Task's pending payments run out. */
+    expireLeases: () =>
+      db.taskX402Payment.updateMany({
+        where: { agentId: ids.agent, status: "PENDING" },
+        data: { processingAt: new Date(Date.now() - 60 * 60_000) },
+      }),
   };
 }
 
@@ -886,7 +973,11 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
         withWorld(async (world) => {
           const owner = await world.person("x402 owner", { mainnet: 10 });
           const path = `/v1/tasks/${await world.task(owner)}/x402-payments`;
-          const pay = await x402Agent(loaded, world, deploymentNetwork);
+          const { pay, signed, expireLeases } = await x402Agent(
+            loaded,
+            world,
+            deploymentNetwork,
+          );
           const refused = err({
             kind: "refused",
             status: 400,
@@ -900,35 +991,64 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
           const [first, second, third] = ["first", "second", "third"].map(
             (name) => `${name}:${randomUUID()}`,
           );
-          const steps: [string, unknown, unknown, Record<string, string>?][] = [
-            ["a payment the node refuses, no header", refused, pay(first)],
-            ["the refused key again", refused, pay(first)],
-            [
-              "a payment whose answer is lost, mainnet",
-              lost,
-              pay(second),
-              {
-                [HEADER]: "mainnet",
-              },
-            ],
-            ["the lost key again, refused", refused, pay(second)],
-            [
-              "a payment, preprod",
-              refused,
-              pay(third),
-              { [HEADER]: "preprod" },
-            ],
-            [
-              "a body that is no 402",
-              refused,
-              {
+          const preprod = { [HEADER]: "preprod" };
+          const steps: {
+            name: string;
+            node: unknown;
+            body: unknown;
+            headers?: Record<string, string>;
+            before?: () => Promise<unknown>;
+          }[] = [
+            {
+              name: "a payment the node refuses, no header",
+              node: refused,
+              body: pay(first),
+            },
+            { name: "the refused key again", node: refused, body: pay(first) },
+            {
+              name: "a payment whose answer is lost, mainnet",
+              node: lost,
+              body: pay(second),
+              headers: { [HEADER]: "mainnet" },
+            },
+            {
+              name: "the lost key again, refused",
+              node: refused,
+              body: pay(second),
+            },
+            {
+              name: "a payment, preprod",
+              node: refused,
+              body: pay(third),
+              headers: preprod,
+            },
+            {
+              name: "a body that is no 402",
+              node: refused,
+              body: {
                 ...pay(`fourth:${randomUUID()}`),
                 paymentRequired: { not: "a 402" },
               },
-            ],
+            },
+            // The replays: a PENDING retry that signs again, then the
+            // VERIFIED payment's stored authorization.
+            {
+              name: "the lost key again once its lease ran out, signed",
+              node: await signed(),
+              body: pay(second),
+              before: expireLeases,
+            },
+            { name: "the signed key again", node: refused, body: pay(second) },
+            {
+              name: "the signed key again, preprod",
+              node: refused,
+              body: pay(second),
+              headers: preprod,
+            },
           ];
           const answers: Record<string, unknown> = {};
-          for (const [name, node, body, headers] of steps) {
+          for (const { name, node, body, headers, before } of steps) {
+            await before?.();
             outside.payX402.mockResolvedValue(node);
             answers[name] = await send(loaded, world, path, body, headers);
           }

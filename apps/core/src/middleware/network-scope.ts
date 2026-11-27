@@ -11,6 +11,7 @@ import {
   type SharedDb,
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import type { EnvVariables } from "@/lib/hono";
 import {
   canUsePreprodInWorkspace,
   isPreprodOn,
@@ -199,7 +200,8 @@ export interface BilledParty {
  * payment reads nothing.
  */
 export async function paymentScope(
-  c: Context,
+  // An authenticated router's context: a public one has neither variable.
+  c: Context<EnvVariables>,
   payment: {
     /** The Network the payload names, if it names one. */
     payloadNetwork?: Network;
@@ -207,9 +209,7 @@ export async function paymentScope(
     db: SharedDb;
   },
 ): Promise<NetworkScope> {
-  // Set by `OpenAPIHonoWithAuth`, which the three payment routes are on.
-  const networkScope: NetworkScope = c.var.networkScope;
-  const authContext: AuthenticationContext | undefined = c.var.authContext;
+  const { networkScope, authContext } = c.var;
   if (!isPreprodOn()) return networkScope;
   const header = namedNetwork(c);
   const { payloadNetwork, billed, db } = payment;
