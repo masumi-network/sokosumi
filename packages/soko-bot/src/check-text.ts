@@ -13,21 +13,27 @@ export function matchesText(text: string, pattern: string): boolean {
   return checkPattern(pattern).test(plainQuotes(text));
 }
 
-// A negation word, then up to 30 characters of the same clause, then the match.
-const NEGATED_BEFORE =
-  /\b(?:no|not|never|without|except|excluding|exclude|omit|omitting|skip|skipping|drop|dropping|remove|removing|avoid|avoiding|leave out|leaving out|don't|do not)\b[^.!?;:\n]{0,30}$/i;
+// An exclusion, then at most six words of the list it governs, ending right
+// before the match: "without the stuck section", "no prices, plan names or".
+const EXCLUSION_BEFORE =
+  /\b(?:without|no|except|excluding|exclude|omit|omitting|skip|skipping|drop|dropping|remove|removing|avoid|avoiding|leave out|leaving out|(?:do not|don't|never|not) (?:include|mention|show|list|add|cover|use))((?:[\s,]+[\w'/-]+){0,6})[\s,]*$/i;
+// A word that starts something new the exclusion no longer governs.
+const CONTRAST =
+  /\b(?:but|include|including|list|show|add|keep|mention|use|cover|also|then|instead|forget|miss)\b/i;
 
 /**
  * True when text says what the pattern names, not only that it is left out:
  * "without the stuck section" and "no prices" do not mention stuck work or
- * prices. For the "avoids" checks on what the bot wrote (a brief, an image
- * prompt, a file), where leaving something out is said by naming it.
+ * prices; "exclude names but include prices" does. For the "avoids" checks on
+ * what the bot wrote (a brief, an image prompt, a file), where leaving
+ * something out is said by naming it.
  */
 export function mentionsAffirmed(text: string, pattern: string): boolean {
   const plain = plainQuotes(text);
   for (const match of plain.matchAll(checkPattern(pattern, "gi"))) {
-    const before = plain.slice(Math.max(0, match.index - 60), match.index);
-    if (!NEGATED_BEFORE.test(before)) return true;
+    const before = plain.slice(Math.max(0, match.index - 80), match.index);
+    const exclusion = EXCLUSION_BEFORE.exec(before);
+    if (!exclusion || CONTRAST.test(exclusion[1] ?? "")) return true;
   }
   return false;
 }

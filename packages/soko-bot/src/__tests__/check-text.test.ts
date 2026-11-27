@@ -18,6 +18,8 @@ describe("check text", () => {
       "A square card, white background, no prices or plan numbers.",
       "Skip anything blocked.",
       "Do not include stuck items.",
+      "Include names, without prices.",
+      "No logos, plan names or prices.",
     ])
       expect(mentionsAffirmed(text, "stuck|block|price"), text).toBe(false);
   });
@@ -28,6 +30,10 @@ describe("check text", () => {
       "No intro. List what is blocked.",
       "Not the summary: show the prices.",
       "Nothing is left out; the stuck part is kept.",
+      "Include prices.",
+      "Exclude names but include prices.",
+      "Do not forget to list prices.",
+      "Never miss what is stuck.",
     ])
       expect(mentionsAffirmed(text, "stuck|block|price"), text).toBe(true);
   });
