@@ -160,6 +160,15 @@ describe.runIf(ON_POSTGRES)("crossing key orphan check", () => {
           mainnet.job,
         );
         if (onSplitLayout) {
+          const counts = await countOrphans(tx);
+          expect(
+            counts
+              .filter(({ key }) => key === "Transaction.userId")
+              .map(({ network, count }) => [network, count]),
+          ).toEqual([
+            ["mainnet", 1n],
+            ["preprod", 0n],
+          ]);
           await plantNetworkOrphans(
             tx,
             "preprod",
@@ -181,6 +190,12 @@ describe.runIf(ON_POSTGRES)("crossing key orphan check", () => {
           null,
           preprod.transaction,
           preprod.job,
+        );
+        await plantTaggedSharedOrphans(
+          tx,
+          null,
+          mainnet.transaction,
+          mainnet.job,
         );
         await plantMainnetOnlySharedOrphans(tx, randomUUID(), randomUUID());
         await plantMainnetOnlySharedOrphans(
