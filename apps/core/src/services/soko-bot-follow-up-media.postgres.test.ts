@@ -641,6 +641,19 @@ describe.skipIf(!enabled)("a follow-up's images and draft, end to end", () => {
         followUpTurnId: lifecycleTurn,
       },
     });
+    // Another call has claimed its receipt but has yet to reserve any spend.
+    await prisma.sokoBotToolCall.create({
+      data: {
+        turnId: lifecycleTurn,
+        toolCallId: "pending-unsent-image",
+        capability: "generate_image",
+        actorBotId: sokoBotId,
+        inputHash: "pending-unsent-image-hash",
+        input: { projectId, prompt: "Pending image", maxCredits: credits },
+        status: "PENDING",
+        disposition: null,
+      },
+    });
     provider.nextCreateImageJobError = new HTTPException(429, {
       message: "Studio busy before sending",
     });

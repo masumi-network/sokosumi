@@ -22,7 +22,6 @@ import {
   getCreditCostsOrThrow,
   getJobDetailsAgentOverrideFields,
   isCardanoV2SourceReady,
-  requireAvailableAgentOrThrow,
   toMasumiAgent,
   toMasumiAgentForJob,
 } from "./agent";
@@ -490,43 +489,6 @@ describe("getCreditCostsOrThrow", () => {
     await expect(getCreditCostsOrThrow(tx)).rejects.toThrow(
       "Failed to get credit information for agents",
     );
-  });
-});
-
-describe("requireAvailableAgentOrThrow", () => {
-  it("resolves when an available agent exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue({ id: "agent-1" });
-    const tx = {
-      creditCost: {
-        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
-      },
-      syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
-      agent: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      requireAvailableAgentOrThrow("agent-1", tx),
-    ).resolves.toBeUndefined();
-    expect(findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: "agent-1" }),
-        select: { id: true },
-      }),
-    );
-  });
-
-  it("throws a 404 when no available agent matches", async () => {
-    const tx = {
-      creditCost: {
-        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
-      },
-      syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
-      agent: { findFirst: vi.fn().mockResolvedValue(null) },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      requireAvailableAgentOrThrow("missing", tx),
-    ).rejects.toMatchObject({ status: 404 });
   });
 });
 

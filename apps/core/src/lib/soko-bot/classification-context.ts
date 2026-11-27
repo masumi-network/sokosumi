@@ -3,6 +3,8 @@ import {
   buildSokoBotReaderTaskWhere,
   type SokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import { namesForClassifier } from "@/lib/agent-catalog/bot";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
 
@@ -12,6 +14,7 @@ import { globalCoworkersFor } from "@/lib/evals/eval-guard";
  * shared bot never reads a member's coworker assignments or own Jobs.
  */
 export async function loadClassificationContext(
+  scope: NetworkScope,
   reader: SokoBotTurnReader,
   workspaceId: string,
   message: string,
@@ -42,11 +45,7 @@ export async function loadClassificationContext(
       select: { id: true, name: true },
       take: 50,
     }),
-    prisma.agent.findMany({
-      where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
-      select: { id: true, name: true },
-      take: 50,
-    }),
+    namesForClassifier(scope),
     prisma.task.findMany({
       where: {
         workspaceId,

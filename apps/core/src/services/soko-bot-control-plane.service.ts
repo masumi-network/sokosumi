@@ -83,6 +83,7 @@ import {
   GATEWAY_INTERNAL_SERVER_ERROR,
 } from "@/lib/ai-gateway-budget-error";
 import { databaseNow } from "@/lib/db/database-now";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
@@ -2596,7 +2597,9 @@ export class SokoBotControlPlane {
             },
           })
         : null;
+    const networkScope = createNetworkScope(input.network);
     const classifierContext = await loadClassificationContext(
+      networkScope,
       sokoBotTurnReader(
         input.userId,
         askedByTeammate ? "TEAMMATE" : "OWNER",
@@ -2855,6 +2858,7 @@ export class SokoBotControlPlane {
           })
         : null;
     const context = await this.contextBuilder.build({
+      networkScope,
       userId: input.userId,
       sokoBotId: bot.id,
       sharedScope: sokoBotSharedScopeOf(bot),

@@ -8,6 +8,8 @@ import {
   sokoBotCreateTaskInputSchema as taskCreateInputSchema,
   sokoBotUpdateTaskInputSchema as taskUpdateInputSchema,
 } from "@sokosumi/soko-bot";
+import { nameOf } from "@/lib/agent-catalog/bot";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { SokoBotWriteTargets } from "@/lib/soko-bot/write-scope";
 
@@ -76,6 +78,7 @@ function decisionReason(
  * the plain id otherwise. Names are display data, never authorization.
  */
 export async function describeDecision(
+  scope: NetworkScope,
   toolName: SokoBotDecisionTarget,
   proposal: unknown,
 ): Promise<string> {
@@ -116,11 +119,8 @@ export async function describeDecision(
       }
       case "hire_agent": {
         const input = parseHireAgentInput(proposal);
-        const agent = await prisma.agent.findUnique({
-          where: { id: input.agentId },
-          select: { name: true },
-        });
-        return `Hire Agent ${quote(agent?.name, input.agentId)} with a maximum of ${input.maxCredits} credits`;
+        const name = await nameOf(scope, input.agentId);
+        return `Hire Agent ${quote(name, input.agentId)} with a maximum of ${input.maxCredits} credits`;
       }
       default:
         return decisionReason(toolName, proposal);

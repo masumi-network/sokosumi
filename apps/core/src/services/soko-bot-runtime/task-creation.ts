@@ -97,14 +97,18 @@ export async function expireDecision(
 
 export async function createDecision(
   runtime: RuntimeOperations,
-  authorized: SokoBotActionContext,
+  authorized: AuthorizedSokoBotRuntime,
   toolName: SokoBotDecisionTarget,
   proposal: unknown,
   toolCallId: string,
 ) {
   const parsedProposal = parseDecisionProposal(toolName, proposal);
   const proposalJson = jsonInput(parsedProposal);
-  const reason = await describeDecision(toolName, parsedProposal);
+  const reason = await describeDecision(
+    authorized.scope,
+    toolName,
+    parsedProposal,
+  );
   return serializableTransaction(async (tx) => {
     await runtime.requireMutationAuthority(
       tx,
