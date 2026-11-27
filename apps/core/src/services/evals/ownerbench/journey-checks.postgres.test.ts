@@ -458,6 +458,22 @@ describe.skipIf(!enabled)("owner benchmark checks on Postgres", () => {
       expect((await check("edited")).pass).toBe(true);
     });
 
+    it("passes an edit that moves the same schedule to the zone the owner asked for", async () => {
+      await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
+      const original = await create("Report finished and waiting work.");
+      await check("remember");
+      const asked = { timezone: "America/New_York" };
+      expect((await check("edited", asked)).pass).toBe(false);
+      await prisma.sokoBotSchedule.update({
+        where: { id: original.id },
+        data: { timezone: "America/New_York" },
+      });
+      expect((await check("edited", asked)).pass).toBe(true);
+      expect((await check("edited", { timezone: "Asia/Tokyo" })).pass).toBe(
+        false,
+      );
+    });
+
     it("fails an edit that keeps the dropped clause, passes the same id without it", async () => {
       await prisma.sokoBotSchedule.deleteMany({ where: { sokoBotId: botId } });
       const original = await create("Report finished, stuck and waiting work.");
