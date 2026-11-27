@@ -269,6 +269,10 @@ describe("imported site crawl", () => {
           { item: 7 },
           { item: " ", reason: "some link targets could not be read" },
           { item: "Site crawl: ", reason: "some redirects could not be read" },
+          {
+            item: "Site crawl: \u0000",
+            reason: "some redirects could not be read",
+          },
         ],
       }),
     );
@@ -278,7 +282,7 @@ describe("imported site crawl", () => {
       {
         item: "More gaps",
         reason:
-          "the Report holds 3 gaps Sokosumi cannot read, so no check can be clear",
+          "the Report holds 4 gaps Sokosumi cannot read, so no check can be clear",
       },
     ]);
   });

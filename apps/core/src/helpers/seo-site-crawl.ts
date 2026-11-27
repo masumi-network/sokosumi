@@ -138,10 +138,11 @@ function readGaps(list: unknown, prefix: string) {
     const gap = gapEntry.safeParse(row);
     if (!gap.success) return [];
     const { item } = gap.data;
-    // A gap with no name, also after its module prefix, cannot be placed under any check.
-    return /\S/.test(item.startsWith(prefix) ? item.slice(prefix.length) : item)
-      ? [gap.data]
-      : [];
+    // A gap with no name, also after its module prefix and storage cleanup, cannot be placed under any check.
+    const name = storableText(
+      item.startsWith(prefix) ? item.slice(prefix.length) : item,
+    );
+    return /\S/.test(name) ? [gap.data] : [];
   });
   const unreadable = rows.length - read.length;
   if (!unreadable) return read;
@@ -287,10 +288,14 @@ export function readSiteCrawl(raw: unknown): SeoSiteCrawl | undefined {
   });
 }
 
+/** A text as PostgreSQL jsonb stores it: jsonb refuses NUL and a lone surrogate. */
+export const storableText = (text: string) =>
+  text.replaceAll("\u0000", "").toWellFormed();
+
 function parse(value: unknown) {
-  // PostgreSQL jsonb refuses NUL and a lone surrogate: one such character would reject the whole import.
+  // One character jsonb refuses would reject the whole import.
   const storable = JSON.parse(JSON.stringify(value), (_key, v) =>
-    typeof v === "string" ? v.replaceAll("\u0000", "").toWellFormed() : v,
+    typeof v === "string" ? storableText(v) : v,
   );
   const result = seoSiteCrawlSchema.safeParse(storable);
   return result.success ? result.data : undefined;
