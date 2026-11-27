@@ -14807,7 +14807,11 @@
         },
         "openAction": "Aktion öffnen",
         "changeProperty": "Property ändern",
-        "chooseProperty": "Property wählen"
+        "chooseProperty": "Property wählen",
+        "fixState": {
+          "failing": "Schlägt in der letzten Prüfung weiter fehl",
+          "notTested": "Seit dem {day} nicht erneut geprüft"
+        }
       },
       "scopeFilters": "Filter",
       "unmeasuredColumns": "Für diese Zeilen noch nicht gemessen: {columns}.",

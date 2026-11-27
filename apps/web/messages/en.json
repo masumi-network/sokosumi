@@ -14807,7 +14807,11 @@
         },
         "openAction": "Open action",
         "changeProperty": "Change property",
-        "chooseProperty": "Choose property"
+        "chooseProperty": "Choose property",
+        "fixState": {
+          "failing": "Still fails in the last check",
+          "notTested": "Not tested again since {day}"
+        }
       },
       "scopeFilters": "Filters",
       "unmeasuredColumns": "Not measured for these rows yet: {columns}.",

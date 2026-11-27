@@ -6,6 +6,7 @@ import {
   type SeoAgentStep,
   seoActionHeadline,
   seoAgentBrief,
+  seoFixCheckState,
 } from "./seo-agent-model";
 import { seoTestStrategy, seoTestWorkspace } from "./seo-test-fixture";
 
@@ -294,5 +295,56 @@ describe("seoActionHeadline", () => {
       parts: [],
       suggestions: 2,
     });
+  });
+});
+
+describe("seoFixCheckState", () => {
+  type Workspace = Parameters<typeof seoFixCheckState>[1];
+  const newest = {
+    id: "newest",
+    kind: "page_check",
+    observedAt: new Date("2026-11-21T09:00:00Z"),
+  };
+  const older = {
+    id: "older",
+    kind: "audit_full",
+    observedAt: new Date("2026-11-03T09:00:00Z"),
+  };
+  const workspace = (comparable: boolean) =>
+    ({
+      observations: [newest, older],
+      runs: [{ observationId: "newest", runDiff: { comparable } }],
+    }) as unknown as Workspace;
+  const fix = (
+    observationId: string,
+    lastCheckResult?: "failing" | "fixed",
+    kind: "fix" | "opportunity" = "fix",
+  ) =>
+    ({ observationId, lastCheckResult, kind }) as Parameters<
+      typeof seoFixCheckState
+    >[0];
+
+  it("names a fix of an earlier check as still failing or not tested again, by the newest comparison", () => {
+    expect(seoFixCheckState(fix("older", "failing"), workspace(true))).toEqual({
+      state: "failing",
+      since: older.observedAt,
+    });
+    expect(seoFixCheckState(fix("older"), workspace(true))).toEqual({
+      state: "notTested",
+      since: older.observedAt,
+    });
+  });
+
+  it("says nothing where no comparison can tell, nor for a fix of the newest check or a suggestion", () => {
+    // A newest check that is not compared has no result for any fix: no row may claim it was not tested.
+    expect(seoFixCheckState(fix("older"), workspace(false))).toBeNull();
+    expect(
+      seoFixCheckState(fix("newest", "failing"), workspace(true)),
+    ).toBeNull();
+    expect(
+      seoFixCheckState(fix("older", undefined, "opportunity"), workspace(true)),
+    ).toBeNull();
+    // A fix the newest check fixed that still carries a Task stays in its place without a claim.
+    expect(seoFixCheckState(fix("older", "fixed"), workspace(true))).toBeNull();
   });
 });
