@@ -74,10 +74,11 @@ export async function scheduleChatRoomMessageUnfurls(
     if (!message || message.deletedAt != null) {
       return empty;
     }
-    // An eval lane's links are never fetched: its runs stay off the live web.
+    // An eval lane's links are never fetched: its previews come from the
+    // eval world's fixed pages, the same every run.
     const organizationId = message.room?.organizationId;
-    if (organizationId && (await isEvalOrganization(organizationId)))
-      return empty;
+    const evalLane =
+      !!organizationId && (await isEvalOrganization(organizationId));
     roomId = message.roomId;
 
     const contentSnapshot = message.content;
@@ -108,7 +109,11 @@ export async function scheduleChatRoomMessageUnfurls(
       (url) => !removedBeforeScrape.includes(url),
     );
     const cards = await snapshotCardImages(
-      await scrapeUnfurlCards(urlsToScrape),
+      evalLane
+        ? (await import("@/services/evals/eval-web-world")).evalUnfurlCards(
+            urlsToScrape,
+          )
+        : await scrapeUnfurlCards(urlsToScrape),
       roomId,
       messageId,
     );

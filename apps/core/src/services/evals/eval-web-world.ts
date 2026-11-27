@@ -77,6 +77,112 @@ function pageKey(link: string): string | null {
 
 const BY_KEY = new Map(PAGES.map((page) => [pageKey(page.url), page]));
 
+/**
+ * The link preview a chat shows in an eval lane: the page's title and first
+ * paragraph, with no image. An address the world lacks gets no preview.
+ */
+export function evalUnfurlCards(urls: readonly string[]) {
+  return urls.flatMap((url) => {
+    const page = BY_KEY.get(pageKey(url));
+    if (!page) return [];
+    return [
+      {
+        url,
+        title: page.title,
+        description: page.text.split("\n").find(Boolean) ?? null,
+        imageUrl: null,
+        siteName: new URL(page.url).hostname.replace(/^www\./, ""),
+      },
+    ];
+  });
+}
+
+/** The owner's own profiles, as read_social_profile would see them. */
+const PROFILES: readonly {
+  url: string;
+  network: string;
+  followers: string;
+  posts: string;
+  recent: { date: string; title: string }[];
+}[] = [
+  {
+    url: "https://x.com/padierfind",
+    network: "x",
+    followers: "850",
+    posts: "214",
+    recent: [
+      {
+        date: "2026-11-25",
+        title:
+          "Five seed funds backing AI agents in Europe this year, and what they look for.",
+      },
+      {
+        date: "2026-11-21",
+        title:
+          "We moved our booking page to routing forms. Fewer calls get handed around.",
+      },
+    ],
+  },
+  {
+    url: "https://www.linkedin.com/company/padierfind",
+    network: "linkedin",
+    followers: "1,240",
+    posts: "57",
+    recent: [
+      {
+        date: "2026-11-24",
+        title: "What we learned hiring our first AI agent for research.",
+      },
+    ],
+  },
+  {
+    url: "https://www.youtube.com/@padierfind",
+    network: "youtube",
+    followers: "312",
+    posts: "9",
+    recent: [
+      {
+        date: "2026-11-20",
+        title: "Routing forms: send every lead to the right person (Cal.com)",
+      },
+    ],
+  },
+  {
+    url: "https://www.instagram.com/padierfind",
+    network: "instagram",
+    followers: "640",
+    posts: "88",
+    recent: [
+      { date: "2026-11-22", title: "Behind the scenes: our Monday plan." },
+    ],
+  },
+];
+
+const PROFILE_BY_KEY = new Map(
+  PROFILES.map((profile) => [pageKey(profile.url), profile]),
+);
+
+/** read_social_profile in an eval lane: a fixed profile, or unreadable. */
+export function evalSocialProfile(network: string, url: string) {
+  const profile = PROFILE_BY_KEY.get(pageKey(url));
+  if (!profile)
+    return {
+      network,
+      url,
+      recent: [],
+      readable: false,
+      note: "This profile could not be read right now; ask the owner what it shows.",
+    };
+  return {
+    network: profile.network,
+    url: profile.url,
+    followers: profile.followers,
+    posts: profile.posts,
+    recent: profile.recent,
+    readable: true,
+  };
+}
+
 /** web_fetch in an eval lane: the page, or a 404 for an address it lacks. */
 export function evalWebFetch(input: { url: string; maxChars?: number }) {
   const page = BY_KEY.get(pageKey(input.url));

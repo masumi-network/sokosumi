@@ -112,23 +112,42 @@ describe("scheduleChatRoomMessageUnfurls", () => {
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });
 
-  it("never fetches a link posted in an eval lane's room", async () => {
+  it("previews an eval lane's link from the eval world, never the live web", async () => {
     isEvalOrganizationMock.mockResolvedValueOnce(true);
-    messageFindUniqueMock.mockResolvedValue({
-      id: MESSAGE_ID,
-      roomId: "room-eval",
-      content: "We changed our pricing, see https://cal.com/pricing",
-      deletedAt: null,
-      editedAt: null,
-      metadata: null,
-      room: { organizationId: "org-eval" },
-    });
+    const content =
+      "We changed our pricing, see https://cal.com/pricing and https://news.example/x";
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        roomId: "room-eval",
+        content,
+        deletedAt: null,
+        editedAt: null,
+        metadata: null,
+        room: { organizationId: "org-eval" },
+      })
+      .mockResolvedValueOnce({ id: MESSAGE_ID, content, deletedAt: null });
 
     const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
 
     expect(isEvalOrganizationMock).toHaveBeenCalledWith("org-eval");
-    expect(result.attempted).toBe(0);
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ attempted: 2, persisted: 1 });
+    expect(mergeMetadataKeysMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patch: {
+          unfurls: [
+            {
+              url: "https://cal.com/pricing",
+              title: "Pricing | Cal.com",
+              description: "Simple pricing for scheduling.",
+              imageUrl: null,
+              siteName: "cal.com",
+            },
+          ],
+        },
+      }),
+    );
   });
 
   it("scrapes, atomically merges unfurls, and republishes", async () => {

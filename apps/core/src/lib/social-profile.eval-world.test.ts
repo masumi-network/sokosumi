@@ -14,17 +14,39 @@ import { runInEvalWorld } from "@/lib/evals/eval-world-context";
 import { readSocialProfile } from "./social-profile";
 
 describe("readSocialProfile in an eval lane", () => {
-  it("reads nothing from the live web and says it could not read the profile", async () => {
-    for (const url of [
-      "https://www.youtube.com/@padierfind",
-      "https://x.com/padierfind",
-      "https://www.instagram.com/padierfind",
-    ]) {
-      const profile = await runInEvalWorld("ws-eval", () =>
-        readSocialProfile(url),
-      );
-      expect(profile).toMatchObject({ readable: false, recent: [] });
-    }
+  it("reads the owner's fixed profiles, however the address is written", async () => {
+    const read = (url: string) =>
+      runInEvalWorld("ws-eval", () => readSocialProfile(url));
+    await expect(read("https://twitter.com/padierfind")).resolves.toMatchObject(
+      {
+        readable: false,
+      },
+    );
+    await expect(read("https://www.x.com/padierfind/")).resolves.toMatchObject({
+      network: "x",
+      followers: "850",
+      readable: true,
+      recent: [
+        expect.objectContaining({ date: "2026-11-25" }),
+        expect.anything(),
+      ],
+    });
+    await expect(
+      read("https://youtube.com/@padierfind"),
+    ).resolves.toMatchObject({
+      network: "youtube",
+      readable: true,
+    });
+    expect(ssrfSafeFetch).not.toHaveBeenCalled();
+    expect(withBrowser).not.toHaveBeenCalled();
+  });
+
+  it("says a profile the world lacks could not be read, without fetching it", async () => {
+    await expect(
+      runInEvalWorld("ws-eval", () =>
+        readSocialProfile("https://www.instagram.com/someone-else"),
+      ),
+    ).resolves.toMatchObject({ readable: false, recent: [] });
     expect(ssrfSafeFetch).not.toHaveBeenCalled();
     expect(withBrowser).not.toHaveBeenCalled();
   });
