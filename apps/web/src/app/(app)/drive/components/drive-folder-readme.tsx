@@ -84,7 +84,8 @@ export function DriveFolderReadme({
         <Button
           variant="ghost"
           size="sm"
-          className="self-start"
+          // Pulled left by its own padding, so the label lines up with the text.
+          className="-ml-3 self-start"
           aria-expanded={expanded}
           aria-controls={bodyId}
           onClick={() => setExpanded((value) => !value)}
