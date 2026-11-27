@@ -32,6 +32,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { recheckSeoAuditSafely } from "./project-seo-audit-recheck-run";
 import { notifySeoMonitorClicksDropSafely } from "./project-seo-monitor-clicks";
 import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
 import { seoRankPoints } from "./project-seo-rank-points";
@@ -375,6 +376,7 @@ export async function importProjectSeoAudit(
   if (createdId) {
     await notifySeoMonitorWorseSafely(task.id, createdId);
     await notifySeoMonitorClicksDropSafely(task.id, createdId);
+    await recheckSeoAuditSafely(createdId);
   }
   return result;
 }

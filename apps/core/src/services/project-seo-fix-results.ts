@@ -6,7 +6,11 @@ import { issueKey, issueStates, type Selected } from "./project-seo-run-diff";
 type Action = ProjectSeoWorkspace["actions"][number];
 
 /** The checks that test the rules of a page. */
-const PAGE_RULE_KINDS = new Set(["page_check", "audit_lite", "audit_full"]);
+export const PAGE_RULE_KINDS = new Set([
+  "page_check",
+  "audit_lite",
+  "audit_full",
+]);
 
 /** An issue a fix names: its `issueKey`, its check's rulebook, and the devices its rule failed on in that check. */
 export interface SeoFixIssue {
