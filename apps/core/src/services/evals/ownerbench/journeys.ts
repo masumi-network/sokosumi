@@ -67,6 +67,8 @@ export type JourneyOutcome =
       briefMatches?: string[];
       /** At least this many such Tasks since the journey started. */
       min?: number;
+      /** The Task sits in this Project. */
+      project?: JourneyProject;
     }
   | {
       kind: "images";
@@ -177,6 +179,28 @@ export type JourneyOutcome =
       /** The schedules the journey seeded on other members' bots are as they were. */
       kind: "seededSchedulesUntouched";
       label: string;
+    }
+  | {
+      /**
+       * The work the step asked for exists, made in this step: what the
+       * bot's turns told the owner, a result the Coworker delivered on the
+       * Task this journey's schedule released, or a file saved. Reads, a
+       * release or a status change alone are no delivery.
+       */
+      kind: "delivered";
+      label: string;
+      /** Every pattern must match the delivered text. */
+      textMatches?: string[];
+      /** No pattern may match it. */
+      textAvoids?: string[];
+      /**
+       * What the report must say about each item, clause by clause: some
+       * clause names it (`item`) with its own `status`, and no clause names
+       * it with another item's status instead.
+       */
+      facts?: { item: string; status: string }[];
+      /** At least this many characters (default 40). */
+      minLength?: number;
     }
   | {
       /** A contact made or updated in this journey whose name matches. */
@@ -304,11 +328,17 @@ export type JourneyPrepare =
 /** A Task the `tasks` prepare seeds for the owner. */
 export interface FixtureTask {
   name: string;
-  status: "READY" | "RUNNING" | "INPUT_REQUIRED";
+  status: "READY" | "RUNNING" | "INPUT_REQUIRED" | "COMPLETED";
   /** Mira, the owner, or nobody. */
   assignee?: "Mira" | "owner";
   createdDaysAgo: number;
   touchedDaysAgo: number;
+  /**
+   * Last changed inside the previous Monday-to-Sunday week (Europe/Berlin),
+   * whatever weekday the run is on: a weekly report counts it as last
+   * week's. It replaces both day counts.
+   */
+  inPreviousWeek?: true;
   /** Due this many days from today (Europe/Berlin). */
   dueInDays?: number;
   /** What the assignee last asked on it. */
@@ -408,6 +438,42 @@ const NEVER_SENT: JourneyOutcome = {
   schedulingCounts: true,
 };
 
+/**
+ * A durable schedule is either kind: the bot's own (create_schedule) or a
+ * Task Schedule for a Coworker (save_task_schedule, which also edits one).
+ * The schedule outcomes check whichever the bot made.
+ */
+const MAKES_SCHEDULE = ["create_schedule", "save_task_schedule"];
+const EDITS_SCHEDULE = ["update_schedule", "save_task_schedule"];
+const ENDS_SCHEDULE = ["delete_schedule", "delete_task_schedule"];
+
+/** The Monday report's board, on Mira: finished last week, stuck, waiting on the owner. */
+const WEEKLY_BOARD: readonly FixtureTask[] = [
+  {
+    name: "Compare EU invoicing tools",
+    status: "COMPLETED",
+    assignee: "Mira",
+    createdDaysAgo: 9,
+    touchedDaysAgo: 3,
+    inPreviousWeek: true,
+  },
+  {
+    name: "Draft the partner FAQ",
+    status: "RUNNING",
+    assignee: "Mira",
+    createdDaysAgo: 14,
+    touchedDaysAgo: 9,
+  },
+  {
+    name: "Pick the webinar date",
+    status: "INPUT_REQUIRED",
+    assignee: "Mira",
+    createdDaysAgo: 4,
+    touchedDaysAgo: 1,
+    question: "Tuesday or Thursday for the webinar?",
+  },
+];
+
 const CUSO_NEVER_SENT: JourneyOutcome = {
   kind: "nothingSent",
   label: "Nothing published or sent",
@@ -437,7 +503,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         message:
           "Create a schedule that once a day has Codepat review our Sokosumi Source code and writes a short summary of something interesting we do a certain way architecturally. Like how do we manage memory. How do we use Sokobots, etc. etc. like just something that would work as a Social Media post. Then create 2-3 white background black foreground images based on this with bullet points and little text. very minimalistic. And prepare a post on my personal account. Check if theres a project for Posting on my Padierfind X account first. And then tell me, so i can approve",
         expect: {
-          anyTools: ["create_schedule"],
+          anyTools: MAKES_SCHEDULE,
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
         },
         outcomes: [
@@ -466,7 +532,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           forbiddenTools: [
             "publish_social_post",
             "schedule_social_post",
-            "delete_schedule",
+            ...ENDS_SCHEDULE,
           ],
         },
         outcomes: [
@@ -529,7 +595,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "owner",
         message: "Nice. Skip Fridays though.",
         expect: {
-          anyTools: ["update_schedule"],
+          anyTools: EDITS_SCHEDULE,
           forbiddenTools: ["publish_social_post", "schedule_social_post"],
         },
         outcomes: [
@@ -703,12 +769,16 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
     title: "Monday report schedule, run, then changed",
     intent:
       "A recurring report: the schedule carries the full brief, its run reports from real data, and an edit changes the same schedule.",
+    // The board the report reads: one Task Mira finished last week, one
+    // stuck for days, one waiting on the owner's answer.
+    prepare: ["tasks"],
+    fixtures: { tasks: WEEKLY_BOARD },
     steps: [
       {
         kind: "owner",
         message:
           "Every Monday at 8:00 send me a short report: what my Coworkers finished last week, what's stuck, and what's waiting on me.",
-        expect: { anyTools: ["create_schedule"] },
+        expect: { anyTools: MAKES_SCHEDULE },
         outcomes: [
           {
             kind: "schedule",
@@ -731,7 +801,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
         kind: "schedule_fires",
         expect: {
           anyTools: ["list_tasks", "get_task_status", "list_followed_tasks"],
-          forbiddenTools: ["delete_schedule", "update_schedule"],
+          forbiddenTools: [...ENDS_SCHEDULE, ...EDITS_SCHEDULE],
           noDelegations: true,
         },
         outcomes: [
@@ -741,13 +811,34 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
             count: 1,
             identity: "unchanged",
           },
+          {
+            kind: "delivered",
+            label: "The run delivers a report from the real board",
+            // Only a board read knows these, each with what happened to it.
+            facts: [
+              {
+                item: "invoicing",
+                status: "finish|done|complet|wrapped up|closed|delivered",
+              },
+              {
+                item: "partner faq|\\bfaq\\b",
+                status:
+                  "stuck|block|stall|idle|no progress|not moved|hasn't moved|untouched|9 days|nine days",
+              },
+              {
+                item: "webinar",
+                status:
+                  "wait|on you\\b|your (answer|input|decision|pick|choice|reply)|needs? you|for you to",
+              },
+            ],
+          },
         ],
       },
       {
         kind: "owner",
         message: "Move it to 7:30 and drop the stuck part.",
         expect: {
-          anyTools: ["update_schedule"],
+          anyTools: EDITS_SCHEDULE,
           forbiddenTools: ["create_schedule"],
         },
         outcomes: [
@@ -978,7 +1069,7 @@ export const OWNER_JOURNEYS: readonly OwnerJourney[] = [
           "can u figure out for me which schedules are kinda outdated (mostly because jami made them)?",
         expect: {
           anyTools: ["list_schedules"],
-          forbiddenTools: ["delete_schedule", "update_schedule"],
+          forbiddenTools: [...ENDS_SCHEDULE, ...EDITS_SCHEDULE],
           asksQuestion: true,
           answerMatches: "jami",
         },

@@ -478,6 +478,28 @@ export async function seedEvalXDms(
   });
 }
 
+/**
+ * Every Task Schedule a bot made in the lane, with its Runs and the Tasks they
+ * released: the workspace's schedule reader lists the schedules, and a
+ * released Task left in a Project once its schedule is gone is still in the
+ * next case's reads (Cuso's). Schedules a member made (an SEO monitor) stay,
+ * with their Tasks.
+ */
+export async function clearBotTaskSchedules(
+  lane: Pick<EvalLaneRecord, "workspaceId">,
+): Promise<void> {
+  const made = {
+    workspaceId: lane.workspaceId,
+    creatorSokoBotId: { not: null },
+  };
+  await prisma.task.deleteMany({
+    where: {
+      OR: [{ schedule: made }, { releasedScheduleRun: { schedule: made } }],
+    },
+  });
+  await prisma.taskSchedule.deleteMany({ where: made });
+}
+
 export async function resetEvalLaneForSokoBot(
   lane: EvalLaneRecord,
 ): Promise<void> {
@@ -489,6 +511,7 @@ export async function resetEvalLaneForSokoBot(
   await prisma.sokoBotSchedule.deleteMany({
     where: { sokoBotId, systemKey: null },
   });
+  await clearBotTaskSchedules(lane);
   await prisma.chatRoomMessage.updateMany({
     where: {
       room: { organizationId: lane.organizationId },

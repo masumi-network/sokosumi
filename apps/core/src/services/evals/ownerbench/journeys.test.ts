@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { minimumEvalRepeats, selectEvalCases } from "../eval-cases";
+import { outcomeProblems } from "./holdout";
 import {
   attachedMadeMedia,
   createdTableIds,
@@ -9,6 +10,7 @@ import {
   madeImages,
   nextWeekdayKey,
   pictureProblems,
+  reportedFacts,
   savedFileTexts,
   urlsIn,
 } from "./journey-checks";
@@ -18,8 +20,10 @@ import {
   journeyStatus,
   packetTurnIds,
   type StepRecord,
+  scheduleToFire,
+  stepExpectationChecks,
 } from "./journey-runner";
-import { investorNotes } from "./journey-world";
+import { investorNotes, previousWeekMidpoint } from "./journey-world";
 import {
   type FixtureInvestor,
   INVESTOR_FIXTURE,
@@ -32,6 +36,22 @@ describe("owner journeys", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const journey of OWNER_JOURNEYS)
       expect(journey.steps[0]?.kind, journey.id).toBe("owner");
+  });
+
+  it("says what content every delivery needs, so a promise can't pass", () => {
+    const problems = OWNER_JOURNEYS.flatMap((journey) =>
+      journey.steps.flatMap((step) =>
+        (step.outcomes ?? []).flatMap((outcome) =>
+          outcomeProblems(outcome).map(
+            (problem) => `${journey.id}: ${problem}`,
+          ),
+        ),
+      ),
+    );
+    expect(problems).toEqual([]);
+    expect(outcomeProblems({ kind: "delivered", label: "report" })).toEqual([
+      'delivered "report" must say what content it needs (textMatches or facts)',
+    ]);
   });
 
   it("gives Cuso journeys a Cuso world and Soko Bot journeys none", () => {
@@ -80,6 +100,189 @@ describe("owner journeys", () => {
     expect(named.map((evalCase) => evalCase.id)).toEqual([
       "owner-codepat-daily-post",
     ]);
+  });
+});
+
+describe("a fired Task Schedule", () => {
+  const journey = OWNER_JOURNEYS.find(
+    (candidate) => candidate.id === "owner-weekly-report-schedule",
+  )!;
+  const fires = journey.steps.find((step) => step.kind === "schedule_fires")!;
+  const turn = (capabilities: string[]) => ({
+    status: "COMPLETED",
+    route: "ANSWER",
+    finalAnswer: "Monday report: two Tasks moved, one is stuck.",
+    toolCalls: capabilities.map((capability) => ({
+      capability,
+      status: "COMPLETED",
+      result: null,
+    })),
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+
+  it("never stands in for the report the step asks the bot for", () => {
+    const released = stepExpectationChecks(journey, fires, null, true);
+    expect(released).toEqual([
+      expect.objectContaining({
+        pass: false,
+        actual: expect.stringContaining("no bot turn after the release"),
+      }),
+    ]);
+    // The report delivered: the board read and the answer meet the step.
+    const delivered = stepExpectationChecks(
+      journey,
+      fires,
+      turn(["list_tasks"]),
+      true,
+    );
+    expect(delivered.length).toBeGreaterThan(0);
+    expect(delivered.every((check) => check.pass)).toBe(true);
+    // A step that only forbids things holds without a turn.
+    expect(
+      stepExpectationChecks(
+        journey,
+        {
+          kind: "schedule_fires",
+          expect: { forbiddenTools: ["delete_schedule"] },
+        },
+        null,
+        true,
+      ),
+    ).toEqual([]);
+    // Without a release, no turn is still no turn.
+    expect(stepExpectationChecks(journey, fires, null, false)).toEqual([
+      { label: "Completed", pass: false, actual: "no turn" },
+    ]);
+  });
+
+  it("fires the schedule the journey remembered, not the newest", () => {
+    const schedule = (id: string, enabled = true) => ({
+      kind: "task" as const,
+      id,
+      cronExpression: "0 9 * * *",
+      prompt: "",
+      timezone: "Europe/Berlin",
+      enabled,
+      runOnce: false,
+      updatedAt: new Date(),
+    });
+    const newestFirst = [schedule("newer"), schedule("remembered")];
+    expect(
+      scheduleToFire(newestFirst, { schedule: ["remembered"] }),
+    ).toMatchObject({
+      id: "remembered",
+    });
+    expect(scheduleToFire(newestFirst, {})).toMatchObject({ id: "newer" });
+    expect(
+      scheduleToFire([schedule("newer"), schedule("remembered", false)], {
+        schedule: ["remembered"],
+      }),
+    ).toEqual({ error: "The owner's schedule is off" });
+    expect(
+      scheduleToFire([schedule("newer")], { schedule: ["remembered"] }),
+    ).toEqual({
+      error: "The owner's schedule is gone",
+    });
+  });
+});
+
+describe("reportedFacts on the Monday report", () => {
+  const facts = OWNER_JOURNEYS.find(
+    (journey) => journey.id === "owner-weekly-report-schedule",
+  )!
+    .steps.flatMap((step) => step.outcomes ?? [])
+    .flatMap((outcome) =>
+      outcome.kind === "delivered" ? (outcome.facts ?? []) : [],
+    );
+  const wrong = (text: string) => reportedFacts(text, facts).wrong;
+
+  it("passes each Task with its own status, a later check-in included", () => {
+    expect(facts).toHaveLength(3);
+    expect(
+      wrong(
+        "Last week Mira finished Compare EU invoicing tools. Draft the partner FAQ is stuck; Pick the webinar date waits on you. I'll check again tomorrow.",
+      ),
+    ).toEqual([]);
+    expect(
+      wrong(
+        "- Done: Compare EU invoicing tools\n- Stuck for 9 days: Draft the partner FAQ\n- Needs your answer: Pick the webinar date",
+      ),
+    ).toEqual([]);
+  });
+
+  it("pairs each Task with the section it is listed under", () => {
+    const sectioned = (done: string, blocked: string, waiting: string) =>
+      `## Weekly report\n\nCompleted:\n- ${done}\n\n**Blocked**\n- ${blocked}\n\nWaiting on you\n- ${waiting}`;
+    expect(
+      wrong(
+        sectioned(
+          "Compare EU invoicing tools",
+          "Draft the partner FAQ",
+          "Pick the webinar date",
+        ),
+      ),
+    ).toEqual([]);
+    // The FAQ listed as completed, the invoicing comparison as blocked.
+    expect(
+      wrong(
+        sectioned(
+          "Draft the partner FAQ",
+          "Compare EU invoicing tools",
+          "Pick the webinar date",
+        ),
+      ),
+    ).toEqual([facts[0]!.item, facts[1]!.item]);
+  });
+
+  it("reads a negated status as its opposite", () => {
+    expect(
+      wrong(
+        "Compare EU invoicing tools is incomplete. Draft the partner FAQ is no longer blocked. Pick the webinar date is no longer waiting on you.",
+      ),
+    ).toEqual(facts.map((fact) => fact.item));
+  });
+
+  it("fails every Task reported with the wrong status, or one of them", () => {
+    expect(
+      wrong(
+        "The partner FAQ is finished, invoicing waits on you and the webinar is stuck.",
+      ),
+    ).toEqual(facts.map((fact) => fact.item));
+    expect(wrong("Invoicing is stuck, the webinar is done.")).toEqual(
+      facts.map((fact) => fact.item),
+    );
+    expect(
+      wrong(
+        "Mira finished the invoicing comparison. The partner FAQ is done. The webinar date waits on you.",
+      ),
+    ).toEqual([facts[1]!.item]);
+    // A promise that names the Tasks reports nothing about them.
+    expect(
+      wrong(
+        "I will check the invoicing and webinar tasks and send the report tomorrow",
+      ),
+    ).toEqual(facts.map((fact) => fact.item));
+  });
+});
+
+describe("previousWeekMidpoint", () => {
+  it("lands in last week's Berlin Monday-to-Sunday on Thursday through Sunday", () => {
+    // Thu 26 Nov 2026 to Sun 29 Nov, late in the Berlin evening too.
+    for (const now of [
+      "2026-11-26T08:00:00Z",
+      "2026-11-27T12:00:00Z",
+      "2026-11-28T22:30:00Z",
+      "2026-11-29T22:30:00Z",
+    ])
+      expect(previousWeekMidpoint(new Date(now)).toISOString(), now).toBe(
+        "2026-11-18T11:00:00.000Z",
+      );
+    // Monday 30 Nov: last week is 23 to 29 Nov.
+    expect(
+      previousWeekMidpoint(new Date("2026-11-30T07:00:00Z")).toISOString(),
+    ).toBe("2026-11-25T11:00:00.000Z");
   });
 });
 

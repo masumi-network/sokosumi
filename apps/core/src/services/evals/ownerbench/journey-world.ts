@@ -556,6 +556,26 @@ function needs<T>(value: T | undefined, prepare: JourneyPrepare): T {
   return value;
 }
 
+/**
+ * Wednesday noon (Europe/Berlin) of the Monday-to-Sunday week before `now`'s:
+ * inside last week on every weekday, so a weekly report always counts it.
+ */
+export function previousWeekMidpoint(now: Date): Date {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin",
+    weekday: "short",
+  }).format(now);
+  const sinceMonday = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(
+    weekday,
+  );
+  const day = new Date(now.getTime() - (sinceMonday + 5) * DAY_MS);
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin",
+  }).format(day);
+  // Noon in Berlin is 10:00 or 11:00 UTC; 11:00 UTC is midday either way.
+  return new Date(`${date}T11:00:00Z`);
+}
+
 /** The fixture's Tasks for the owner; earlier ones of the same names are archived first. */
 async function seedTasks(
   lane: EvalLaneRecord,
@@ -575,6 +595,10 @@ async function seedTasks(
     new Date(
       `${new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(ago(-days))}T00:00:00Z`,
     );
+  const touchedAt = (fixture: FixtureTask) =>
+    fixture.inPreviousWeek
+      ? previousWeekMidpoint(now)
+      : ago(fixture.touchedDaysAgo);
   for (const fixture of tasks) {
     const task = await prisma.task.create({
       data: {
@@ -591,8 +615,10 @@ async function seedTasks(
         ...(fixture.dueInDays === undefined
           ? {}
           : { dueOn: berlinDay(fixture.dueInDays) }),
-        createdAt: ago(fixture.createdDaysAgo),
-        updatedAt: ago(fixture.touchedDaysAgo),
+        createdAt: fixture.inPreviousWeek
+          ? new Date(previousWeekMidpoint(now).getTime() - 2 * DAY_MS)
+          : ago(fixture.createdDaysAgo),
+        updatedAt: touchedAt(fixture),
       },
       select: { id: true },
     });
@@ -605,7 +631,7 @@ async function seedTasks(
           ...(fixture.assignee === "Mira"
             ? { coworkerId: miraId }
             : { userId: lane.userId }),
-          createdAt: ago(fixture.touchedDaysAgo),
+          createdAt: touchedAt(fixture),
         },
       });
   }

@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { readMessageResultSnapshots } from "@/helpers/chat-result-metadata";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EvalLaneRecord } from "../eval-lanes.service";
@@ -90,22 +91,79 @@ export interface CheckContext {
   memo: Record<string, string[]>;
 }
 
+/**
+ * A durable schedule the bot made for its owner, of either kind: its own
+ * (create_schedule, a SokoBotSchedule run as a bot turn) or a Task Schedule
+ * (save_task_schedule, which releases a Task to its assignee each run).
+ */
+export interface DurableSchedule {
+  kind: "bot" | "task";
+  id: string;
+  cronExpression: string;
+  /** The brief: a bot schedule's prompt, a Task Schedule's name and description. */
+  prompt: string;
+  timezone: string;
+  enabled: boolean;
+  runOnce: boolean;
+  updatedAt: Date;
+}
+
+/** The bot's durable schedules, newest change first. An ended Task Schedule is gone, as a deleted bot schedule is. */
+export async function durableSchedules(
+  botId: string,
+  workspaceId: string,
+): Promise<DurableSchedule[]> {
+  const [own, tasks] = await Promise.all([
+    prisma.sokoBotSchedule.findMany({
+      where: { sokoBotId: botId, systemKey: null },
+      select: {
+        id: true,
+        cronExpression: true,
+        prompt: true,
+        timezone: true,
+        enabled: true,
+        runOnce: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.taskSchedule.findMany({
+      where: { workspaceId, creatorSokoBotId: botId, state: { not: "ENDED" } },
+      select: {
+        id: true,
+        expr: true,
+        name: true,
+        description: true,
+        timezone: true,
+        state: true,
+        endsMode: true,
+        targetRunCount: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+  return [
+    ...own.map((schedule) => ({ kind: "bot" as const, ...schedule })),
+    ...tasks.map((schedule) => ({
+      kind: "task" as const,
+      id: schedule.id,
+      cronExpression: schedule.expr,
+      prompt: `${schedule.name}\n${schedule.description ?? ""}`,
+      timezone: schedule.timezone,
+      enabled: schedule.state === "ACTIVE",
+      runOnce: schedule.endsMode === "AFTER" && schedule.targetRunCount === 1,
+      updatedAt: schedule.updatedAt,
+    })),
+  ].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+}
+
 async function scheduleCheck(
   outcome: Extract<JourneyOutcome, { kind: "schedule" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
-  const schedules = await prisma.sokoBotSchedule.findMany({
-    where: { sokoBotId: context.botId, systemKey: null },
-    orderBy: { updatedAt: "desc" },
-    select: {
-      id: true,
-      cronExpression: true,
-      prompt: true,
-      timezone: true,
-      enabled: true,
-      runOnce: true,
-    },
-  });
+  const schedules = await durableSchedules(
+    context.botId,
+    context.lane.workspaceId,
+  );
   const [rememberedId, rememberedCron, rememberedPrompt, rememberedZone] =
     context.memo.schedule ?? [];
   const compared =
@@ -172,9 +230,11 @@ async function scheduleCheck(
   return {
     label: outcome.label,
     pass: problems.length === 0,
-    actual: problems.length
-      ? `${problems.join("; ")} (cron "${latest.cronExpression}")`
-      : `cron "${latest.cronExpression}" ${latest.timezone}`,
+    actual: `${latest.kind === "task" ? "Task Schedule" : "bot schedule"}: ${
+      problems.length
+        ? `${problems.join("; ")} (cron "${latest.cronExpression}")`
+        : `cron "${latest.cronExpression}" ${latest.timezone}`
+    }`,
   };
 }
 
@@ -214,14 +274,66 @@ export async function coworkerTasks(
       ],
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, description: true, status: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      status: true,
+      projectId: true,
+    },
   });
+}
+
+/**
+ * The Task a fired Task Schedule released, checked on its own: its
+ * assignee, brief and Project. No other Task can stand in for it.
+ */
+async function releasedTaskCheck(
+  outcome: Extract<JourneyOutcome, { kind: "task" }>,
+  context: CheckContext,
+  taskId: string,
+): Promise<ScenarioCheck> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: {
+      name: true,
+      description: true,
+      assigneeId: true,
+      projectId: true,
+    },
+  });
+  if (!task)
+    return {
+      label: outcome.label,
+      pass: false,
+      actual: "the released Task is gone",
+    };
+  const problems: string[] = [];
+  if (task.assigneeId !== context.world.coworkers[outcome.coworker])
+    problems.push(`not assigned to ${outcome.coworker}`);
+  if (
+    outcome.project &&
+    task.projectId !== context.world.projects[outcome.project]
+  )
+    problems.push(`not in ${outcome.project}`);
+  const brief = matchesAll(
+    `${task.name}\n${task.description ?? ""}`,
+    outcome.briefMatches,
+  );
+  if (!brief.pass) problems.push(`brief lacks /${brief.missing.join("/, /")}/`);
+  return {
+    label: outcome.label,
+    pass: problems.length === 0,
+    actual: `released Task "${task.name}"${problems.length ? `: ${problems.join("; ")}` : ""}`,
+  };
 }
 
 async function taskCheck(
   outcome: Extract<JourneyOutcome, { kind: "task" }>,
   context: CheckContext,
 ): Promise<ScenarioCheck> {
+  const [released] = context.memo.releasedTask ?? [];
+  if (released) return releasedTaskCheck(outcome, context, released);
   const tasks = await coworkerTasks(
     context,
     context.world.coworkers[outcome.coworker],
@@ -232,7 +344,9 @@ async function taskCheck(
       matchesAll(
         `${task.name}\n${task.description ?? ""}`,
         outcome.briefMatches,
-      ).pass,
+      ).pass &&
+      (!outcome.project ||
+        task.projectId === context.world.projects[outcome.project]),
   );
   const first = tasks[0];
   return {
@@ -1180,6 +1294,272 @@ async function noHiresCheck(
   };
 }
 
+/** The turns and every turn they started, at any depth (a background run's own runs too). */
+export async function withDescendants(
+  turnIds: readonly string[],
+): Promise<{ id: string }[]> {
+  const seen = new Set(turnIds);
+  let frontier = [...turnIds];
+  while (frontier.length) {
+    const children = await prisma.sokoBotTurn.findMany({
+      where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
+      select: { id: true },
+    });
+    frontier = children.map((child) => child.id);
+    for (const id of frontier) seen.add(id);
+  }
+  return [...seen].map((id) => ({ id }));
+}
+
+/**
+ * The bot turns this step's work traces to, with every run they started:
+ * the claimed scheduled run's turn; the wake by the answer on the Task this
+ * journey's schedule released; else every bot turn of the step.
+ */
+async function deliveringTurnIds(context: CheckContext): Promise<string[]> {
+  const since = context.stepStartedAt;
+  const [kind] = context.memo.scheduleKind ?? [];
+  const [, runId] = context.memo.scheduleRun ?? [];
+  const [released] = context.memo.releasedTask ?? [];
+  let roots: string[];
+  if (kind === "bot" && runId) {
+    const run = await prisma.sokoBotScheduleRun.findUnique({
+      where: { id: runId },
+      select: { turnId: true },
+    });
+    roots = run?.turnId ? [run.turnId] : [];
+  } else if (released)
+    roots = (
+      await prisma.sokoBotTurn.findMany({
+        where: {
+          sokoBotId: context.botId,
+          createdAt: { gte: since },
+          eventInbox: { some: { entityId: released } },
+        },
+        select: { id: true },
+      })
+    ).map((turn) => turn.id);
+  else
+    roots = (
+      await prisma.sokoBotTurn.findMany({
+        where: { sokoBotId: context.botId, createdAt: { gte: since } },
+        select: { id: true },
+      })
+    ).map((turn) => turn.id);
+  return (await withDescendants(roots)).map((turn) => turn.id);
+}
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/**
+ * The Drive files a message lets the owner open: a Drive link's destination
+ * in its text, or a file card's reference. A bare id or a file name in a
+ * sentence opens nothing.
+ */
+export function openableFileIds(content: string, metadata: unknown): string[] {
+  const links = [
+    ...content.matchAll(new RegExp(`/drive/files/(${UUID})`, "gi")),
+  ].flatMap((match) => (match[1] ? [match[1].toLowerCase()] : []));
+  const cards = readMessageResultSnapshots(metadata).flatMap((snapshot) =>
+    snapshot.reference.kind === "file" ? [snapshot.reference.id] : [],
+  );
+  return [...new Set([...links, ...cards])];
+}
+
+/**
+ * Everything the owner received from this step's run: each message the run's
+ * turns (the claimed scheduled run, or the wakes by the released Task's
+ * answer, retries included, with every run they started) put into a room the
+ * owner is in after the step started, however it got there (the final
+ * reply's delivery, a chat effect, a tool's receipt), each with the latest
+ * text of the files it lets the owner open. A Coworker's comment, a report
+ * never sent, an earlier message, another turn's message: none of it.
+ */
+export async function ownerReceived(
+  context: CheckContext,
+): Promise<{ source: string; text: string }[]> {
+  const turnIds = await deliveringTurnIds(context);
+  const [deliveries, receipts] = await Promise.all([
+    prisma.sokoBotDelivery.findMany({
+      where: {
+        turnId: { in: turnIds },
+        status: { in: ["PERSISTED", "PUBLISHED"] },
+        messageId: { not: null },
+      },
+      select: { messageId: true },
+    }),
+    prisma.sokoBotToolCall.findMany({
+      where: { turnId: { in: turnIds }, status: "COMPLETED" },
+      select: { targetId: true, effects: { select: { payload: true } } },
+    }),
+  ]);
+  const effectMessages = receipts.flatMap((receipt) =>
+    receipt.effects.flatMap((effect) => {
+      const id = (effect.payload as { messageId?: unknown } | null)?.messageId;
+      return typeof id === "string" ? [id] : [];
+    }),
+  );
+  const messages = await prisma.chatRoomMessage.findMany({
+    where: {
+      id: {
+        in: [
+          ...deliveries.flatMap((delivery) => delivery.messageId ?? []),
+          ...receipts.flatMap((receipt) => receipt.targetId ?? []),
+          ...effectMessages,
+        ],
+      },
+      senderSokoBotId: context.botId,
+      deletedAt: null,
+      createdAt: { gte: context.stepStartedAt },
+      room: { userMembers: { some: { userId: context.lane.userId } } },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { content: true, metadata: true },
+  });
+  const linked = messages.map((message) =>
+    openableFileIds(message.content, message.metadata),
+  );
+  const fileIds = [...new Set(linked.flat())];
+  // Only a live file the owner can open: in their workspace, theirs or
+  // their organization's.
+  const files = await prisma.fileResource.findMany({
+    where: {
+      id: { in: fileIds },
+      workspaceId: context.lane.workspaceId,
+      tombstonedAt: null,
+      lifecycle: "ACTIVE",
+      OR: [
+        { ownerUserId: context.lane.userId },
+        { ownerOrganizationId: context.lane.organizationId },
+      ],
+    },
+    select: { id: true, displayName: true },
+  });
+  const texts = savedFileTexts(
+    files,
+    context.toolCalls,
+    await indexedTexts(files.map((file) => file.id)),
+  ).map((file, index) => ({ ...file, id: files[index]?.id }));
+  return messages.map((message, index) => {
+    const opened = texts.filter(
+      (file) => file.text !== null && linked[index]?.includes(file.id ?? ""),
+    );
+    return {
+      source: opened.length
+        ? `a message to the owner opening ${opened.map((file) => `"${file.name}"`).join(", ")}`
+        : "a message to the owner",
+      text: [message.content, ...opened.map((file) => file.text ?? "")].join(
+        "\n\n",
+      ),
+    };
+  });
+}
+
+const NEGATION =
+  /\b(not|no longer|isn't|is not|aren't|are not|wasn't|was not|hasn't been|has not been|never|no)\s+(\w+\s+)?$/i;
+
+/** Whether the clause says the status, not its negation ("no longer blocked", "incomplete"). */
+export function saysStatus(clause: string, pattern: string): boolean {
+  for (const match of clause.matchAll(new RegExp(pattern, "gi"))) {
+    const at = match.index ?? 0;
+    const wordStart = clause.slice(0, at).search(/\w*$/);
+    const prefix = clause.slice(wordStart, at).toLowerCase();
+    if (["in", "un", "non"].includes(prefix)) continue;
+    if (NEGATION.test(clause.slice(Math.max(0, wordStart - 30), wordStart)))
+      continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * What a report says about each item, clause by clause. A clause is part of
+ * a line: a sentence, or a piece joined by a comma or "and", so "invoicing
+ * is stuck, the webinar is done" pairs each item with its own word. A line
+ * that names no item but says a status ("Done:", "## Waiting on you") heads
+ * a section: an item under it that says no status of its own takes the
+ * heading's, until a blank line. An item passes when some clause says it
+ * with its own status and none says it with another item's instead.
+ */
+export function reportedFacts(
+  text: string,
+  facts: readonly { item: string; status: string }[],
+): { wrong: string[] } {
+  const names = (clause: string, fact: { item: string }) =>
+    new RegExp(fact.item, "i").test(clause);
+  const saysAny = (clause: string) =>
+    facts.some((fact) => saysStatus(clause, fact.status));
+  const clauses: string[] = [];
+  let section = "";
+  for (const line of text.split("\n")) {
+    const body = line
+      .trim()
+      .replace(/^(#+|[-*•]|\d+[.)])\s+/, "")
+      .replace(/\*\*/g, "");
+    if (!body) {
+      section = "";
+      continue;
+    }
+    if (!facts.some((fact) => names(body, fact)) && saysAny(body)) {
+      section = body;
+      continue;
+    }
+    for (const part of body.split(
+      /[.;!?](?=\s|$)|,\s|\s+(?:and|but|while|whereas)\s+|\s[-–•]\s/i,
+    )) {
+      const clause = part.trim();
+      if (!clause) continue;
+      clauses.push(
+        section && !saysAny(clause) ? `${section} ${clause}` : clause,
+      );
+    }
+  }
+  const wrong = facts.flatMap((fact) => {
+    const naming = clauses.filter((clause) => names(clause, fact));
+    const right = naming.some((clause) => saysStatus(clause, fact.status));
+    const contradicted = naming.some(
+      (clause) =>
+        !saysStatus(clause, fact.status) &&
+        facts.some(
+          (other) => other !== fact && saysStatus(clause, other.status),
+        ),
+    );
+    return right && !contradicted ? [] : [fact.item];
+  });
+  return { wrong };
+}
+
+async function deliveredCheck(
+  outcome: Extract<JourneyOutcome, { kind: "delivered" }>,
+  context: CheckContext,
+): Promise<ScenarioCheck> {
+  const minLength = outcome.minLength ?? 40;
+  const received = await ownerReceived(context);
+  // Judged on everything the owner received together: a report may come
+  // as a message, the file it opens, or both.
+  const text = received.map((entry) => entry.text).join("\n\n");
+  const { wrong } = reportedFacts(text, outcome.facts ?? []);
+  const pass =
+    received.length > 0 &&
+    text.trim().length >= minLength &&
+    matchesAll(text, outcome.textMatches).pass &&
+    !matchesAny(text, outcome.textAvoids) &&
+    wrong.length === 0;
+  return {
+    label: outcome.label,
+    pass,
+    actual: !received.length
+      ? "nothing reached the owner in this step"
+      : pass
+        ? `delivered as ${received.map((entry) => entry.source).join("; ")}`
+        : `${received.length} message(s) to the owner${
+            wrong.length
+              ? `: missing or wrong /${wrong.join("/, /")}/`
+              : ", not the report"
+          }`,
+  };
+}
+
 export async function outcomeCheck(
   outcome: JourneyOutcome,
   context: CheckContext,
@@ -1213,6 +1593,8 @@ export async function outcomeCheck(
       return seededSchedulesCheck(outcome, context);
     case "networkShift":
       return networkShiftCheck(outcome, context);
+    case "delivered":
+      return deliveredCheck(outcome, context);
     case "contact":
       return contactCheck(outcome, context);
     case "file":

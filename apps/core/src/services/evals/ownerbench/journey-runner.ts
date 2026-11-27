@@ -32,10 +32,17 @@ import type {
 } from "../eval-case-runner";
 import { prepareCmoChatCase } from "../eval-cmo-runner";
 import {
+  clearBotTaskSchedules,
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
 } from "../eval-lanes.service";
-import { coworkerTasks, outcomeCheck } from "./journey-checks";
+import {
+  coworkerTasks,
+  type DurableSchedule,
+  durableSchedules,
+  outcomeCheck,
+  withDescendants,
+} from "./journey-checks";
 import {
   freshCusoRoom,
   type JourneyWorld,
@@ -153,17 +160,132 @@ async function startStep(
     return askInRoom(world.teammateRoomId, member, botId, step.message);
   }
   if (step.kind === "coworker") {
-    const [task] = await coworkerTasks(
-      { lane, world, journeyStartedAt, botId },
-      world.coworkers[step.coworker],
+    const coworkerId = world.coworkers[step.coworker];
+    const taskId = await answeredTaskId(
+      memo,
+      coworkerId,
+      step.coworker,
+      async () =>
+        (
+          await coworkerTasks(
+            { lane, world, journeyStartedAt, botId },
+            coworkerId,
+          )
+        )[0]?.id,
     );
-    if (!task) return { error: `No Task for ${step.coworker} to answer on` };
-    await deliverCoworkerAnswer(task.id, world.coworkers[step.coworker], step);
+    if (typeof taskId !== "string") return taskId;
+    memo.answerEvent = [await deliverCoworkerAnswer(taskId, coworkerId, step)];
     return null;
   }
-  const schedule = await ownerSchedule(botId);
+  const schedule = await scheduleToFire(
+    await durableSchedules(botId, lane.workspaceId),
+    memo,
+  );
   if (!schedule) return { error: "No schedule to fire" };
-  return fireSchedule(schedule.id, botId, memo);
+  if ("error" in schedule) return schedule;
+  return schedule.kind === "task"
+    ? fireTaskSchedule(schedule.id, memo)
+    : fireSchedule(schedule.id, botId, memo);
+}
+
+/**
+ * The schedule this journey's outcome identified (`identity: "remember"`),
+ * or, when none was, the newest enabled one. A remembered schedule that is
+ * gone or off is the product's failure to keep it, never a cue to fire another.
+ */
+export function scheduleToFire(
+  schedules: readonly DurableSchedule[],
+  memo: JourneyState["memo"],
+): DurableSchedule | { error: string } | null {
+  const [rememberedId] = memo.schedule ?? [];
+  if (!rememberedId)
+    return schedules.find((schedule) => schedule.enabled) ?? null;
+  const remembered = schedules.find((schedule) => schedule.id === rememberedId);
+  if (!remembered) return { error: "The owner's schedule is gone" };
+  if (!remembered.enabled) return { error: "The owner's schedule is off" };
+  return remembered;
+}
+
+/**
+ * The Task a Coworker's scripted answer goes on: the Task the fired Task
+ * Schedule released, when one did, and only if it is that Coworker's;
+ * otherwise the Task the bot gave the Coworker in this journey.
+ */
+export async function answeredTaskId(
+  memo: JourneyState["memo"],
+  coworkerId: string,
+  coworkerName: string,
+  delegatedTaskId: () => Promise<string | undefined>,
+): Promise<string | { error: string }> {
+  const [released] = memo.releasedTask ?? [];
+  if (released) {
+    const task = await prisma.task.findUnique({
+      where: { id: released },
+      select: { assigneeId: true },
+    });
+    return task?.assigneeId === coworkerId
+      ? released
+      : {
+          error: `The released Task is not ${coworkerName}'s (${task ? "assigned elsewhere" : "gone"})`,
+        };
+  }
+  return (
+    (await delegatedTaskId()) ?? {
+      error: `No Task for ${coworkerName} to answer on`,
+    }
+  );
+}
+
+/**
+ * Releases the Task Schedule's next Run through the cron's own release,
+ * scoped to this schedule: its next planned Run is made due now, as the clock
+ * would. The released Task goes to its assignee; no bot turn starts here, so
+ * the step follows the Run (`claimedRunState`), and a Coworker's answer on
+ * that Task wakes the bot in the next step, as in production.
+ */
+export async function fireTaskSchedule(
+  scheduleId: string,
+  memo: JourneyState["memo"],
+): Promise<null | { error: string }> {
+  const next = await prisma.taskScheduleRun.findFirst({
+    where: { scheduleId, state: "PLANNED" },
+    orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
+    select: { id: true },
+  });
+  if (!next)
+    return { error: "The Task Schedule has no planned run to release" };
+  const due = new Date(Date.now() - 1_000);
+  await prisma.$transaction([
+    prisma.taskScheduleRun.update({
+      where: { id: next.id },
+      data: { effectiveScheduledAt: due },
+    }),
+    prisma.taskSchedule.update({
+      where: { id: scheduleId },
+      data: { nextRunAt: due },
+    }),
+  ]);
+  memo.scheduleKind = ["task"];
+  memo.scheduleRun = [scheduleId, next.id];
+  // Loaded here, as the chat dispatch is: the release announces its Tasks.
+  const { taskScheduleReleaseService } = await import(
+    "@/services/task-schedule-runs.service"
+  );
+  const released = await taskScheduleReleaseService.releaseDueSchedules({
+    scheduleId,
+    abortSignal: new AbortController().signal,
+    deadlineMs: Date.now() + 60_000,
+    shouldContinue: () => true,
+  });
+  const releasedTaskId = await releasedTaskOf(next.id);
+  // Every later step follows this Task: its checks, the Coworker's answer
+  // and the wake that answer brings.
+  if (releasedTaskId) memo.releasedTask = [releasedTaskId];
+  if (!releasedTaskId)
+    return {
+      error: `The Task Schedule released no Task (${released.failed} failed)`,
+    };
+  return null;
 }
 
 /**
@@ -241,6 +363,7 @@ async function fireSchedule(
   const run = await claimScheduleRun(scheduleId, botId);
   if (!run) return { error: "The schedule sync claimed nothing" };
   // The step follows this run, not any scheduled turn of the bot.
+  memo.scheduleKind = ["bot"];
   memo.scheduleRun = [scheduleId, run.id];
   if (FAILED_RUN.includes(run.status))
     return { error: `The scheduled run ended ${run.status}` };
@@ -291,6 +414,9 @@ export async function claimedRunState(
 ): Promise<"started" | "failed" | "waiting"> {
   const [scheduleId, runId] = memo.scheduleRun ?? [];
   if (!scheduleId || !runId) return "failed";
+  // A Task Schedule's release is done when it returns: a Task, or nothing.
+  if (memo.scheduleKind?.[0] === "task")
+    return (await releasedTaskOf(runId)) ? "started" : "failed";
   const run = await prisma.sokoBotScheduleRun.findUnique({
     where: { id: runId },
     select: { turnId: true, status: true },
@@ -306,6 +432,14 @@ export async function claimedRunCheck(
   memo: JourneyState["memo"],
 ): Promise<ScenarioCheck> {
   const [, runId] = memo.scheduleRun ?? [];
+  if (memo.scheduleKind?.[0] === "task") {
+    const taskId = runId ? await releasedTaskOf(runId) : null;
+    return {
+      label: "The Task Schedule released its Task",
+      pass: Boolean(taskId),
+      actual: taskId ? `Task ${taskId}` : "no Task released",
+    };
+  }
   const run = runId
     ? await prisma.sokoBotScheduleRun.findUnique({
         where: { id: runId },
@@ -321,12 +455,13 @@ export async function claimedRunCheck(
   };
 }
 
-/** The schedule the owner had the bot make, newest first. */
-function ownerSchedule(botId: string) {
-  return prisma.sokoBotSchedule.findFirst({
-    where: { sokoBotId: botId, systemKey: null, enabled: true },
-    orderBy: { updatedAt: "desc" },
+/** The Task a released Task Schedule Run made, if it released one. */
+async function releasedTaskOf(runId: string): Promise<string | null> {
+  const run = await prisma.taskScheduleRun.findUnique({
+    where: { id: runId },
+    select: { state: true, releasedTaskId: true },
   });
+  return run?.state === "RELEASED" ? run.releasedTaskId : null;
 }
 
 /**
@@ -335,12 +470,12 @@ function ownerSchedule(botId: string) {
  * events sync wakes the bot (`wakeOnDelegatedWork`), so a missing wake is the
  * product's, not the benchmark's.
  */
-async function deliverCoworkerAnswer(
+export async function deliverCoworkerAnswer(
   taskId: string,
   coworkerId: string,
   step: Extract<JourneyStep, { kind: "coworker" }>,
-): Promise<void> {
-  await prisma.$transaction([
+): Promise<string> {
+  const [event] = await prisma.$transaction([
     prisma.taskEvent.create({
       data: {
         taskId,
@@ -348,12 +483,15 @@ async function deliverCoworkerAnswer(
         comment: step.comment,
         coworkerId,
       },
+      select: { id: true },
     }),
     prisma.task.update({
       where: { id: taskId },
       data: { status: step.status },
     }),
   ]);
+  // The step waits for, and scores, the wake by exactly this event.
+  return event.id;
 }
 
 /** The events cron's scan, for this bot only; a busy bot is woken on a later poll. */
@@ -390,10 +528,8 @@ async function stepSettled(
 ): Promise<boolean> {
   if (awaits === "wake") {
     await wakeOnDelegatedWork(botId);
-    const woken = await prisma.sokoBotTurn.count({
-      where: { sokoBotId: botId, source: "EVENT", createdAt: { gte: since } },
-    });
-    if (woken === 0) return false;
+    const wakes = await answerWakes(botId, since, memo.answerEvent?.[0]);
+    if (wakes.succeeded + wakes.failed === 0) return false;
   }
   if (awaits === "schedule") {
     const run = await claimedRunState(memo, botId);
@@ -522,6 +658,188 @@ export function packetTurnIds(packet: unknown): string[] {
 }
 
 /** Scores a settled step: its tools and answer, then the world it left. */
+/**
+ * A step that started no bot turn. Normally that is the failure. A fired
+ * Task Schedule's work is its released Task, which its claimed-run check
+ * scores, but the release never stands in for what the step asks of the bot:
+ * tools to call, a question, an answer. Those still fail without a turn; a
+ * step that only forbids things holds.
+ */
+export function turnlessChecks(
+  step: JourneyStep,
+  releasedTask: boolean,
+): ScenarioCheck[] {
+  if (!releasedTask)
+    return [{ label: "Completed", pass: false, actual: "no turn" }];
+  const expect = step.expect ?? {};
+  const asked = [
+    ...(expect.tools?.length ? [`tools ${expect.tools.join(", ")}`] : []),
+    ...(expect.anyTools?.length
+      ? [`one of ${expect.anyTools.join(", ")}`]
+      : []),
+    ...(expect.asksQuestion ? ["a question"] : []),
+    ...(expect.answerMatches ? [`an answer /${expect.answerMatches}/`] : []),
+  ];
+  return asked.length
+    ? [
+        {
+          label: "Does what the step asks of the bot",
+          pass: false,
+          actual: `no bot turn after the release: no ${asked.join("; ")}`,
+        },
+      ]
+    : [];
+}
+
+/** What the step asks of the bot, against its turns: the same with or without a released Task. */
+export function stepExpectationChecks(
+  journey: OwnerJourney,
+  step: JourneyStep,
+  merged: Parameters<typeof evaluateScenario>[1] | null,
+  releasedTask: boolean,
+): ScenarioCheck[] {
+  if (!merged) return turnlessChecks(step, releasedTask);
+  return evaluateScenario(
+    {
+      ...journeyJudgeScenario(journey),
+      expect: { routes: [], ...step.expect },
+    },
+    merged,
+  ).checks.filter((check) => !check.label.startsWith("Route "));
+}
+
+/**
+ * The Coworker's answer was delivered once and the scan ran twice: one wake
+ * is right, none is a missing wake, more is a duplicate. Only a wake by that
+ * answer's own TaskEvent counts.
+ */
+export async function wakeCheck(
+  botId: string,
+  since: Date,
+  coworker: string,
+  answerEventId: string | undefined,
+): Promise<ScenarioCheck> {
+  const wakes = await answerWakes(botId, since, answerEventId);
+  return {
+    label: `Woken once by ${coworker}'s answer`,
+    pass: wakes.succeeded === 1,
+    actual: answerEventId
+      ? `${wakes.succeeded} wake(s) by that answer${
+          wakes.failed ? `, after ${wakes.failed} failed attempt(s)` : ""
+        }`
+      : "no answer delivered",
+  };
+}
+
+/**
+ * The bot's wakes since the step started that carry exactly this answer's
+ * TaskEvent (a retry adds a suffix to it): an earlier update on the same
+ * Task is a different event and earns nothing.
+ */
+/**
+ * What the recovered attempts did that the step forbids. They leave the
+ * step's status to their retries, but a prohibited call stays done: a later
+ * clean retry can't undo it. Any call counts, as in the step's own check.
+ */
+export async function recoveredAttemptChecks(
+  step: JourneyStep,
+  retried: ReadonlySet<string>,
+): Promise<ScenarioCheck[]> {
+  const forbidden = step.expect?.forbiddenTools ?? [];
+  if (!forbidden.length || !retried.size) return [];
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: { in: [...retried] }, capability: { in: forbidden } },
+    select: { capability: true },
+  });
+  return [
+    {
+      label: `Never calls ${forbidden.join(", ")}, failed attempts included`,
+      pass: calls.length === 0,
+      actual: calls.length
+        ? `a failed attempt called ${[...new Set(calls.map((call) => call.capability))].join(", ")}`
+        : "no failed attempt called one",
+    },
+  ];
+}
+
+/**
+ * The failed or cancelled turns among these whose event a later turn here
+ * processed again as its retry (the retry's event id is the failed one's
+ * with a suffix, ":follow-up-retry"). An unrelated failed turn is not one.
+ */
+export async function retriedAttempts(
+  turnIds: readonly string[],
+): Promise<Set<string>> {
+  const turns = await prisma.sokoBotTurn.findMany({
+    where: { id: { in: [...turnIds] } },
+    select: {
+      id: true,
+      status: true,
+      eventInbox: { select: { eventId: true } },
+    },
+  });
+  const failedStatus = ["FAILED", "CANCELLED"];
+  const recovered = turns
+    .filter((turn) => !failedStatus.includes(turn.status))
+    .flatMap((turn) => turn.eventInbox.map((entry) => entry.eventId));
+  return new Set(
+    turns
+      .filter(
+        (turn) =>
+          failedStatus.includes(turn.status) &&
+          turn.eventInbox.some((entry) =>
+            recovered.some((eventId) =>
+              eventId.startsWith(`${entry.eventId}:`),
+            ),
+          ),
+      )
+      .map((turn) => turn.id),
+  );
+}
+
+/**
+ * The step's turns as one: a failed attempt whose own retry got through is
+ * not the step's outcome, so only its status leaves the step's. What it did
+ * (calls, delegations, effects) stays in, so a retry can't hide an action.
+ */
+export async function stepChain(
+  turnIds: string[],
+  retried: ReadonlySet<string>,
+) {
+  const chain = await loadA2aChain(turnIds);
+  const terminal = chain.turns.filter((_, i) => !retried.has(turnIds[i]!));
+  return {
+    ...chain.merged,
+    status:
+      terminal.find((turn) => turn.status !== "COMPLETED")?.status ??
+      terminal.at(-1)?.status ??
+      chain.merged.status,
+    errorKind: terminal.find((turn) => turn.errorKind)?.errorKind ?? null,
+  };
+}
+
+async function answerWakes(
+  botId: string,
+  since: Date,
+  answerEventId: string | undefined,
+): Promise<{ succeeded: number; failed: number }> {
+  if (!answerEventId) return { succeeded: 0, failed: 0 };
+  const turns = await prisma.sokoBotTurn.findMany({
+    where: {
+      sokoBotId: botId,
+      source: "EVENT",
+      createdAt: { gte: since },
+      eventInbox: { some: { eventId: { startsWith: answerEventId } } },
+    },
+    select: { status: true },
+  });
+  // A failed attempt and its follow-up retry are one wake that got through.
+  const failed = turns.filter((turn) =>
+    ["FAILED", "CANCELLED"].includes(turn.status),
+  ).length;
+  return { succeeded: turns.length - failed, failed };
+}
+
 async function finishStep(
   journey: OwnerJourney,
   record: StepRecord,
@@ -536,19 +854,17 @@ async function finishStep(
   );
   const checks: ScenarioCheck[] = [];
   let merged: Awaited<ReturnType<typeof loadA2aChain>>["merged"] | null = null;
-  if (turnIds.length) {
-    merged = (await loadA2aChain(turnIds)).merged;
-    const result = evaluateScenario(
-      {
-        ...journeyJudgeScenario(journey),
-        expect: { routes: [], ...step.expect },
-      },
+  const retried = await retriedAttempts(turnIds);
+  if (turnIds.length) merged = await stepChain(turnIds, retried);
+  checks.push(
+    ...stepExpectationChecks(
+      journey,
+      step,
       merged,
-    );
-    checks.push(
-      ...result.checks.filter((check) => !check.label.startsWith("Route ")),
-    );
-  } else checks.push({ label: "Completed", pass: false, actual: "no turn" });
+      step.kind === "schedule_fires" && state.memo.scheduleKind?.[0] === "task",
+    ),
+    ...(await recoveredAttemptChecks(step, retried)),
+  );
   if (record.index === 0 && turnIds[0])
     checks.push(
       await freshConversationCheck(
@@ -558,22 +874,15 @@ async function finishStep(
     );
   if (step.kind === "schedule_fires")
     checks.push(await claimedRunCheck(state.memo));
-  if (step.kind === "coworker") {
-    // The answer was delivered once and the scan ran twice: one wake is
-    // right, none is a missing wake, more is a duplicate.
-    const wakes = await prisma.sokoBotTurn.count({
-      where: {
-        sokoBotId: botOf(journey, lane),
-        source: "EVENT",
-        createdAt: { gte: new Date(record.startedAt) },
-      },
-    });
-    checks.push({
-      label: `Woken once by ${step.coworker}'s answer`,
-      pass: wakes === 1,
-      actual: `${wakes} wake(s)`,
-    });
-  }
+  if (step.kind === "coworker")
+    checks.push(
+      await wakeCheck(
+        botOf(journey, lane),
+        new Date(record.startedAt),
+        step.coworker,
+        state.memo.answerEvent?.[0],
+      ),
+    );
   const toolCalls = await journeyToolCalls(state, turnIds);
   for (const outcome of step.outcomes ?? [])
     checks.push(
@@ -691,6 +1000,9 @@ export async function startJourney(
   )
     return { kind: "busy" };
   if (journey.bot === "soko-bot") await resetEvalLaneForSokoBot(lane);
+  // A Cuso journey has no full reset; a bot's Task Schedule from an earlier
+  // journey would still be in its workspace reads.
+  else await clearBotTaskSchedules(lane);
   const cusoRoomId =
     journey.bot === "cuso" ? await freshCusoRoom(lane, journey.id) : undefined;
   if (journey.cusoSetup) await prepareCmoChatCase(lane, journey.cusoSetup);
@@ -750,6 +1062,8 @@ export async function foregroundTurnId(
 ): Promise<string | null> {
   if (current.turnIds[0]) return current.turnIds[0];
   if (journey.steps[current.index]?.kind !== "schedule_fires") return null;
+  // A Task Schedule's run releases a Task, not a bot turn.
+  if (state.memo.scheduleKind?.[0] === "task") return null;
   const [, runId] = state.memo.scheduleRun ?? [];
   const run = runId
     ? await prisma.sokoBotScheduleRun.findUnique({
@@ -993,22 +1307,7 @@ export async function routingFailures(
   return { calls, failed };
 }
 
-/** The turns and every turn they started, at any depth (a background run's own runs too). */
-export async function withDescendants(
-  turnIds: readonly string[],
-): Promise<{ id: string }[]> {
-  const seen = new Set(turnIds);
-  let frontier = [...turnIds];
-  while (frontier.length) {
-    const children = await prisma.sokoBotTurn.findMany({
-      where: { parentTurnId: { in: frontier }, id: { notIn: [...seen] } },
-      select: { id: true },
-    });
-    frontier = children.map((child) => child.id);
-    for (const id of frontier) seen.add(id);
-  }
-  return [...seen].map((id) => ({ id }));
-}
+export { withDescendants };
 
 /** Progress: the share of checks passed and how many steps in a row were right. */
 export function journeyScore(
