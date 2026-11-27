@@ -12,6 +12,7 @@ import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 import {
   type DeletionBlocker,
   type DeletionWorld,
+  insertRow,
   seedDeletionBlocker,
   seedDeletionWorld,
 } from "@/test-fixtures/user-deletion-world";
@@ -204,6 +205,7 @@ describe.runIf(ON_POSTGRES)(
     let prisma: typeof import("@/lib/db/prisma").default;
     let prepareTasksForUserDeletion: typeof import("./user-deletion-tasks").prepareTasksForUserDeletion;
     let countOrphans: typeof import("@/lib/db/crossing-key-orphans").countCrossingKeyOrphans;
+    let pauseKey: string;
     const networks: Network[] = onSplitLayout
       ? ["mainnet", "preprod"]
       : ["mainnet"];
@@ -215,6 +217,9 @@ describe.runIf(ON_POSTGRES)(
       ({ countCrossingKeyOrphans: countOrphans } = await import(
         "@/lib/db/crossing-key-orphans"
       ));
+      ({ PREPROD_PAUSE_KEY: pauseKey } = await import(
+        "@/helpers/preprod-control"
+      ));
       // Core stamps rows with its own clock; every run must stamp the same.
       vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-02-01") });
     }, 60_000);
@@ -224,15 +229,32 @@ describe.runIf(ON_POSTGRES)(
       vi.unstubAllEnvs();
     });
 
-    /** Seeds a world, runs `run` on it, and rolls everything back. */
+    /**
+     * Seeds a world, runs `run` on it, and rolls everything back. Preprod is
+     * paused unless `preprod` opens it: no pause row means paused.
+     */
     async function inWorld(
       run: (tx: Tx, world: DeletionWorld) => Promise<void>,
+      preprod: "off" | "paused" | "open" = "paused",
     ): Promise<void> {
       const rollback = new Error("Roll back the world");
       await expect(
         prisma.$transaction(
           async (tx) => {
             const world = await seedDeletionWorld(tx, networks);
+            if (preprod === "open") {
+              await insertRow(tx, sharedTable("sync_metadata"), {
+                id: world.id("pause"),
+                key: pauseKey,
+                cursorId: "open",
+                lastSyncedAt: "2026-01-01T00:00:00",
+                updatedAt: "2026-01-01T00:00:00",
+              });
+            }
+            expect(
+              await tx.$queryRaw`
+                SELECT "cursorId" FROM ${sharedTable("sync_metadata")} WHERE "key" = ${pauseKey}`,
+            ).toEqual(preprod === "open" ? [{ cursorId: "open" }] : []);
             await tx.$executeRaw`SAVEPOINT world`;
             await run(tx, world);
             throw rollback;
@@ -273,49 +295,57 @@ describe.runIf(ON_POSTGRES)(
       await tx.$executeRaw`ROLLBACK TO SAVEPOINT world`;
     }
 
-    it("leaves every table as the keys alone leave it, with the keys and without them", async () => {
-      let seeded: Digests = {};
-      let byTheKeys: Digests = {};
-      let byCoreBesideTheKeys: Digests = {};
-      let byCoreAlone: Digests = {};
-      let orphansByCoreAlone: Awaited<ReturnType<typeof countOrphans>> = [];
-      let parents: ReferencedParents[] = [];
-      let keysThatFired: string[] = [];
-      let droppedKeys = 0;
+    // A pause stops Preprod's work, not its rows: a paused Preprod is swept
+    // like an open one.
+    it.each(onSplitLayout ? (["paused", "open"] as const) : (["off"] as const))(
+      "leaves every table as the keys alone leave it, with the keys and without them, while Preprod is %s",
+      async (preprod) => {
+        let seeded: Digests = {};
+        let byTheKeys: Digests = {};
+        let byCoreBesideTheKeys: Digests = {};
+        let byCoreAlone: Digests = {};
+        let orphansByCoreAlone: Awaited<ReturnType<typeof countOrphans>> = [];
+        let parents: ReferencedParents[] = [];
+        let keysThatFired: string[] = [];
+        let droppedKeys = 0;
 
-      await inWorld(async (tx, { ada }) => {
-        seeded = await tableDigests(tx);
-        parents = await referencedParents(tx, networks);
+        await inWorld(async (tx, { ada }) => {
+          seeded = await tableDigests(tx);
+          parents = await referencedParents(tx, networks);
 
-        await deleteAccount(tx, ada, { rules: false });
-        byTheKeys = await tableDigests(tx);
-        keysThatFired = await keysWithAParentGone(tx, parents);
-        await backToTheWorld(tx);
+          await deleteAccount(tx, ada, { rules: false });
+          byTheKeys = await tableDigests(tx);
+          keysThatFired = await keysWithAParentGone(tx, parents);
+          await backToTheWorld(tx);
 
-        await deleteAccount(tx, ada, { rules: true });
-        byCoreBesideTheKeys = await tableDigests(tx);
-        await backToTheWorld(tx);
+          await deleteAccount(tx, ada, { rules: true });
+          byCoreBesideTheKeys = await tableDigests(tx);
+          await backToTheWorld(tx);
 
-        droppedKeys = await dropCrossingKeys(tx);
-        await deleteAccount(tx, ada, { rules: true });
-        byCoreAlone = await tableDigests(tx);
-        orphansByCoreAlone = await countOrphans(tx);
-      });
+          droppedKeys = await dropCrossingKeys(tx);
+          await deleteAccount(tx, ada, { rules: true });
+          byCoreAlone = await tableDigests(tx);
+          orphansByCoreAlone = await countOrphans(tx);
+        }, preprod);
 
-      // 23 keys from each Network into shared, 8 from shared into Mainnet.
-      expect(droppedKeys).toBe(23 * networks.length + 8);
-      expect(byTheKeys).not.toEqual(seeded);
-      expect(byCoreBesideTheKeys).toEqual(byTheKeys);
-      expect(byCoreAlone).toEqual(byTheKeys);
-      expect(orphansByCoreAlone.filter(({ count }) => count > 0n)).toEqual([]);
+        // 23 keys from each Network into shared, 8 from shared into Mainnet.
+        expect(droppedKeys).toBe(23 * networks.length + 8);
+        expect(byTheKeys).not.toEqual(seeded);
+        expect(byCoreBesideTheKeys).toEqual(byTheKeys);
+        expect(byCoreAlone).toEqual(byTheKeys);
+        expect(orphansByCoreAlone.filter(({ count }) => count > 0n)).toEqual(
+          [],
+        );
 
-      // The world holds a row behind every key that deletes or clears, on
-      // every Network the key applies to: the deletion removed a row it
-      // pointed at. A key added to the table without a row here fails this.
-      expect(keysThatFired).toEqual(parents.map(({ key }) => key));
-      // 13 keys out of a Network and 8 into Mainnet; 3 of the 8 into Preprod.
-      expect(parents).toHaveLength(networks.length === 2 ? 37 : 21);
-    }, 120_000);
+        // The world holds a row behind every key that deletes or clears, on
+        // every Network the key applies to: the deletion removed a row it
+        // pointed at. A key added to the table without a row here fails this.
+        expect(keysThatFired).toEqual(parents.map(({ key }) => key));
+        // 13 keys out of a Network and 8 into Mainnet; 3 of the 8 into Preprod.
+        expect(parents).toHaveLength(networks.length === 2 ? 37 : 21);
+      },
+      120_000,
+    );
 
     const BLOCKERS: Record<
       DeletionBlocker,
