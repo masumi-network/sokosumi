@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import prisma from "@/lib/db/prisma";
 
 /** An unanswered account question stays open this long. */
@@ -12,10 +13,91 @@ export interface AccountQuestionScope {
   turnCreatedAt: Date;
 }
 
+interface AccountOption {
+  id: string;
+  externalHandle: string | null;
+  projectId: string;
+  project: { name: string };
+  /** Its number in the shown list, kept when an earlier option drops out. */
+  number: number;
+}
+
+const OPTION_SELECT = {
+  id: true,
+  externalHandle: true,
+  projectId: true,
+  project: { select: { name: true } },
+} as const;
+
+/** Options that can still take a post (connected, in an open Project), in stored order. */
+async function liveOptions(
+  client: Prisma.TransactionClient,
+  optionIds: readonly string[],
+): Promise<AccountOption[]> {
+  const options = await client.projectSocialConnection.findMany({
+    where: {
+      id: { in: [...optionIds] },
+      status: "active",
+      project: { closedAt: null, closingAt: null },
+    },
+    select: OPTION_SELECT,
+  });
+  const byId = new Map(options.map((option) => [option.id, option]));
+  return optionIds.flatMap((id, index) => {
+    const option = byId.get(id);
+    return option ? [{ ...option, number: index + 1 }] : [];
+  });
+}
+
+const handleOf = (option: AccountOption) =>
+  option.externalHandle
+    ? `@${option.externalHandle.replace(/^@/, "")}`
+    : "an account";
+
+/** What the owner reads: handle and Project, numbered, no ids. */
+function shownOption(option: AccountOption, index: number): string {
+  return `${index + 1}. ${handleOf(option)} (${option.project.name})`;
+}
+
+/** Stored order, renumbered: what Core shows when it asks. */
+const asShown = (options: AccountOption[]) =>
+  options.map((option, index) => ({ ...option, number: index + 1 }));
+
 /**
- * The account question still open in this chat: asked on an earlier turn of
- * this bot for this owner in the same room, delivered (that turn completed
- * with a reply), less than a day old, and not used by another turn.
+ * Core asks the question itself, under the reply of the turn whose draft it
+ * refused: the owner then sees exactly the stored options in the stored
+ * order, and the question counts as shown. A turn that ends silent, or never
+ * reaches its reply, leaves it unshown, so no later turn recalls it.
+ */
+export async function showAccountQuestion(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+): Promise<string | null> {
+  const question = await tx.sokoBotAccountQuestion.findFirst({
+    where: { turnId, answeredTurnId: null },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, optionIds: true },
+  });
+  if (!question) return null;
+  const live = await liveOptions(tx, question.optionIds);
+  if (live.length < 2) return null;
+  const options = asShown(live);
+  // What was shown is what is stored: the numbers the owner reads.
+  await tx.sokoBotAccountQuestion.update({
+    where: { id: question.id },
+    data: {
+      shownAt: new Date(),
+      optionIds: options.map((option) => option.id),
+    },
+  });
+  return `Which account should this go on?\n${options.map(shownOption).join("\n")}`;
+}
+
+/**
+ * The account question still open in this chat: shown to the owner on an
+ * earlier turn of this bot for this owner in the same room, delivered (that
+ * turn completed with a reply), less than a day old, and not used by
+ * another turn.
  */
 export async function openAccountQuestion(
   scope: AccountQuestionScope,
@@ -28,6 +110,7 @@ export async function openAccountQuestion(
       requestedByUserId: scope.requestedByUserId,
       destinationRoomId: scope.destinationRoomId,
       turnId: { not: scope.turnId },
+      shownAt: { not: null },
       createdAt: {
         lt: scope.turnCreatedAt,
         gte: new Date(scope.turnCreatedAt.getTime() - ACCOUNT_QUESTION_OPEN_MS),
@@ -60,27 +143,9 @@ export async function openAccountQuestion(
     select: { id: true, optionIds: true },
   });
   if (!question) return null;
-  // Only options that can still take a post: connected, in an open Project.
-  const options = await prisma.projectSocialConnection.findMany({
-    where: {
-      id: { in: question.optionIds },
-      status: "active",
-      project: { closedAt: null, closingAt: null },
-    },
-    select: {
-      id: true,
-      externalHandle: true,
-      projectId: true,
-      project: { select: { name: true } },
-    },
-  });
-  const byId = new Map(options.map((option) => [option.id, option]));
   return {
     id: question.id,
-    options: question.optionIds.flatMap((id) => {
-      const option = byId.get(id);
-      return option ? [option] : [];
-    }),
+    options: await liveOptions(prisma, question.optionIds),
   };
 }
 
@@ -91,11 +156,8 @@ export function accountQuestionHint(
   const options = question.options
     .map(
       (option) =>
-        `${option.externalHandle ? `@${option.externalHandle.replace(/^@/, "")}` : "an account"} (Project "${option.project.name}", projectId ${option.projectId}, socialConnectionId ${option.id})`,
+        `${option.number}. ${handleOf(option)} (Project "${option.project.name}", projectId ${option.projectId}, socialConnectionId ${option.id})`,
     )
     .join("; ");
-  // Which option "the first one" or "the Sokosumi one" means is read from
-  // the reply the owner saw, in the history: Core stores what was offered,
-  // not how the reply put it.
-  return `You asked the owner which account a post should go on, and the question is open: accountQuestionId ${question.id}, offered accounts: ${options}. If this message picks one, match it to your last reply as the owner read it, then create the post with that accountQuestionId and the option's socialConnectionId and projectId. If it is unclear which one they mean, ask again. These ids are for the tool: never show them to the owner.`;
+  return `Your last reply asked the owner which account a post should go on, and Core listed the options exactly in this order: accountQuestionId ${question.id}, ${options}. If this message picks one, create the post with that accountQuestionId and the option's socialConnectionId and projectId. If it is unclear which one they mean, ask again. These ids are for the tool: never show them to the owner.`;
 }

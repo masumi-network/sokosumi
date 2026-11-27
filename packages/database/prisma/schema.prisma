@@ -3379,6 +3379,9 @@ model SokoBotAccountQuestion {
   provider          String
   /// Connection ids, in the order the question showed them.
   optionIds         String[]    @db.Uuid
+  /// When Core put the question with its options into the owner's reply;
+  /// a question never shown is never open.
+  shownAt           DateTime?
   /// The owner turn that answered it; its drafts may use it, no later turn.
   answeredTurnId    String?     @db.Uuid
 

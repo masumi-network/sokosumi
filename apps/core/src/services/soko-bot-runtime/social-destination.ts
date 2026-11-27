@@ -227,7 +227,7 @@ export async function requireChosenSocialDestination(
   });
   const more = candidates.length - options.length;
   throw new SokoBotRefusedUnsentError(
-    `${ASK_WHICH_ACCOUNT}, and the owner has not named one. Account question ${question.id}, offered accounts: ${labels(options)}${more > 0 ? `; ${more} more are connected (the owner can name one by @handle)` : ""}. Ask the owner once which one, listing these, and draft nothing on this turn. After they answer, create the post with accountQuestionId ${question.id} and the socialConnectionId and projectId of the option they picked.`,
+    `${ASK_WHICH_ACCOUNT}, and the owner has not named one. Account question ${question.id}, offered accounts: ${labels(options)}${more > 0 ? `; ${more} more are connected (the owner can name one by @handle)` : ""}. Draft nothing on this turn. Core adds the question with these accounts, numbered, under your reply: do not list them yourself, and ask nothing else about the destination. After they answer, create the post with accountQuestionId ${question.id} and the socialConnectionId and projectId of the option they picked.`,
   );
 }
 

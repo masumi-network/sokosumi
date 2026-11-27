@@ -8,13 +8,12 @@ import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
 import { getWebAppBaseUrl } from "@/config/env";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
-
+import { showAccountQuestion } from "./account-question";
 import {
   ACTION_CAPABILITIES,
   ACTION_RECEIPT_CAPABILITIES,
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
-
 import {
   actionLabel,
   actionTarget,
@@ -28,7 +27,6 @@ import {
   taskLabels,
   UNDONE_TASK_VERBS,
 } from "./action-response-targets";
-
 import { linkCalendarContacts } from "./calendar-contact-links";
 
 /** Turns an owner asked for; the rest the bot started itself. */
@@ -829,10 +827,23 @@ export async function buildActionResponse(
             : answerText;
   // Beside the bot's words, never inside them: an 8,000-character reply has
   // no room left, and the note is Core's, not the bot's.
-  const checked =
+  const noted =
     narrative?.replyCheck && text !== "Nothing to add."
       ? `${text}\n\n${REPLY_CHECK_NOTES[narrative.replyCheck]}`
       : text;
+  // A draft Core refused for want of an account: Core asks, with the stored
+  // options in order, so what the owner reads is what the next turn checks.
+  // Settlement rebuilds the answer; the question goes in once.
+  const refusedPost = turnCalls.some(
+    (call) =>
+      call.capability === "create_social_post" && call.status === "FAILED",
+  );
+  const asked =
+    refusedPost && noted !== "Nothing to add."
+      ? await showAccountQuestion(tx, turnId)
+      : null;
+  const checked =
+    asked && !noted.includes(asked) ? `${noted}\n\n${asked}` : noted;
   return {
     appliedReceiptIds,
     narrative,

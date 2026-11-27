@@ -20,6 +20,75 @@ const db = vi.hoisted(() => ({
   job: { findMany: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
+const showAccountQuestion = vi.hoisted(() => vi.fn());
+vi.mock("./account-question", () => ({ showAccountQuestion }));
+
+describe("an account question Core asks", () => {
+  const QUESTION =
+    "Which account should this go on?\n1. @pat (Founder notes)\n2. @acme_hq (Company marketing)";
+  const refused = receipt({
+    capability: "create_social_post",
+    status: "FAILED",
+    disposition: "REJECTED",
+    verification: "NONE",
+    committedAt: null,
+    targetId: null,
+  });
+  const narrative = {
+    kind: "REPORT",
+    message: "When should the posts go out?",
+    question: null,
+    observationToolCallIds: [],
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    showAccountQuestion.mockResolvedValue(QUESTION);
+    db.sokoBotToolCall.findMany.mockResolvedValue([]);
+    db.sokoBotToolCall.findUnique.mockResolvedValue(null);
+    db.sokoBotToolCall.count.mockResolvedValue(0);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      parentTurnId: null,
+      versionId: "v39",
+    });
+    db.task.findFirst.mockResolvedValue(null);
+    db.task.findMany.mockResolvedValue([]);
+    db.job.findMany.mockResolvedValue([]);
+  });
+
+  it("goes under the reply of the turn whose draft was refused, whatever else the reply asks", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([refused]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      narrative,
+    );
+    expect(showAccountQuestion).toHaveBeenCalledWith(prisma, "turn-current");
+    expect(response.answerText).toContain("When should the posts go out?");
+    expect(response.answerText.endsWith(QUESTION)).toBe(true);
+  });
+
+  it("goes in once when settlement rebuilds an answer that holds it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([refused]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      `Nothing drafted yet.\n\n${QUESTION}`,
+    );
+    expect(response.answerText.split(QUESTION)).toHaveLength(2);
+  });
+
+  it("is not looked up on a turn without a refused draft", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_social_post" }),
+    ]);
+    await buildActionResponse(prisma, "turn-current", "", true, narrative);
+    expect(showAccountQuestion).not.toHaveBeenCalled();
+  });
+});
 
 function receipt(overrides: Partial<SokoBotToolCall> = {}): SokoBotToolCall {
   return {

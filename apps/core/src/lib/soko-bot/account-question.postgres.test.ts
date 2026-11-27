@@ -3,7 +3,7 @@ import type { Prisma } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { withFixtureSchemas } from "@/test/split-layout";
-import { openAccountQuestion } from "./account-question";
+import { openAccountQuestion, showAccountQuestion } from "./account-question";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -44,6 +44,7 @@ async function askedOn(
   turn: { id: string; createdAt: Date; destinationRoomId: string | null },
   delivery?: "PUBLISHED" | "SUPPRESSED",
   reason?: string,
+  shown = true,
 ) {
   if (delivery && turn.destinationRoomId)
     await prisma.sokoBotDelivery.create({
@@ -65,6 +66,8 @@ async function askedOn(
       // Stored after the order the accounts were connected in.
       optionIds: [B, A],
       createdAt: turn.createdAt,
+      // Core put it in the reply (showAccountQuestion), unless a case says not.
+      shownAt: shown ? turn.createdAt : null,
     },
   });
 }
@@ -165,6 +168,52 @@ describe.skipIf(!enabled)("openAccountQuestion", () => {
       "ASSISTANT_PAGE",
     );
     expect((await openAccountQuestion(scope(now, ROOM)))?.id).toBe(asked.id);
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
+  it("is never open when the owner was not shown it (the reply asked something else)", async () => {
+    const now = new Date();
+    const asked = await askedOn(
+      await turnAt(new Date(now.getTime() - HOUR), { roomId: ROOM }),
+      "PUBLISHED",
+      undefined,
+      false,
+    );
+    expect(await openAccountQuestion(scope(now, ROOM))).toBeNull();
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
+  it("is shown by Core with the stored options numbered, then open in that order", async () => {
+    const now = new Date();
+    const turn = await turnAt(new Date(now.getTime() - HOUR));
+    const asked = await askedOn(turn, undefined, undefined, false);
+    const line = await showAccountQuestion(prisma, turn.id);
+    expect(line).toBe(
+      "Which account should this go on?\n1. @pat (Founder notes)\n2. @acme_hq (Company marketing)",
+    );
+    const open = await openAccountQuestion(scope(now));
+    expect(open?.id).toBe(asked.id);
+    expect(open?.options.map((option) => [option.number, option.id])).toEqual([
+      [1, B],
+      [2, A],
+    ]);
+    await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
+  });
+
+  it("is not shown, and stays closed, when fewer than two of its accounts are still connected", async () => {
+    const now = new Date();
+    const turn = await turnAt(new Date(now.getTime() - HOUR));
+    const asked = await askedOn(turn, undefined, undefined, false);
+    await prisma.projectSocialConnection.update({
+      where: { id: B },
+      data: { status: "revoked" },
+    });
+    expect(await showAccountQuestion(prisma, turn.id)).toBeNull();
+    expect(await openAccountQuestion(scope(now))).toBeNull();
+    await prisma.projectSocialConnection.update({
+      where: { id: B },
+      data: { status: "active" },
+    });
     await prisma.sokoBotAccountQuestion.delete({ where: { id: asked.id } });
   });
 

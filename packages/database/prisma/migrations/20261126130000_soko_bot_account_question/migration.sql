@@ -8,6 +8,7 @@ CREATE TABLE "soko_bot_account_question" (
     "destinationRoomId" UUID,
     "provider" TEXT NOT NULL,
     "optionIds" UUID[],
+    "shownAt" TIMESTAMP(3),
     "answeredTurnId" UUID,
 
     CONSTRAINT "soko_bot_account_question_pkey" PRIMARY KEY ("id")
