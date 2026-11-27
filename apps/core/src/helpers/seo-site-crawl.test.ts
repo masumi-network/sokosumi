@@ -404,6 +404,19 @@ describe("imported site crawl", () => {
     expect(noHead?.state === "crawled" && noHead.pageChecks?.checked).toBe(0);
   });
 
+  it("keeps no crawl with a negative count, which would cancel a check's undecided pages", () => {
+    const raw = botCrawl();
+    expect(raw.pageChecks.canonicals.targetNotRead.total).toBeGreaterThan(0);
+    const canonicals = { ...raw.pageChecks.canonicals, notClassified: -1 };
+    expect(
+      stored(
+        siteReport({
+          crawl: { ...raw, pageChecks: { ...raw.pageChecks, canonicals } },
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
   it("keeps only text PostgreSQL can store", () => {
     // A cut inside a surrogate pair, and a NUL: jsonb refuses both, and the whole import with them.
     const crawl = stored(

@@ -28,7 +28,8 @@ function capGaps<T extends { item: string; reason: string }>(gaps: T[]) {
   ];
 }
 
-const count = z.number().int();
+/** A count of the bot. A negative one would cancel other counts in a sum, such as a check's undecided pages. */
+const count = z.number().int().nonnegative();
 /** A total of the bot, at least its own examples: a lower total would show a found check as clear. */
 const atLeast = (total: number, examples: readonly unknown[]) =>
   Math.max(total, examples.length);
