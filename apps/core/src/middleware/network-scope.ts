@@ -146,10 +146,13 @@ export async function preprodScopeFor(
  * key's Network, and a header that names the other one gets a scope that
  * refuses on its Network side with 403 `api_key_network_mismatch` (shared data
  * answers as for any key). Otherwise the header decides, Mainnet without it.
+ * `access` is whom the Preprod access check asks: the caller, or no one when
+ * the caller is refused the request's Workspace.
  */
 async function callerScope(
   c: Context,
   caller: AuthenticationContext | undefined,
+  access: AuthenticationContext | undefined = caller,
 ): Promise<NetworkScope> {
   const { network, sent } = namedNetwork(c);
   const keyNetwork =
@@ -164,7 +167,7 @@ async function callerScope(
   }
   return (sent ? network : (keyNetwork ?? network)) === "mainnet"
     ? createNetworkScope("mainnet")
-    : preprodScopeFor(async () => caller);
+    : preprodScopeFor(async () => access);
 }
 
 /**
@@ -196,27 +199,49 @@ export async function publicRequestNetworkScope(
   c: Context,
 ): Promise<NetworkScope> {
   const network = requestNetwork(c);
-  // A Preprod key's text starts with its prefix; its row decides once verified.
-  const preprodKey = c.req
-    .header("authorization")
-    ?.startsWith(`Bearer ${USER_API_KEY_PREFIXES.preprod}`);
-  if (network === "mainnet" && !(preprodKey && isPreprodOn())) {
+  if (!isPreprodOn()) {
+    return network === "mainnet"
+      ? createNetworkScope("mainnet")
+      : preprodScopeFor(async () => undefined);
+  }
+  if (
+    network === "mainnet" &&
+    !PREPROD_KEY_BEARER.test(c.req.header("authorization") ?? "")
+  ) {
     return createNetworkScope("mainnet");
   }
-  if (!isPreprodOn()) return preprodScopeFor(async () => undefined);
-  return callerScope(c, await publicCaller(c));
+  const { caller, access } = await publicCaller(c);
+  return callerScope(c, caller, access);
 }
 
-/** The caller of a public route, authenticated as an authenticated router would. */
-async function publicCaller(
-  c: Context,
-): Promise<AuthenticationContext | undefined> {
+/**
+ * A bearer whose token starts with the Preprod key prefix, in the syntax
+ * Hono's `bearerAuth` (`middleware/auth.ts`) accepts: the scheme in any case,
+ * one space, then any whitespace. The stored row's prefix decides once the key
+ * verifies; the plugin writes the same prefix into a key's text and its row,
+ * so for a key Core minted the two cannot differ.
+ */
+const PREPROD_KEY_BEARER = new RegExp(
+  `^(?i:bearer) \\s*${USER_API_KEY_PREFIXES.preprod}`,
+);
+
+/**
+ * The caller of a public route, authenticated as an authenticated router
+ * would, and whom the access check asks: no one when the caller is refused
+ * the Workspace it names, though a verified key keeps its Network.
+ */
+async function publicCaller(c: Context): Promise<{
+  caller?: AuthenticationContext;
+  access?: AuthenticationContext;
+}> {
   let caller: AuthenticationContext | undefined;
+  let access: AuthenticationContext | undefined;
   try {
     await authMiddleware(c, async () => {
+      caller = c.var.authContext;
       try {
         await organizationContextMiddleware(c, async () => {
-          caller = c.var.authContext;
+          access = c.var.authContext;
         });
       } catch (error) {
         // A non-member naming an Organization: no access in it.
@@ -225,10 +250,8 @@ async function publicCaller(
       }
     });
   } catch (error) {
-    if (error instanceof HTTPException && error.status === 401) {
-      return undefined;
-    }
+    if (error instanceof HTTPException && error.status === 401) return {};
     throw error;
   }
-  return caller;
+  return { caller, access };
 }

@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { expectCoreLog } from "@/test/core-log";
 import { onSplitLayout } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
@@ -425,6 +426,32 @@ const BEARER_READS = 6;
 const BEARER_STATUS: Record<string, number> = {
   "/auth/organization/list": 401,
 };
+
+/**
+ * The fixed list's statements for each of the admin's keys and the token,
+ * recorded with the fix round of ticket 21 on origin/main's middleware
+ * (d8da3ca70) and on the change: equal on both layouts and deployments.
+ */
+const BEARER_PATH_READS: Record<string, number> = {
+  "/v1/users/me": 6,
+  "/v1/users/{id}/workspaces": 11,
+  "/v1/users/{id}/organizations": 7,
+  "/v1/tasks": 28,
+  "/v1/chats/rooms": 15,
+  "/v1/notifications": 10,
+  "/auth/get-session": 0,
+  "/auth/organization/list": 0,
+  "/v1/agents": 15,
+  "/v1/credit-costs": 5,
+  "/v1/agents/{agentId}": 19,
+  "/v1/jobs": 19,
+};
+
+/** Statements for an old or `soko_mainnet_` key with Preprod on, after two warm-up calls. */
+const PREPROD_ON_KEY_READS = { me: 6, catalog: 15 };
+
+/** The catalog for a bearer `soko_preprod_` text that is no key, Preprod on. */
+const UNKNOWN_PREPROD_KEY_READS = 17;
 
 afterAll(async () => {
   vi.unstubAllEnvs();
@@ -860,14 +887,17 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
             [HEADER]: "mainnet",
           });
           expect([name, path, mainnet]).toEqual([name, path, none]);
-          // The token is another credential: its answers and reads differ.
-          if (name === "an OAuth token") continue;
+          // The token too: it answers as the key of the same person.
           oldKey ??= none;
           expect([name, path, none]).toEqual([name, path, oldKey]);
         }
-        expect([path, oldKey?.status]).toEqual([
+        const pinned = path
+          .replace(admin.id, "{id}")
+          .replace(catalog.agentId, "{agentId}");
+        expect([path, oldKey?.status, oldKey?.statements]).toEqual([
           path,
           BEARER_STATUS[path] ?? 200,
+          BEARER_PATH_READS[pinned],
         ]);
       }
     });
@@ -1418,6 +1448,100 @@ describe.runIf(enabled && onSplitLayout)(
           "preprod_access_required",
         ]);
       }
+    });
+
+    it("keeps a verified Preprod key's Network when its Organization refuses it", async () => {
+      const where = {
+        userId_organizationId: {
+          userId: outsider.id,
+          organizationId: optedInOrganization.id,
+        },
+      };
+      await loaded.prisma.member.create({
+        data: { ...where.userId_organizationId, role: "member" },
+      });
+      const headers = {
+        ...(await key(outsider, "soko_preprod_")),
+        ...slug(optedInOrganization),
+      };
+      try {
+        expect(await listed(headers)).toEqual(allowed("preprod"));
+        await loaded.prisma.member.delete({ where });
+        // The former member: never Mainnet's rows.
+        expect(await listed(headers)).toEqual(refused);
+        expect(await listed({ ...headers, [HEADER]: "preprod" })).toEqual(
+          refused,
+        );
+        expect(await listed({ ...headers, [HEADER]: "mainnet" })).toEqual(
+          mismatch,
+        );
+      } finally {
+        await loaded.prisma.member.deleteMany({
+          where: where.userId_organizationId,
+        });
+      }
+    });
+
+    it("reads a Preprod key in every bearer syntax authentication accepts", async () => {
+      const token = (await key(optedIn, "soko_preprod_")).authorization.slice(
+        "Bearer ".length,
+      );
+      for (const authorization of [
+        `bearer ${token}`,
+        `Bearer  ${token}`,
+        `BEARER \t${token}`,
+      ]) {
+        expect([authorization, await listed({ authorization })]).toEqual([
+          authorization,
+          allowed("preprod"),
+        ]);
+        expect([
+          authorization,
+          await listed({ authorization, [HEADER]: "mainnet" }),
+        ]).toEqual([authorization, mismatch]);
+      }
+    });
+
+    it("reads for a Mainnet key with Preprod on what it read before ticket 21", async () => {
+      // Recorded with the fix round on origin/main's middleware (d8da3ca70)
+      // and on the change, with Preprod on.
+      for (const credential of [
+        await key(optedIn, null),
+        await key(optedIn, "soko_mainnet_"),
+      ]) {
+        for (const [path, statements] of [
+          ["/v1/users/me", PREPROD_ON_KEY_READS.me],
+          ["/v1/agents", PREPROD_ON_KEY_READS.catalog],
+        ] as const) {
+          await call(loaded, path, credential);
+          await call(loaded, path, credential);
+          for (const headers of [{}, { [HEADER]: "mainnet" }] as Record<
+            string,
+            string
+          >[]) {
+            const answer = await call(loaded, path, {
+              ...credential,
+              ...headers,
+            });
+            expect([path, answer.status, answer.statements]).toEqual([
+              path,
+              200,
+              statements,
+            ]);
+          }
+        }
+      }
+    });
+
+    it("lists Mainnet to an unknown key with the Preprod prefix", async () => {
+      const failures = expectCoreLog("error", "Failed to validate API key:", 2);
+      const unknown = bearer(`soko_preprod_${"x".repeat(64)}`);
+      // The text asks for the key's row, which is not there: anonymous.
+      const answer = await call(loaded, "/v1/agents", unknown);
+      expect(answer.status).toBe(200);
+      expect(await listed(unknown)).toEqual(allowed("mainnet"));
+      expect(answer.statements).toBe(UNKNOWN_PREPROD_KEY_READS);
+      expect(failures).toHaveLength(2);
     });
 
     it("refuses a non-member who names an opted-in Organization", async () => {
