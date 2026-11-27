@@ -147,7 +147,12 @@ describe("e1Prompts version flag", () => {
     expect(promptA).toContain(
       "never silently drop a deliverable or constraint the owner explicitly asked for",
     );
-    expect(promptA).toContain("with `followUp` (or `wait_for`)");
+    expect(promptA).toContain(
+      "if X is already running, watch the existing Task, Job, or Studio job ID with `wait_for` (never create or hire a duplicate)",
+    );
+    expect(promptA).toContain(
+      "only when X is new, authorized work, create or hire it once with `followUp`",
+    );
     expect(promptA).toContain(
       "Delete a recurring schedule only when the owner explicitly asks to stop or remove it.",
     );
@@ -202,6 +207,11 @@ describe("e1Prompts version flag", () => {
     expect(strategyOn.content).toContain(
       "For edits to specific posts only, use the post tools directly",
     );
+    // cmo-core-writes-strategy is also carried on Cuso production turns, which
+    // offer update_social_posts but not create_social_post or cancel_social_post.
+    expect(strategyOn.content).not.toContain("create_social_post");
+    expect(strategyOn.content).not.toContain("cancel_social_post");
+    expect(strategyOn.content).toContain("update_social_posts");
 
     const asksBeforeChange = {
       id: "cmo-asks-before-strategy-change",
