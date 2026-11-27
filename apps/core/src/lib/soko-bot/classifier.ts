@@ -323,7 +323,8 @@ export type RouteEvaluator = (request: {
   abortSignal: AbortSignal;
 }) => Promise<RouteEvaluation>;
 
-const evaluateWithJev: RouteEvaluator = async ({
+/** Production's evaluator; the routing bench wraps it to keep Jev's raw answers. */
+export const evaluateWithJev: RouteEvaluator = async ({
   state,
   hasPendingProposals,
   abortSignal,
