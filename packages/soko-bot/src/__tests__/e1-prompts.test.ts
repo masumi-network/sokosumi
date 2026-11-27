@@ -291,5 +291,31 @@ Change the strategy only as far as the owner has said what to change.
     expect(cardsOn.content).toContain(
       "Only when two or more unrelated projects genuinely fit",
     );
+
+    const cmoV27 = getSokoBotVersion("cmo-v27");
+    expect(
+      getSokoBotSkillForVersion("cmo-measurement", cmoV27).content,
+    ).toContain("(see the cmo-seo skill)");
+    const cmoE1Measurement = getSokoBotSkillForVersion("cmo-measurement", {
+      ...cmoV27,
+      e1Prompts: true,
+    });
+    expect(cmoE1Measurement.content).not.toContain("(see the cmo-seo skill)");
+    expect(cmoE1Measurement.content).toContain(
+      "(see the cmo-seo-reports-plain skill)",
+    );
+    expect(
+      getSokoBotSkillForVersion("cmo-measurement", {
+        e1Prompts: true,
+        skills: ["cmo-measurement", "cmo-seo-reports"],
+      }).content,
+    ).toContain("(see the cmo-seo-reports skill)");
+    // Do not rewrite when the version carries cmo-seo or neither replacement skill.
+    expect(
+      getSokoBotSkillForVersion("cmo-measurement", {
+        e1Prompts: true,
+        skills: ["cmo-measurement"],
+      }).content,
+    ).toContain("(see the cmo-seo skill)");
   });
 });

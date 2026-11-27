@@ -2508,6 +2508,16 @@ export class SokoBotControlPlane {
             },
           })
         : null;
+    // E1 classifier input hygiene (gated behind routeSteering or v4 policy):
+    // classify the speaker's own message (`said`) instead of room-mention
+    // wrappers ("Name mentioned you in #room") or prior CONTEXT history dumps,
+    // which inject false CLARIFY mass and pull older messages into Jev's input.
+    const classifyText =
+      version.routeSteering || version.classifierPolicy === "v4"
+        ? input.chat?.said?.trim()
+          ? input.chat.said
+          : (input.chat?.classifyMessage ?? message)
+        : (input.chat?.classifyMessage ?? message);
     const classifierContext = await loadClassificationContext(
       sokoBotTurnReader(
         input.userId,
@@ -2516,7 +2526,7 @@ export class SokoBotControlPlane {
       ),
       input.workspaceId,
       [
-        input.chat?.classifyMessage ?? message,
+        classifyText,
         ...pendingIntents.flatMap((intent) =>
           Array.isArray(intent.targetIds)
             ? intent.targetIds.filter(
@@ -2543,7 +2553,7 @@ export class SokoBotControlPlane {
       : await withEvaluationActor(
           { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
           () =>
-            this.classifier.classify(input.chat?.classifyMessage ?? message, {
+            this.classifier.classify(classifyText, {
               ...classifierContext,
               ...(availableRoutes ? { availableRoutes } : {}),
               ...(version.classifierPolicy
