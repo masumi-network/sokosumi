@@ -4,12 +4,14 @@ const {
   taskFindManyMock,
   delegationFindManyMock,
   createManyMock,
+  controlFindMany,
   txCreate,
   queryRaw,
 } = vi.hoisted(() => ({
   taskFindManyMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   createManyMock: vi.fn(),
+  controlFindMany: vi.fn(),
   txCreate: vi.fn(),
   queryRaw: vi.fn(),
 }));
@@ -24,6 +26,7 @@ vi.mock("@/lib/db/prisma", () => ({
         sokoBotDelegation: { createMany: txCreate },
       }),
     task: { findMany: taskFindManyMock },
+    syncMetadata: { findMany: controlFindMany },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
       createMany: createManyMock,
@@ -54,6 +57,7 @@ const parent = (assigneeId: string, status: string, sokoBotId = "bot_1") => ({
 describe("adoptCoworkerSpawnedTasks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    controlFindMany.mockReset();
     queryRaw.mockReset();
     taskFindManyMock.mockResolvedValue([subtask]);
     createManyMock.mockResolvedValue({ count: 1 });
@@ -109,6 +113,10 @@ describe("adoptCoworkerSpawnedTasks", () => {
         { key: PREPROD_GENERATION_KEY, cursorId: String(generation) },
       ]);
       txCreate.mockResolvedValue({ count: 1 });
+      controlFindMany.mockResolvedValue([
+        { key: PREPROD_PAUSE_KEY, cursorId: pause },
+        { key: PREPROD_GENERATION_KEY, cursorId: String(generation) },
+      ]);
       expect(await adoptCoworkerSpawnedTasks()).toBe(count);
       expect(createManyMock).not.toHaveBeenCalled();
       if (count) {
@@ -121,6 +129,7 @@ describe("adoptCoworkerSpawnedTasks", () => {
           }),
         );
       } else {
+        expect(queryRaw).not.toHaveBeenCalled();
         expect(txCreate).not.toHaveBeenCalled();
       }
     },
@@ -159,8 +168,9 @@ describe("adoptCoworkerSpawnedTasks", () => {
           ]
         : [source];
     });
-    queryRaw.mockImplementation(async (_sql, _table, key) => [
-      { key, cursorId: key === PREPROD_PAUSE_KEY ? "paused" : "3" },
+    controlFindMany.mockResolvedValue([
+      { key: PREPROD_PAUSE_KEY, cursorId: "paused" },
+      { key: PREPROD_GENERATION_KEY, cursorId: "3" },
     ]);
 
     expect(await adoptCoworkerSpawnedTasks()).toBe(1);
@@ -178,6 +188,8 @@ describe("adoptCoworkerSpawnedTasks", () => {
       }),
     );
     expect(txCreate).not.toHaveBeenCalled();
+    expect(queryRaw).not.toHaveBeenCalled();
+    expect(controlFindMany).toHaveBeenCalledOnce();
     expect(createManyMock).toHaveBeenCalledExactlyOnceWith({
       data: [
         expect.objectContaining({ network: "mainnet", taskId: subtask.id }),
@@ -191,6 +203,28 @@ describe("adoptCoworkerSpawnedTasks", () => {
       parent("coworker_hannah", "RUNNING"),
     ]);
     expect(await adoptCoworkerSpawnedTasks()).toBe(0);
+  });
+
+  it("rechecks control after a writer loses admission to a pause", async () => {
+    taskFindManyMock.mockResolvedValue([subtask, { ...subtask, id: "later" }]);
+    const source = parent("coworker_elena", "RUNNING");
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...source,
+        turn: { ...source.turn, network: "preprod", preprodGeneration: 3 },
+      },
+    ]);
+    const generation = { key: PREPROD_GENERATION_KEY, cursorId: "3" };
+    const pause = { key: PREPROD_PAUSE_KEY, cursorId: "paused" };
+    controlFindMany
+      .mockResolvedValueOnce([{ ...pause, cursorId: "open" }, generation])
+      .mockResolvedValueOnce([pause, generation]);
+    queryRaw.mockResolvedValueOnce([pause]).mockResolvedValueOnce([generation]);
+
+    expect(await adoptCoworkerSpawnedTasks()).toBe(0);
+    expect(controlFindMany).toHaveBeenCalledTimes(2);
+    expect(queryRaw).toHaveBeenCalledTimes(2);
+    expect(txCreate).not.toHaveBeenCalled();
   });
 
   it("adds one delegation per bot", async () => {

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
-import { sharedTable } from "@sokosumi/database/sql-tables";
+import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
 import {
   evaluateScheduleStopRule,
   getSokoBotVersion,
@@ -20,7 +20,6 @@ import { ME_SOKO_BOT, memberSokoBot } from "@/helpers/soko-bot-resolver";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
-import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { Network } from "@/lib/network";
@@ -321,7 +320,12 @@ async function requireWatchedWork(
     const job =
       input.network === "preprod" &&
       input.expectedPreprodGeneration !== undefined
-        ? await createNetworkScope(input.network).networkDb.job.findFirst(query)
+        ? (
+            await db.$queryRaw<{ id: string }[]>`
+              SELECT "id" FROM ${netTable("preprod", "Job")}
+              WHERE "id" = ${input.jobId}
+                AND "workspaceId" = ${input.workspaceId}::uuid`
+          )[0]
         : await db.job.findFirst(query);
     if (!job)
       throw new SokoBotScheduleValidationError(
@@ -372,7 +376,10 @@ export async function createSokoBotSchedule(
           select: { id: true },
         });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
-  await requireWatchedWork(input, db);
+  const derivedPreprod =
+    input.network === "preprod" &&
+    input.expectedPreprodGeneration !== undefined;
+  if (!derivedPreprod) await requireWatchedWork(input, db);
   const botDetails =
     input.resolveAuthority || (input.capabilityNames?.length ?? 0) > 0
       ? await db.sokoBot.findUnique({
@@ -447,9 +454,11 @@ export async function createSokoBotSchedule(
         throw new SokoBotScheduleValidationError(capabilityCheck.detail);
       }
     }
+    const stamp = await networkStamp(input, tx);
+    if (derivedPreprod) await requireWatchedWork(input, tx);
     return tx.sokoBotSchedule.create({
       data: {
-        ...(await networkStamp(input, tx)),
+        ...stamp,
         ...(scheduleId ? { id: scheduleId } : {}),
         sokoBotId: bot.id,
         requestedByUserId: input.userId,

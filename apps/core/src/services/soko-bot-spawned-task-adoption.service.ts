@@ -3,6 +3,7 @@ import { networkStamp } from "@/helpers/preprod-control";
 import prisma from "@/lib/db/prisma";
 import {
   DetachedNetworkRefusal,
+  detachedNetworkScopeForTick,
   turnProvenance,
 } from "@/lib/soko-bot/detached-network";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
@@ -26,6 +27,7 @@ export async function adoptCoworkerSpawnedTasks(
   let adopted = 0;
   let remaining = BATCH_SIZE;
   let after: { createdAt: Date; id: string } | undefined;
+  const admission = detachedNetworkScopeForTick();
   while (remaining > 0 && shouldContinue()) {
     const pageSize = remaining;
     const spawnedTasks = await prisma.task.findMany({
@@ -130,15 +132,23 @@ export async function adoptCoworkerSpawnedTasks(
       for (const { turn, data } of rows) {
         if (turn.network !== "preprod") continue;
         try {
-          const created = await prisma.$transaction(async (tx) =>
-            tx.sokoBotDelegation.createMany({
-              data: {
-                ...data,
-                ...(await networkStamp(turnProvenance(turn), tx)),
-              },
-              skipDuplicates: true,
-            }),
-          );
+          await admission.resume(turn);
+          const created = await prisma
+            .$transaction(async (tx) =>
+              tx.sokoBotDelegation.createMany({
+                data: {
+                  ...data,
+                  ...(await networkStamp(turnProvenance(turn), tx)),
+                },
+                skipDuplicates: true,
+              }),
+            )
+            .catch((error: unknown) => {
+              // A writer refusal can invalidate this tick's earlier read.
+              if (error instanceof DetachedNetworkRefusal)
+                admission.invalidate();
+              throw error;
+            });
           adopted += created.count;
           admitted = true;
         } catch (error) {

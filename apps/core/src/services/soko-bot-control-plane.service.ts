@@ -1159,18 +1159,39 @@ export class SokoBotControlPlane {
       );
     }
     await serializableTransaction(async (tx) => {
-      const active = await tx.sokoBotTurn.findFirst({
-        where: {
-          id: turn.id,
-          status: "STARTING",
-          leaseToken,
-          cancellationRequestedAt: null,
+      const turns = await tx.sokoBotTurn.findMany({
+        where: { id: { in: [turn.id, decision.turnId] } },
+        select: {
+          id: true,
+          status: true,
+          leaseToken: true,
+          cancellationRequestedAt: true,
+          network: true,
+          preprodGeneration: true,
         },
       });
-      if (!active)
+      const active = turns.find(({ id }) => id === turn.id);
+      if (
+        !active ||
+        active.status !== "STARTING" ||
+        active.leaseToken !== leaseToken ||
+        active.cancellationRequestedAt !== null
+      )
         throw new SokoBotStartAbortedError(
           "Confirmation stopped before settlement",
         );
+      const source = turns.find(({ id }) => id === decision.turnId);
+      if (
+        !source ||
+        active.network === null ||
+        active.network !== source.network ||
+        (active.network === "preprod" &&
+          active.preprodGeneration !== source.preprodGeneration)
+      ) {
+        throw new DetachedNetworkRefusal(
+          CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+        );
+      }
       const receipt = await tx.sokoBotToolCall.findUnique({
         where: {
           turnId_toolCallId: {

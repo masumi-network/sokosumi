@@ -19,7 +19,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   DetachedNetworkRefusal,
-  detachedNetworkScope,
+  detachedNetworkScopeForTick,
   turnProvenance,
 } from "@/lib/soko-bot/detached-network";
 import {
@@ -651,11 +651,12 @@ export async function syncSokoBotWatches(input: {
   const { sokoBotControlPlane, SokoBotBusyError } = await import(
     "@/services/soko-bot-control-plane.service"
   );
+  const admission = detachedNetworkScopeForTick();
   for (const watch of watches) {
     if (!input.shouldContinue()) break;
     result.checked += 1;
     try {
-      await detachedNetworkScope(watch.turn);
+      await admission.resume(watch.turn);
     } catch (error) {
       if (error instanceof DetachedNetworkRefusal && !error.final) {
         result.deferred += 1;
@@ -857,6 +858,7 @@ export async function syncSokoBotWatches(input: {
           ),
         );
     } catch (error) {
+      if (error instanceof DetachedNetworkRefusal) admission.invalidate();
       if (
         error instanceof SokoBotBusyError ||
         (error instanceof DetachedNetworkRefusal && !error.final)

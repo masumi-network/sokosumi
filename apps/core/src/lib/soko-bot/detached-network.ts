@@ -57,13 +57,14 @@ export function requireDetachedTurnProvenance(
   }
 }
 
-/** The read of both control keys is the resume point for Preprod work. */
-export async function detachedNetworkScope(
-  row: {
-    network: string | null;
-    preprodGeneration: number | null;
-  },
-  db?: DbClient,
+type DetachedNetworkSource = {
+  network: string | null;
+  preprodGeneration: number | null;
+};
+
+async function resumeDetachedNetwork(
+  row: DetachedNetworkSource,
+  readControl: () => ReturnType<typeof readPreprodControl>,
 ) {
   if (row.network === null) {
     throw new DetachedNetworkRefusal(
@@ -75,7 +76,7 @@ export async function detachedNetworkScope(
     if (!isPreprodOn()) {
       throw new DetachedNetworkRefusal(CORE_API_ERROR_KINDS.PREPROD_OFF);
     }
-    const control = await readPreprodControl(db);
+    const control = await readControl();
     if (control.state === "unavailable") {
       throw new DetachedNetworkRefusal(
         CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
@@ -91,4 +92,24 @@ export async function detachedNetworkScope(
     }
   }
   return createNetworkScope(network);
+}
+
+/** The read of both control keys is the resume point for Preprod work. */
+export function detachedNetworkScope(
+  row: DetachedNetworkSource,
+  db?: DbClient,
+) {
+  return resumeDetachedNetwork(row, () => readPreprodControl(db));
+}
+
+/** Check control on the first Preprod candidate. Admitted writes still stamp. */
+export function detachedNetworkScopeForTick() {
+  let control: ReturnType<typeof readPreprodControl> | undefined;
+  return {
+    resume: (row: DetachedNetworkSource) =>
+      resumeDetachedNetwork(row, () => (control ??= readPreprodControl())),
+    invalidate() {
+      control = undefined;
+    },
+  };
 }
