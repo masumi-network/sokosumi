@@ -8,7 +8,6 @@
  * that is that person and fills the contact's empty fields from it.
  */
 import type { Prisma } from "@sokosumi/database";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -25,6 +24,7 @@ import {
 import { createTaskEventTransaction } from "@/helpers/task-credits";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { companyDomain } from "@/lib/contacts/capture-filters";
+import { getBalance } from "@/lib/credits/balance";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
@@ -279,7 +279,8 @@ async function requireBalance(
   owner: { userId: string; organizationId: string | null },
   credits: number,
 ) {
-  const balance = await creditBucketRepository.getBalance(
+  const balance = await getBalance(
+    createNetworkScope("mainnet"),
     owner.userId,
     owner.organizationId,
     prisma,

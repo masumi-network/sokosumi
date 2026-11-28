@@ -48,10 +48,11 @@ interface CreditBucketBalanceRow {
 
 /** Unexpired, active non-subscription buckets with remaining > 0. */
 async function queryBucketBalances(
+  network: TableNetwork,
   where: Prisma.Sql,
   orderBy: Prisma.Sql,
   now: Date,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
 ): Promise<CreditBucketBalanceRow[]> {
   return await tx.$queryRaw<CreditBucketBalanceRow[]>`
     WITH bucket_avail AS (
@@ -63,8 +64,8 @@ async function queryBucketBalances(
         cb."createdAt",
         cb."projectId",
         p.name AS "projectName"
-      FROM ${netTable("mainnet", "credit_bucket")} cb
-      LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+      FROM ${netTable(network, "credit_bucket")} cb
+      LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
       LEFT JOIN ${sharedTable("project")} p ON p.id = cb."projectId"
       WHERE ${where}
         AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
@@ -91,23 +92,7 @@ export const creditBucketRepository = {
    * What `userId` can spend in this workspace. A null user with an
    * organization reads the Organization pool a charge with no member draws on
    * (ADR 0057). With a Project it adds that Project's credits (ADR 0067).
-   */
-  async getBalance(
-    userId: string | null,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient,
-    options: CreditBucketProjectOption = {},
-  ): Promise<bigint> {
-    return await creditBucketRepository.getNetworkBalance(
-      "mainnet",
-      userId,
-      organizationId,
-      tx,
-      options,
-    );
-  },
-
-  /**
+   *
    * `getBalance` for the buckets of `network`, on a transaction of the shared
    * side: the read a spend makes when what it charges depends on the balance.
    */
@@ -138,8 +123,9 @@ export const creditBucketRepository = {
    * for deciding whether the pool itself is empty; spend uses `getBalance`.
    */
   async getOrganizationPoolBalance(
+    network: TableNetwork,
     organizationId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
     options: CreditBucketProjectOption = {},
   ): Promise<bigint> {
     const now = new Date();
@@ -147,6 +133,7 @@ export const creditBucketRepository = {
       await buildOrganizationPoolScopeSql(organizationId, tx, now, options),
       now,
       tx,
+      network,
     );
   },
 
@@ -158,9 +145,10 @@ export const creditBucketRepository = {
    * given one. Amounts in cents.
    */
   async listAvailableBucketsWithBalances(
+    network: TableNetwork,
     userId: string | null,
     organizationId: string | null,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
     options: CreditBucketProjectOption = {},
   ): Promise<CreditBucketBalanceRow[]> {
     const now = new Date();
@@ -171,6 +159,7 @@ export const creditBucketRepository = {
       now,
     );
     return await queryBucketBalances(
+      network,
       buildCreditBucketScopeSql(scopeContext, options),
       creditBucketSpendOrderSql(options.projectId),
       now,
@@ -183,9 +172,10 @@ export const creditBucketRepository = {
    * own rows named by Project (ADR 0067). Organization balances leave them out.
    */
   async listProjectBucketsWithBalances(
+    network: TableNetwork,
     userId: string | null,
     organizationId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
   ): Promise<CreditBucketBalanceRow[]> {
     const now = new Date();
     const scopeContext = await resolveCreditBucketScopeContext(
@@ -201,6 +191,7 @@ export const creditBucketRepository = {
       return [];
     }
     return await queryBucketBalances(
+      network,
       Prisma.sql`cb."organizationId" = ${organizationId} AND cb."projectId" IS NOT NULL`,
       creditBucketSpendOrderSql(undefined),
       now,
@@ -209,8 +200,9 @@ export const creditBucketRepository = {
   },
 
   async sumOrganizationEnterprisePoolBalances(
+    network: TableNetwork,
     organizationId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
     now: Date = new Date(),
   ): Promise<{ totalCents: bigint; remainingCents: bigint }> {
     const rows = await tx.$queryRaw<
@@ -220,8 +212,8 @@ export const creditBucketRepository = {
         SELECT
           cb.amount,
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-        FROM ${netTable("mainnet", "credit_bucket")} cb
-        LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+        FROM ${netTable(network, "credit_bucket")} cb
+        LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
         WHERE cb."organizationId" = ${organizationId}
           AND cb."referenceType" IN (
             ${CreditBucketReferenceType.ENTERPRISE_PERIOD},
@@ -241,8 +233,9 @@ export const creditBucketRepository = {
   },
 
   async sumOrganizationOwnedCreditBalances(
+    network: TableNetwork,
     organizationId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
     now: Date = new Date(),
   ): Promise<{ totalCents: bigint; remainingCents: bigint }> {
     const rows = await tx.$queryRaw<
@@ -252,8 +245,8 @@ export const creditBucketRepository = {
         SELECT
           cb.amount,
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available
-        FROM ${netTable("mainnet", "credit_bucket")} cb
-        LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+        FROM ${netTable(network, "credit_bucket")} cb
+        LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
         WHERE cb."organizationId" = ${organizationId}
           AND cb."userId" IS NULL
           AND cb."referenceType" IS DISTINCT FROM ${CreditBucketReferenceType.ENTERPRISE_PERIOD}
@@ -272,9 +265,10 @@ export const creditBucketRepository = {
   },
 
   async listEnterprisePoolBucketsWithBalances(
+    network: TableNetwork,
     userId: string | null,
     organizationId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
   ): Promise<
     Pick<
       CreditBucketBalanceRow,
@@ -307,8 +301,8 @@ export const creditBucketRepository = {
           (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS available,
           cb."expiresAt",
           cb."createdAt"
-        FROM ${netTable("mainnet", "credit_bucket")} cb
-        LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
+        FROM ${netTable(network, "credit_bucket")} cb
+        LEFT JOIN ${netTable(network, "credit_consumption")} cc ON cc."bucketId" = cb.id
         WHERE ${where}
           AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
           AND ${creditBucketActivatesAtOrBeforeSql(now)}
@@ -431,7 +425,7 @@ async function sumAvailableCents(
   where: Prisma.Sql,
   now: Date,
   tx: SharedDb,
-  network: TableNetwork = "mainnet",
+  network: TableNetwork,
 ): Promise<bigint> {
   const result = await tx.$queryRaw<Array<{ balance: bigint }>>`
     WITH bucket_avail AS (

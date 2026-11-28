@@ -1,5 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const findEnterpriseContractMock = vi.fn();
 const sumOrganizationEnterprisePoolBalancesMock = vi.fn();
@@ -114,6 +115,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     });
 
     const summary = await getEnterpriseContractBillingSummary(
+      createNetworkScope("mainnet"),
       billingPlan,
       "org-1",
       mockTx,
@@ -143,6 +145,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     });
 
     const summary = await getEnterpriseContractBillingSummary(
+      createNetworkScope("mainnet"),
       billingPlan,
       "org-1",
       mockTx,
@@ -185,6 +188,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     });
 
     const summary = await getEnterpriseContractBillingSummary(
+      createNetworkScope("mainnet"),
       billingPlan,
       "org-1",
       mockTx,
@@ -232,6 +236,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     });
 
     const summary = await getEnterpriseContractBillingSummary(
+      createNetworkScope("mainnet"),
       { ...billingPlan, isConsumable: false },
       "org-1",
       mockTx,

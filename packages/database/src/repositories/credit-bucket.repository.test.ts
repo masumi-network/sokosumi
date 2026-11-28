@@ -216,7 +216,8 @@ describe("creditBucketRepository.getBalance (organization)", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    const balance = await creditBucketRepository.getBalance(
+    const balance = await creditBucketRepository.getNetworkBalance(
+      "mainnet",
       "user-1",
       "org-1",
       tx,
@@ -244,7 +245,12 @@ describe("creditBucketRepository.getBalance (organization)", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await creditBucketRepository.getBalance("user-1", "org-1", tx);
+    await creditBucketRepository.getNetworkBalance(
+      "mainnet",
+      "user-1",
+      "org-1",
+      tx,
+    );
 
     const { values, text } = extractNestedSql(queryArgs);
     assert.ok(values.includes("org-1"));
@@ -278,7 +284,12 @@ describe("creditBucketRepository.getBalance (organization)", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await creditBucketRepository.getBalance("user_1", "org_1", tx);
+    await creditBucketRepository.getNetworkBalance(
+      "mainnet",
+      "user_1",
+      "org_1",
+      tx,
+    );
 
     const values = extractNestedSqlValues(queryArgs);
     assert.ok(!values.includes("member:user\\_1:%"));
@@ -330,6 +341,7 @@ describe("creditBucketRepository.sumOrganizationOwnedCreditBalances", () => {
 
     const balances =
       await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+        "mainnet",
         "org-1",
         tx,
       );
@@ -347,6 +359,7 @@ describe("creditBucketRepository.sumOrganizationOwnedCreditBalances", () => {
     } as unknown as Prisma.TransactionClient;
 
     await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+      "mainnet",
       "org-1",
       tx,
     );
@@ -381,6 +394,7 @@ describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
     } as unknown as Prisma.TransactionClient;
 
     const rows = await creditBucketRepository.listAvailableBucketsWithBalances(
+      "mainnet",
       "user-1",
       null,
       tx,
@@ -410,6 +424,7 @@ describe("creditBucketRepository.listAvailableBucketsWithBalances", () => {
     } as unknown as Prisma.TransactionClient;
 
     await creditBucketRepository.listAvailableBucketsWithBalances(
+      "mainnet",
       "user-1",
       "org-1",
       tx,
@@ -443,6 +458,7 @@ describe("creditBucketRepository.listProjectBucketsWithBalances", () => {
     } as unknown as Prisma.TransactionClient;
 
     const rows = await creditBucketRepository.listProjectBucketsWithBalances(
+      "mainnet",
       "user-1",
       "org-1",
       tx,
@@ -520,6 +536,7 @@ describe("creditBucketRepository with Project credits", () => {
       }),
     );
     await creditBucketRepository.listProjectBucketsWithBalances(
+      "mainnet",
       "user-1",
       "org-1",
       tx,
@@ -603,7 +620,8 @@ describe("creditBucketRepository with Project credits", () => {
   it("reads the same scope for the balance as for consumption", async () => {
     const { tx, calls } = capturingTx([{ balance: 90n }]);
 
-    const balance = await creditBucketRepository.getBalance(
+    const balance = await creditBucketRepository.getNetworkBalance(
+      "mainnet",
       "user-1",
       "org-1",
       tx,
@@ -620,6 +638,7 @@ describe("creditBucketRepository with Project credits", () => {
     const { tx, calls } = capturingTx([]);
 
     await creditBucketRepository.listAvailableBucketsWithBalances(
+      "mainnet",
       "user-1",
       "org-1",
       tx,
@@ -638,13 +657,18 @@ describe("creditBucketRepository with Project credits", () => {
     const { tx, calls } = capturingTx([{ balance: 7n }]);
 
     const withProject = await creditBucketRepository.getOrganizationPoolBalance(
+      "mainnet",
       "org-1",
       tx,
       {
         projectId: "project-1",
       },
     );
-    await creditBucketRepository.getOrganizationPoolBalance("org-1", tx);
+    await creditBucketRepository.getOrganizationPoolBalance(
+      "mainnet",
+      "org-1",
+      tx,
+    );
 
     assert.equal(withProject, 7n);
     assert.ok(extractNestedSql(calls[0]).values.includes("project-1"));
@@ -658,6 +682,7 @@ describe("creditBucketRepository with Project credits", () => {
     const { tx, calls } = capturingTx([{ totalCents: 0n, remainingCents: 0n }]);
 
     await creditBucketRepository.sumOrganizationOwnedCreditBalances(
+      "mainnet",
       "org-1",
       tx,
     );

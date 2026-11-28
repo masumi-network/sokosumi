@@ -20,7 +20,6 @@ import { fileURLToPath } from "node:url";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { Client, type Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { BuildTransactionHistoryParams } from "@/helpers/transaction-history";
 import { expectCoreLog } from "@/test/core-log";
 import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { baseFile, plain, statements, thrown } from "@/test/spend-comparison";
@@ -32,12 +31,6 @@ const outside = vi.hoisted(() => ({
   hold: undefined as
     | { reached: (backendPid: number) => void; release: Promise<void> }
     | undefined,
-  /**
-   * CSV reads that look up their rows' Agents on the split layout, where the
-   * default client has no Agent table: each logs one warning, declared once
-   * at the end of the case.
-   */
-  agentPreviewWarnings: 0,
   /** See the x402 comparison: the recorder instance every pool reports to. */
   observing: undefined as
     | typeof import("@/test/spend-comparison").observing
@@ -126,10 +119,7 @@ async function load(env: Record<string, string>) {
     "@/services/task-payment-claim.service"
   );
   const x402 = await import("@/services/task-x402-payment.refund");
-  const history = await import("@/helpers/transaction-history");
-  const { streamTransactionCsv } = await import(
-    "@/helpers/transaction-history-csv"
-  );
+  const { creditViewForRequest } = await import("./view");
   const { observing } = outside;
   if (!observing) throw new Error("No pool reports to a recorder");
   return {
@@ -140,17 +130,8 @@ async function load(env: Record<string, string>) {
     createPersonalWorkspace,
     workspaceRepository,
     cusoVersionId: CMO_SOKO_BOT_VERSION_IDS[0],
-    /** The history readers as the routes call them: the default client. */
-    readers: {
-      page: (params: BuildTransactionHistoryParams) =>
-        history.findTransactionHistoryPage(params, { take: 50 }, prisma),
-      count: (params: BuildTransactionHistoryParams) =>
-        history.countTransactionHistory(params, prisma),
-      total: (params: BuildTransactionHistoryParams) =>
-        history.sumTransactionHistory(params, prisma),
-      csv: (params: BuildTransactionHistoryParams) =>
-        new Response(streamTransactionCsv(params, prisma)).text(),
-    },
+    /** The history readers as the routes call them, through the Mainnet billing view. */
+    readers: creditViewForRequest(createNetworkScope("mainnet")),
     callers: {
       /** Job sync's refund phase: `syncRefundReconciliationJob`'s transaction. */
       job: (jobId: string) =>
@@ -809,40 +790,38 @@ async function readAround(
   };
   const read = [];
   for (const payer of world.made.payers) {
-    const scope: BuildTransactionHistoryParams = payer.organizationId
-      ? {
-          scope: "workspace",
-          userContext: {
-            source: "context",
-            userId: payer.userId,
-            organizationId: payer.organizationId,
-          },
-          workspaceContext: {
-            workspaceId: payer.workspaceId,
-            userId: null,
-            organizationId: payer.organizationId,
-          },
-        }
-      : {
-          scope: "owned",
-          userContext: {
-            source: "context",
-            userId: payer.userId,
-            organizationId: null,
-          },
-          workspaceContext: {
-            workspaceId: payer.workspaceId,
-            userId: payer.userId,
-            organizationId: null,
-          },
-        };
+    const scope: Parameters<Loaded["readers"]["count"]>[0] =
+      payer.organizationId
+        ? {
+            scope: "workspace",
+            userContext: {
+              source: "context",
+              userId: payer.userId,
+              organizationId: payer.organizationId,
+            },
+            workspaceContext: {
+              workspaceId: payer.workspaceId,
+              userId: null,
+              organizationId: payer.organizationId,
+            },
+          }
+        : {
+            scope: "owned",
+            userContext: {
+              source: "context",
+              userId: payer.userId,
+              organizationId: null,
+            },
+            workspaceContext: {
+              workspaceId: payer.workspaceId,
+              userId: payer.userId,
+              organizationId: null,
+            },
+          };
     for (const [window, bounds] of Object.entries(windows)) {
       const params = { ...scope, ...bounds };
-      const page = await loaded.readers.page(params);
-      // The CSV below logs one warning then: see `agentPreviewWarnings`.
-      if (onSplitLayout && page.rows.some((row) => row.agentId !== null)) {
-        outside.agentPreviewWarnings += 1;
-      }
+      const page = await loaded.readers.page(params, { take: 50 });
+      // The recorded CSV used to log a warning here for Agent previews on split.
       read.push({
         payer: payer.organizationId ?? payer.userId,
         window,
@@ -857,7 +836,7 @@ async function readAround(
         })),
         count: await loaded.readers.count(params),
         total: await loaded.readers.total(params),
-        csvTotals: (await loaded.readers.csv(params))
+        csvTotals: (await new Response(loaded.readers.csv(params)).text())
           .trim()
           .split("\r\n")
           .slice(-3),
@@ -954,20 +933,20 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
     async function withWorld(run: (world: World) => Promise<void>) {
       const controls = await controlRows();
       const world = createWorld(loaded);
-      outside.agentPreviewWarnings = 0;
       try {
         await run(world);
       } finally {
         await world.remove();
       }
-      // `origin/main`'s CSV on the split layout: see `agentPreviewWarnings`.
-      if (outside.agentPreviewWarnings > 0) {
-        expectCoreLog(
-          "warn",
-          "Failed to load agent previews for history feed",
-          outside.agentPreviewWarnings,
-        );
-      }
+      // On the recorded base, CSV reads that looked up their rows' Agents on
+      // the split layout used the default client, which has no Agent table.
+      // Each logged one warning, declared at the end of the case. The scoped
+      // reader looks up those same Agents on Mainnet on both layouts.
+      expectCoreLog(
+        "warn",
+        "Failed to load agent previews for history feed",
+        0,
+      );
       // Removed by the ids it made: every other credit row is as it was.
       expect(await controlRows()).toEqual(controls);
     }

@@ -42,7 +42,6 @@ src/routes/v1/tasks/get.subtasks.postgres.test.ts 25  # the shared client reache
 src/routes/v1/tasks/mentions.postgres.test.ts 25  # the shared client reaches the Network table Job
 src/routes/v1/tasks/post.postgres.test.ts 25  # the shared client reaches the Network table Job
 src/routes/v1/tasks/task-worker-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
-src/routes/v1/transactions/task-filter.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/routes/v1/webhooks/polar-refund.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket
 src/routes/v1/webhooks/polar-top-up.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports AssertionError: expected [ 500, 500 ] to deeply equal [ 200,)
 src/routes/v1/webhooks/polar.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports AssertionError: expected [ 500, 500 ] to deeply equal [ 200,)

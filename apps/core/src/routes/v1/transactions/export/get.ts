@@ -1,9 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
-import { streamTransactionCsv } from "@/helpers/transaction-history-csv";
-import prisma from "@/lib/db/prisma";
+import { creditViewForRequest } from "@/lib/credits/view";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -45,6 +43,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const view = creditViewForRequest(c.var.networkScope);
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { from, to, projectId, ...filters } = c.req.valid("query");
@@ -59,19 +58,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("`from` must not be after `to`");
     }
 
-    const stream = streamTransactionCsv(
-      {
-        ...range,
-        kinds: filters.types,
-        projectId: projectId === "null" ? null : projectId,
-        q: filters.q,
-        taskId: filters.taskId,
-        scope: filters.scope,
-        userContext,
-        workspaceContext,
-      },
-      prisma,
-    );
+    const stream = view.csv({
+      ...range,
+      kinds: filters.types,
+      projectId: projectId === "null" ? null : projectId,
+      q: filters.q,
+      taskId: filters.taskId,
+      scope: filters.scope,
+      userContext,
+      workspaceContext,
+    });
 
     return c.body(stream, 200, {
       "content-type": "text/csv; charset=utf-8",

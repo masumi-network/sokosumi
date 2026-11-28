@@ -6,7 +6,6 @@ import {
   X402_MIN_TIMEOUT_SECONDS,
   type X402PaymentRequired,
 } from "@sokosumi/masumi/schemas";
-
 import {
   conflict,
   internalServerError,
@@ -211,7 +210,7 @@ export type ChargePhaseOutcome =
       /** Who the live update and the notification reach; null for nobody. */
       taskOwnerId: string | null;
       /** Set when this request created (and charged) the record just now. */
-      chargedNow: boolean;
+      chargedScope: NetworkScope | null;
       /**
        * The in-transaction stamp both persisted fences derive from. The
        * dispatch site compares it against the clock so a commit-to-dispatch
@@ -551,7 +550,7 @@ export async function resolveExistingPayment(
     kind: "sign",
     paymentId: existing.id,
     taskOwnerId,
-    chargedNow: false,
+    chargedScope: null,
     signStartedAt,
     normalized: verifiedReplay.normalized,
     sourceRequirement: verifiedReplay.sourceRequirement,

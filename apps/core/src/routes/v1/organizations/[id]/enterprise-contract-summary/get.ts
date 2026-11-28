@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
-
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -77,6 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const summary =
       billingPlan.mode === "enterprise_contract"
         ? await getEnterpriseContractBillingSummary(
+            createNetworkScope("mainnet"),
             billingPlan,
             id,
             prisma,

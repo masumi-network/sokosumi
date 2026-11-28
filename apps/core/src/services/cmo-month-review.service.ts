@@ -8,8 +8,8 @@ import {
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
-
 import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
@@ -694,7 +694,10 @@ export async function advanceCmoMonthReview(input: {
   });
   // After the charge committed, like a turn's (SOKD-246).
   if (charge.chargedCents > 0n && charge.cusoProjectId) {
-    await notifyCusoLowCreditsAfterCharge(charge.cusoProjectId);
+    await notifyCusoLowCreditsAfterCharge(
+      charge.cusoProjectId,
+      createNetworkScope("mainnet"),
+    );
   }
   if (
     Object.keys(read.pieces).length === 0 &&

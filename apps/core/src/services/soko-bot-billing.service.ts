@@ -1,10 +1,10 @@
 import type { Prisma } from "@sokosumi/database";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { getBalance, getOrganizationPoolBalance } from "@/lib/credits/balance";
 import { spend } from "@/lib/credits/spend";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
@@ -147,7 +147,8 @@ export function sokoBotPayerKey(payer: SokoBotPayer): string {
  */
 async function sokoBotPayerBalance(payer: SokoBotPayer): Promise<bigint> {
   if (isPersonalSokoBot(payer)) {
-    return await creditBucketRepository.getBalance(
+    return await getBalance(
+      createNetworkScope("mainnet"),
       payer.userId,
       payer.organizationId,
       prisma,
@@ -155,7 +156,8 @@ async function sokoBotPayerBalance(payer: SokoBotPayer): Promise<bigint> {
     );
   }
   if (payer.organizationId === null) return 0n;
-  return await creditBucketRepository.getOrganizationPoolBalance(
+  return await getOrganizationPoolBalance(
+    createNetworkScope("mainnet"),
     payer.organizationId,
     prisma,
     payerProjectScope(payer),
@@ -334,7 +336,8 @@ export async function requireSokoBotTurnFunding(
       ? shortfallExpectedCents - (shortfallUsage?.cents ?? 0n)
       : 0n;
   const organizationId = payer?.organizationId ?? null;
-  const balance = await creditBucketRepository.getBalance(
+  const balance = await getBalance(
+    createNetworkScope("mainnet"),
     userId,
     organizationId,
     prisma,

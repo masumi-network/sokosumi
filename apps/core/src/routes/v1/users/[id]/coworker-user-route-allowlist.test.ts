@@ -77,7 +77,7 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
   listAuthorizedUserWorkspaces: listAuthorizedUserWorkspacesMock,
 }));
 
-vi.mock("@/helpers/subscription", () => ({
+vi.mock("@/lib/credits/funding", () => ({
   buildCreditsPayload: buildCreditsPayloadMock,
 }));
 

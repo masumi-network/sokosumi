@@ -2105,10 +2105,16 @@ export class SokoBotControlPlane {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
         if (chargedWallet) {
-          await notifyLowBalanceAfterCharge(chargedWallet);
+          await notifyLowBalanceAfterCharge(
+            chargedWallet,
+            createNetworkScope("mainnet"),
+          );
         }
         if (chargedCusoProjectId) {
-          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
+          await notifyCusoLowCreditsAfterCharge(
+            chargedCusoProjectId,
+            createNetworkScope("mainnet"),
+          );
         }
         if (settled && cmoTurnEnded) {
           const ended: {

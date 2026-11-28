@@ -33,7 +33,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ put: mocks.put }));
 vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: { getBalance: mocks.getBalance },
+  creditBucketRepository: { getNetworkBalance: mocks.getBalance },
 }));
 vi.mock("@/helpers/task-credits", () => ({
   createTaskEventTransaction: mocks.charge,

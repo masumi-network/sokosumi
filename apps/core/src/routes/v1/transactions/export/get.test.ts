@@ -15,6 +15,7 @@ const { prismaQueryRawMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ $queryRaw: prismaQueryRawMock, agent: {} }),
   default: {
     $queryRaw: prismaQueryRawMock,
     agent: { findMany: vi.fn().mockResolvedValue([]) },

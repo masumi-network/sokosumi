@@ -71,11 +71,10 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
     await importOriginal<typeof import("@sokosumi/database/repositories")>()
   ).InsufficientBalanceError,
   creditBucketRepository: {
-    getBalance: balanceMock,
     // The charge reads the balance of a named Network, through `spend`.
     getNetworkBalance: (network: string, ...rest: unknown[]) =>
       network === "mainnet"
-        ? balanceMock(...rest)
+        ? balanceMock(network, ...rest)
         : Promise.reject(new Error(`Not Mainnet: ${network}`)),
     getOrganizationPoolBalance: poolBalanceMock,
     prepareConsumption: prepareConsumptionMock,
@@ -343,6 +342,7 @@ describe("Soko Bot billing", () => {
       // The wallet it drew on, so the low-balance check reads the same one.
       expect(result.organizationId).toBe("org_1");
       expect(balanceMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         "org_1",
         expect.anything(),
@@ -378,8 +378,11 @@ describe("Soko Bot billing", () => {
         cents: convertCreditsToCents(5),
       });
       balanceMock.mockImplementation(
-        async (_userId: string, organizationId: string | null) =>
-          organizationId === "org_1" ? convertCreditsToCents(500) : 0n,
+        async (
+          _network: string,
+          _userId: string,
+          organizationId: string | null,
+        ) => (organizationId === "org_1" ? convertCreditsToCents(500) : 0n),
       );
 
       await expect(
@@ -449,11 +452,17 @@ describe("Soko Bot billing", () => {
 
       expect([...outOfCredits].sort()).toEqual(["shared_1", "shared_2"]);
       expect(poolBalanceMock).toHaveBeenCalledTimes(1);
-      expect(poolBalanceMock).toHaveBeenCalledWith("org_1", expect.anything(), {
-        projectId: null,
-      });
+      expect(poolBalanceMock).toHaveBeenCalledWith(
+        "mainnet",
+        "org_1",
+        expect.anything(),
+        {
+          projectId: null,
+        },
+      );
       expect(balanceMock).toHaveBeenCalledTimes(1);
       expect(balanceMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         "org_1",
         expect.anything(),
@@ -503,6 +512,7 @@ describe("Soko Bot billing", () => {
         requireSokoBotTurnFunding("user_2", SOKO_BOT_ID),
       ).rejects.toThrow("Insufficient organization credits to start");
       expect(balanceMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_2",
         "org_1",
         expect.anything(),
@@ -633,6 +643,7 @@ describe("Soko Bot billing", () => {
       expect(result).toMatchObject({ chargedCents: balance, shortfall: true });
       expectDebitOn(tx);
       expect(balanceMock).toHaveBeenCalledWith(
+        "mainnet",
         null,
         "org_1",
         expect.anything(),
@@ -659,6 +670,7 @@ describe("Soko Bot billing", () => {
       });
 
       expect(balanceMock).toHaveBeenCalledWith(
+        "mainnet",
         null,
         "org_1",
         expect.anything(),
@@ -682,6 +694,7 @@ describe("Soko Bot billing", () => {
         requireSokoBotTurnFunding("user_2", SOKO_BOT_ID),
       ).resolves.toBeUndefined();
       expect(balanceMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_2",
         "org_1",
         expect.anything(),
@@ -706,18 +719,25 @@ describe("Soko Bot billing", () => {
       // Another Project's or the plain pool's balance is a different payer.
       expect(poolBalanceMock).toHaveBeenCalledTimes(2);
       expect(poolBalanceMock).toHaveBeenCalledWith(
+        "mainnet",
         "org_1",
         expect.anything(),
         scope,
       );
-      expect(poolBalanceMock).toHaveBeenCalledWith("org_1", expect.anything(), {
-        projectId: null,
-      });
+      expect(poolBalanceMock).toHaveBeenCalledWith(
+        "mainnet",
+        "org_1",
+        expect.anything(),
+        {
+          projectId: null,
+        },
+      );
 
       vi.clearAllMocks();
       poolBalanceMock.mockResolvedValue(0n);
       await notifySokoBotOutOfCredits(SOKO_BOT_ID);
       expect(poolBalanceMock).toHaveBeenCalledWith(
+        "mainnet",
         "org_1",
         expect.anything(),
         scope,

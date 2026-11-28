@@ -1,9 +1,7 @@
 apps/core/src/helpers/access-control.job-share.ts
 apps/core/src/helpers/access-control.ts
-apps/core/src/helpers/billing-notifications.ts
 apps/core/src/helpers/compensating-refund.ts
 apps/core/src/helpers/coworker-task-receipt.ts
-apps/core/src/helpers/cuso-low-credit-notification.ts
 apps/core/src/helpers/cuso-project-credits.ts
 apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
@@ -28,7 +26,6 @@ apps/core/src/routes/v1/jobs/[id]/links/get.ts
 apps/core/src/routes/v1/jobs/[id]/patch.ts
 apps/core/src/routes/v1/jobs/[id]/refund/post.ts
 apps/core/src/routes/v1/jobs/[id]/workspace/put.ts
-apps/core/src/routes/v1/organizations/[id]/credit-spend/get.ts
 apps/core/src/routes/v1/projects/[id]/jobs/[jobId]/delete.ts
 apps/core/src/routes/v1/projects/[id]/jobs/post.ts
 apps/core/src/routes/v1/tasks/[id]/jobs/get.ts
@@ -53,7 +50,6 @@ apps/core/src/services/soko-bot-runtime/decision-apply.ts
 apps/core/src/services/soko-bot-runtime/decision-claim.ts
 apps/core/src/services/soko-bot-runtime/dispatch-tasks.ts
 apps/core/src/services/soko-bot-schedule.service.ts
-apps/core/src/services/soko-bot-usage.service.ts
 apps/core/src/services/source-import-sync.service.ts
 apps/core/src/services/stripe-invoice-credit.service.ts
 apps/core/src/services/task-payment-claim.service.ts

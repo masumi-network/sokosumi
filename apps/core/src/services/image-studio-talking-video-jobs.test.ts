@@ -79,7 +79,7 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: { getBalance: getBalanceMock },
+  creditBucketRepository: { getNetworkBalance: getBalanceMock },
 }));
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,

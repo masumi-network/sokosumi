@@ -117,6 +117,7 @@ describe("GET /organizations/{id}/enterprise-contract-summary", () => {
 
     expect(response.status).toBe(200);
     expect(getEnterpriseContractBillingSummaryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       ENTERPRISE_PLAN,
       "org_1",
       expect.anything(),
