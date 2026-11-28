@@ -12,6 +12,7 @@ const enabled =
 // Agent, Job and JobEvent are Network tables; Organization and Workspace are shared.
 const scope = () => createNetworkScope("mainnet");
 const agentId = randomUUID();
+const pricingId = randomUUID();
 const workspaceId = randomUUID();
 const organizationId = randomUUID();
 const ZONE_BEFORE = process.env.TZ;
@@ -62,7 +63,7 @@ describe.skipIf(!enabled)("Agent average run time against PostgreSQL", () => {
         uptimeCount: 1,
         uptimeCheckCount: 1,
         isShown: true,
-        pricing: { create: { pricingType: "FREE" } },
+        pricing: { create: { id: pricingId, pricingType: "FREE" } },
       },
     });
     // Half an hour before the UTC cutoff: out. Half an hour after: in.
@@ -74,6 +75,7 @@ describe.skipIf(!enabled)("Agent average run time against PostgreSQL", () => {
     const db = scope().networkDb;
     await db.job.deleteMany({ where: { agentId } });
     await db.agent.delete({ where: { id: agentId } });
+    await db.agentPricing.delete({ where: { id: pricingId } });
     await withFixtureSchemas(async (tx) => {
       await tx.workspace.delete({ where: { id: workspaceId } });
       await tx.organization.delete({ where: { id: organizationId } });
