@@ -32,7 +32,10 @@ import { setSeoAuditArchived } from "@/services/seo-audit-archive";
 import { createSeoWorkspaceRouter } from "../../projects/[id]/seo";
 import chat from "./chat";
 
-const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+  mainnetOnly: true,
+});
 const errors = {
   401: jsonErrorResponse("Unauthorized"),
   403: jsonErrorResponse("Forbidden"),

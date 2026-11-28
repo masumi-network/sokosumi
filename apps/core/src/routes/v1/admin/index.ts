@@ -31,7 +31,9 @@ const requireAdmin = createMiddleware(async (c, next) => {
 // router — `use("*")` flattens to `/admin/*` on the parent and would
 // 403 stop otherwise. See the mount comment in ../index.ts.
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({
+  mainnetOnly: [{ path: "/soko-bots/cmo-spend", methods: ["GET"] }],
+});
 
 app.use("*", requireAdmin);
 mountSeoAlerts(app);
