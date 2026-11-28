@@ -1,28 +1,27 @@
+import { existsSync } from "node:fs";
+import { type Browser, launch } from "puppeteer-core";
 import sharp from "sharp";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-
-/** A Chrome on this machine: GitHub's Ubuntu runners have one. */
-const { CHROME } = vi.hoisted(() => {
-  const { existsSync } = require("node:fs") as typeof import("node:fs");
-  return {
-    CHROME: [
-      process.env.CHROMIUM_EXECUTABLE_PATH,
-      "/usr/bin/google-chrome",
-      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    ].find((candidate) => candidate && existsSync(candidate)),
-  };
-});
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), CHROMIUM_EXECUTABLE_PATH: CHROME }),
-  };
-});
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { captionFontsDir } from "@/lib/ffmpeg";
 import { renderVideoCards, type VideoCard } from "./video-cards";
 import { VIDEO_LAYOUTS } from "./video-layout";
+
+/** A Chrome on this machine: GitHub's Ubuntu runners have one. */
+const CHROME = [
+  process.env.CHROMIUM_EXECUTABLE_PATH,
+  "/usr/bin/google-chrome",
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+].find((candidate) => candidate && existsSync(candidate));
+
+let browser: Browser | undefined;
+vi.mock("@/lib/site-capture", () => ({
+  withBrowser: <T>(work: (browser: Browser) => Promise<T>) => {
+    if (!browser)
+      throw new Error("The video cards test browser has not started");
+    return work(browser);
+  },
+}));
 
 /** Whether any pixel of the PNG outside the safe area is drawn. */
 async function drawnOutsideSafe(
@@ -53,6 +52,19 @@ describe.runIf(Boolean(CHROME))("video cards drawn by Chromium", () => {
   beforeAll(async () => {
     await captionFontsDir();
   }, 120_000);
+
+  // Cold Chromium startup belongs to suite setup for these layout cases.
+  beforeAll(async () => {
+    browser = await launch({
+      executablePath: CHROME,
+      headless: true,
+      timeout: 60_000,
+    });
+  }, 120_000);
+
+  afterAll(async () => {
+    await browser?.close();
+  });
 
   const LONG: VideoCard[] = [
     {
