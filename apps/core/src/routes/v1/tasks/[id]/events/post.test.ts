@@ -46,8 +46,8 @@ const {
   createTaskPaymentClaimMock,
   createTaskEventTransactionMock,
   enqueueTaskOutputsFromMarkdownMock,
-  getCardanoV2ReadySourcesMock,
-  getCreditCostsOrThrowMock,
+  cardanoV2ReadySourcesMock,
+  requireRatesMock,
   sokoBotFindFirstMock,
   prismaTaskEventFindUniqueMock,
   prismaTaskFindFirstMock,
@@ -67,8 +67,8 @@ const {
   createTaskPaymentClaimMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
   enqueueTaskOutputsFromMarkdownMock: vi.fn().mockResolvedValue(undefined),
-  getCardanoV2ReadySourcesMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
+  cardanoV2ReadySourcesMock: vi.fn(),
+  requireRatesMock: vi.fn(),
   sokoBotFindFirstMock: vi.fn(),
   prismaTaskEventFindUniqueMock: vi.fn(),
   prismaTaskFindFirstMock: vi.fn(),
@@ -173,12 +173,13 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/helpers/agent", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/helpers/agent")>();
+vi.mock("@/lib/agent-catalog/availability", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/agent-catalog/availability")>();
   return {
     ...actual,
-    getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
-    getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+    cardanoV2ReadySources: cardanoV2ReadySourcesMock,
+    requireRates: requireRatesMock,
   };
 });
 
@@ -466,13 +467,13 @@ describe("POST /{id}/events", () => {
     });
     publishTaskEventDataMock.mockResolvedValue(undefined);
     // Default: V2 rail purchase-ready (individual tests override to []).
-    getCardanoV2ReadySourcesMock.mockResolvedValue([
+    cardanoV2ReadySourcesMock.mockResolvedValue([
       {
         policyId: V2_READY_POLICY_ID,
         smartContractAddress: V2_READY_CONTRACT_ADDRESS,
       },
     ]);
-    getCreditCostsOrThrowMock.mockResolvedValue([
+    requireRatesMock.mockResolvedValue([
       {
         id: "cc_1",
         createdAt: new Date(),
@@ -2443,7 +2444,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("rejects a V2 masumiPayment before charging when no ready V2 source is cached", async () => {
-    getCardanoV2ReadySourcesMock.mockResolvedValue([]);
+    cardanoV2ReadySourcesMock.mockResolvedValue([]);
     const chargeSpy = vi.fn();
     const tx: TransactionMock = {
       taskEvent: {
@@ -2567,7 +2568,7 @@ describe("POST /{id}/events", () => {
     expect(response.status).toBe(201);
     expect(processTaskPaymentClaimMock).toHaveBeenCalledTimes(1);
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
-    expect(getCreditCostsOrThrowMock).toHaveBeenCalled();
+    expect(requireRatesMock).toHaveBeenCalled();
     expect(calculateCentsFromMasumiAmountStringsMock).toHaveBeenCalledWith(
       validMasumiPaymentBody.Amounts,
       expect.anything(),
@@ -2599,7 +2600,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("rejects a V2 masumiPayment whose payment source tuple is not purchase-ready", async () => {
-    getCardanoV2ReadySourcesMock.mockResolvedValue([
+    cardanoV2ReadySourcesMock.mockResolvedValue([
       {
         policyId: V2_READY_POLICY_ID,
         smartContractAddress: "addr_test1_other_contract",
@@ -2691,7 +2692,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(getCardanoV2ReadySourcesMock).not.toHaveBeenCalled();
+    expect(cardanoV2ReadySourcesMock).not.toHaveBeenCalled();
     expect(processTaskPaymentClaimMock).toHaveBeenCalledTimes(1);
     // The V1 tuple is informational — its address must NOT be forwarded to
     // the node (an unoperated address would fail the purchase post-charge).

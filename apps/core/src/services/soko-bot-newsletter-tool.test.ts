@@ -88,6 +88,7 @@ const DRAFT = {
   content: [{ type: "text" as const, text: "Launch news" }],
 };
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
+  provenance: { network: "mainnet" },
   turn: {
     id: "turn",
     sokoBotId: BOT_ID,

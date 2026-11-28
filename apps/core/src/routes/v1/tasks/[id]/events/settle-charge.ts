@@ -3,15 +3,15 @@ import type { Prisma, TaskStatus } from "@sokosumi/database";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import {
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-  isCardanoV2SourceReady,
-} from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { unprocessableEntity } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { chargeTaskCreditsOrMarkOutOfCredits } from "@/helpers/task-event-charge";
+import {
+  cardanoV2ReadySources,
+  isCardanoV2SourceReady,
+  requireRates,
+} from "@/lib/agent-catalog/availability";
 import type { NetworkScope } from "@/lib/db/network-scope";
 import { tryUseLiveLogger } from "@/lib/evlog";
 import type { createTaskEventRequestSchema } from "./schema";
@@ -59,7 +59,7 @@ export async function settleTaskEventCharge({
     // debit/refund cycle; unexpected node rejection is compensated below.
     const isV2TaskPayment = isV2MasumiTaskPayment(masumiPayment);
     if (isV2TaskPayment) {
-      const readySources = await getCardanoV2ReadySources(tx);
+      const readySources = await cardanoV2ReadySources(scope, tx);
       if (readySources.length === 0) {
         throw unprocessableEntity(
           "Cardano V2 payments are not enabled on this deployment",
@@ -85,7 +85,7 @@ export async function settleTaskEventCharge({
         );
       }
     }
-    const creditCosts = await getCreditCostsOrThrow(tx);
+    const creditCosts = await requireRates(scope, tx);
     const cents = calculateCentsFromMasumiAmountStrings(
       masumiPayment.Amounts,
       creditCosts,

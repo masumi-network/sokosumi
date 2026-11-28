@@ -9,6 +9,7 @@ apps/core/src/helpers/history.ts
 apps/core/src/helpers/job.ts
 apps/core/src/helpers/project-needs-attention.ts
 apps/core/src/helpers/project-stats.ts
+apps/core/src/lib/agent-catalog/availability.ts
 apps/core/src/lib/soko-bot/action-response.ts
 apps/core/src/lib/soko-bot/classification-context.ts
 apps/core/src/lib/soko-bot/context-packet.ts

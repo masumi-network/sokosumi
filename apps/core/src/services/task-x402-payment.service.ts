@@ -5,9 +5,7 @@ import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
-import { getEnv } from "@/config/env";
 import { requireTaskCollaboration } from "@/helpers/access-control";
-import { getCreditCostsOrThrow } from "@/helpers/agent";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
   badGateway,
@@ -28,10 +26,14 @@ import { buildX402AgentPricingListing } from "@/helpers/x402-agent-listing";
 import { verifyX402DemandAgainstAgentSources } from "@/helpers/x402-payment-verify";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
 import {
+  findListedX402Agent,
+  requireRates,
+  x402ReadySources,
+} from "@/lib/agent-catalog/availability";
+import {
   findX402ReadySource,
-  getX402ReadySources,
   x402ChainNetwork,
-} from "@/helpers/x402-readiness";
+} from "@/lib/agent-catalog/x402";
 import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -64,7 +66,6 @@ import {
 } from "@/services/task-x402-payment.replay";
 import {
   createX402DemandFingerprint,
-  findListedX402Agent,
   narrowOrThrow,
   sourceRequirementForEntry,
 } from "@/services/task-x402-payment.replay-demand";
@@ -79,6 +80,7 @@ const MAX_NODE_MESSAGE_ECHO_LENGTH = 2_000;
 
 export interface PayTaskX402Input {
   authContext: AuthenticationContext;
+  catalogScope: NetworkScope;
   taskId: string;
   idempotencyKey: string;
   agentId: string;
@@ -117,7 +119,7 @@ async function runX402ChargePhase(
   input: PayTaskX402Input,
   taskEventAttribution: TaskEventAgentAttribution,
 ): Promise<ChargePhaseOutcome> {
-  const { authContext, taskId, idempotencyKey, agentId } = input;
+  const { authContext, taskId, idempotencyKey, agentId, catalogScope } = input;
 
   // Everything below this line runs BEFORE the serializable transaction opens.
   //
@@ -191,6 +193,7 @@ async function runX402ChargePhase(
     preflightPayment.status !== TaskX402PaymentStatus.PENDING
   ) {
     const replayArgs = {
+      catalogScope,
       agentId,
       normalized,
       requirementSources: normalization.requirementSources,
@@ -222,10 +225,11 @@ async function runX402ChargePhase(
   // authority for every state transition and lease.
   const needsPricing = preflightPayment === null;
   const [readySources, creditCosts] = await Promise.all([
-    getX402ReadySources(),
-    needsPricing ? getCreditCostsOrThrow() : Promise.resolve(undefined),
+    x402ReadySources(catalogScope),
+    needsPricing ? requireRates(catalogScope) : Promise.resolve(undefined),
   ]);
   const replayInput = {
+    catalogScope,
     agentId,
     normalized,
     readySources,
@@ -262,10 +266,12 @@ async function runX402ChargePhase(
         );
       }
 
-      const agent = await findListedX402Agent(agentId, tx);
-      if (!agent) {
+      const listed = await findListedX402Agent(catalogScope, agentId, tx);
+      if (!listed) {
         throw notFound("x402 agent not found or not listed");
       }
+
+      const { agent, network } = listed;
 
       // Enforce the same per-agent gates as GET /v1/agents?kind=x402. Matching only
       // the demanded source would let a caller with a remembered id pay an
@@ -276,7 +282,7 @@ async function runX402ChargePhase(
       const listingContext = {
         creditCosts,
         readySources,
-        network: getEnv().NETWORK,
+        network,
       };
       const listing = buildX402AgentPricingListing(
         agent.paymentSources,
@@ -291,7 +297,7 @@ async function runX402ChargePhase(
       const demand = verifyX402DemandAgainstAgentSources(
         normalized.accepts,
         agent.paymentSources,
-        getEnv().NETWORK,
+        network,
       );
 
       // The chain names the payment's Network: a header that names the other

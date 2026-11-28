@@ -34,8 +34,8 @@ const {
   captureMessageMock,
   createNotificationMock,
   createTaskEventTransactionMock,
-  getCreditCostsOrThrowMock,
-  getX402ReadySourcesMock,
+  requireRatesMock,
+  x402ReadySourcesMock,
   outerPaymentFindUniqueMock,
   outerPaymentUpdateMock,
   outerPaymentUpdateManyMock,
@@ -51,8 +51,8 @@ const {
   captureMessageMock: vi.fn(),
   createNotificationMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
-  getX402ReadySourcesMock: vi.fn(),
+  requireRatesMock: vi.fn(),
+  x402ReadySourcesMock: vi.fn(),
   outerPaymentFindUniqueMock: vi.fn(),
   outerPaymentUpdateMock: vi.fn(),
   outerPaymentUpdateManyMock: vi.fn(),
@@ -104,22 +104,11 @@ vi.mock("@/helpers/task-credits", async (importOriginal) => {
   };
 });
 
-vi.mock("@/helpers/agent", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/helpers/agent")>();
-  return {
-    ...actual,
-    getCreditCostsOrThrow: getCreditCostsOrThrowMock,
-  };
-});
-
-vi.mock("@/helpers/x402-readiness", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/x402-readiness")>();
-  return {
-    ...actual,
-    getX402ReadySources: getX402ReadySourcesMock,
-  };
-});
+vi.mock("@/lib/agent-catalog/availability", async (original) => ({
+  ...(await original<typeof import("@/lib/agent-catalog/availability")>()),
+  requireRates: requireRatesMock,
+  x402ReadySources: x402ReadySourcesMock,
+}));
 
 vi.mock("@/clients/masumi-payment.client", () => ({
   paymentClient: () => ({ payX402: payX402Mock }),
@@ -590,13 +579,13 @@ describe("POST /{id}/x402-payments", () => {
 
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockResolvedValue("txn_1");
-    getCreditCostsOrThrowMock.mockResolvedValue([
+    requireRatesMock.mockResolvedValue([
       createCreditCostRow(
         `${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`,
         2n * 10n ** 10n,
       ),
     ]);
-    getX402ReadySourcesMock.mockResolvedValue([
+    x402ReadySourcesMock.mockResolvedValue([
       {
         caip2Network: BASE_SEPOLIA,
         asset: USDC_ADDRESS,
@@ -679,8 +668,8 @@ describe("POST /{id}/x402-payments", () => {
         TASK_ID,
       );
       expect(prismaTransactionMock).not.toHaveBeenCalled();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalled();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalled();
+      expect(requireRatesMock).not.toHaveBeenCalled();
+      expect(x402ReadySourcesMock).not.toHaveBeenCalled();
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
     });
@@ -711,8 +700,8 @@ describe("POST /{id}/x402-payments", () => {
         kind: "task_parked",
       });
       expect(prismaTransactionMock).not.toHaveBeenCalled();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalled();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalled();
+      expect(requireRatesMock).not.toHaveBeenCalled();
+      expect(x402ReadySourcesMock).not.toHaveBeenCalled();
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
     });
@@ -882,8 +871,10 @@ describe("POST /{id}/x402-payments", () => {
       await postPayment(app, validBody());
 
       // No transaction client argument: the read does not join the snapshot.
-      expect(getX402ReadySourcesMock).toHaveBeenCalledWith();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalledWith(tx);
+      expect(x402ReadySourcesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
+      );
+      expect(x402ReadySourcesMock).not.toHaveBeenCalledWith(tx);
     });
 
     it("reads credit costs outside the charge transaction", async () => {
@@ -891,8 +882,10 @@ describe("POST /{id}/x402-payments", () => {
 
       await postPayment(app, validBody());
 
-      expect(getCreditCostsOrThrowMock).toHaveBeenCalledWith();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalledWith(tx);
+      expect(requireRatesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
+      );
+      expect(requireRatesMock).not.toHaveBeenCalledWith(tx);
     });
   });
 
@@ -931,8 +924,8 @@ describe("POST /{id}/x402-payments", () => {
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(tx.taskX402Payment.create).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalled();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalled();
+      expect(requireRatesMock).not.toHaveBeenCalled();
+      expect(x402ReadySourcesMock).not.toHaveBeenCalled();
       expect(tx.agent.findFirst).not.toHaveBeenCalled();
     });
 
@@ -1248,7 +1241,7 @@ describe("POST /{id}/x402-payments", () => {
       // The charge stays PENDING and nothing auto-refunds it yet, so the
       // message must not promise a refund and ops must be paged now.
       tx.taskX402Payment.findUnique.mockResolvedValue(createPaymentRecord());
-      getX402ReadySourcesMock.mockResolvedValue([]);
+      x402ReadySourcesMock.mockResolvedValue([]);
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
       const response = await postPayment(app, validBody());
@@ -1585,7 +1578,7 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("rejects when the (network, asset) pair is not buy-side ready", async () => {
-      getX402ReadySourcesMock.mockResolvedValue([]);
+      x402ReadySourcesMock.mockResolvedValue([]);
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
       const response = await postPayment(app, validBody());
@@ -1687,7 +1680,7 @@ describe("POST /{id}/x402-payments", () => {
           ],
         }),
       );
-      getCreditCostsOrThrowMock.mockResolvedValue([
+      requireRatesMock.mockResolvedValue([
         createCreditCostRow(
           `${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`,
           2n * 10n ** 10n,
@@ -1697,7 +1690,7 @@ describe("POST /{id}/x402-payments", () => {
           2n * 10n ** 10n,
         ),
       ]);
-      getX402ReadySourcesMock.mockResolvedValue([
+      x402ReadySourcesMock.mockResolvedValue([
         {
           caip2Network: BASE_SEPOLIA,
           asset: USDC_ADDRESS,
@@ -1944,7 +1937,7 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("rejects when the asset has no CreditCost row (fail closed)", async () => {
-      getCreditCostsOrThrowMock.mockResolvedValue([
+      requireRatesMock.mockResolvedValue([
         createCreditCostRow("some-other-unit", 10n ** 10n),
       ]);
       const app = createApp(COWORKER_AGENT_CONTEXT);
@@ -2999,7 +2992,7 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("binds the signed payer to the managed wallet selected before charging", async () => {
-      getX402ReadySourcesMock.mockResolvedValue([
+      x402ReadySourcesMock.mockResolvedValue([
         {
           caip2Network: BASE_SEPOLIA,
           asset: USDC_ADDRESS,

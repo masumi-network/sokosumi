@@ -10,17 +10,13 @@ import {
   type X402PaymentRequirements,
 } from "@sokosumi/masumi/schemas";
 import { HTTPException } from "hono/http-exception";
-
-import { getEnv } from "@/config/env";
 import { badGateway, conflict, internalServerError } from "@/helpers/error";
 import {
   verifyX402DemandAgainstAgentSources,
   type X402VerifiedDemand,
 } from "@/helpers/x402-payment-verify";
-import {
-  getX402AgentCatalogWhere,
-  hasValidX402DiscoveryUrl,
-} from "@/helpers/x402-readiness";
+import { findListedX402Agent } from "@/lib/agent-catalog/availability";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { PARKED_IDENTIFIER_PREFIX } from "@/services/agent-sync.consolidation";
 import type { StoredTaskX402Payment } from "@/services/task-x402-payment.replay";
 
@@ -117,48 +113,6 @@ export function narrowOrThrow(
 }
 
 /**
- * The listed x402 agent for a payable id, or null. Same environment-aware SQL
- * gates as the listing: type and status everywhere, plus curation on Mainnet.
- * Preprod intentionally permits hidden online entries; offline entries never
- * remain payable through a remembered id.
- */
-export async function findListedX402Agent(
-  agentId: string,
-  tx: Prisma.TransactionClient,
-) {
-  const network = getEnv().NETWORK;
-  const agent = await tx.agent.findFirst({
-    where: {
-      id: agentId,
-      ...getX402AgentCatalogWhere(network),
-    },
-    include: {
-      paymentSources: {
-        // The normalized demand is always `exact`, but registry source data is
-        // independent. Keep unsupported signing contracts out so an agent
-        // hidden by the listing cannot still be paid through a remembered id.
-        where: {
-          scheme: { not: null },
-        },
-        include: {
-          // Both relations are explicitly ordered, mirroring the listing
-          // query. Unordered, Prisma returns Postgres heap order, so the
-          // matcher's `find` — "the first amount row for this asset" — could
-          // resolve to a different row here than the one the listing
-          // advertised a price for. Ingestion deliberately permits duplicate
-          // units within one source, so identical ordering on both sides is
-          // what makes listing and pay agree on row identity; a unique on
-          // (paymentSourceId, unit) would instead break the sync.
-          amounts: { orderBy: [{ unit: "asc" }, { id: "asc" }] },
-        },
-        orderBy: { sourceIndex: "asc" },
-      },
-    },
-  });
-  return agent && hasValidX402DiscoveryUrl(agent) ? agent : null;
-}
-
-/**
  * A PENDING replay must re-run the SAME verification the fresh path runs —
  * over the FULL supplied 402 — and land byte-for-byte on the stored
  * (caip2Network, asset, payTo, amount) tuple.
@@ -190,6 +144,7 @@ export async function findListedX402Agent(
  * normalized 402 to re-sign.
  */
 export async function assertReplayMatchesStoredDemand(
+  catalogScope: NetworkScope,
   existing: StoredTaskX402Payment,
   input: X402ReplayVerification,
   tx: Prisma.TransactionClient,
@@ -200,8 +155,8 @@ export async function assertReplayMatchesStoredDemand(
   domainVersion: string;
 }> {
   const normalized = input.normalized;
-  const agent = await findListedX402Agent(existing.agentId, tx);
-  if (!agent) {
+  const listed = await findListedX402Agent(catalogScope, existing.agentId, tx);
+  if (!listed) {
     // Listing state is transient (uptime flap, curation toggle) and proves
     // nothing about the demand — which the fingerprint proof has already
     // matched. Hold; the same key re-signs once the listing recovers.
@@ -212,8 +167,8 @@ export async function assertReplayMatchesStoredDemand(
   try {
     demand = verifyX402DemandAgainstAgentSources(
       normalized.accepts,
-      agent.paymentSources,
-      getEnv().NETWORK,
+      listed.agent.paymentSources,
+      listed.network,
     );
   } catch (error) {
     // The verifier's own 422s here mean the fingerprint-proven demand no

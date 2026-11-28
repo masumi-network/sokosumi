@@ -7,7 +7,7 @@ const {
   toolFindUnique,
   toolUpsert,
   turnUpdate,
-  turnFindFirst,
+  turnFindMany,
   transaction,
 } = vi.hoisted(() => ({
   resolveDecision: vi.fn(),
@@ -15,7 +15,7 @@ const {
   toolFindUnique: vi.fn(),
   toolUpsert: vi.fn(),
   turnUpdate: vi.fn(),
-  turnFindFirst: vi.fn(),
+  turnFindMany: vi.fn(),
   transaction: vi.fn(),
 }));
 const jevEvaluate = vi.hoisted(() => vi.fn());
@@ -38,7 +38,7 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transaction,
     sokoBotTurn: {
       findUnique: turnFindUnique,
-      findFirst: turnFindFirst,
+      findMany: turnFindMany,
       update: turnUpdate,
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
@@ -75,6 +75,8 @@ import { SokoBotControlPlane } from "./soko-bot-control-plane.service";
 function confirmation() {
   return {
     id: "confirmation-1",
+    network: "mainnet",
+    preprodGeneration: null,
     intentRevision: 1,
     source: "CHAT",
     chainDepth: 0,
@@ -122,7 +124,10 @@ describe("trusted scoped owner confirmation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     turnFindUnique.mockResolvedValue(confirmation());
-    turnFindFirst.mockResolvedValue(confirmation());
+    turnFindMany.mockResolvedValue([
+      confirmation(),
+      { id: "original-turn", network: "mainnet", preprodGeneration: null },
+    ]);
     toolFindUnique.mockResolvedValue({
       id: "receipt-1",
       targetId: "task-1",
@@ -140,8 +145,20 @@ describe("trusted scoped owner confirmation", () => {
       "decision",
       true,
       true,
-      "confirmation-1",
+      expect.objectContaining({
+        id: "confirmation-1",
+        network: "mainnet",
+        preprodGeneration: null,
+      }),
     );
+    expect(toolFindUnique).toHaveBeenCalledWith({
+      where: {
+        turnId_toolCallId: {
+          turnId: "original-turn",
+          toolCallId: "decision:decision",
+        },
+      },
+    });
     expect(toolUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({
@@ -175,6 +192,74 @@ describe("trusted scoped owner confirmation", () => {
     expect(resolveDecision).not.toHaveBeenCalled();
     expect(toolUpsert).toHaveBeenCalledOnce();
   });
+
+  it("looks up the receipt in the Preprod confirmation's own generation", async () => {
+    const turn = {
+      ...confirmation(),
+      network: "preprod",
+      preprodGeneration: 3,
+    };
+    turn.intent.decisions[0].status = "ACCEPTED";
+    turn.intent.state = "IN_PROGRESS";
+    turnFindUnique.mockResolvedValue(turn);
+    turnFindMany.mockResolvedValue([
+      turn,
+      { id: "original-turn", network: "preprod", preprodGeneration: 3 },
+    ]);
+
+    await expect(
+      new SokoBotControlPlane()["settleOwnerConfirmation"](
+        "confirmation-1",
+        "lease",
+      ),
+    ).resolves.toBe(true);
+    expect(toolFindUnique).toHaveBeenCalledWith({
+      where: {
+        turnId_toolCallId: {
+          turnId: "original-turn",
+          toolCallId: "decision:decision",
+        },
+        turn: { network: "preprod", preprodGeneration: 3 },
+      },
+    });
+  });
+
+  it.each([
+    ["mainnet", null, "preprod", 3],
+    ["preprod", 3, "mainnet", null],
+    ["preprod", 4, "preprod", 3],
+  ] as const)(
+    "refuses an ACCEPTED decision from %s/%s against %s/%s",
+    async (network, generation, sourceNetwork, sourceGeneration) => {
+      const turn = {
+        ...confirmation(),
+        network,
+        preprodGeneration: generation,
+      };
+      turn.intent.decisions[0].status = "ACCEPTED";
+      turn.intent.state = "IN_PROGRESS";
+      turnFindUnique.mockResolvedValue(turn);
+      turnFindMany.mockResolvedValue([
+        turn,
+        {
+          id: "original-turn",
+          network: sourceNetwork,
+          preprodGeneration: sourceGeneration,
+        },
+      ]);
+
+      await expect(
+        new SokoBotControlPlane()["settleOwnerConfirmation"](
+          "confirmation-1",
+          "lease",
+        ),
+      ).rejects.toMatchObject({ kind: "soko_bot_network_stale", status: 409 });
+      expect(resolveDecision).not.toHaveBeenCalled();
+      expect(toolFindUnique).not.toHaveBeenCalled();
+      expect(toolUpsert).not.toHaveBeenCalled();
+      expect(turnUpdate).not.toHaveBeenCalled();
+    },
+  );
   it("does not turn another actor, room, ambiguous proposal, quotation or bot message into approval", async () => {
     for (const change of [
       { askedByUserId: "teammate" },

@@ -35,6 +35,7 @@ const projectId = randomUUID();
 
 function authorizedAs(actingUserId: string | null): AuthorizedSokoBotRuntime {
   return {
+    provenance: { network: "mainnet" },
     scope: testNetworkScope(),
     toolCallLimit: 64,
     turn: {

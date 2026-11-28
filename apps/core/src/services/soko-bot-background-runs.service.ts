@@ -11,7 +11,6 @@ import {
   logCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { BACKGROUND_RUN_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/turn-model";
@@ -105,7 +104,7 @@ export async function startBackgroundRun(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    network: DETACHED_SOKO_BOT_NETWORK,
+    ...authorized.provenance,
     userId: authorized.turn.actingUserId,
     workspaceId: authorized.turn.workspaceId,
     // Cuso shares a workspace with the owner's own assistant: the run belongs

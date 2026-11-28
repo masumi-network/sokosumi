@@ -1,9 +1,12 @@
-import { type Prisma } from "@sokosumi/database";
+import type { Prisma, SokoBotTurn } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { serviceUnavailable } from "@/helpers/error";
+import { networkStamp } from "@/helpers/preprod-control";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
 import prisma from "@/lib/db/prisma";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
+import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   actionInputHash,
@@ -11,14 +14,32 @@ import {
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
 import {
+  DetachedNetworkRefusal,
+  detachedNetworkScope,
+  requireDetachedTurnProvenance,
+  turnProvenance,
+} from "@/lib/soko-bot/detached-network";
+import {
   isSokoBotDecisionTargetAllowed,
   type SokoBotActionContext,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
-import { actionPrincipalId } from "./acting-scope";
+import { actingMemberOf, actionPrincipalId } from "./acting-scope";
 import { type RuntimeOperations } from "./operations";
+
+export async function expireStaleDecision(decisionId: string) {
+  await prisma.sokoBotPendingDecision.updateMany({
+    where: { id: decisionId, status: { in: ["PENDING", "PROCESSING"] } },
+    data: { status: "EXPIRED", resolvedAt: new Date() },
+  });
+}
+
+export type ConfirmationTurn = Pick<
+  SokoBotTurn,
+  "id" | "network" | "preprodGeneration"
+>;
 
 export async function prepareDecision(
   runtime: RuntimeOperations,
@@ -27,7 +48,7 @@ export async function prepareDecision(
   decisionId: string,
   accepted: boolean,
   ownerConfirmed = true,
-  confirmationTurnId?: string,
+  confirmation?: ConfirmationTurn,
 ) {
   const decision = await findResolvableSokoBotDecision(
     resolverUserId,
@@ -92,12 +113,32 @@ export async function prepareDecision(
     };
   }
 
+  const handleRefusal = async (error: unknown): Promise<never> => {
+    if (error instanceof DetachedNetworkRefusal && error.final) {
+      await expireStaleDecision(decision.id);
+    }
+    throw error;
+  };
+  const scope = await detachedNetworkScope(decision.turn).catch(handleRefusal);
+  const provenance = turnProvenance(decision.turn);
+  const stale = () =>
+    new DetachedNetworkRefusal(CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE);
+  if (
+    confirmation &&
+    (confirmation.network !== provenance.network ||
+      (provenance.network === "preprod" &&
+        confirmation.preprodGeneration !==
+          provenance.expectedPreprodGeneration))
+  ) {
+    throw stale();
+  }
   const decisionToolCallId = `decision:${decision.id}`;
   const externalDecision =
     decision.toolName === "hire_agent" ||
     decision.toolName === "provide_job_input";
   const actionContext: SokoBotActionContext = {
-    confirmationTurnId,
+    provenance,
+    confirmationTurnId: confirmation?.id,
     turn: {
       id: decision.turnId,
       sokoBotId: decision.sokoBotId,
@@ -168,17 +209,59 @@ export async function prepareDecision(
         outcome: true,
         taskId: true,
         jobId: true,
+        network: true,
+        preprodGeneration: true,
       },
     });
+    if (existingDelegation && scope.network === "preprod") {
+      try {
+        requireDetachedTurnProvenance(provenance, existingDelegation);
+      } catch (error) {
+        await handleRefusal(error);
+      }
+    }
+    if (
+      scope.network === "mainnet" &&
+      existingDelegation?.jobId &&
+      existingDelegation.network === "preprod"
+    ) {
+      await handleRefusal(stale());
+    }
     let recoveredEntityId = existingDelegation?.taskId ?? null;
     if (decision.toolName === "hire_agent") {
       recoveredEntityId = existingDelegation?.jobId ?? null;
+      if (recoveredEntityId && scope.network === "preprod") {
+        const job = await scope.networkDb.job.findFirst({
+          where: {
+            id: recoveredEntityId,
+            workspaceId: decision.workspaceId,
+            ownerId: actingMemberOf(actionContext),
+          },
+          select: { id: true },
+        });
+        if (!job) await handleRefusal(stale());
+      }
     } else if (decision.toolName === "provide_job_input") {
       const proposal = provideJobInputSchema.parse(decision.proposal);
-      const existingInput = await prisma.jobInput.findUnique({
-        where: { eventId: proposal.eventId },
-        select: { id: true },
-      });
+      const existingInput =
+        scope.network === "preprod"
+          ? await scope.networkDb.jobInput.findUnique({
+              where: {
+                eventId: proposal.eventId,
+                event: {
+                  jobId: proposal.jobId,
+                  job: {
+                    workspaceId: decision.workspaceId,
+                    ownerId: actingMemberOf(actionContext),
+                  },
+                },
+              },
+              select: { id: true },
+            })
+          : await prisma.jobInput.findUnique({
+              where: { eventId: proposal.eventId },
+              select: { id: true },
+            });
       recoveredEntityId = existingInput?.id ?? null;
     }
     if (recoveredEntityId) {
@@ -193,6 +276,42 @@ export async function prepareDecision(
           );
         }
       }
+      if (scope.network === "preprod") {
+        const targetId = recoveredEntityId;
+        const result = await serializableTransaction(async (tx) => {
+          await networkStamp(provenance, tx);
+          if (existingDelegation) {
+            const updated = await tx.sokoBotDelegation.updateMany({
+              where: {
+                ...receiptKey,
+                network: provenance.network,
+                preprodGeneration: provenance.expectedPreprodGeneration,
+                jobId: existingDelegation.jobId,
+                outcome: existingDelegation.outcome,
+              },
+              data: { outcome: "accepted", error: null },
+            });
+            if (updated.count !== 1) {
+              throw new SokoBotRuntimeConflictError(
+                "Soko Bot reservation changed during recovery",
+              );
+            }
+          }
+          if (externalDecision) await acknowledgeExternalReceipt(targetId, tx);
+          return tx.sokoBotPendingDecision.update({
+            where: { id: decision.id, status: "PROCESSING" },
+            data: {
+              status: "ACCEPTED",
+              resolvedAt: new Date(),
+              resolvedByUserId: decision.firstResolverUserId,
+              resultingEntityId: targetId,
+            },
+          });
+        }, "Soko Bot approval recovery changed concurrently").catch(
+          handleRefusal,
+        );
+        return { done: true as const, result };
+      }
       if (externalDecision) await acknowledgeExternalReceipt(recoveredEntityId);
       const [, recoveredDecision] = await prisma.$transaction([
         decision.toolName === "hire_agent"
@@ -200,7 +319,7 @@ export async function prepareDecision(
               UPDATE ${sharedTable("soko_bot_delegation")}
               SET "outcome" = 'accepted',
                   "jobId" = ${recoveredEntityId},
-                  "network" = COALESCE("network", ${DETACHED_SOKO_BOT_NETWORK}),
+                  "network" = COALESCE("network", ${provenance.network}),
                   "error" = NULL,
                   "updatedAt" = ${new Date()}
               WHERE "turnId" = ${decision.turnId}::uuid
@@ -255,6 +374,13 @@ export async function prepareDecision(
     );
   }
 
+  if (scope.network === "preprod" && externalDecision) {
+    // The scoped seller, payment and Job input path belongs to ticket 30.
+    throw serviceUnavailable("A new Preprod seller request is unavailable", {
+      reportToSentry: false,
+    });
+  }
+
   if (!resumeProcessing) {
     const claimed = await prisma.sokoBotPendingDecision.updateMany({
       where: { id: decision.id, status: "PENDING" },
@@ -272,7 +398,6 @@ export async function prepareDecision(
     decisionId,
     accepted,
     ownerConfirmed,
-    confirmationTurnId,
     decision,
     actingUserId,
     decisionToolCallId,
