@@ -93,6 +93,26 @@ describe("OAuthAuthorizedClients", () => {
     expect(screen.getByText("description")).toBeVisible();
   });
 
+  it("announces the outcome of the first load, even when it is empty", async () => {
+    let finishLoad: (value: unknown) => void = () => {};
+    mockGetConsents.mockImplementationOnce(
+      () => new Promise((resolve) => (finishLoad = resolve)),
+    );
+    render(<OAuthAuthorizedClients />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("loadingStatus");
+
+    await act(async () => {
+      finishLoad({ data: [], error: null });
+    });
+
+    expect(await screen.findByText("noApplications")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("loadedStatus");
+    expect(
+      screen.queryByTestId("authorized-clients-loading"),
+    ).not.toBeInTheDocument();
+  });
+
   it("lets the loading rows shrink to a phone-width card", () => {
     mockGetConsents.mockReturnValue(new Promise(() => {}));
     render(<OAuthAuthorizedClients />);

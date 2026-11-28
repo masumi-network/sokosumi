@@ -76,7 +76,7 @@ function loadStatusKey({
 }) {
   if (!hasData && fetching) return "loadingStatus";
   if (!hasData && failedBefore) return "loadErrorTitle";
-  return failedBefore ? "loadedStatus" : null;
+  return hasData ? "loadedStatus" : null;
 }
 
 function AuthorizedClientsLoadingRows() {
