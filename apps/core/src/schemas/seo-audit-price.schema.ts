@@ -1,10 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import {
+  SEO_CRAWL_NEXT_MIN_CREDITS,
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MARKUP_PERCENT,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
 } from "@sokosumi/utils";
+import { seoSnapshotIdSchema } from "./seo-site-crawl.schema";
 
 export const seoFullAuditLimitsSchema = z
   .object({
@@ -21,6 +23,14 @@ export const seoCostPlusPriceSchema = z.strictObject({
   markupPercent: z.literal(SEO_FULL_AUDIT_MARKUP_PERCENT),
   // Only the separately purchased CMO subscription retains its fixed amount.
   maxCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
+});
+
+/** A crawl continuation's terms: the bot refuses any other, and there is no cap. */
+export const seoCrawlNextPriceSchema = z.strictObject({
+  kind: z.literal("cost_plus"),
+  version: z.literal(1),
+  minimumCredits: z.literal(SEO_CRAWL_NEXT_MIN_CREDITS),
+  markupPercent: z.literal(SEO_FULL_AUDIT_MARKUP_PERCENT),
 });
 
 export const storedSeoFullAuditPriceSchema = z.discriminatedUnion("kind", [
@@ -91,3 +101,14 @@ export const seoFullAuditCostDetailSchema = z
     ),
   })
   .openapi("SeoFullAuditCostDetail");
+
+/** A request to crawl the next pages of a full audit's crawl, after the person approves the price. */
+export const requestSeoCrawlNextSchema = z
+  .strictObject({
+    /** The crawl Snapshot to go on from: the workspace's `availableActions.continueCrawlFrom`. */
+    continues: seoSnapshotIdSchema,
+    price: seoCrawlNextPriceSchema,
+    idempotencyKey: z.string().trim().min(8).max(128),
+  })
+  .openapi("RequestSeoCrawlNext");
+export type RequestSeoCrawlNext = z.infer<typeof requestSeoCrawlNextSchema>;

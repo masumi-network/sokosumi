@@ -29,11 +29,24 @@ export async function requireNoActiveSeoAnalysis(
     await tx.$executeRaw`
       UPDATE ${sharedTable("project")} SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid
     `;
+  if (await hasActiveSeoAnalysis(tx, actor, ignoreTaskId))
+    throw conflict(
+      "This audit already has an active check. Wait for it to finish or cancel its Task.",
+      { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHECK },
+    );
+}
+
+/** Whether a check of the owner's still runs: the owner runs one check at a time, on any of its pages. */
+export async function hasActiveSeoAnalysis(
+  db: Pick<Prisma.TransactionClient, "$queryRaw">,
+  actor: Pick<SeoActor, "owner">,
+  ignoreTaskId?: string,
+): Promise<boolean> {
   const owner =
     actor.owner.kind === "audit"
       ? PrismaRaw.sql`a."auditId" = ${actor.owner.id}::uuid AND a."projectId" IS NULL`
       : PrismaRaw.sql`a."projectId" = ${actor.owner.id}::uuid AND a."auditId" IS NULL`;
-  const active = await tx.$queryRaw<Array<{ id: string }>>`
+  const active = await db.$queryRaw<Array<{ id: string }>>`
     SELECT a.id FROM ${sharedTable("project_seo_analysis")} a
     JOIN ${sharedTable("task")} t ON t.id = a."taskId"
     WHERE ${owner} AND t."archivedAt" IS NULL
@@ -41,11 +54,7 @@ export async function requireNoActiveSeoAnalysis(
       AND ${ignoreTaskId ? PrismaRaw.sql`t.id <> ${ignoreTaskId}` : PrismaRaw.sql`TRUE`}
     LIMIT 1
   `;
-  if (active.length)
-    throw conflict(
-      "This audit already has an active check. Wait for it to finish or cancel its Task.",
-      { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHECK },
-    );
+  return active.length > 0;
 }
 
 /** Restoring or reopening a linked Task must acquire the same Audit slot as a new dispatch. */

@@ -2759,12 +2759,21 @@ describe("SokoBotRuntimeService authorization", () => {
     });
     const { where } = taskCountMock.mock.calls[0][0];
     // The description a reader sees: a hit only in the hidden `seo_audit` line is no hit.
+    // The same rule applies to the continuation's `seo_crawl_next` line.
     const visibleDescription = (word: string) => ({
       OR: [
         {
           description: { contains: word, mode: "insensitive", not: null },
           NOT: {
-            description: { contains: "seo\\_audit", mode: "insensitive" },
+            OR: [
+              { description: { contains: "seo\\_audit", mode: "insensitive" } },
+              {
+                description: {
+                  contains: "seo\\_crawl\\_next",
+                  mode: "insensitive",
+                },
+              },
+            ],
           },
         },
       ],

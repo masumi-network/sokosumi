@@ -1,7 +1,7 @@
 "use server";
 
 import type { RequestProjectSeoAnalysisRequest } from "@sokosumi/core-client";
-import { seoFullAuditPrice } from "@sokosumi/utils";
+import { seoCrawlNextPrice, seoFullAuditPrice } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -166,6 +166,13 @@ export const mutateSeo = withSession<
           withFullAuditPrice(command.body),
         );
         break;
+      case "continue_crawl":
+        await seoServiceNoRedirect.continueCrawl(owner, {
+          continues: command.continues,
+          price: seoCrawlNextPrice(),
+          idempotencyKey: command.idempotencyKey,
+        });
+        break;
       case "save_keyword":
         await seoServiceNoRedirect.saveKeyword(owner, command.body);
         break;
@@ -188,6 +195,7 @@ export const mutateSeo = withSession<
     if (
       command.kind === "create_action_task" ||
       command.kind === "request_analysis" ||
+      command.kind === "continue_crawl" ||
       command.kind === "monitor_run_now"
     )
       revalidatePath("/tasks");
@@ -197,6 +205,7 @@ export const mutateSeo = withSession<
     const refusal = toCoreApiActionError(error);
     if (
       command.kind === "request_analysis" ||
+      command.kind === "continue_crawl" ||
       command.kind === "create_monitor" ||
       command.kind === "monitor_run_now"
     )

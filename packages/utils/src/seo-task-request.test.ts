@@ -30,6 +30,9 @@ describe("seoTaskRequestPacket", () => {
     expect(() =>
       seoTaskRequestPacket(`${one}\nseo_job: {}`, "seo_audit"),
     ).toThrow();
+    expect(() =>
+      seoTaskRequestPacket(`${one}\nseo_crawl_next: {}`, "seo_audit"),
+    ).toThrow();
   });
 
   it("counts a marker in any case and after spaces, as the worker does", () => {
@@ -87,6 +90,14 @@ describe("hideSeoAuditRequest", () => {
     expect(hideSeoAuditRequest(focused)).toBe(focused);
     expect(hideSeoAuditRequest('seo_audit: {"version":1}')).toBeNull();
   });
+
+  it("hides a crawl continuation's price terms", () => {
+    expect(
+      hideSeoAuditRequest(
+        'Crawl the next 500 pages\n\n SEO_CRAWL_NEXT : {"price":{"markupPercent":50}}',
+      ),
+    ).toBe("Crawl the next 500 pages");
+  });
 });
 
 describe("splitSeoTaskRequest", () => {
@@ -104,6 +115,17 @@ describe("splitSeoTaskRequest", () => {
     );
     expect(edit(description)).toBe(
       seoTaskDescription("Summary", "seo_audit", linkInPacket),
+    );
+  });
+
+  it("keeps a crawl continuation's line byte for byte", () => {
+    const description = seoTaskDescription(
+      "Summary [BRIEFING.md](https://x)",
+      "seo_crawl_next",
+      linkInPacket,
+    );
+    expect(edit(description)).toBe(
+      seoTaskDescription("Summary", "seo_crawl_next", linkInPacket),
     );
   });
 

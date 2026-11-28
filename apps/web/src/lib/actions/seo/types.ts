@@ -45,6 +45,8 @@ export type SeoCommand =
       rule: TaskScheduleRuleReplacement;
     }
   | { kind: "request_analysis"; body: RequestProjectSeoAnalysisRequest }
+  /** The price terms never pass through the browser: the action approves them. */
+  | { kind: "continue_crawl"; continues: string; idempotencyKey: string }
   | { kind: "save_keyword"; body: SaveProjectSeoKeywordRequest }
   | { kind: "save_competitor"; body: SaveProjectSeoCompetitorRequest }
   | { kind: "acknowledge_review"; body: AcknowledgeProjectSeoReviewRequest }
@@ -53,7 +55,8 @@ export type SeoCommand =
 
 /** A Google or goal decision belongs to the session that reviewed it. Older shared brief reviews identify the viewer. */
 export function seoReviewIdentity(command: SeoCommand) {
-  if (command.kind === "monitor_run_now") return "session";
+  if (command.kind === "monitor_run_now" || command.kind === "continue_crawl")
+    return "session";
   const analysis =
     command.kind === "request_analysis"
       ? command.body

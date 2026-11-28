@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { HistoryKind, TaskStatus } from "@sokosumi/database";
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
-import { removeSeoTaskRequest, seoTaskDescription } from "@sokosumi/utils";
+import { hideSeoAuditRequest, seoTaskDescription } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import {
@@ -53,6 +53,9 @@ const PARITY_CASES: Record<string, string> = {
   deepArray: `Audit\nseo_audit: ${"[".repeat(DEEP)}${"]".repeat(DEEP)}`,
   // A JSON string cannot nest: its brackets are text, and the line stays.
   bracketString: `Audit\nseo_audit: "label ${"[".repeat(1001)}"`,
+  crawlNext: seoTaskDescription("Crawl of shop", "seo_crawl_next", PACKET),
+  crawlNextUpper: 'Crawl\n SEO_CRAWL_NEXT : {"a":1}',
+  auditAndCrawlNext: 'A\nseo_audit: {"a":1}\nB\nseo_crawl_next: {"a":1}\nC',
 };
 
 describe.skipIf(!enabled)("visibleDescriptionSql", () => {
@@ -62,9 +65,7 @@ describe.skipIf(!enabled)("visibleDescriptionSql", () => {
       const [row] = await prisma.$queryRaw<{ visible: string | null }[]>(
         Prisma.sql`SELECT ${visibleDescriptionSql(Prisma.sql`${description}::text`)} AS visible`,
       );
-      expect(row.visible ?? "").toBe(
-        removeSeoTaskRequest(description, ["seo_audit"]),
-      );
+      expect(row.visible ?? "").toBe(hideSeoAuditRequest(description) ?? "");
     },
   );
 
@@ -111,6 +112,11 @@ describe.skipIf(!enabled)("Task and history description search", () => {
       visible: [
         workspaceId,
         seoTaskDescription("Audit of markupPercent shop", "seo_audit", PACKET),
+      ],
+      // A crawl continuation's line holds price terms too.
+      crawlNext: [
+        workspaceId,
+        seoTaskDescription("Crawl of shop.example", "seo_crawl_next", PACKET),
       ],
       // An array line is a request line too: its terms stay hidden.
       arrayLine: [workspaceId, 'Audit\n\nseo_audit: [{"markupPercent":1}]'],

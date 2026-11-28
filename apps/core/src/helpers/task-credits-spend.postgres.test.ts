@@ -153,7 +153,8 @@ vi.mock(
         typeof import("@/routes/v1/tasks/[id]/events/map-created-event")
       >();
     return {
-      mapCreatedTaskEventForResponse: (async (tx, eventId) => {
+      mapCreatedTaskEventForResponse: (async (...args) => {
+        const [tx, eventId] = args;
         if (fixture.failAfterCharge) {
           fixture.failAfterCharge = false;
           throw new Error("after the charge");
@@ -172,7 +173,7 @@ vi.mock(
             await held.release;
           }
         }
-        return actual.mapCreatedTaskEventForResponse(tx, eventId);
+        return actual.mapCreatedTaskEventForResponse(...args);
       }) satisfies typeof actual.mapCreatedTaskEventForResponse,
     };
   },

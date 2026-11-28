@@ -63,6 +63,7 @@ import {
   seoArticleDates,
   seoTopicLaunch,
 } from "./seo-content-history";
+import { parseCrawlNextArtifact } from "./seo-crawl-next-report";
 import { readPageMarketEvidence } from "./seo-page-market-evidence";
 import { readableStoredPageSpeed, readPageSpeed } from "./seo-page-speed";
 import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
@@ -283,6 +284,10 @@ const partial = z
 /** Parse trusted artifact bytes, keeping an explicit projection rather than arbitrary report fields. */
 export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
   refusePrivateReport(raw);
+  if (object(raw)?.kind === "crawl_next")
+    return publicSeoPayloadSchema.parse(
+      parseCrawlNextArtifact(raw, parsePublicSeoArtifact),
+    );
   if (object(raw)?.kind === "site") {
     const site = z
       .object({

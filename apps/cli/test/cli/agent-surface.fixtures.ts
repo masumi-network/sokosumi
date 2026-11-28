@@ -1946,6 +1946,16 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       '{"terms": ["acme"]}',
     ],
   },
+  "POST /seo/audits/{id}/crawl-continuations": {
+    argv: [
+      ...API,
+      "seo",
+      "audit-continue-crawl",
+      "00000000-0000-4000-8000-0000000000a1",
+      "--input-json",
+      '{"continues": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "price": {"kind": "cost_plus", "version": 1, "minimumCredits": 100, "markupPercent": 50}, "idempotencyKey": "crawl-next-1"}',
+    ],
+  },
   "GET /seo/audits/{id}/brief": {
     argv: [
       ...API,
@@ -2137,6 +2147,16 @@ export const CLI_SURFACE_FIXTURES: Record<string, CliSurfaceFixture> = {
       "00000000-0000-4000-8000-0000000000b1",
       "--input-json",
       '{"terms": ["acme"]}',
+    ],
+  },
+  "POST /projects/{id}/seo/crawl-continuations": {
+    argv: [
+      ...API,
+      "seo",
+      "project-continue-crawl",
+      "00000000-0000-4000-8000-0000000000b1",
+      "--input-json",
+      '{"continues": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "price": {"kind": "cost_plus", "version": 1, "minimumCredits": 100, "markupPercent": 50}, "idempotencyKey": "crawl-next-1"}',
     ],
   },
   "GET /projects/{id}/seo/brief": {
