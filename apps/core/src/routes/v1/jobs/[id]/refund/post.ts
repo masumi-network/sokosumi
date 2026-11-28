@@ -8,6 +8,11 @@ import { notFound, unprocessableEntity } from "@/helpers/error";
 import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  createNetworkScope,
+  type NetworkDb,
+  type NetworkScope,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -115,9 +120,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { blockchainIdentifier, externalId } = await prisma.$transaction(
       async (tx) => {
         // Refunding belongs to the job's Owner (ADR 0057).
-        await requireJobCollaboration(c.var.authContext, id, tx, {
-          right: "manage",
-        });
+        // shortcut: Job refund stays on Mainnet's legacy transaction until slice 25-5 moves refunds to the Job's Network.
+        const legacyMainnetScope = Object.defineProperties(
+          Object.create(createNetworkScope("mainnet")),
+          {
+            networkDb: { value: tx as unknown as NetworkDb },
+            sharedDb: { value: tx },
+          },
+        ) as NetworkScope;
+        await requireJobCollaboration(
+          c.var.authContext,
+          id,
+          legacyMainnetScope,
+          { right: "manage" },
+        );
 
         const job = await tx.job.findUnique({
           where: { id },

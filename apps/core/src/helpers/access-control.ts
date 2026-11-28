@@ -16,6 +16,7 @@ import {
   type NetworkScope,
   networkUsesSharedSchema,
   type SharedDb,
+  sharedTxAsNetworkDb,
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
@@ -76,7 +77,7 @@ export async function requireRightOnWorkWithoutOwner(
   userId: string,
   work: { ownerId: string | null; workspaceId: string },
   right: WorkRight,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
 ): Promise<void> {
   if (work.ownerId !== null) {
     return;
@@ -140,14 +141,26 @@ function isOwnedBySomeoneElse(
 export async function requireJobOwnership(
   userContext: UserContext,
   jobId: string,
-  tx: Prisma.TransactionClient = prisma,
+  scope: NetworkScope,
+  sharedTx?: SharedDb,
 ): Promise<Job> {
-  const job = await tx.job.findFirst({
-    where: {
-      id: jobId,
-      ownerId: userContext.userId,
-    },
-  });
+  const txNetworkDb = sharedTx ? sharedTxAsNetworkDb(scope, sharedTx) : null;
+  const job =
+    sharedTx && !txNetworkDb
+      ? (
+          await sharedTx.$queryRaw<Job[]>`
+            SELECT *
+            FROM ${scope.networkTable("Job")}
+            WHERE "id" = ${jobId} AND "ownerId" = ${userContext.userId}
+            LIMIT 1
+          `
+        )[0]
+      : await (txNetworkDb ?? scope.networkDb).job.findFirst({
+          where: {
+            id: jobId,
+            ownerId: userContext.userId,
+          },
+        });
 
   if (!job) {
     throw forbidden("You can only access your own jobs");
@@ -232,7 +245,7 @@ export function buildTaskWriteAccessWhere(
  */
 export async function readWorkspaceOrganizationId(
   workspaceId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
 ): Promise<string | null> {
   const placement = await tx.workspace.findUnique({
     where: { id: workspaceId },
@@ -706,14 +719,14 @@ async function requireSokoBotTaskRead(
   ownerUserId: string,
   taskId: string,
   workspaceId: string,
-  tx?: Prisma.TransactionClient,
+  tx?: SharedDb,
 ): Promise<Task>;
 async function requireSokoBotTaskRead<I extends Prisma.TaskInclude>(
   sokoBotId: string,
   ownerUserId: string,
   taskId: string,
   workspaceId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   include: I,
 ): Promise<Prisma.TaskGetPayload<{ include: I }>>;
 async function requireSokoBotTaskRead(
@@ -721,7 +734,7 @@ async function requireSokoBotTaskRead(
   ownerUserId: string,
   taskId: string,
   workspaceId: string,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
   include?: Prisma.TaskInclude,
 ): Promise<Task> {
   const task = await tx.task.findFirst({
@@ -1183,7 +1196,7 @@ export async function requireJobRead(
 async function assertJobAssignedToCoworker(
   job: Job,
   coworkerId: string,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
 ): Promise<void> {
   if (job.taskId === null) {
     throw forbidden("You can only access jobs assigned to your coworker");
@@ -1216,7 +1229,7 @@ async function assertSokoBotCanAccessJob(
   ownerUserId: string,
   workspaceId: string,
   job: Job,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
 ): Promise<void> {
   if (job.taskId === null) {
     throw forbidden("You can only access jobs assigned to your Soko Bot");
@@ -1292,13 +1305,15 @@ export async function requireJobReadForRouteVars(
 
 export async function requireParentTaskNotParked(
   job: Pick<Job, "taskId">,
-  tx: Prisma.TransactionClient,
+  scope: NetworkScope,
+  sharedTx?: SharedDb,
 ): Promise<void> {
   if (job.taskId == null) {
     return;
   }
 
-  const task = await tx.task.findFirst({
+  const db = sharedTx ?? scope.sharedDb;
+  const task = await db.task.findFirst({
     where: { id: job.taskId, archivedAt: null },
     select: { status: true },
   });
@@ -1324,24 +1339,56 @@ export async function requireParentTaskNotParked(
 export async function requireJobCollaboration(
   authContext: AuthenticationContext,
   jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-  { right = "edit" }: { right?: WorkRight } = {},
+  scope: NetworkScope,
+  { right = "edit", sharedTx }: { right?: WorkRight; sharedTx?: SharedDb } = {},
 ): Promise<Job> {
+  const sharedDb = sharedTx ?? scope.sharedDb;
+
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
-    const job = await tx.job.findFirst({ where: { id: jobId } });
+    const txNetworkDb = sharedTx ? sharedTxAsNetworkDb(scope, sharedTx) : null;
+    const job =
+      sharedTx && !txNetworkDb
+        ? (
+            await sharedTx.$queryRaw<Job[]>`
+              SELECT *
+              FROM ${scope.networkTable("Job")}
+              WHERE "id" = ${jobId}
+              LIMIT 1
+            `
+          )[0]
+        : await (txNetworkDb ?? scope.networkDb).job.findFirst({
+            where: { id: jobId },
+          });
     if (!job || isOwnedBySomeoneElse(job, userContext.userId)) {
       throw forbidden("You can only access your own jobs");
     }
-    await requireRightOnWorkWithoutOwner(userContext.userId, job, right, tx);
-    await requireParentTaskNotParked(job, tx);
+    await requireRightOnWorkWithoutOwner(
+      userContext.userId,
+      job,
+      right,
+      sharedDb,
+    );
+    await requireParentTaskNotParked(job, scope, sharedDb);
     return job;
   }
 
   if (isPersonalSokoBotAuthContext(authContext)) {
-    const job = await tx.job.findFirst({
-      where: { id: jobId, workspaceId: authContext.workspaceId },
-    });
+    const txNetworkDb = sharedTx ? sharedTxAsNetworkDb(scope, sharedTx) : null;
+    const job =
+      sharedTx && !txNetworkDb
+        ? (
+            await sharedTx.$queryRaw<Job[]>`
+              SELECT *
+              FROM ${scope.networkTable("Job")}
+              WHERE "id" = ${jobId}
+                AND "workspaceId" = ${authContext.workspaceId}::uuid
+              LIMIT 1
+            `
+          )[0]
+        : await (txNetworkDb ?? scope.networkDb).job.findFirst({
+            where: { id: jobId, workspaceId: authContext.workspaceId },
+          });
     if (!job) {
       throw notFound("Job not found");
     }
@@ -1350,15 +1397,15 @@ export async function requireJobCollaboration(
       authContext.userId,
       authContext.workspaceId,
       job,
-      tx,
+      sharedDb,
     );
-    await requireParentTaskNotParked(job, tx);
+    await requireParentTaskNotParked(job, scope, sharedDb);
     return job;
   }
 
   const coworker = requireCoworkerAuthContext(authContext);
   if (coworker.context) {
-    await requireCoworkerCapability(coworker.coworkerId, "tasks", tx);
+    await requireCoworkerCapability(coworker.coworkerId, "tasks", sharedDb);
 
     const job = await requireJobOwnership(
       {
@@ -1367,11 +1414,12 @@ export async function requireJobCollaboration(
         organizationId: coworker.context.organizationId,
       },
       jobId,
-      tx,
+      scope,
+      sharedTx,
     );
 
-    await assertJobAssignedToCoworker(job, coworker.coworkerId, tx);
-    await requireParentTaskNotParked(job, tx);
+    await assertJobAssignedToCoworker(job, coworker.coworkerId, sharedDb);
+    await requireParentTaskNotParked(job, scope, sharedDb);
 
     return job;
   }

@@ -272,7 +272,10 @@ describe("PATCH /jobs/{id}", () => {
     expect(requireJobCollaborationMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "user_123" }),
       "job_123",
-      expect.objectContaining({ job: { update: jobUpdateMock } }),
+      expect.objectContaining({
+        network: "mainnet",
+        networkDb: expect.objectContaining({ job: { update: jobUpdateMock } }),
+      }),
     );
     expect(jobUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
