@@ -504,6 +504,10 @@ function mapTaskBase(
   authContext: AuthenticationContext,
 ) {
   const credits = task.events.reduce((total, event) => {
+    // A Preprod payment does not count towards a Task's amount: its relation reads Mainnet's transaction of an equal id.
+    if (event.network === "preprod") {
+      return total;
+    }
     const amount = event.transaction?.amount;
     if (amount === undefined || amount === null) {
       return total;

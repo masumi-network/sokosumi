@@ -170,23 +170,17 @@ function buildFilterSql(
 /**
  * How the ledger joins a shared receipt to a transaction of its Network. Ids
  * are unique within one Network only: the same id can name a Mainnet and a
- * Preprod transaction. Mainnet's ledger keeps its joins as they were (its
- * receipts include every untagged row); another Network's joins a Task
+ * Preprod transaction. Mainnet's ledger joins every untagged receipt and a
+ * Task event that names no Network or Mainnet; another Network's joins a Task
  * event only when the event names that Network, and no Mainnet-only
  * feature's receipt at all.
  */
 function sharedReceiptJoins(scope: NetworkScope) {
   const { network } = scope;
   if (ownsUntaggedSharedRows(network)) {
-    // Deferred, and due before Preprod is switched on or filled: Mainnet's
-    // ledger (`buildLedgerSql`, the lateral `te` pick of the oldest Task
-    // event per transaction) still takes a Task event tagged Preprod whose
-    // transaction id equals a Mainnet one, and lends a Mainnet entry its
-    // Task, comment, filters and CSV membership. The fix excludes events
-    // tagged Preprod before the oldest-event pick, keeps untagged and Mainnet
-    // events, and changes Mainnet's ledger SQL and its recordings (ticket 29).
+    // Inside the lateral, before its oldest-event pick: a Preprod event of an equal transaction id never lends a Mainnet entry its Task.
     return {
-      taskEvent: PrismaRaw.sql`e."transactionId" = t."id"`,
+      taskEvent: PrismaRaw.sql`e."transactionId" = t."id" AND (e."network" IS NULL OR e."network" = ${network})`,
       image: PrismaRaw.sql`pij."transactionId" = t."id"`,
       seoChat: PrismaRaw.sql`sch."transactionId" = t."id"`,
       contacts: PrismaRaw.sql`cps."transactionId" = t."id"`,

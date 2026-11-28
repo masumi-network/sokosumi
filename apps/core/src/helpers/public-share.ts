@@ -81,6 +81,7 @@ const publicTaskInclude = {
       status: true,
       comment: true,
       cents: true,
+      network: true,
       transactionId: true,
       user: {
         select: {
@@ -126,8 +127,11 @@ function mapPublicTaskMilestone(
   // historical settled rows that stored a transaction but null cents.
   const creditsFromCents =
     event.cents != null ? convertCentsToCredits(event.cents) : null;
+  // A Preprod event's relation reads Mainnet's transaction of an equal id.
   const creditsFromSpend =
-    event.transaction?.amount != null && event.transaction.amount < 0n
+    event.network !== "preprod" &&
+    event.transaction?.amount != null &&
+    event.transaction.amount < 0n
       ? convertCentsToCredits(event.transaction.amount * -1n)
       : null;
   const credits = creditsFromCents ?? creditsFromSpend;

@@ -26,8 +26,9 @@ export function chargesCredits(network: Network): boolean {
  * Mainnet-only feature (images, SEO chat, contact search), which has no
  * Network column. All of them are Mainnet's. Another Network's ledger reads a
  * shared receipt only when it names that Network, so a Preprod entry never
- * picks up a Mainnet receipt of an equal id. The reverse is not closed yet:
- * see the Task event join in `history.ts`.
+ * picks up a Mainnet receipt of an equal id; Mainnet's reads a Task event
+ * only when it names no Network or Mainnet, so the reverse never happens
+ * either (`history.ts`).
  */
 const OWNS_UNTAGGED_SHARED_ROWS = {
   mainnet: true,
