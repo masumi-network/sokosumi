@@ -1,5 +1,7 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import {
+  buildOrganizationInvoiceCreditReferenceId,
+  buildUserInvoiceCreditReferenceId,
   type CreditBucketProjectOption,
   createEnterprisePeriodCreditBucket,
   createEnterpriseTopUpCreditBucket,
@@ -144,13 +146,6 @@ export interface PolarGrant extends GrantCommon, InCents {
   expiresAt: Date;
 }
 
-/*
- * The kind the last pull request of the credits cut brings, as its writer on
- * `origin/main` takes it. Its caller is not moved yet, so `grant` does not
- * take it: it is added to `BuiltGrant` by the pull request that moves its
- * writer, with its dispatch.
- */
-
 /**
  * One entry of a paid Stripe invoice (pull request 13): once per owner,
  * invoice and entry kind, by a reference composed of them. The caller wakes
@@ -166,7 +161,7 @@ export interface StripeInvoiceGrant extends GrantCommon, InCents {
   expiresAt: Date | null;
 }
 
-/** Every kind of grant, the ones `grant` takes now and the later ones. */
+/** Every kind of grant accepted by the credits module. */
 export type GrantRequest =
   | SignupBonusGrant
   | FreeGrant
@@ -174,14 +169,6 @@ export type GrantRequest =
   | EnterpriseGrant
   | PolarGrant
   | StripeInvoiceGrant;
-
-/** The kinds `grant` takes now. */
-export type BuiltGrant =
-  | SignupBonusGrant
-  | FreeGrant
-  | LocalFreePeriodGrant
-  | EnterpriseGrant
-  | PolarGrant;
 
 /** A new grant, with its bucket. */
 export interface Granted {
@@ -216,8 +203,58 @@ interface GrantResults {
   stripe_invoice: GrantedWithoutBucket | AlreadyGrantedWithoutBucket;
 }
 export type GrantResult<
-  Kind extends GrantRequest["kind"] = BuiltGrant["kind"],
+  Kind extends GrantRequest["kind"] = GrantRequest["kind"],
 > = GrantResults[Kind];
+
+type StripeEntry = Pick<StripeInvoiceGrant, "owner" | "invoiceId" | "entry">;
+
+/**
+ * Reads the keyed entry on the supplied client. The paid invoice checks its
+ * exact kind. Admin verifies its top-up after delivery by owner and reference
+ * alone: both a paid top-up and free invoice credits satisfy that check.
+ */
+export function findStripeInvoiceGrant(
+  db: Pick<Prisma.TransactionClient, "creditBucket">,
+  { owner, invoiceId, entry }: StripeEntry,
+  referenceType?: CreditBucketReferenceType,
+) {
+  const referenceId = stripeInvoiceReferenceId(owner, invoiceId, entry);
+  if (referenceType !== undefined) {
+    return findKeyedStripeGrant(db, referenceId, referenceType);
+  }
+  return db.creditBucket.findFirst({
+    where:
+      owner.userId !== undefined
+        ? { userId: owner.userId, organizationId: null, referenceId }
+        : { organizationId: owner.organizationId, referenceId },
+    select: { id: true },
+  });
+}
+
+function findKeyedStripeGrant(
+  db: Pick<Prisma.TransactionClient, "creditBucket">,
+  referenceId: string,
+  referenceType: CreditBucketReferenceType,
+) {
+  return db.creditBucket.findUnique({
+    where: { referenceId_referenceType: { referenceId, referenceType } },
+    select: { id: true },
+  });
+}
+
+function stripeInvoiceReferenceId(
+  owner: PersonOrPool,
+  invoiceId: string,
+  entry: StripeEntry["entry"],
+) {
+  return owner.userId !== undefined
+    ? buildUserInvoiceCreditReferenceId(owner.userId, invoiceId, entry)
+    : buildOrganizationInvoiceCreditReferenceId(
+        owner.organizationId,
+        invoiceId,
+        entry,
+      );
+}
 
 /**
  * Gives an owner credits: one positive transaction and its bucket, written by
@@ -225,15 +262,47 @@ export type GrantResult<
  * grant was already given; the caller owns who may grant, how much, the
  * transaction and its retries.
  */
-export async function grant<Input extends BuiltGrant>(
+export async function grant<Input extends GrantRequest>(
   input: Input,
 ): Promise<GrantResult<Input["kind"]>>;
 export async function grant(
-  input: BuiltGrant,
-): Promise<GrantResult<BuiltGrant["kind"]>> {
+  input: GrantRequest,
+): Promise<GrantResult<GrantRequest["kind"]>> {
   const { scope, tx } = input;
   // A scope that refuses its Network throws here, before anything is written.
   scope.network;
+
+  if (input.kind === "stripe_invoice") {
+    const { owner, invoiceId, entry, referenceType } = input;
+    const referenceId = stripeInvoiceReferenceId(owner, invoiceId, entry);
+    if (await findKeyedStripeGrant(tx, referenceId, referenceType)) {
+      return { outcome: "already_granted", bucketId: null };
+    }
+    const { cents } = input;
+    const userId = owner.userId ?? null;
+    const organizationId = owner.organizationId ?? null;
+    const bucket = {
+      amount: cents,
+      expiresAt: input.expiresAt,
+      referenceId,
+      referenceType,
+      userId,
+      organizationId,
+    };
+    await tx.transaction.create({
+      data: {
+        amount: cents,
+        ...(owner.userId !== undefined
+          ? { user: { connect: { id: owner.userId } } }
+          : { organizationId, userId: null }),
+        sourceCreditBucket: { create: bucket },
+      },
+    });
+    if (input.wakeTasks) {
+      await markOutOfCreditsTasksAsToppedUp({ organizationId, userId, tx });
+    }
+    return { outcome: "granted", bucketId: null };
+  }
 
   if (input.kind === "local_free_period") {
     const { owner } = input;
