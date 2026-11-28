@@ -1278,7 +1278,7 @@ describe("sync routes", () => {
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
       networkClients.mainnet,
-      { abortSignal: expect.any(AbortSignal) },
+      { abortSignal: expect.any(AbortSignal), write: expect.any(Function) },
     );
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });

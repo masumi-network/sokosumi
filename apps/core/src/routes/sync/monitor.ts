@@ -17,6 +17,10 @@ export interface CronMonitor {
   finish(status: "ok" | "error"): void;
 }
 
+function monitorSlugFor(lockKey: string) {
+  return lockKey.replace(/^preprod:/, "preprod-");
+}
+
 function monitorConfig(schedule: string, failureIssueThreshold: number) {
   return {
     schedule: { type: "crontab" as const, value: schedule },
@@ -40,7 +44,7 @@ export function startCronMonitor(input: {
 }): CronMonitor | null {
   const schedule = CRON_SCHEDULES.get(input.path);
   if (!schedule) return null;
-  const monitorSlug = input.lockKey;
+  const monitorSlug = monitorSlugFor(input.lockKey);
   const startedAt = Date.now();
   const checkInId = Sentry.captureCheckIn(
     { monitorSlug, status: "in_progress" },
@@ -78,7 +82,7 @@ export function reportCronIdleness(input: {
   if (!schedule) return;
   Sentry.captureCheckIn(
     {
-      monitorSlug: `${input.lockKey}-idle`,
+      monitorSlug: `${monitorSlugFor(input.lockKey)}-idle`,
       status: input.idle ? "error" : "ok",
     },
     monitorConfig(schedule, input.idleRunsAlert),
@@ -95,7 +99,7 @@ export function cronStillRunning(
   idleRunsAlert?: number,
 ): void {
   if (!CRON_SCHEDULES.has(path)) return;
-  Sentry.captureCheckIn({ monitorSlug: lockKey, status: "ok" });
+  Sentry.captureCheckIn({ monitorSlug: monitorSlugFor(lockKey), status: "ok" });
   if (idleRunsAlert !== undefined)
     reportCronIdleness({ path, lockKey, idle: false, idleRunsAlert });
 }
