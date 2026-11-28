@@ -541,6 +541,13 @@ async function send(
     await Promise.allSettled(background.splice(0));
   }
   const statements = sent.statements - before;
+  // The key's use is written at most once a minute: the world's first request
+  // writes it, as recorded. Held fresh after each request, outside the count,
+  // so a world whose requests span a minute on a slow runner writes no more.
+  await loaded.prisma.coworkerApiKey.updateMany({
+    where: { coworkerId: (await world.coworker()).id },
+    data: { lastUsedAt: new Date(Date.now() + 86_400_000) },
+  });
   const answer = text ? (JSON.parse(text) as Record<string, unknown>) : null;
   // A signed authorization carries its own expiry and signature.
   const signed = (answer?.data as { paymentHeader?: { value?: string } })
