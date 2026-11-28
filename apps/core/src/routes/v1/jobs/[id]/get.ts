@@ -119,7 +119,7 @@ async function readJobDetails(
   scope: NetworkScope,
   id: string,
   workspaceId: string,
-): Promise<Prisma.JobGetPayload<{ include: typeof jobInclude }> | null> {
+) {
   const { networkDb, sharedDb } = scope;
   const where = { id, workspaceId };
   if (networkUsesSharedSchema()) {

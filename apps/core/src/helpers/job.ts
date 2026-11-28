@@ -928,6 +928,7 @@ export async function loadJobSharedRelations<T extends Job>(
       }),
       db.organization.findMany({
         where: { id: { in: ids(jobs.map((job) => job.organizationId)) } },
+        ...jobListSummaryInclude.organization,
       }),
       db.user.findMany({
         where: {
@@ -935,6 +936,7 @@ export async function loadJobSharedRelations<T extends Job>(
             in: ids(jobs.flatMap((job) => [job.ownerId, job.creatorUserId])),
           },
         },
+        ...jobListSummaryInclude.owner,
       }),
       db.coworker.findMany({
         where: { id: { in: ids(jobs.map((job) => job.creatorCoworkerId)) } },
@@ -1020,6 +1022,12 @@ async function readSplitJobPage(
   const { networkDb, sharedDb, networkTable } = networkScope;
   const { sql, empty } = PrismaRaw;
   const jobTable = networkTable("Job");
+  const projectFilter =
+    projectId === undefined
+      ? empty
+      : projectId === null
+        ? sql`AND j."projectId" IS NULL`
+        : sql`AND j."projectId" = ${projectId}::uuid`;
   const matching = sql`
     FROM ${jobTable} j
     LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
@@ -1027,13 +1035,15 @@ async function readSplitJobPage(
     ${(options.scope ?? "owned") === "owned" ? sql`AND j."ownerId" = ${userContext.userId}` : empty}
     ${coworkerId ? buildCoworkerJobParentTaskSql(coworkerId, coworkerVendorId) : buildHumanJobParentVisibilitySql(userContext.userId)}
     ${agentId ? sql`AND j."agentId" = ${agentId}` : empty}
-    ${projectId === undefined ? empty : sql`AND j."projectId" IS NOT DISTINCT FROM ${projectId}::uuid`}
+    ${projectFilter}
     ${sokoBotId ? sql`AND t."assigneeSokoBotId" = ${sokoBotId}::uuid` : empty}
     ${
+      // Match Prisma's status binding so PostgreSQL can choose the same event index for counts.
       status
         ? sql`AND EXISTS (
       SELECT 1 FROM ${networkTable("jobEvent")} e
-      WHERE e."jobId" = j.id AND e.status = ${status}::${netType(networkScope.network, "AgentJobStatus")}
+      WHERE e."jobId" = j.id
+        AND e.status = ${status}::text::${netType(networkScope.network, "AgentJobStatus")}
     )`
         : empty
     }

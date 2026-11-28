@@ -12,6 +12,7 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import {
+  assertMainnetScope,
   type NetworkScope,
   networkUsesSharedSchema,
   type SharedDb,
@@ -1131,10 +1132,14 @@ export async function requireJobRead(
   legacyTx?: Prisma.TransactionClient,
 ): Promise<Job> {
   const { workspaceId } = workspaceContext;
+  // The chat preview's legacy transaction must keep its Mainnet snapshot.
+  if (legacyTx) assertMainnetScope(scope);
   const networkDb = scope.networkDb;
+  const sharedLayout = networkUsesSharedSchema();
+  const jobDb = sharedLayout && legacyTx ? legacyTx : networkDb;
 
   const job =
-    readerUserId && !networkUsesSharedSchema()
+    readerUserId && !sharedLayout
       ? (
           await (legacyTx ?? networkDb).$queryRaw<Job[]>`
             SELECT j.*
@@ -1144,7 +1149,7 @@ export async function requireJobRead(
             ${buildHumanJobParentVisibilitySql(readerUserId)}
           `
         )[0]
-      : await (legacyTx ?? networkDb).job.findFirst({
+      : await jobDb.job.findFirst({
           where: {
             id: jobId,
             workspaceId,

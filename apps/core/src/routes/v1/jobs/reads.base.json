@@ -362,5 +362,103 @@
     "count": 12,
     "ordered": "5eed8b38c1788ef108b2ca6969adb0859e853f729336de58618fc4fce079e6b0",
     "parallel": "ba11c0d08869adf00b4e42207da8138a0ca848f772c33024ec350d9182358635"
+  },
+  "personal workspace implicit": {
+    "status": 200,
+    "body": "11ee18874e70550243d87ad804bce010e6326987d4f80b06144082bc263c8bee",
+    "count": 19,
+    "ordered": "c549331f910b64ac846aac54563fc0618520ceef15d2ddeb29b6e0a52bdf0aff",
+    "parallel": "3c0ccbb1c875c361fc8c1e2ca12962da76ad3eca2fc8a60250ddb69fbc5446a4"
+  },
+  "personal workspace mainnet": {
+    "status": 200,
+    "body": "11ee18874e70550243d87ad804bce010e6326987d4f80b06144082bc263c8bee",
+    "count": 19,
+    "ordered": "c549331f910b64ac846aac54563fc0618520ceef15d2ddeb29b6e0a52bdf0aff",
+    "parallel": "3c0ccbb1c875c361fc8c1e2ca12962da76ad3eca2fc8a60250ddb69fbc5446a4"
+  },
+  "standalone detail implicit": {
+    "status": 200,
+    "body": "1fde463e3bd3f55393c4f9b3fd86fda9024eaf16cccda4c6beca569e99706bcc",
+    "count": 25,
+    "ordered": "e9b56fe50bd4533b99bee9eed5fc3a36b252c118b4521d185a1f12ffb73f5f51",
+    "parallel": "411526642310e86913ef812f8cef8eb9794c1702656fc208f83e3f7ac7459cf3"
+  },
+  "standalone detail mainnet": {
+    "status": 200,
+    "body": "1fde463e3bd3f55393c4f9b3fd86fda9024eaf16cccda4c6beca569e99706bcc",
+    "count": 25,
+    "ordered": "e9b56fe50bd4533b99bee9eed5fc3a36b252c118b4521d185a1f12ffb73f5f51",
+    "parallel": "411526642310e86913ef812f8cef8eb9794c1702656fc208f83e3f7ac7459cf3"
+  },
+  "project filter implicit": {
+    "status": 200,
+    "body": "6358e05f11745310f4522d4aae736a85de7254d6e8592d2c81b308266d5de531",
+    "count": 19,
+    "ordered": "a81603d6a70109e17fe0135411d475a434afc8e138dbe9b238d9c120dddee558",
+    "parallel": "e150ebbc4b86ad2d64f608d18dd88f6864ed5a674461b09ca3be3f8e314898fe"
+  },
+  "project filter mainnet": {
+    "status": 200,
+    "body": "6358e05f11745310f4522d4aae736a85de7254d6e8592d2c81b308266d5de531",
+    "count": 19,
+    "ordered": "a81603d6a70109e17fe0135411d475a434afc8e138dbe9b238d9c120dddee558",
+    "parallel": "e150ebbc4b86ad2d64f608d18dd88f6864ed5a674461b09ca3be3f8e314898fe"
+  },
+  "null project filter implicit": {
+    "status": 200,
+    "body": "f6558e2f3560c8bcf7325791fe6ff72953383d43fda94fcf7a971146311c3812",
+    "count": 19,
+    "ordered": "db8c89508b1d361f3f41691e29a95f3a9117b97c06b688aeab66b7b7852d9559",
+    "parallel": "c635f3ddff89fa6a5131f1e32b87f41deeda27ac6606b74e200b750d2df37f56"
+  },
+  "null project filter mainnet": {
+    "status": 200,
+    "body": "f6558e2f3560c8bcf7325791fe6ff72953383d43fda94fcf7a971146311c3812",
+    "count": 19,
+    "ordered": "db8c89508b1d361f3f41691e29a95f3a9117b97c06b688aeab66b7b7852d9559",
+    "parallel": "c635f3ddff89fa6a5131f1e32b87f41deeda27ac6606b74e200b750d2df37f56"
+  },
+  "coworker standalone detail implicit": {
+    "status": 403,
+    "body": "a59ece516495e22100d59b78f0f064ce053837bca77c22338c769d9f986e3201",
+    "count": 8,
+    "ordered": "20f5c2c6f6a3c36f5719cbf91bd9f6b2501bceb8bd1c502731759a6e4fe827f2",
+    "parallel": "ac4bdf2f9746d0a071bd5d559332c5c736188d63f95642a6cc35a3232f5915aa"
+  },
+  "coworker standalone detail mainnet": {
+    "status": 403,
+    "body": "a59ece516495e22100d59b78f0f064ce053837bca77c22338c769d9f986e3201",
+    "count": 8,
+    "ordered": "20f5c2c6f6a3c36f5719cbf91bd9f6b2501bceb8bd1c502731759a6e4fe827f2",
+    "parallel": "ac4bdf2f9746d0a071bd5d559332c5c736188d63f95642a6cc35a3232f5915aa"
+  },
+  "coworker personal list implicit": {
+    "status": 200,
+    "body": "d7437b71702329ff0163b2997589563fd9beb438d522ac8aeec2d1e6f2e1163a",
+    "count": 23,
+    "ordered": "4380312cbfd4b3af064a2e89c6549d8f46b3459aa1169887ad5d4f52d96dc635",
+    "parallel": "295482827ffa850340129d72ec132cf528ab7be68d3e33c3c038028eb008669b"
+  },
+  "coworker personal list mainnet": {
+    "status": 200,
+    "body": "d7437b71702329ff0163b2997589563fd9beb438d522ac8aeec2d1e6f2e1163a",
+    "count": 23,
+    "ordered": "4380312cbfd4b3af064a2e89c6549d8f46b3459aa1169887ad5d4f52d96dc635",
+    "parallel": "295482827ffa850340129d72ec132cf528ab7be68d3e33c3c038028eb008669b"
+  },
+  "bot standalone detail implicit": {
+    "status": 403,
+    "body": "4b61c129b6687f486632978ef3f31c2cefb607fe81a84332ad27ea25b89837ae",
+    "count": 7,
+    "ordered": "2d4d69d6de8df9fb59aed2f30d23698d698429850535d06fa0a15deb5e643403",
+    "parallel": "301d3132e7c554ad84b867ed3b87b7d025d0997d33baee655d223695f3fa3204"
+  },
+  "bot standalone detail mainnet": {
+    "status": 403,
+    "body": "4b61c129b6687f486632978ef3f31c2cefb607fe81a84332ad27ea25b89837ae",
+    "count": 7,
+    "ordered": "2d4d69d6de8df9fb59aed2f30d23698d698429850535d06fa0a15deb5e643403",
+    "parallel": "301d3132e7c554ad84b867ed3b87b7d025d0997d33baee655d223695f3fa3204"
   }
 }

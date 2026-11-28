@@ -2058,6 +2058,15 @@ if (false) {
 }
 
 describe("requireJobRead", () => {
+  it("rejects a legacy transaction outside Mainnet", async () => {
+    const tx = createTransactionClient();
+    const scope = { ...jobReadScope(tx), network: "preprod" } as const;
+    await expect(
+      requireJobRead(jobReadWorkspaceContext, "job_123", scope, "user_123", tx),
+    ).rejects.toThrow("Expected the Mainnet scope, got preprod's");
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+
   it("uses workspace-scoped job reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({

@@ -54,8 +54,11 @@ const plainWorkspace = "25000000-0000-4000-8000-000000000003";
 const family = "25000000-0000-4000-8000-000000000004";
 const otherFamily = "25000000-0000-4000-8000-000000000005";
 const botId = "25000000-0000-4000-8000-000000000006";
+const projectId = "25000000-0000-4000-8000-000000000007";
 const agentId = "job-reads-agent";
 const twin = "job-reads-twin";
+const projectJob = "job-reads-project-job";
+const standaloneJob = "job-reads-standalone-job";
 const base = `/v1/jobs/${twin}`;
 const routes = {
   list: "/v1/jobs?scope=workspace&limit=2",
@@ -74,11 +77,16 @@ const auth = (token: string): Record<string, string> => ({
 const organization = { "X-Organization-Slug": organizationId };
 const owner = { ...auth(ownerId), ...organization };
 const member = { ...auth(memberId), ...organization };
+const personalOwner = auth(ownerId);
 const coworker = (kind: string) => ({
   ...auth(`coworker_job_reads_${kind}`),
   "X-Context-User-Id": ownerId,
   "X-Context-Organization-Id": organizationId,
 });
+const personalCoworker = {
+  ...auth("coworker_job_reads_assigned"),
+  "X-Context-User-Id": ownerId,
+};
 const bot = auth("sokoBot_job_reads_personal");
 
 async function setup() {
@@ -168,6 +176,14 @@ async function setup() {
       { id: otherFamily, name: "Other", slug: "job-reads-other" },
     ],
   });
+  await shared.vendorGrant.create({
+    data: {
+      vendorId: family,
+      workspaceId: personalWorkspace,
+      permission: "workspace",
+      status: "GRANTED",
+    },
+  });
   for (const [kind, vendorId] of [
     ["assigned", family],
     ["sibling", family],
@@ -239,6 +255,9 @@ async function setup() {
       ...row,
     })) as Prisma.TaskCreateManyInput[],
   });
+  await shared.project.create({
+    data: { id: projectId, workspaceId: personalWorkspace, name: "Job reads" },
+  });
 
   async function seed(network: "mainnet" | "preprod") {
     const { networkDb } = createNetworkScope(network);
@@ -274,6 +293,18 @@ async function setup() {
               organizationId: null,
               workspaceId: personalWorkspace,
               creatorUserId: ownerId,
+            },
+            {
+              ...job(projectJob, ownerId, null, 2),
+              organizationId: null,
+              workspaceId: personalWorkspace,
+              creatorUserId: memberId,
+              projectId,
+            },
+            {
+              ...job(standaloneJob, ownerId, null, 1),
+              organizationId: null,
+              workspaceId: personalWorkspace,
             },
           ]),
     ];
@@ -367,7 +398,7 @@ async function setup() {
   function job(
     id: string,
     owner: string,
-    taskId: string,
+    taskId: string | null,
     rank: number,
   ): Prisma.JobCreateManyInput & { id: string } {
     return {
@@ -398,9 +429,6 @@ async function setup() {
   const core = createCoreApp();
   let session: Record<string, string> = {};
   if (onSplitLayout) {
-    // The throwaway copy still has this pre-cutover key in addition to the
-    // Network-qualified History key. Drop it only in this fixture.
-    await shared.$executeRaw`DROP INDEX IF EXISTS "shared"."history_kind_entityId_key"`;
     await shared.account.create({
       data: {
         userId: ownerId,
@@ -505,6 +533,21 @@ const cases: Record<string, [string, Record<string, string>, number]> = {
     owner,
     404,
   ],
+  "personal workspace": [routes.list, personalOwner, 200],
+  "standalone detail": [`/v1/jobs/${standaloneJob}`, personalOwner, 200],
+  "project filter": [
+    `${routes.list}&projectId=${projectId}`,
+    personalOwner,
+    200,
+  ],
+  "null project filter": [`${routes.list}&projectId=null`, personalOwner, 200],
+  "coworker standalone detail": [
+    `/v1/jobs/${standaloneJob}`,
+    personalCoworker,
+    403,
+  ],
+  "coworker personal list": [routes.list, personalCoworker, 200],
+  "bot standalone detail": [`/v1/jobs/${standaloneJob}`, bot, 403],
 };
 
 async function expectRefusals(
