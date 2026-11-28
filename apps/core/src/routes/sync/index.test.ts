@@ -617,6 +617,10 @@ describe("sync routes", () => {
     // where it lives, in agent-sync.service.test.ts; this pins only that the
     // signal is handed over at all.
     expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({
+        getCardanoV2RailReadiness: expect.any(Function),
+      }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     // Strictly sequenced: the registry sync only starts once the readiness
@@ -645,6 +649,10 @@ describe("sync routes", () => {
     // Same treatment as the Cardano readiness: an abort signal so a hung
     // payment node cannot pin the sync lock past its hard timeout.
     expect(syncX402BuySideReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({
+        getX402AvailableNetworks: expect.any(Function),
+      }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     // Runs after the Cardano readiness refresh, before the registry replay.
