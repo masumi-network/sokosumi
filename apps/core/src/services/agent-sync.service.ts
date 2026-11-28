@@ -24,7 +24,6 @@ import {
 import { networkKey } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
-import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
 
 import {
   consolidateDuplicateAgentRelations,
@@ -49,7 +48,10 @@ import {
 } from "./agent-sync.projection.js";
 import { syncCardanoV2RailReadiness } from "./agent-sync.readiness.js";
 import { evaluateRevisionExposureGuard } from "./agent-sync.revision-guard.js";
-import type { networkSyncLease } from "./network-sync-lease.js";
+import {
+  isNetworkSyncRefusal,
+  type networkSyncLease,
+} from "./network-sync-lease.js";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 /**
@@ -965,7 +967,7 @@ async function runRegistrySync(
         processedEntryCount++;
         lastProcessedCursor = entryCursor;
       } catch (error) {
-        if (error instanceof DetachedNetworkRefusal) throw error;
+        if (isNetworkSyncRefusal(error)) throw error;
         // Failure (infra error, or a data shape the defensive parsing above
         // did not anticipate): stop the batch WITHOUT advancing the cursor
         // past this entry so the next run retries it. Transient errors
@@ -1144,7 +1146,7 @@ async function runSummarySync(
       }
       run.updated++;
     } catch (error) {
-      if (error instanceof DetachedNetworkRefusal) throw error;
+      if (isNetworkSyncRefusal(error)) throw error;
       run.failed++;
       // The AI call's error can quote the description and the update's the
       // summary, so only the error's shape is logged.

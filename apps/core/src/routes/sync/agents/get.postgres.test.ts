@@ -11,7 +11,7 @@ import {
   vi,
 } from "vitest";
 import type { NetworkScope } from "@/lib/db/network-scope";
-import { expectCoreLog } from "@/test/core-log";
+import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import {
   registrySyncRevision,
   stubMasumiSyncHttp,
@@ -152,6 +152,19 @@ async function seedAgent(
   });
 }
 
+function writeGate() {
+  const reached = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  return {
+    reached: reached.promise,
+    release: release.resolve,
+    async wait() {
+      reached.resolve();
+      await release.promise;
+    },
+  };
+}
+
 if (enabled) {
   beforeAll(async () => {
     const source =
@@ -248,6 +261,133 @@ describe.runIf(enabled && onSplitLayout)(
       preprod = createNetworkScope("preprod");
       await setControl(control.PREPROD_PAUSE_KEY, "open");
     });
+
+    const invalidations = [
+      "pause",
+      "generation raise",
+      "lease takeover",
+    ] as const;
+
+    async function expectRefusedTick<T>(
+      cron: "agents" | "agents-summary",
+      gate: ReturnType<typeof writeGate>,
+      invalidation: (typeof invalidations)[number],
+      snapshot: () => Promise<T>,
+    ) {
+      const lockKey = `preprod:${cron}-sync`;
+      const stale = await request(`/preprod/${cron}`);
+      let before: T;
+      try {
+        expect(stale).toMatchObject({
+          status: 200,
+          body: { message: "Syncing started" },
+        });
+        await Promise.race([
+          gate.reached,
+          stale.done.then(() => {
+            throw new Error("The cron finished before reaching the write gate");
+          }),
+        ]);
+        before = await snapshot();
+        switch (invalidation) {
+          case "pause":
+            await setControl(control.PREPROD_PAUSE_KEY, "paused");
+            break;
+          case "generation raise":
+            await control.raisePreprodGeneration();
+            break;
+          case "lease takeover":
+            await mainnet.sharedDb.lock.update({
+              where: { key: lockKey },
+              data: { lockedBy: "successor" },
+            });
+            expectCoreLog("warn", "A scheduled sync's lock was not released");
+            break;
+        }
+      } finally {
+        gate.release();
+        await stale.done;
+      }
+      expect(await snapshot()).toEqual(before);
+      expect(coreLogEvents()).toContainEqual(
+        expect.objectContaining({
+          operation: "cron_sync",
+          sync: expect.objectContaining({ lockKey, outcome: "skipped" }),
+        }),
+      );
+    }
+
+    it.each(invalidations)(
+      "preserves an existing Preprod Agent revision and its prices after %s",
+      async (invalidation) => {
+        const { resolveRegistryAgentVersion } = await import(
+          "@/services/agent-sync.projection"
+        );
+        stubMasumiSyncHttp();
+        await tick("/preprod/agents");
+        await setControl(preprodCursor, "last-committed-entry");
+        const first = registrySyncRevision(1);
+        await seedAgent(preprod, "existing", first.name, 52, {
+          blockchainIdentifier: first.agentIdentifier,
+          registryIdentity: resolveRegistryAgentVersion(first).registryIdentity,
+          registryVersion: 1,
+        });
+
+        const gate = writeGate();
+        const node = stubMasumiSyncHttp(gate.wait);
+        node.registryEntries = [{ ...registrySyncRevision(2), tags: [] }];
+        await expectRefusedTick("agents", gate, invalidation, async () => ({
+          agents: await agents(preprod),
+          cursor: await mainnet.sharedDb.syncMetadata.findUniqueOrThrow({
+            where: { key: preprodCursor },
+          }),
+        }));
+      },
+    );
+
+    describe.each([
+      ["Cardano", "/payment/rail-readiness"],
+      ["x402", "/payment/x402/networks/available"],
+    ])("%s readiness", (_rail, path) => {
+      it.each(invalidations)(
+        "preserves Preprod readiness and failure markers after %s",
+        async (invalidation) => {
+          const keys = [
+            "preprod:cardano-v2-rail-readiness",
+            "preprod:x402-buy-side-readiness",
+          ].flatMap((key) => [key, key + "-failure"]);
+          for (const key of keys) {
+            await setControl(key, key.endsWith("-failure") ? "failed" : "[]");
+          }
+          const gate = writeGate();
+          const node = stubMasumiSyncHttp();
+          node.beforePaymentReply = async (pathname) => {
+            if (pathname === path) await gate.wait();
+          };
+          await expectRefusedTick("agents", gate, invalidation, () =>
+            mainnet.sharedDb.syncMetadata.findMany({
+              where: { key: { in: [...keys, preprodCursor] } },
+              orderBy: { key: "asc" },
+            }),
+          );
+        },
+      );
+    });
+
+    it.each(invalidations)(
+      "preserves a Preprod Agent's missing summary after %s",
+      async (invalidation) => {
+        await seedAgent(preprod, "pending", "Preprod description", 52);
+        const gate = writeGate();
+        state.summary.mockImplementationOnce(async () => {
+          await gate.wait();
+          return { kind: "summary", text: "Generated Preprod summary" };
+        });
+        await expectRefusedTick("agents-summary", gate, invalidation, () =>
+          agents(preprod),
+        );
+      },
+    );
 
     it("projects, consolidates and replays only the selected Network", async () => {
       const { resolveRegistryAgentVersion } = await import(

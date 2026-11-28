@@ -24,6 +24,7 @@ import {
   computeEnabledPricedNetworks,
   type PurchasingWalletWithBalances,
 } from "./agent-sync.x402-readiness.compose";
+import { isNetworkSyncRefusal } from "./network-sync-lease.js";
 
 /**
  * Ceilings for far-side error text echoed into logs and Sentry. Each check
@@ -165,7 +166,7 @@ function summarizeEmptyX402Readiness(
  * x402 listing is hidden (fail closed), which is why the two cases alert
  * differently.
  *
- * Accepted race: cross-instance ordering comes from the agents-sync
+ * Accepted Mainnet race: cross-instance ordering comes from the agents-sync
  * distributed lock, which is stealable after LOCK_TIMEOUT. A holder stalled
  * that long can commit straggler writes here (the DB writes deliberately take
  * no abort signal and do not re-check lock ownership — readiness is advisory
@@ -175,6 +176,7 @@ function summarizeEmptyX402Readiness(
  * corrects the marker. Fencing every write on ownerToken is sync-lock-wide
  * work, not x402-specific; not worth the machinery for a one-cycle,
  * fail-closed window.
+ * Preprod writes check ownership, expiry, pause and generation in their transaction.
  *
  * Returns whether the ready source set CHANGED.
  */
@@ -314,6 +316,7 @@ export async function syncX402BuySideReadiness(
         );
       }
     } catch (markerError) {
+      if (isNetworkSyncRefusal(markerError)) throw markerError;
       // Readiness is advisory and must never crash the sync loop.
       emitCoreWarning(
         { operation: OPERATION },
@@ -345,6 +348,7 @@ export async function syncX402BuySideReadiness(
       serializedReadySources,
     );
   } catch (cacheError) {
+    if (isNetworkSyncRefusal(cacheError)) throw cacheError;
     // Readiness is advisory and must never crash the sync loop. A failed
     // write leaves the old cache intact, so retry on the next cycle.
     emitCoreWarning(
@@ -362,6 +366,7 @@ export async function syncX402BuySideReadiness(
   try {
     await clearReadinessFailure(scope, "x402");
   } catch (cleanupError) {
+    if (isNetworkSyncRefusal(cleanupError)) throw cleanupError;
     // Cache persistence already succeeded. Keep readinessChanged so source
     // changes still propagate; retry marker cleanup next time. Loud, not just
     // a log line: while the stale marker survives, the createMany latch above

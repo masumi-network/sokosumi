@@ -11,6 +11,7 @@ import { agentSyncService } from "@/services/agent-sync.service";
 // service file sits at the size ceiling and the x402 readiness sync has no
 // other reason to pass through it.
 import { syncX402BuySideReadiness } from "@/services/agent-sync.x402-readiness";
+import { isNetworkSyncRefusal } from "@/services/network-sync-lease";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -92,6 +93,7 @@ export default function mount(app: Hono) {
           // exceptional — e.g. initializing the payment readiness check or getEnv() failing on
           // misconfiguration — and must not abort the registry sync: swallow it,
           // last-known readiness stays served, and the next cron retries.
+          // A Preprod write refusal ends the tick before registry work starts.
           try {
             await syncX402BuySideReadiness(readinessScope, payment, {
               signal: AbortSignal.any([
@@ -100,6 +102,7 @@ export default function mount(app: Hono) {
               ]),
             });
           } catch (error) {
+            if (isNetworkSyncRefusal(error)) throw error;
             logCoreWarning(context.log, {
               message:
                 "The x402 buy-side readiness sync failed; the registry sync continues",

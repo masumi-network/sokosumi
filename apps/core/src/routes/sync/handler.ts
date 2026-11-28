@@ -77,7 +77,8 @@ export interface SyncRequestOptions {
   /**
    * For a sync that always has work in production: this many runs in a row
    * that report no work (`reportWork`) open a Sentry issue on the cron's
-   * idle monitor. Failed runs stay on the run monitor.
+   * idle monitor. Failed runs stay on the run monitor. Network crons use
+   * only the run monitor.
    */
   idleRunsAlert?: number;
   /** A feature flag: while it is off, an authenticated tick returns before the lock, so it writes nothing. */

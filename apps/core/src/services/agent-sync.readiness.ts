@@ -12,6 +12,8 @@ import {
 import type { NetworkScope } from "@/lib/db/network-scope";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 
+import { isNetworkSyncRefusal } from "./network-sync-lease.js";
+
 /**
  * The retry budget: what one attempt gets, how long the loop waits between
  * attempts, and the ceiling on the whole check.
@@ -293,6 +295,7 @@ async function refreshCardanoV2RailReadiness(
         );
       }
     } catch (markerError) {
+      if (isNetworkSyncRefusal(markerError)) throw markerError;
       // Readiness is advisory and must never crash the registry sync loop.
       logCoreWarning(log, {
         message:
@@ -325,6 +328,7 @@ async function refreshCardanoV2RailReadiness(
       serializedReadySources,
     );
   } catch (cacheError) {
+    if (isNetworkSyncRefusal(cacheError)) throw cacheError;
     // Readiness is advisory and must never crash the registry sync loop. A
     // failed write leaves the old cache intact, so retry on the next cycle.
     logCoreWarning(log, {
@@ -340,6 +344,7 @@ async function refreshCardanoV2RailReadiness(
   try {
     await clearReadinessFailure(scope, "cardanoV2");
   } catch (cleanupError) {
+    if (isNetworkSyncRefusal(cleanupError)) throw cleanupError;
     // Cache persistence already succeeded. Keep readinessChanged so source
     // changes still trigger a registry replay; retry marker cleanup next time.
     logCoreWarning(log, {
