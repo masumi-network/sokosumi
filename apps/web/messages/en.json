@@ -8050,6 +8050,7 @@
         "notYet": "Not yet",
         "windowRange": "{start} to {end}",
         "readyOn": "Data final on {date}",
+        "closingEvidence": "{row} · {device}: baseline {baseline}, rechecked {checked}",
         "sources": {
           "cuso_done": "Marked done",
           "audit_recheck": "Audit recheck"

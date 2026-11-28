@@ -32,6 +32,7 @@ function row(): ProjectSeoObservation {
     artifactHash: "a".repeat(64),
     observedAt: new Date(CHECKED_AT),
     createdAt: new Date(CHECKED_AT),
+    needsAuditRecheck: false,
     payload: {
       version: 1,
       taskId: "task_1",
