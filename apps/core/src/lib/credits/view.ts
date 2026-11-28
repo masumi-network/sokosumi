@@ -8,14 +8,36 @@ import {
   findTransactionHistoryPage,
   sumTransactionHistory,
 } from "./history";
+import { chargesCredits } from "./policy";
 
 type HistoryFilter = Omit<BuildTransactionHistoryParams, "billingScope">;
 
-/** Keep the existing Mainnet view even when the request middleware supplied a refused scope. */
-export function creditViewForRequest(_requestScope: NetworkScope) {
-  const billingScope = createNetworkScope("mainnet");
+/**
+ * The request's Network: its scope when it works, else Mainnet's, the view a
+ * refused scope kept before (a header for a Network the caller may not use).
+ */
+function viewedScope(requestScope: NetworkScope): NetworkScope {
+  try {
+    // A refusing scope throws on this read; it reads nothing.
+    void requestScope.network;
+  } catch {
+    return createNetworkScope("mainnet");
+  }
+  return requestScope;
+}
+
+/**
+ * The credit views of a request's Network. `network` and `charged` say what
+ * every figure is: one Network's, and charged (Mainnet) or only recorded at
+ * its price (Preprod). A total of one Network never includes the other's.
+ */
+export function creditViewForRequest(requestScope: NetworkScope) {
+  const billingScope = viewedScope(requestScope);
+  const { network } = billingScope;
   return {
     billingScope,
+    network,
+    charged: chargesCredits(network),
     funding: (
       params: Omit<Parameters<typeof buildCreditsPayload>[0], "scope">,
     ) => buildCreditsPayload({ ...params, scope: billingScope }),

@@ -92,6 +92,7 @@ async function spendUsage(input: {
     charge = await spend({
       scope,
       tx,
+      kind: "coworker_usage",
       payer: { userId, organizationId, projectId: null },
       quotedCents: cents,
       mode: "in_full_or_zero",

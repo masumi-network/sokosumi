@@ -104,7 +104,15 @@ function spendInFull(
   cents: bigint,
 ) {
   return scope.sharedTransaction(
-    (tx) => spend({ scope, tx, payer, quotedCents: cents, mode: "in_full" }),
+    (tx) =>
+      spend({
+        scope,
+        tx,
+        kind: "competitor_check",
+        payer,
+        quotedCents: cents,
+        mode: "in_full",
+      }),
     "Spend writer fixture conflict",
   );
 }

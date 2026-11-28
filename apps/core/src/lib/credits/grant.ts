@@ -15,6 +15,7 @@ import {
 
 import type { NetworkScope } from "@/lib/db/network-scope";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
+import { requireChargingNetwork } from "./policy";
 
 /**
  * What every grant takes, whatever its kind. A kind adds its own owner,
@@ -269,8 +270,9 @@ export async function grant(
   input: GrantRequest,
 ): Promise<GrantResult<GrantRequest["kind"]>> {
   const { scope, tx } = input;
-  // A scope that refuses its Network throws here, before anything is written.
-  scope.network;
+  // A scope that refuses its Network throws here, before anything is written;
+  // so does Preprod's, which charges no credits and has no grants.
+  requireChargingNetwork(scope.network, "A credit grant");
 
   if (input.kind === "stripe_invoice") {
     const { owner, invoiceId, entry, referenceType } = input;
@@ -495,7 +497,7 @@ export async function expireEnterpriseGrants(input: {
   now: Date;
 }): Promise<number> {
   // A scope that refuses its Network throws here, before anything is written.
-  input.scope.network;
+  requireChargingNetwork(input.scope.network, "Expiring enterprise credits");
   return await expireCreditBucketsNow(
     {
       now: input.now,

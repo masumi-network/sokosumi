@@ -88,6 +88,7 @@ describe.skipIf(!enabled)("the modes of a spend (PostgreSQL)", () => {
           spend({
             scope,
             tx,
+            kind: "coworker_usage",
             payer,
             quotedCents: 0n,
             mode: "in_full_or_zero",
@@ -119,6 +120,7 @@ describe.skipIf(!enabled)("the modes of a spend (PostgreSQL)", () => {
             spend({
               scope,
               tx,
+              kind: "soko_bot_turn",
               payer,
               quotedCents: 120n,
               mode: "up_to_balance" satisfies SpendMode,
@@ -173,6 +175,7 @@ describe.skipIf(!enabled)("the modes of a spend (PostgreSQL)", () => {
             spend({
               scope,
               tx,
+              kind: "soko_bot_turn",
               payer,
               quotedCents: 120n,
               mode: "up_to_balance",
