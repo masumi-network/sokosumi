@@ -48,6 +48,7 @@ const isRead = (check: Check) =>
 function checksByIssue(audit: RecheckAudit) {
   const checks = new Map<string, Check>();
   for (const check of audit.payload.checks) {
+    if (check.outsideSiteMarket) continue;
     const key = issueIdentity(audit.payload, check);
     if (!checks.has(key)) checks.set(key, check);
   }

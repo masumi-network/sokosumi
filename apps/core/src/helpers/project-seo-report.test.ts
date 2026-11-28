@@ -572,6 +572,44 @@ describe("public SEO report trust boundary", () => {
     }
   });
 
+  it("marks site checklist rows that are outside the site's market", () => {
+    const raw = legacyReport();
+    const page = (url: string, country: string) => ({
+      ...raw,
+      request: { url },
+      header: {
+        ...raw.header,
+        market: { country, language: "en" },
+        finalUrl: { desktop: url },
+      },
+      checklist: raw.checklist.map((check) => ({
+        ...check,
+        result: "pass",
+        ruleKey: "0123456789abcdef",
+        pageOnly: true,
+      })),
+    });
+    const { checks } = parsePublicSeoArtifact({
+      kind: "site",
+      rulebookVersion: raw.rulebookVersion,
+      pages: [page(SEO_TEST_PAGE, "US"), page(SEO_TEST_SECOND_PAGE, "DE")],
+    });
+
+    expect(
+      checks.find((check) => check.pageUrl === SEO_TEST_PAGE),
+    ).toMatchObject({
+      pageOnly: true,
+      result: "pass",
+    });
+    const otherMarket = checks.find(
+      (check) => check.pageUrl === SEO_TEST_SECOND_PAGE,
+    );
+    expect(otherMarket).toMatchObject({
+      result: "pass",
+      outsideSiteMarket: true,
+    });
+  });
+
   it("refuses private Google evidence before projecting public fields, including nested site pages", () => {
     expect(() =>
       parsePublicSeoArtifact({

@@ -106,6 +106,18 @@ describe("recheckSeoAuditActions", () => {
     ]);
   });
 
+  it("ignores an out-of-market pass both as a recheck and as a baseline", () => {
+    const earlier = audit("e", 1, [row("fired")]);
+    const other = audit("x", 5, [row("pass", { outsideSiteMarket: true })]);
+    const next = audit("n", 9, [row("pass")]);
+
+    expect(recheck(other, earlier)?.status).toBe("not_compared");
+    expect(recheck(next, earlier, other)?.pairs[0]).toMatchObject({
+      outcome: "closed",
+      baselineObservationId: earlier.id,
+    });
+  });
+
   it.each([
     ["a changed rule key", { ruleKey: "fedcba9876543210" }],
     ["no final address", { finalUrl: undefined }],

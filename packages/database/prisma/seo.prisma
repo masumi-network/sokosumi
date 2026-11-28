@@ -95,6 +95,7 @@ model ProjectSeoObservation {
   payload      Json
   observedAt   DateTime
   createdAt    DateTime  @default(now())
+  needsAuditRecheck Boolean @default(false)
   rankPoints   ProjectSeoRankPoint[]
   actionStatuses ProjectSeoAuditActionStatus[]
 

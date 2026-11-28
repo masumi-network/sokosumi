@@ -47,6 +47,7 @@ function snapshot(
     artifactHash: "a".repeat(64),
     createdAt: new Date(at),
     observedAt: new Date(at),
+    needsAuditRecheck: false,
     payload: { auditPageUrl: seed, targetUrls: targets, evidence },
   };
 }

@@ -37,7 +37,11 @@ const RULE_KEYS: Record<string, string> = {
 async function audit(
   observedAt: Date,
   results: Result | Array<[rowId: string, Result]>,
-  { action = true } = {},
+  {
+    action = true,
+    needsAuditRecheck = true,
+    project = projectId,
+  }: { action?: boolean; needsAuditRecheck?: boolean; project?: string } = {},
 ) {
   const rows: Array<[string, Result]> =
     typeof results === "string" ? [["title", results]] : results;
@@ -94,13 +98,14 @@ async function audit(
   };
   return await prisma.projectSeoObservation.create({
     data: {
-      projectId,
+      projectId: project,
       kind: "audit_full",
       source: "seo_coworker",
       sourceKey: `test:${randomUUID()}`,
       artifactHash: randomUUID(),
       payload,
       observedAt,
+      needsAuditRecheck,
     },
   });
 }
@@ -158,6 +163,48 @@ describe.skipIf(!enabled)("SEO audit recheck against PostgreSQL", () => {
     ]);
   });
 
+  it("omits missing evidence and observations from another project", async () => {
+    const other = await prisma.project.create({
+      data: { workspaceId, name: "Other project" },
+    });
+    const baseline = await audit(BEFORE, "fired", { project: other.id });
+    const checked = await audit(AFTER, "pass");
+    const common = {
+      projectId,
+      changeSource: "audit_recheck",
+      changedAt: AFTER,
+      state: "waiting_crawl",
+    } as const;
+    await prisma.projectSeoImpactVerdict.createMany({
+      data: [
+        {
+          ...common,
+          pageUrl: PAGE,
+          closingEvidence: [
+            {
+              rowId: "title",
+              device: "mobile",
+              baselineObservationId: baseline.id,
+              checkedObservationId: checked.id,
+            },
+          ],
+        },
+        { ...common, pageUrl: "https://battery-sensei.app/legacy" },
+      ],
+    });
+
+    const { rows } = await listAdminSeoImpactVerdicts({
+      period: "all",
+      state: "waiting_crawl",
+      source: "audit_recheck",
+    });
+
+    expect(rows.filter((row) => row.projectId === projectId)).toMatchObject([
+      { closingEvidence: null },
+      { closingEvidence: null },
+    ]);
+  });
+
   it("marks the action done and tracks the page once", async () => {
     const earlier = await audit(BEFORE, "fired");
     const next = await audit(AFTER, "pass");
@@ -200,15 +247,35 @@ describe.skipIf(!enabled)("SEO audit recheck against PostgreSQL", () => {
     ]);
   });
 
-  it("changes nothing for an audit older than the newest one", async () => {
+  it("changes nothing for an older audit that was not accepted for recheck", async () => {
     await audit(BEFORE, "fired");
-    const late = await audit(new Date("2026-11-05T09:00:00.000Z"), "pass");
-    await audit(AFTER, "fired");
+    await audit(AFTER, "pass", { needsAuditRecheck: false });
+    const late = await audit(new Date("2026-11-05T09:00:00.000Z"), "pass", {
+      needsAuditRecheck: false,
+    });
 
     await recheckSeoAudit(late.id);
 
     expect(await statuses()).toEqual([]);
     expect(await verdicts()).toEqual([]);
+  });
+
+  it("records the first passing audit when a second pass rechecks first", async () => {
+    const earlier = await audit(BEFORE, "fired");
+    const firstPass = await audit(new Date("2026-11-05T09:00:00.000Z"), "pass");
+    const next = await audit(AFTER, "pass");
+
+    await recheckSeoAudit(next.id);
+    await recheckSeoAudit(firstPass.id);
+
+    expect(await statuses()).toMatchObject([
+      {
+        observationId: earlier.id,
+        status: "done",
+        checkedObservationId: firstPass.id,
+      },
+    ]);
+    expect(await verdicts()).toMatchObject([{ recheckAuditId: firstPass.id }]);
   });
 
   it("leaves the page to Cuso's own record of a change in the span", async () => {

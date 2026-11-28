@@ -2673,6 +2673,10 @@ describe.skipIf(!enabled)(
 
       // Simulate the first import committing without its separate recheck write.
       await prisma.projectSeoAuditActionStatus.deleteMany({ where });
+      await prisma.projectSeoObservation.update({
+        where: { id: later.id },
+        data: { needsAuditRecheck: true },
+      });
       expect((await importPassingAudit()).id).toBe(later.id);
       expect(
         await prisma.projectSeoAuditActionStatus.findMany({ where }),

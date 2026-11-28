@@ -258,7 +258,13 @@ const partial = z
           .passthrough()
           // Only a full audit's row can close an action: a focused row keeps no rule key, page-only mark or final address.
           .transform(
-            ({ ruleKey: _r, pageOnly: _p, finalUrl: _f, ...row }) => row,
+            ({
+              ruleKey: _r,
+              pageOnly: _p,
+              finalUrl: _f,
+              outsideSiteMarket: _m,
+              ...row
+            }) => row,
           ),
       )
       .max(10000),
@@ -305,13 +311,11 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       pageUrls = pages.flatMap((page) => page.pageUrls),
       { strategy, note } = publicSeoStrategy(raw, pageUrls),
       siteFindings = publicSiteFindings(raw, pageUrls, first.observedAt);
+    const sameMarket = (page: PublicSeoPayload) =>
+      page.countryCode === first.countryCode &&
+      page.languageCode === first.languageCode;
     const eligible = pages.flatMap((page, i) => {
-      if (
-        page.kind !== "audit_full" ||
-        page.countryCode !== first.countryCode ||
-        page.languageCode !== first.languageCode
-      )
-        return [];
+      if (page.kind !== "audit_full" || !sameMarket(page)) return [];
       const child = object(site.data.pages[i]);
       const sourceUrl = child?.kind !== "site" && object(child?.request)?.url;
       return page.pageUrls.map((url) => ({
@@ -358,7 +362,16 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         first.pageUrls[0]!,
         pages.flatMap((p) => p.researchCoverage ?? []),
       ),
-      checks: pages.flatMap((page) => page.checks),
+      // The site inherits its first page's market. Rows in other markets
+      // remain visible, but do not enter recheck comparisons for that market.
+      checks: pages.flatMap((page) =>
+        sameMarket(page)
+          ? page.checks
+          : page.checks.map((check) => ({
+              ...check,
+              outsideSiteMarket: true as const,
+            })),
+      ),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
       ...(pages.some((page) => page.seasonalIdeas) && {

@@ -1,13 +1,17 @@
 -- CREATE TABLE takes no lock on an existing table, and its foreign key takes
 -- SHARE ROW EXCLUSIVE on "project_seo_observation". ADD COLUMN takes ACCESS
 -- EXCLUSIVE on "project_seo_impact_verdict" for a catalog change only: a
--- nullable column without a default rewrites no row. The unique index build
+-- nullable column without a default rewrites no row. Adding the pending flag
+-- on the observation table also takes ACCESS EXCLUSIVE and uses a constant
+-- default, so it does not rewrite existing rows. The unique index build
 -- takes SHARE. While one waits behind an open transaction, later writes of that
 -- table wait behind it, so each gives up after 5 seconds. The deploy then
 -- fails with 55P03. Every statement can run again: run
--- `prisma migrate resolve --rolled-back 20261127190000_seo_audit_recheck` on
+-- `prisma migrate resolve --rolled-back 20261128134801_seo_audit_recheck` on
 -- the direct URL (DATABASE_URL_UNPOOLED), then deploy again.
 SET lock_timeout = '5s';
+
+ALTER TABLE "project_seo_observation" ADD COLUMN IF NOT EXISTS "needsAuditRecheck" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateTable
 CREATE TABLE IF NOT EXISTS "project_seo_audit_action_status" (

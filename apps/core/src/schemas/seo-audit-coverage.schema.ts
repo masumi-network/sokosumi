@@ -30,6 +30,7 @@ export const storedSeoChecklist = z
       pageOnly: z.literal(true).optional(),
       // The address the row's device read in the end.
       finalUrl: seoUrlSchema.optional(),
+      outsideSiteMarket: z.literal(true).optional(),
     }),
   )
   .max(10000);
