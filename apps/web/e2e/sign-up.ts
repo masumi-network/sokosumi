@@ -59,10 +59,13 @@ async function readInviteLink(page: Page, baseUrl: string): Promise<string> {
     link = await field.inputValue();
   }
   const url = URL.canParse(link) ? new URL(link) : null;
+  // The link carries a join token, so a failure names what is wrong, never
+  // the link itself; its actual and expected values are only booleans.
+  const sameOrigin = url?.origin === new URL(baseUrl).origin;
+  const joinPath = url?.pathname.startsWith("/join/") === true;
   assert.ok(
-    url?.origin === new URL(baseUrl).origin &&
-      url.pathname.startsWith("/join/"),
-    `setup showed no invite link on this preview, got "${link}"`,
+    sameOrigin && joinPath,
+    `setup showed no usable invite link (parsed: ${url != null}, same origin: ${sameOrigin}, join path: ${joinPath})`,
   );
   return link;
 }
