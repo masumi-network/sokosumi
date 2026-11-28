@@ -47,7 +47,7 @@ import {
   requireSeoOwner,
   SEO_ARTIFACT_MAX_BYTES,
   SEO_ARTIFACT_TIMEOUT_MS,
-  SEO_CRAWL_NEXT_MAX_BYTES,
+  SEO_MULTI_PAGE_REPORT_MAX_BYTES,
   type SeoMutationHooks,
   seoOwnerData,
   seoOwnerUnique,
@@ -106,10 +106,9 @@ async function requireSourceFile(
     },
   });
   const file = task?.files[0];
-  // A paid continuation's Report is larger than a page audit's: the cap must not refuse what was charged.
   const maxBytes =
-    analysis?.kind === "crawl_next"
-      ? SEO_CRAWL_NEXT_MAX_BYTES
+    analysis?.kind === "audit_full" || analysis?.kind === "crawl_next"
+      ? SEO_MULTI_PAGE_REPORT_MAX_BYTES
       : SEO_ARTIFACT_MAX_BYTES;
   if (
     !task?.assigneeId ||
