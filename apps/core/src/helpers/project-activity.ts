@@ -1,8 +1,11 @@
 import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { badRequest } from "@/helpers/error";
+import { usesSharedMainnetJobs } from "@/helpers/job-projection";
 import { escapeLikeText } from "@/helpers/query-params";
+import type { NetworkScope } from "@/lib/db/network-scope";
+import type { ProjectReaderSqlVisibility } from "@/types/project";
 
 const projectActivityCursorSchema = z.object({
   workspaceId: z.uuid(),
@@ -61,13 +64,23 @@ interface ProjectActivityPageParams {
   workspaceId: string;
   cursor?: string;
   take: number;
-  visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
+  visibility: ProjectReaderSqlVisibility;
+  jobScope: NetworkScope | null;
   search?: string;
   state?: ProjectListState;
   /** The reader whose Hides split `open` from `hidden`; null hides nothing. */
   readerUserId?: string | null;
   /** The reader whose Pins lead the page; omitted keeps pure activity order. */
   pinnedFirstUserId?: string | null;
+}
+
+function activityJobVisibility(
+  scope: NetworkScope,
+  visibility: ProjectReaderSqlVisibility,
+) {
+  return usesSharedMainnetJobs(scope)
+    ? { join: PrismaRaw.empty, predicate: visibility.job }
+    : visibility.scopedJob;
 }
 
 /**
@@ -163,6 +176,7 @@ export function projectActivityPageQuery({
   cursor,
   take,
   visibility,
+  jobScope,
   search,
   state,
   readerUserId,
@@ -174,6 +188,7 @@ export function projectActivityPageQuery({
   const matchRank = search
     ? PrismaRaw.sql`CASE WHEN ${primaryProjectMatch(literalSubstringPattern(search))} THEN 0 ELSE 1 END`
     : PrismaRaw.sql`0`;
+  const jobVisibility = jobScope && activityJobVisibility(jobScope, visibility);
   return PrismaRaw.sql`
     WITH activity AS (
       SELECT t."projectId", GREATEST(t."createdAt",
@@ -184,14 +199,18 @@ export function projectActivityPageQuery({
       FROM ${sharedTable("task")} t
       WHERE t."workspaceId" = ${workspaceId}::uuid AND t."projectId" IS NOT NULL
         AND t."archivedAt" IS NULL ${visibility.task}
-      UNION ALL
+      ${
+        jobScope && jobVisibility
+          ? PrismaRaw.sql`UNION ALL
       SELECT j."projectId", GREATEST(j."createdAt",
-        (SELECT MAX(e."createdAt") FROM ${netTable("mainnet", "jobEvent")} e WHERE e."jobId" = j.id)) AS at
-      FROM ${netTable("mainnet", "Job")} j LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
+        (SELECT MAX(e."createdAt") FROM ${jobScope.networkTable("jobEvent")} e WHERE e."jobId" = j.id)) AS at
+      FROM ${jobScope.networkTable("Job")} j LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"${jobVisibility.join === PrismaRaw.empty ? PrismaRaw.empty : PrismaRaw.sql` ${jobVisibility.join}`}
       WHERE j."workspaceId" = ${workspaceId}::uuid AND j."projectId" IS NOT NULL
         AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
-        ${visibility.job}
-      UNION ALL
+        ${jobVisibility.predicate}
+      `
+          : PrismaRaw.empty
+      }UNION ALL
       SELECT e."projectId", e."createdAt" AS at
       FROM ${sharedTable("project_event")} e JOIN ${sharedTable("project")} p ON p.id = e."projectId"
       WHERE p."workspaceId" = ${workspaceId}::uuid
@@ -264,12 +283,14 @@ export function projectRecentActivityQuery({
   workspaceId,
   take,
   visibility,
+  jobScope,
   readerUserId,
   projectId,
 }: {
   workspaceId: string;
   take: number;
-  visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
+  visibility: ProjectReaderSqlVisibility;
+  jobScope: NetworkScope | null;
   /** The reader whose Hidden projects drop out; null drops none. */
   readerUserId: string | null;
   /**
@@ -283,6 +304,7 @@ export function projectRecentActivityQuery({
     : readerUserId
       ? PrismaRaw.sql`AND p."closedAt" IS NULL AND NOT EXISTS ${readerHideClause(readerUserId)}`
       : PrismaRaw.sql`AND p."closedAt" IS NULL`;
+  const jobVisibility = jobScope && activityJobVisibility(jobScope, visibility);
   return PrismaRaw.sql`
     SELECT * FROM (
       (SELECT DISTINCT ON (t.id) 'task' AS kind, e.id::text AS id, e."createdAt" AS at,
@@ -294,18 +316,22 @@ export function projectRecentActivityQuery({
       WHERE t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL
         ${visibility.task}
       ORDER BY t.id, e."createdAt" DESC, e.id DESC)
-      UNION ALL
+      ${
+        jobScope && jobVisibility
+          ? PrismaRaw.sql`UNION ALL
       (SELECT DISTINCT ON (j.id) 'job', e.id::text, e."createdAt",
         j."projectId"::text, j.id, j.name, e.status::text, j."agentId"
-      FROM ${netTable("mainnet", "jobEvent")} e
-      JOIN ${netTable("mainnet", "Job")} j ON j.id = e."jobId"
+      FROM ${jobScope.networkTable("jobEvent")} e
+      JOIN ${jobScope.networkTable("Job")} j ON j.id = e."jobId"
       JOIN ${sharedTable("project")} p ON p.id = j."projectId" ${projectFilter}
-      LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
+      LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"${jobVisibility.join === PrismaRaw.empty ? PrismaRaw.empty : PrismaRaw.sql` ${jobVisibility.join}`}
       WHERE j."workspaceId" = ${workspaceId}::uuid
         AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
-        ${visibility.job}
+        ${jobVisibility.predicate}
       ORDER BY j.id, e."createdAt" DESC, e.id DESC)
-      UNION ALL
+      `
+          : PrismaRaw.empty
+      }UNION ALL
       (SELECT DISTINCT ON (p.id) 'project', e.id::text, e."createdAt",
         p.id::text, p.id::text, p.name, e.kind::text, NULL::text
       FROM ${sharedTable("project_event")} e

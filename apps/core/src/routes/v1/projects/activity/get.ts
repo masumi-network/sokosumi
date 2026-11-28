@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { loadAgentPreviewsByIds } from "@/helpers/history";
+import {
+  requestJobScope,
+  usesSharedMainnetJobs,
+} from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import {
   type ProjectRecentActivityRow,
@@ -66,11 +70,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c.var.authContext,
       workspaceContext.workspaceId,
     );
+    const jobScope = requestJobScope(c.var.networkScope);
     const rows = await prisma.$queryRaw<ProjectRecentActivityRow[]>(
       projectRecentActivityQuery({
         workspaceId: workspaceContext.workspaceId,
         take: limit,
         visibility,
+        jobScope,
         // Hides are personal (ADR 0036): a coworker context drops none.
         readerUserId:
           c.var.authContext.actor === "user" ? c.var.authContext.userId : null,
@@ -93,7 +99,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         select: { id: true, name: true, identifier: true, logo: true },
       }),
-      loadAgentPreviewsByIds(agentIds, prisma),
+      loadAgentPreviewsByIds(
+        agentIds,
+        jobScope && !usesSharedMainnetJobs(jobScope)
+          ? jobScope.networkDb
+          : prisma,
+      ),
     ]);
     const projectById = new Map(
       projects.map((project) => [project.id, project]),

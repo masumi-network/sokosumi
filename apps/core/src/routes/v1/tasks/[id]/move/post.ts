@@ -1,9 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import {
+  taskJobProjectionInclude,
+  withTaskResponseJobs,
+} from "@/helpers/task-job-projection";
 import { moveTask } from "@/helpers/task-subtask-move";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -66,6 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
     const { parentTaskId, afterTaskId } = c.req.valid("json");
+    const jobScope = requestJobScope(c.var.networkScope);
 
     const { task, projectChanged } = await serializableTransaction(
       async (tx) => {
@@ -76,13 +82,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
         return {
           projectChanged: moved.projectChanged,
-          task: await tx.task.findFirstOrThrow({
-            where: { id: moved.task.id },
-            include: buildTaskIncludeForViewer(
-              authContext,
-              moved.task.workspaceId,
-            ),
-          }),
+          task: await withTaskResponseJobs(
+            await tx.task.findFirstOrThrow({
+              where: { id: moved.task.id },
+              include: taskJobProjectionInclude(
+                buildTaskIncludeForViewer(authContext, moved.task.workspaceId),
+                jobScope,
+              ),
+            }),
+            jobScope,
+            tx,
+          ),
         };
       },
       "Task changed while moving it. Please retry.",

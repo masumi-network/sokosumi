@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { getProjectNeedsAttention } from "@/helpers/project-needs-attention";
 import { ok } from "@/helpers/response";
@@ -50,14 +51,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    const { prismaWhere: visibility } = await resolveProjectReaderAccess(
+    const access = await resolveProjectReaderAccess(
       c.var.authContext,
       workspaceContext.workspaceId,
     );
     const dto = await getProjectNeedsAttention({
       workspaceId: workspaceContext.workspaceId,
       projectId: id,
-      visibility,
+      access,
+      jobScope: requestJobScope(c.var.networkScope),
     });
 
     if (!dto) {

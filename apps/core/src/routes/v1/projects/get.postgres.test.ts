@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { projectListItemSchema } from "@/schemas/project.schema";
@@ -22,6 +23,7 @@ const workspaceId = randomUUID();
 const otherWorkspaceId = randomUUID();
 const agentId = randomUUID();
 const pricingId = randomUUID();
+const { networkDb } = createNetworkScope("mainnet");
 const olderId = randomUUID();
 const newerId = randomUUID();
 
@@ -70,7 +72,7 @@ describe.skipIf(!enabled)(
           },
         ],
       });
-      await prisma.agent.create({
+      await networkDb.agent.create({
         data: {
           id: agentId,
           name: "Fixture agent",
@@ -82,7 +84,7 @@ describe.skipIf(!enabled)(
           pricing: { create: { id: pricingId, pricingType: "FREE" } },
         },
       });
-      await prisma.job.create({
+      await networkDb.job.create({
         data: {
           ownerId: userId,
           workspaceId,
@@ -97,15 +99,15 @@ describe.skipIf(!enabled)(
     });
 
     afterAll(async () => {
-      await prisma.job.deleteMany({ where: { workspaceId } });
+      await networkDb.job.deleteMany({ where: { workspaceId } });
       await prisma.workspace.deleteMany({
         where: { id: { in: [workspaceId, otherWorkspaceId] } },
       });
       await prisma.user.deleteMany({
         where: { id: { in: [userId, otherUserId] } },
       });
-      await prisma.agent.deleteMany({ where: { id: agentId } });
-      await prisma.agentPricing.deleteMany({ where: { id: pricingId } });
+      await networkDb.agent.deleteMany({ where: { id: agentId } });
+      await networkDb.agentPricing.deleteMany({ where: { id: pricingId } });
       await prisma.$disconnect();
     });
 

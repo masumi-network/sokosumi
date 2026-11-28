@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { configureSqlTables, netTable } from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import { resolveProjectReaderAccess } from "@/types/project";
 import {
   encodeProjectActivityCursor,
@@ -115,7 +116,13 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
           take = 10,
         ) {
           return tx.$queryRaw<ProjectActivityRow[]>(
-            projectActivityPageQuery({ workspaceId, cursor, take, visibility }),
+            projectActivityPageQuery({
+              workspaceId,
+              cursor,
+              take,
+              visibility,
+              jobScope: testNetworkScope(),
+            }),
           );
         }
         const first = await page(human);
@@ -200,6 +207,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         const query = {
           workspaceId,
           visibility: human,
+          jobScope: testNetworkScope(),
           search: "audit",
           take: 1,
         };

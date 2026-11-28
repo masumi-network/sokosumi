@@ -914,40 +914,49 @@ const jobListNetworkInclude = {
 export async function loadJobSharedRelations<T extends Job>(
   db: SharedDb,
   jobs: T[],
+  inTransaction = false,
 ) {
   if (jobs.length === 0) return [];
 
   const ids = (values: (string | null)[]) => [
     ...new Set(values.filter((id) => id !== null)),
   ];
-  const [workspaces, organizations, users, coworkers, bots] = await Promise.all(
-    [
-      db.workspace.findMany({
-        where: { id: { in: ids(jobs.map((job) => job.workspaceId)) } },
-        ...jobListSummaryInclude.workspace,
-      }),
-      db.organization.findMany({
-        where: { id: { in: ids(jobs.map((job) => job.organizationId)) } },
-        ...jobListSummaryInclude.organization,
-      }),
-      db.user.findMany({
-        where: {
-          id: {
-            in: ids(jobs.flatMap((job) => [job.ownerId, job.creatorUserId])),
-          },
+  const queries = [
+    db.workspace.findMany({
+      where: { id: { in: ids(jobs.map((job) => job.workspaceId)) } },
+      ...jobListSummaryInclude.workspace,
+    }),
+    db.organization.findMany({
+      where: { id: { in: ids(jobs.map((job) => job.organizationId)) } },
+      ...jobListSummaryInclude.organization,
+    }),
+    db.user.findMany({
+      where: {
+        id: {
+          in: ids(jobs.flatMap((job) => [job.ownerId, job.creatorUserId])),
         },
-        ...jobListSummaryInclude.owner,
-      }),
-      db.coworker.findMany({
-        where: { id: { in: ids(jobs.map((job) => job.creatorCoworkerId)) } },
-        ...jobListSummaryInclude.creatorCoworker,
-      }),
-      db.sokoBot.findMany({
-        where: { id: { in: ids(jobs.map((job) => job.creatorSokoBotId)) } },
-        ...jobListSummaryInclude.creatorSokoBot,
-      }),
-    ],
-  );
+      },
+      ...jobListSummaryInclude.owner,
+    }),
+    db.coworker.findMany({
+      where: { id: { in: ids(jobs.map((job) => job.creatorCoworkerId)) } },
+      ...jobListSummaryInclude.creatorCoworker,
+    }),
+    db.sokoBot.findMany({
+      where: { id: { in: ids(jobs.map((job) => job.creatorSokoBotId)) } },
+      ...jobListSummaryInclude.creatorSokoBot,
+    }),
+  ] as const;
+  // Prisma promises are lazy. A transaction has one connection for these reads.
+  const [workspaces, organizations, users, coworkers, bots] = inTransaction
+    ? [
+        await queries[0],
+        await queries[1],
+        await queries[2],
+        await queries[3],
+        await queries[4],
+      ]
+    : await Promise.all(queries);
   const byId = <Row extends { id: string }>(rows: Row[]) =>
     new Map(rows.map((row) => [row.id, row]));
   const workspaceById = byId(workspaces);
@@ -961,11 +970,23 @@ export async function loadJobSharedRelations<T extends Job>(
     return {
       ...job,
       workspace,
-      organization: organizationById.get(job.organizationId ?? "") ?? null,
-      owner: userById.get(job.ownerId ?? "") ?? null,
-      creatorUser: userById.get(job.creatorUserId ?? "") ?? null,
-      creatorCoworker: coworkerById.get(job.creatorCoworkerId ?? "") ?? null,
-      creatorSokoBot: botById.get(job.creatorSokoBotId ?? "") ?? null,
+      organization:
+        job.organizationId === null
+          ? null
+          : (organizationById.get(job.organizationId) ?? null),
+      owner: job.ownerId === null ? null : (userById.get(job.ownerId) ?? null),
+      creatorUser:
+        job.creatorUserId === null
+          ? null
+          : (userById.get(job.creatorUserId) ?? null),
+      creatorCoworker:
+        job.creatorCoworkerId === null
+          ? null
+          : (coworkerById.get(job.creatorCoworkerId) ?? null),
+      creatorSokoBot:
+        job.creatorSokoBotId === null
+          ? null
+          : (botById.get(job.creatorSokoBotId) ?? null),
     };
   });
 }

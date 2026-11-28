@@ -25,6 +25,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
@@ -50,6 +51,10 @@ import {
 } from "@/helpers/task-create-context";
 import { recordTaskDueDateMovedLater } from "@/helpers/task-due-date-change";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
+import {
+  taskJobProjectionInclude,
+  withTaskResponseJobs,
+} from "@/helpers/task-job-projection";
 import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
@@ -489,40 +494,48 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           dismissedWorkspaceTagIds,
         );
       }
-      let updatedTask = await tx.task.update({
-        where: {
-          id,
-          archivedAt: null,
-          ...(onlyDueOnOrTags
-            ? {}
-            : {
-                status: {
-                  in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
-                },
-              }),
-        },
-        data: {
-          ...(name !== undefined && { name }),
-          ...(editsTags ? { updatedAt: new Date() } : {}),
-          ...(dismissedTopicIds?.length
-            ? dismissTaskTopics(task, dismissedTopicIds)
-            : {}),
-          ...(nextDescription !== undefined && {
-            description: nextDescription,
-          }),
-          ...(projectId !== undefined && { projectId }),
-          ...(priority !== undefined && { priority }),
-          ...(assigneeWrite ?? {}),
-          ...(runAtWrite !== undefined && { runAt: runAtWrite }),
-          ...(dueOnWrite !== undefined && { dueOn: dueOnWrite }),
-          ...(nextStatus !== task.status ? { status: nextStatus } : {}),
-        },
-        include: buildTaskIncludeForViewer(
-          authContext,
-          task.workspaceId,
-          c.var.workspaceContext?.workspaceId,
-        ),
-      });
+      const jobScope = requestJobScope(c.var.networkScope);
+      let updatedTask = await withTaskResponseJobs(
+        await tx.task.update({
+          where: {
+            id,
+            archivedAt: null,
+            ...(onlyDueOnOrTags
+              ? {}
+              : {
+                  status: {
+                    in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],
+                  },
+                }),
+          },
+          data: {
+            ...(name !== undefined && { name }),
+            ...(editsTags ? { updatedAt: new Date() } : {}),
+            ...(dismissedTopicIds?.length
+              ? dismissTaskTopics(task, dismissedTopicIds)
+              : {}),
+            ...(nextDescription !== undefined && {
+              description: nextDescription,
+            }),
+            ...(projectId !== undefined && { projectId }),
+            ...(priority !== undefined && { priority }),
+            ...(assigneeWrite ?? {}),
+            ...(runAtWrite !== undefined && { runAt: runAtWrite }),
+            ...(dueOnWrite !== undefined && { dueOn: dueOnWrite }),
+            ...(nextStatus !== task.status ? { status: nextStatus } : {}),
+          },
+          include: taskJobProjectionInclude(
+            buildTaskIncludeForViewer(
+              authContext,
+              task.workspaceId,
+              c.var.workspaceContext?.workspaceId,
+            ),
+            jobScope,
+          ),
+        }),
+        jobScope,
+        tx,
+      );
       if (dueOnWrite !== undefined) {
         await recordTaskDueDateMovedLater(tx, {
           taskId: id,

@@ -2,9 +2,14 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireTaskWriteAccess } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import {
+  taskJobProjectionInclude,
+  withTaskResponseJobs,
+} from "@/helpers/task-job-projection";
 import { markTaskArchivedRead } from "@/helpers/task-notifications";
 import { retriedTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -44,6 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
+    const jobScope = requestJobScope(c.var.networkScope);
 
     const result = await retriedTransaction(async (tx) => {
       const currentTask = await requireTaskWriteAccess(userContext, id, tx, {
@@ -53,14 +59,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await archiveTaskRecord(tx, currentTask);
 
       return {
-        task: await tx.task.findFirstOrThrow({
-          where: { id },
-          include: buildTaskIncludeForViewer(
-            authContext,
-            currentTask.workspaceId,
-            c.var.workspaceContext?.workspaceId,
-          ),
-        }),
+        task: await withTaskResponseJobs(
+          await tx.task.findFirstOrThrow({
+            where: { id },
+            include: taskJobProjectionInclude(
+              buildTaskIncludeForViewer(
+                authContext,
+                currentTask.workspaceId,
+                c.var.workspaceContext?.workspaceId,
+              ),
+              jobScope,
+            ),
+          }),
+          jobScope,
+          tx,
+        ),
         workspaceId: currentTask.workspaceId,
       };
     }, "Task changed while archiving it. Retry.");
