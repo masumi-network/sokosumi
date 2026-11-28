@@ -79,6 +79,9 @@ async function handle(
       auth.userId,
       decisionId,
       input.resolution === "ACCEPT",
+      true,
+      undefined,
+      c.var.networkScope,
     );
     return ok(c, sokoBotPendingDecisionSchema.parse(decision));
   } catch (error) {

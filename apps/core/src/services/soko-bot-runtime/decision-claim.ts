@@ -3,8 +3,10 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { serviceUnavailable } from "@/helpers/error";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { networkStamp } from "@/helpers/preprod-control";
 import { findResolvableSokoBotDecision } from "@/helpers/soko-bot-management";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -49,6 +51,7 @@ export async function prepareDecision(
   accepted: boolean,
   ownerConfirmed = true,
   confirmation?: ConfirmationTurn,
+  requestScope?: NetworkScope,
 ) {
   const decision = await findResolvableSokoBotDecision(
     resolverUserId,
@@ -380,6 +383,10 @@ export async function prepareDecision(
       reportToSentry: false,
     });
   }
+
+  // A fresh hire books a Mainnet Job. A confirming request must be able to use that Network too.
+  if (decision.toolName === "hire_agent" && requestScope)
+    requireMainnetMasumiPayment(requestScope);
 
   if (!resumeProcessing) {
     const claimed = await prisma.sokoBotPendingDecision.updateMany({
