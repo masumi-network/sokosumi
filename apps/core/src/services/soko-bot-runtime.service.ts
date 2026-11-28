@@ -10,6 +10,7 @@ import {
 } from "@/helpers/task-visibility";
 import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
+import type { DetachedTurnProvenance } from "@/lib/soko-bot/detached-network";
 import * as ads from "./soko-bot-runtime/ads";
 import * as authorization from "./soko-bot-runtime/authorization";
 import * as chatOpen from "./soko-bot-runtime/chat-open";
@@ -93,6 +94,7 @@ export interface RuntimeAuthorizationInput {
 }
 
 export interface SokoBotActionContext {
+  provenance: DetachedTurnProvenance;
   confirmationTurnId?: string;
   turn: {
     id: string;

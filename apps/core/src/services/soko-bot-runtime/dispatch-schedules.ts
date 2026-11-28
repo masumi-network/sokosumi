@@ -9,7 +9,6 @@ import {
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { manageSokoBotReminder } from "@/services/soko-bot-proactive.service";
@@ -158,7 +157,7 @@ export async function dispatchSchedulesTools(
               {
                 ...scope,
                 ...scheduleInput,
-                network: DETACHED_SOKO_BOT_NETWORK,
+                ...authorized.provenance,
                 capabilityNames,
                 explicitCapabilities: capabilities !== undefined,
                 resolveAuthority: resolveBotScheduleAuthority(

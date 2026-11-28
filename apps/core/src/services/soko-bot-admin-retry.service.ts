@@ -4,11 +4,14 @@ import {
   parseOwnerAuthority,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   sokoBotActingUserId,
   sokoBotScheduleActingUserId,
 } from "@/lib/soko-bot/acting-user";
+import {
+  detachedNetworkScope,
+  turnProvenance,
+} from "@/lib/soko-bot/detached-network";
 import {
   capabilitiesForWatchFollowUp,
   isScheduleAuthorityRevoked,
@@ -233,6 +236,8 @@ export async function failedRetryInput(
   failed: SokoBotTurn,
   clientTurnId: string,
 ): Promise<StartSokoBotTurnInput> {
+  await detachedNetworkScope(failed);
+  const provenance = turnProvenance(failed);
   const durable =
     failed.source === "SCHEDULE" || failed.source === "ADMIN_RETRY"
       ? await prisma.sokoBotTurn.findUnique({
@@ -360,7 +365,7 @@ export async function failedRetryInput(
     ? await meetingRetryInput(bot, slot, durable)
     : { message: failed.userMessage, presetRoute };
   return {
-    network: DETACHED_SOKO_BOT_NETWORK,
+    ...provenance,
     // A replay acts only for the person the failed turn acted for.
     userId: actingUserId,
     sokoBotId: bot.id,
