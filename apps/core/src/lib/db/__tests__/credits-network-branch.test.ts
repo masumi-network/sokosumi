@@ -13,10 +13,12 @@ import { NETWORKS } from "@/lib/network";
 // that imports it (in any spelling of the path) and in the payers' and
 // readers' entry points, which may reach it only through a helper.
 //
-// Known gaps: a lexical scan of the syntax tree. It does not see a Network
-// name held in an imported constant, a `Set` or `includes` lookup, a map
-// keyed by Network, or a file that reaches the module through a re-export
-// and is not listed below.
+// Each name is bound to its declaration by the file's own checker, so a
+// parameter or a comparison of two runtime values is not a branch.
+//
+// Known gaps: it does not see a Network name held in an imported constant or
+// a `let`, a `Set` or `includes` lookup, a map keyed by Network, or a file
+// that reaches the module through a re-export and is not listed below.
 const CORE_SRC = fileURLToPath(new URL("../../..", import.meta.url));
 const POLICY = "lib/credits/policy.ts";
 /** The payers and readers of credits, also those that reach the module through a helper. */
@@ -63,36 +65,62 @@ function isNetworkLiteral(node: ts.Expression): boolean {
   return ts.isStringLiteralLike(value) && NETWORK_NAMES.has(value.text);
 }
 
-/** The names of the file's `const` declarations whose value is a Network's name. */
-function networkConstants(file: ts.SourceFile): Set<string> {
-  const names = new Set<string>();
-  const visit = (node: ts.Node) => {
-    if (ts.isVariableDeclarationList(node) && node.flags & ts.NodeFlags.Const) {
-      for (const declaration of node.declarations) {
-        if (
-          ts.isIdentifier(declaration.name) &&
-          declaration.initializer &&
-          isNetworkLiteral(declaration.initializer)
-        ) {
-          names.add(declaration.name.text);
-        }
-      }
-    }
-    ts.forEachChild(node, visit);
+/**
+ * The file alone as a program, with no library and no imports resolved: its
+ * checker binds each name to the declaration in scope, so a parameter that
+ * shares a constant's name is the parameter.
+ */
+function bound(fileName: string, source: string) {
+  const file = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const host: ts.CompilerHost = {
+    getSourceFile: (name) => (name === fileName ? file : undefined),
+    getDefaultLibFileName: () => "lib.d.ts",
+    writeFile: () => undefined,
+    getCurrentDirectory: () => "",
+    getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => "\n",
+    fileExists: (name) => name === fileName,
+    readFile: () => undefined,
   };
-  visit(file);
-  return names;
+  const program = ts.createProgram(
+    [fileName],
+    { noLib: true, noResolve: true, types: [] },
+    host,
+  );
+  return { file, checker: program.getTypeChecker() };
 }
 
-/** `line:column` of each comparison with a Network's name in `source`. */
+/** Whether `name` is bound to a local `const` whose value is a Network's name. */
+function isNetworkConstant(name: ts.Identifier, checker: ts.TypeChecker) {
+  const declaration = checker.getSymbolAtLocation(name)?.valueDeclaration;
+  return (
+    declaration !== undefined &&
+    ts.isVariableDeclaration(declaration) &&
+    ts.isVariableDeclarationList(declaration.parent) &&
+    (declaration.parent.flags & ts.NodeFlags.Const) !== 0 &&
+    declaration.initializer !== undefined &&
+    isNetworkLiteral(declaration.initializer)
+  );
+}
+
+/**
+ * `line:column` of each "is this Network X" branch in `source`: a comparison
+ * of a value with a Network's name, written as a literal or as a local
+ * constant that holds one. A comparison of two runtime values is none.
+ */
 export function networkBranches(fileName: string, source: string): string[] {
-  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest);
-  const constants = networkConstants(file);
+  const { file, checker } = bound(fileName, source);
   const isNetworkName = (node: ts.Expression) => {
     const value = unwrap(node);
     return (
       isNetworkLiteral(value) ||
-      (ts.isIdentifier(value) && constants.has(value.text))
+      (ts.isIdentifier(value) && isNetworkConstant(value, checker))
     );
   };
   const found: string[] = [];
@@ -160,6 +188,23 @@ describe("the credits module's Network branch", () => {
         ].join("\n"),
       ),
     ).toEqual(["1:5", "2:11", "3:20", "7:5", "8:5"]);
+  });
+
+  it("does not take a comparison of two runtime values for a branch, even under a constant's name", () => {
+    expect(
+      networkBranches(
+        "x.ts",
+        [
+          'function scopeOf() { const network = "mainnet"; return createNetworkScope(network); }',
+          "function matches(scope, network) { return scope.network === network; }",
+          "const same = left.network === right.network;",
+          'const TEST_NET = "preprod";',
+          "function shadowed(TEST_NET) { return network === TEST_NET; }",
+          'let mutable = "preprod";',
+          "if (network === mutable) skip();",
+        ].join("\n"),
+      ),
+    ).toEqual([]);
   });
 
   it("is decided only in the policy, in the module and in every file that uses it", () => {

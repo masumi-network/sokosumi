@@ -25,8 +25,9 @@ export function chargesCredits(network: Network): boolean {
  * receipt written before `taskEvent.network` existed, and every receipt of a
  * Mainnet-only feature (images, SEO chat, contact search), which has no
  * Network column. All of them are Mainnet's. Another Network's ledger reads a
- * shared receipt only when it names that Network, so equal ids on two
- * Networks never cross.
+ * shared receipt only when it names that Network, so a Preprod entry never
+ * picks up a Mainnet receipt of an equal id. The reverse is not closed yet:
+ * see the Task event join in `history.ts`.
  */
 const OWNS_UNTAGGED_SHARED_ROWS = {
   mainnet: true,

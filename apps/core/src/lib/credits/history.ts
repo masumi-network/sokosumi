@@ -178,6 +178,13 @@ function buildFilterSql(
 function sharedReceiptJoins(scope: NetworkScope) {
   const { network } = scope;
   if (ownsUntaggedSharedRows(network)) {
+    // Deferred, and due before Preprod is switched on or filled: Mainnet's
+    // ledger (`buildLedgerSql`, the lateral `te` pick of the oldest Task
+    // event per transaction) still takes a Task event tagged Preprod whose
+    // transaction id equals a Mainnet one, and lends a Mainnet entry its
+    // Task, comment, filters and CSV membership. The fix excludes events
+    // tagged Preprod before the oldest-event pick, keeps untagged and Mainnet
+    // events, and changes Mainnet's ledger SQL and its recordings (ticket 29).
     return {
       taskEvent: PrismaRaw.sql`e."transactionId" = t."id"`,
       image: PrismaRaw.sql`pij."transactionId" = t."id"`,

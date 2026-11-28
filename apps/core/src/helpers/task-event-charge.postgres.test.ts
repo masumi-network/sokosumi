@@ -560,7 +560,7 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
       ]);
     });
 
-    it("records a Preprod charge at its price without pausing the Task, and charges Mainnet under the same ids", async () => {
+    it("records a Preprod charge at its price, which cannot itself fall short, and charges Mainnet under the same ids", async () => {
       const { createNetworkScope, chargeTaskCreditsOrMarkOutOfCredits } =
         await start();
       // Preprod buckets that hold 8 credits: Preprod costs none, so they stay.
@@ -576,8 +576,9 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
           }),
         );
 
-      // More than Preprod's buckets hold: recorded, never out of credits, so
-      // no Task waits for a Preprod payment and no grant can wake one.
+      // More than Preprod's buckets hold: recorded, so this debit itself
+      // causes no balance shortfall. It says nothing about the wake: any
+      // grant still wakes any Task paused for credits, whatever paused it.
       const recorded = await chargeOn(preprod, 9n);
 
       expect(recorded.eventStatus).toBeNull();

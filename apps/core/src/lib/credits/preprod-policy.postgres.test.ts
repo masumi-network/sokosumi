@@ -670,6 +670,139 @@ describe.runIf(enabled)(
       );
     });
 
+    describe("Core's HTTP routes, a Preprod and a Mainnet Task event on one id", () => {
+      let cookie: string;
+      let taskId: string;
+      let projectId: string;
+      const sharedId = randomUUID();
+      const mainnetComment = `Mainnet event ${randomUUID()}`;
+      const preprodComment = `Preprod event ${randomUUID()}`;
+
+      beforeAll(async () => {
+        const owner = await fixture.createPasswordUser(
+          "Tagged events admin",
+          "admin",
+        );
+        userIds.push(owner.id);
+        const workspace = await createPersonalWorkspace(owner.id);
+        cookie = await fixture.signIn(app, owner.email);
+        ({ id: projectId } = await prisma.project.create({
+          data: { name: "Tagged events Project", workspaceId: workspace.id },
+          select: { id: true },
+        }));
+        ({ id: taskId } = await prisma.task.create({
+          data: {
+            ownerId: owner.id,
+            creatorUserId: owner.id,
+            workspaceId: workspace.id,
+            projectId,
+            name: "Shared Task",
+            status: "RUNNING",
+          },
+          select: { id: true },
+        }));
+        await mainnet().networkDb.transaction.create({
+          data: { id: sharedId, amount: -3n * CREDIT, userId: owner.id },
+        });
+        await preprod().networkDb.transaction.create({
+          data: { id: sharedId, amount: -4n * CREDIT, userId: owner.id },
+        });
+        // Mainnet's event first: Mainnet's ledger picks the oldest event, and
+        // the other order is the deferred reverse join (`history.ts`).
+        const at = Date.now();
+        for (const [network, comment, cents, offset] of [
+          ["mainnet", mainnetComment, 3n, -60_000],
+          ["preprod", preprodComment, 4n, 0],
+        ] as const) {
+          await prisma.taskEvent.create({
+            data: {
+              taskId,
+              transactionId: sharedId,
+              network,
+              cents: cents * CREDIT,
+              comment,
+              createdAt: new Date(at + offset),
+            },
+          });
+        }
+      }, SETUP_TIMEOUT);
+
+      async function data(path: string, onPreprod: boolean) {
+        const response = await app.request(`${fixture.ORIGIN}/v1${path}`, {
+          headers: {
+            cookie,
+            origin: fixture.ORIGIN,
+            ...(onPreprod && { [HEADER]: "preprod" }),
+          },
+        });
+        expect(response.status).toBe(200);
+        return path.startsWith("/transactions/export")
+          ? response.text()
+          : ((await response.json()) as { data: unknown }).data;
+      }
+
+      const daySum = (series: unknown) =>
+        (series as { credits: number }[]).reduce(
+          (sum, { credits }) => sum + credits,
+          0,
+        );
+      const csvLines = (csv: unknown) =>
+        (csv as string)
+          .trimEnd()
+          .split("\r\n")
+          .map((line) => line.slice(line.indexOf(",") + 1));
+
+      it.each([
+        ["Preprod", true, preprodComment, mainnetComment, 4],
+        ["Mainnet", false, mainnetComment, preprodComment, 3],
+      ] as const)(
+        "attributes %s's entry to the Task by its own event, amount and Project",
+        async (_name, onPreprod, own, other, credits) => {
+          const row = {
+            id: sharedId,
+            kind: "task",
+            taskId,
+            title: "Shared Task",
+            description: own,
+            projectId,
+            credits,
+          };
+          for (const filter of [
+            `taskId=${taskId}`,
+            `projectId=${projectId}`,
+            `q=${encodeURIComponent(own)}`,
+          ]) {
+            expect(await data(`/transactions?${filter}`, onPreprod)).toEqual([
+              expect.objectContaining(row),
+            ]);
+            expect(
+              await data(`/transactions/total?${filter}`, onPreprod),
+            ).toEqual({ credits, count: 1 });
+            expect(
+              daySum(await data(`/transactions/daily?${filter}`, onPreprod)),
+            ).toBe(credits);
+            expect(
+              csvLines(await data(`/transactions/export?${filter}`, onPreprod)),
+            ).toEqual([
+              "source,label,credits",
+              `task,Shared Task,-${credits}`,
+              `total,Spent,-${credits}`,
+              "total,Top ups,0",
+              `total,Net,-${credits}`,
+            ]);
+          }
+          // The other Network's comment finds nothing here.
+          expect(
+            await data(
+              `/transactions?q=${encodeURIComponent(other)}`,
+              onPreprod,
+            ),
+          ).toEqual([]);
+        },
+        CASE_TIMEOUT,
+      );
+    });
+
     describe("a Preprod request that is refused", () => {
       let cookie: string;
 
@@ -734,15 +867,22 @@ describe.runIf(enabled)(
           const answers = await whileCreditsLocked(async () => {
             const sent = [];
             for (const path of paths) {
-              const answer = await within(request(path, true), 10_000);
+              // The whole answer, body included, inside the deadline: a
+              // wrong answer that streams a read is "waited", not a hang.
+              const answer = await within(
+                request(path, true).then(async (response) => ({
+                  status: response.status,
+                  body:
+                    response.status === 403
+                      ? await response.json()
+                      : await response.text(),
+                })),
+                10_000,
+              );
               sent.push(
                 answer === "waited"
                   ? { path, waited: true }
-                  : {
-                      path,
-                      status: answer.status,
-                      body: await answer.json(),
-                    },
+                  : { path, ...answer },
               );
             }
             // The control: the same wallet on Mainnet does wait for the lock.
