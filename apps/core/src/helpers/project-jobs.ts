@@ -83,8 +83,12 @@ export async function readProjectJobPage(
       ${projectJobParentJoin(visibility)}
       ${
         unsettledAt !== undefined
-          ? sql`LEFT JOIN ${scope.networkTable("jobEvent")} done
-        ON j."jobType" = 'FREE' AND done."jobId" = j.id AND done.status = 'COMPLETED'`
+          ? sql`LEFT JOIN LATERAL (
+        SELECT e."jobId"
+        FROM ${scope.networkTable("jobEvent")} e
+        WHERE j."jobType" = 'FREE' AND e."jobId" = j.id AND e.status = 'COMPLETED'
+        LIMIT 1
+      ) done ON TRUE`
           : empty
       }
       WHERE j."workspaceId" = ${workspaceId}::uuid
@@ -102,21 +106,26 @@ export async function readProjectJobPage(
         }
       ORDER BY ${orderBy}
       LIMIT ${take}
-    ), latest_event AS (
-      SELECT DISTINCT ON (e."jobId") e."jobId", e.id, e.status, e."createdAt"
-      FROM page j
-      JOIN ${scope.networkTable("jobEvent")} e ON e."jobId" = j.id
-      ORDER BY e."jobId", e."createdAt" DESC
     )
     SELECT j.id, j.name, j."agentId", j."projectId", j."jobType"::text, j."refundedTransactionId",
       j."createdAt", j."updatedAt", j."payByTime", j."submitResultTime", j."externalDisputeUnlockTime",
       to_jsonb(p) - 'createdAt' - 'updatedAt' AS purchase,
       p."createdAt" AS "purchaseCreatedAt", p."updatedAt" AS "purchaseUpdatedAt",
-      e.status::text AS "eventStatus", e."createdAt" AS "eventCreatedAt", i.id AS "inputId"
+      e.status::text AS "eventStatus", e."createdAt" AS "eventCreatedAt", e."inputId"
     FROM page j
-    LEFT JOIN ${scope.networkTable("jobPurchase")} p ON p."jobId" = j.id
-    LEFT JOIN latest_event e ON e."jobId" = j.id
-    LEFT JOIN ${scope.networkTable("jobInput")} i ON i."eventId" = e.id
+    LEFT JOIN LATERAL (
+      SELECT p.* FROM ${scope.networkTable("jobPurchase")} p
+      WHERE p."jobId" = j.id
+      LIMIT 1
+    ) p ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT e.status, e."createdAt", i.id AS "inputId"
+      FROM ${scope.networkTable("jobEvent")} e
+      LEFT JOIN ${scope.networkTable("jobInput")} i ON i."eventId" = e.id
+      WHERE e."jobId" = j.id
+      ORDER BY e."createdAt" DESC
+      LIMIT 1
+    ) e ON TRUE
     ORDER BY ${orderBy}
   `;
   return rows.map(

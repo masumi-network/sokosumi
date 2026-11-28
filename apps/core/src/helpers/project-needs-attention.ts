@@ -393,7 +393,7 @@ export async function getProjectNeedsAttention(
   });
 }
 
-async function readAttentionJobs({
+function readAttentionJobs({
   projectId,
   workspaceId,
   access,

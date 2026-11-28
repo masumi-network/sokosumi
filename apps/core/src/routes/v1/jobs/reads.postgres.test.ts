@@ -708,6 +708,35 @@ describe.runIf(enabled)("Job reads over PostgreSQL", () => {
     30_000,
   );
 
+  it.runIf(!onSplitLayout)(
+    "uses the original Task Job include on today's layout",
+    async () => {
+      const { createNetworkScope } = await import("@/lib/db/network-scope");
+      const { taskJobProjectionInclude, withTaskResponseJobs } = await import(
+        "@/helpers/task-job-projection"
+      );
+      const { taskInclude } = await import("@/types/task");
+      const scope = createNetworkScope("mainnet");
+      const { outcome, log } = await observing(async () => {
+        const task = await system.shared.task.findUniqueOrThrow({
+          where: { id: "job-reads-public" },
+          include: taskJobProjectionInclude(taskInclude, scope),
+        });
+        return withTaskResponseJobs(task, scope);
+      });
+      expect(outcome).toMatchObject({
+        jobs: expect.arrayContaining([expect.objectContaining({ id: twin })]),
+      });
+      // Independent Prisma relation queries can run in either order.
+      const statements = log
+        .map(({ text, values }) => JSON.stringify({ text, values }))
+        .sort();
+      expect(digest(statements)).toBe(
+        "ed0f9699df0cf3974e25b44d9affb685b92371cc719be6c5ade99671c9eff85c",
+      );
+    },
+  );
+
   it.runIf(!onSplitLayout && !recording)(
     "refuses Preprod on all nine routes before planning any Network read when off",
     async () => await expectRefusals(owner, "preprod_off"),
@@ -960,6 +989,323 @@ describe.runIf(enabled)("Job reads over PostgreSQL", () => {
           }
         }
       }
+    });
+
+    it("applies parent visibility to Project counts and reads Agent previews on the request Network", async () => {
+      const { createNetworkScope } = await import("@/lib/db/network-scope");
+      const orgProjectId = "25000000-0000-4000-8000-000000000008";
+      await system.shared.project.create({
+        data: {
+          id: orgProjectId,
+          workspaceId: organizationWorkspace,
+          name: "Network activity",
+        },
+      });
+      const privateTaskId = "job-reads-private";
+      await system.shared.task.update({
+        where: { id: privateTaskId },
+        data: { projectId: orgProjectId },
+      });
+      for (const network of ["mainnet", "preprod"] as const) {
+        const { networkDb } = createNetworkScope(network);
+        for (const [id, taskId] of [
+          ["nameless-project-job", null],
+          ["private-project-job", privateTaskId],
+        ] as const) {
+          await networkDb.job.create({
+            data: {
+              id,
+              taskId,
+              projectId: orgProjectId,
+              agentId,
+              agentJobId: id,
+              jobType: "FREE",
+              workspaceId: organizationWorkspace,
+              organizationId,
+              ownerId,
+              createdAt: clock,
+              updatedAt: clock,
+              events: {
+                create: {
+                  status: "RUNNING",
+                  createdAt: clock,
+                  updatedAt: clock,
+                },
+              },
+            },
+          });
+        }
+      }
+      const preprodToken = "soko_preprod_mixed_project_member";
+      await system.shared.apikey.create({
+        data: {
+          id: preprodToken,
+          referenceId: memberId,
+          prefix: "soko_preprod_",
+          key: createHash("sha256").update(preprodToken).digest("base64url"),
+          rateLimitEnabled: false,
+          createdAt: clock,
+          updatedAt: clock,
+        },
+      });
+      for (const network of ["mainnet", "preprod"] as const) {
+        const headers =
+          network === "mainnet"
+            ? member
+            : { ...auth(preprodToken), ...organization };
+        const list = await call("/v1/projects", headers, network);
+        expect(list.status, list.body).toBe(200);
+        expect(JSON.parse(list.body).data).toEqual([
+          expect.objectContaining({ id: orgProjectId, jobCount: 1 }),
+        ]);
+        const activity = await call(
+          `/v1/projects/activity?projectId=${orgProjectId}`,
+          headers,
+          network,
+        );
+        expect(activity.status, activity.body).toBe(200);
+        expect(
+          JSON.parse(activity.body).data.filter(
+            ({ kind }: { kind: string }) => kind === "job",
+          ),
+        ).toEqual([
+          expect.objectContaining({
+            jobId: "nameless-project-job",
+            title: network,
+          }),
+        ]);
+        const attention = await call(
+          `/v1/projects/${orgProjectId}/needs-attention`,
+          headers,
+          network,
+        );
+        expect(attention.status, attention.body).toBe(200);
+        expect(JSON.parse(attention.body).data).toMatchObject({
+          jobCount: 1,
+          items: [
+            expect.objectContaining({
+              id: "nameless-project-job",
+              agentName: network,
+            }),
+          ],
+        });
+      }
+      const sibling = await call(
+        "/v1/projects",
+        coworker("sibling"),
+        "mainnet",
+      );
+      expect(sibling.status, sibling.body).toBe(200);
+      expect(JSON.parse(sibling.body).data).toEqual([
+        expect.objectContaining({ id: orgProjectId, jobCount: 1 }),
+      ]);
+    });
+
+    it("projects PAID twins on the selected Network inside and outside the write transaction", async () => {
+      const { createNetworkScope } = await import("@/lib/db/network-scope");
+      const {
+        taskJobProjectionInclude,
+        withTaskResponseJobs,
+        readWorkspaceMoveTaskResponse,
+      } = await import("@/helpers/task-job-projection");
+      const { moveTaskJobs } = await import(
+        "@/routes/v1/tasks/[id]/workspace/put"
+      );
+      const { sharedTable } = await import("@sokosumi/database/sql-tables");
+      const { taskInclude } = await import("@/types/task");
+      const { flattenJob } = await import("@/types/job");
+      const taskId = "job-reads-projection-task";
+      const jobId = "job-reads-projection-twin";
+      await system.shared.user.create({
+        data: {
+          id: "",
+          name: "Empty ID owner",
+          email: "empty@example.test",
+          emailVerified: true,
+          createdAt: clock,
+          updatedAt: clock,
+        },
+      });
+      await system.shared.task.create({
+        data: {
+          id: taskId,
+          name: "Job projection",
+          ownerId,
+          workspaceId: personalWorkspace,
+        },
+      });
+
+      const networks = ["mainnet", "preprod"] as const;
+      for (const network of networks) {
+        const { networkDb } = createNetworkScope(network);
+        await networkDb.transaction.create({
+          data: {
+            id: "job-reads-projection-debit",
+            amount: network === "mainnet" ? -25000000000n : -75000000000n,
+            userId: ownerId,
+          },
+        });
+        await networkDb.job.create({
+          data: {
+            id: jobId,
+            name: network,
+            taskId,
+            agentId,
+            agentJobId: jobId,
+            jobType: "PAID",
+            blockchainIdentifier: jobId,
+            identifierFromPurchaser: "job-reads-buyer",
+            sellerVkey: "job-reads-seller",
+            payByTime: clock,
+            submitResultTime: clock,
+            unlockTime: clock,
+            externalDisputeUnlockTime: clock,
+            workspaceId: personalWorkspace,
+            ownerId: "",
+            organizationId,
+            creatorCoworkerId: "job-reads-assigned",
+            transactionId: "job-reads-projection-debit",
+            createdAt: clock,
+            updatedAt: clock,
+            purchase: {
+              create: {
+                externalId: "job-reads-projection-purchase",
+                onChainStatus: "FUNDS_LOCKED",
+              },
+            },
+            events: {
+              create: {
+                status: "AWAITING_INPUT",
+                createdAt: clock,
+                updatedAt: clock,
+                ...(network === "mainnet" && {
+                  input: { create: { input: "answered" } },
+                }),
+              },
+            },
+          },
+        });
+      }
+
+      for (const network of networks) {
+        const scope = createNetworkScope(network);
+        const readTask = (db: typeof scope.sharedDb) =>
+          db.task.findUniqueOrThrow({
+            where: { id: taskId },
+            // The separate TaskEvent debit relation moves with ticket 29.
+            include: {
+              ...taskJobProjectionInclude(taskInclude, scope),
+              events: false,
+            },
+          });
+        const expected = {
+          id: jobId,
+          name: network,
+          owner: { id: "", name: "Empty ID owner" },
+          credits: network === "mainnet" ? 2.5 : 7.5,
+          status: network === "mainnet" ? "processing" : "input_required",
+        };
+        const task = await readTask(scope.sharedDb);
+        const detail = await withTaskResponseJobs(task, scope);
+        expect(detail.jobs.map(flattenJob)).toMatchObject([expected]);
+        const locker = new Client({ connectionString: system.database.url });
+        await locker.connect();
+        try {
+          // Hold the first shared relation read while the other reads can queue.
+          await locker.query("BEGIN");
+          await locker.query(
+            `LOCK TABLE ${sharedTable("workspace").sql} IN ACCESS EXCLUSIVE MODE`,
+          );
+          let startedOrganizationRead = () => false;
+          const observed = observing(
+            () =>
+              scope.sharedTransactionOnce((tx) => {
+                const findOrganizations = tx.organization.findMany;
+                vi.spyOn(tx.organization, "findMany").mockImplementation(
+                  (args) => {
+                    const query = findOrganizations(args);
+                    const then = vi.spyOn(query, "then");
+                    startedOrganizationRead = () => then.mock.calls.length > 0;
+                    return query;
+                  },
+                );
+                return withTaskResponseJobs(task, scope, tx);
+              }),
+            { trackResponses: true },
+          );
+          try {
+            await vi.waitFor(
+              async () => {
+                const { rowCount } = await locker.query(
+                  "SELECT pid FROM pg_stat_activity WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid))",
+                );
+                expect(rowCount).toBe(1);
+              },
+              { timeout: 2_500 },
+            );
+            expect(startedOrganizationRead()).toBe(false);
+          } finally {
+            await locker.query("ROLLBACK");
+          }
+          const { outcome, log } = await observed;
+          if ("threw" in outcome)
+            throw new Error(JSON.stringify(outcome.threw));
+          expect(outcome.jobs.map(flattenJob)).toMatchObject([expected]);
+          expect(log.flatMap((entry) => entry.pendingAtSend ?? [])).toEqual([]);
+        } finally {
+          await locker.end();
+        }
+      }
+
+      const preprod = createNetworkScope("preprod");
+      const staleTask = await system.shared.task.findUniqueOrThrow({
+        where: { id: taskId },
+      });
+      const moved = await preprod.sharedTransactionOnce(async (tx) => {
+        await tx.task.update({
+          where: { id: taskId },
+          data: { workspaceId: organizationWorkspace, organizationId },
+        });
+        await moveTaskJobs(tx, taskId, organizationWorkspace);
+        return readWorkspaceMoveTaskResponse(preprod, tx, taskId, () =>
+          tx.task.findUniqueOrThrow({ where: { id: taskId } }),
+        );
+      });
+      expect(moved.jobs.map(flattenJob)).toMatchObject([
+        {
+          id: jobId,
+          name: "preprod",
+          credits: 7.5,
+          workspace: { id: organizationWorkspace },
+        },
+      ]);
+      for (const network of networks) {
+        const scope = createNetworkScope(network);
+        // The writer commits between the shared Task read and the Job projection.
+        expect((await withTaskResponseJobs(staleTask, scope)).jobs).toEqual([]);
+        const fresh = await withTaskResponseJobs(moved, scope);
+        expect(fresh.jobs).toMatchObject([
+          {
+            id: jobId,
+            name: network,
+            workspaceId: organizationWorkspace,
+            projectId: null,
+          },
+        ]);
+      }
+
+      const mainnet = createNetworkScope("mainnet");
+      await mainnet.networkDb.job.delete({ where: { id: jobId } });
+      expect((await withTaskResponseJobs(moved, mainnet)).jobs).toEqual([]);
+      expect((await withTaskResponseJobs(moved, preprod)).jobs).toMatchObject([
+        { id: jobId },
+      ]);
+      await system.shared.task.delete({ where: { id: taskId } });
+      // The Job remains, and deleting its parent clears the foreign key.
+      expect(
+        await preprod.networkDb.job.findUnique({ where: { id: jobId } }),
+      ).toMatchObject({ taskId: null });
+      expect((await withTaskResponseJobs(moved, preprod)).jobs).toEqual([]);
     });
 
     it("refuses a workspace without Preprod access before any Network read", async () => {
