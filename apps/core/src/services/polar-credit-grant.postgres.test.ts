@@ -22,7 +22,8 @@ import {
 } from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { writeOffProjectCredits } from "@/helpers/cuso-project-credits";
+import { writeOff } from "@/lib/credits/write-off";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { testSchemaNames } from "@/test/split-layout";
 import { grantPolarCredits } from "./polar-credit-grant.service";
@@ -96,6 +97,7 @@ async function subscribedCuso() {
 
 function grantFor(cuso: { projectId: string; subscriptionId: string }) {
   return {
+    scope: createNetworkScope("mainnet"),
     amount: 25_000n * CREDIT,
     expiresAt: new Date(Date.now() + 30 * DAY_MS),
     organizationId: ORGANIZATION,
@@ -123,7 +125,11 @@ async function endCuso(cuso: { botId: string; projectId: string }) {
       where: { id: cuso.botId },
       data: { archivedAt: new Date() },
     });
-    await writeOffProjectCredits(cuso.projectId, tx);
+    await writeOff({
+      scope: createNetworkScope("mainnet"),
+      tx,
+      of: { projectId: cuso.projectId },
+    });
   });
 }
 
@@ -236,7 +242,11 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
         where: { id: cuso.botId },
         data: { archivedAt: new Date() },
       });
-      await writeOffProjectCredits(cuso.projectId, tx);
+      await writeOff({
+        scope: createNetworkScope("mainnet"),
+        tx,
+        of: { projectId: cuso.projectId },
+      });
       locked();
       await held;
     }, "archive");
@@ -268,7 +278,11 @@ describe.skipIf(!db)("a CMO grant racing a Cuso ending", () => {
     // The archive's snapshot predates the grant: its write of the Cuso's
     // row fails and it runs again, finding the bucket.
     const ending = serializableTransaction(async (tx) => {
-      await writeOffProjectCredits(cuso.projectId, tx);
+      await writeOff({
+        scope: createNetworkScope("mainnet"),
+        tx,
+        of: { projectId: cuso.projectId },
+      });
       await tx.sokoBot.update({
         where: { id: cuso.botId },
         data: { archivedAt: new Date() },
