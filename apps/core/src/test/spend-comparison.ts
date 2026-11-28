@@ -27,12 +27,14 @@ import { onSplitLayout } from "./split-layout";
 
 interface SentStatement {
   connection: number;
+  pendingAtSend?: number[];
   text: string;
   values: unknown[];
 }
 /** What Core's pool sent while a call was observed, per connection. */
 const sent = {
   observing: false,
+  pending: undefined as Set<number> | undefined,
   connections: 0,
   log: [] as SentStatement[],
 };
@@ -50,11 +52,29 @@ export function observePool(pool: Pool): void {
           typeof first === "string"
             ? { text: first, values: second }
             : (first as { text: string; values?: unknown });
+        const pending = sent.pending;
+        const index = sent.log.length;
         sent.log.push({
+          ...(pending && { pendingAtSend: [...pending] }),
           connection,
           text: config.text,
           values: Array.isArray(config.values) ? config.values : [],
         });
+        if (pending) {
+          pending.add(index);
+          const answered = () => pending.delete(index);
+          const callback = args.at(-1);
+          if (typeof callback === "function") {
+            args[args.length - 1] = (...result: unknown[]) => {
+              answered();
+              return callback(...result);
+            };
+          } else {
+            const result = query(...args) as Promise<unknown>;
+            void result.then(answered, answered);
+            return result;
+          }
+        }
       }
       return query(...args);
     };
@@ -102,8 +122,10 @@ export async function nextMillisecond(): Promise<number> {
 /** Runs `call` and returns its outcome with what the pool sent meanwhile. */
 export async function observing<T>(
   call: () => Promise<T>,
+  options?: { trackResponses: boolean },
 ): Promise<{ outcome: T | { threw: unknown }; log: SentStatement[] }> {
   sent.log = [];
+  sent.pending = options?.trackResponses ? new Set() : undefined;
   sent.observing = true;
   try {
     return { outcome: await call(), log: sent.log };
