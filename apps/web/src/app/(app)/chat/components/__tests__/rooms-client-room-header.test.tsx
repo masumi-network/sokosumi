@@ -711,13 +711,16 @@ describe("RoomsClient room header chrome", () => {
     expect(screen.getByTestId("room-open-title").tagName).not.toBe("BUTTON");
   });
 
-  it("shows a 1:1 Direct's face beside its name on a phone, not in the heading's name", () => {
+  it("shows a 1:1 Direct's face beside its name at every width, not in the heading's name", () => {
     renderRoom(humanDirectRoom());
 
     const heading = screen.getByRole("heading", { level: 1 });
     const face = screen.getByTestId("room-title-face");
     expect(heading).toContainElement(face);
-    expect(face).toHaveClass("md:hidden");
+    // Tablet hides the sidebar, so the header is the room's identity there
+    // too: no width swaps the face for the generic Direct icon.
+    expect(face.className).not.toMatch(/(^|\s)\w+:hidden/);
+    expect(heading.querySelector("svg")).toBeNull();
     expect(face).toHaveAttribute("aria-hidden", "true");
     expect(heading).toHaveAccessibleName("Bob");
     // Only the face: presence or a bot's status hidden here would be seen

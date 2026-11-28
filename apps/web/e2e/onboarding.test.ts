@@ -304,6 +304,12 @@ for (const { name, ...viewport } of PROJECTS) {
         .getByRole("button", { name: `${BOT} (Soko Bot)`, exact: true })
         .first()
         .waitFor();
+      // The room header shows who the Direct is with at every width, as the
+      // sidebar row does, not a generic chat icon.
+      await page
+        .locator("[data-testid=room-title-face]:visible")
+        .first()
+        .waitFor();
       const banner = page.getByRole("banner");
       const globalSearch = banner.getByRole("button", {
         name: "Search",
@@ -351,6 +357,11 @@ for (const { name, ...viewport } of PROJECTS) {
       assert.ok(
         !(await row.textContent())?.includes(QUESTION),
         "the row shows the answer, not the question",
+      );
+      // The answer is the bot's words, never its reply envelope.
+      assert.ok(
+        !(await row.textContent())?.includes('"kind"'),
+        "the row shows the message, not the bot's JSON",
       );
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,

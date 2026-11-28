@@ -776,6 +776,20 @@ describe("authoritative action responses", () => {
     expect(parseActionNarrativeText("No JSON here.")).toBeNull();
   });
 
+  it("reads a narrative that leaves out its question and cited reads", () => {
+    // The owner got this whole object, quotes and \n included (2026-11-28).
+    expect(
+      parseActionNarrativeText(
+        '{"kind":"REPORT","message":"1. Meet the baker.\\n\\n2. A customer favorite."}',
+      ),
+    ).toEqual({
+      kind: "REPORT",
+      message: "1. Meet the baker.\n\n2. A customer favorite.",
+      question: null,
+      observationToolCallIds: [],
+    });
+  });
+
   it("keeps a narrative that cites more reads than it can show", () => {
     const ids = Array.from({ length: 12 }, (_, index) => `call_${index}`);
     const parsed = parseActionNarrativeText(

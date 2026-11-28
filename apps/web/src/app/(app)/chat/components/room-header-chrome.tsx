@@ -453,16 +453,16 @@ export function RoomHeaderChrome({
                 </span>
               ) : (
                 <>
-                  {/* On a phone the header is the room's only identity, so
-                      it shows who the Direct is with, as the sidebar row
-                      does; from md the sidebar sits beside it. Only the
-                      face: presence drawn inside a hidden mark would be
-                      seen and never heard. */}
+                  {/* The header is the room's identity, so it shows who the
+                      Direct is with, as the sidebar row does: on a phone and
+                      on a tablet the sidebar is hidden. Only the face:
+                      presence drawn inside a hidden mark would be seen and
+                      never heard. */}
                   {directFace ? (
                     <span
                       aria-hidden
                       data-testid="room-title-face"
-                      className={cn(CHAT_TITLE_MARK_CLASS, "md:hidden")}
+                      className={CHAT_TITLE_MARK_CLASS}
                     >
                       <Avatar className="size-6">
                         <AvatarImage
@@ -474,12 +474,9 @@ export function RoomHeaderChrome({
                         </AvatarFallback>
                       </Avatar>
                     </span>
-                  ) : null}
-                  <span
-                    className={directFace ? "hidden md:contents" : "contents"}
-                  >
-                    {DIRECT_ICON}
-                  </span>
+                  ) : (
+                    DIRECT_ICON
+                  )}
                 </>
               )}
               <span className="min-w-0 truncate" data-testid="room-open-title">
