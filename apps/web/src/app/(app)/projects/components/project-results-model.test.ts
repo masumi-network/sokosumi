@@ -1,6 +1,8 @@
 import { marked } from "marked";
 import { describe, expect, it } from "vitest";
 
+import { markdownToSafeHtml } from "@/lib/utils/sanitizeMarkdown";
+
 import { latestResult, projectResultsMarkdown } from "./project-results-model";
 
 describe("latestResult", () => {
@@ -153,6 +155,45 @@ describe("projectResultsMarkdown", () => {
     expect(
       tokens.flatMap((token) => (token.type === "heading" ? [token.text] : [])),
     ).toEqual(["T", "First", "Second"]);
+  });
+
+  it.each([
+    ["a closer with words after it", "```text\nconst a = 1;\n```not-a-closer"],
+    ["a closer indented four spaces", "```\ncode\n    ```"],
+    ["a shorter closer", "````\ncode\n```"],
+    ["a closer of the other fence character", "~~~\ncode\n```"],
+  ])("keeps the next Task a heading in the PDF after %s", async (_, body) => {
+    const section = (heading: string, text: string) => ({
+      heading,
+      meta: "m",
+      link: { label: "Open", url: "https://x/t" },
+      body: text,
+    });
+    const html = await markdownToSafeHtml(
+      projectResultsMarkdown({
+        title: "T",
+        sections: [section("First", body), section("Second", "Plain text.")],
+      }),
+    );
+    expect(html).toMatch(/<h2[^>]*>Second<\/h2>/);
+    expect(html).toMatch(/<p>Plain text\.<\/p>/);
+  });
+
+  it("leaves a properly closed block and the text after it alone", async () => {
+    const markdown = projectResultsMarkdown({
+      title: "T",
+      sections: [
+        {
+          heading: "First",
+          meta: "m",
+          link: { label: "Open", url: "https://x/t" },
+          body: "   ```js\n# not a heading\n   ```   \n# Summary",
+        },
+      ],
+    });
+    expect(markdown).toContain("\n# not a heading\n");
+    expect(markdown).toContain("\n### Summary\n");
+    expect(markdown.match(/```/g)).toHaveLength(2);
   });
 
   it("keeps a heading's text from opening Markdown of its own", () => {

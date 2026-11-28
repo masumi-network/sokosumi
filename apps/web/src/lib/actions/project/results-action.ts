@@ -43,7 +43,12 @@ async function listCompletedTaskIds(projectId: string): Promise<string[]> {
       limit: PAGE_SIZE,
       cursor,
     });
-    ids.push(...tasks.map(({ id }) => id));
+    // A result is a done comment, so a Task with no comment has none to read.
+    ids.push(
+      ...tasks
+        .filter(({ commentsCount }) => commentsCount > 0)
+        .map(({ id }) => id),
+    );
     cursor = pagination?.nextCursor ?? null;
   } while (cursor);
   return ids;

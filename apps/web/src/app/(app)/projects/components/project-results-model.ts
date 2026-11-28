@@ -49,6 +49,12 @@ export interface ProjectResultSection {
   body: string;
 }
 
+// CommonMark fences: up to three spaces of indent; a backtick opener's info
+// string has no backtick; a closer repeats the character at least as many
+// times and has nothing but spaces after it.
+const FENCE_OPENER = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
+const FENCE_CLOSER = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
 /**
  * Each `#` heading two levels deeper, so a result's own titles sit under its
  * Task. Fenced code stays as written, and a block the result left open is
@@ -59,11 +65,13 @@ function nestHeadings(markdown: string): string {
   return markdown
     .split("\n")
     .map((line) => {
-      const marker = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
-      if (marker && (!fence || marker.startsWith(fence))) {
-        fence = fence ? null : marker;
+      if (fence) {
+        const closer = FENCE_CLOSER.exec(line)?.[1];
+        if (closer?.[0] === fence[0] && closer.length >= fence.length)
+          fence = null;
         return line;
       }
+      fence = FENCE_OPENER.exec(line)?.[1] ?? null;
       if (fence) return line;
       return line.replace(/^(#{1,4})(?=\s)/, "$1##");
     })

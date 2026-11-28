@@ -60,7 +60,7 @@ function task(
 
 function onePage(ids: string[]) {
   return {
-    tasks: ids.map((id) => ({ id })),
+    tasks: ids.map((id) => ({ id, commentsCount: 1 })),
     pagination: { nextCursor: null },
   };
 }
@@ -103,7 +103,7 @@ describe("loadProjectResults", () => {
   it("reads every page, so a result past the first page is not lost", async () => {
     listTasksMock
       .mockResolvedValueOnce({
-        tasks: [{ id: "1" }],
+        tasks: [{ id: "1", commentsCount: 1 }],
         pagination: { nextCursor: "c2" },
       })
       .mockResolvedValueOnce(onePage(["2"]));
@@ -115,6 +115,23 @@ describe("loadProjectResults", () => {
       expect.objectContaining({ cursor: "c2" }),
     );
     expect(result.ok && result.value.map(({ id }) => id)).toEqual(["1", "2"]);
+  });
+
+  it("does not read a Task that has no comment, since it cannot have a result", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        { id: "1", commentsCount: 1 },
+        { id: "silent", commentsCount: 0 },
+      ],
+      pagination: { nextCursor: null },
+    });
+    getReadableTaskMock.mockImplementation(async (id: string) => task(id));
+
+    const result = await loadProjectResults({ projectId: PROJECT_ID });
+
+    expect(getReadableTaskMock).toHaveBeenCalledTimes(1);
+    expect(getReadableTaskMock).toHaveBeenCalledWith("1");
+    expect(result.ok && result.value.map(({ id }) => id)).toEqual(["1"]);
   });
 
   it("lists results in the order they finished, oldest first", async () => {
