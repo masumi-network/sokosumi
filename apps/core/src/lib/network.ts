@@ -93,6 +93,13 @@ export function isNetworkRoutingEnabled(): boolean {
   );
 }
 
+/** The Network that is not `network`: where a key used on one is looked up on the other. */
+export function otherNetwork(network: Network): Network {
+  const other = NETWORKS.find((candidate) => candidate !== network);
+  if (!other) throw new Error(`No Network besides ${network}`);
+  return other;
+}
+
 export function networksThatAreOn(): readonly Network[] {
   return isPreprodOn() ? NETWORKS : ["mainnet"];
 }

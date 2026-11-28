@@ -1,9 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
-import { Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { InsufficientBalanceError } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { HTTPException } from "hono/http-exception";
+import { v7 as uuidv7 } from "uuid";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
@@ -17,12 +19,17 @@ import {
   spend,
   spendFailedInPreparation,
 } from "@/lib/credits/spend";
-import type { NetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  type NetworkScope,
+  type SharedDb,
+} from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isPreprodOn, otherNetwork } from "@/lib/network";
 import { requireCoworkerAuthContext } from "@/middleware/auth";
-import { paymentScope } from "@/middleware/network-scope";
+import { namedPaymentScope, paymentScope } from "@/middleware/network-scope";
 import { coworkerUsageSchema } from "@/schemas/coworker-usage.schema";
 
 import { createCoworkerUsageRequestSchema } from "./schema";
@@ -54,7 +61,7 @@ const route = createRoute({
   },
 });
 
-function serializeUsage(usage: {
+interface UsageRow {
   id: string;
   createdAt: Date;
   updatedAt: Date;
@@ -65,7 +72,9 @@ function serializeUsage(usage: {
   organizationId: string | null;
   cents: bigint;
   transactionId: string;
-}) {
+}
+
+function serializeUsage(usage: UsageRow) {
   return {
     ...usage,
     credits: convertCentsToCredits(usage.cents),
@@ -117,23 +126,37 @@ async function spendUsage(input: {
   return charge.transactionId;
 }
 
+// The model's columns in its field order, as Prisma returned the row.
+const USAGE_COLUMNS = PrismaRaw.sql`id, "createdAt", "updatedAt", "idempotencyKey", "referenceId", "coworkerId", "userId", "organizationId", cents, "transactionId"`;
+
+/** The Coworker's usage under this key on the scope's Network, if any. */
+async function findUsage(
+  scope: NetworkScope,
+  tx: SharedDb,
+  coworkerId: string,
+  idempotencyKey: string,
+): Promise<UsageRow | undefined> {
+  const rows = await tx.$queryRaw<UsageRow[]>`
+    SELECT ${USAGE_COLUMNS}
+    FROM ${scope.networkTable("coworker_usage")}
+    WHERE "coworkerId" = ${coworkerId} AND "idempotencyKey" = ${idempotencyKey}
+  `;
+  return rows[0];
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = requireCoworkerAuthContext(c.var.authContext);
+    // The Network the call names, before any read: its replay is looked up
+    // there. Preprod while it is off is refused here.
+    const named = namedPaymentScope(c);
     await requireCoworkerCapability(authContext.coworkerId, "tasks");
     const { credits, idempotencyKey, referenceId, userId, organizationId } =
       c.req.valid("json");
     const coworkerId = authContext.coworkerId;
 
     const result = await serializableTransaction(async (tx) => {
-      const existing = await tx.coworkerUsage.findUnique({
-        where: {
-          coworkerId_idempotencyKey: {
-            coworkerId,
-            idempotencyKey,
-          },
-        },
-      });
+      const existing = await findUsage(named, tx, coworkerId, idempotencyKey);
 
       // A replay moves no credits and returns only this coworker's own row,
       // so it skips the binding check: a vendor retrying after a timeout
@@ -162,6 +185,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         return { usage: existing, created: false as const };
+      }
+
+      // A key used on the other Network is a final conflict, before any money
+      // moves. Both reads are in this serializable transaction, so of two
+      // first uses on the two Networks at once only one commits; the other's
+      // retry finds its row here.
+      if (isPreprodOn()) {
+        const other = createNetworkScope(otherNetwork(named.network));
+        if (await findUsage(other, tx, coworkerId, idempotencyKey)) {
+          throw conflict("Idempotency key already used on the other Network");
+        }
       }
 
       if (organizationId !== null) {
@@ -206,21 +240,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cents,
       });
 
-      const usage = await tx.coworkerUsage.create({
-        data: {
-          idempotencyKey,
-          referenceId: referenceId ?? null,
-          cents,
-          coworker: { connect: { id: coworkerId } },
-          user: { connect: { id: userId } },
-          ...(organizationId
-            ? {
-                organization: { connect: { id: organizationId } },
-              }
-            : {}),
-          transaction: { connect: { id: transactionId } },
-        },
-      });
+      // On the debit's Network, in its transaction. The id and times as
+      // Prisma's create made them: the `uuid` package's v7 (ordered within a
+      // millisecond in this process), taken before the time, so its time is
+      // never after `createdAt`; the times after the debit's.
+      const id = uuidv7();
+      const now = new Date();
+      const [usage] = await tx.$queryRaw<UsageRow[]>`
+        INSERT INTO ${scope.networkTable("coworker_usage")} (${USAGE_COLUMNS})
+        VALUES (${id}, ${now}, ${now}, ${idempotencyKey}, ${referenceId ?? null}, ${coworkerId}, ${userId}, ${organizationId}, ${cents}, ${transactionId})
+        RETURNING ${USAGE_COLUMNS}
+      `;
+      if (!usage) throw new Error("The usage insert returned no row");
 
       return { usage, created: true as const, scope };
     }, "Usage recording conflicted with a concurrent request. Please retry.");

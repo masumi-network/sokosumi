@@ -239,6 +239,24 @@ export async function paymentScope(
   return createNetworkScope("preprod");
 }
 
+/**
+ * The scope of the Network a Coworker's payment call names in its header, for
+ * looking up an earlier payment with the same key before `paymentScope` is
+ * asked: a replay moves no money, so no billed party's access is read, and one
+ * that lost its access since still learns whether its charge landed. 403
+ * `preprod_off` for Preprod while Preprod is off, before any read. Reads
+ * nothing.
+ */
+export function namedPaymentScope(c: Context): NetworkScope {
+  const network = requestNetwork(c);
+  if (network === "preprod" && !isPreprodOn()) {
+    throw forbidden("Preprod is switched off", {
+      kind: CORE_API_ERROR_KINDS.PREPROD_OFF,
+    });
+  }
+  return createNetworkScope(network);
+}
+
 /** Ticket 31's rule with no role: a payment has no admin shortcut. */
 async function billedPartyHasPreprod(
   { userId, organizationId }: BilledParty,
