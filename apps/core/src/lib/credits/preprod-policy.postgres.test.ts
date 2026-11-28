@@ -486,6 +486,10 @@ describe.runIf(enabled)(
       let cookie: string;
       let taskId: string;
       const sharedId = randomUUID();
+      // A Mainnet-only feature's receipt (a contact search) on another id.
+      const contactsId = randomUUID();
+      // And an image's, on a third.
+      const imageId = randomUUID();
       const comment = `Mainnet-only comment ${randomUUID()}`;
 
       beforeAll(async () => {
@@ -513,6 +517,43 @@ describe.runIf(enabled)(
         });
         await preprod().networkDb.transaction.create({
           data: { id: sharedId, amount: -4n * CREDIT, userId: owner.id },
+        });
+        await mainnet().networkDb.transaction.create({
+          data: { id: contactsId, amount: -2n * CREDIT, userId: owner.id },
+        });
+        await preprod().networkDb.transaction.create({
+          data: { id: contactsId, amount: -5n * CREDIT, userId: owner.id },
+        });
+        await prisma.contactPeopleSearch.create({
+          data: {
+            workspaceId: workspace.id,
+            query: "Mainnet-only search",
+            requested: 1,
+            transactionId: contactsId,
+          },
+        });
+        const project = await prisma.project.create({
+          data: { name: "Equal ids Project", workspaceId: workspace.id },
+          select: { id: true },
+        });
+        await mainnet().networkDb.transaction.create({
+          data: { id: imageId, amount: -1n * CREDIT, userId: owner.id },
+        });
+        await preprod().networkDb.transaction.create({
+          data: { id: imageId, amount: -6n * CREDIT, userId: owner.id },
+        });
+        await prisma.projectImageJob.create({
+          data: {
+            projectId: project.id,
+            workspaceId: workspace.id,
+            requestedByUserId: owner.id,
+            kind: "GENERATE",
+            model: "fixture-model",
+            prompt: "Mainnet-only image",
+            settings: {},
+            idempotencyKey: randomUUID(),
+            transactionId: imageId,
+          },
         });
         await prisma.taskEvent.create({
           data: {
@@ -551,13 +592,25 @@ describe.runIf(enabled)(
           const byTask = `taskId=${taskId}`;
           const byComment = `q=${encodeURIComponent(comment)}`;
 
-          expect(await data("/transactions", true)).toEqual([
-            expect.objectContaining({
-              id: sharedId,
-              kind: "unattributed",
-              credits: 4,
-            }),
-          ]);
+          const page = (await data("/transactions", true)) as {
+            id: string;
+          }[];
+          expect(new Map(page.map((row) => [row.id, row]))).toEqual(
+            new Map([
+              [
+                sharedId,
+                expect.objectContaining({ kind: "unattributed", credits: 4 }),
+              ],
+              [
+                contactsId,
+                expect.objectContaining({ kind: "unattributed", credits: 5 }),
+              ],
+              [
+                imageId,
+                expect.objectContaining({ kind: "unattributed", credits: 6 }),
+              ],
+            ]),
+          );
           for (const filter of [byTask, byComment]) {
             expect(await data(`/transactions?${filter}`, true)).toEqual([]);
             expect(await data(`/transactions/total?${filter}`, true)).toEqual({
@@ -585,6 +638,13 @@ describe.runIf(enabled)(
       it(
         "keeps Mainnet's row its own: the Task, the comment and Mainnet's amount",
         async () => {
+          expect(await data("/transactions?types=contacts", false)).toEqual([
+            expect.objectContaining({
+              id: contactsId,
+              kind: "contacts",
+              credits: 2,
+            }),
+          ]);
           for (const filter of [
             `taskId=${taskId}`,
             `q=${encodeURIComponent(comment)}`,
