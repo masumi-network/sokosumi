@@ -21,7 +21,7 @@ import {
   deleteSokoBotScheduleAction,
   updateSokoBotScheduleAction,
 } from "@/lib/actions/soko-bot/action";
-import { focusScheduleFormTrigger } from "./schedule-form-trigger";
+import { focusScheduleForm } from "./schedule-form-focus";
 import { useSokoBotTargetId } from "./soko-bot-target";
 
 interface ScheduleRowActionsProps {
@@ -122,9 +122,9 @@ export function ScheduleRowActions({
           </AlertDialogTrigger>
           <AlertDialogContent
             // The row leaves on delete, so focus has no Delete to return to;
-            // New schedule sits right under the list.
+            // the schedule form sits right under the list.
             onCloseAutoFocus={(event) => {
-              if (removing.current && focusScheduleFormTrigger())
+              if (removing.current && focusScheduleForm())
                 event.preventDefault();
             }}
           >

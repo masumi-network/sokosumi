@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "@/messages/en.json";
-
 import { ScheduleForm } from "./schedule-form.client";
+import { focusScheduleForm } from "./schedule-form-focus";
 
 const createMock = vi.fn();
 
@@ -18,7 +19,11 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-async function openForm(timezone = "America/Los_Angeles") {
+async function openForm(
+  timezone = "America/Los_Angeles",
+  /** Rendered after the form, e.g. a control to move focus to. */
+  after?: ReactNode,
+) {
   const user = userEvent.setup();
   render(
     <NextIntlClientProvider
@@ -32,6 +37,7 @@ async function openForm(timezone = "America/Los_Angeles") {
       }}
     >
       <ScheduleForm timezone={timezone} />
+      {after}
     </NextIntlClientProvider>,
   );
   await user.click(screen.getByRole("button", { name: "New schedule" }));
@@ -78,6 +84,40 @@ describe("ScheduleForm", () => {
         screen.getByRole("button", { name: "New schedule" }),
       ).toHaveFocus(),
     );
+  });
+
+  it("leaves focus where the user moved it while the schedule saved", async () => {
+    let save: (value: unknown) => void = () => {};
+    createMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        save = resolve;
+      }),
+    );
+    const user = await openForm(
+      undefined,
+      <button type="button">Elsewhere</button>,
+    );
+    await user.type(screen.getByLabelText("Name"), "Friday check-in");
+    await user.type(screen.getByLabelText("Prompt"), "Sum up my week");
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" });
+    elsewhere.focus();
+
+    await act(async () => save({ ok: true, value: { id: "s1" } }));
+
+    expect(screen.getByRole("button", { name: "New schedule" })).toBeTruthy();
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it("gives a deleted row's focus to Name while the form is open", async () => {
+    const user = await openForm(
+      undefined,
+      <button type="button">Elsewhere</button>,
+    );
+    await user.click(screen.getByRole("button", { name: "Elsewhere" }));
+
+    expect(focusScheduleForm()).toBe(true);
+    expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 
   it("names the time and timezone chips with their visible values", async () => {
