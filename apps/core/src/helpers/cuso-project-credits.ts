@@ -117,6 +117,7 @@ async function writeOffCreditBuckets(
       AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
     GROUP BY cb.id, cb."organizationId", cb."userId", cb.amount
     HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
+    ORDER BY cb."expiresAt" ASC NULLS LAST, cb."createdAt" ASC, cb.id ASC
   `);
   // No note/type column on Transaction: a write-off reads as a plain spend.
   for (const bucket of buckets) {

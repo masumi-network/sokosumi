@@ -1276,7 +1276,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -1863,7 +1863,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -5443,7 +5443,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -6053,7 +6053,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -9755,7 +9755,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -10414,7 +10414,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -12956,7 +12956,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -13991,7 +13991,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -16145,7 +16145,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -16732,7 +16732,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -20312,7 +20312,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -20922,7 +20922,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -24624,7 +24624,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -25283,7 +25283,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -27825,7 +27825,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
@@ -28860,7 +28860,7 @@
             ]
           },
           {
-            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0",
+            "sql": "SELECT cb.id, cb.\"organizationId\", cb.\"userId\", (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining FROM \"public\".\"credit_bucket\" cb LEFT JOIN \"public\".\"credit_consumption\" cc ON cc.\"bucketId\" = cb.id WHERE cb.\"projectId\" = $1::uuid AND (cb.\"expiresAt\" IS NULL OR cb.\"expiresAt\" > $2) GROUP BY cb.id, cb.\"organizationId\", cb.\"userId\", cb.amount HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0 ORDER BY cb.\"expiresAt\" ASC NULLS LAST, cb.\"createdAt\" ASC, cb.id ASC",
             "values": [
               "<Organization's Project>",
               "<time>"
