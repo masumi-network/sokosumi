@@ -349,12 +349,25 @@ export function SeoRuns({
                       )}
                     />
                   ) : null}
-                  <span className="relative flex min-h-10 flex-col items-center px-2">
-                    <Loader2
-                      aria-hidden
-                      className="bg-background -mt-[3px] mb-[3px] size-4 animate-spin rounded-full motion-reduce:animate-pulse"
-                    />
-                    {t("runs.running")}
+                  <span
+                    className={cn(
+                      "relative flex min-h-10 flex-col items-center px-2",
+                      progress.queued && "text-muted-foreground",
+                    )}
+                  >
+                    {progress.queued ? (
+                      // Accepted, not started: a hollow dashed dot, no spinner and no estimate.
+                      <span
+                        aria-hidden
+                        className="border-muted-foreground bg-background ring-background mb-1.5 size-2.5 rounded-full border border-dashed ring-4"
+                      />
+                    ) : (
+                      <Loader2
+                        aria-hidden
+                        className="bg-background -mt-[3px] mb-[3px] size-4 animate-spin rounded-full motion-reduce:animate-pulse"
+                      />
+                    )}
+                    {progress.queued ? t("runs.queued") : t("runs.running")}
                     {progress.minutesLeft || progress.late ? (
                       <span className="text-muted-foreground text-xs">
                         {progress.minutesLeft
