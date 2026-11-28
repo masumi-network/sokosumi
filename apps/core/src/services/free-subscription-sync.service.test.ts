@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const {
@@ -63,6 +64,7 @@ function createSyncExecutionOptions() {
     deadlineMs,
     msRemaining: () => deadlineMs - Date.now(),
     shouldContinue: () => true,
+    scope: { network: "mainnet" } as NetworkScope,
   };
 }
 
@@ -144,6 +146,7 @@ describe("freeSubscriptionSyncService", () => {
     expect(ensureNextLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
       {
         activatesAt: new Date("2026-04-15T00:10:00.000Z"),
+        grantCredits: expect.any(Function),
         subscription: expect.objectContaining({ id: "sub-upcoming" }),
       },
       expect.anything(),
@@ -261,6 +264,7 @@ describe("freeSubscriptionSyncService", () => {
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).toHaveBeenCalledWith(
       {
+        grantCredits: expect.any(Function),
         setCanceledAt: false,
         subscription: expect.objectContaining({ id: "sub-orphan" }),
       },
@@ -314,6 +318,7 @@ describe("freeSubscriptionSyncService", () => {
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).toHaveBeenCalledWith(
       {
+        grantCredits: expect.any(Function),
         setCanceledAt: false,
         subscription: expect.objectContaining({
           id: "sub-local-1",

@@ -2,6 +2,8 @@ import { ensureInitialLocalFreeSubscriptionPeriod } from "@sokosumi/database/hel
 import type Stripe from "stripe";
 
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
+import { grantLocalFreePeriods } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 
@@ -111,6 +113,11 @@ export async function handleCustomerCreatedEvent(
         await ensureInitialLocalFreeSubscriptionPeriod(
           {
             createdAt: organization.createdAt,
+            // The free plan's credits are Mainnet's.
+            grantCredits: grantLocalFreePeriods(
+              createNetworkScope("mainnet"),
+              tx,
+            ),
             kind: "organization",
             organizationId,
             stripeCustomerId: customer.id,

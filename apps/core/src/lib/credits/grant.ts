@@ -1,7 +1,13 @@
-import type { CreditBucketReferenceType, Prisma } from "@sokosumi/database";
+import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import {
   type CreditBucketProjectOption,
+  createEnterprisePeriodCreditBucket,
+  createEnterpriseTopUpCreditBucket,
+  expireCreditBucketsNow,
+  type GrantEnterpriseCredits,
+  type GrantLocalFreePeriodCredits,
   grantFreeCredits,
+  grantLocalFreePeriodCredits,
   grantSignupBonusCredits,
 } from "@sokosumi/database/helpers";
 
@@ -90,15 +96,8 @@ export interface FreeGrant
   note: string | null;
 }
 
-/*
- * The kinds the later pull requests of the credits cut bring, as their
- * writers on `origin/main` take them. Their callers are not moved yet, so
- * `grant` does not take them: each is added to `BuiltGrant` by the pull
- * request that moves its writer, with its dispatch.
- */
-
 /**
- * A local free plan's period (pull request 11): once per owner and period,
+ * A local free plan's period: once per owner and period,
  * by a reference composed of the owner and `periodEnd`. The credits expire
  * at the period's end; a period that starts later activates then.
  */
@@ -111,8 +110,8 @@ export interface LocalFreePeriodGrant extends GrantCommon, InCredits {
 }
 
 /**
- * An enterprise contract's period or top-up (pull request 11): once per
- * period or contract id. A period always expires; a top-up may not.
+ * An enterprise contract's period or top-up: once per period or contract id.
+ * A period always expires; a top-up may not.
  */
 export type EnterpriseGrant = GrantCommon &
   InCents & { organizationId: string; activatesAt: Date } & (
@@ -124,6 +123,13 @@ export type EnterpriseGrant = GrantCommon &
         expiresAt: Date | null;
       }
   );
+
+/*
+ * The kinds the later pull requests of the credits cut bring, as their
+ * writers on `origin/main` take them. Their callers are not moved yet, so
+ * `grant` does not take them: each is added to `BuiltGrant` by the pull
+ * request that moves its writer, with its dispatch.
+ */
 
 /**
  * A CMO payment's credits for a Cuso's Project (pull request 12), keyed by
@@ -167,7 +173,11 @@ export type GrantRequest =
   | StripeInvoiceGrant;
 
 /** The kinds `grant` takes now. */
-export type BuiltGrant = SignupBonusGrant | FreeGrant;
+export type BuiltGrant =
+  | SignupBonusGrant
+  | FreeGrant
+  | LocalFreePeriodGrant
+  | EnterpriseGrant;
 
 /** A new grant, with its bucket. */
 export interface Granted {
@@ -214,10 +224,72 @@ export type GrantResult<
 export async function grant<Input extends BuiltGrant>(
   input: Input,
 ): Promise<GrantResult<Input["kind"]>>;
-export async function grant(input: BuiltGrant): Promise<GrantResult> {
+export async function grant(
+  input: BuiltGrant,
+): Promise<GrantResult<BuiltGrant["kind"]>> {
   const { scope, tx } = input;
   // A scope that refuses its Network throws here, before anything is written.
   scope.network;
+
+  if (input.kind === "local_free_period") {
+    const { owner } = input;
+    const { created } = await grantLocalFreePeriodCredits(
+      {
+        owner,
+        credits: input.credits,
+        periodEnd: input.periodEnd,
+        activatesAt: input.activatesAt,
+      },
+      tx,
+    );
+    if (!created) return { outcome: "already_granted", bucketId: null };
+    if (input.wakeTasks) {
+      await markOutOfCreditsTasksAsToppedUp({
+        organizationId: owner.organizationId ?? null,
+        tx,
+        userId: owner.userId ?? null,
+      });
+    }
+    return { outcome: "granted", bucketId: null };
+  }
+
+  if (
+    input.kind === "enterprise_period" ||
+    input.kind === "enterprise_top_up"
+  ) {
+    const written = {
+      activatesAt: input.activatesAt,
+      amount: input.cents,
+      organizationId: input.organizationId,
+    };
+    const { bucketId, created } =
+      input.kind === "enterprise_period"
+        ? await createEnterprisePeriodCreditBucket(
+            {
+              ...written,
+              expiresAt: input.expiresAt,
+              periodId: input.periodId,
+            },
+            tx,
+          )
+        : await createEnterpriseTopUpCreditBucket(
+            {
+              ...written,
+              contractId: input.contractId,
+              expiresAt: input.expiresAt,
+            },
+            tx,
+          );
+    if (!created) return { outcome: "already_granted", bucketId };
+    if (input.wakeTasks) {
+      await markOutOfCreditsTasksAsToppedUp({
+        organizationId: input.organizationId,
+        tx,
+        userId: null,
+      });
+    }
+    return { outcome: "granted", bucketId };
+  }
 
   if (input.kind === "signup_bonus") {
     const { bucketId, created } = await grantSignupBonusCredits(
@@ -269,4 +341,66 @@ export async function grant(input: BuiltGrant): Promise<GrantResult> {
     });
   }
   return { outcome: "granted", bucketId };
+}
+
+/**
+ * `grant` as the local free plan's database helpers take it: each period
+ * they open is given on the caller's transaction, and wakes nothing (the
+ * personal Workspace wakes once for its free plan and its bonus).
+ */
+export function grantLocalFreePeriods(
+  scope: NetworkScope,
+  tx: Prisma.TransactionClient,
+): GrantLocalFreePeriodCredits {
+  return (credits) =>
+    grant({
+      ...credits,
+      scope,
+      tx,
+      kind: "local_free_period",
+      wakeTasks: false,
+    });
+}
+
+/**
+ * `grant` as the enterprise contract helpers take it, on the caller's
+ * transaction. An enterprise grant wakes no Task.
+ */
+export function grantEnterpriseCredits(
+  scope: NetworkScope,
+  tx: Prisma.TransactionClient,
+): GrantEnterpriseCredits {
+  return (credits) => grant({ ...credits, scope, tx, wakeTasks: false });
+}
+
+/**
+ * Ends an enterprise contract's credits now: every bucket of its periods,
+ * and of its top-up when it has one, that would still be live at `now`
+ * expires at `now`, in the caller's transaction. Answers how many expired.
+ * A write on buckets that are there, not a grant: it gives nothing back.
+ */
+export async function expireEnterpriseGrants(input: {
+  scope: NetworkScope;
+  tx: Prisma.TransactionClient;
+  periodIds: string[];
+  /** The contract's id when it has a top-up, else null. */
+  topUpContractId: string | null;
+  now: Date;
+}): Promise<number> {
+  // A scope that refuses its Network throws here, before anything is written.
+  input.scope.network;
+  return await expireCreditBucketsNow(
+    {
+      now: input.now,
+      referenceIds:
+        input.topUpContractId === null
+          ? input.periodIds
+          : [...input.periodIds, input.topUpContractId],
+      referenceTypes: [
+        CreditBucketReferenceType.ENTERPRISE_PERIOD,
+        CreditBucketReferenceType.ENTERPRISE_TOP_UP,
+      ],
+    },
+    input.tx,
+  );
 }

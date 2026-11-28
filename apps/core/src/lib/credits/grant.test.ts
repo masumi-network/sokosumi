@@ -2,12 +2,21 @@ import type { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const database = vi.hoisted(() => ({
+  createEnterprisePeriodCreditBucket: vi.fn(),
+  createEnterpriseTopUpCreditBucket: vi.fn(),
+  expireCreditBucketsNow: vi.fn(),
   grantFreeCredits: vi.fn(),
+  grantLocalFreePeriodCredits: vi.fn(),
   grantSignupBonusCredits: vi.fn(),
   wake: vi.fn(),
 }));
 vi.mock("@sokosumi/database/helpers", () => ({
+  createEnterprisePeriodCreditBucket:
+    database.createEnterprisePeriodCreditBucket,
+  createEnterpriseTopUpCreditBucket: database.createEnterpriseTopUpCreditBucket,
+  expireCreditBucketsNow: database.expireCreditBucketsNow,
   grantFreeCredits: database.grantFreeCredits,
+  grantLocalFreePeriodCredits: database.grantLocalFreePeriodCredits,
   grantSignupBonusCredits: database.grantSignupBonusCredits,
 }));
 vi.mock("@/services/task-topup.service", () => ({
@@ -17,6 +26,7 @@ vi.mock("@/services/task-topup.service", () => ({
 import type { NetworkScope } from "@/lib/db/network-scope";
 
 import {
+  expireEnterpriseGrants,
   type GrantRequest,
   type GrantResult,
   grant,
@@ -78,6 +88,62 @@ describe("grant", () => {
     });
   });
 
+  it("wakes nothing for a local free period that was already given, even when asked to wake", async () => {
+    database.grantLocalFreePeriodCredits.mockResolvedValueOnce({
+      created: false,
+    });
+
+    await expect(
+      grant({
+        scope,
+        tx,
+        kind: "local_free_period",
+        owner: { organizationId: "org-1" },
+        credits: 250,
+        periodEnd: new Date("2026-12-01T00:00:00.000Z"),
+        activatesAt: null,
+        wakeTasks: true,
+      }),
+    ).resolves.toEqual({ outcome: "already_granted", bucketId: null });
+    expect(database.wake).not.toHaveBeenCalled();
+  });
+
+  it("writes an enterprise top-up's cents as its amount and answers its bucket", async () => {
+    database.createEnterpriseTopUpCreditBucket.mockResolvedValueOnce({
+      bucketId: "bucket-3",
+      created: true,
+    });
+    const activatesAt = new Date("2026-11-01T00:00:00.000Z");
+
+    await expect(
+      grant({
+        scope,
+        tx,
+        kind: "enterprise_top_up",
+        organizationId: "org-1",
+        contractId: "contract-1",
+        cents: 7n,
+        activatesAt,
+        expiresAt: null,
+        wakeTasks: false,
+      }),
+    ).resolves.toEqual({ outcome: "granted", bucketId: "bucket-3" });
+    expect(
+      database.createEnterpriseTopUpCreditBucket,
+    ).toHaveBeenCalledExactlyOnceWith(
+      {
+        activatesAt,
+        amount: 7n,
+        contractId: "contract-1",
+        expiresAt: null,
+        organizationId: "org-1",
+      },
+      tx,
+    );
+    expect(database.createEnterprisePeriodCreditBucket).not.toHaveBeenCalled();
+    expect(database.wake).not.toHaveBeenCalled();
+  });
+
   it("writes nothing for a scope that refuses its Network", async () => {
     const refusal = new Error("Preprod is off");
     const refused = {
@@ -90,6 +156,55 @@ describe("grant", () => {
       grant({ ...signupBonus, scope: refused, wakeTasks: true }),
     ).rejects.toBe(refusal);
     expect(database.grantSignupBonusCredits).not.toHaveBeenCalled();
+  });
+});
+
+describe("expireEnterpriseGrants", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("expires the periods' buckets and the top-up's, on the caller's transaction", async () => {
+    database.expireCreditBucketsNow.mockResolvedValueOnce(3);
+    const now = new Date("2026-11-28T00:00:00.000Z");
+
+    await expect(
+      expireEnterpriseGrants({
+        scope,
+        tx,
+        periodIds: ["period-1", "period-2"],
+        topUpContractId: "contract-1",
+        now,
+      }),
+    ).resolves.toBe(3);
+    expect(database.expireCreditBucketsNow).toHaveBeenCalledExactlyOnceWith(
+      {
+        now,
+        referenceIds: ["period-1", "period-2", "contract-1"],
+        referenceTypes: ["ENTERPRISE_PERIOD", "ENTERPRISE_TOP_UP"],
+      },
+      tx,
+    );
+  });
+
+  it("writes nothing for a scope that refuses its Network", async () => {
+    const refusal = new Error("Preprod is off");
+    const refused = {
+      get network(): never {
+        throw refusal;
+      },
+    } as unknown as NetworkScope;
+
+    await expect(
+      expireEnterpriseGrants({
+        scope: refused,
+        tx,
+        periodIds: ["period-1"],
+        topUpContractId: null,
+        now: new Date(),
+      }),
+    ).rejects.toBe(refusal);
+    expect(database.expireCreditBucketsNow).not.toHaveBeenCalled();
   });
 });
 

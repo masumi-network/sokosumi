@@ -24,6 +24,14 @@ export {
 } from "./enterprise-contract-errors.js";
 export type { PaidSubscriptionBlocker } from "./enterprise-contract-exclusivity.js";
 export {
+  createEnterprisePeriodCreditBucket,
+  createEnterpriseTopUpCreditBucket,
+  type EnterpriseCredits,
+  type ExpireEnterpriseCredits,
+  expireCreditBucketsNow,
+  type GrantEnterpriseCredits,
+} from "./enterprise-contract-grants.js";
+export {
   activateEnterpriseContract,
   cancelEnterpriseContract,
 } from "./enterprise-contract-lifecycle.js";
@@ -79,7 +87,10 @@ export {
   ensureNextLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
   FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS,
+  type GrantLocalFreePeriodCredits,
   getNextMonthlyPeriodEnd,
+  grantLocalFreePeriodCredits,
   isActiveSubscriptionStatus,
+  type LocalFreePeriodCredits,
   transitionToNextLocalFreeSubscriptionPeriod,
 } from "./subscription.js";
