@@ -7,7 +7,8 @@
  * `jobCount` and `updatedAt` against the Job's `createdAt`, and every
  * statement PostgreSQL received, with each transaction's boundaries.
  *
- * The lookup's own statements are kept apart (`lookup`): they end where the
+ * The lookup's own statements are kept apart (`lookup`), each with its
+ * bindings, rates, readiness and the Agent's row in the order sent: they end where the
  * hire prices the Agent it read. Its rates, readiness and Agent reads are
  * separate autocommit statements, with no BEGIN: the one-operation Repeatable
  * Read batch Prisma sends as a plain read. That is `origin/main`'s, kept here
@@ -198,6 +199,9 @@ const POLICY = "ab".repeat(28);
 const READY_CONTRACT = "addr_test1_ready_contract";
 const OTHER_CONTRACT = "addr_test1_other_contract";
 const UNRATED_UNIT = "cd".repeat(28);
+const SECOND_READY_CONTRACT = "addr_test1_second_ready_contract";
+/** A second rated unit, at 10^8 cents per unit. */
+const SECOND_UNIT = `${"ef".repeat(28)}74555344`;
 
 const agentSeed = {
   description: "Hire fixture",
@@ -263,6 +267,7 @@ async function seed() {
       key: "cardano-v2-rail-readiness",
       cursorId: JSON.stringify([
         { policyId: POLICY, smartContractAddress: READY_CONTRACT },
+        { policyId: POLICY, smartContractAddress: SECOND_READY_CONTRACT },
       ]),
       lastSyncedAt: agentCreatedAt,
     },
@@ -273,6 +278,15 @@ async function seed() {
         id: "hire-rate",
         unit: "lovelace",
         centsPerUnit: 10n ** 4n,
+        createdAt: agentCreatedAt,
+        updatedAt: agentCreatedAt,
+      },
+    });
+    await tx.creditCost.create({
+      data: {
+        id: "hire-rate-second",
+        unit: SECOND_UNIT,
+        centsPerUnit: 10n ** 8n,
         createdAt: agentCreatedAt,
         updatedAt: agentCreatedAt,
       },
@@ -317,6 +331,41 @@ async function seed() {
         isShown: true,
         paymentType: "WEB3_CARDANO_V1",
         pricing: fixed("hire-v1", 3n * ADA),
+      },
+    });
+    await tx.agent.create({
+      data: {
+        ...agentSeed,
+        id: "hire-v1-two-units",
+        name: "hire-v1-two-units",
+        blockchainIdentifier: "hire-v1-two-units",
+        isShown: true,
+        paymentType: "WEB3_CARDANO_V1",
+        pricing: {
+          create: {
+            id: "hire-v1-two-units-pricing",
+            pricingType: "FIXED",
+            fixedPricing: {
+              create: {
+                id: "hire-v1-two-units-fixed",
+                amounts: {
+                  create: [
+                    {
+                      id: "hire-v1-two-units-a",
+                      unit: "lovelace",
+                      amount: 3n * ADA,
+                    },
+                    {
+                      id: "hire-v1-two-units-b",
+                      unit: SECOND_UNIT,
+                      amount: 7n,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
       },
     });
     await tx.agent.create({
@@ -370,6 +419,20 @@ async function seed() {
               4n * ADA,
             ),
             source("hire-v2-preprod-other", 3, "Preprod", OTHER_CONTRACT, ADA),
+            source(
+              "hire-v2-mainnet-second",
+              4,
+              "Mainnet",
+              SECOND_READY_CONTRACT,
+              3n * ADA,
+            ),
+            source(
+              "hire-v2-preprod-second",
+              5,
+              "Preprod",
+              SECOND_READY_CONTRACT,
+              3n * ADA,
+            ),
           ],
         },
       },
@@ -492,7 +555,7 @@ async function observeHire(hire: Hire) {
     {
       outcome,
       outside: state.calls,
-      lookup: statements(lookup),
+      lookup: lookupAsSent(lookup),
       statements: statements(log),
       jobs,
       debits,
@@ -502,7 +565,43 @@ async function observeHire(hire: Hire) {
   );
 }
 
+/**
+ * The lookup's statements with their bindings. Rates, readiness and the
+ * Agent's own row are read one after the other: kept in the order sent.
+ * Prisma then loads the Agent's relations, some side by side on other
+ * connections: kept as the set they are, each with its bindings. Schema names
+ * are written as today's layout names them.
+ */
+function lookupAsSent(lookup: Parameters<typeof statements>[0]) {
+  const sent = statements(lookup, { asSent: true });
+  const today = (sql: string) =>
+    sql.replace(/"(shared|mainnet)"\./g, '"public".');
+  const plainSql = (statement: { sql: string; values: unknown[] }) => ({
+    sql: today(statement.sql),
+    values: statement.values,
+  });
+  const outside = sent.outsideTransactions.map(plainSql);
+  return {
+    transactions: sent.transactions.map((tx) => tx.map(plainSql)),
+    inOrder: outside.slice(0, 3),
+    relations: outside
+      .slice(3)
+      .map((statement) =>
+        JSON.stringify(statement, (_key, item) =>
+          typeof item === "bigint" ? item.toString() : item,
+        ),
+      )
+      .sort()
+      .map((statement) => JSON.parse(statement)),
+  };
+}
+
 const cases: Array<[string, Hire]> = [
+  ["a V1 hire in two rated units", { agentId: "hire-v1-two-units" }],
+  [
+    "a V2 hire, the seller naming the second ready source",
+    { agentId: "hire-v2", sellerSourceIndex: { Mainnet: 4, Preprod: 5 } },
+  ],
   [
     "a V1 hire at its cap",
     { agentId: "hire-v1", maxAcceptedCents: 3n * CREDIT },

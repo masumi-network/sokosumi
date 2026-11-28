@@ -32,4 +32,37 @@ describe("requireAgentForHire", () => {
     );
     expect(findFirst).toHaveBeenCalledOnce();
   });
+
+  it("returns the rates it priced with and the ready sources it read", async () => {
+    const rates = [{ unit: "lovelace", centsPerUnit: 1n }];
+    const ready = [
+      { policyId: "ab".repeat(28), smartContractAddress: "addr_test1_ready" },
+    ];
+    const agent = {
+      id: "agent-1",
+      paymentType: "NONE",
+      blockchainIdentifier: "agent-1",
+      pricing: { pricingType: "FREE", fixedPricing: null },
+      paymentSources: [],
+    };
+    const scope = {
+      network: "mainnet",
+      networkDb: { creditCost: { findMany: vi.fn().mockResolvedValue(rates) } },
+      sharedDb: {
+        syncMetadata: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ cursorId: JSON.stringify(ready) }),
+        },
+      },
+      netBatch: vi.fn().mockResolvedValue([agent]),
+    } as unknown as NetworkScope;
+
+    const hire = await requireAgentForHire(scope, "agent-1", null);
+
+    expect(hire.creditCosts).toBe(rates);
+    expect(hire.cardanoV2ReadySources).toEqual(ready);
+    expect(hire.agent).toBe(agent);
+    expect(hire.cost).toEqual({ cents: 0n });
+  });
 });

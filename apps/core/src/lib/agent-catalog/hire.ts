@@ -28,7 +28,8 @@ import {
 export const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
 
 /**
- * The Agent a hire may buy, its price in cents and, for a paid V2 Agent, the
+ * The Agent a hire may buy, its price in cents, the rates it was priced with,
+ * the ready sources it was admitted with and, for a paid V2 Agent, the
  * purchase-ready sources it may settle through, by source index. Throws the
  * 404 for an Agent that cannot be hired, the 400 when the price exceeds
  * `maxCents`, and the 422 when no ready V2 source can be billed.
@@ -100,7 +101,13 @@ export async function requireAgentForHire(
     }
   }
 
-  return { agent, cost, cardanoV2ReadySources, preparedV2Sources };
+  return {
+    agent,
+    cost,
+    creditCosts,
+    cardanoV2ReadySources,
+    preparedV2Sources,
+  };
 }
 
 /**
