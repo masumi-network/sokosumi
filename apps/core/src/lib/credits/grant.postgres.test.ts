@@ -88,6 +88,7 @@ import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import {
   baseFile,
   inFlow,
+  nextMillisecond,
   observing,
   plain,
   sendOrder,
@@ -110,18 +111,6 @@ const CASE_TIMEOUT = 90_000;
 const DAY = 86_400_000;
 const UUID_PATTERN =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-
-/**
- * `Date.now()` once the clock has left the current millisecond: a call's
- * start taken so lies after every row written before it.
- */
-async function nextMillisecond(): Promise<number> {
-  const before = Date.now();
-  while (Date.now() <= before) {
-    await new Promise((resolve) => setTimeout(resolve, 1));
-  }
-  return Date.now();
-}
 
 const BASE_FILE = fileURLToPath(new URL("./grant.base.json", import.meta.url));
 const { expectAsOnBase } = baseFile(
