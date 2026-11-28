@@ -34,6 +34,13 @@ function deploymentRail() {
   return getEnv().NETWORK;
 }
 
+/** The hire's Cardano V2 payment sources: those on the rail. */
+export const cardanoV2PaymentSourcesOnRail = () => ({
+  chain: "Cardano",
+  network: deploymentRail(),
+  paymentSourceType: "Web3CardanoV2",
+});
+
 export function allowedX402ReadinessNetworks(_scope: NetworkScope) {
   return getAllowedX402Caip2Networks(deploymentRail());
 }
