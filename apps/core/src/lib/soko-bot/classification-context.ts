@@ -4,9 +4,13 @@ import {
   type SokoBotTurnReader,
 } from "@/helpers/task-visibility";
 import { namesForClassifier } from "@/lib/agent-catalog/bot";
-import type { NetworkScope } from "@/lib/db/network-scope";
+import {
+  type NetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
+import { buildSokoBotReaderJobVisibilitySql } from "@/lib/soko-bot/job-visibility";
 
 /**
  * The candidates the classifier may name, read at the same visibility seam
@@ -65,12 +69,20 @@ export async function loadClassificationContext(
       orderBy: { updatedAt: "desc" },
       take: 50,
     }),
-    prisma.job.findMany({
-      where: { ...buildSokoBotReaderJobWhere(reader), workspaceId },
-      select: { id: true, name: true },
-      orderBy: { updatedAt: "desc" },
-      take: 50,
-    }),
+    networkUsesSharedSchema()
+      ? scope.networkDb.job.findMany({
+          where: { ...buildSokoBotReaderJobWhere(reader), workspaceId },
+          select: { id: true, name: true },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
+        })
+      : scope.networkDb.$queryRaw<{ id: string; name: string | null }[]>`
+          SELECT j.id, j.name FROM ${scope.networkTable("Job")} j
+          WHERE j."workspaceId" = ${workspaceId}::uuid
+          ${buildSokoBotReaderJobVisibilitySql(reader, scope.network)}
+          ORDER BY j."updatedAt" DESC
+          LIMIT 50
+        `,
   ]);
   const references = [
     ...new Set(message.match(/\b[a-zA-Z0-9][a-zA-Z0-9_-]{15,80}\b/g) ?? []),

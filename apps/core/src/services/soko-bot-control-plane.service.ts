@@ -83,7 +83,11 @@ import {
   GATEWAY_INTERNAL_SERVER_ERROR,
 } from "@/lib/ai-gateway-budget-error";
 import { databaseNow } from "@/lib/db/database-now";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  createRefusedNetworkScope,
+  type NetworkScope,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
@@ -94,6 +98,7 @@ import {
   recordCoreWarning,
   runAsBackgroundWork,
 } from "@/lib/evlog";
+import { requireNetwork } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   accountQuestionHint,
@@ -1871,13 +1876,15 @@ export class SokoBotControlPlane {
 
       let staleNetwork = input.staleNetwork === true;
       let canCharge = !staleNetwork;
+      let resumedScope: NetworkScope | undefined;
       if (canCharge && (turn.network === "preprod" || turn.network === null)) {
         try {
-          await detachedNetworkScope(turn, tx);
+          resumedScope = await detachedNetworkScope(turn, tx);
         } catch (error) {
           if (!(error instanceof DetachedNetworkRefusal)) throw error;
           canCharge = false;
           staleNetwork = error.final;
+          resumedScope = createRefusedNetworkScope(error);
         }
       }
       const usageCharge = !canCharge
@@ -1950,22 +1957,26 @@ export class SokoBotControlPlane {
             ? "Available credits were exhausted while settling this Soko Bot turn"
             : safeRuntimeDiagnostic(input.errorDetail);
 
-      const responseContract =
+      const completedScope =
         settledStatus === "COMPLETED"
-          ? await buildActionResponse(
-              tx,
-              input.turnId,
-              turn.finalAnswer ?? "",
-              // A run's own report is its answer, whatever it changed.
-              !turn.parentTurnId &&
-                actionRequested(turn.route, turn.capabilityNames ?? []),
-              turn.responseContract &&
-                typeof turn.responseContract === "object" &&
-                !Array.isArray(turn.responseContract)
-                ? turn.responseContract.narrative
-                : undefined,
-            )
+          ? (resumedScope ?? createNetworkScope(requireNetwork(turn.network)))
           : null;
+      const responseContract = completedScope
+        ? await buildActionResponse(
+            completedScope,
+            tx,
+            input.turnId,
+            turn.finalAnswer ?? "",
+            // A run's own report is its answer, whatever it changed.
+            !turn.parentTurnId &&
+              actionRequested(turn.route, turn.capabilityNames ?? []),
+            turn.responseContract &&
+              typeof turn.responseContract === "object" &&
+              !Array.isArray(turn.responseContract)
+              ? turn.responseContract.narrative
+              : undefined,
+          )
+        : null;
       const now = await databaseNow(tx);
       const settled = await tx.sokoBotTurn.updateMany({
         where: {
@@ -2023,8 +2034,13 @@ export class SokoBotControlPlane {
           data: { responseContract: { ...responseContract, outcomeSummary } },
         });
       }
-      if (settledStatus === "COMPLETED")
-        await prepareTurnActionResultPreviews(input.turnId, turn, tx);
+      if (completedScope)
+        await prepareTurnActionResultPreviews(
+          input.turnId,
+          turn,
+          completedScope,
+          tx,
+        );
       if (!staleNetwork) {
         await enqueueSokoBotDelivery(tx, input.turnId);
         deliver = true;

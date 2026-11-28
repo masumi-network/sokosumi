@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 const {
   buildActionResponseMock,
@@ -216,6 +217,7 @@ const log = { append: vi.fn(), turnId: "turn-1" };
 
 function finish(text: string, requiresActionProof: boolean) {
   return finishTurn({
+    scope: { network: "mainnet" } as NetworkScope,
     log: log as never,
     turnId: "turn-1",
     text,
@@ -236,7 +238,7 @@ beforeEach(() => {
   toolCallFind.mockResolvedValue([]);
   strategyFind.mockResolvedValue([]);
   buildActionResponseMock.mockImplementation(
-    async (_tx, _turnId, text: string) => ({ answerText: text }),
+    async (_scope, _tx, _turnId, text: string) => ({ answerText: text }),
   );
 });
 
@@ -246,14 +248,14 @@ describe("finishTurn", () => {
       '{"kind":"REPORT","message":"Team trials now lead.","question":null,"observationToolCallIds":[]}',
       false,
     );
-    expect(buildActionResponseMock.mock.calls[0][2]).toBe(
+    expect(buildActionResponseMock.mock.calls[0][3]).toBe(
       "Team trials now lead.",
     );
   });
 
   it("keeps plain prose as the bot's message on a turn that could act", async () => {
     await finish("Here is the draft for your review.", true);
-    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+    expect(buildActionResponseMock.mock.calls[0][5]).toMatchObject({
       kind: "REPORT",
       message: "Here is the draft for your review.",
     });
@@ -267,7 +269,7 @@ describe("finishTurn", () => {
     );
     claimsActionMock.mockResolvedValue(true);
     await finish("I created the task and assigned it to Hannah.", true);
-    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+    expect(buildActionResponseMock.mock.calls[0][5]).toMatchObject({
       message: null,
     });
     // Counted, never quoted.
@@ -288,7 +290,7 @@ describe("finishTurn", () => {
       "Your Padierfind project has an X account. I created the schedule. Approve the draft when you are ready?",
       true,
     );
-    const narrative = buildActionResponseMock.mock.calls[0][4];
+    const narrative = buildActionResponseMock.mock.calls[0][5];
     expect(narrative.message).toBe(
       "Your Padierfind project has an X account. Approve the draft when you are ready?",
     );
@@ -311,7 +313,7 @@ describe("finishTurn", () => {
       "I created the schedule. The post has not been drafted, scheduled, or published because the X account needs your approval. Nothing was posted — I drafted it.",
       true,
     );
-    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+    expect(buildActionResponseMock.mock.calls[0][5].message).toBe(
       "The post has not been drafted, scheduled, or published because the X account needs your approval.",
     );
   });
@@ -333,7 +335,7 @@ describe("finishTurn", () => {
       ].join(" "),
       true,
     );
-    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+    expect(buildActionResponseMock.mock.calls[0][5].message).toBe(
       "Hannah sent the recording on Monday. The reviewer added two comments to the Task.",
     );
   });
@@ -349,7 +351,7 @@ describe("finishTurn", () => {
       "The review is in. Nothing was posted, drafted 3 options for you. No posts were published, saved the draft instead. It was not drafted or posted yet.",
       true,
     );
-    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+    expect(buildActionResponseMock.mock.calls[0][5].message).toBe(
       "The review is in. It was not drafted or posted yet.",
     );
   });
@@ -365,7 +367,7 @@ describe("finishTurn", () => {
       "The research is in. No one objected, so I created the schedule. Nothing was posted, I drafted it for you.",
       true,
     );
-    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+    expect(buildActionResponseMock.mock.calls[0][5].message).toBe(
       "The research is in.",
     );
   });
@@ -381,7 +383,7 @@ describe("finishTurn", () => {
       "Your Padierfind project has an X account. I created the schedule.",
       true,
     );
-    expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+    expect(buildActionResponseMock.mock.calls[0][5]).toMatchObject({
       message: "Your Padierfind project has an X account.",
       replyCheck: "unchecked",
     });
@@ -398,7 +400,7 @@ describe("finishTurn", () => {
       "I sent the brief to Hannah. No posts have been drafted because the account still needs approval. I created the schedule. I scheduled the post, which needs your approval.",
       true,
     );
-    expect(buildActionResponseMock.mock.calls[0][4].message).toBe(
+    expect(buildActionResponseMock.mock.calls[0][5].message).toBe(
       "No posts have been drafted because the account still needs approval.",
     );
   });
@@ -411,7 +413,7 @@ describe("finishTurn", () => {
     );
     claimsActionMock.mockResolvedValue(true);
     await finish("Hannah is on it now. I created the schedule.", true);
-    expect(buildActionResponseMock.mock.calls[0][4].message).toBeNull();
+    expect(buildActionResponseMock.mock.calls[0][5].message).toBeNull();
   });
 
   it("lets the message report the changes its receipts confirm", async () => {
@@ -529,7 +531,7 @@ describe("finishTurn", () => {
 
     it("shows the reply, never withholds it", async () => {
       await finish("Here is what I found: two X accounts.", true);
-      const narrative = buildActionResponseMock.mock.calls[0][4];
+      const narrative = buildActionResponseMock.mock.calls[0][5];
       expect(narrative.message).toBe("Here is what I found: two X accounts.");
       expect(narrative.replyCheck).toBe("unchecked");
     });
@@ -540,7 +542,7 @@ describe("finishTurn", () => {
         "I created the weekly schedule and drafted three posts.",
         true,
       );
-      expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
+      expect(buildActionResponseMock.mock.calls[0][5]).toMatchObject({
         message: null,
         replyCheck: "unchecked",
       });
@@ -558,7 +560,7 @@ describe("finishTurn", () => {
         .join("\n")
         .slice(0, 7_960);
       await finish(body, true);
-      const message = buildActionResponseMock.mock.calls[0][4].message;
+      const message = buildActionResponseMock.mock.calls[0][5].message;
       expect(message).not.toContain("I created the weekly schedule.");
       expect(message).toContain("Week 1: the team is reviewing");
       expect(message.length).toBeLessThanOrEqual(8_000);
@@ -572,7 +574,7 @@ describe("finishTurn", () => {
       toolCalls: [],
     });
     buildActionResponseMock.mockImplementation(
-      async (_tx, _turnId, text: string, _requested, narrative) => ({
+      async (_scope, _tx, _turnId, text: string, _requested, narrative) => ({
         answerText: text,
         narrative,
       }),

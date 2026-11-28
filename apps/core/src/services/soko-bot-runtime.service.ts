@@ -94,6 +94,7 @@ export interface RuntimeAuthorizationInput {
 }
 
 export interface SokoBotActionContext {
+  scope: NetworkScope;
   provenance: DetachedTurnProvenance;
   confirmationTurnId?: string;
   turn: {
@@ -129,7 +130,6 @@ export interface SokoBotActionContext {
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
-  scope: NetworkScope;
   meetingPrep?: true;
   grant: SokoBotTurnGrantClaims;
   toolCallLimit: number;

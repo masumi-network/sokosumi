@@ -1710,6 +1710,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
             operations,
             tx,
             {
+              scope: createNetworkScope("mainnet"),
               provenance: { network: "mainnet" },
               turn: {
                 id: turnId,

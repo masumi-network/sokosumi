@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { Prisma } from "@sokosumi/database";
+import type { AgentJobStatus, Job, Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import type {
   SokoBotContextPacket,
   TurnClassification,
@@ -12,11 +13,17 @@ import { convertCentsToCredits, hideSeoAuditRequest } from "@sokosumi/utils";
 import { DAY_MS } from "@/config/constants";
 import { taskOwnerLabel } from "@/helpers/soko-bot-owner";
 import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
+import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import { searchForBot } from "@/lib/agent-catalog/bot";
 import { buildCreditsPayload } from "@/lib/credits/funding";
-import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  type NetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { globalCoworkersFor } from "@/lib/evals/eval-guard";
+import { buildSokoBotReaderJobVisibilitySql } from "@/lib/soko-bot/job-visibility";
 import {
   compactBrandBrain,
   getBrandBrain,
@@ -604,6 +611,28 @@ export class ContextPacketBuilder {
 
     const scope = contextPacketScope(input);
     const { askedByKind } = scope;
+    const { networkScope, workspaceId } = input;
+    const sharedLayout = networkUsesSharedSchema();
+    const splitJobs = sharedLayout
+      ? null
+      : {
+          table: networkScope.networkTable("Job"),
+          visibility: buildSokoBotReaderJobVisibilitySql(
+            sokoBotTurnReader(
+              input.userId,
+              input.audience === "TEAMMATE" ? "TEAMMATE" : "OWNER",
+              input.sharedScope,
+            ),
+            networkScope.network,
+          ),
+        };
+    const matchingJobs =
+      splitJobs &&
+      PrismaRaw.sql`
+      FROM ${splitJobs.table} j
+      WHERE j."workspaceId" = ${workspaceId}::uuid
+      ${splitJobs.visibility}
+    `;
     // The bot can list Tasks itself; a message about something else leaves
     // their room to the conversation.
     const taskLimit =
@@ -650,7 +679,7 @@ export class ContextPacketBuilder {
           _count: {
             select: {
               tasks: { where: { archivedAt: null, ...scope.taskWhere } },
-              jobs: { where: scope.jobWhere },
+              ...(sharedLayout ? { jobs: { where: scope.jobWhere } } : {}),
             },
           },
         },
@@ -790,25 +819,59 @@ export class ContextPacketBuilder {
         },
       }),
       agentsPromise,
-      prisma.job.findMany({
-        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: LIMITS.jobs,
-        select: {
-          id: true,
-          name: true,
-          agentId: true,
-          jobType: true,
-          projectId: true,
-          updatedAt: true,
-          transaction: { select: { amount: true } },
-          events: {
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            take: 1,
-            select: { status: true, inputSchema: true, createdAt: true },
-          },
-        },
-      }),
+      matchingJobs
+        ? networkScope.networkDb.$queryRaw<
+            (Pick<
+              Job,
+              "id" | "name" | "agentId" | "jobType" | "projectId" | "updatedAt"
+            > & {
+              amount: bigint | null;
+              status: AgentJobStatus | null;
+              inputSchema: string | null;
+            })[]
+          >`
+            SELECT matched.*, tx.amount, event.status, event."inputSchema"
+            FROM (
+              SELECT j.id, j.name, j."agentId", j."jobType", j."projectId", j."updatedAt", j."transactionId"
+              ${matchingJobs}
+              ORDER BY j."updatedAt" DESC, j.id DESC
+              LIMIT ${LIMITS.jobs}
+            ) matched
+            LEFT JOIN ${networkScope.networkTable("Transaction")} tx ON tx.id = matched."transactionId"
+            LEFT JOIN LATERAL (
+              SELECT e.status, e."inputSchema"
+              FROM ${networkScope.networkTable("jobEvent")} e
+              WHERE e."jobId" = matched.id
+              ORDER BY e."createdAt" DESC, e.id DESC
+              LIMIT 1
+            ) event ON true
+            ORDER BY matched."updatedAt" DESC, matched.id DESC
+          `.then((rows) =>
+            rows.map(({ amount, status, inputSchema, ...job }) => ({
+              ...job,
+              transaction: amount === null ? null : { amount },
+              events: status === null ? [] : [{ status, inputSchema }],
+            })),
+          )
+        : networkScope.networkDb.job.findMany({
+            where: { ...scope.jobWhere, workspaceId: input.workspaceId },
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            take: LIMITS.jobs,
+            select: {
+              id: true,
+              name: true,
+              agentId: true,
+              jobType: true,
+              projectId: true,
+              updatedAt: true,
+              transaction: { select: { amount: true } },
+              events: {
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                take: 1,
+                select: { status: true, inputSchema: true, createdAt: true },
+              },
+            },
+          }),
       prisma.sokoBotPendingDecision.findMany({
         where: scope.pendingDecisionWhere(),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -864,9 +927,13 @@ export class ContextPacketBuilder {
           ],
         },
       }),
-      prisma.job.count({
-        where: { ...scope.jobWhere, workspaceId: input.workspaceId },
-      }),
+      matchingJobs
+        ? networkScope.networkDb.$queryRaw<{ count: bigint }[]>`
+            SELECT count(*) AS count ${matchingJobs}
+          `.then(([row]) => Number(row?.count))
+        : networkScope.networkDb.job.count({
+            where: { ...scope.jobWhere, workspaceId: input.workspaceId },
+          }),
       prisma.sokoBotPendingDecision.count({
         where: scope.pendingDecisionWhere(),
       }),
@@ -883,6 +950,22 @@ export class ContextPacketBuilder {
       }),
     ]);
 
+    const projectJobCounts =
+      splitJobs && projects.length
+        ? new Map(
+            (
+              await networkScope.networkDb.$queryRaw<
+                { projectId: string; count: bigint }[]
+              >`
+                SELECT j."projectId", count(*) AS count
+                FROM ${splitJobs.table} j
+                WHERE j."projectId" IN (${PrismaRaw.join(projects.map(({ id }) => PrismaRaw.sql`${id}::uuid`))})
+                ${splitJobs.visibility}
+                GROUP BY j."projectId"
+              `
+            ).map(({ projectId, count }) => [projectId, Number(count)]),
+          )
+        : null;
     const namedOnly =
       projectCount > projects.length
         ? await prisma.project.findMany({
@@ -1025,7 +1108,7 @@ export class ContextPacketBuilder {
           status: projectStatus(
             project.id,
             project._count.tasks,
-            project._count.jobs,
+            projectJobCounts?.get(project.id) ?? project._count.jobs ?? 0,
             tasks,
             jobs,
           ),

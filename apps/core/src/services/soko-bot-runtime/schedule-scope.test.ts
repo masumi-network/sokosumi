@@ -6,6 +6,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 import {
   attenuateForChildWork,
@@ -202,6 +203,7 @@ function authorizedTurn(
   }> = {},
 ) {
   return {
+    scope: { network: "mainnet" } as NetworkScope,
     askedByKind:
       "askedByKind" in overrides ? overrides.askedByKind : ("OWNER" as const),
     grant: {

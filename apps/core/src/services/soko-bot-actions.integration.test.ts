@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 vi.mock("@/lib/db/prisma", async () => {
   const { createPrismaClient } = await import("@sokosumi/database/client");
@@ -20,7 +21,8 @@ vi.mock("@/lib/db/prisma", async () => {
       "Only the disposable local reliability database is allowed",
     );
   }
-  return { default: createPrismaClient(value) };
+  const db = createPrismaClient(value);
+  return { default: db, networkPrisma: () => db };
 });
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: vi.fn().mockResolvedValue(undefined),
@@ -35,6 +37,7 @@ describe.skipIf(!databaseUrl)(
   "action receipt transactions (isolated local database)",
   () => {
     let db: ReturnType<typeof createPrismaClient>;
+    let networkScope: NetworkScope;
     let service: InstanceType<
       typeof import("./soko-bot-runtime.service").SokoBotRuntimeService
     >;
@@ -50,6 +53,7 @@ describe.skipIf(!databaseUrl)(
       const { testNetworkScope } = await import(
         "@/test-fixtures/network-scope"
       );
+      networkScope = testNetworkScope();
       db = (await import("@/lib/db/prisma")).default;
       commit = (await import("@/lib/soko-bot/action-receipts"))
         .commitActionReceipt;
@@ -229,6 +233,7 @@ describe.skipIf(!databaseUrl)(
       await service.executeTool({ ...input, toolCallId: "semantic-retry" });
       expect(await db.taskEvent.count({ where: { taskId: task.id } })).toBe(1);
       const rendered = await response(
+        networkScope,
         db,
         turnId,
         "I restarted and completed all work.",
@@ -311,7 +316,12 @@ describe.skipIf(!databaseUrl)(
         }),
       ).rejects.toThrow("no longer writable");
       expect(await db.taskEvent.count({ where: { taskId: task.id } })).toBe(0);
-      const rendered = await response(db, turnId, "I forwarded it.");
+      const rendered = await response(
+        networkScope,
+        db,
+        turnId,
+        "I forwarded it.",
+      );
       expect(rendered.answerText).toMatch(/^Couldn't comment on .+\.$/);
     });
     it("moves the same running task with revision evidence and rejects stale moves", async () => {

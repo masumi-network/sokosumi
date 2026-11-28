@@ -452,6 +452,8 @@ export async function executeTool(
         const [preview] = await hydrateChatResultSnapshots(
           [snapshot],
           actingMemberOf(authorized),
+          undefined,
+          authorized.scope,
         );
         if (!preview || preview.state !== "available")
           throw new SokoBotRuntimeAuthorizationError("Result unavailable");

@@ -59,13 +59,13 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     agent: { count: agentCountMock, findMany: agentFindManyMock },
     creditCost: { findMany: creditCostFindManyMock },
+    job: { count: jobCountMock, findMany: jobFindManyMock },
   }),
   default: {
     sokoBot: { findUnique: sokoBotFindUniqueMock },
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
-    job: { count: jobCountMock, findMany: jobFindManyMock },
     project: { count: projectCountMock, findMany: projectFindManyMock },
     sokoBotTurn: {
       count: recentTurnCountMock,

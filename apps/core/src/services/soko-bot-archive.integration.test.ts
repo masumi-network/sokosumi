@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 vi.mock("@/lib/db/prisma", async () => {
   const { createPrismaClient } = await import("@sokosumi/database/client");
@@ -20,7 +21,8 @@ vi.mock("@/lib/db/prisma", async () => {
       "Only the disposable local reliability database is allowed",
     );
   }
-  return { default: createPrismaClient(value) };
+  const db = createPrismaClient(value);
+  return { default: db, networkPrisma: () => db };
 });
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: vi.fn().mockResolvedValue(undefined),
@@ -42,6 +44,7 @@ describe.skipIf(!databaseUrl)(
   "archive receipt transactions (isolated local database)",
   () => {
     let db: ReturnType<typeof createPrismaClient>;
+    let networkScope: NetworkScope;
     let service: InstanceType<
       typeof import("./soko-bot-runtime.service").SokoBotRuntimeService
     >;
@@ -56,6 +59,7 @@ describe.skipIf(!databaseUrl)(
       const { testNetworkScope } = await import(
         "@/test-fixtures/network-scope"
       );
+      networkScope = testNetworkScope();
       db = (await import("@/lib/db/prisma")).default;
       response = (await import("@/lib/soko-bot/action-response"))
         .buildActionResponse;
@@ -279,6 +283,7 @@ describe.skipIf(!databaseUrl)(
         }),
       ).toMatchObject({ status: "PENDING" });
       const rendered = await response(
+        networkScope,
         db,
         turnId,
         "I permanently deleted your task.",
@@ -433,9 +438,9 @@ describe.skipIf(!databaseUrl)(
         disposition: "ALREADY_SATISFIED",
         effectEventId: expect.any(String),
       });
-      expect((await response(db, turnId, "deleted")).answerText).toContain(
-        "Already satisfied",
-      );
+      expect(
+        (await response(networkScope, db, turnId, "deleted")).answerText,
+      ).toContain("Already satisfied");
     });
 
     it.each([
@@ -480,6 +485,7 @@ describe.skipIf(!databaseUrl)(
           "Archived task history could not be verified",
         );
         const rendered = await response(
+          networkScope,
           db,
           turnId,
           "Archived task successfully.",

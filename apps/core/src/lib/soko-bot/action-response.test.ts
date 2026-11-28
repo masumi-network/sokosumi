@@ -1,13 +1,14 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
 import { ACTION_LABELS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
   ACTION_RECEIPT_CAPABILITIES,
 } from "./action-receipts";
 import {
-  buildActionResponse,
+  buildActionResponse as buildScopedActionResponse,
   HELD_BACK_REPLY,
   parseActionNarrativeText,
   REPLY_CHECK_NOTES,
@@ -19,7 +20,9 @@ const db = vi.hoisted(() => ({
   task: { findFirst: vi.fn(), findMany: vi.fn() },
   job: { findMany: vi.fn() },
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: db }));
+const scope = createNetworkScope("mainnet");
+const buildActionResponse = buildScopedActionResponse.bind(null, scope);
+vi.mock("@/lib/db/prisma", () => ({ default: db, networkPrisma: () => db }));
 const showAccountQuestion = vi.hoisted(() => vi.fn());
 vi.mock("./account-question", () => ({
   ACCOUNT_QUESTION_HEADING: "Which account should this go on?",

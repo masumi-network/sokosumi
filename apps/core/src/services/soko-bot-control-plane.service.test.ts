@@ -202,7 +202,7 @@ vi.mock("@/services/soko-bot-outcome.service", async (importOriginal) => ({
   assessSokoBotIntentOutcome: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/soko-bot/action-response", () => ({
-  buildActionResponse: vi.fn(async (_tx, _turnId, answerText) => ({
+  buildActionResponse: vi.fn(async (_scope, _tx, _turnId, answerText) => ({
     answerText,
     appliedReceiptIds: [],
     observations: [],
@@ -252,7 +252,10 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  networkPrisma: () => ({ agent: { findMany: agentFindManyMock } }),
+  networkPrisma: () => ({
+    agent: { findMany: agentFindManyMock },
+    job: { findMany: jobFindManyMock },
+  }),
   default: {
     $transaction: transactionMock,
     // The only raw read here is the fleet move's selection; it returns the
@@ -468,7 +471,10 @@ function transactionClient() {
       create: turnCreateMock,
       update: turnUpdateMock,
       findFirst: turnFindFirstMock,
-      findUnique: turnFindUniqueMock,
+      findUnique: async (...args: unknown[]) => {
+        const row = await turnFindUniqueMock(...args);
+        return row && { network: "mainnet", preprodGeneration: null, ...row };
+      },
       updateMany: turnUpdateManyMock,
     },
   };
@@ -894,6 +900,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         status: "COMPLETED",
       });
       expect(buildActionResponse).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
         expect.anything(),
         "turn_1",
         "Unsupported success claim",
@@ -1015,6 +1022,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       for (const [call] of turnUpdateMock.mock.calls)
         expect(call.data).not.toHaveProperty("finalAnswer");
       expect(buildActionResponse).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
         expect.anything(),
         "turn_1",
         finalAnswer,
@@ -1161,6 +1169,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(prepareTurnActionResultPreviews).toHaveBeenCalledWith(
       "turn_1",
       expect.objectContaining({ requestedByUserId: "user_1" }),
+      expect.objectContaining({ network: "mainnet" }),
       expect.anything(),
     );
     expect(

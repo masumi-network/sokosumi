@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   sokoBotProjectRefusal,
   sokoBotWriteScopeRefusal,
 } from "@/lib/soko-bot/write-scope";
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+
+const networkScope = { network: "mainnet" } as NetworkScope;
 
 const PROJECT = "01960001-0001-7001-8001-0000000000a1";
 const OTHER = "01960001-0001-7001-8001-0000000000a2";
@@ -41,7 +44,7 @@ describe("sokoBotWriteScopeRefusal", () => {
   it("costs a personal bot no query", async () => {
     const db = client(0, 0);
     await expect(
-      sokoBotWriteScopeRefusal(db as never, null, {
+      sokoBotWriteScopeRefusal(db as never, networkScope, null, {
         taskIds: ["t1"],
         jobId: "j1",
       }),
@@ -53,7 +56,7 @@ describe("sokoBotWriteScopeRefusal", () => {
   it("refuses a Task the scope does not show", async () => {
     const db = client(1, 0);
     await expect(
-      sokoBotWriteScopeRefusal(db as never, WORKSPACE_SCOPE, {
+      sokoBotWriteScopeRefusal(db as never, networkScope, WORKSPACE_SCOPE, {
         taskIds: ["t1", "t2", "t1", undefined],
       }),
     ).resolves.toBe("Task not found");
@@ -69,19 +72,29 @@ describe("sokoBotWriteScopeRefusal", () => {
 
   it("allows Tasks and a Job inside the scope", async () => {
     await expect(
-      sokoBotWriteScopeRefusal(client(1, 1) as never, PROJECT_SCOPE, {
-        taskIds: ["t1"],
-        projectIds: [PROJECT],
-        jobId: "j1",
-      }),
+      sokoBotWriteScopeRefusal(
+        client(1, 1) as never,
+        networkScope,
+        PROJECT_SCOPE,
+        {
+          taskIds: ["t1"],
+          projectIds: [PROJECT],
+          jobId: "j1",
+        },
+      ),
     ).resolves.toBeNull();
   });
 
   it("refuses a Job the scope does not show", async () => {
     await expect(
-      sokoBotWriteScopeRefusal(client(0, 0) as never, PROJECT_SCOPE, {
-        jobId: "j1",
-      }),
+      sokoBotWriteScopeRefusal(
+        client(0, 0) as never,
+        networkScope,
+        PROJECT_SCOPE,
+        {
+          jobId: "j1",
+        },
+      ),
     ).resolves.toBe("Job not found");
   });
 });

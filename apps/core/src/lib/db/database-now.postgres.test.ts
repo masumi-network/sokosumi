@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 import prisma from "@/lib/db/prisma";
 import { requireMutationAuthority } from "@/services/soko-bot-runtime/authorization";
@@ -69,6 +70,7 @@ describe.runIf(enabled)("databaseNow on PostgreSQL", () => {
           { requireWriteScope: async () => undefined },
           tx,
           {
+            scope: createNetworkScope("mainnet"),
             provenance: { network: "mainnet" },
             turn: { ...turn, actingUserId: userId },
             classificationConfidence: 1,

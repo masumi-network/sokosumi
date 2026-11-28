@@ -81,7 +81,7 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
 }));
 
 vi.mock("@/lib/soko-bot/action-response", () => ({
-  buildActionResponse: vi.fn(async (_tx, _turnId, answerText) => ({
+  buildActionResponse: vi.fn(async (_scope, _tx, _turnId, answerText) => ({
     answerText,
     appliedReceiptIds: [],
     observations: [],

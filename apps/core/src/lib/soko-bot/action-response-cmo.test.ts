@@ -5,9 +5,10 @@ import {
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getWebAppBaseUrl } from "@/config/env";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
-import { buildActionResponse } from "./action-response";
+import { buildActionResponse as buildScopedActionResponse } from "./action-response";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
@@ -15,7 +16,9 @@ const db = vi.hoisted(() => ({
   task: { findFirst: vi.fn(), findMany: vi.fn() },
   job: { findMany: vi.fn() },
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: db }));
+const scope = createNetworkScope("mainnet");
+const buildActionResponse = buildScopedActionResponse.bind(null, scope);
+vi.mock("@/lib/db/prisma", () => ({ default: db, networkPrisma: () => db }));
 
 const projectId = "01a0f400-0000-7000-8000-000000000001";
 const SEO = new Set<string>(SOKO_BOT_SEO_WRITE_CAPABILITIES);
