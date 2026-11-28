@@ -820,18 +820,22 @@ function sent(log: Log) {
   };
 }
 
-/** `sent`, without the awaits among a side-by-side lookup's reads. */
-function sentOf(log: Log, sideBySideLookup: boolean) {
+/**
+ * `sent`, without the awaits between the reads Prisma sends side by side:
+ * each pair names two statements by their place in the call's send order,
+ * the earlier first. Only "later before earlier" of exactly those pairs is
+ * left out; every other await, every statement and the send order stay.
+ */
+function sentOf(log: Log, sideBySide: readonly (readonly [number, number])[]) {
   const observed = sent(log);
-  if (!sideBySideLookup) return observed;
-  const firstBegin = log.findIndex((entry) => /^\s*BEGIN\b/i.test(entry.text));
-  const before = firstBegin === -1 ? log.length : firstBegin;
+  const exempt = new Set(
+    sideBySide.map(([earlier, later]) => `call ${later} before ${earlier}`),
+  );
   return {
     ...observed,
-    sentBeforeAnswered: observed.sentBeforeAnswered.filter((pair) => {
-      const [, later, , earlier] = pair.split(" ");
-      return !(Number(later) < before && Number(earlier) < before);
-    }),
+    sentBeforeAnswered: observed.sentBeforeAnswered.filter(
+      (pair) => !exempt.has(pair),
+    ),
   };
 }
 
@@ -883,18 +887,17 @@ async function observe(
     perFlow = false,
     sql = true,
     times = {},
-    sideBySideLookup = false,
+    sideBySide = [],
   }: {
     perFlow?: boolean;
     sql?: boolean;
     times?: Record<string, Date>;
     /**
-     * The call reads a nested select before its first transaction (the
-     * Cuso's lookup): Prisma sends its relations' reads side by side, so
-     * which of those is answered first is no order the product defines.
-     * Their awaits are left out; every statement and its send order stay.
+     * Statements Prisma sends side by side, by their place in the call's
+     * send order (`sentOf`): which of them is answered first is no order
+     * the product defines.
      */
-    sideBySideLookup?: boolean;
+    sideBySide?: readonly (readonly [number, number])[];
   } = {},
 ) {
   const before = await rows(fixture);
@@ -927,7 +930,7 @@ async function observe(
       logged: coreLogEntries()
         .slice(loggedBefore)
         .map(({ level, message }) => ({ level, message })),
-      ...(perFlow ? byFlow(log) : sentOf(log, sideBySideLookup)),
+      ...(perFlow ? byFlow(log) : sentOf(log, sideBySide)),
       rows: left,
       raw: rawRelations(left, before, started, ended, times, log),
     },
@@ -1150,8 +1153,9 @@ function monthPaid(
   order: string,
   subscriptionId: string,
   ago = 30_000,
+  /** When the billed period is reckoned from; two payments of one period share it. */
+  now = Date.now(),
 ) {
-  const now = Date.now();
   const periodStart = new Date(now - 60_000);
   const periodEnd = new Date(now + 30 * DAY);
   return {
@@ -1677,6 +1681,14 @@ describe.skipIf(!enabled)(
 
     describe("a yearly plan's upgrade (changePolarPlan)", () => {
       /**
+       * The Cuso's lookup (`requireCuso`) reads his Project (statement 4)
+       * with two relations, its Workspace (5) and its brand brain (6), which
+       * Prisma sends together after it. Every other read before the plan
+       * change is awaited, and compared so.
+       */
+      const CUSO_LOOKUP_RELATIONS = [[5, 6]] as const;
+
+      /**
        * A Growth yearly plan paid 100 days ago, its month 0 granted: months
        * 1 to 3 have started. The upgrade grants them at Growth's price
        * before Polar moves the plan to Scale.
@@ -1751,7 +1763,10 @@ describe.skipIf(!enabled)(
 
           expectAsOnBaseHere(
             "a yearly upgrade, three months owed",
-            await observe(fixture, upgrade, { times, sideBySideLookup: true }),
+            await observe(fixture, upgrade, {
+              times,
+              sideBySide: CUSO_LOOKUP_RELATIONS,
+            }),
           );
         },
       );
@@ -1767,7 +1782,10 @@ describe.skipIf(!enabled)(
 
           expectAsOnBaseHere(
             "a yearly upgrade, the months given",
-            await observe(fixture, upgrade, { times, sideBySideLookup: true }),
+            await observe(fixture, upgrade, {
+              times,
+              sideBySide: CUSO_LOOKUP_RELATIONS,
+            }),
           );
         },
         { split: [["error", SYNC_FAILED, 1]] },
@@ -2096,7 +2114,16 @@ describe.skipIf(!enabled)(
         async () => {
           const fixture = await createFixture("racing refund");
           const order = orderId("the order");
-          const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
+          // One billed period for both payments: each reckons its end from
+          // this, so the earlier payment's bucket expires at the same time.
+          const period = Date.now();
+          const paid = monthPaid(
+            fixture,
+            order,
+            `sub-${randomUUID()}`,
+            30_000,
+            period,
+          );
           label(paid.event.data.subscription.id, "the subscription");
           const refund = refunded(order);
           // The subscription's row is there, from an older payment: the
@@ -2107,6 +2134,7 @@ describe.skipIf(!enabled)(
               orderId("an earlier order"),
               paid.event.data.subscription.id,
               50_000,
+              period,
             ).event,
           );
 
