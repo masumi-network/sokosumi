@@ -112,8 +112,14 @@ async function importBlob(
     return;
   }
 
+  let readyStatementSucceeded = false;
   const update = (data: Prisma.BlobUpdateInput) =>
-    options.write((db) => db.blob.update({ where: { id: blob.id }, data }));
+    options.write(async (db) => {
+      // A retry starts a new transaction and has not published this upload.
+      readyStatementSucceeded = false;
+      await db.blob.update({ where: { id: blob.id }, data });
+      readyStatementSucceeded = data.status === BlobStatus.READY;
+    });
   const jobId = blob.event?.jobId;
   if (!jobId) {
     await update({ status: BlobStatus.FAILED });
@@ -121,7 +127,6 @@ async function importBlob(
   }
 
   let uploadedUrl: string | undefined;
-  let publishing = false;
   try {
     const abortSignal = createImportAbortSignal(options);
     // SSRF guard: validate the source URL (and every redirect hop) against
@@ -195,7 +200,6 @@ async function importBlob(
       token: blobToken,
     });
 
-    publishing = true;
     await update({
       fileUrl: uploadResult.url,
       mimeType: blobMetadata.contentType,
@@ -206,7 +210,8 @@ async function importBlob(
   } catch (error) {
     if (options.scope.network === "preprod" && uploadedUrl) {
       // An unknown commit outcome could already reference the object.
-      if (publishing && !(error instanceof DetachedNetworkRefusal)) throw error;
+      if (readyStatementSucceeded && !(error instanceof DetachedNetworkRefusal))
+        throw error;
       // The upload has a random suffix: remove only this attempt's object.
       await del(uploadedUrl, { token: getEnv().BLOB_READ_WRITE_TOKEN });
     }

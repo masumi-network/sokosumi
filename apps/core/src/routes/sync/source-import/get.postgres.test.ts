@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createPrismaClient } from "@sokosumi/database/client";
+import { getUrlBasename } from "@sokosumi/utils";
 import { Hono } from "hono";
 import type { Pool } from "pg";
 import {
@@ -60,6 +61,10 @@ vi.mock("@vercel/functions", async (load) => ({
   },
   waitUntil: (work: Promise<unknown>) => state.pending.push(work),
 }));
+vi.mock("@sokosumi/utils", async (load) => {
+  const actual = await load<typeof import("@sokosumi/utils")>();
+  return { ...actual, getUrlBasename: vi.fn(actual.getUrlBasename) };
+});
 vi.mock("@sokosumi/net", async (load) => ({
   ...(await load<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: state.fetch,
@@ -394,6 +399,75 @@ describe.skipIf(
         }),
       );
     });
+    it("fails rejected filenames, cleans their uploads and imports the sixth blob", async () => {
+      await open();
+      await seedJobs(preprod, 6);
+      const basename = vi.mocked(getUrlBasename);
+      await basename.withImplementation(
+        (url) => {
+          const name = new URL(url).pathname.slice(1);
+          return name === "job-6.md" ? name : name + "\0";
+        },
+        async () => {
+          await run("preprod");
+        },
+      );
+      expect(
+        await preprod.blob.count({
+          where: { status: "FAILED", fileUrl: null },
+        }),
+      ).toBe(5);
+      expect(
+        await preprod.blob.findUniqueOrThrow({ where: { id: "job-6" } }),
+      ).toMatchObject({
+        status: "READY",
+        fileUrl: "https://blob.test/preprod/jobs/job/job-6.md",
+      });
+      expect(uploads.map((upload) => upload.pathname)).toEqual([
+        "preprod/jobs/job/job-6.md",
+      ]);
+      expect(state.calls.filter(([method]) => method === "del")).toHaveLength(
+        5,
+      );
+      const calls = state.calls.length;
+      await run("preprod");
+      expect(state.calls).toHaveLength(calls);
+    });
+
+    it("retains the referenced object when the commit acknowledgement is lost", async () => {
+      await open();
+      await seedJobs(preprod, 1);
+      const { sourceImportSyncService } = await import(
+        "@/services/source-import-sync.service"
+      );
+      const importBlobs = sourceImportSyncService.importPendingResultBlobs;
+      const spy = vi
+        .spyOn(sourceImportSyncService, "importPendingResultBlobs")
+        .mockImplementationOnce((options) =>
+          importBlobs({
+            ...options,
+            write: async (work) => {
+              await options.write(work);
+              throw new Error("Commit acknowledgement lost");
+            },
+          }),
+        );
+      expectCoreLog("error", "A scheduled sync failed");
+      try {
+        await run("preprod");
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await preprod.blob.findFirstOrThrow()).toMatchObject({
+        status: "READY",
+        fileUrl: "https://blob.test/preprod/jobs/job/job-1.md",
+      });
+      expect(uploads.map((upload) => upload.pathname)).toEqual([
+        "preprod/jobs/job/job-1.md",
+      ]);
+      expect(state.calls.map(([method]) => method)).toEqual(["put", "head"]);
+    });
+
     it("lets Mainnet finish while Preprod is stuck at storage", async () => {
       await open();
       await seedJobs(preprod, 1);
