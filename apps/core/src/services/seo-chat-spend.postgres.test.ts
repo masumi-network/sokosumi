@@ -47,6 +47,7 @@ import { sendSeoChat } from "@/services/seo-chat.service";
 import { sokoBotUsageCents } from "@/services/soko-bot-billing.service";
 import {
   baseFile,
+  nextMillisecond,
   observing,
   plain,
   type Statement,
@@ -290,7 +291,7 @@ async function observe(
   call: () => Promise<unknown>,
 ) {
   const asked = generate.mock.calls.length;
-  const started = Date.now();
+  const started = await nextMillisecond();
   const { outcome, log } = await observing(call);
   const ended = Date.now();
   const left = await rows(payer, audits);
