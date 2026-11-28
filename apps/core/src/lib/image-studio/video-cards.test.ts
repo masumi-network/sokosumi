@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cardFontDir } from "@/test/card-font";
 import { causeMessage, expectCoreLog } from "@/test/core-log";
 
@@ -57,13 +57,34 @@ describe("what a card's page may load", () => {
 import { VIDEO_LAYOUTS } from "./video-layout";
 
 describe("rendering cards past the deadline", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("closes the browser and starts no next card", async () => {
+    // The deadline is set only once the browser is open and the first card
+    // is loading: before that there is no browser to close, and how long the
+    // font file takes to read must not decide the test.
+    vi.useFakeTimers();
+    let firstCardLoading!: () => void;
+    const loading = new Promise<void>((resolve) => {
+      firstCardLoading = resolve;
+    });
+    let release!: () => void;
+    const firstCardLoaded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const newPage = vi.fn(async () => ({
       setViewport: async () => undefined,
       setRequestInterception: async () => undefined,
       on: () => undefined,
-      // The first card's fonts never finish loading.
-      setContent: () => new Promise(() => undefined),
+      // The first card's fonts finish loading only after the deadline.
+      setContent: () => {
+        firstCardLoading();
+        return firstCardLoaded;
+      },
+      evaluate: async () => true,
+      screenshot: async () => new Uint8Array([1]),
       close: async () => undefined,
     }));
     const close = vi.fn(async () => undefined);
@@ -75,7 +96,7 @@ describe("rendering cards past the deadline", () => {
       },
     );
 
-    const pngs = await renderVideoCards(
+    const drawn = renderVideoCards(
       [
         { kind: "title", text: "One" },
         { kind: "title", text: "Two" },
@@ -84,11 +105,17 @@ describe("rendering cards past the deadline", () => {
       "9:16",
       50,
     );
+    await loading;
+    await vi.advanceTimersByTimeAsync(50);
 
-    expect(pngs).toBeNull();
-    expect(close).toHaveBeenCalled();
+    await expect(drawn).resolves.toBeNull();
+    expect(close).toHaveBeenCalledTimes(1);
     expectCoreLog("warn", "Could not draw a video's cards in time");
-    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Let the first card finish: a card started after the deadline would
+    // call `newPage` again before this settles.
+    release();
+    await expect(finished).resolves.toBeNull();
     expect(newPage).toHaveBeenCalledTimes(1);
   });
 });
