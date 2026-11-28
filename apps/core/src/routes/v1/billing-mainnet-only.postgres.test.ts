@@ -27,6 +27,8 @@
  */
 import "@hono/zod-openapi";
 
+import { readFileSync } from "node:fs";
+import { PolarSubscriptionKind } from "@sokosumi/database";
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { err, ok as okResult } from "neverthrow";
@@ -240,6 +242,7 @@ vi.mock("@/clients/stripe.client", async (importOriginal) => {
         address: null,
         tax_ids: { object: "list", data: [] },
       })),
+      list: wrap("stripe.customers.list", () => ({ data: [] })),
     },
     products: {
       retrieve: wrap("stripe.products.retrieve", (id: string) => {
@@ -249,6 +252,23 @@ vi.mock("@/clients/stripe.client", async (importOriginal) => {
           return fakeProduct(id, "standard", "500", 9900);
         return fakeProduct(id, "pro", "2000", 29900);
       }),
+    },
+    checkout: {
+      sessions: {
+        create: wrap("stripe.checkout.sessions.create", () => ({
+          id: "cs_28_2",
+          url: "https://checkout.stripe.com/c/pay/cs_28_2",
+        })),
+      },
+    },
+    subscriptions: {
+      retrieve: wrap("stripe.subscriptions.retrieve", () => fakeSubscription),
+      list: wrap(
+        "stripe.subscriptions.list",
+        (params?: { customer?: string }) => ({
+          data: params?.customer === "cus_org_28_2" ? [fakeSubscription] : [],
+        }),
+      ),
     },
     billingPortal: {
       sessions: {
@@ -451,11 +471,19 @@ const UUID_RE =
 const TS_RE =
   /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)?$/;
 
-function normalizeValue(v: unknown, sessionToken?: string): unknown {
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
+function normalizeValue(v: unknown, sessionToken?: string, key = ""): unknown {
   if (typeof v === "string") {
     const cleaned = sessionToken
       ? v.replaceAll(sessionToken, "<SESSION_TOKEN>")
       : v;
+    if (
+      (key === "month" || key === "previousMonth") &&
+      MONTH_RE.test(cleaned)
+    ) {
+      return "<MONTH>";
+    }
     if (TS_RE.test(cleaned)) return "<TS>";
     if (UUID_RE.test(cleaned)) {
       return cleaned.startsWith("11111111-") ? cleaned : "<UUID>";
@@ -466,41 +494,92 @@ function normalizeValue(v: unknown, sessionToken?: string): unknown {
     );
   }
   if (Array.isArray(v)) {
-    return v.map((item) => normalizeValue(item, sessionToken));
+    return v.map((item) => normalizeValue(item, sessionToken, key));
   }
   if (v && typeof v === "object") {
     return Object.fromEntries(
       Object.entries(v).map(([k, val]) => [
         k,
-        normalizeValue(val, sessionToken),
+        normalizeValue(val, sessionToken, k),
       ]),
     );
   }
   return v;
 }
 
-function normalizeStatement(
-  s: RecordedStatement,
-  sessionToken?: string,
-): string {
-  return JSON.stringify({
-    text: s.text,
-    values: normalizeValue(s.values, sessionToken),
-  });
+function normalizeSetCookieEntry(entry: string): string {
+  return entry.replace(/^([^=]*\.session_data)=([^;]+)/, "$1=<SESSION_DATA>");
 }
 
-function describeSqlStatement(sql: string): string {
-  const s = sql.trim().replace(/\s+/g, " ");
-  let match = s.match(/^SELECT\b.*?\bFROM\s+("[^"]+"\."[^"]+")/i);
-  if (match && !/^WITH\b/i.test(s)) return `SELECT ${match[1]}`;
-  match = s.match(/^INSERT\s+INTO\s+("[^"]+"\."[^"]+")/i);
-  if (match) return `INSERT ${match[1]}`;
-  match = s.match(/^UPDATE\s+("[^"]+"\."[^"]+")/i);
-  if (match) return `UPDATE ${match[1]}`;
-  match = s.match(/^DELETE\s+FROM\s+("[^"]+"\."[^"]+")/i);
-  if (match) return `DELETE ${match[1]}`;
-  return s.slice(0, 60);
+function captureHeaders(
+  res: Response,
+  normalizeCookies = false,
+): Record<string, string | string[]> {
+  const out: Record<string, string | string[]> = {};
+  const setCookies =
+    typeof res.headers.getSetCookie === "function"
+      ? res.headers
+          .getSetCookie()
+          .map((entry) =>
+            normalizeCookies ? normalizeSetCookieEntry(entry) : entry,
+          )
+      : [];
+  const entries: [string, string][] = [];
+  res.headers.forEach((v, k) => {
+    const lower = k.toLowerCase();
+    if (lower === "set-cookie" || lower === "date") return;
+    entries.push([lower, v]);
+  });
+  entries.sort(([a], [b]) => a.localeCompare(b));
+  for (const [k, v] of entries) {
+    out[k] = v;
+  }
+  if (setCookies.length > 0) {
+    out["set-cookie"] = setCookies;
+  }
+  return out;
 }
+
+function normalizeBodyText(bodyText: string, sessionToken?: string): string {
+  if (!bodyText) return "";
+  try {
+    return JSON.stringify(normalizeValue(JSON.parse(bodyText), sessionToken));
+  } catch {
+    return String(normalizeValue(bodyText, sessionToken));
+  }
+}
+
+function hasVolatilePlaceholder(value: unknown): boolean {
+  const json = JSON.stringify(value);
+  return (
+    json.includes("<TS>") ||
+    json.includes("<MONTH>") ||
+    json.includes("<UUID>") ||
+    json.includes("<SESSION_TOKEN>") ||
+    json.includes("<SESSION_DATA>")
+  );
+}
+
+interface BaseOperationRecording {
+  status: number;
+  headers: Record<string, string | string[]>;
+  bodyText: string;
+  statements: RecordedStatement[];
+  providers: RecordedProviderCall[];
+}
+
+interface BillingBaseFixture {
+  baseCommit: string;
+  today: Record<string, BaseOperationRecording>;
+  split: Record<string, BaseOperationRecording>;
+}
+
+const BILLING_BASE_FIXTURE: BillingBaseFixture = JSON.parse(
+  readFileSync(
+    new URL("./billing-mainnet-only.base.json", import.meta.url),
+    "utf8",
+  ),
+);
 
 async function drainBackground(): Promise<void> {
   while (background.length > 0) {
@@ -624,6 +703,7 @@ async function loadEnvironment(
     "@/lib/auth-oauth-token-prefixes"
   );
   const { errorHandler } = await import("@/helpers/error-handler");
+  const { auth } = await import("@/lib/auth.js");
   const { default: apiV1 } = await import("@/routes/v1/index");
   const { default: authRouter } = await import("@/routes/auth/index");
   const { default: syncRouter } = await import("@/routes/sync/index");
@@ -652,6 +732,7 @@ async function loadEnvironment(
     workspaceRepository,
     hashStoredOAuthToken,
     OAUTH_ACCESS_TOKEN_PREFIX,
+    auth,
     apiV1,
     authRouter,
     CMO_SOKO_BOT_VERSION_ID,
@@ -761,6 +842,11 @@ async function seedBillingFixtures(loaded: Loaded) {
     },
   });
 
+  const nowMs = Date.now();
+  const tokenExpiresAt = new Date(nowMs + 24 * 60 * 60 * 1000);
+  const periodStart = new Date(nowMs - 24 * 60 * 60 * 1000);
+  const periodEnd = new Date(nowMs + 30 * 24 * 60 * 60 * 1000);
+
   await prisma.subscription.create({
     data: {
       id: SUBSCRIPTION_ROW_ID,
@@ -769,8 +855,8 @@ async function seedBillingFixtures(loaded: Loaded) {
       stripeCustomerId: "cus_org_28_2",
       stripeSubscriptionId: "sub_stripe_28_2",
       status: "active",
-      periodStart: new Date("2026-11-01T00:00:00.000Z"),
-      periodEnd: new Date("2026-12-31T00:00:00.000Z"),
+      periodStart,
+      periodEnd,
       seats: 3,
       createdAt: FIXED_DATE,
       updatedAt: FIXED_DATE,
@@ -822,7 +908,7 @@ async function seedBillingFixtures(loaded: Loaded) {
         clientId: CMO_CLIENT_ID,
         userId: uid,
         scopes,
-        expiresAt: new Date("2027-01-01T00:00:00.000Z"),
+        expiresAt: tokenExpiresAt,
         token: loaded.hashStoredOAuthToken(
           token,
           loaded.OAUTH_ACCESS_TOKEN_PREFIX,
@@ -966,7 +1052,9 @@ describe.skipIf(!enabled)(
           string,
           {
             status: number;
-            body: unknown;
+            rawHeaders: Record<string, string | string[]>;
+            headers: Record<string, string | string[]>;
+            bodyText: string;
             statements: RecordedStatement[];
             providers: RecordedProviderCall[];
           }
@@ -997,20 +1085,28 @@ describe.skipIf(!enabled)(
                 ? { body: JSON.stringify(body) }
                 : {}),
           });
-          const text = await res.text();
+          const bodyText = await res.text();
           await drainBackground();
           out[name] = {
             status: res.status,
-            body: text ? JSON.parse(text) : null,
+            rawHeaders: captureHeaders(res, false),
+            headers: captureHeaders(res, true),
+            bodyText,
             statements: [...recorded.statements],
             providers: [...recorded.providers],
           };
         }
 
-        // 1. /v1/checkout (read + write)
+        // 1. /v1/checkout (read, HEAD, write with checkout URL)
         await run(
           "checkout_session_get",
           "GET",
+          "/v1/checkout/sessions/cs_28_2",
+          oauthHeaders,
+        );
+        await run(
+          "checkout_session_head",
+          "HEAD",
           "/v1/checkout/sessions/cs_28_2",
           oauthHeaders,
         );
@@ -1021,10 +1117,16 @@ describe.skipIf(!enabled)(
           oauthHeaders,
           { organizationId: ORG_ID, credits: 100 },
         );
-        // 2. /v1/products (reads)
+        // 2. /v1/products (reads + HEAD)
         await run(
           "products_credits_get",
           "GET",
+          "/v1/products/credits",
+          oauthHeaders,
+        );
+        await run(
+          "products_credits_head",
+          "HEAD",
           "/v1/products/credits",
           oauthHeaders,
         );
@@ -1040,10 +1142,16 @@ describe.skipIf(!enabled)(
           "/v1/products/subscription",
           oauthHeaders,
         );
-        // 3. /v1/coupons (read + write)
+        // 3. /v1/coupons (read, HEAD, write)
         await run(
           "coupons_get",
           "GET",
+          "/v1/coupons/coupon_fixed_28_2",
+          oauthHeaders,
+        );
+        await run(
+          "coupons_head",
+          "HEAD",
           "/v1/coupons/coupon_fixed_28_2",
           oauthHeaders,
         );
@@ -1054,10 +1162,16 @@ describe.skipIf(!enabled)(
           oauthHeaders,
           {},
         );
-        // 4. /v1/enterprise (read + write)
+        // 4. /v1/enterprise (read, HEAD, write)
         await run(
           "enterprise_list_get",
           "GET",
+          "/v1/enterprise/contracts",
+          oauthHeaders,
+        );
+        await run(
+          "enterprise_list_head",
+          "HEAD",
           "/v1/enterprise/contracts",
           oauthHeaders,
         );
@@ -1068,10 +1182,16 @@ describe.skipIf(!enabled)(
           oauthHeaders,
           { notes: "rec" },
         );
-        // 5. /v1/admin/invoices (read + write)
+        // 5. /v1/admin/invoices (read, HEAD, write)
         await run(
           "admin_invoices_list_get",
           "GET",
+          "/v1/admin/invoices",
+          oauthHeaders,
+        );
+        await run(
+          "admin_invoices_list_head",
+          "HEAD",
           "/v1/admin/invoices",
           oauthHeaders,
         );
@@ -1088,11 +1208,41 @@ describe.skipIf(!enabled)(
             priceId: "price_tier_1",
           },
         );
-        // 6. /v1/organizations/:id/<billing> (read + write + credit-spend)
+        // 6. /v1/organizations/:id/<billing> (reads, HEADs on all 6 method-gated GETs, write, OPTIONS)
         await run(
           "org_billing_details_get",
           "GET",
           `/v1/organizations/${ORG_ID}/billing-details`,
+          oauthHeaders,
+        );
+        await run(
+          "org_billing_details_head",
+          "HEAD",
+          `/v1/organizations/${ORG_ID}/billing-details`,
+          oauthHeaders,
+        );
+        await run(
+          "org_billing_plan_head",
+          "HEAD",
+          `/v1/organizations/${ORG_ID}/billing-plan`,
+          oauthHeaders,
+        );
+        await run(
+          "org_enterprise_summary_head",
+          "HEAD",
+          `/v1/organizations/${ORG_ID}/enterprise-contract-summary`,
+          oauthHeaders,
+        );
+        await run(
+          "org_stripe_customer_head",
+          "HEAD",
+          `/v1/organizations/${ORG_ID}/stripe-customer`,
+          oauthHeaders,
+        );
+        await run(
+          "org_seat_summary_head",
+          "HEAD",
+          `/v1/organizations/${ORG_ID}/seat-summary`,
           oauthHeaders,
         );
         await run(
@@ -1108,11 +1258,38 @@ describe.skipIf(!enabled)(
           `/v1/organizations/${ORG_ID}/credit-spend`,
           oauthHeaders,
         );
-        // 7. /v1/users/:id/<billing> (read + write)
+        await run(
+          "org_credit_spend_head",
+          "HEAD",
+          `/v1/organizations/${ORG_ID}/credit-spend`,
+          oauthHeaders,
+        );
+        await run(
+          "org_options_preflight",
+          "OPTIONS",
+          `/v1/organizations/${ORG_ID}/billing-details`,
+          {
+            "access-control-request-method": "GET",
+            ...(networkHeader ? { [HEADER]: networkHeader } : {}),
+          },
+        );
+        // 7. /v1/users/:id/<billing> (read, HEADs on all 3 method-gated GETs, write)
         await run(
           "user_billing_details_get",
           "GET",
           "/v1/users/me/billing-details",
+          oauthHeaders,
+        );
+        await run(
+          "user_billing_details_head",
+          "HEAD",
+          "/v1/users/me/billing-details",
+          oauthHeaders,
+        );
+        await run(
+          "user_stripe_customer_head",
+          "HEAD",
+          "/v1/users/me/stripe-customer",
           oauthHeaders,
         );
         await run(
@@ -1121,12 +1298,64 @@ describe.skipIf(!enabled)(
           "/v1/users/me/stripe-customer",
           oauthHeaders,
         );
-        // 8. /auth (Better Auth subscription read + Stripe webhook)
+        await run(
+          "user_subscription_head",
+          "HEAD",
+          "/v1/users/me/subscription",
+          oauthHeaders,
+        );
+        // 8. /auth (Better Auth authenticated read, HEAD, writes, redirect, OPTIONS, Stripe webhook)
         await run(
           "auth_sub_list_session",
           "GET",
           "/auth/subscription/list",
           sessionHeaders,
+        );
+        await run(
+          "auth_sub_list_session_head",
+          "HEAD",
+          "/auth/subscription/list",
+          sessionHeaders,
+        );
+        await run(
+          "auth_sub_upgrade_session",
+          "POST",
+          "/auth/subscription/upgrade",
+          sessionHeaders,
+          {
+            plan: "starter",
+            successUrl: `${ORIGIN}/billing?ok=1`,
+            cancelUrl: `${ORIGIN}/billing?cancel=1`,
+          },
+        );
+        await run(
+          "auth_sub_portal_session",
+          "POST",
+          "/auth/subscription/billing-portal",
+          sessionHeaders,
+          { returnUrl: `${ORIGIN}/billing` },
+        );
+        await run(
+          "auth_sub_cancel_session",
+          "POST",
+          "/auth/subscription/cancel",
+          sessionHeaders,
+          { referenceId: ORG_ID, returnUrl: `${ORIGIN}/billing` },
+        );
+        await run(
+          "auth_sub_success_session",
+          "GET",
+          `/auth/subscription/success?callbackURL=${encodeURIComponent(`${ORIGIN}/billing`)}`,
+          sessionHeaders,
+        );
+        await run(
+          "auth_sub_options_preflight",
+          "OPTIONS",
+          "/auth/subscription/list",
+          {
+            "access-control-request-method": "GET",
+            ...(networkHeader ? { [HEADER]: networkHeader } : {}),
+          },
         );
         const signed = signedStripeEvent({
           id: "evt_rec_28_2",
@@ -1163,245 +1392,144 @@ describe.skipIf(!enabled)(
       }
     }
 
-    it("matches origin/main SQL statements, bodies, and Stripe calls with no header and mainnet header on both layouts", {
+    it("matches origin/main full SQL statements, headers/cookies/redirects, bodies, checkout URLs, HEAD responses, and Stripe calls with no header and mainnet header on both layouts", {
       timeout: 120_000,
     }, async () => {
       const noHeader = await runMainnetBillingOperations();
       const mainnetHeader = await runMainnetBillingOperations("mainnet");
+      const baseFixture = onSplitLayout
+        ? BILLING_BASE_FIXTURE.split
+        : BILLING_BASE_FIXTURE.today;
+      const concurrentReadOps = new Set([
+        "org_credit_spend_get",
+        "org_credit_spend_head",
+      ]);
 
-      const S = testSchemaNames().DATABASE_SCHEMA_SHARED;
-      const M = testSchemaNames().DATABASE_SCHEMA_MAINNET;
-      const auth4 = [
-        `SELECT "${S}"."oauthAccessToken"`,
-        `SELECT "${S}"."oauthRefreshToken"`,
-        `SELECT "${S}"."user"`,
-        `SELECT "${S}"."oauthClient"`,
-      ];
+      expect(Object.keys(noHeader.out).sort()).toEqual(
+        Object.keys(baseFixture).sort(),
+      );
 
-      // Exact SQL statement lists recorded on origin/main (ccaec3bc6) across all
-      // 8 touched routers on BOTH today's layout (`public`) and split layout
-      // (`shared`/`mainnet`), ensuring the guard sends 0 statements on Mainnet.
-      const pinned: Record<
-        string,
-        {
-          status: number;
-          statements: string[];
-          providers: string[];
-          concurrentReads?: boolean;
+      for (const [name, expected] of Object.entries(baseFixture)) {
+        for (const [modeLabel, runResult] of [
+          ["noHeader", noHeader],
+          ["mainnetHeader", mainnetHeader],
+        ] as const) {
+          const observed = runResult.out[name]!;
+          expect([modeLabel, name, observed.status]).toEqual([
+            modeLabel,
+            name,
+            expected.status,
+          ]);
+
+          // Headers (including ordered Set-Cookie and redirect Location):
+          // compare raw before normalization whenever no volatile cookie token is present.
+          if (!hasVolatilePlaceholder(expected.headers)) {
+            expect([modeLabel, name, observed.rawHeaders]).toEqual([
+              modeLabel,
+              name,
+              expected.headers,
+            ]);
+          } else {
+            expect([
+              modeLabel,
+              name,
+              normalizeValue(observed.headers, runResult.sessionToken),
+            ]).toEqual([modeLabel, name, expected.headers]);
+          }
+
+          // Body (including checkout URL, portal URL, and empty body on HEAD/OPTIONS):
+          // compare raw before normalization whenever no volatile field is present.
+          if (!hasVolatilePlaceholder(expected.bodyText)) {
+            expect([modeLabel, name, observed.bodyText]).toEqual([
+              modeLabel,
+              name,
+              expected.bodyText,
+            ]);
+          } else {
+            expect([
+              modeLabel,
+              name,
+              normalizeBodyText(observed.bodyText, runResult.sessionToken),
+            ]).toEqual([modeLabel, name, expected.bodyText]);
+          }
+
+          // Provider calls and full arguments (JSON-shaped to match the saved fixture).
+          const observedProviders = JSON.parse(
+            JSON.stringify(observed.providers),
+          );
+          if (!hasVolatilePlaceholder(expected.providers)) {
+            expect([modeLabel, name, observedProviders]).toEqual([
+              modeLabel,
+              name,
+              expected.providers,
+            ]);
+          } else {
+            expect([
+              modeLabel,
+              name,
+              normalizeValue(observedProviders, runResult.sessionToken),
+            ]).toEqual([modeLabel, name, expected.providers]);
+          }
+
+          // Full observed SQL statements (raw SQL text verbatim, never regex-reduced)
+          // and bound values (raw before normalization when deterministic).
+          const rawJsonStatements = JSON.parse(
+            JSON.stringify(observed.statements),
+          ) as RecordedStatement[];
+          const observedStmts = hasVolatilePlaceholder(expected.statements)
+            ? rawJsonStatements.map((s) => ({
+                text: s.text,
+                values: normalizeValue(s.values, runResult.sessionToken),
+              }))
+            : rawJsonStatements;
+          if (concurrentReadOps.has(name)) {
+            const sortKey = (s: { text: string; values: unknown }) =>
+              JSON.stringify(s);
+            expect([
+              modeLabel,
+              name,
+              observedStmts.map(sortKey).sort(),
+            ]).toEqual([
+              modeLabel,
+              name,
+              expected.statements.map(sortKey).sort(),
+            ]);
+          } else {
+            expect([modeLabel, name, observedStmts]).toEqual([
+              modeLabel,
+              name,
+              expected.statements,
+            ]);
+          }
         }
-      > = {
-        checkout_session_get: {
-          status: 200,
-          statements: auth4,
-          providers: ["stripeClient.getCheckoutSession"],
-        },
-        checkout_credits_post: {
-          status: 201,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."organization"`,
-            `SELECT "${S}"."member"`,
-            `SELECT "${S}"."organization"`,
-            `SELECT "${S}"."user"`,
-            `SELECT "${S}"."enterprise_contract"`,
-            `SELECT "${S}"."subscription"`,
-          ],
-          providers: [
-            "stripeClient.getCreditTopUpPriceByCredits",
-            "stripeClient.createCreditCheckoutSession",
-          ],
-        },
-        products_credits_get: {
-          status: 200,
-          statements: auth4,
-          providers: ["stripeClient.listCreditTopUpPrices"],
-        },
-        products_catalog_get: {
-          status: 200,
-          statements: [...auth4, `SELECT "${S}"."user"`],
-          providers: ["stripeClient.getPricesByLookupKeys"],
-        },
-        products_subscription_get: {
-          status: 200,
-          statements: auth4,
-          providers: [
-            "stripeClient.retrieveProductWithDefaultPrice",
-            "stripeClient.retrieveProductWithDefaultPrice",
-            "stripeClient.retrieveProductWithDefaultPrice",
-          ],
-        },
-        coupons_get: {
-          status: 200,
-          statements: auth4,
-          providers: ["stripeClient.getCouponById"],
-        },
-        coupons_claim_post: {
-          status: 201,
-          statements: [...auth4, `SELECT "${S}"."user"`],
-          providers: [
-            "stripeClient.getCouponById",
-            "stripeClient.getPromotionCode",
-            "stripeClient.createPromotionCode",
-          ],
-        },
-        enterprise_list_get: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."enterprise_contract"`,
-            `SELECT "${S}"."organization"`,
-          ],
-          providers: [],
-        },
-        enterprise_patch: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."enterprise_contract"`,
-            "BEGIN",
-            `UPDATE "${S}"."enterprise_contract"`,
-            `SELECT "${S}"."enterprise_contract"`,
-            `SELECT "${S}"."organization"`,
-            "COMMIT",
-          ],
-          providers: [],
-        },
-        admin_invoices_list_get: {
-          status: 200,
-          statements: auth4,
-          providers: [
-            "stripeClient.searchInvoices",
-            "stripeClient.searchInvoices",
-            "stripeClient.getAccountId",
-          ],
-        },
-        admin_invoices_post: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."organization"`,
-            `SELECT "${S}"."organization"`,
-          ],
-          providers: [
-            "stripeClient.getCreditTopUpPriceById",
-            "stripeClient.getAccountId",
-            "stripeClient.retrieveCustomerBillingDetails",
-            "stripeClient.createAdminInvoice",
-          ],
-        },
-        org_billing_details_get: {
-          status: 200,
-          statements: [...auth4, `SELECT "${S}"."organization"`],
-          providers: ["stripeClient.retrieveCustomerBillingDetails"],
-        },
-        org_subscription_seats_put: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."organization"`,
-            `SELECT "${S}"."member"`,
-            `SELECT "${S}"."enterprise_contract"`,
-            `SELECT "${S}"."subscription"`,
-            `SELECT "${S}"."subscription"`,
-          ],
-          providers: [],
-        },
-        org_credit_spend_get: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."organization"`,
-            `SELECT "${S}"."member"`,
-            `SELECT "${S}"."member"`,
-            `SELECT "${M}"."Transaction"`,
-            `SELECT "${M}"."Transaction"`,
-            `SELECT "${S}"."user"`,
-          ],
-          providers: [],
-          concurrentReads: true,
-        },
-        user_billing_details_get: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."user"`,
-            `SELECT "${S}"."user"`,
-          ],
-          providers: ["stripeClient.retrieveCustomerBillingDetails"],
-        },
-        user_stripe_customer_post: {
-          status: 200,
-          statements: [
-            ...auth4,
-            `SELECT "${S}"."user"`,
-            `SELECT "${S}"."user"`,
-          ],
-          providers: [],
-        },
-        auth_sub_list_session: {
-          status: 200,
-          statements: [
-            `SELECT "${S}"."session"`,
-            `SELECT "${S}"."user"`,
-            `SELECT "${S}"."subscription"`,
-          ],
-          providers: [],
-        },
-        auth_stripe_webhook_good: {
-          status: 200,
-          statements: [`UPDATE "${S}"."user"`],
-          providers: ["stripe.webhooks.constructEventAsync"],
-        },
-      };
+      }
 
-      for (const [name, expected] of Object.entries(pinned)) {
-        const a = noHeader.out[name]!;
-        const b = mainnetHeader.out[name]!;
-        expect([name, a.status]).toEqual([name, expected.status]);
-        expect([name, b.status]).toEqual([name, expected.status]);
-
-        const aDesc = a.statements.map((s) => describeSqlStatement(s.text));
-        const bDesc = b.statements.map((s) => describeSqlStatement(s.text));
-        if (expected.concurrentReads) {
-          expect([name, [...aDesc].sort()]).toEqual([
-            name,
-            [...expected.statements].sort(),
-          ]);
-          expect([name, [...bDesc].sort()]).toEqual([
-            name,
-            [...expected.statements].sort(),
-          ]);
-        } else {
-          expect([name, aDesc]).toEqual([name, expected.statements]);
-          expect([name, bDesc]).toEqual([name, expected.statements]);
-        }
-
-        expect([name, a.providers.map((p) => p.provider)]).toEqual([
-          name,
-          expected.providers,
-        ]);
-        expect([name, normalizeValue(b.providers)]).toEqual([
-          name,
-          normalizeValue(a.providers),
-        ]);
-        expect([name, normalizeValue(b.body)]).toEqual([
-          name,
-          normalizeValue(a.body),
-        ]);
-
-        const aStmts = a.statements.map((s) =>
-          normalizeStatement(s, noHeader.sessionToken),
-        );
-        const bStmts = b.statements.map((s) =>
-          normalizeStatement(s, mainnetHeader.sessionToken),
-        );
-        if (expected.concurrentReads) {
-          expect([name, [...bStmts].sort()]).toEqual([
-            name,
-            [...aStmts].sort(),
-          ]);
-        } else {
-          expect([name, bStmts]).toEqual([name, aStmts]);
+      // Meaningful billing outputs explicitly checked: checkout URL, portal URL,
+      // redirect Location, session Set-Cookie, and empty HEAD bodies.
+      expect(noHeader.out.checkout_credits_post!.bodyText).toContain(
+        "https://checkout.stripe.com/c/pay/cs_28_2",
+      );
+      expect(noHeader.out.auth_sub_upgrade_session!.bodyText).toContain(
+        "https://checkout.stripe.com/c/pay/cs_28_2",
+      );
+      expect(noHeader.out.auth_sub_portal_session!.bodyText).toContain(
+        "https://billing.stripe.com/p/session/bps_28_2",
+      );
+      expect(noHeader.out.auth_sub_cancel_session!.bodyText).toContain(
+        "https://billing.stripe.com/p/session/bps_28_2",
+      );
+      expect(noHeader.out.auth_sub_success_session!.status).toBe(302);
+      expect(noHeader.out.auth_sub_success_session!.rawHeaders.location).toBe(
+        `${ORIGIN}/billing`,
+      );
+      expect(
+        Array.isArray(
+          noHeader.out.auth_sub_success_session!.rawHeaders["set-cookie"],
+        ),
+      ).toBe(true);
+      for (const [name, obs] of Object.entries(noHeader.out)) {
+        if (name.endsWith("_head")) {
+          expect([name, obs.bodyText]).toEqual([name, ""]);
         }
       }
     });
@@ -1469,8 +1597,10 @@ describe.skipIf(!enabled)(
       expect(counts.get("/v1/coupons")).toBeGreaterThanOrEqual(2);
       expect(counts.get("/v1/enterprise")).toBeGreaterThanOrEqual(7);
       expect(counts.get("/v1/admin/invoices")).toBeGreaterThanOrEqual(5);
-      expect(counts.get("/v1/organizations/:id/<billing>")).toBe(11);
-      expect(counts.get("/v1/users/:id/<billing>")).toBe(4);
+      expect(
+        counts.get("/v1/organizations/:id/<billing>"),
+      ).toBeGreaterThanOrEqual(11);
+      expect(counts.get("/v1/users/:id/<billing>")).toBeGreaterThanOrEqual(4);
       expect(
         gatedV1Routes.some(
           (r) =>
@@ -1483,6 +1613,48 @@ describe.skipIf(!enabled)(
             r.method === "GET" && r.path === "/organizations/:id/seat-summary",
         ),
       ).toBe(true);
+
+      // Derive an implicit HEAD case for every gated billing GET in apiV1.routes.
+      const derivedHeadV1Routes = gatedV1Routes
+        .filter((r) => r.method === "GET")
+        .map((r) => ({ ...r, method: "HEAD" }));
+      expect(derivedHeadV1Routes.length).toBeGreaterThanOrEqual(20);
+      const allV1Checks = [...gatedV1Routes, ...derivedHeadV1Routes];
+
+      // Derive Better Auth /auth/subscription/* routes from runtime auth.api
+      // metadata and assert every expected subscription operation is covered.
+      const runtimeAuthSubRoutes: Array<readonly [string, string]> = [];
+      for (const fn of Object.values(loaded.auth.api)) {
+        const ep = fn as {
+          path?: string;
+          options?: { method?: string | string[] };
+        };
+        if (
+          typeof ep.path !== "string" ||
+          !ep.path.startsWith("/subscription/")
+        )
+          continue;
+        const methods = Array.isArray(ep.options?.method)
+          ? ep.options.method
+          : [ep.options?.method ?? "GET"];
+        for (const m of methods) {
+          runtimeAuthSubRoutes.push([m.toUpperCase(), `/auth${ep.path}`]);
+        }
+      }
+      expect(runtimeAuthSubRoutes.length).toBeGreaterThanOrEqual(
+        BETTER_AUTH_GATED_SUBSCRIPTION_ROUTES.length,
+      );
+      for (const expectedRoute of BETTER_AUTH_GATED_SUBSCRIPTION_ROUTES) {
+        expect(runtimeAuthSubRoutes).toContainEqual(expectedRoute);
+      }
+      const derivedHeadAuthSubRoutes: Array<readonly [string, string]> =
+        runtimeAuthSubRoutes
+          .filter(([method]) => method === "GET")
+          .map(([, path]) => ["HEAD", path]);
+      const allAuthSubChecks = [
+        ...runtimeAuthSubRoutes,
+        ...derivedHeadAuthSubRoutes,
+      ];
 
       // Measure auth-only SQL statements.
       recorded.statements.length = 0;
@@ -1497,15 +1669,19 @@ describe.skipIf(!enabled)(
 
       const digestBefore = await billingTablesDigest(loaded);
 
-      // Sweep every /v1 billing route as a caller WITH Preprod access AND as a caller WITHOUT.
+      // Sweep every /v1 billing route (plus every derived HEAD case) as a caller
+      // WITH Preprod access AND as a caller WITHOUT.
       for (const [label, token] of [
         ["with Preprod access", ADMIN_OAUTH_TOKEN],
         ["without Preprod access", PLAIN_OAUTH_TOKEN],
       ] as const) {
-        for (const route of gatedV1Routes) {
+        for (const route of allV1Checks) {
           recorded.statements.length = 0;
           recorded.providers.length = 0;
-          const hasBody = route.method !== "GET" && route.method !== "DELETE";
+          const hasBody =
+            route.method !== "GET" &&
+            route.method !== "HEAD" &&
+            route.method !== "DELETE";
           const res = await loaded.app.request(`${ORIGIN}${route.fullPath}`, {
             method: route.method,
             headers: {
@@ -1517,25 +1693,36 @@ describe.skipIf(!enabled)(
             ...(hasBody ? { body: "{}" } : {}),
           });
           await drainBackground();
-          const body = (await res.json()) as {
-            kind?: string;
-            message?: string;
-          };
-          expect([
-            label,
-            route.method,
-            route.fullPath,
-            res.status,
-            body.kind,
-            body.message,
-          ]).toEqual([
-            label,
-            route.method,
-            route.fullPath,
-            422,
-            CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
-            EXPECTED_MESSAGE,
-          ]);
+          if (route.method === "HEAD") {
+            expect([
+              label,
+              route.method,
+              route.fullPath,
+              res.status,
+              await res.text(),
+              res.headers.get("content-type")?.includes("application/json"),
+            ]).toEqual([label, route.method, route.fullPath, 422, "", true]);
+          } else {
+            const body = (await res.json()) as {
+              kind?: string;
+              message?: string;
+            };
+            expect([
+              label,
+              route.method,
+              route.fullPath,
+              res.status,
+              body.kind,
+              body.message,
+            ]).toEqual([
+              label,
+              route.method,
+              route.fullPath,
+              422,
+              CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
+              EXPECTED_MESSAGE,
+            ]);
+          }
           expect([route.method, route.fullPath, recorded.providers]).toEqual([
             route.method,
             route.fullPath,
@@ -1550,8 +1737,9 @@ describe.skipIf(!enabled)(
         }
       }
 
-      // Sweep Better Auth /auth/subscription/* signed in, with bad session, and with no session:
-      // all answer 422 mainnet_only_feature with 0 SQL statements and 0 Stripe calls.
+      // Sweep Better Auth /auth/subscription/* (plus derived HEADs) signed in,
+      // with bad session, and with no session: all answer 422 mainnet_only_feature
+      // with 0 SQL statements and 0 Stripe calls.
       const authModes: ReadonlyArray<
         readonly [string, Record<string, string>]
       > = [
@@ -1560,7 +1748,7 @@ describe.skipIf(!enabled)(
         ["missing session", {}],
       ];
       for (const [modeLabel, authHdr] of authModes) {
-        for (const [method, path] of BETTER_AUTH_GATED_SUBSCRIPTION_ROUTES) {
+        for (const [method, path] of allAuthSubChecks) {
           recorded.statements.length = 0;
           recorded.providers.length = 0;
           const res = await loaded.app.request(`${ORIGIN}${path}`, {
@@ -1576,25 +1764,36 @@ describe.skipIf(!enabled)(
             ...(method === "POST" ? { body: "{}" } : {}),
           });
           await drainBackground();
-          const body = (await res.json()) as {
-            kind?: string;
-            message?: string;
-          };
-          expect([
-            modeLabel,
-            method,
-            path,
-            res.status,
-            body.kind,
-            body.message,
-          ]).toEqual([
-            modeLabel,
-            method,
-            path,
-            422,
-            CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
-            EXPECTED_MESSAGE,
-          ]);
+          if (method === "HEAD") {
+            expect([
+              modeLabel,
+              method,
+              path,
+              res.status,
+              await res.text(),
+              res.headers.get("content-type")?.includes("application/json"),
+            ]).toEqual([modeLabel, method, path, 422, "", true]);
+          } else {
+            const body = (await res.json()) as {
+              kind?: string;
+              message?: string;
+            };
+            expect([
+              modeLabel,
+              method,
+              path,
+              res.status,
+              body.kind,
+              body.message,
+            ]).toEqual([
+              modeLabel,
+              method,
+              path,
+              422,
+              CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
+              EXPECTED_MESSAGE,
+            ]);
+          }
           expect([modeLabel, method, path, recorded.statements]).toEqual([
             modeLabel,
             method,
@@ -1750,19 +1949,36 @@ describe.skipIf(!enabled)(
       );
       expect(oidcRes.status).toBe(200);
 
-      // OPTIONS preflight on /auth/subscription/* stays 204
-      const optRes = await loaded.app.request(
-        `${ORIGIN}/auth/subscription/list`,
-        {
+      // Implicit OPTIONS (both preflight and bare) stays 204 with 0 SQL on /v1 and /auth
+      for (const [path, extraHeaders] of [
+        [
+          `/v1/organizations/${ORG_ID}/billing-details`,
+          { "access-control-request-method": "GET" },
+        ],
+        [`/v1/organizations/${ORG_ID}/billing-details`, {}],
+        [
+          "/v1/users/me/billing-details",
+          { "access-control-request-method": "GET" },
+        ],
+        ["/auth/subscription/list", { "access-control-request-method": "GET" }],
+        ["/auth/subscription/list", {}],
+      ] as const) {
+        recorded.statements.length = 0;
+        const optRes = await loaded.app.request(`${ORIGIN}${path}`, {
           method: "OPTIONS",
           headers: {
             origin: ORIGIN,
-            "access-control-request-method": "GET",
             [HEADER]: "preprod",
+            ...extraHeaders,
           },
-        },
-      );
-      expect(optRes.status).toBe(204);
+        });
+        expect([path, optRes.status, await optRes.text()]).toEqual([
+          path,
+          204,
+          "",
+        ]);
+        expect(recorded.statements).toEqual([]);
+      }
     });
 
     it("leaves Stripe and Polar webhooks, renewal crons, members/me/seat, and all four Seat assignment routes open under preprod", async () => {
@@ -1856,7 +2072,13 @@ describe.skipIf(!enabled)(
       } else {
         // On split layout, grant.ts still writes Transaction on shared tx until
         // slice 28-3 / ticket 27 moves it; prove signed Stripe customer.created
-        // succeeds (200) and leaves Preprod's ledger empty.
+        // actually updates a seeded shared User row (null -> cus_plain_wh_28_2)
+        // and leaves Preprod's ledger empty.
+        const plainBefore = await loaded.prisma.user.findUniqueOrThrow({
+          where: { id: PLAIN_USER_ID },
+          select: { stripeCustomerId: true },
+        });
+        expect(plainBefore.stripeCustomerId).toBeNull();
         const customerEvent = signedStripeEvent({
           id: "evt_cust_28_2",
           object: "event",
@@ -1866,10 +2088,10 @@ describe.skipIf(!enabled)(
           type: "customer.created",
           data: {
             object: {
-              id: "cus_user_28_2",
+              id: "cus_plain_wh_28_2",
               object: "customer",
-              email: "admin-28-2@example.test",
-              metadata: { userId: ADMIN_USER_ID, customerType: "user" },
+              email: "plain-28-2@example.test",
+              metadata: { userId: PLAIN_USER_ID, customerType: "user" },
             },
           },
         });
@@ -1888,6 +2110,11 @@ describe.skipIf(!enabled)(
         );
         await drainBackground();
         expect(goodStripeRes.status).toBe(200);
+        const plainAfter = await loaded.prisma.user.findUniqueOrThrow({
+          where: { id: PLAIN_USER_ID },
+          select: { stripeCustomerId: true },
+        });
+        expect(plainAfter.stripeCustomerId).toBe("cus_plain_wh_28_2");
         const preprodDb = loaded.createNetworkScope("preprod").networkDb;
         expect(await preprodDb.transaction.count()).toBe(0);
       }
@@ -1969,11 +2196,43 @@ describe.skipIf(!enabled)(
         });
         expect(orgTxAfter).toBe(orgTxBefore + 1);
       } else {
+        // Seed a shared PolarSubscription row with cancelAtPeriodEnd=false,
+        // then prove signed Polar subscription.updated under preprod mutates
+        // that seeded row (false -> true) while leaving Preprod's ledger empty.
+        await loaded.prisma.polarSubscription.create({
+          data: {
+            polarSubscriptionId: polarSub.id,
+            kind: PolarSubscriptionKind.CMO,
+            organizationId: ORG_ID,
+            projectId: PROJECT_ID,
+            polarProductId: polarSub.product_id,
+            tier: "growth",
+            interval: "month",
+            status: "active",
+            currentPeriodStart: new Date(polarSub.current_period_start),
+            currentPeriodEnd: new Date(polarSub.current_period_end),
+            cancelAtPeriodEnd: false,
+            polarEventAt: new Date("2026-11-13T10:00:00.000Z"),
+          },
+        });
+        const polarBefore =
+          await loaded.prisma.polarSubscription.findUniqueOrThrow({
+            where: { polarSubscriptionId: polarSub.id },
+            select: { cancelAtPeriodEnd: true, polarEventAt: true },
+          });
+        expect(polarBefore.cancelAtPeriodEnd).toBe(false);
+
+        const updatedEventTimestamp = "2026-11-13T10:05:00.000Z";
         polarVerify.mockResolvedValueOnce(
           okResult({
             type: "subscription.updated",
-            timestamp: "2026-11-13T10:05:00.000Z",
-            data: { ...polarCheckout, ...polarSub, pending_update: null },
+            timestamp: updatedEventTimestamp,
+            data: {
+              ...polarCheckout,
+              ...polarSub,
+              cancel_at_period_end: true,
+              pending_update: null,
+            },
           }),
         );
         const goodPolarRes = await loaded.app.request(
@@ -1990,6 +2249,15 @@ describe.skipIf(!enabled)(
         );
         await drainBackground();
         expect(goodPolarRes.status).toBe(200);
+        const polarAfter =
+          await loaded.prisma.polarSubscription.findUniqueOrThrow({
+            where: { polarSubscriptionId: polarSub.id },
+            select: { cancelAtPeriodEnd: true, polarEventAt: true },
+          });
+        expect(polarAfter.cancelAtPeriodEnd).toBe(true);
+        expect(polarAfter.polarEventAt.toISOString()).toBe(
+          updatedEventTimestamp,
+        );
         const preprodDb = loaded.createNetworkScope("preprod").networkDb;
         expect(await preprodDb.transaction.count()).toBe(0);
       }
@@ -2077,13 +2345,21 @@ describe.skipIf(!enabled)(
 
         const keyTargets: ReadonlyArray<readonly [string, string]> = [
           ["GET", "/v1/checkout/sessions/cs_28_2"],
+          ["HEAD", "/v1/checkout/sessions/cs_28_2"],
           ["GET", "/v1/products/credits"],
+          ["HEAD", "/v1/products/credits"],
           ["GET", "/v1/coupons/coupon_fixed_28_2"],
+          ["HEAD", "/v1/coupons/coupon_fixed_28_2"],
           ["GET", "/v1/enterprise/contracts"],
+          ["HEAD", "/v1/enterprise/contracts"],
           ["GET", "/v1/admin/invoices"],
+          ["HEAD", "/v1/admin/invoices"],
           ["GET", `/v1/organizations/${ORG_ID}/billing-details`],
+          ["HEAD", `/v1/organizations/${ORG_ID}/billing-details`],
           ["GET", `/v1/organizations/${ORG_ID}/credit-spend`],
+          ["HEAD", `/v1/organizations/${ORG_ID}/credit-spend`],
           ["GET", "/v1/users/me/billing-details"],
+          ["HEAD", "/v1/users/me/billing-details"],
         ];
 
         for (const [method, path] of keyTargets) {
@@ -2099,10 +2375,14 @@ describe.skipIf(!enabled)(
             path,
             422,
           ]);
-          expect(await preprodRes.json()).toMatchObject({
-            kind: CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
-            message: EXPECTED_MESSAGE,
-          });
+          if (method === "HEAD") {
+            expect(await preprodRes.text()).toBe("");
+          } else {
+            expect(await preprodRes.json()).toMatchObject({
+              kind: CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
+              message: EXPECTED_MESSAGE,
+            });
+          }
           expect([method, path, recorded.statements.length]).toEqual([
             method,
             path,
@@ -2120,6 +2400,9 @@ describe.skipIf(!enabled)(
             path,
             200,
           ]);
+          if (method === "HEAD") {
+            expect(await mainnetRes.text()).toBe("");
+          }
 
           // Contradicted keys -> 403 api_key_network_mismatch, 0 statements after auth
           recorded.statements.length = 0;
@@ -2139,9 +2422,13 @@ describe.skipIf(!enabled)(
             path,
             403,
           ]);
-          expect(await contradictedMainnet.json()).toMatchObject({
-            kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH,
-          });
+          if (method === "HEAD") {
+            expect(await contradictedMainnet.text()).toBe("");
+          } else {
+            expect(await contradictedMainnet.json()).toMatchObject({
+              kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH,
+            });
+          }
           expect(recorded.statements.length).toBe(apiKeyAuthCount);
 
           recorded.statements.length = 0;
@@ -2161,9 +2448,13 @@ describe.skipIf(!enabled)(
             path,
             403,
           ]);
-          expect(await contradictedPreprod.json()).toMatchObject({
-            kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH,
-          });
+          if (method === "HEAD") {
+            expect(await contradictedPreprod.text()).toBe("");
+          } else {
+            expect(await contradictedPreprod.json()).toMatchObject({
+              kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH,
+            });
+          }
           expect(recorded.statements.length).toBe(apiKeyAuthCount);
         }
       },

@@ -147,12 +147,15 @@ describe("auth router Mainnet-only billing guard", () => {
 
   it.each([
     ["GET", "/auth/subscription/list"],
+    ["HEAD", "/auth/subscription/list"],
     ["POST", "/auth/subscription/upgrade"],
     ["POST", "/auth/subscription/cancel"],
     ["POST", "/auth/subscription/restore"],
     ["GET", "/auth/subscription/success"],
+    ["HEAD", "/auth/subscription/success"],
     ["POST", "/auth/subscription/billing-portal"],
     ["GET", "/auth/subscription/future-endpoint"],
+    ["HEAD", "/auth/subscription/future-endpoint"],
   ])(
     "refuses %s %s with 422 mainnet_only_feature on preprod without calling auth.handler",
     async (method, path) => {
@@ -166,10 +169,17 @@ describe("auth router Mainnet-only billing guard", () => {
       });
 
       expect(response.status).toBe(422);
-      await expect(response.json()).resolves.toMatchObject({
-        kind: "mainnet_only_feature",
-        message: "This feature is available on Mainnet only.",
-      });
+      if (method === "HEAD") {
+        expect(await response.text()).toBe("");
+        expect(response.headers.get("content-type")).toContain(
+          "application/json",
+        );
+      } else {
+        await expect(response.json()).resolves.toMatchObject({
+          kind: "mainnet_only_feature",
+          message: "This feature is available on Mainnet only.",
+        });
+      }
       expect(auth.handler).not.toHaveBeenCalled();
     },
   );

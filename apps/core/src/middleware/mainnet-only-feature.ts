@@ -43,9 +43,13 @@ export const requireMainnetOnlyFeatureMiddleware = createMiddleware(
 export function requireMainnetOnlyFeatureForMethods(
   methods: readonly string[],
 ) {
-  const allowed = new Set(methods);
+  const allowed = new Set(methods.map((method) => method.toUpperCase()));
+  // Hono dispatches HEAD through matching GET handlers while keeping c.req.method === "HEAD".
+  if (allowed.has("GET")) {
+    allowed.add("HEAD");
+  }
   return createMiddleware(async (c, next) => {
-    if (allowed.has(c.req.method)) {
+    if (allowed.has(c.req.method.toUpperCase())) {
       requireMainnetOnlyFeature(c);
     }
     await next();
