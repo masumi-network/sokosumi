@@ -112,8 +112,8 @@ vi.mock("@/types/job", () => ({
   serializeJobDetails: (...args: unknown[]) => serializeJobDetailsMock(...args),
 }));
 
-vi.mock("@/lib/db/prisma", async () => ({
-  default: {
+vi.mock("@/lib/db/prisma", async () => {
+  const client = {
     member: {
       findUnique: (await import("@/test-fixtures/organization-membership"))
         .stubMemberFindUnique,
@@ -121,8 +121,12 @@ vi.mock("@/lib/db/prisma", async () => ({
     job: {
       update: jobUpdateMock,
     },
-  },
-}));
+  };
+  return {
+    default: client,
+    networkPrisma: () => client,
+  };
+});
 
 function createSerializedJob(overrides: Record<string, unknown> = {}) {
   return {
@@ -272,7 +276,7 @@ describe("PATCH /jobs/{id}", () => {
     expect(requireJobCollaborationMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "user_123" }),
       "job_123",
-      expect.objectContaining({ job: { update: jobUpdateMock } }),
+      expect.objectContaining({ network: "mainnet" }),
     );
     expect(jobUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({

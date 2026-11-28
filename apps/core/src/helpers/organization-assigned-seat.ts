@@ -1,4 +1,4 @@
-import type { Prisma } from "@sokosumi/database";
+import type { SharedDb } from "@sokosumi/database";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
@@ -8,7 +8,7 @@ import prisma from "@/lib/db/prisma";
 export async function requireAssignedOrganizationSeat(
   userId: string,
   organizationId: string | null,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
 ): Promise<void> {
   const allowed = await hasAssignedOrganizationSeat(userId, organizationId, tx);
   if (allowed) {

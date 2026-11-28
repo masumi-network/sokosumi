@@ -3,9 +3,13 @@ import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
+import {
+  hydrateJobDetail,
+  jobDetailNetworkInclude,
+} from "@/helpers/job-detail";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { networkUsesSharedSchema } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -52,14 +56,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const { name } = c.req.valid("json");
+    const { networkScope } = c.var;
+    const { networkDb } = networkScope;
 
-    await requireJobCollaboration(c.var.authContext, id, prisma);
+    await requireJobCollaboration(c.var.authContext, id, networkScope);
 
-    const job = await prisma.job.update({
-      where: { id },
-      data: { name },
-      include: jobInclude,
-    });
+    const job = networkUsesSharedSchema()
+      ? await networkDb.job.update({
+          where: { id },
+          data: { name },
+          include: jobInclude,
+        })
+      : await hydrateJobDetail(
+          networkScope,
+          await networkDb.job.update({
+            where: { id },
+            data: { name },
+            include: jobDetailNetworkInclude,
+          }),
+        );
 
     return ok(c, jobSchema.parse(serializeJobDetails(mapJobWithStatus(job))));
   });

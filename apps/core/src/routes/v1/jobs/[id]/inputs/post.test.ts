@@ -123,18 +123,31 @@ vi.mock("@sokosumi/masumi", () => ({
   }),
 }));
 
-vi.mock("@/lib/db/prisma", async () => ({
-  default: {
+vi.mock("@/lib/db/prisma", async () => {
+  const client = {
     member: {
       findUnique: (await import("@/test-fixtures/organization-membership"))
         .stubMemberFindUnique,
     },
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    job: {
+      findFirst: (...args: unknown[]) => jobFindFirstMock(...args),
+    },
+    jobEvent: {
+      findFirst: (...args: unknown[]) => jobEventFindFirstMock(...args),
+    },
     jobInput: {
       create: (...args: unknown[]) => jobInputCreateMock(...args),
     },
-  },
-}));
+    workspace: {
+      findUnique: (...args: unknown[]) => workspaceFindUniqueMock(...args),
+    },
+  };
+  return {
+    default: client,
+    networkPrisma: () => client,
+  };
+});
 
 function createApp() {
   const app = new OpenAPIHonoWithAuth();

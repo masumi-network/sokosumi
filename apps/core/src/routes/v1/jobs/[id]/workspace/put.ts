@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   readWorkspaceOrganizationId,
@@ -7,6 +6,7 @@ import {
   requireOwnerForPersonalWorkspace,
 } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
+import { readJobDetailsById } from "@/helpers/job-detail";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
@@ -65,15 +65,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
+    const { networkScope } = c.var;
+    // Refuse a disallowed Network before opening a transaction or reading shared rows.
+    void networkScope.network;
 
-    const job = await serializableTransaction(async (tx) => {
+    await serializableTransaction(async (tx) => {
       // Moving belongs to the job's Owner (ADR 0057). A
       // delegated coworker may only move a job whose task is assigned to it.
       const accessibleJob = await requireJobCollaboration(
         c.var.authContext,
         id,
-        tx,
-        { right: "manage" },
+        networkScope,
+        { right: "manage", sharedTx: tx },
       );
 
       if (accessibleJob.taskId !== null) {
@@ -85,16 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         (await readWorkspaceOrganizationId(accessibleJob.workspaceId, tx));
 
       if (!workspaceChanged) {
-        const existingJob = await tx.job.findUnique({
-          where: { id },
-          include: jobInclude,
-        });
-
-        if (!existingJob) {
-          throw notFound("Job not found");
-        }
-
-        return serializeJobDetails(mapJobWithStatus(existingJob));
+        return;
       }
 
       // `null` targets the authenticated user's personal workspace.
@@ -121,28 +115,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      await tx.job.update({
-        where: {
-          id,
-        },
-        data: {
-          workspaceId: workspace.id,
-          projectId: null,
-        },
-      });
-
-      const updatedJob = await tx.job.findUnique({
-        where: { id },
-        include: jobInclude,
-      });
-
-      if (!updatedJob) {
-        throw notFound("Job not found");
-      }
-
-      return serializeJobDetails(mapJobWithStatus(updatedJob));
+      const updatedAt = new Date();
+      await tx.$executeRaw`
+        UPDATE ${networkScope.networkTable("Job")}
+        SET "workspaceId" = ${workspace.id}::uuid,
+            "projectId" = NULL,
+            "updatedAt" = ${updatedAt}
+        WHERE "id" = ${id}
+      `;
     }, "Job changed by a concurrent request. Please retry.");
 
-    return ok(c, jobSchema.parse(job));
+    const updatedJob = await readJobDetailsById(networkScope, id);
+    if (!updatedJob) {
+      throw notFound("Job not found");
+    }
+
+    return ok(
+      c,
+      jobSchema.parse(serializeJobDetails(mapJobWithStatus(updatedJob))),
+    );
   });
 }

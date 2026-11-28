@@ -325,7 +325,8 @@ describe("requireJobShareCollaboration", () => {
     expect(requireJobCollaborationMock).toHaveBeenCalledWith(
       sokoBotAuthContext,
       "job_123",
-      tx,
+      expect.objectContaining({ network: "mainnet" }),
+      { sharedTx: tx },
     );
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });
@@ -355,7 +356,8 @@ describe("requireJobShareCollaboration", () => {
     expect(requireJobCollaborationMock).toHaveBeenCalledWith(
       coworkerAuthContext,
       "job_123",
-      tx,
+      expect.objectContaining({ network: "mainnet" }),
+      { sharedTx: tx },
     );
     expect(tx.job.findFirst).not.toHaveBeenCalled();
   });

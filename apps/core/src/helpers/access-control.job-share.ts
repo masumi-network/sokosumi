@@ -1,5 +1,6 @@
 import type { Job, Prisma } from "@sokosumi/database";
 
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import { isUserAuthContext, requireUserContext } from "@/middleware/auth";
@@ -53,9 +54,13 @@ export async function requireJobShareCollaboration(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   const { authContext, workspaceContext } = vars;
+  // shortcut: Job shares stay on Mainnet until ticket 33 moves Job shares to a Network table.
+  const mainnet = createNetworkScope("mainnet");
 
   if (!isUserAuthContext(authContext)) {
-    return await requireJobCollaboration(authContext, jobId, tx);
+    return await requireJobCollaboration(authContext, jobId, mainnet, {
+      sharedTx: tx === prisma ? undefined : tx,
+    });
   }
 
   const userContext = requireUserContext(authContext);
@@ -90,7 +95,7 @@ export async function requireJobShareCollaboration(
     throw notFound("Job not found");
   }
 
-  await requireParentTaskNotParked(job, tx);
+  await requireParentTaskNotParked(job, mainnet, tx);
 
   return job;
 }

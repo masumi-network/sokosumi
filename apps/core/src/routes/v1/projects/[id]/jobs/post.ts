@@ -1,10 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildHumanJobParentVisibilityWhere } from "@/helpers/task-visibility";
-import prisma from "@/lib/db/prisma";
+import {
+  buildHumanJobParentVisibilitySql,
+  buildHumanJobParentVisibilityWhere,
+} from "@/helpers/task-visibility";
+import { networkUsesSharedSchema } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -62,22 +66,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     const workspaceId = workspaceContext.workspaceId;
+    const { networkScope } = c.var;
+    const { networkDb, sharedDb } = networkScope;
 
-    const project = await prisma.project.findFirst({
+    const project = await sharedDb.project.findFirst({
       where: { id: projectId, workspaceId },
     });
     if (!project) {
       throw notFound("Project not found");
     }
 
-    const job = await prisma.job.findFirst({
-      where: {
-        id: body.jobId,
-        workspaceId,
-        ...buildHumanJobParentVisibilityWhere(userContext.userId),
-      },
-      select: { projectId: true },
-    });
+    const job = networkUsesSharedSchema()
+      ? await networkDb.job.findFirst({
+          where: {
+            id: body.jobId,
+            workspaceId,
+            ...buildHumanJobParentVisibilityWhere(userContext.userId),
+          },
+          select: { projectId: true },
+        })
+      : (
+          await networkDb.$queryRaw<{ projectId: string | null }[]>`
+            SELECT j."projectId"
+            FROM ${networkScope.networkTable("Job")} j
+            LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
+            WHERE j.id = ${body.jobId}
+              AND j."workspaceId" = ${workspaceId}::uuid
+            ${buildHumanJobParentVisibilitySql(userContext.userId)}
+            LIMIT 1
+          `
+        )[0];
     if (!job) {
       throw notFound("Job not found");
     }
@@ -87,7 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (job.projectId !== projectId) {
-      await prisma.job.update({
+      await networkDb.job.update({
         where: { id: body.jobId },
         data: {
           projectId,

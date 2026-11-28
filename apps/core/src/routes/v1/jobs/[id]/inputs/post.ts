@@ -12,7 +12,6 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -101,46 +100,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Input data cannot be empty");
     }
 
-    const jobEvent = await prisma.$transaction(async (tx) => {
-      await requireJobCollaboration(c.var.authContext, jobId, tx);
-      const jobEvent = await tx.jobEvent.findFirst({
-        where: {
-          id: eventId,
-          jobId,
-          status: AgentJobStatus.AWAITING_INPUT,
-        },
-        include: {
-          job: {
-            include: {
-              agent: {
-                select: {
-                  id: true,
-                  blockchainIdentifier: true,
-                  name: true,
-                  apiBaseUrl: true,
-                  metadataOverride: {
-                    select: {
-                      apiBaseUrl: true,
-                    },
+    const { networkScope } = c.var;
+    const { networkDb } = networkScope;
+
+    await requireJobCollaboration(c.var.authContext, jobId, networkScope);
+    const jobEvent = await networkDb.jobEvent.findFirst({
+      where: {
+        id: eventId,
+        jobId,
+        status: AgentJobStatus.AWAITING_INPUT,
+      },
+      include: {
+        job: {
+          include: {
+            agent: {
+              select: {
+                id: true,
+                blockchainIdentifier: true,
+                name: true,
+                apiBaseUrl: true,
+                metadataOverride: {
+                  select: {
+                    apiBaseUrl: true,
                   },
                 },
               },
             },
           },
-          input: true,
         },
-      });
-
-      if (!jobEvent) {
-        throw notFound("Job event not found or is not awaiting input");
-      }
-
-      if (jobEvent.input !== null) {
-        throw conflict("Input has already been provided for this event");
-      }
-
-      return jobEvent;
+        input: true,
+      },
     });
+
+    if (!jobEvent) {
+      throw notFound("Job event not found or is not awaiting input");
+    }
+
+    if (jobEvent.input !== null) {
+      throw conflict("Input has already been provided for this event");
+    }
 
     if (!jobEvent.inputSchema) {
       throw unprocessableEntity("Agent did not provide an input schema");
@@ -164,7 +162,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(provideInputResult.error.message);
     }
 
-    const jobInput = await prisma.jobInput.create({
+    const jobInput = await networkDb.jobInput.create({
       data: {
         event: { connect: { id: jobEvent.id } },
         input: JSON.stringify(inputData),

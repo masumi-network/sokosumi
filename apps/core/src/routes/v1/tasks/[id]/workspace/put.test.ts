@@ -290,6 +290,7 @@ function mockTransaction(tx: TransactionMock) {
   prismaTransactionMock.mockImplementation(async (callback) => {
     return await callback({
       ...tx,
+      $executeRaw: tx.job.updateMany,
       projectSeoAnalysis: { findUnique: async () => null },
     });
   });
@@ -448,13 +449,17 @@ describe("PUT /tasks/{id}/workspace", () => {
         projectId: null,
       },
     });
-    expect(jobUpdateManyMock).toHaveBeenCalledWith({
-      where: { taskId: "tsk_123" },
-      data: {
-        workspaceId: "11111111-1111-4111-8111-111111111111",
-        projectId: null,
-      },
-    });
+    expect(jobUpdateManyMock).toHaveBeenCalledTimes(1);
+    {
+      const [sqlStrings, ...sqlValues] = jobUpdateManyMock.mock.calls[0] ?? [];
+      expect((sqlStrings as string[]).join(" ")).toContain('"workspaceId"');
+      expect((sqlStrings as string[]).join(" ")).toContain(
+        '"projectId" = NULL',
+      );
+      expect((sqlStrings as string[]).join(" ")).toContain('"updatedAt"');
+      expect(sqlValues).toContain("11111111-1111-4111-8111-111111111111");
+      expect(sqlValues).toContain("tsk_123");
+    }
     expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
       "cow_123",
       "11111111-1111-4111-8111-111111111111",
@@ -760,13 +765,17 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(jobUpdateManyMock).toHaveBeenCalledWith({
-      where: { taskId: "tsk_123" },
-      data: {
-        workspaceId: "11111111-1111-4111-8111-111111111111",
-        projectId: null,
-      },
-    });
+    expect(jobUpdateManyMock).toHaveBeenCalledTimes(1);
+    {
+      const [sqlStrings, ...sqlValues] = jobUpdateManyMock.mock.calls[0] ?? [];
+      expect((sqlStrings as string[]).join(" ")).toContain('"workspaceId"');
+      expect((sqlStrings as string[]).join(" ")).toContain(
+        '"projectId" = NULL',
+      );
+      expect((sqlStrings as string[]).join(" ")).toContain('"updatedAt"');
+      expect(sqlValues).toContain("11111111-1111-4111-8111-111111111111");
+      expect(sqlValues).toContain("tsk_123");
+    }
   });
 
   it("returns 409 when moving a task that still has outgoing links", async () => {

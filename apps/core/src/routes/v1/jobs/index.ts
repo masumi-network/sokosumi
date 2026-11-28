@@ -16,6 +16,7 @@ import mountGetJobs from "./get.js";
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
   requireOrganizationProductSeat: true,
+  mainnetOnly: [{ path: "/:id/share", methods: ["PUT", "DELETE"] }],
 });
 
 mountGetJobs(app);
