@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import type { createPrismaClient } from "@sokosumi/database/client";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
+import { type CapturedUpload, uploads } from "@/test/source-import-blob-store";
 
 /**
  * The GitHub-linked import, end to end against the real service.
@@ -19,7 +21,7 @@ import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
  *
  * ## Why this file provisions its own database
  *
- * `importPendingResultBlobs` is the cron's entry point and takes no scope: it
+ * `importPendingResultBlobs` is the cron's entry point and takes no row filter: it
  * selects **every** PENDING Blob and TaskFile in the database it is pointed
  * at. Run against a database holding anyone else's pending work, it would
  * import those rows too and write this file's mocked `blob.test` URLs over
@@ -102,7 +104,9 @@ async function releaseProvisionedDatabase(): Promise<void> {
   provisionedDatabase = null;
   if (!allocated) return;
 
-  await prismaHolder.client?.$disconnect().catch(() => {});
+  await Promise.all(
+    prismaHolder.clients.map((client) => client.$disconnect().catch(() => {})),
+  );
   try {
     await allocated.drop();
   } catch (error) {
@@ -135,41 +139,40 @@ process.env.BLOB_READ_WRITE_TOKEN ??= "vercel_blob_rw_test_token";
  * whatever database the singleton would have used.
  */
 const prismaHolder = vi.hoisted(() => ({
-  client: null as { $disconnect: () => Promise<void> } | null,
+  clients: [] as ReturnType<typeof createPrismaClient>[],
 }));
 
 vi.mock("@/lib/db/prisma", async () => {
   const { createPrismaClient } = await import("@sokosumi/database/client");
   // By the time anything imports this, `beforeAll` has provisioned the copy
   // and pointed DATABASE_URL at it.
-  prismaHolder.client ??= createPrismaClient(
-    process.env.DATABASE_URL as string,
-  ) as unknown as { $disconnect: () => Promise<void> };
-  return { default: prismaHolder.client };
+  const { testSchemaNames } = await import("@/test/split-layout");
+  const names = testSchemaNames();
+  const url = process.env.DATABASE_URL!;
+  const shared = createPrismaClient(url, {
+    schema: names.DATABASE_SCHEMA_SHARED,
+  });
+  const mainnet = createPrismaClient(url, {
+    schema: names.DATABASE_SCHEMA_MAINNET,
+  });
+  prismaHolder.clients.push(shared, mainnet);
+  return { default: shared, networkPrisma: () => mainnet };
 });
 
-interface CapturedUpload {
-  pathname: string;
-  bytes: Uint8Array;
-  body: string;
-  contentType: string;
+async function mainnetImportOptions() {
+  const { createNetworkScope } = await import("@/lib/db/network-scope");
+  const scope = createNetworkScope("mainnet");
+  return {
+    scope,
+    write: <T>(work: (db: typeof scope.networkDb) => Promise<T>) =>
+      work(scope.networkDb),
+  };
 }
 
-const uploads: CapturedUpload[] = [];
-
-vi.mock("@vercel/blob", () => ({
-  put: async (pathname: string, file: File) => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    uploads.push({
-      pathname,
-      bytes,
-      body: new TextDecoder().decode(bytes),
-      contentType: file.type,
-    });
-    return { url: `https://blob.test/${pathname}` };
-  },
-  head: async () => ({ contentType: "text/markdown", size: 1234 }),
-}));
+vi.mock(
+  "@vercel/blob",
+  async () => (await import("@/test/source-import-blob-store")).blobStore,
+);
 
 /** `binary.jpg` in Schoonology/git-lfs-test, as GitHub's media host serves it. */
 const LFS_MEDIA_BYTES = 620_773;
@@ -192,7 +195,9 @@ export async function assertNoForeignPendingWork(
   const { default: prisma } = await import("@/lib/db/prisma");
 
   const [pendingBlobs, pendingTaskFiles] = await Promise.all([
-    prisma.blob.count({ where: { status: "PENDING" } }),
+    (await mainnetImportOptions()).scope.networkDb.blob.count({
+      where: { status: "PENDING" },
+    }),
     prisma.taskFile.count({
       where: { status: "PENDING", id: { notIn: [...ownedTaskFileIds] } },
     }),
@@ -202,7 +207,7 @@ export async function assertNoForeignPendingWork(
     throw new Error(
       `Refusing to run: the target database holds pending import work this ` +
         `suite did not create (${pendingBlobs} blob, ${pendingTaskFiles} task ` +
-        `file). importPendingResultBlobs has no scope and would import them ` +
+        `file). importPendingResultBlobs has no row filter and would import them ` +
         `with mocked storage URLs. Point FILES_IMPORT_TEST_DATABASE_URL at a ` +
         `disposable database.`,
     );
@@ -259,7 +264,7 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
       await releaseProvisionedDatabase();
       throw error;
     }
-  });
+  }, 60_000);
 
   afterAll(async () => {
     // This still runs when `beforeAll` threw, and that path has already
@@ -278,7 +283,7 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
       // Whatever the teardown found, the copy exists only for this run.
       await releaseProvisionedDatabase();
     }
-  });
+  }, 60_000);
 
   it("refuses to run when the database holds pending work it does not own", async () => {
     const { default: prisma } = await import("@/lib/db/prisma");
@@ -328,6 +333,7 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
     });
 
     await sourceImportSyncService.importPendingResultBlobs({
+      ...(await mainnetImportOptions()),
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       shouldContinue: () => true,
@@ -384,6 +390,7 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
     });
 
     await sourceImportSyncService.importPendingResultBlobs({
+      ...(await mainnetImportOptions()),
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       shouldContinue: () => true,
@@ -431,6 +438,7 @@ describe.skipIf(!enabled)("GitHub-linked import against PostgreSQL", () => {
       });
 
       await sourceImportSyncService.importPendingResultBlobs({
+        ...(await mainnetImportOptions()),
         abortSignal: new AbortController().signal,
         deadlineMs: Date.now() + 60_000,
         shouldContinue: () => true,
