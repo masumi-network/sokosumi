@@ -52,7 +52,8 @@ async function waitForCode(token: string): Promise<string> {
 
 /**
  * Signs a brand-new user up with a disposable mail.tm inbox and creates their
- * Organization, landing on Welcome home.
+ * Organization, landing on Welcome home. Returns the Organization's invite
+ * link, which lets a teammate join without an email invite.
  */
 export async function signUpWithOrganization(page: Page, baseUrl: string) {
   const inbox = await createInbox();
@@ -82,6 +83,13 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
+  // The link fills in a moment after the step shows.
+  const inviteLinkField = page.getByRole("textbox", { name: "Invite link" });
+  let inviteLink = await inviteLinkField.inputValue();
+  for (let poll = 0; poll < 50 && !inviteLink.startsWith("http"); poll++) {
+    await page.waitForTimeout(200);
+    inviteLink = await inviteLinkField.inputValue();
+  }
   await page.getByRole("button", { name: "Go to workspace" }).click();
   await page.getByRole("link", { name: "Later" }).click();
   // Home forwards to /chat; either, on this preview, is the end of setup.
@@ -91,4 +99,5 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
       url.origin === origin &&
       (url.pathname === "/" || url.pathname === "/chat"),
   );
+  return inviteLink;
 }
