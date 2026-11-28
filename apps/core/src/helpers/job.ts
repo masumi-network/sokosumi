@@ -961,11 +961,23 @@ export async function loadJobSharedRelations<T extends Job>(
     return {
       ...job,
       workspace,
-      organization: organizationById.get(job.organizationId ?? "") ?? null,
-      owner: userById.get(job.ownerId ?? "") ?? null,
-      creatorUser: userById.get(job.creatorUserId ?? "") ?? null,
-      creatorCoworker: coworkerById.get(job.creatorCoworkerId ?? "") ?? null,
-      creatorSokoBot: botById.get(job.creatorSokoBotId ?? "") ?? null,
+      organization:
+        job.organizationId === null
+          ? null
+          : (organizationById.get(job.organizationId) ?? null),
+      owner: job.ownerId === null ? null : (userById.get(job.ownerId) ?? null),
+      creatorUser:
+        job.creatorUserId === null
+          ? null
+          : (userById.get(job.creatorUserId) ?? null),
+      creatorCoworker:
+        job.creatorCoworkerId === null
+          ? null
+          : (coworkerById.get(job.creatorCoworkerId) ?? null),
+      creatorSokoBot:
+        job.creatorSokoBotId === null
+          ? null
+          : (botById.get(job.creatorSokoBotId) ?? null),
     };
   });
 }

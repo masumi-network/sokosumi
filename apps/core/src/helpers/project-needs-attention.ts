@@ -7,6 +7,9 @@ import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { hideSeoAuditRequest, SokosumiJobStatus } from "@sokosumi/utils";
 
 import { loadAgentPreviewsByIds } from "@/helpers/history";
+import { usesSharedMainnetJobs } from "@/helpers/job-projection";
+import { countProjectJobs, readProjectJobPage } from "@/helpers/project-jobs";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { HistoryItem } from "@/schemas/history.schema";
 import {
@@ -16,6 +19,7 @@ import {
 } from "@/schemas/project.schema";
 import {
   createProjectListCountsInclude,
+  type ProjectReaderAccess,
   type ProjectReaderVisibility,
 } from "@/types/project";
 
@@ -166,7 +170,8 @@ export function rankNeedsAttentionItems(
 export interface GetProjectNeedsAttentionParams {
   workspaceId: string;
   projectId: string;
-  visibility: ProjectReaderVisibility;
+  access: ProjectReaderAccess;
+  jobScope: NetworkScope | null;
 }
 
 function mapTaskToHistoryItem(task: {
@@ -290,6 +295,8 @@ function mapJobToHistoryItem(job: {
 export async function getProjectNeedsAttention(
   params: GetProjectNeedsAttentionParams,
 ): Promise<ProjectNeedsAttention | null> {
+  const { projectId, workspaceId, access, jobScope } = params;
+  const legacyJobs = usesSharedMainnetJobs(jobScope);
   const project = await prisma.project.findFirst({
     where: {
       id: params.projectId,
@@ -297,7 +304,8 @@ export async function getProjectNeedsAttention(
     },
     include: createProjectListCountsInclude(
       params.workspaceId,
-      params.visibility,
+      access.prismaWhere,
+      legacyJobs,
     ),
   });
 
@@ -305,14 +313,14 @@ export async function getProjectNeedsAttention(
     return null;
   }
 
-  const [attentionTasks, projectJobs] = await Promise.all([
+  const [attentionTasks, projectJobs, jobsByProjectId] = await Promise.all([
     prisma.task.findMany({
       where: {
         projectId: params.projectId,
         workspaceId: params.workspaceId,
         archivedAt: null,
         status: { in: TASK_ATTENTION_STATUSES },
-        AND: [params.visibility.taskWhere],
+        AND: [access.prismaWhere.taskWhere],
       },
       select: {
         id: true,
@@ -327,38 +335,15 @@ export async function getProjectNeedsAttention(
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     }),
-    prisma.job.findMany({
-      ...unsettledProjectJobsQuery({
-        projectId: params.projectId,
-        workspaceId: params.workspaceId,
-        jobVisibilityWhere: params.visibility.jobWhere,
-        now: new Date(),
-      }),
-      select: {
-        id: true,
-        name: true,
-        updatedAt: true,
-        agentId: true,
-        // Brings `createdAt` with it, which is the date the job's own card
-        // shows and therefore the one the item carries.
-        ...jobForStatusComputeSelect,
-        events: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 1,
-          select: {
-            status: true,
-            createdAt: true,
-            input: {
-              select: {
-                id: true,
-              },
-            },
-          },
-        },
-      },
-    }),
+    readAttentionJobs(params),
+    jobScope && !legacyJobs
+      ? countProjectJobs(
+          jobScope,
+          workspaceId,
+          [projectId],
+          access.sqlWhere.scopedJob,
+        )
+      : null,
   ]);
 
   const taskItems = attentionTasks.map(mapTaskToHistoryItem);
@@ -384,11 +369,16 @@ export async function getProjectNeedsAttention(
       ),
     ),
   ];
-  const agentPreviewById = await loadAgentPreviewsByIds(rankedAgentIds, prisma);
+  const agentPreviewById = await loadAgentPreviewsByIds(
+    rankedAgentIds,
+    jobScope && !legacyJobs ? jobScope.networkDb : prisma,
+  );
 
   return projectNeedsAttentionSchema.parse({
     taskCount: project._count.tasks,
-    jobCount: project._count.jobs,
+    jobCount: legacyJobs
+      ? project._count.jobs
+      : (jobsByProjectId?.get(projectId) ?? 0),
     items: ranked.map((item) => {
       if (item.kind !== "job" || !item.agentId) {
         return item;
@@ -400,5 +390,51 @@ export async function getProjectNeedsAttention(
         agentIcon: preview?.icon ?? null,
       };
     }),
+  });
+}
+
+async function readAttentionJobs({
+  projectId,
+  workspaceId,
+  access,
+  jobScope,
+}: GetProjectNeedsAttentionParams) {
+  if (!jobScope) return [];
+  const now = new Date();
+  const select = {
+    id: true,
+    name: true,
+    updatedAt: true,
+    agentId: true,
+    // Brings `createdAt` with it, which is the date the job's own card
+    // shows and therefore the one the item carries.
+    ...jobForStatusComputeSelect,
+    events: {
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: {
+        status: true,
+        createdAt: true,
+        input: { select: { id: true } },
+      },
+    },
+  } as const;
+  if (usesSharedMainnetJobs(jobScope)) {
+    return prisma.job.findMany({
+      ...unsettledProjectJobsQuery({
+        projectId,
+        workspaceId,
+        jobVisibilityWhere: access.prismaWhere.jobWhere,
+        now,
+      }),
+      select,
+    });
+  }
+  return readProjectJobPage(jobScope, {
+    workspaceId,
+    projectIds: [projectId],
+    visibility: access.sqlWhere.scopedJob,
+    take: PROJECT_NEEDS_ATTENTION_JOB_CANDIDATE_LIMIT,
+    unsettledAt: now,
   });
 }

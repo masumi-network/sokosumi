@@ -117,10 +117,13 @@ describe("GET /v1/projects/{id}/needs-attention", () => {
     expect(getProjectNeedsAttentionMock).toHaveBeenCalledWith({
       workspaceId: WORKSPACE_ID,
       projectId: PROJECT_ID,
-      visibility: expect.objectContaining({
-        taskWhere: expect.any(Object),
-        jobWhere: expect.any(Object),
+      access: expect.objectContaining({
+        prismaWhere: expect.objectContaining({
+          taskWhere: expect.any(Object),
+          jobWhere: expect.any(Object),
+        }),
       }),
+      jobScope: expect.objectContaining({ network: "mainnet" }),
     });
   });
 

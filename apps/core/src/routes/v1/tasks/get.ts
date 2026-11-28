@@ -5,6 +5,10 @@ import { calendarDateSchema } from "@sokosumi/utils";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
 import {
+  requestJobScope,
+  usesSharedMainnetJobs,
+} from "@/helpers/job-projection";
+import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
@@ -22,6 +26,10 @@ import {
   refineAssigneeIdAliasConflict,
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
+import {
+  countTaskJobs,
+  taskListJobProjectionInclude,
+} from "@/helpers/task-job-projection";
 import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
@@ -50,7 +58,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
-import { taskListInclude, taskTagSuggestionsForViewer } from "@/types/task";
+import { taskTagSuggestionsForViewer } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -548,6 +556,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.
+    const jobScope = requestJobScope(c.var.networkScope);
+    const legacyJobs = usesSharedMainnetJobs(jobScope);
+    const include = taskListJobProjectionInclude(jobScope);
     function readPage(
       pageWhere: Prisma.TaskWhereInput,
       pageSize: number,
@@ -559,7 +570,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(pageCursor ? { cursor: { id: pageCursor }, skip: 1 } : {}),
         orderBy: [...orderBy],
         include: {
-          ...taskListInclude,
+          ...include,
           ...taskTagSuggestionsForViewer(
             authContext,
             c.var.workspaceContext?.workspaceId,
@@ -587,6 +598,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const hasMore = tasks.length === takePlusOne;
     const pageTasks = tasks.slice(0, take);
+    const jobsByTaskId =
+      jobScope && !legacyJobs
+        ? await countTaskJobs(
+            jobScope,
+            pageTasks.map(({ id }) => id),
+          )
+        : null;
     // One indexed read for the page, so the list include stays the same for
     // every kind of caller.
     const unansweredTaskIds =
@@ -606,7 +624,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           )
         : null;
     const mappedTasks = pageTasks.map((task) => {
-      const { openSubtasks, ...item } = mapTaskListItem(task, authContext);
+      const { openSubtasks, ...item } = mapTaskListItem(
+        legacyJobs
+          ? task
+          : {
+              ...task,
+              _count: { ...task._count, jobs: jobsByTaskId?.get(task.id) ?? 0 },
+            },
+        authContext,
+      );
       return {
         ...item,
         ...(includeDescription === "false" ? { description: null } : {}),

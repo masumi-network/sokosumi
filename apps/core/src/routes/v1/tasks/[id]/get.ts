@@ -1,9 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { badRequest, notFound } from "@/helpers/error";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import {
+  taskJobProjectionInclude,
+  withTaskResponseJobs,
+} from "@/helpers/task-job-projection";
 import { resolveTaskRefToId } from "@/helpers/task-ref";
 import { loadTaskAncestors } from "@/helpers/task-subtasks";
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
@@ -71,6 +76,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const { userId } = requireUserContext(authContext);
       const { workspaceId: archivedWorkspaceId } =
         requireWorkspaceContext(workspaceContext);
+      const jobScope = requestJobScope(c.var.networkScope);
       // Same rows as GET /tasks?archived=true lists.
       const archivedTask = await prisma.task.findFirst({
         where: {
@@ -79,10 +85,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           workspaceId: archivedWorkspaceId,
           ...buildHumanTaskVisibilityWhere(userId),
         },
-        include: buildTaskIncludeForViewer(
-          authContext,
-          archivedWorkspaceId,
-          c.var.workspaceContext?.workspaceId,
+        include: taskJobProjectionInclude(
+          buildTaskIncludeForViewer(
+            authContext,
+            archivedWorkspaceId,
+            c.var.workspaceContext?.workspaceId,
+          ),
+          jobScope,
         ),
       });
       if (!archivedTask) {
@@ -91,7 +100,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return ok(
         c,
         taskSchema.parse({
-          ...mapTask(archivedTask, authContext),
+          ...mapTask(
+            await withTaskResponseJobs(archivedTask, jobScope),
+            authContext,
+          ),
           ancestors: await loadTaskAncestors(archivedTask.parentTaskId, prisma),
         }),
       );
@@ -103,10 +115,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? requireWorkspaceContext(workspaceContext).workspaceId
         : null;
 
-    const include = buildTaskIncludeForViewer(
-      authContext,
-      workspaceId,
-      c.var.workspaceContext?.workspaceId,
+    const jobScope = requestJobScope(c.var.networkScope);
+    const include = taskJobProjectionInclude(
+      buildTaskIncludeForViewer(
+        authContext,
+        workspaceId,
+        c.var.workspaceContext?.workspaceId,
+      ),
+      jobScope,
     );
     const taskId = workspaceId
       ? await resolveTaskRefToId(id, workspaceId, prisma)
@@ -127,7 +143,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
     return ok(
       c,
-      taskSchema.parse({ ...mapTask(task, authContext), ancestors, seoAudit }),
+      taskSchema.parse({
+        ...mapTask(await withTaskResponseJobs(task, jobScope), authContext),
+        ancestors,
+        seoAudit,
+      }),
     );
   });
 }

@@ -3286,6 +3286,70 @@ describe.runIf(enabled && onSplitLayout)(
       );
     });
 
+    it.each(["mainnet", "preprod"] as const)(
+      "holds the %s Job projection inside the no-op Task Workspace transaction",
+      { timeout: 30_000 },
+      async (network) => {
+        expectCoreLog("error", "Kept a database schema mismatch out of Sentry");
+        const locker = new Client({ connectionString: world.database.url });
+        const observer = new Client({ connectionString: world.database.url });
+        await locker.connect();
+        await observer.connect();
+        try {
+          const names = testSchemaNames();
+          const schema =
+            network === "mainnet"
+              ? names.DATABASE_SCHEMA_MAINNET
+              : names.DATABASE_SCHEMA_PREPROD;
+          await locker.query("BEGIN");
+          await locker.query(
+            `LOCK TABLE "${schema}"."Job" IN ACCESS EXCLUSIVE MODE`,
+          );
+          const [{ pid: blocker }] = (
+            await locker.query("SELECT pg_backend_pid() AS pid")
+          ).rows;
+          const request = runCase(
+            world,
+            "PUT",
+            `/v1/tasks/${TASK_MOVABLE}/workspace`,
+            network === "mainnet" ? OWNER_ORG_A : PP_OWNER_ORG_A,
+            { organizationId: ORG_A_ID },
+            network,
+            { snapshot: false },
+          );
+          let blockedQuery: string | undefined;
+          for (let attempt = 0; attempt < 80; attempt++) {
+            const { rows } = await observer.query<{ query: string }>(
+              "SELECT query FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))",
+              [blocker],
+            );
+            blockedQuery = rows[0]?.query;
+            if (blockedQuery !== undefined) break;
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          await locker.query("ROLLBACK");
+          const answer = await request;
+          expect(blockedQuery).toBeDefined();
+          expect(answer.status, answer.body).toBe(500);
+          expect(answer.publishedInvalidations).toEqual([]);
+          const read = answer.statements.find(
+            ({ text }) => text === blockedQuery,
+          );
+          expect(read).toBeDefined();
+          const tx = answer.statements.filter(
+            ({ connection }) => connection === read?.connection,
+          );
+          expect(tx.map(({ text }) => text)).toContain(
+            "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+          );
+          expect(tx.at(-1)?.text).toBe("ROLLBACK");
+        } finally {
+          await locker.end();
+          await observer.end();
+        }
+      },
+    );
+
     it("moves a Task's Jobs across BOTH mainnet and preprod atomically and rolls both back if the second update fails", {
       timeout: 30_000,
     }, async () => {

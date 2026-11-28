@@ -550,43 +550,93 @@ const cases: Record<string, [string, Record<string, string>, number]> = {
   "bot standalone detail": [`/v1/jobs/${standaloneJob}`, bot, 403],
 };
 
-async function expectRefusals(
-  headers: Record<string, string>,
-  kind: "preprod_off" | "preprod_access_required",
+const mixedReads = {
+  projects: "/v1/projects",
+  activity: "/v1/projects/activity",
+  stats: "/v1/projects/stats",
+  attention: `/v1/projects/${projectId}/needs-attention`,
+  tasks: "/v1/tasks",
+};
+
+async function expectNoNetworkPlans(
+  path: string,
+  answer: Awaited<ReturnType<typeof call>>,
 ) {
   const client = new Client({ connectionString: system.database.url });
   await client.connect();
   try {
-    const networkTables = [
-      ...Object.values(tableLayout.network),
-      ...tableLayout.networkJoinTables,
-    ];
-    for (const path of Object.values(routes)) {
-      const answer = await call(path, headers, "preprod");
-      expect(answer.status, `${path}: ${answer.body}`).toBe(403);
-      expect(JSON.parse(answer.body), path).toMatchObject({ kind });
-      await client.query("BEGIN");
-      try {
-        for (const statement of answer.statements) {
-          await client.query(`EXPLAIN ${statement.text}`, statement.values);
-        }
-        // PostgreSQL locks referenced tables even if the planner removes a
-        // scan. Read those locks before this transaction releases them.
-        const { rows } = await client.query(
-          `SELECT c.relname
-           FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
-           WHERE l.pid = pg_backend_pid() AND c.relkind IN ('r', 'p', 'f')
-             AND c.relname = ANY($1::text[])`,
-          [networkTables],
-        );
-        expect(rows, path).toEqual([]);
-      } finally {
-        await client.query("ROLLBACK");
-      }
+    await client.query("BEGIN");
+    for (const statement of answer.statements) {
+      await client.query(`EXPLAIN ${statement.text}`, statement.values);
     }
+    // PostgreSQL locks referenced tables even if the planner removes a
+    // scan. Read those locks before this transaction releases them.
+    const { rows } = await client.query(
+      `SELECT c.relname
+       FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
+       WHERE l.pid = pg_backend_pid() AND c.relkind IN ('r', 'p', 'f')
+         AND c.relname = ANY($1::text[])`,
+      [
+        [
+          ...Object.values(tableLayout.network),
+          ...tableLayout.networkJoinTables,
+        ],
+      ],
+    );
+    expect(rows, path).toEqual([]);
   } finally {
     await client.end();
   }
+}
+
+async function expectRefusals(
+  headers: Record<string, string>,
+  kind: "preprod_off" | "preprod_access_required",
+) {
+  for (const path of Object.values(routes)) {
+    const answer = await call(path, headers, "preprod");
+    expect(answer.status, `${path}: ${answer.body}`).toBe(403);
+    expect(JSON.parse(answer.body), path).toMatchObject({ kind });
+    await expectNoNetworkPlans(path, answer);
+  }
+}
+
+async function expectSharedMixedRead(
+  name: keyof typeof mixedReads,
+  headers: Record<string, string>,
+  network: "mainnet" | "preprod",
+) {
+  const path = mixedReads[name];
+  const answer = await call(path, headers, network);
+  expect(answer.status, `${path}: ${answer.body}`).toBe(200);
+  const { data } = JSON.parse(answer.body);
+  switch (name) {
+    case "projects":
+      expect(data).toEqual([
+        expect.objectContaining({ id: projectId, jobCount: 0 }),
+      ]);
+      break;
+    case "activity":
+      expect(data).toEqual([]);
+      break;
+    case "stats":
+      expect(data.projects).toEqual([
+        expect.objectContaining({
+          projectId,
+          jobs: { total: 0, byStatus: [] },
+        }),
+      ]);
+      break;
+    case "attention":
+      expect(data).toMatchObject({ jobCount: 0, items: [] });
+      break;
+    case "tasks":
+      expect(data).toEqual([
+        expect.objectContaining({ id: "job-reads-bot-task", jobsCount: 0 }),
+      ]);
+      break;
+  }
+  await expectNoNetworkPlans(path, answer);
 }
 
 describe.runIf(enabled)("Job reads over PostgreSQL", () => {
@@ -662,6 +712,13 @@ describe.runIf(enabled)("Job reads over PostgreSQL", () => {
     "refuses Preprod on all nine routes before planning any Network read when off",
     async () => await expectRefusals(owner, "preprod_off"),
     30_000,
+  );
+
+  it
+    .runIf(!onSplitLayout && !recording)
+    .each(Object.keys(mixedReads) as (keyof typeof mixedReads)[])(
+    "keeps shared %s when Preprod is off",
+    async (name) => expectSharedMixedRead(name, personalOwner, "preprod"),
   );
 
   describe.runIf(onSplitLayout)("shared, Mainnet and Preprod schemas", () => {
@@ -813,6 +870,97 @@ describe.runIf(enabled)("Job reads over PostgreSQL", () => {
         (await call(routes.request, system.session, "preprod")).status,
       ).toBe(200);
     }, 30_000);
+
+    it.each(Object.keys(mixedReads) as (keyof typeof mixedReads)[])(
+      "keeps shared %s when the key and header disagree",
+      async (name) => {
+        const prefix = "soko_preprod_";
+        const token = prefix + name;
+        await system.shared.apikey.create({
+          data: {
+            id: token,
+            referenceId: ownerId,
+            prefix,
+            key: createHash("sha256").update(token).digest("base64url"),
+            rateLimitEnabled: false,
+            createdAt: clock,
+            updatedAt: clock,
+          },
+        });
+        await expectSharedMixedRead(name, personalOwner, "preprod");
+        await expectSharedMixedRead(name, auth(token), "mainnet");
+        for (const [credential, header] of [
+          [personalOwner, "preprod"],
+          [auth(token), "mainnet"],
+        ] as const) {
+          const dedicated = await call(routes.list, credential, header);
+          expect(dedicated.status).toBe(403);
+          expect(JSON.parse(dedicated.body)).toMatchObject({
+            kind: "api_key_network_mismatch",
+          });
+        }
+      },
+    );
+
+    it("reads mixed Project and Task data from the admitted Network", async () => {
+      const personalSession = { cookie: system.session.cookie };
+      await system.shared.user.update({
+        where: { id: ownerId },
+        data: { preprodEnabled: true },
+      });
+      for (const network of ["mainnet", "preprod"] as const) {
+        const preprod = network === "preprod";
+        for (const [name, path] of Object.entries(mixedReads)) {
+          const answer = await call(
+            path,
+            name === "tasks" ? system.session : personalSession,
+            network,
+          );
+          expect(answer.status, `${name}: ${answer.body}`).toBe(200);
+          const { data } = JSON.parse(answer.body);
+          if (name === "projects") {
+            expect(data).toEqual([
+              expect.objectContaining({
+                id: projectId,
+                jobCount: preprod ? 0 : 1,
+              }),
+            ]);
+          }
+          if (name === "activity") {
+            expect(data).toEqual(
+              preprod
+                ? []
+                : [expect.objectContaining({ kind: "job", jobId: projectJob })],
+            );
+          }
+          if (name === "stats") {
+            expect(data.projects).toEqual([
+              expect.objectContaining({
+                projectId,
+                jobs: {
+                  total: preprod ? 0 : 1,
+                  byStatus: preprod ? [] : [{ status: "completed", count: 1 }],
+                },
+              }),
+            ]);
+          }
+          if (name === "attention") {
+            expect(data).toMatchObject({
+              jobCount: preprod ? 0 : 1,
+              items: [],
+            });
+          }
+          if (name === "tasks") {
+            expect(data).toContainEqual(
+              expect.objectContaining({
+                id: "job-reads-public",
+                jobsCount: preprod ? 2 : 3,
+              }),
+            );
+          }
+        }
+      }
+    });
 
     it("refuses a workspace without Preprod access before any Network read", async () => {
       await system.shared.organization.update({

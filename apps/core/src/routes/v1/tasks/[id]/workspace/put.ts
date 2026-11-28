@@ -9,6 +9,7 @@ import {
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { badRequest, conflict } from "@/helpers/error";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
@@ -16,6 +17,10 @@ import { ok } from "@/helpers/response";
 import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { mapTask } from "@/helpers/task";
+import {
+  readWorkspaceMoveTaskResponse,
+  taskJobProjectionInclude,
+} from "@/helpers/task-job-projection";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import {
   createNetworkScope,
@@ -106,6 +111,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
+    const jobScope = requestJobScope(c.var.networkScope);
 
     const result = await serializableTransaction(async (tx) => {
       const movedTask = await requireTaskMoveAccess(userContext, id, tx);
@@ -122,14 +128,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!workspaceChanged) {
         return {
           deliveryWorkspaceIds: [] as string[],
-          task: await tx.task.findUniqueOrThrow({
-            where: { id },
-            include: buildTaskIncludeForViewer(
-              authContext,
-              movedTask.workspaceId,
-              c.var.workspaceContext?.workspaceId,
-            ),
-          }),
+          task: await readWorkspaceMoveTaskResponse(jobScope, tx, id, () =>
+            tx.task.findUniqueOrThrow({
+              where: { id },
+              include: taskJobProjectionInclude(
+                buildTaskIncludeForViewer(
+                  authContext,
+                  movedTask.workspaceId,
+                  c.var.workspaceContext?.workspaceId,
+                ),
+                jobScope,
+              ),
+            }),
+          ),
         };
       }
 
@@ -247,14 +258,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return {
         deliveryWorkspaceIds: [movedTask.workspaceId, targetWorkspace.id],
-        task: await tx.task.findUniqueOrThrow({
-          where: { id },
-          include: buildTaskIncludeForViewer(
-            authContext,
-            targetWorkspace.id,
-            c.var.workspaceContext?.workspaceId,
-          ),
-        }),
+        task: await readWorkspaceMoveTaskResponse(jobScope, tx, id, () =>
+          tx.task.findUniqueOrThrow({
+            where: { id },
+            include: taskJobProjectionInclude(
+              buildTaskIncludeForViewer(
+                authContext,
+                targetWorkspace.id,
+                c.var.workspaceContext?.workspaceId,
+              ),
+              jobScope,
+            ),
+          }),
+        ),
       };
     }, "Task changed by a concurrent request. Please retry.");
     await Promise.all(

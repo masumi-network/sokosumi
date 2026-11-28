@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
+import { requestJobScope } from "@/helpers/job-projection";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { getProjectStatsByProjectIds } from "@/helpers/project-stats";
 import {
@@ -59,7 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { projectIds } = c.req.valid("query");
-    const { prismaWhere: visibility } = await resolveProjectReaderAccess(
+    const access = await resolveProjectReaderAccess(
       c.var.authContext,
       workspaceContext.workspaceId,
     );
@@ -76,7 +77,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const projectStats = await getProjectStatsByProjectIds(
       workspaceContext.workspaceId,
       workspaceProjectIds,
-      visibility,
+      access,
+      requestJobScope(c.var.networkScope),
     );
 
     return ok(

@@ -3,8 +3,14 @@ import { computeJobStatus } from "@sokosumi/database/helpers";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
+import { usesSharedMainnetJobs } from "@/helpers/job-projection";
+import { readProjectJobPage } from "@/helpers/project-jobs";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
-import type { ProjectReaderVisibility } from "@/types/project";
+import type {
+  ProjectReaderAccess,
+  ProjectReaderVisibility,
+} from "@/types/project";
 
 interface StatusCount<TStatus extends string> {
   status: TStatus;
@@ -87,29 +93,21 @@ async function getProjectTaskStatsByProjectIds(
 async function getProjectJobStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
-  visibility: ProjectReaderVisibility,
+  access: ProjectReaderAccess,
+  jobScope: NetworkScope | null,
 ): Promise<Map<string, ProjectResourceStats<SokosumiJobStatus>>> {
   const statsByProjectId =
     createResourceStatsByProjectId<SokosumiJobStatus>(projectIds);
 
-  if (projectIds.length === 0) {
+  if (projectIds.length === 0 || !jobScope) {
     return statsByProjectId;
   }
 
-  const jobs = await prisma.job.findMany({
-    where: {
-      workspaceId,
-      projectId: { in: [...projectIds] },
-      ...visibility.jobWhere,
-    },
-    select: jobForStatusComputeSelect,
-  });
-
-  for (const job of jobs) {
-    const projectId = job.projectId;
-    if (!projectId) continue;
+  function countJob(job: Parameters<typeof computeJobStatus>[0]) {
+    const { projectId } = job;
+    if (projectId === null) return;
     const stats = statsByProjectId.get(projectId);
-    if (!stats) continue;
+    if (!stats) return;
 
     const status = computeJobStatus(job);
     const existingStatusCount = stats.byStatus.find(
@@ -124,18 +122,55 @@ async function getProjectJobStatsByProjectIds(
     }
   }
 
+  if (usesSharedMainnetJobs(jobScope)) {
+    const jobs = await prisma.job.findMany({
+      where: {
+        workspaceId,
+        projectId: { in: [...projectIds] },
+        ...access.prismaWhere.jobWhere,
+      },
+      select: jobForStatusComputeSelect,
+    });
+    jobs.forEach(countJob);
+  } else {
+    const take = 256;
+    let afterId: string | undefined;
+    for (;;) {
+      const page = await readProjectJobPage(jobScope, {
+        workspaceId,
+        projectIds,
+        visibility: access.sqlWhere.scopedJob,
+        take,
+        afterId,
+      });
+      page.forEach(countJob);
+      if (page.length < take) break;
+      afterId = page.at(-1)?.id;
+    }
+  }
+
   return statsByProjectId;
 }
 
 export async function getProjectStatsByProjectIds(
   workspaceId: string,
   projectIds: readonly string[],
-  visibility: ProjectReaderVisibility,
+  access: ProjectReaderAccess,
+  jobScope: NetworkScope | null,
 ): Promise<ProjectStatsEntry[]> {
   const uniqueProjectIds = Array.from(new Set(projectIds));
   const [taskStatsByProjectId, jobStatsByProjectId] = await Promise.all([
-    getProjectTaskStatsByProjectIds(workspaceId, uniqueProjectIds, visibility),
-    getProjectJobStatsByProjectIds(workspaceId, uniqueProjectIds, visibility),
+    getProjectTaskStatsByProjectIds(
+      workspaceId,
+      uniqueProjectIds,
+      access.prismaWhere,
+    ),
+    getProjectJobStatsByProjectIds(
+      workspaceId,
+      uniqueProjectIds,
+      access,
+      jobScope,
+    ),
   ]);
 
   return uniqueProjectIds.map((projectId) => ({

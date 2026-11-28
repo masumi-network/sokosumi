@@ -265,6 +265,7 @@ describe("GET /projects", () => {
       include: createProjectListCountsInclude(
         WORKSPACE_CONTEXT.workspaceId,
         humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
+        true,
       ),
     });
   });

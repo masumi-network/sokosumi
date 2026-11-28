@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
+  requestJobScope,
+  usesSharedMainnetJobs,
+} from "@/helpers/job-projection";
+import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
@@ -15,6 +19,7 @@ import {
   projectActivityPageQuery,
   projectCountQuery,
 } from "@/helpers/project-activity";
+import { countProjectJobs } from "@/helpers/project-jobs";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -113,9 +118,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         c.var.authContext,
         workspaceContext.workspaceId,
       );
+    const jobScope = requestJobScope(c.var.networkScope);
+    const legacyJobs = usesSharedMainnetJobs(jobScope);
     const projectListCountsInclude = createProjectListCountsInclude(
       workspaceContext.workspaceId,
       visibility,
+      legacyJobs,
     );
     // A Pin or Hide belongs to a person (ADR 0036), so only a user context
     // resolves one. A coworker or vendor reading the same list sees every row
@@ -128,6 +136,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cursor,
         take: takePlusOne,
         visibility: activityVisibility,
+        jobScope,
         search,
         state,
         readerUserId,
@@ -136,9 +145,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     );
     const page = ranked.slice(0, take);
-    const [rows, count, stars, cmoIds] = await Promise.all([
+    const projectIds = page.map((row) => row.id);
+    const [rows, count, stars, cmoIds, jobsByProjectId] = await Promise.all([
       prisma.project.findMany({
-        where: { workspaceId, id: { in: page.map((row) => row.id) } },
+        where: { workspaceId, id: { in: projectIds } },
         include: projectListCountsInclude,
       }),
       // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
@@ -156,12 +166,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? prisma.projectStar.findMany({
             where: {
               userId: readerUserId,
-              projectId: { in: page.map((row) => row.id) },
+              projectId: { in: projectIds },
             },
             select: { projectId: true, starredAt: true },
           })
         : Promise.resolve([]),
-      cmoProjectIds(page.map((row) => row.id)),
+      cmoProjectIds(projectIds),
+      jobScope && !legacyJobs
+        ? countProjectJobs(
+            jobScope,
+            workspaceId,
+            projectIds,
+            activityVisibility.scopedJob,
+          )
+        : null,
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
     const starredAtByProjectId = new Map(
@@ -176,7 +194,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         {
           ...mapProjectForApi(project, { cmo: cmoIds.has(id) }),
           taskCount: _count.tasks,
-          jobCount: _count.jobs,
+          jobCount: legacyJobs ? _count.jobs : (jobsByProjectId?.get(id) ?? 0),
           lastActivityAt,
           starredAt: starredAtByProjectId.get(id) ?? null,
         },

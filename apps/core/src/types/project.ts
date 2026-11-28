@@ -3,8 +3,10 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { forbidden } from "@/helpers/error";
 import {
+  buildCoworkerJobParentTaskSql,
   buildCoworkerJobParentTaskWhere,
   buildCoworkerTaskAccessSql,
+  buildHumanJobParentVisibilitySql,
   buildHumanJobParentVisibilityWhere,
   buildHumanTaskVisibilitySql,
   buildHumanTaskVisibilityWhere,
@@ -26,6 +28,7 @@ export interface ProjectReaderVisibility {
 export interface ProjectReaderSqlVisibility {
   task: PrismaRaw.Sql;
   job: PrismaRaw.Sql;
+  scopedJob: { join: PrismaRaw.Sql; predicate: PrismaRaw.Sql };
 }
 
 export interface ProjectReaderAccess {
@@ -49,6 +52,10 @@ function humanProjectReaderSqlVisibility(
   return {
     task,
     job: PrismaRaw.sql`AND (j."taskId" IS NULL OR (TRUE ${task}))`,
+    scopedJob: {
+      join: PrismaRaw.empty,
+      predicate: buildHumanJobParentVisibilitySql(readerUserId),
+    },
   };
 }
 
@@ -75,6 +82,10 @@ function coworkerProjectReaderSqlVisibility(
 ): ProjectReaderSqlVisibility {
   return {
     task: buildCoworkerTaskAccessSql({ ...authContext, hasWorkspaceGrant }),
+    scopedJob: buildCoworkerJobParentTaskSql(
+      authContext.coworkerId,
+      authContext.vendorId,
+    ),
     // Same parent-task rule as buildCoworkerJobParentTaskWhere. A workspace
     // grant does not broaden the Job reader set.
     job: PrismaRaw.sql`AND (
@@ -127,6 +138,7 @@ export async function resolveProjectReaderAccess(
 export function createProjectListCountsInclude(
   workspaceId: string,
   visibility: ProjectReaderVisibility,
+  includeJobs: boolean,
 ) {
   return {
     _count: {
@@ -138,12 +150,14 @@ export function createProjectListCountsInclude(
             ...visibility.taskWhere,
           },
         },
-        jobs: {
-          where: {
-            workspaceId,
-            ...visibility.jobWhere,
+        ...(includeJobs && {
+          jobs: {
+            where: {
+              workspaceId,
+              ...visibility.jobWhere,
+            },
           },
-        },
+        }),
       },
     },
   } satisfies Prisma.ProjectInclude;

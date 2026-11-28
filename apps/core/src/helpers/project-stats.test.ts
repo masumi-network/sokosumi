@@ -2,7 +2,8 @@ import { AgentJobStatus, JobType, TaskStatus } from "@sokosumi/database";
 import { jobForStatusComputeSelect } from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { humanProjectReaderVisibility } from "@/types/project";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
+import { resolveProjectReaderAccess } from "@/types/project";
 import { getProjectStatsByProjectIds } from "./project-stats";
 import {
   buildHumanJobParentVisibilityWhere,
@@ -54,13 +55,17 @@ describe("getProjectStatsByProjectIds", () => {
     jobFindManyMock.mockResolvedValue([]);
   });
 
-  const READER_VISIBILITY = humanProjectReaderVisibility("user_123");
+  const readerAccess = resolveProjectReaderAccess(
+    { actor: "user", userId: "user_123", role: "user", organizationId: null },
+    WORKSPACE_ID,
+  );
 
   it("returns zero stats for every requested project when no rows match", async () => {
     const stats = await getProjectStatsByProjectIds(
       WORKSPACE_ID,
       [PROJECT_A_ID, PROJECT_B_ID],
-      READER_VISIBILITY,
+      await readerAccess,
+      testNetworkScope(),
     );
 
     expect(stats).toEqual([
@@ -104,7 +109,8 @@ describe("getProjectStatsByProjectIds", () => {
     const stats = await getProjectStatsByProjectIds(
       WORKSPACE_ID,
       [PROJECT_A_ID, PROJECT_B_ID],
-      READER_VISIBILITY,
+      await readerAccess,
+      testNetworkScope(),
     );
 
     expect(stats).toEqual([
@@ -143,7 +149,8 @@ describe("getProjectStatsByProjectIds", () => {
     await getProjectStatsByProjectIds(
       WORKSPACE_ID,
       [PROJECT_A_ID, PROJECT_B_ID],
-      READER_VISIBILITY,
+      await readerAccess,
+      testNetworkScope(),
     );
 
     expect(taskGroupByMock).toHaveBeenCalledWith(

@@ -7,7 +7,8 @@ import {
 } from "@/helpers/task-visibility";
 import type { HistoryItem } from "@/schemas/history.schema";
 import { PROJECT_NEEDS_ATTENTION_LIMIT } from "@/schemas/project.schema";
-import { humanProjectReaderVisibility } from "@/types/project";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
+import { resolveProjectReaderAccess } from "@/types/project";
 
 import {
   type AttentionCandidate,
@@ -310,7 +311,16 @@ describe("getProjectNeedsAttention", () => {
     await getProjectNeedsAttention({
       workspaceId: WORKSPACE_ID,
       projectId: PROJECT_ID,
-      visibility: humanProjectReaderVisibility("user_123"),
+      access: await resolveProjectReaderAccess(
+        {
+          actor: "user",
+          userId: "user_123",
+          role: "user",
+          organizationId: null,
+        },
+        WORKSPACE_ID,
+      ),
+      jobScope: testNetworkScope(),
     });
 
     expect(taskFindManyMock).toHaveBeenCalledWith(

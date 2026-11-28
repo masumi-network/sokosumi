@@ -7,6 +7,7 @@ import { LIMITS } from "@/config/constants";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { badRequest, errorResponseSchema, forbidden } from "@/helpers/error";
+import { requestJobScope } from "@/helpers/job-projection";
 import {
   jsonContent,
   jsonErrorResponse,
@@ -28,6 +29,10 @@ import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
+import {
+  taskJobProjectionInclude,
+  withTaskResponseJobs,
+} from "@/helpers/task-job-projection";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import {
@@ -456,16 +461,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
       }
-      return tx.task.findUniqueOrThrow({
-        where: { id: createdTask.id },
-        include: {
-          ...taskInclude,
-          ...taskTagSuggestionsForViewer(
-            authContext,
-            canPersistWorkspaceTags ? workspaceContext.workspaceId : null,
-          ),
-        },
-      });
+      const jobScope = requestJobScope(c.var.networkScope);
+      return withTaskResponseJobs(
+        await tx.task.findUniqueOrThrow({
+          where: { id: createdTask.id },
+          include: {
+            ...taskJobProjectionInclude(taskInclude, jobScope),
+            ...taskTagSuggestionsForViewer(
+              authContext,
+              canPersistWorkspaceTags ? workspaceContext.workspaceId : null,
+            ),
+          },
+        }),
+        jobScope,
+        tx,
+      );
     });
 
     if (
