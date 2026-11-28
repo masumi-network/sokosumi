@@ -66,7 +66,7 @@ describe("GET /transactions/total", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.data).toEqual({ credits: 1, count: 2 });
+    expect(body.data).toEqual({ credits: 1, count: 2, network: "mainnet" });
     expect(JSON.stringify(boundValues())).toContain("task_123");
     // Only a Task the member may open in this workspace.
     expect(taskFindFirstMock).toHaveBeenCalledWith({
@@ -98,6 +98,6 @@ describe("GET /transactions/total", () => {
       await createApp().request("/total?taskId=task_123")
     ).json();
 
-    expect(body.data).toEqual({ credits: 0, count: 0 });
+    expect(body.data).toEqual({ credits: 0, count: 0, network: "mainnet" });
   });
 });

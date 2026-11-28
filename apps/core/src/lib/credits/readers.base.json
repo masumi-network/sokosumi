@@ -176,12 +176,15 @@
     "kind": "unattributed",
     "title": "Credit consumption",
     "description": null,
-    "bucketSource": null
+    "bucketSource": null,
+    "network": "mainnet",
+    "affectsBalance": true
   },
   "cursorIndices": [23, 16, 9, 2],
   "total": {
     "credits": 90,
-    "count": 30
+    "count": 30,
+    "network": "mainnet"
   },
   "count": 30,
   "csv": "date,source,label,credits\r\n2026-11-27T22:13:57.065Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.060Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.053Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.049Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.045Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.039Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.034Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.029Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.025Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.020Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.016Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.011Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.006Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.002Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.996Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.991Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.985Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.980Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.972Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.967Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.963Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.958Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.951Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.945Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.940Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.930Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.923Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.917Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.909Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.895Z,unattributed,Credit consumption,-3\r\n,total,Spent,-90\r\n,total,Top ups,0\r\n,total,Net,-90\r\n",

@@ -91,7 +91,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const creditsByDate = new Map(spend.map((row) => [row.date, row.credits]));
     const series = Array.from({ length: days }, (_, index) => {
       const date = toDay(start + index * DAY_MS);
-      return { date, credits: creditsByDate.get(date) ?? 0 };
+      return {
+        date,
+        credits: creditsByDate.get(date) ?? 0,
+        network: view.network,
+      };
     });
 
     return ok(c, series);

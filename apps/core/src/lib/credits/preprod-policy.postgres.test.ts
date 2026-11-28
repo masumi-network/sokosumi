@@ -360,9 +360,7 @@ describe.runIf(enabled)(
         "answers the credits payload with no balance and no plan on Preprod, and Mainnet's as before",
         async () => {
           const onPreprod = await data("/users/me/credits", true);
-          const onMainnet = (await data("/users/me/credits", false)) as {
-            spendable: number;
-          };
+          const onMainnet = await data("/users/me/credits", false);
 
           expect(onPreprod).toEqual({
             scope: "personal",
@@ -375,9 +373,50 @@ describe.runIf(enabled)(
             },
             enterprise: null,
             credits: { subscription: null, buffer: 0, total: 0 },
+            network: "preprod",
           });
           // The fixture's 10 credits less the Mainnet spend; the 7 took nothing.
-          expect(onMainnet.spendable).toBe(8);
+          expect(onMainnet).toMatchObject({ spendable: 8, network: "mainnet" });
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "pages only the selected ledger",
+        async () => {
+          const first = await get("/transactions?limit=1", false);
+          expect(first.status).toBe(200);
+          const { meta } = await first.json();
+          expect(meta.pagination).toMatchObject({
+            total: 2,
+            nextCursor: mainnetSpend,
+          });
+          expect(
+            await data(
+              `/transactions?limit=1&cursor=${meta.pagination.nextCursor}`,
+              false,
+            ),
+          ).toEqual([
+            expect.objectContaining({
+              kind: "topUp",
+              credits: 10,
+              network: "mainnet",
+              affectsBalance: true,
+            }),
+          ]);
+          const preprodPage = await get("/transactions?limit=1", true);
+          expect(preprodPage.status).toBe(200);
+          expect(await preprodPage.json()).toMatchObject({
+            data: [
+              {
+                id: preprodSpend,
+                credits: 7,
+                network: "preprod",
+                affectsBalance: false,
+              },
+            ],
+            meta: { pagination: { total: 1, nextCursor: null } },
+          });
         },
         CASE_TIMEOUT,
       );
@@ -385,18 +424,16 @@ describe.runIf(enabled)(
       it(
         "keeps each Network's ledger, total and CSV to its own rows",
         async () => {
-          const preprodPage = (await data("/transactions", true)) as {
-            id: string;
-            credits: number;
-          }[];
-          const mainnetPage = (await data("/transactions", false)) as {
-            id: string;
-          }[];
+          const preprodPage = await data("/transactions", true);
+          const mainnetPage = await data("/transactions", false);
           const preprodTotal = await data("/transactions/total", true);
           const mainnetTotal = await data("/transactions/total", false);
           const csv = async (preprodHeader: boolean) => {
             const response = await get("/transactions/export", preprodHeader);
             expect(response.status).toBe(200);
+            expect(response.headers.get(HEADER)).toBe(
+              preprodHeader ? "preprod" : "mainnet",
+            );
             return response.text();
           };
           const [preprodCsv, mainnetCsv] = [await csv(true), await csv(false)];
@@ -404,17 +441,37 @@ describe.runIf(enabled)(
           // A Preprod entry carries its price.
           expect(preprodPage).toEqual([
             expect.objectContaining({
+              network: "preprod",
+              affectsBalance: false,
               id: preprodSpend,
               credits: convertCentsToCredits(7n * CREDIT),
             }),
           ]);
-          expect(preprodTotal).toEqual({ credits: 7, count: 1 });
-          expect(mainnetPage.map(({ id }) => id)).toEqual([
-            mainnetSpend,
-            expect.any(String),
+          expect(preprodTotal).toEqual({
+            credits: 7,
+            count: 1,
+            network: "preprod",
+          });
+          expect(mainnetPage).toEqual([
+            expect.objectContaining({
+              id: mainnetSpend,
+              network: "mainnet",
+              affectsBalance: true,
+              credits: 2,
+            }),
+            expect.objectContaining({
+              kind: "topUp",
+              network: "mainnet",
+              affectsBalance: true,
+              credits: 10,
+            }),
           ]);
           // Mainnet's net: the 2 spent less the 10 topped up; never the 7.
-          expect(mainnetTotal).toEqual({ credits: -8, count: 2 });
+          expect(mainnetTotal).toEqual({
+            credits: -8,
+            count: 2,
+            network: "mainnet",
+          });
           // Each line without its date: one Network's rows and totals only.
           const lines = (text: string) =>
             text
@@ -616,6 +673,7 @@ describe.runIf(enabled)(
             expect(await data(`/transactions/total?${filter}`, true)).toEqual({
               credits: 0,
               count: 0,
+              network: "preprod",
             });
             expect(
               daySum(await data(`/transactions/daily?${filter}`, true)),
@@ -660,6 +718,7 @@ describe.runIf(enabled)(
             expect(await data(`/transactions/total?${filter}`, false)).toEqual({
               credits: 3,
               count: 1,
+              network: "mainnet",
             });
             expect(
               daySum(await data(`/transactions/daily?${filter}`, false)),
@@ -758,7 +817,10 @@ describe.runIf(enabled)(
       ] as const)(
         "attributes %s's entry to the Task by its own event, amount and Project",
         async (_name, onPreprod, own, other, credits) => {
+          const network = onPreprod ? "preprod" : "mainnet";
           const row = {
+            network,
+            affectsBalance: !onPreprod,
             id: sharedId,
             kind: "task",
             taskId,
@@ -777,10 +839,12 @@ describe.runIf(enabled)(
             ]);
             expect(
               await data(`/transactions/total?${filter}`, onPreprod),
-            ).toEqual({ credits, count: 1 });
-            expect(
-              daySum(await data(`/transactions/daily?${filter}`, onPreprod)),
-            ).toBe(credits);
+            ).toEqual({ credits, count: 1, network });
+            const days = await data(`/transactions/daily?${filter}`, onPreprod);
+            expect(days).toEqual(
+              Array(30).fill(expect.objectContaining({ network })),
+            );
+            expect(daySum(days)).toBe(credits);
             expect(
               csvLines(await data(`/transactions/export?${filter}`, onPreprod)),
             ).toEqual([

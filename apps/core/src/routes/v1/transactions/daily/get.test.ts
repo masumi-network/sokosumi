@@ -60,9 +60,9 @@ describe("GET /transactions/daily", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual([
-      { date: "2026-09-01", credits: 0 },
-      { date: "2026-09-02", credits: 0.5 },
-      { date: "2026-09-03", credits: 0 },
+      { date: "2026-09-01", credits: 0, network: "mainnet" },
+      { date: "2026-09-02", credits: 0.5, network: "mainnet" },
+      { date: "2026-09-03", credits: 0, network: "mainnet" },
     ]);
   });
 

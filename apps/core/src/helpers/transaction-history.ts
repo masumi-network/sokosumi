@@ -2,7 +2,6 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import type { AgentPreview, UserPreview } from "@/helpers/history";
 import type { TransactionHistoryRow } from "@/lib/credits/history";
 import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
-import type { TransactionHistoryItem } from "@/schemas/transaction-history.schema";
 
 export interface MapTransactionHistoryRowOptions {
   agentPreviewById?: Map<string, AgentPreview>;
@@ -124,7 +123,7 @@ function sokoBotTurnLabel(row: TransactionHistoryRow): string | null {
 export function mapTransactionHistoryRow(
   row: TransactionHistoryRow,
   options?: MapTransactionHistoryRowOptions,
-): TransactionHistoryItem {
+) {
   const userPreview = row.userId
     ? options?.userPreviewById?.get(row.userId)
     : undefined;
@@ -152,7 +151,7 @@ export function mapTransactionHistoryRow(
         : undefined;
       return {
         ...base,
-        kind: "job",
+        kind: row.kind,
         title: row.jobName ?? agentPreview?.name ?? "Agent job",
         description: agentPreview?.name ?? null,
         jobId: row.jobId ?? "",
@@ -173,7 +172,7 @@ export function mapTransactionHistoryRow(
         (endpoint.replace(/^[^/]+\//, "") || "Unknown model");
       return {
         ...base,
-        kind: "image",
+        kind: row.kind,
         title: row.imagePrompt ? truncate(row.imagePrompt) : modelLabel,
         description: modelLabel,
         imageJobId: row.imageJobId ?? "",
@@ -183,7 +182,7 @@ export function mapTransactionHistoryRow(
     case "task":
       return {
         ...base,
-        kind: "task",
+        kind: row.kind,
         title: row.taskName ?? "Task",
         description: row.taskEventComment
           ? truncate(row.taskEventComment)
@@ -195,7 +194,7 @@ export function mapTransactionHistoryRow(
     case "coworker":
       return {
         ...base,
-        kind: "coworker",
+        kind: row.kind,
         title: row.coworkerName ?? "Coworker usage",
         description: null,
         coworkerId: row.coworkerId ?? "",
@@ -203,17 +202,17 @@ export function mapTransactionHistoryRow(
     case "sokoBot":
       return {
         ...base,
-        kind: "sokoBot",
+        kind: row.kind,
         title: `Soko Bot · ${row.sokoBotName?.trim() || "Unnamed"}`,
         description: sokoBotTurnLabel(row),
         sokoBotId: row.sokoBotId ?? "",
       };
     case "seoChat":
-      return { ...base, kind: "seoChat", title: "SEO chat", description: null };
+      return { ...base, kind: row.kind, title: "SEO chat", description: null };
     case "contacts":
       return {
         ...base,
-        kind: "contacts",
+        kind: row.kind,
         title: row.contactName
           ? `Enrich · ${row.contactName}`
           : `Find people · ${row.contactListName ?? "Deleted list"}`,
@@ -226,7 +225,7 @@ export function mapTransactionHistoryRow(
     case "topUp":
       return {
         ...base,
-        kind: "topUp",
+        kind: row.kind,
         title: TOP_UP_TITLE_BY_SOURCE[row.topUpSource ?? ""] ?? "Top up",
         // Refund what/why wins over a free-text note so a REFUND row always
         // says what it refunded when the ledger knows. Notes still fill gaps
@@ -246,7 +245,7 @@ export function mapTransactionHistoryRow(
       // inventing a source would be worse than an honest blank.
       return {
         ...base,
-        kind: "unattributed",
+        kind: row.kind,
         title: "Credit consumption",
         description: null,
         bucketSource: row.bucketSource,
