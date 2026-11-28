@@ -15,8 +15,8 @@ import { randomUUID } from "node:crypto";
 import { CreditBucketReferenceType, TaskStatus } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { afterEach, describe, expect, it } from "vitest";
-
 import { chargeTaskCreditsOrMarkOutOfCredits } from "@/helpers/task-event-charge";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   findUnpaidCusoHiredBy,
@@ -115,7 +115,7 @@ async function grant(
   } = {},
 ): Promise<void> {
   const amount = credits * CREDIT;
-  await prisma.transaction.create({
+  await createNetworkScope("mainnet").networkDb.transaction.create({
     data: {
       amount,
       organizationId,
@@ -169,10 +169,12 @@ const TESTER = {
 
 /** Spends the whole bucket, as Cuso's turns do. */
 async function spendTesterCredits(cuso: Seeded): Promise<void> {
-  const bucket = await prisma.creditBucket.findFirstOrThrow({
+  const bucket = await createNetworkScope(
+    "mainnet",
+  ).networkDb.creditBucket.findFirstOrThrow({
     where: { projectId: cuso.projectId, ...TESTER },
   });
-  await prisma.transaction.create({
+  await createNetworkScope("mainnet").networkDb.transaction.create({
     data: {
       amount: -bucket.amount,
       organizationId: cuso.organizationId,
@@ -216,16 +218,17 @@ async function chargeTurn(cuso: Seeded) {
         costUsdMicros: TURN_COST_MICROS,
       },
       tx,
+      createNetworkScope("mainnet"),
     ),
   );
 }
 
 afterEach(async () => {
   for (const row of seeded.splice(0)) {
-    await prisma.sokoBotUsage.deleteMany({
+    await createNetworkScope("mainnet").networkDb.sokoBotUsage.deleteMany({
       where: { sokoBotId: row.sokoBotId },
     });
-    await prisma.transaction.deleteMany({
+    await createNetworkScope("mainnet").networkDb.transaction.deleteMany({
       where: { organizationId: row.organizationId },
     });
     await prisma.sokoBot.deleteMany({ where: { id: row.sokoBotId } });
@@ -253,7 +256,9 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
       shortfall: false,
     });
     expect(
-      await prisma.sokoBotUsage.count({ where: { sokoBotId: cuso.sokoBotId } }),
+      await createNetworkScope("mainnet").networkDb.sokoBotUsage.count({
+        where: { sokoBotId: cuso.sokoBotId },
+      }),
     ).toBe(0);
   });
 
@@ -273,7 +278,9 @@ describe.skipIf(!enabled)("free hiring against PostgreSQL", () => {
     );
 
     expect(charge.transactionId).not.toBeNull();
-    const transaction = await prisma.transaction.findUniqueOrThrow({
+    const transaction = await createNetworkScope(
+      "mainnet",
+    ).networkDb.transaction.findUniqueOrThrow({
       where: { id: charge.transactionId ?? "" },
     });
     expect(transaction.amount).toBe(-2n * CREDIT);

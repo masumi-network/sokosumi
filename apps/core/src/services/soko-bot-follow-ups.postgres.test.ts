@@ -17,6 +17,7 @@ import {
   vi,
 } from "vitest";
 
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   checkGrantSpendPreflight,
@@ -120,10 +121,12 @@ describe.skipIf(!enabled)("Soko Bot follow-ups", () => {
     });
     workspaceId = (await prisma.workspace.create({ data: { userId } })).id;
     // Event turns are billed: give the owner a balance to start them on.
-    const grant = await prisma.transaction.create({
+    const grant = await createNetworkScope(
+      "mainnet",
+    ).networkDb.transaction.create({
       data: { userId, amount: 100_000n * 10_000_000_000n },
     });
-    await prisma.creditBucket.create({
+    await createNetworkScope("mainnet").networkDb.creditBucket.create({
       data: {
         userId,
         amount: grant.amount,

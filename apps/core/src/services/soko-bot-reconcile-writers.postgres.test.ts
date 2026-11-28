@@ -26,6 +26,7 @@ import {
   vi,
 } from "vitest";
 
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 
 // Settlement publishes over Ably; the test env has no real key.
@@ -184,10 +185,12 @@ async function setUpFixture(
   f.workspaceId = (
     await prisma.workspace.create({ data: { userId: f.userId } })
   ).id;
-  const grant = await prisma.transaction.create({
+  const grant = await createNetworkScope(
+    "mainnet",
+  ).networkDb.transaction.create({
     data: { userId: f.userId, amount: 100_000n * 10_000_000_000n },
   });
-  await prisma.creditBucket.create({
+  await createNetworkScope("mainnet").networkDb.creditBucket.create({
     data: {
       userId: f.userId,
       amount: grant.amount,
@@ -379,7 +382,9 @@ describe.skipIf(!enabled)("reconciling beside another writer", () => {
     expect(turn.status).toBe("COMPLETED");
     expect(turn.costUsdMicros).toBe(3_000_000n);
     expect(turn.usage).toMatchObject({ inputTokens: 30, costUsd: 3 });
-    const billed = await prisma.sokoBotUsage.findFirstOrThrow({
+    const billed = await createNetworkScope(
+      "mainnet",
+    ).networkDb.sokoBotUsage.findFirstOrThrow({
       where: { sokoBotId: botId },
     });
     expect(billed.cents).toBe(sokoBotUsageCents(3_000_000n, true));
@@ -454,10 +459,12 @@ describe.skipIf(!enabled)("reconciling beside another writer", () => {
         where: { id: turnId },
       }),
       billed: (
-        await prisma.sokoBotUsage.findMany({ where: { sokoBotId: botId } })
+        await createNetworkScope("mainnet").networkDb.sokoBotUsage.findMany({
+          where: { sokoBotId: botId },
+        })
       ).map((row) => row.cents),
       debits: (
-        await prisma.transaction.findMany({
+        await createNetworkScope("mainnet").networkDb.transaction.findMany({
           where: { userId, amount: { lt: 0n } },
         })
       ).map((row) => row.amount),
@@ -928,7 +935,9 @@ describe.skipIf(!enabled)("reconciling beside another writer", () => {
         .status,
     ).toBe("COMPLETED");
     expect(
-      await prisma.sokoBotUsage.count({ where: { sokoBotId: botId } }),
+      await createNetworkScope("mainnet").networkDb.sokoBotUsage.count({
+        where: { sokoBotId: botId },
+      }),
     ).toBe(1);
   });
 });
