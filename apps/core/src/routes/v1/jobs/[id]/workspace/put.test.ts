@@ -68,18 +68,11 @@ vi.mock("@/types/job", () => ({
   serializeJobDetails: serializeJobDetailsMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => {
-  const client = {
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
     $transaction: prismaTransactionMock,
-    job: {
-      findUnique: jobFindUniqueMock,
-    },
-  };
-  return {
-    default: client,
-    networkPrisma: () => client,
-  };
-});
+  },
+}));
 
 interface CurrentJobRecord {
   id: string;
@@ -221,11 +214,6 @@ async function currentJobWorkspace() {
 function mockTransaction(tx: TransactionMock) {
   const withWorkspace = {
     workspace: { findUnique: vi.fn(currentJobWorkspace) },
-    $queryRaw: async () => {
-      const record = await (tx.job.findFirst as () => Promise<unknown>)();
-      return record ? [record] : [];
-    },
-    $executeRaw: tx.job.update,
     ...tx,
   };
   prismaTransactionMock.mockImplementation(async (callback) => {
@@ -337,13 +325,15 @@ describe("PUT /jobs/{id}/workspace", () => {
       userId: "user_123",
       tx: expect.any(Object),
     });
-    expect(jobUpdateMock).toHaveBeenCalledTimes(1);
-    const [sqlStrings, ...sqlValues] = jobUpdateMock.mock.calls[0] ?? [];
-    expect((sqlStrings as string[]).join(" ")).toContain('"workspaceId"');
-    expect((sqlStrings as string[]).join(" ")).toContain('"projectId" = NULL');
-    expect((sqlStrings as string[]).join(" ")).toContain('"updatedAt"');
-    expect(sqlValues).toContain("11111111-1111-4111-8111-111111111111");
-    expect(sqlValues).toContain("job_123");
+    expect(jobUpdateMock).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+      },
+      data: {
+        workspaceId: "11111111-1111-4111-8111-111111111111",
+        projectId: null,
+      },
+    });
   });
 
   it("returns 404 when moving to a missing personal workspace", async () => {

@@ -130,17 +130,8 @@ vi.mock("@/lib/db/prisma", async () => {
         .stubMemberFindUnique,
     },
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
-    job: {
-      findFirst: (...args: unknown[]) => jobFindFirstMock(...args),
-    },
-    jobEvent: {
-      findFirst: (...args: unknown[]) => jobEventFindFirstMock(...args),
-    },
     jobInput: {
       create: (...args: unknown[]) => jobInputCreateMock(...args),
-    },
-    workspace: {
-      findUnique: (...args: unknown[]) => workspaceFindUniqueMock(...args),
     },
   };
   return {

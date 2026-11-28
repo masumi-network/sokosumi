@@ -817,13 +817,10 @@ it.skipIf(!enabled)(
           }),
         });
       if (onSplitLayout) {
-        // The two hires still fail with P2021 on shared.Job until slice 25-4;
-        // refund's requireJobCollaboration now reads mainnet."Job" and rejects
-        // the missing fixture job with 403 before reaching tx.job.findUnique.
         expectCoreLog(
           "error",
           "Kept a database schema mismatch out of Sentry",
-          2,
+          3,
         );
         const statuses = [
           (await hire("hire-free")).status,
@@ -835,7 +832,7 @@ it.skipIf(!enabled)(
             )
           ).status,
         ];
-        expect(statuses).toEqual([500, 500, 403]);
+        expect(statuses).toEqual([500, 500, 500]);
         expect(node.requests).toEqual([]);
         return;
       }

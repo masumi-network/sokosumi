@@ -17,6 +17,10 @@ import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { mapTask } from "@/helpers/task";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
+import {
+  createNetworkScope,
+  sharedTxAsNetworkDb,
+} from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { networksThatAreOn } from "@/lib/network";
@@ -70,8 +74,22 @@ export async function moveTaskJobs(
   taskId: string,
   targetWorkspaceId: string,
 ): Promise<void> {
+  const networks = networksThatAreOn();
+  if (networks.length === 1 && networks[0] === "mainnet") {
+    const mainnetTx = sharedTxAsNetworkDb(createNetworkScope("mainnet"), tx);
+    if (mainnetTx) {
+      await mainnetTx.job.updateMany({
+        where: { taskId },
+        data: {
+          workspaceId: targetWorkspaceId,
+          projectId: null,
+        },
+      });
+      return;
+    }
+  }
   const updatedAt = new Date();
-  for (const network of networksThatAreOn()) {
+  for (const network of networks) {
     await tx.$executeRaw`
       UPDATE ${netTable(network, "Job")}
       SET "workspaceId" = ${targetWorkspaceId}::uuid,

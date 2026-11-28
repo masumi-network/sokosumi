@@ -83,6 +83,23 @@ export interface NetworkScope {
     conflictMessage: string,
     isolationLevel?: Prisma.TransactionIsolationLevel,
   ): Promise<T>;
+  /** One Read Committed attempt on the shared client with Prisma's default timeout. */
+  sharedTransactionOnce<T>(callback: (tx: SharedDb) => Promise<T>): Promise<T>;
+}
+
+/**
+ * On today's shared-schema layout, a shared transaction reaches Mainnet's
+ * tables on the same connection. Returns `null` on the split layout and
+ * refuses a non-Mainnet or refused scope.
+ */
+export function sharedTxAsNetworkDb(
+  scope: NetworkScope,
+  tx: SharedDb,
+): NetworkDb | null {
+  void scope.network;
+  if (!networkUsesSharedSchema()) return null;
+  assertMainnetScope(scope);
+  return tx as unknown as NetworkDb;
 }
 
 /**
@@ -141,6 +158,8 @@ export function createNetworkScope(network: Network): NetworkScope {
       ),
     sharedTransaction: (callback, conflictMessage, isolationLevel) =>
       retriedTransaction(callback, conflictMessage, isolationLevel),
+    sharedTransactionOnce: (callback) =>
+      prisma.$transaction((tx) => callback(tx)),
     netBatch: <T extends readonly Prisma.PrismaPromise<unknown>[]>(
       build: (db: NetworkDb) => [...T],
       isolationLevel?: Prisma.TransactionIsolationLevel,
@@ -182,5 +201,7 @@ export function createRefusedNetworkScope(refusal: Error): NetworkScope {
     netBatch: async () => refuse(),
     sharedTransaction: (callback, conflictMessage, isolationLevel) =>
       retriedTransaction(callback, conflictMessage, isolationLevel),
+    sharedTransactionOnce: (callback) =>
+      prisma.$transaction((tx) => callback(tx)),
   };
 }

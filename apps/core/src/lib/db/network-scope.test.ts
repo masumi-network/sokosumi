@@ -127,6 +127,54 @@ describe("createNetworkScope", () => {
     });
   });
 
+  it("opens a single bounded shared transaction on the shared client", async () => {
+    const { createNetworkScope } = await import("./network-scope");
+    const tx = { side: "shared transaction" };
+    const $transaction = vi.fn((run: (t: unknown) => unknown) => run(tx));
+    Object.assign(clients.shared, { $transaction });
+    onTestFinished(() => {
+      Reflect.deleteProperty(clients.shared, "$transaction");
+    });
+
+    const result = await createNetworkScope("mainnet").sharedTransactionOnce(
+      async (t) => t,
+    );
+
+    expect(result).toBe(tx);
+    expect($transaction).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
+  });
+
+  it("bridges a shared transaction to Mainnet only on today's layout", async () => {
+    const {
+      createNetworkScope,
+      createRefusedNetworkScope,
+      sharedTxAsNetworkDb,
+    } = await import("./network-scope");
+    const tx = { side: "shared tx" } as unknown as SharedDb;
+    const mainnet = createNetworkScope("mainnet");
+
+    expect(sharedTxAsNetworkDb(mainnet, tx)).toBe(tx);
+    expect(() =>
+      sharedTxAsNetworkDb(createRefusedNetworkScope(new Error("refused")), tx),
+    ).toThrow("refused");
+    expect(() =>
+      sharedTxAsNetworkDb({ network: "preprod" } as NetworkScope, tx),
+    ).toThrow("Expected the Mainnet scope, got preprod's");
+
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+    vi.stubEnv("DATABASE_SCHEMA_SHARED", "shared");
+    vi.stubEnv("DATABASE_SCHEMA_MAINNET", "mainnet");
+    vi.stubEnv("DATABASE_SCHEMA_PREPROD", "preprod");
+    vi.resetModules();
+    const split = await import("./network-scope");
+    expect(
+      split.sharedTxAsNetworkDb(split.createNetworkScope("mainnet"), tx),
+    ).toBeNull();
+  });
+
   it("refuses Preprod while Preprod is off, and an unknown Network", async () => {
     const { createNetworkScope } = await import("./network-scope");
 

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { AgentJobStatus } from "@sokosumi/database";
+import { AgentJobStatus, type SharedDb } from "@sokosumi/database";
+import { netType } from "@sokosumi/database/sql-tables";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
@@ -12,6 +13,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import { type NetworkScope, sharedTxAsNetworkDb } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -91,6 +93,73 @@ const route = withCoworkerContextHeaderParameters(
   }),
 );
 
+interface SplitAwaitingInputRow {
+  id: string;
+  inputSchema: string | null;
+  hasInput: boolean;
+  agentJobId: string;
+  agentBlockchainIdentifier: string | null;
+  agentApiBaseUrl: string | null;
+  agentId: string;
+  agentCurrentBlockchainIdentifier: string;
+  agentName: string;
+  agentCurrentApiBaseUrl: string | null;
+  hasOverride: boolean;
+  overrideApiBaseUrl: string | null;
+}
+
+async function readAwaitingInputJobEventOnSplit(
+  tx: SharedDb,
+  scope: NetworkScope,
+  jobId: string,
+  eventId: string,
+) {
+  const [row] = await tx.$queryRaw<SplitAwaitingInputRow[]>`
+    SELECT
+      e."id",
+      e."inputSchema",
+      (ji."id" IS NOT NULL) AS "hasInput",
+      j."agentJobId",
+      j."agentBlockchainIdentifier",
+      j."agentApiBaseUrl",
+      a."id" AS "agentId",
+      a."blockchainIdentifier" AS "agentCurrentBlockchainIdentifier",
+      a."name" AS "agentName",
+      a."apiBaseUrl" AS "agentCurrentApiBaseUrl",
+      (amo."id" IS NOT NULL) AS "hasOverride",
+      amo."apiBaseUrl" AS "overrideApiBaseUrl"
+    FROM ${scope.networkTable("jobEvent")} e
+    INNER JOIN ${scope.networkTable("Job")} j ON j."id" = e."jobId"
+    INNER JOIN ${scope.networkTable("Agent")} a ON a."id" = j."agentId"
+    LEFT JOIN ${scope.networkTable("AgentMetadataOverride")} amo ON amo."agentId" = a."id"
+    LEFT JOIN ${scope.networkTable("jobInput")} ji ON ji."eventId" = e."id"
+    WHERE e."id" = ${eventId}
+      AND e."jobId" = ${jobId}
+      AND e."status" = ${AgentJobStatus.AWAITING_INPUT}::text::${netType(scope.network, "AgentJobStatus")}
+    LIMIT 1
+  `;
+  if (!row) return null;
+  return {
+    id: row.id,
+    inputSchema: row.inputSchema,
+    input: row.hasInput ? { id: "present" } : null,
+    job: {
+      agentJobId: row.agentJobId,
+      agentBlockchainIdentifier: row.agentBlockchainIdentifier,
+      agentApiBaseUrl: row.agentApiBaseUrl,
+      agent: {
+        id: row.agentId,
+        blockchainIdentifier: row.agentCurrentBlockchainIdentifier,
+        name: row.agentName,
+        apiBaseUrl: row.agentCurrentApiBaseUrl,
+        metadataOverride: row.hasOverride
+          ? { apiBaseUrl: row.overrideApiBaseUrl }
+          : null,
+      },
+    },
+  };
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id: jobId } = c.req.valid("param");
@@ -103,42 +172,56 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { networkScope } = c.var;
     const { networkDb } = networkScope;
 
-    await requireJobCollaboration(c.var.authContext, jobId, networkScope);
-    const jobEvent = await networkDb.jobEvent.findFirst({
-      where: {
-        id: eventId,
-        jobId,
-        status: AgentJobStatus.AWAITING_INPUT,
-      },
-      include: {
-        job: {
-          include: {
-            agent: {
-              select: {
-                id: true,
-                blockchainIdentifier: true,
-                name: true,
-                apiBaseUrl: true,
-                metadataOverride: {
-                  select: {
-                    apiBaseUrl: true,
+    const jobEvent = await networkScope.sharedTransactionOnce(async (tx) => {
+      await requireJobCollaboration(c.var.authContext, jobId, networkScope, {
+        sharedTx: tx,
+      });
+      const txNetworkDb = sharedTxAsNetworkDb(networkScope, tx);
+      const jobEvent = txNetworkDb
+        ? await txNetworkDb.jobEvent.findFirst({
+            where: {
+              id: eventId,
+              jobId,
+              status: AgentJobStatus.AWAITING_INPUT,
+            },
+            include: {
+              job: {
+                include: {
+                  agent: {
+                    select: {
+                      id: true,
+                      blockchainIdentifier: true,
+                      name: true,
+                      apiBaseUrl: true,
+                      metadataOverride: {
+                        select: {
+                          apiBaseUrl: true,
+                        },
+                      },
+                    },
                   },
                 },
               },
+              input: true,
             },
-          },
-        },
-        input: true,
-      },
+          })
+        : await readAwaitingInputJobEventOnSplit(
+            tx,
+            networkScope,
+            jobId,
+            eventId,
+          );
+
+      if (!jobEvent) {
+        throw notFound("Job event not found or is not awaiting input");
+      }
+
+      if (jobEvent.input !== null) {
+        throw conflict("Input has already been provided for this event");
+      }
+
+      return jobEvent;
     });
-
-    if (!jobEvent) {
-      throw notFound("Job event not found or is not awaiting input");
-    }
-
-    if (jobEvent.input !== null) {
-      throw conflict("Input has already been provided for this event");
-    }
 
     if (!jobEvent.inputSchema) {
       throw unprocessableEntity("Agent did not provide an input schema");

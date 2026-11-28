@@ -4,23 +4,28 @@
  *
  * Covers:
  * - Mainnet parity pinned against origin/main (`writes.base.json`) for no header
- *   and `mainnet` header across all actors, statuses, normalized bodies, table
- *   snapshots, seller calls, calendar invalidations, and SQL statements + bound
- *   values (with exact checks for the 3 decided Mainnet differences).
+ *   and `mainnet` header across all 122 cases: statuses, normalized bodies,
+ *   all-column Job rows (including `agentApiBaseUrl` and exact timestamps),
+ *   seller calls, calendar invalidations, exact SQL + bound values + statement
+ *   order + transaction boundaries (zero Mainnet changes on today's layout).
+ * - Bounded read transaction in `POST /v1/jobs/:id/inputs`: holding `jobEvent`
+ *   for 6.3s times out with 500, 0 seller calls, and 0 inserted inputs.
+ * - `PUT /v1/jobs/:id/workspace` in-transaction readback: creator deleted
+ *   between Job read and its relations, concurrent rename (update & no-op),
+ *   concurrent second move, and concurrent Job delete all match origin/main
+ *   (200 with the transaction's own snapshot).
  * - Preprod off (today's layout): 403 `preprod_off` with zero Network table
  *   locks (`EXPLAIN` + `pg_locks`) and zero seller calls on all 5 Job writes;
  *   422 `mainnet_only_feature` on PUT & DELETE `/v1/jobs/:id/share`.
  * - Preprod on (split layout): equal-id isolation across `mainnet` and
- *   `preprod`, per-Network seller dispatch, parked-Task & work-right checks on
- *   Preprod, condition (i) unowned Job move readback without second access check,
- *   atomic dual-Network `moveTaskJobs` (and rollback on second-update failure),
- *   403 `preprod_access_required` with zero Network table locks, and 422 share
- *   refusal on Preprod while Mainnet share stays intact.
+ *   `preprod`, whole-row before/after assertions on all writes and
+ *   `moveTaskJobs`, per-Network seller dispatch, parked-Task & work-right
+ *   checks, full split-tx Job detail readback (events, inputs, blobs, links,
+ *   purchase, transactions, override, share), and 422 share refusal.
  * - `updatedAt` UTC clock pin on raw SQL updates vs Prisma `@updatedAt`.
- * - Gated races: two-movers on `PUT /v1/jobs/:id/workspace`, post-commit
- *   readback races (rename, second move, delete -> 404 with zero error logs),
- *   and ticket 26 deletion interleavings (personal workspace, organization,
- *   user, project, task archive) in both orders through explicit gates.
+ * - Gated races: two-movers on `PUT /v1/jobs/:id/workspace`, and ticket 26
+ *   deletion interleavings (personal workspace, organization, user, project,
+ *   task archive) in both orders through explicit gates.
  */
 import "@hono/zod-openapi";
 import { createHash } from "node:crypto";
@@ -29,8 +34,9 @@ import type { Prisma } from "@sokosumi/database";
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import { err, ok } from "neverthrow";
-import { Client, type Pool } from "pg";
+import { Client, type Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { expectCoreLog } from "@/test/core-log";
 import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import {
   holdCommit,
@@ -61,8 +67,12 @@ const sellerOutcome = vi.hoisted(() => ({
   next: null as null | { err: string },
 }));
 const publishedInvalidations = vi.hoisted(() => [] as string[]);
-const postCommitGate = vi.hoisted(() => ({
-  onReadback: null as null | (() => Promise<void>),
+const queryGate = vi.hoisted(() => ({
+  active: null as null | {
+    when: "before" | "after";
+    match: (text: string, values: unknown[]) => boolean;
+    run: () => Promise<void>;
+  },
 }));
 const coreErrors = vi.hoisted(() => [] as unknown[]);
 
@@ -75,6 +85,39 @@ vi.mock("@vercel/functions", async (load) => {
     attachDatabasePool: (pool: Pool) => {
       pools.push(pool);
       observePool(pool);
+      pool.on("connect", (client: PoolClient) => {
+        const inner = client.query.bind(client) as (...a: unknown[]) => unknown;
+        (client as { query: unknown }).query = (...args: unknown[]) => {
+          const gate = queryGate.active;
+          if (!gate || typeof args.at(-1) === "function") {
+            return inner(...args);
+          }
+          const [first, second] = args;
+          const text =
+            typeof first === "string"
+              ? first
+              : (first as { text: string }).text;
+          const values =
+            typeof first === "string"
+              ? Array.isArray(second)
+                ? second
+                : []
+              : Array.isArray((first as { values?: unknown }).values)
+                ? ((first as { values: unknown[] }).values ?? [])
+                : [];
+          if (!gate.match(text, values)) {
+            return inner(...args);
+          }
+          queryGate.active = null;
+          if (gate.when === "before") {
+            return gate.run().then(() => inner(...args));
+          }
+          return Promise.resolve(inner(...args)).then(async (res) => {
+            await gate.run();
+            return res;
+          });
+        };
+      });
     },
   };
 });
@@ -118,22 +161,6 @@ vi.mock("@/helpers/calendar-invalidation", async (load) => {
     }),
   };
 });
-vi.mock("@/helpers/job-detail", async (load) => {
-  const actual = await load<typeof import("@/helpers/job-detail")>();
-  return {
-    ...actual,
-    readJobDetailsById: async (
-      ...args: Parameters<typeof actual.readJobDetailsById>
-    ) => {
-      if (postCommitGate.onReadback) {
-        const hook = postCommitGate.onReadback;
-        postCommitGate.onReadback = null;
-        await hook();
-      }
-      return await actual.readJobDetailsById(...args);
-    },
-  };
-});
 vi.mock("@/lib/evlog", async (load) => {
   const actual = await load<typeof import("@/lib/evlog")>();
   return {
@@ -154,6 +181,7 @@ const raceTracePath = process.env.JOB_WRITES_RACE_PATH;
 const basePath = new URL("./writes.base.json", import.meta.url);
 
 const CLOCK = new Date("2026-11-28T10:00:00.000Z");
+const WRITE_CLOCK = new Date("2026-11-28T10:05:00.000Z");
 
 const OWNER_ID = "jw-owner";
 const ADMIN_ID = "jw-admin";
@@ -265,6 +293,7 @@ async function buildWorld(options: { preprodOn?: boolean } = {}) {
   vi.stubEnv("NETWORK", "Mainnet");
   vi.stubEnv("NETWORK_PREPROD_ENABLED", options.preprodOn ? "true" : "false");
 
+  const poolsBefore = pools.length;
   const { default: shared } = await import("@/lib/db/prisma");
   const { createNetworkScope } = await import("@/lib/db/network-scope");
   const { serializableTransaction } = await import("@/lib/db/transaction");
@@ -700,7 +729,9 @@ async function buildWorld(options: { preprodOn?: boolean } = {}) {
     database,
     drop: async () => {
       (globalThis as { coreDatabase?: unknown }).coreDatabase = undefined;
-      await Promise.all(pools.splice(0).map((p) => p.end().catch(() => {})));
+      await Promise.all(
+        pools.splice(poolsBefore).map((p) => p.end().catch(() => {})),
+      );
       await database.drop();
     },
   };
@@ -710,19 +741,19 @@ type World = Awaited<ReturnType<typeof buildWorld>>;
 
 async function snapshotPublicTables(shared: World["shared"]) {
   const [jobs, jobInputs, tasks, projects, shares] = await Promise.all([
-    shared.$queryRawUnsafe<unknown[]>(
-      `SELECT id, "ownerId", "creatorUserId", "workspaceId", "projectId", "taskId", name, "updatedAt" FROM "public"."Job" ORDER BY id`,
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
+      `SELECT * FROM "public"."Job" ORDER BY id`,
     ),
-    shared.$queryRawUnsafe<unknown[]>(
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT "eventId", input, "inputHash", signature FROM "public"."jobInput" ORDER BY "eventId"`,
     ),
-    shared.$queryRawUnsafe<unknown[]>(
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT id, "workspaceId", "projectId", "archivedAt" FROM "public"."task" ORDER BY id`,
     ),
-    shared.$queryRawUnsafe<unknown[]>(
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT id, "workspaceId", name FROM "public"."project" ORDER BY id`,
     ),
-    shared.$queryRawUnsafe<unknown[]>(
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT "jobId", "allowSearchIndexing" FROM "public"."jobShare" ORDER BY "jobId"`,
     ),
   ]);
@@ -731,14 +762,52 @@ async function snapshotPublicTables(shared: World["shared"]) {
 
 async function snapshotSchemaJobs(shared: World["shared"], schema: string) {
   const [jobs, jobInputs] = await Promise.all([
-    shared.$queryRawUnsafe<unknown[]>(
-      `SELECT id, "ownerId", "workspaceId", "projectId", "taskId", name, "updatedAt" FROM "${schema}"."Job" ORDER BY id`,
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
+      `SELECT * FROM "${schema}"."Job" ORDER BY id`,
     ),
-    shared.$queryRawUnsafe<unknown[]>(
+    shared.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT "eventId", input, "inputHash", signature FROM "${schema}"."jobInput" ORDER BY "eventId"`,
     ),
   ]);
   return { jobs, jobInputs };
+}
+
+function serializeWholeRow(row: Record<string, unknown>): string {
+  return JSON.stringify(row, (_key, value) =>
+    typeof value === "bigint" ? value.toString() : value,
+  );
+}
+
+/**
+ * Asserts every column (including `agentApiBaseUrl`, `createdAt`, `updatedAt`)
+ * of every affected and adjacent Job row in PostgreSQL before and after a write.
+ */
+function expectOnlyJobRowsChanged(
+  before: Record<string, unknown>[],
+  after: Record<string, unknown>[],
+  changesById: Record<string, Record<string, unknown>>,
+  label: string,
+) {
+  expect(after.length, `${label} job row count`).toBe(before.length);
+  const expected = before.map((row) => {
+    const id = String(row.id);
+    const patch = changesById[id];
+    return patch ? { ...row, ...patch } : row;
+  });
+  expect(
+    after.map(serializeWholeRow),
+    `${label} whole-row Job diff (all columns + timestamps)`,
+  ).toEqual(expected.map(serializeWholeRow));
+}
+
+function extractTxBoundaries(
+  stmts: readonly { text: string; values: unknown[] }[],
+) {
+  return stmts
+    .map((s, index) => ({ index, text: s.text.trim() }))
+    .filter((s) =>
+      /^(BEGIN|COMMIT|ROLLBACK|SET\s+TRANSACTION)\b/i.test(s.text),
+    );
 }
 
 async function runCase(
@@ -748,14 +817,14 @@ async function runCase(
   headers: Record<string, string>,
   body?: unknown,
   network?: string,
-  options: { snapshot?: boolean; fakeClock?: boolean } = {},
+  options: { snapshot?: boolean; fakeClock?: boolean; clock?: Date } = {},
 ) {
   sellerCalls.length = 0;
   publishedInvalidations.length = 0;
   const fakeClock = options.fakeClock ?? true;
   if (fakeClock) {
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(CLOCK);
+    vi.setSystemTime(options.clock ?? WRITE_CLOCK);
   }
   try {
     const { outcome, log } = await observing(async () => {
@@ -1357,33 +1426,98 @@ const MAINNET_PARITY_SEQ: [
   ],
 ];
 
+const EXPECTED_MAINNET_JOB_CHANGES: Record<
+  string,
+  Record<string, Record<string, unknown>>
+> = {
+  patch_owner_standalone: {
+    [JOB_STANDALONE]: { name: "Renamed 1", updatedAt: WRITE_CLOCK },
+  },
+  patch_no_owner_member_seated: {
+    [JOB_NO_OWNER]: { name: "NoOwner Renamed", updatedAt: WRITE_CLOCK },
+  },
+  patch_cw_assigned: {
+    [JOB_PUBLIC_TASK]: { name: "CW Renamed", updatedAt: WRITE_CLOCK },
+  },
+  patch_bot_assigned: {
+    [JOB_BOT_TASK]: { name: "Bot Renamed", updatedAt: WRITE_CLOCK },
+  },
+  link_standalone_ok: {
+    [JOB_STANDALONE]: { projectId: PROJ_A1, updatedAt: WRITE_CLOCK },
+  },
+  link_private_task_owner_ok: {
+    [JOB_PRIVATE_TASK]: { projectId: PROJ_A1, updatedAt: WRITE_CLOCK },
+  },
+  link_public_task_member_ok: {
+    [JOB_PUBLIC_TASK]: { projectId: PROJ_A1, updatedAt: WRITE_CLOCK },
+  },
+  unlink_private_task_owner_ok: {
+    [JOB_PRIVATE_TASK]: { projectId: null, updatedAt: WRITE_CLOCK },
+  },
+  unlink_standalone_ok: {
+    [JOB_STANDALONE]: { projectId: null, updatedAt: WRITE_CLOCK },
+  },
+  move_job_no_owner_admin_to_org_b: {
+    [JOB_NO_OWNER_MOVE]: {
+      workspaceId: WS_ORG_B,
+      projectId: null,
+      updatedAt: WRITE_CLOCK,
+    },
+  },
+  move_job_with_project_to_org_b: {
+    [JOB_WITH_PROJECT]: {
+      workspaceId: WS_ORG_B,
+      projectId: null,
+      updatedAt: WRITE_CLOCK,
+    },
+  },
+  move_job_personal_to_org_b: {
+    [JOB_MOVE_PERSONAL]: {
+      workspaceId: WS_ORG_B,
+      projectId: null,
+      updatedAt: WRITE_CLOCK,
+    },
+  },
+  move_task_with_job_to_org_b: {
+    [JOB_MOVABLE_TASK]: {
+      workspaceId: WS_ORG_B,
+      projectId: null,
+      updatedAt: WRITE_CLOCK,
+    },
+  },
+};
+
 describe.runIf(enabled && !onSplitLayout)(
   "Job writes over PostgreSQL — today's layout (Mainnet parity & Preprod off)",
   () => {
-    it("matches origin/main across all 122 Mainnet cases (no header and mainnet header)", {
+    it("matches origin/main across all 122 Mainnet cases (no header and mainnet header) with zero Mainnet changes", {
       timeout: 120_000,
     }, async () => {
+      type BaselineEntry = {
+        status: number;
+        body: string;
+        jobRowsExact: string;
+        rows: string;
+        sellerCalls: unknown[];
+        publishedInvalidations: string[];
+        statementCount: number;
+        statementsOrdered: string;
+        txBoundaries: { index: number; text: string }[];
+      };
       const baseline = recording
         ? null
         : (JSON.parse(readFileSync(basePath, "utf8")) as Record<
             string,
-            {
-              status: number;
-              body: string;
-              rows: string;
-              sellerCalls: unknown[];
-              publishedInvalidations: string[];
-              statementCount: number;
-              statementsOrdered: string;
-              statementsWithoutFirstTx: string;
-            }
+            BaselineEntry
           >);
       const recorded: Record<string, unknown> = {};
+      const nextBaseline: Record<string, BaselineEntry> = {};
 
       for (const network of [undefined, "mainnet"] as const) {
         const suffix = network ?? "implicit";
         const world = await buildWorld({ preprodOn: false });
         try {
+          let previousJobs = (await snapshotPublicTables(world.shared)).jobs;
           const runAndVerify = async (
             name: string,
             method: string,
@@ -1397,84 +1531,62 @@ describe.runIf(enabled && !onSplitLayout)(
             if (expectedStatus !== undefined) {
               expect(res.status, `${key}: ${res.body}`).toBe(expectedStatus);
             }
-            recorded[key] = res;
-            if (!baseline) return;
-
-            const expected = baseline[key];
-            expect(expected, `missing baseline ${key}`).toBeDefined();
-            expect(res.status, key).toBe(expected.status);
-            expect(sha256(normalizeForDigest(res.body)), `${key} body`).toBe(
-              expected.body,
+            const afterJobs = res.rows?.jobs ?? [];
+            expectOnlyJobRowsChanged(
+              previousJobs,
+              afterJobs,
+              EXPECTED_MAINNET_JOB_CHANGES[name] ?? {},
+              key,
             );
-            expect(sha256(normalizeForDigest(res.rows)), `${key} rows`).toBe(
-              expected.rows,
-            );
-            expect(res.sellerCalls, `${key} sellerCalls`).toEqual(
-              expected.sellerCalls,
-            );
-            expect(res.publishedInvalidations, `${key} invalidations`).toEqual(
-              expected.publishedInvalidations,
-            );
+            previousJobs = afterJobs;
 
             const stmts = res.statements.map(({ text, values }) => ({
               text,
               values,
             }));
-            const ordered = sha256(normalizeForDigest(stmts));
-            if (name.startsWith("input_") && name !== "input_empty_data") {
-              // Approved decision (1): drop read-only Read Committed BEGIN/COMMIT.
-              expect(stmts.length, `${key} stmt count`).toBe(
-                expected.statementCount - 2,
-              );
-              expect(ordered, `${key} statements after BEGIN/COMMIT drop`).toBe(
-                expected.statementsWithoutFirstTx,
-              );
-            } else if (name.startsWith("move_job_")) {
-              // Approved decision (2): same statement count, schema-qualified
-              // Job SQL in tx + post-commit readJobDetailsById readback.
-              expect(stmts.length, `${key} stmt count`).toBe(
-                expected.statementCount,
-              );
-              const commitIdx = stmts.findIndex((s) => s.text === "COMMIT");
-              const selectJobIdx = stmts.findIndex((s) =>
-                /SELECT \*\s+FROM "public"\."Job"/i.test(s.text),
-              );
-              expect(
-                selectJobIdx,
-                `${key} qualified SELECT Job`,
-              ).toBeGreaterThan(-1);
-              if (res.status === 200) {
-                expect(commitIdx, `${key} has COMMIT`).toBeGreaterThan(-1);
-                const readbackIdx = stmts.findIndex(
-                  (s, i) =>
-                    i > commitIdx && s.text.includes('FROM "public"."Job"'),
-                );
-                expect(
-                  readbackIdx,
-                  `${key} post-commit readback`,
-                ).toBeGreaterThan(commitIdx);
-              }
-            } else if (name === "move_task_with_job_to_org_b") {
-              // Approved decision (3): exact same count, only Job UPDATE qualified.
-              expect(stmts.length, `${key} stmt count`).toBe(
-                expected.statementCount,
-              );
-              expect(
-                stmts.some((s) =>
-                  /UPDATE "public"\."Job"[\s\S]*WHERE "taskId" = \$3/i.test(
-                    s.text,
-                  ),
-                ),
-                `${key} qualified task Job UPDATE`,
-              ).toBe(true);
-            } else {
-              expect(stmts.length, `${key} stmt count`).toBe(
-                expected.statementCount,
-              );
-              expect(ordered, `${key} exact SQL + values + order`).toBe(
-                expected.statementsOrdered,
-              );
-            }
+            const entry: BaselineEntry = {
+              status: res.status,
+              body: sha256(normalizeForDigest(res.body)),
+              jobRowsExact: sha256(
+                JSON.stringify(afterJobs.map(serializeWholeRow)),
+              ),
+              rows: sha256(normalizeForDigest(res.rows)),
+              sellerCalls: res.sellerCalls,
+              publishedInvalidations: res.publishedInvalidations,
+              statementCount: stmts.length,
+              statementsOrdered: sha256(normalizeForDigest(stmts)),
+              txBoundaries: extractTxBoundaries(stmts),
+            };
+            recorded[key] = res;
+            nextBaseline[key] = entry;
+            if (!baseline) return;
+
+            const expected = baseline[key];
+            expect(expected, `missing baseline ${key}`).toBeDefined();
+            expect(entry.status, key).toBe(expected.status);
+            expect(entry.body, `${key} body`).toBe(expected.body);
+            expect(
+              entry.jobRowsExact,
+              `${key} all-column Job rows + exact timestamps`,
+            ).toBe(expected.jobRowsExact);
+            expect(entry.rows, `${key} rows`).toBe(expected.rows);
+            expect(entry.sellerCalls, `${key} sellerCalls`).toEqual(
+              expected.sellerCalls,
+            );
+            expect(
+              entry.publishedInvalidations,
+              `${key} invalidations`,
+            ).toEqual(expected.publishedInvalidations);
+            expect(entry.statementCount, `${key} stmt count`).toBe(
+              expected.statementCount,
+            );
+            expect(entry.txBoundaries, `${key} transaction boundaries`).toEqual(
+              expected.txBoundaries,
+            );
+            expect(
+              entry.statementsOrdered,
+              `${key} exact SQL + bound values + order`,
+            ).toBe(expected.statementsOrdered);
           };
 
           for (const [
@@ -1496,19 +1608,28 @@ describe.runIf(enabled && !onSplitLayout)(
             "testnet",
           );
           expect(invalidHdr.status).toBe(400);
+          const invalidStmts = invalidHdr.statements.map(
+            ({ text, values }) => ({ text, values }),
+          );
+          const invalidEntry: BaselineEntry = {
+            status: invalidHdr.status,
+            body: sha256(normalizeForDigest(invalidHdr.body)),
+            jobRowsExact: sha256(
+              JSON.stringify(
+                (invalidHdr.rows?.jobs ?? []).map(serializeWholeRow),
+              ),
+            ),
+            rows: sha256(normalizeForDigest(invalidHdr.rows)),
+            sellerCalls: invalidHdr.sellerCalls,
+            publishedInvalidations: invalidHdr.publishedInvalidations,
+            statementCount: invalidStmts.length,
+            statementsOrdered: sha256(normalizeForDigest(invalidStmts)),
+            txBoundaries: extractTxBoundaries(invalidStmts),
+          };
+          nextBaseline[`share_put_invalid_header:${suffix}`] = invalidEntry;
           if (baseline) {
             const exp = baseline[`share_put_invalid_header:${suffix}`];
-            expect(sha256(normalizeForDigest(invalidHdr.body))).toBe(exp.body);
-            expect(
-              sha256(
-                normalizeForDigest(
-                  invalidHdr.statements.map(({ text, values }) => ({
-                    text,
-                    values,
-                  })),
-                ),
-              ),
-            ).toBe(exp.statementsOrdered);
+            expect(invalidEntry).toEqual(exp);
           }
           recorded[`share_put_invalid_header:${suffix}`] = invalidHdr;
 
@@ -1526,8 +1647,87 @@ describe.runIf(enabled && !onSplitLayout)(
         }
       }
 
+      if (recording) {
+        writeFileSync(basePath, `${JSON.stringify(nextBaseline, null, 2)}\n`);
+      }
       if (rawTracePath) {
         writeFileSync(rawTracePath, `${JSON.stringify(recorded, null, 2)}\n`);
+      }
+    });
+
+    it("times out POST /v1/jobs/:id/inputs with 500, 0 seller calls, and 0 inputs when jobEvent is held for 6.3s", {
+      timeout: 30_000,
+    }, async () => {
+      expectCoreLog(
+        "warn",
+        "Kept a transient external failure out of Sentry",
+        1,
+      );
+      const world = await buildWorld({ preprodOn: false });
+      const locker = new Client({ connectionString: world.database.url });
+      await locker.connect();
+      try {
+        await locker.query("BEGIN");
+        await locker.query(
+          'LOCK TABLE "public"."jobEvent" IN ACCESS EXCLUSIVE MODE',
+        );
+
+        sellerCalls.length = 0;
+        const started = Date.now();
+        const reqPromise = world.app.request(
+          `https://example.com/v1/jobs/${JOB_STANDALONE}/inputs`,
+          {
+            method: "POST",
+            headers: {
+              origin: "https://example.com",
+              "content-type": "application/json",
+              ...OWNER_ORG_A,
+            },
+            body: JSON.stringify({
+              eventId: `evt-await-${JOB_STANDALONE}`,
+              inputData: { answer: "delayed" },
+            }),
+          },
+        );
+
+        let observedWaiting = false;
+        const observer = new Client({ connectionString: world.database.url });
+        await observer.connect();
+        try {
+          for (let i = 0; i < 60; i++) {
+            const { rowCount } = await observer.query(
+              `SELECT pid FROM pg_stat_activity
+               WHERE datname = current_database()
+                 AND cardinality(pg_blocking_pids(pid)) > 0`,
+            );
+            if (rowCount && rowCount > 0) {
+              observedWaiting = true;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 25));
+          }
+        } finally {
+          await observer.end();
+        }
+        expect(observedWaiting).toBe(true);
+
+        const remaining = 6_300 - (Date.now() - started);
+        if (remaining > 0) {
+          await new Promise((r) => setTimeout(r, remaining));
+        }
+        await locker.query("ROLLBACK");
+
+        const res = await reqPromise;
+        expect(res.status).toBe(500);
+        expect(sellerCalls).toHaveLength(0);
+        const inserted = await world.shared.jobInput.findUnique({
+          where: { eventId: `evt-await-${JOB_STANDALONE}` },
+        });
+        expect(inserted).toBeNull();
+      } finally {
+        await locker.query("ROLLBACK").catch(() => {});
+        await locker.end();
+        await world.drop();
       }
     });
 
@@ -1659,7 +1859,7 @@ describe.runIf(enabled && !onSplitLayout)(
       }
     });
 
-    it("proves two-movers race, post-commit readback gates (rename, second move, delete), and ticket 26 deletion interleavings", {
+    it("proves two-movers race, in-transaction readback snapshot races (creator delete, rename, second move, delete), and ticket 26 deletion interleavings", {
       timeout: 120_000,
     }, async () => {
       const raceReport: Record<string, unknown> = {};
@@ -1736,31 +1936,97 @@ describe.runIf(enabled && !onSplitLayout)(
         }
       }
 
-      // 2. Post-commit readback gate: concurrent rename, concurrent second move, concurrent delete
+      // 2. In-transaction readback races: pin origin/main's snapshot answers
+      //    (creator deleted between Job read and relation load, concurrent
+      //    rename on update & no-op move, concurrent second move, concurrent Job delete)
       {
         const world = await buildWorld({ preprodOn: false });
+        const sideDb = new Client({ connectionString: world.database.url });
+        await sideDb.connect();
         try {
-          // 2a. Concurrent rename between COMMIT and readback
-          let renameGateHit = false;
-          postCommitGate.onReadback = async () => {
-            renameGateHit = true;
-            const r = await world.app.request(
-              `https://example.com/v1/jobs/${JOB_STANDALONE}`,
-              {
-                method: "PATCH",
-                headers: {
-                  origin: "https://example.com",
-                  "content-type": "application/json",
-                  ...OWNER_ORG_A,
-                },
-                body: JSON.stringify({
-                  name: "Renamed Between Commit And Readback",
-                }),
-              },
-            );
-            expect(r.status).toBe(200);
+          // 2a. Creator deleted between the Job read and its user-relation load on a no-op move -> 200 with original snapshot
+          let creatorNoopGateHit = false;
+          queryGate.active = {
+            when: "before",
+            match: (text, values) =>
+              text.includes('FROM "public"."user"') &&
+              values.includes(MEMBER_ID),
+            run: async () => {
+              creatorNoopGateHit = true;
+              // On a no-op move, Job is not row-locked, so deleting the creator
+              // commits BEFORE the transaction reads the creator relation; the
+              // Serializable snapshot must still return 200 with the creator.
+              await sideDb.query('DELETE FROM "public"."user" WHERE id = $1', [
+                MEMBER_ID,
+              ]);
+            },
           };
-          const moveWithRename = await world.app.request(
+          const noopCreatorDel = await world.app.request(
+            `https://example.com/v1/jobs/${JOB_SHARE_TARGET}/workspace`,
+            {
+              method: "PUT",
+              headers: {
+                origin: "https://example.com",
+                "content-type": "application/json",
+                ...OWNER_ORG_A,
+              },
+              body: JSON.stringify({ organizationId: ORG_A_ID }),
+            },
+          );
+          expect(creatorNoopGateHit).toBe(true);
+          expect(noopCreatorDel.status).toBe(200);
+          const noopCreatorBody = (await noopCreatorDel.json()) as {
+            data: {
+              creator: { type: string; id: string } | null;
+              workspace: { id: string };
+            };
+          };
+          expect(noopCreatorBody.data.workspace.id).toBe(WS_ORG_A);
+          expect(noopCreatorBody.data.creator).toMatchObject({
+            type: "user",
+            id: MEMBER_ID,
+          });
+          const afterCreatorNoop = await world.shared.job.findUniqueOrThrow({
+            where: { id: JOB_SHARE_TARGET },
+          });
+          expect(afterCreatorNoop.creatorUserId).toBeNull();
+          raceReport.inTxCreatorDeleteNoop = {
+            status: noopCreatorDel.status,
+            creatorId: noopCreatorBody.data.creator?.id ?? null,
+            storedCreatorUserId: afterCreatorNoop.creatorUserId,
+          };
+
+          // Re-seed a fresh creator user for the update-move creator deletion case
+          const tempCreator = "jw-temp-creator";
+          await world.shared.user.create({
+            data: {
+              id: tempCreator,
+              name: tempCreator,
+              email: `${tempCreator}@example.test`,
+              emailVerified: true,
+              termsAccepted: true,
+              createdAt: CLOCK,
+              updatedAt: CLOCK,
+            },
+          });
+          await world.shared.job.update({
+            where: { id: JOB_STANDALONE },
+            data: { creatorUserId: tempCreator },
+          });
+
+          // 2b. Creator deleted concurrently right after COMMIT (or after Job read) on update move -> 200 with original snapshot
+          let creatorUpdateGateHit = false;
+          queryGate.active = {
+            when: "after",
+            match: (text) => /^\s*COMMIT\b/i.test(text),
+            run: async () => {
+              creatorUpdateGateHit = true;
+              await sideDb.query('DELETE FROM "public"."user" WHERE id = $1', [
+                tempCreator,
+              ]);
+            },
+          };
+          const moveCreatorDel = await world.app.request(
             `https://example.com/v1/jobs/${JOB_STANDALONE}/workspace`,
             {
               method: "PUT",
@@ -1772,43 +2038,123 @@ describe.runIf(enabled && !onSplitLayout)(
               body: JSON.stringify({ organizationId: ORG_B_ID }),
             },
           );
+          expect(creatorUpdateGateHit).toBe(true);
+          expect(moveCreatorDel.status).toBe(200);
+          const moveCreatorBody = (await moveCreatorDel.json()) as {
+            data: {
+              creator: { type: string; id: string } | null;
+              workspace: { id: string };
+            };
+          };
+          expect(moveCreatorBody.data.workspace.id).toBe(WS_ORG_B);
+          expect(moveCreatorBody.data.creator).toMatchObject({
+            type: "user",
+            id: tempCreator,
+          });
+          const afterCreatorMove = await world.shared.job.findUniqueOrThrow({
+            where: { id: JOB_STANDALONE },
+          });
+          expect(afterCreatorMove.creatorUserId).toBeNull();
+          expect(afterCreatorMove.workspaceId).toBe(WS_ORG_B);
+          raceReport.inTxCreatorDeleteUpdate = {
+            status: moveCreatorDel.status,
+            creatorId: moveCreatorBody.data.creator?.id ?? null,
+            storedCreatorUserId: afterCreatorMove.creatorUserId,
+          };
+
+          // 2c. Concurrent rename after COMMIT -> 200 with original pre-rename name (matches origin/main)
+          let renameGateHit = false;
+          queryGate.active = {
+            when: "after",
+            match: (text) => /^\s*COMMIT\b/i.test(text),
+            run: async () => {
+              renameGateHit = true;
+              await sideDb.query(
+                'UPDATE "public"."Job" SET name = $1 WHERE id = $2',
+                ["Renamed After Commit", JOB_STANDALONE],
+              );
+            },
+          };
+          const moveWithRename = await world.app.request(
+            `https://example.com/v1/jobs/${JOB_STANDALONE}/workspace`,
+            {
+              method: "PUT",
+              headers: {
+                origin: "https://example.com",
+                "content-type": "application/json",
+                ...OWNER_ORG_A,
+              },
+              body: JSON.stringify({ organizationId: ORG_A_ID }),
+            },
+          );
           expect(renameGateHit).toBe(true);
           expect(moveWithRename.status).toBe(200);
           const renameBody = (await moveWithRename.json()) as {
             data: { name: string; workspace: { id: string } };
           };
-          expect(renameBody.data.workspace.id).toBe(WS_ORG_B);
-          expect(renameBody.data.name).toBe(
-            "Renamed Between Commit And Readback",
-          );
+          expect(renameBody.data.workspace.id).toBe(WS_ORG_A);
+          expect(renameBody.data.name).toBe(`mainnet:${JOB_STANDALONE}`);
           const storedRename = await world.shared.job.findUniqueOrThrow({
             where: { id: JOB_STANDALONE },
           });
-          expect(storedRename.workspaceId).toBe(WS_ORG_B);
-          expect(storedRename.name).toBe("Renamed Between Commit And Readback");
-          raceReport.postCommitRename = {
+          expect(storedRename.workspaceId).toBe(WS_ORG_A);
+          expect(storedRename.name).toBe("Renamed After Commit");
+          raceReport.inTxConcurrentRename = {
             status: moveWithRename.status,
             returnedWorkspaceId: renameBody.data.workspace.id,
             returnedName: renameBody.data.name,
           };
 
-          // 2b. Concurrent second move between COMMIT and readback
-          let secondMoveGateHit = false;
-          postCommitGate.onReadback = async () => {
-            secondMoveGateHit = true;
-            const r = await world.app.request(
-              `https://example.com/v1/jobs/${JOB_WITH_PROJECT}/workspace`,
-              {
-                method: "PUT",
-                headers: {
-                  origin: "https://example.com",
-                  "content-type": "application/json",
-                  ...OWNER_ORG_A,
-                },
-                body: JSON.stringify({ organizationId: null }),
+          // 2d. Concurrent rename during a no-op move -> 200 with original pre-rename name (matches origin/main)
+          let noopRenameGateHit = false;
+          queryGate.active = {
+            when: "before",
+            match: (text, values) =>
+              text.includes('FROM "public"."jobEvent"') &&
+              values.includes(JOB_SHARE_TARGET),
+            run: async () => {
+              noopRenameGateHit = true;
+              await sideDb.query(
+                'UPDATE "public"."Job" SET name = $1 WHERE id = $2',
+                ["Renamed During Noop", JOB_SHARE_TARGET],
+              );
+            },
+          };
+          const noopWithRename = await world.app.request(
+            `https://example.com/v1/jobs/${JOB_SHARE_TARGET}/workspace`,
+            {
+              method: "PUT",
+              headers: {
+                origin: "https://example.com",
+                "content-type": "application/json",
+                ...OWNER_ORG_A,
               },
-            );
-            expect(r.status).toBe(200);
+              body: JSON.stringify({ organizationId: ORG_A_ID }),
+            },
+          );
+          expect(noopRenameGateHit).toBe(true);
+          expect(noopWithRename.status).toBe(200);
+          const noopRenameBody = (await noopWithRename.json()) as {
+            data: { name: string; workspace: { id: string } };
+          };
+          expect(noopRenameBody.data.name).toBe(`mainnet:${JOB_SHARE_TARGET}`);
+          raceReport.inTxNoopConcurrentRename = {
+            status: noopWithRename.status,
+            returnedName: noopRenameBody.data.name,
+          };
+
+          // 2e. Concurrent second move after COMMIT -> 200 with WS_ORG_B (matches origin/main)
+          let secondMoveGateHit = false;
+          queryGate.active = {
+            when: "after",
+            match: (text) => /^\s*COMMIT\b/i.test(text),
+            run: async () => {
+              secondMoveGateHit = true;
+              await sideDb.query(
+                'UPDATE "public"."Job" SET "workspaceId" = $1::uuid WHERE id = $2',
+                [WS_PERSONAL, JOB_WITH_PROJECT],
+              );
+            },
           };
           const moveWithSecondMove = await world.app.request(
             `https://example.com/v1/jobs/${JOB_WITH_PROJECT}/workspace`,
@@ -1827,28 +2173,34 @@ describe.runIf(enabled && !onSplitLayout)(
           const secondMoveBody = (await moveWithSecondMove.json()) as {
             data: { workspace: { id: string } };
           };
-          expect(secondMoveBody.data.workspace.id).toBe(WS_PERSONAL);
+          expect(secondMoveBody.data.workspace.id).toBe(WS_ORG_B);
           const storedSecond = await world.shared.job.findUniqueOrThrow({
             where: { id: JOB_WITH_PROJECT },
           });
           expect(storedSecond.workspaceId).toBe(WS_PERSONAL);
-          raceReport.postCommitSecondMove = {
+          raceReport.inTxConcurrentSecondMove = {
             status: moveWithSecondMove.status,
             returnedWorkspaceId: secondMoveBody.data.workspace.id,
           };
 
-          // 2c. Concurrent Job delete between COMMIT and readback -> 404, 0 error logs, move stayed committed
+          // 2f. Concurrent Job delete after COMMIT -> 200 with snapshot (matches origin/main), Job deleted in DB
           let deleteGateHit = false;
           let workspaceBeforeDelete: string | null = null;
           coreErrors.length = 0;
-          postCommitGate.onReadback = async () => {
-            deleteGateHit = true;
-            const row = await world.shared.job.findUniqueOrThrow({
-              where: { id: JOB_MOVE_PERSONAL },
-              select: { workspaceId: true },
-            });
-            workspaceBeforeDelete = row.workspaceId;
-            await world.shared.job.delete({ where: { id: JOB_MOVE_PERSONAL } });
+          queryGate.active = {
+            when: "after",
+            match: (text) => /^\s*COMMIT\b/i.test(text),
+            run: async () => {
+              deleteGateHit = true;
+              const { rows } = await sideDb.query<{ workspaceId: string }>(
+                'SELECT "workspaceId" FROM "public"."Job" WHERE id = $1',
+                [JOB_MOVE_PERSONAL],
+              );
+              workspaceBeforeDelete = rows[0]?.workspaceId ?? null;
+              await sideDb.query('DELETE FROM "public"."Job" WHERE id = $1', [
+                JOB_MOVE_PERSONAL,
+              ]);
+            },
           };
           const moveWithDelete = await world.app.request(
             `https://example.com/v1/jobs/${JOB_MOVE_PERSONAL}/workspace`,
@@ -1864,22 +2216,26 @@ describe.runIf(enabled && !onSplitLayout)(
           );
           expect(deleteGateHit).toBe(true);
           expect(workspaceBeforeDelete).toBe(WS_ORG_B);
-          expect(moveWithDelete.status).toBe(404);
-          expect(await moveWithDelete.json()).toMatchObject({
-            message: "Job not found",
-          });
+          expect(moveWithDelete.status).toBe(200);
+          const moveDelBody = (await moveWithDelete.json()) as {
+            data: { workspace: { id: string } };
+          };
+          expect(moveDelBody.data.workspace.id).toBe(WS_ORG_B);
           expect(coreErrors).toEqual([]);
           expect(
             await world.shared.job.findUnique({
               where: { id: JOB_MOVE_PERSONAL },
             }),
           ).toBeNull();
-          raceReport.postCommitDelete = {
+          raceReport.inTxConcurrentDelete = {
             status: moveWithDelete.status,
             workspaceCommittedBeforeDelete: workspaceBeforeDelete,
+            returnedWorkspaceId: moveDelBody.data.workspace.id,
             errorLogs: coreErrors.length,
           };
         } finally {
+          queryGate.active = null;
+          await sideDb.end();
           await world.drop();
         }
       }
@@ -2437,6 +2793,19 @@ describe.runIf(enabled && onSplitLayout)(
         world.shared,
         names.DATABASE_SCHEMA_MAINNET,
       );
+      let preprodJobs = (
+        await snapshotSchemaJobs(world.shared, names.DATABASE_SCHEMA_PREPROD)
+      ).jobs;
+      const assertPreprodJobDiff = async (
+        changesById: Record<string, Record<string, unknown>>,
+        label: string,
+      ) => {
+        const after = (
+          await snapshotSchemaJobs(world.shared, names.DATABASE_SCHEMA_PREPROD)
+        ).jobs;
+        expectOnlyJobRowsChanged(preprodJobs, after, changesById, label);
+        preprodJobs = after;
+      };
 
       // 1. PATCH /v1/jobs/:id on Preprod (owner is MEMBER_ID on Preprod, OWNER_ID on Mainnet)
       const wrongOwnerPreprod = await runCase(
@@ -2448,6 +2817,7 @@ describe.runIf(enabled && onSplitLayout)(
         "preprod",
       );
       expect(wrongOwnerPreprod.status).toBe(403);
+      await assertPreprodJobDiff({}, "preprod patch wrong owner");
 
       const patchPreprod = await runCase(
         world,
@@ -2463,6 +2833,12 @@ describe.runIf(enabled && onSplitLayout)(
         name: "Preprod Renamed",
         share: null,
       });
+      await assertPreprodJobDiff(
+        {
+          [JOB_STANDALONE]: { name: "Preprod Renamed", updatedAt: WRITE_CLOCK },
+        },
+        "preprod patch ok",
+      );
 
       // Parked-Task check on Preprod (kills mutation 2)
       const parkedPreprod = await runCase(
@@ -2513,6 +2889,7 @@ describe.runIf(enabled && onSplitLayout)(
       expect(inputPreprod.sellerCalls[0]?.agent.apiBaseUrl).toBe(
         "https://seller.preprod.example.test",
       );
+      await assertPreprodJobDiff({}, "preprod input leaves Job unchanged");
 
       // 3. POST /v1/projects/:id/jobs & DELETE /v1/projects/:id/jobs/:jobId on Preprod
       // Private task owned by OWNER_ID is hidden from MEMBER_ID
@@ -2535,34 +2912,25 @@ describe.runIf(enabled && onSplitLayout)(
         "preprod",
       );
       expect(linkPreprod.status, linkPreprod.body).toBe(200);
+      await assertPreprodJobDiff(
+        { [JOB_STANDALONE]: { projectId: PROJ_A1, updatedAt: WRITE_CLOCK } },
+        "preprod project link",
+      );
 
       const unlinkClock = new Date("2026-11-28T14:00:00.000Z");
-      vi.useFakeTimers({ toFake: ["Date"] });
-      vi.setSystemTime(unlinkClock);
-      let unlinkPreprod: Awaited<ReturnType<typeof runCase>>;
-      try {
-        unlinkPreprod = await runCase(
-          world,
-          "DELETE",
-          `/v1/projects/${PROJ_A1}/jobs/${JOB_STANDALONE}`,
-          PP_MEMBER_ORG_A,
-          undefined,
-          "preprod",
-          { fakeClock: false },
-        );
-      } finally {
-        vi.useRealTimers();
-      }
+      const unlinkPreprod = await runCase(
+        world,
+        "DELETE",
+        `/v1/projects/${PROJ_A1}/jobs/${JOB_STANDALONE}`,
+        PP_MEMBER_ORG_A,
+        undefined,
+        "preprod",
+        { clock: unlinkClock },
+      );
       expect(unlinkPreprod.status, unlinkPreprod.body).toBe(200);
-      const ppUnlinked = await world
-        .createNetworkScope("preprod")
-        .networkDb.job.findUniqueOrThrow({
-          where: { id: JOB_STANDALONE },
-          select: { projectId: true, updatedAt: true },
-        });
-      expect(ppUnlinked.projectId).toBeNull();
-      expect(ppUnlinked.updatedAt.toISOString()).toBe(
-        unlinkClock.toISOString(),
+      await assertPreprodJobDiff(
+        { [JOB_STANDALONE]: { projectId: null, updatedAt: unlinkClock } },
+        "preprod project unlink",
       );
 
       // 4. PUT /v1/jobs/:id/workspace on Preprod — condition (i): ADMIN_ID (org A admin, plain member in org B) moves unowned Preprod Job
@@ -2580,6 +2948,16 @@ describe.runIf(enabled && onSplitLayout)(
         workspace: { id: WS_ORG_B },
         share: null,
       });
+      await assertPreprodJobDiff(
+        {
+          [JOB_NO_OWNER_MOVE]: {
+            workspaceId: WS_ORG_B,
+            projectId: null,
+            updatedAt: WRITE_CLOCK,
+          },
+        },
+        "preprod move unowned job",
+      );
 
       // Mainnet schema is 100% UNTOUCHED after every single Preprod write!
       const mainnetAfterPreprod = await snapshotSchemaJobs(
@@ -2671,6 +3049,11 @@ describe.runIf(enabled && onSplitLayout)(
       expect(ppAfterRollback.workspaceId).toBe(WS_ORG_A);
 
       // Now run the atomic move for real — BOTH Mainnet and Preprod Jobs move (kills mutation 4)
+      const names = testSchemaNames();
+      const [mnJobsBefore, ppJobsBefore] = await Promise.all([
+        snapshotSchemaJobs(world.shared, names.DATABASE_SCHEMA_MAINNET),
+        snapshotSchemaJobs(world.shared, names.DATABASE_SCHEMA_PREPROD),
+      ]);
       const moveClock = new Date("2026-11-28T15:00:00.000Z");
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(moveClock);
@@ -2686,18 +3069,36 @@ describe.runIf(enabled && onSplitLayout)(
         vi.useRealTimers();
       }
 
-      const [taskAfterOk, mnAfterOk, ppAfterOk] = await Promise.all([
+      const [taskAfterOk, mnJobsAfter, ppJobsAfter] = await Promise.all([
         world.shared.task.findUniqueOrThrow({ where: { id: TASK_MOVABLE } }),
-        mainnetDb.job.findUniqueOrThrow({ where: { id: JOB_MOVABLE_TASK } }),
-        preprodDb.job.findUniqueOrThrow({ where: { id: JOB_MOVABLE_TASK } }),
+        snapshotSchemaJobs(world.shared, names.DATABASE_SCHEMA_MAINNET),
+        snapshotSchemaJobs(world.shared, names.DATABASE_SCHEMA_PREPROD),
       ]);
       expect(taskAfterOk.workspaceId).toBe(WS_ORG_B);
-      expect(mnAfterOk.workspaceId).toBe(WS_ORG_B);
-      expect(mnAfterOk.projectId).toBeNull();
-      expect(mnAfterOk.updatedAt.toISOString()).toBe(moveClock.toISOString());
-      expect(ppAfterOk.workspaceId).toBe(WS_ORG_B);
-      expect(ppAfterOk.projectId).toBeNull();
-      expect(ppAfterOk.updatedAt.toISOString()).toBe(moveClock.toISOString());
+      expectOnlyJobRowsChanged(
+        mnJobsBefore.jobs,
+        mnJobsAfter.jobs,
+        {
+          [JOB_MOVABLE_TASK]: {
+            workspaceId: WS_ORG_B,
+            projectId: null,
+            updatedAt: moveClock,
+          },
+        },
+        "split moveTaskJobs mainnet",
+      );
+      expectOnlyJobRowsChanged(
+        ppJobsBefore.jobs,
+        ppJobsAfter.jobs,
+        {
+          [JOB_MOVABLE_TASK]: {
+            workspaceId: WS_ORG_B,
+            projectId: null,
+            updatedAt: moveClock,
+          },
+        },
+        "split moveTaskJobs preprod",
+      );
     });
 
     it("refuses a caller without Preprod access on all 5 Job writes with zero Network table locks", {
@@ -2755,6 +3156,312 @@ describe.runIf(enabled && onSplitLayout)(
       });
       expect(stillIntact?.token).toBe("mainnet-share-intact-token");
       expect(stillIntact?.allowSearchIndexing).toBe(true);
+    });
+
+    it("reads full Job details inside the Serializable tx on split layout (update & no-op, PAID relations, creator delete snapshot)", {
+      timeout: 60_000,
+    }, async () => {
+      const splitWorld = await buildWorld({ preprodOn: true });
+      const sideDb = new Client({ connectionString: splitWorld.database.url });
+      await sideDb.connect();
+      try {
+        const mnDb = splitWorld.createNetworkScope("mainnet").networkDb;
+        const paidJobId = "jw-split-paid-rich";
+        await mnDb.agentMetadataOverride.create({
+          data: {
+            id: "jw-override-1",
+            agentId: AGENT_ID,
+            name: "Overridden Agent",
+            apiBaseUrl: "https://override.mainnet.example.test",
+            createdAt: CLOCK,
+            updatedAt: CLOCK,
+          },
+        });
+        await mnDb.transaction.create({
+          data: {
+            id: "jw-tx-paid-1",
+            amount: -50_000_000_000n,
+            userId: OWNER_ID,
+            organizationId: ORG_A_ID,
+            createdAt: CLOCK,
+            updatedAt: CLOCK,
+          },
+        });
+        await mnDb.job.create({
+          data: {
+            id: paidJobId,
+            ownerId: OWNER_ID,
+            creatorUserId: MEMBER_ID,
+            organizationId: ORG_A_ID,
+            workspaceId: WS_ORG_A,
+            agentId: AGENT_ID,
+            agentJobId: "paid-seller-1",
+            agentApiBaseUrl: "https://seller.mainnet.example.test",
+            agentBlockchainIdentifier: "chain-mainnet",
+            jobType: "PAID",
+            blockchainIdentifier: "bc-split-paid-1",
+            identifierFromPurchaser: "purch-1",
+            payByTime: CLOCK,
+            submitResultTime: CLOCK,
+            unlockTime: CLOCK,
+            externalDisputeUnlockTime: CLOCK,
+            sellerVkey: "vkey-1",
+            transactionId: "jw-tx-paid-1",
+            name: "Split Paid Job",
+            createdAt: CLOCK,
+            updatedAt: CLOCK,
+            purchase: {
+              create: {
+                id: "jw-purch-1",
+                externalId: "ext-purch-1",
+                onChainStatus: "FUNDS_LOCKED",
+                onChainTransactionHash: "0xabc",
+                resultHash: "res-hash-1",
+                createdAt: CLOCK,
+                updatedAt: CLOCK,
+              },
+            },
+            events: {
+              create: {
+                id: "jw-evt-rich-1",
+                status: "COMPLETED",
+                result: "# Done",
+                inputSchema: '{"input_data":[]}',
+                createdAt: CLOCK,
+                updatedAt: CLOCK,
+                input: {
+                  create: {
+                    id: "jw-inp-rich-1",
+                    input: '{"a":1}',
+                    inputHash: "ih-1",
+                    signature: "sig-1",
+                    createdAt: CLOCK,
+                    updatedAt: CLOCK,
+                  },
+                },
+                blobs: {
+                  create: {
+                    id: "jw-blob-1",
+                    sourceUrl: "https://files.example.test/a.txt",
+                    fileUrl: "https://cdn.example.test/a.txt",
+                    name: "a.txt",
+                    mimeType: "text/plain",
+                    size: 1234n,
+                    status: "READY",
+                    createdAt: CLOCK,
+                    updatedAt: CLOCK,
+                  },
+                },
+                links: {
+                  create: {
+                    id: "jw-link-1",
+                    url: "https://links.example.test/1",
+                    title: "Result Link",
+                    createdAt: CLOCK,
+                    updatedAt: CLOCK,
+                  },
+                },
+              },
+            },
+          },
+        });
+        await splitWorld.shared.publicShare.create({
+          data: {
+            id: "jw-share-rich-1",
+            jobId: paidJobId,
+            token: "rich-share-tok",
+            allowSearchIndexing: true,
+            createdAt: CLOCK,
+            updatedAt: CLOCK,
+          },
+        });
+
+        // No-op move on split layout with concurrent creator deletion inside the tx!
+        let splitCreatorGateHit = false;
+        queryGate.active = {
+          when: "before",
+          match: (text, values) =>
+            text.includes('FROM "shared"."user"') && values.includes(MEMBER_ID),
+          run: async () => {
+            splitCreatorGateHit = true;
+            await sideDb.query('DELETE FROM "shared"."user" WHERE id = $1', [
+              MEMBER_ID,
+            ]);
+          },
+        };
+        const noopRes = await runCase(
+          splitWorld,
+          "PUT",
+          `/v1/jobs/${paidJobId}/workspace`,
+          OWNER_ORG_A,
+          { organizationId: ORG_A_ID },
+          "mainnet",
+        );
+        expect(splitCreatorGateHit).toBe(true);
+        expect(noopRes.status, noopRes.body).toBe(200);
+        const noopBody = JSON.parse(noopRes.body).data;
+        expect(noopBody).toMatchObject({
+          id: paidJobId,
+          credits: 5,
+          onChainStatus: "FUNDS_LOCKED",
+          onChainTransactionHash: "0xabc",
+          result: "# Done",
+          resultHash: "res-hash-1",
+          creator: { type: "user", id: MEMBER_ID },
+          agent: { id: AGENT_ID, overrideName: "Overridden Agent" },
+          share: { token: "rich-share-tok", allowSearchIndexing: true },
+          workspace: { id: WS_ORG_A },
+        });
+        expect(noopBody.events[0].blobs[0]).toMatchObject({
+          id: "jw-blob-1",
+          size: 1234,
+          jobId: paidJobId,
+        });
+        expect(noopBody.events[0].links[0]).toMatchObject({
+          id: "jw-link-1",
+          url: "https://links.example.test/1",
+          jobId: paidJobId,
+        });
+
+        // Update move on split layout: whole-row diff + single-connection Serializable tx + concurrent rename after COMMIT
+        const names = testSchemaNames();
+        const beforeMove = (
+          await snapshotSchemaJobs(
+            splitWorld.shared,
+            names.DATABASE_SCHEMA_MAINNET,
+          )
+        ).jobs;
+        let splitRenameHit = false;
+        queryGate.active = {
+          when: "after",
+          match: (text) => /^\s*COMMIT\b/i.test(text),
+          run: async () => {
+            splitRenameHit = true;
+            await sideDb.query(
+              `UPDATE "${names.DATABASE_SCHEMA_MAINNET}"."Job" SET name = $1 WHERE id = $2`,
+              ["Split Renamed After Commit", paidJobId],
+            );
+          },
+        };
+        const moveRes = await runCase(
+          splitWorld,
+          "PUT",
+          `/v1/jobs/${paidJobId}/workspace`,
+          OWNER_ORG_A,
+          { organizationId: ORG_B_ID },
+          "mainnet",
+        );
+        expect(splitRenameHit).toBe(true);
+        expect(moveRes.status, moveRes.body).toBe(200);
+        const moveBody = JSON.parse(moveRes.body).data;
+        expect(moveBody.workspace.id).toBe(WS_ORG_B);
+        expect(moveBody.name).toBe("Split Paid Job");
+        const afterMove = (
+          await snapshotSchemaJobs(
+            splitWorld.shared,
+            names.DATABASE_SCHEMA_MAINNET,
+          )
+        ).jobs;
+        expectOnlyJobRowsChanged(
+          beforeMove,
+          afterMove,
+          {
+            [paidJobId]: {
+              workspaceId: WS_ORG_B,
+              projectId: null,
+              updatedAt: WRITE_CLOCK,
+              name: "Split Renamed After Commit",
+            },
+          },
+          "split move rich paid job",
+        );
+      } finally {
+        queryGate.active = null;
+        await sideDb.end();
+        await splitWorld.drop();
+      }
+    });
+
+    it("times out POST /v1/jobs/:id/inputs on split layout with 500, 0 seller calls, and 0 inputs when jobEvent is held for 6.3s", {
+      timeout: 30_000,
+    }, async () => {
+      expectCoreLog(
+        "warn",
+        "Kept a transient external failure out of Sentry",
+        1,
+      );
+      const splitWorld = await buildWorld({ preprodOn: true });
+      const names = testSchemaNames();
+      const locker = new Client({ connectionString: splitWorld.database.url });
+      await locker.connect();
+      try {
+        await locker.query("BEGIN");
+        await locker.query(
+          `LOCK TABLE "${names.DATABASE_SCHEMA_PREPROD}"."jobEvent" IN ACCESS EXCLUSIVE MODE`,
+        );
+
+        sellerCalls.length = 0;
+        const started = Date.now();
+        const reqPromise = splitWorld.app.request(
+          `https://example.com/v1/jobs/${JOB_STANDALONE}/inputs`,
+          {
+            method: "POST",
+            headers: {
+              origin: "https://example.com",
+              "content-type": "application/json",
+              "X-Sokosumi-Network": "preprod",
+              ...PP_MEMBER_ORG_A,
+            },
+            body: JSON.stringify({
+              eventId: `evt-await-${JOB_STANDALONE}`,
+              inputData: { answer: "delayed-pp" },
+            }),
+          },
+        );
+
+        let observedWaiting = false;
+        const observer = new Client({
+          connectionString: splitWorld.database.url,
+        });
+        await observer.connect();
+        try {
+          for (let i = 0; i < 60; i++) {
+            const { rowCount } = await observer.query(
+              `SELECT pid FROM pg_stat_activity
+               WHERE datname = current_database()
+                 AND cardinality(pg_blocking_pids(pid)) > 0`,
+            );
+            if (rowCount && rowCount > 0) {
+              observedWaiting = true;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 25));
+          }
+        } finally {
+          await observer.end();
+        }
+        expect(observedWaiting).toBe(true);
+
+        const remaining = 6_300 - (Date.now() - started);
+        if (remaining > 0) {
+          await new Promise((r) => setTimeout(r, remaining));
+        }
+        await locker.query("ROLLBACK");
+
+        const res = await reqPromise;
+        expect(res.status).toBe(500);
+        expect(sellerCalls).toHaveLength(0);
+        const inserted = await splitWorld
+          .createNetworkScope("preprod")
+          .networkDb.jobInput.findUnique({
+            where: { eventId: `evt-await-${JOB_STANDALONE}` },
+          });
+        expect(inserted).toBeNull();
+      } finally {
+        await locker.query("ROLLBACK").catch(() => {});
+        await locker.end();
+        await splitWorld.drop();
+      }
     });
   },
 );

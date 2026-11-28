@@ -277,11 +277,7 @@ describe("POST /jobs/{id}/refund", () => {
             findUnique: jobFindUniqueMock,
           },
           workspace: { findUnique: workspaceFindUniqueMock },
-          $queryRaw: async () => {
-            const record = await jobFindFirstMock();
-            return record ? [record] : [];
-          },
-        } as never);
+        });
       },
     );
   });

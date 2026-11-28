@@ -16,6 +16,7 @@ import {
   type NetworkScope,
   networkUsesSharedSchema,
   type SharedDb,
+  sharedTxAsNetworkDb,
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
@@ -143,21 +144,23 @@ export async function requireJobOwnership(
   scope: NetworkScope,
   sharedTx?: SharedDb,
 ): Promise<Job> {
-  const job = sharedTx
-    ? (
-        await sharedTx.$queryRaw<Job[]>`
-          SELECT *
-          FROM ${scope.networkTable("Job")}
-          WHERE "id" = ${jobId} AND "ownerId" = ${userContext.userId}
-          LIMIT 1
-        `
-      )[0]
-    : await scope.networkDb.job.findFirst({
-        where: {
-          id: jobId,
-          ownerId: userContext.userId,
-        },
-      });
+  const txNetworkDb = sharedTx ? sharedTxAsNetworkDb(scope, sharedTx) : null;
+  const job =
+    sharedTx && !txNetworkDb
+      ? (
+          await sharedTx.$queryRaw<Job[]>`
+            SELECT *
+            FROM ${scope.networkTable("Job")}
+            WHERE "id" = ${jobId} AND "ownerId" = ${userContext.userId}
+            LIMIT 1
+          `
+        )[0]
+      : await (txNetworkDb ?? scope.networkDb).job.findFirst({
+          where: {
+            id: jobId,
+            ownerId: userContext.userId,
+          },
+        });
 
   if (!job) {
     throw forbidden("You can only access your own jobs");
@@ -1343,16 +1346,20 @@ export async function requireJobCollaboration(
 
   if (isUserAuthContext(authContext)) {
     const userContext = requireUserContext(authContext);
-    const job = sharedTx
-      ? (
-          await sharedTx.$queryRaw<Job[]>`
-            SELECT *
-            FROM ${scope.networkTable("Job")}
-            WHERE "id" = ${jobId}
-            LIMIT 1
-          `
-        )[0]
-      : await scope.networkDb.job.findFirst({ where: { id: jobId } });
+    const txNetworkDb = sharedTx ? sharedTxAsNetworkDb(scope, sharedTx) : null;
+    const job =
+      sharedTx && !txNetworkDb
+        ? (
+            await sharedTx.$queryRaw<Job[]>`
+              SELECT *
+              FROM ${scope.networkTable("Job")}
+              WHERE "id" = ${jobId}
+              LIMIT 1
+            `
+          )[0]
+        : await (txNetworkDb ?? scope.networkDb).job.findFirst({
+            where: { id: jobId },
+          });
     if (!job || isOwnedBySomeoneElse(job, userContext.userId)) {
       throw forbidden("You can only access your own jobs");
     }
@@ -1367,19 +1374,21 @@ export async function requireJobCollaboration(
   }
 
   if (isPersonalSokoBotAuthContext(authContext)) {
-    const job = sharedTx
-      ? (
-          await sharedTx.$queryRaw<Job[]>`
-            SELECT *
-            FROM ${scope.networkTable("Job")}
-            WHERE "id" = ${jobId}
-              AND "workspaceId" = ${authContext.workspaceId}::uuid
-            LIMIT 1
-          `
-        )[0]
-      : await scope.networkDb.job.findFirst({
-          where: { id: jobId, workspaceId: authContext.workspaceId },
-        });
+    const txNetworkDb = sharedTx ? sharedTxAsNetworkDb(scope, sharedTx) : null;
+    const job =
+      sharedTx && !txNetworkDb
+        ? (
+            await sharedTx.$queryRaw<Job[]>`
+              SELECT *
+              FROM ${scope.networkTable("Job")}
+              WHERE "id" = ${jobId}
+                AND "workspaceId" = ${authContext.workspaceId}::uuid
+              LIMIT 1
+            `
+          )[0]
+        : await (txNetworkDb ?? scope.networkDb).job.findFirst({
+            where: { id: jobId, workspaceId: authContext.workspaceId },
+          });
     if (!job) {
       throw notFound("Job not found");
     }
