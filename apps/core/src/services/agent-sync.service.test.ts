@@ -102,20 +102,8 @@ vi.mock("@/config/env", () => ({
   }),
 }));
 
-vi.mock("@/clients/masumi-registry.client", () => ({
-  registryClient: {
-    getAgentsDiff: getAgentsDiffMock,
-  },
-}));
-
-vi.mock("@/clients/openrouter.client", () => ({
-  openrouterClient: {
-    generateAgentSummary: openrouterGenerateAgentSummaryMock,
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     tag: {
       upsert: tagUpsertMock,
     },
@@ -156,12 +144,26 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: transactionMock,
     $executeRaw: executeRawMock,
     $queryRaw: queryRawMock,
-  },
-}));
+  };
+  return { default: client, networkPrisma: () => client };
+});
 
 async function getAgentSyncService() {
   const module = await import("./agent-sync.service");
-  return module.agentSyncService;
+  const scope = testNetworkScope();
+  return {
+    ...module.agentSyncService,
+    syncRegistryAgents: module.agentSyncService.syncRegistryAgents.bind(
+      null,
+      scope,
+      { getAgentsDiff: getAgentsDiffMock },
+    ),
+    syncAgentSummaries: module.agentSyncService.syncAgentSummaries.bind(
+      null,
+      scope,
+      { generateAgentSummary: openrouterGenerateAgentSummaryMock },
+    ),
+  };
 }
 
 const AGENTS_SYNC_METADATA_KEY = "agents-sync-metadata";
@@ -399,6 +401,32 @@ describe("agentSyncService.syncRegistryAgents", () => {
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback(createTransactionClientMock()),
     );
+  });
+
+  it("waits for the readiness answer before sending the rate read", async () => {
+    const service = await getAgentSyncService();
+    const sent = Promise.withResolvers<void>();
+    const reply = Promise.withResolvers<null>();
+    syncMetadataFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockImplementationOnce(() => {
+        sent.resolve();
+        return reply.promise;
+      });
+    getAgentsDiffMock.mockResolvedValue(ok([]));
+    const run = service.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+    try {
+      await sent.promise;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(creditCostFindManyMock).not.toHaveBeenCalled();
+    } finally {
+      reply.resolve(null);
+      await run;
+    }
+    expect(creditCostFindManyMock).toHaveBeenCalledOnce();
   });
 
   it("does not update metadata when diff has no entries", async () => {
@@ -2493,7 +2521,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     expect(agentCreateMock).not.toHaveBeenCalled();
-    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(transactionMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Function),
+      { timeout: 20_000 },
+    );
 
     // Pricing is replaced in place: old fixed pricing rows are removed and the
     // new fixed pricing is attached to the same AgentPricing row.

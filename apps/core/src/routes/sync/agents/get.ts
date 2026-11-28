@@ -1,7 +1,9 @@
 import * as Sentry from "@sentry/node";
 import type { Hono } from "hono";
 import { paymentClient } from "@/clients/masumi-payment.client";
+import { registryClient } from "@/clients/masumi-registry.client";
 import { logCoreWarning } from "@/lib/evlog";
+import { networkKey } from "@/lib/network";
 import { agentSyncService } from "@/services/agent-sync.service";
 // Imported from the module directly, not through agentSyncService: the
 // service file sits at the size ceiling and the x402 readiness sync has no
@@ -10,7 +12,8 @@ import { syncX402BuySideReadiness } from "@/services/agent-sync.x402-readiness";
 
 import { handleSyncRequest } from "../handler.js";
 
-const AGENTS_SYNC_LOCK_KEY = "agents-sync";
+const network = "mainnet";
+const AGENTS_SYNC_LOCK_KEY = networkKey(network, "agents-sync");
 // Projection versions use distinct cursor keys so old and new binaries cannot
 // advance each other's cursors during a rolling deployment. Bump the suffix
 // whenever already-synced registry rows require a full replay.
@@ -104,13 +107,20 @@ export default function mount(app: Hono) {
             tags: { x402_readiness: "sync_threw" },
           });
         }
-        await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
-          abortSignal: context.abortSignal,
-          shouldContinue: context.shouldContinue,
-          ...(readinessChanged || replayRequested ? { resetCursor: true } : {}),
-        });
+        await agentSyncService.syncRegistryAgents(
+          context.scope,
+          registryClient,
+          AGENTS_SYNC_METADATA_KEY,
+          {
+            abortSignal: context.abortSignal,
+            shouldContinue: context.shouldContinue,
+            ...(readinessChanged || replayRequested
+              ? { resetCursor: true }
+              : {}),
+          },
+        );
       },
-      { network: "mainnet", errorDetail: "safe-fields" },
+      { network, errorDetail: "safe-fields" },
     );
   });
 }
