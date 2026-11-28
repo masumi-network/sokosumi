@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Checkbox as CheckboxPrimitive } from "radix-ui"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon, MinusIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -14,7 +14,7 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer border-input dark:bg-quinary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive size-4 shrink-0 rounded-sm border transition-[background-color,transform] duration-150 ease-out press outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        "group peer border-input dark:bg-quinary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:data-[state=checked]:bg-primary data-[state=checked]:border-foreground data-[state=indeterminate]:bg-primary dark:data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground data-[state=indeterminate]:border-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive size-4 shrink-0 rounded-sm border transition-[background-color,transform] duration-150 ease-out press outline-none disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -23,7 +23,8 @@ function Checkbox({
         data-slot="checkbox-indicator"
         className="flex items-center justify-center text-current motion-safe:animate-in motion-safe:zoom-in-50 fade-in-0 duration-150"
       >
-        <CheckIcon className="size-3.5" />
+        <CheckIcon className="size-3.5 group-data-[state=indeterminate]:hidden" />
+        <MinusIcon className="hidden size-3.5 group-data-[state=indeterminate]:block" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )

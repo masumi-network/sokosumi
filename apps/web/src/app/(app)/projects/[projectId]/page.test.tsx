@@ -119,6 +119,14 @@ vi.mock("@/app/projects/components/project-close-status", () => ({
   ),
 }));
 
+vi.mock("@/app/projects/components/project-results-download", () => ({
+  ProjectResultsDownload: ({ projectName }: { projectName: string }) => (
+    <button type="button" data-testid="project-results-download">
+      {projectName}
+    </button>
+  ),
+}));
+
 vi.mock("@/app/projects/organization-brand-name", () => ({
   organizationBrandName: async () => null,
 }));
@@ -335,7 +343,7 @@ describe("ProjectDetailPage", () => {
     // The strip opens the column; the panels follow it in the DOM, so a
     // phone reaches the content first.
     const strip = screen.getByTestId("project-status-strip");
-    expect(column?.firstElementChild).toBe(strip);
+    expect(column?.firstElementChild?.contains(strip)).toBe(true);
     expect(
       screen
         .getByTestId("brand-card")
@@ -495,6 +503,30 @@ describe("ProjectDetailPage", () => {
       );
     }
     expect(screen.queryByTestId("project-status-open")).toBeNull();
+    expect(screen.getByTestId("project-results-download")).toHaveTextContent(
+      "Launch plan",
+    );
+  });
+
+  it("offers the results download only once a Task has finished", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+    projectServiceMock.getProjectsStats.mockResolvedValue(
+      // Done on the board, but failed and canceled Tasks have no result.
+      stats([
+        { status: "FAILED", count: 2 },
+        { status: "CANCELED", count: 1 },
+      ]),
+    );
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(screen.getByTestId("project-status-done")).toHaveTextContent("3");
+    expect(screen.queryByTestId("project-results-download")).toBeNull();
   });
 
   it("leaves the strip out when the counts fail to load", async () => {

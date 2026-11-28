@@ -416,6 +416,36 @@ describe("task.service", () => {
     expect(result).toBeNull();
   });
 
+  it("reads a Task strictly: gone or hidden is null, any other failure throws", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.request");
+    const { taskService } = await import("./task.service");
+
+    coreClientMock.getTaskById.mockRejectedValueOnce(
+      new CoreApiRequestError("Not found", { status: 404 }),
+    );
+    expect(await taskService.getReadableTask("task-gone")).toBeNull();
+
+    coreClientMock.getTaskById.mockRejectedValueOnce(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+    expect(await taskService.getReadableTask("task-hidden")).toBeNull();
+
+    const outage = new CoreApiRequestError("Bad gateway", { status: 502 });
+    coreClientMock.getTaskById.mockRejectedValueOnce(outage);
+    await expect(taskService.getReadableTask("task-1")).rejects.toBe(outage);
+  });
+
+  it("asks Core for subtasks too when the caller wants them", async () => {
+    coreClientMock.getTasks.mockResolvedValue({ data: [], meta: {} });
+    const { taskService } = await import("./task.service");
+
+    await taskService.listTasks({ projectId: "p", includeSubtasks: true });
+
+    expect(coreClientMock.getTasks).toHaveBeenCalledWith(
+      expect.objectContaining({ includeSubtasks: "true" }),
+    );
+  });
+
   it("creates, updates, and deletes tasks via core client methods", async () => {
     const task = buildTask();
     coreClientMock.createTask.mockResolvedValue({ data: task });

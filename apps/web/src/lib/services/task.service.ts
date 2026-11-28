@@ -22,6 +22,7 @@ import type {
 } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
@@ -50,6 +51,8 @@ interface ListTasksParams {
   parentTaskId?: string;
   /** Only Tasks with a mention of the caller that the caller has not answered. */
   unansweredMention?: boolean;
+  /** Subtasks too; without it Core lists top-level Tasks only. */
+  includeSubtasks?: boolean;
 }
 
 interface CreateTaskInput {
@@ -184,6 +187,7 @@ export const taskService = (() => {
       ...(params.unansweredMention
         ? { unansweredMention: "true" as const }
         : {}),
+      ...(params.includeSubtasks ? { includeSubtasks: "true" as const } : {}),
       q: params.q,
       search: params.search,
       scope: params.scope,
@@ -224,6 +228,23 @@ export const taskService = (() => {
       return result.data;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * The Task, or null when it is gone or the reader may not see it. Any other
+   * failure throws, so a caller can tell an outage from a missing Task.
+   */
+  async function getReadableTask(taskId: string): Promise<Task | null> {
+    try {
+      return (await coreClient.getTaskById(taskId)).data;
+    } catch (error) {
+      if (
+        error instanceof CoreApiRequestError &&
+        (error.status === 403 || error.status === 404)
+      )
+        return null;
+      throw error;
     }
   }
 
@@ -531,6 +552,7 @@ export const taskService = (() => {
     getWorkspaceCalendarSources,
     listTasks,
     getTaskById,
+    getReadableTask,
     getArchivedTask,
     getTaskWorkspace,
     listTaskEvents,
