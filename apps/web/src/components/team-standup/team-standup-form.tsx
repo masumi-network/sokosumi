@@ -2,15 +2,23 @@
 
 import type { TeamStandup } from "@sokosumi/core-client";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { saveTeamStandup } from "@/lib/actions/team-standup/action";
+import { getTimezoneOptions } from "@/lib/schedules/timezones";
 import { MyWeekSwitch } from "./my-week-switch";
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -38,6 +46,7 @@ export function TeamStandupForm({
   const [timezone, setTimezone] = useState(initial.timezone);
   const [weekDay, setWeekDay] = useState(String(initial.weekInReviewWeekday));
   const [pending, startTransition] = useTransition();
+  const zones = useMemo(() => getTimezoneOptions(timezone), [timezone]);
   const changed =
     enabled !== saved.enabled ||
     timeOfDay !== saved.timeOfDay ||
@@ -107,9 +116,9 @@ export function TeamStandupForm({
               </Label>
               <Input
                 id={`standup-time-${organizationId}`}
+                type="time"
+                required
                 value={timeOfDay}
-                inputMode="numeric"
-                placeholder="09:00"
                 disabled={!canEdit || pending}
                 onChange={(event) => setTimeOfDay(event.target.value)}
               />
@@ -118,13 +127,25 @@ export function TeamStandupForm({
               <Label htmlFor={`standup-zone-${organizationId}`}>
                 {t("timezoneLabel")}
               </Label>
-              <Input
-                id={`standup-zone-${organizationId}`}
+              <Select
                 value={timezone}
-                placeholder="Europe/Berlin"
                 disabled={!canEdit || pending}
-                onChange={(event) => setTimezone(event.target.value)}
-              />
+                onValueChange={setTimezone}
+              >
+                <SelectTrigger
+                  id={`standup-zone-${organizationId}`}
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {zones.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {zone.replaceAll("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-2">

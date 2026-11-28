@@ -94,8 +94,11 @@ export function OrganizationInviteLinkList({
           <TableHead>{t("columnStatus")}</TableHead>
           <TableHead>{t("columnUses")}</TableHead>
           <TableHead>{t("columnExpires")}</TableHead>
-          <TableHead>{t("columnCreated")}</TableHead>
-          <TableHead className="text-right">{t("columnActions")}</TableHead>
+          <TableHead className="max-lg:hidden">{t("columnCreated")}</TableHead>
+          {/* Pinned so Copy and Revoke stay on screen while the row scrolls on narrow cards. */}
+          <TableHead className="bg-card sticky right-0 text-right [tr:hover_&]:bg-accent">
+            {t("columnActions")}
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -185,10 +188,10 @@ function InviteLinkRow({
       <TableCell>
         {formatter.dateTime(link.expiresAt, "dateTimeMedium")}
       </TableCell>
-      <TableCell>
+      <TableCell className="max-lg:hidden">
         {formatter.dateTime(link.createdAt, "dateTimeMedium")}
       </TableCell>
-      <TableCell>
+      <TableCell className="bg-card sticky right-0 [tr:hover_&]:bg-accent">
         <div className="flex items-center justify-end gap-1">
           <Button
             type="button"
