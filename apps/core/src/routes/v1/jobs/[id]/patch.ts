@@ -3,10 +3,8 @@ import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
-import {
-  hydrateJobDetail,
-  jobDetailNetworkInclude,
-} from "@/helpers/job-detail";
+import { notFound } from "@/helpers/error";
+import { readJobDetailsOnSplitTx } from "@/helpers/job-detail";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { networkUsesSharedSchema } from "@/lib/db/network-scope";
@@ -67,14 +65,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: { name },
           include: jobInclude,
         })
-      : await hydrateJobDetail(
-          networkScope,
-          await networkDb.job.update({
-            where: { id },
-            data: { name },
-            include: jobDetailNetworkInclude,
-          }),
-        );
+      : await networkScope.sharedTransactionOnce(async (tx) => {
+          const updatedAt = new Date();
+          const updated = await tx.$executeRaw`
+            UPDATE ${networkScope.networkTable("Job")}
+            SET "name" = ${name},
+                "updatedAt" = ${updatedAt}
+            WHERE "id" = ${id}
+          `;
+          if (updated === 0) {
+            throw notFound("Job not found");
+          }
+          const updatedJob = await readJobDetailsOnSplitTx(
+            tx,
+            networkScope,
+            id,
+          );
+          if (!updatedJob) {
+            throw notFound("Job not found");
+          }
+          return updatedJob;
+        });
 
     return ok(c, jobSchema.parse(serializeJobDetails(mapJobWithStatus(job))));
   });

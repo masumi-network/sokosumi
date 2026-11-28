@@ -42,6 +42,7 @@ import {
   holdCommit,
   inFlow,
   nextMillisecond,
+  observePool,
   observing,
 } from "@/test/spend-comparison";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
@@ -79,7 +80,6 @@ const coreErrors = vi.hoisted(() => [] as unknown[]);
 vi.unmock("@/lib/db/prisma");
 vi.mock("@vercel/functions", async (load) => {
   const actual = await load<typeof import("@vercel/functions")>();
-  const { observePool } = await import("@/test/spend-comparison");
   return {
     ...actual,
     attachDatabasePool: (pool: Pool) => {
@@ -265,16 +265,131 @@ const CW_NOCAP_HDR = {
 const CW_BARE_HDR = auth(`coworker_${CW_ASSIGNED}`);
 const BOT_HDR = auth("sokoBot_jw_personal");
 
-function normalizeForDigest(value: unknown): string {
-  return JSON.stringify(value)
-    .replace(/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?/g, "<TS>")
-    .replace(
-      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-      (m) => (m.startsWith("25300000-") ? m : "<UUID>"),
-    )
-    .replace(/\\"token\\":\\"[^\\"]+\\"/g, '\\"token\\":\\"<TOKEN>\\"')
-    .replace(/\\"id\\":\\"[a-z0-9]{20,}\\"/g, '\\"id\\":\\"<ID>\\"')
-    .replace(/"c[a-z0-9]{20,}"/g, '"<CUID>"');
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function formatPgTimestampUtc(date: Date): string {
+  const iso = date.toISOString();
+  const frac = iso.slice(19, 23) === ".000" ? "" : iso.slice(19, 23);
+  return `${iso.slice(0, 10)} ${iso.slice(11, 19)}${frac}`;
+}
+
+/**
+ * Replaces ONLY the explicitly verified generated identities (UUIDv7/UUIDv4
+ * IDs and share tokens minted during the pass). Fixed-clock timestamps, other
+ * UUIDs, and every other bind/row/body value are compared literally.
+ */
+function mapGeneratedIdentities(
+  value: unknown,
+  replacements: ReadonlyMap<string, string>,
+): string {
+  let serialized = JSON.stringify(value, (_key, v) =>
+    typeof v === "bigint" ? v.toString() : v,
+  );
+  for (const [actual, placeholder] of replacements) {
+    serialized = serialized.replaceAll(actual, placeholder);
+  }
+  return serialized;
+}
+
+function assertJobInputWrite(params: {
+  label: string;
+  schema: string;
+  res: {
+    status: number;
+    body: string;
+    statements: { text: string; values: unknown[] }[];
+  };
+  expectedEventId: string;
+  expectedInputData: Record<string, unknown>;
+  expectedClock: Date;
+  storedRows: Record<string, unknown>[];
+}): string {
+  const {
+    label,
+    schema,
+    res,
+    expectedEventId,
+    expectedInputData,
+    expectedClock,
+    storedRows,
+  } = params;
+  expect(res.status, `${label}: ${res.body}`).toBe(201);
+  const created = (
+    JSON.parse(res.body) as {
+      data: {
+        id: string;
+        input: string;
+        inputHash: string | null;
+        signature: string | null;
+      };
+    }
+  ).data;
+  expect(created.id, `${label} generated id`).toMatch(UUID_RE);
+
+  const expectedPgTs = formatPgTimestampUtc(expectedClock);
+  const expectedInputJson = JSON.stringify(expectedInputData);
+
+  const insertStmts = res.statements.filter((stmt) =>
+    stmt.text.includes(`INSERT INTO "${schema}"."jobInput"`),
+  );
+  expect(insertStmts, `${label} INSERT jobInput count`).toHaveLength(1);
+  expect(
+    insertStmts[0]?.values,
+    `${label} literal INSERT jobInput binds`,
+  ).toEqual([
+    created.id,
+    expectedPgTs,
+    expectedPgTs,
+    expectedEventId,
+    expectedInputJson,
+    created.inputHash,
+    created.signature,
+  ]);
+
+  const selectByIdStmts = res.statements.filter(
+    (stmt) =>
+      stmt.text.includes(`FROM "${schema}"."jobInput"`) &&
+      stmt.text.includes(`"${schema}"."jobInput"."id" = $1`),
+  );
+  expect(selectByIdStmts, `${label} SELECT jobInput by id count`).toHaveLength(
+    1,
+  );
+  expect(
+    selectByIdStmts[0]?.values[0],
+    `${label} SELECT jobInput id bind`,
+  ).toBe(created.id);
+
+  const stored = storedRows.find((row) => row.eventId === expectedEventId);
+  expect(stored, `${label} stored jobInput row`).toBeDefined();
+  expect(
+    {
+      id: stored?.id,
+      eventId: stored?.eventId,
+      input: stored?.input,
+      inputHash: stored?.inputHash,
+      signature: stored?.signature,
+      createdAt:
+        stored?.createdAt instanceof Date
+          ? stored.createdAt.toISOString()
+          : stored?.createdAt,
+      updatedAt:
+        stored?.updatedAt instanceof Date
+          ? stored.updatedAt.toISOString()
+          : stored?.updatedAt,
+    },
+    `${label} complete stored jobInput row`,
+  ).toEqual({
+    id: created.id,
+    eventId: expectedEventId,
+    input: expectedInputJson,
+    inputHash: created.inputHash,
+    signature: created.signature,
+    createdAt: expectedClock.toISOString(),
+    updatedAt: expectedClock.toISOString(),
+  });
+
+  return created.id;
 }
 
 function sha256(text: string): string {
@@ -489,9 +604,27 @@ async function buildWorld(options: { preprodOn?: boolean } = {}) {
 
   await shared.project.createMany({
     data: [
-      { id: PROJ_A1, workspaceId: WS_ORG_A, name: "Project A1" },
-      { id: PROJ_A2, workspaceId: WS_ORG_A, name: "Project A2" },
-      { id: PROJ_CMO, workspaceId: WS_ORG_A, name: "CMO Project" },
+      {
+        id: PROJ_A1,
+        workspaceId: WS_ORG_A,
+        name: "Project A1",
+        createdAt: CLOCK,
+        updatedAt: CLOCK,
+      },
+      {
+        id: PROJ_A2,
+        workspaceId: WS_ORG_A,
+        name: "Project A2",
+        createdAt: CLOCK,
+        updatedAt: CLOCK,
+      },
+      {
+        id: PROJ_CMO,
+        workspaceId: WS_ORG_A,
+        name: "CMO Project",
+        createdAt: CLOCK,
+        updatedAt: CLOCK,
+      },
     ],
   });
 
@@ -745,7 +878,7 @@ async function snapshotPublicTables(shared: World["shared"]) {
       `SELECT * FROM "public"."Job" ORDER BY id`,
     ),
     shared.$queryRawUnsafe<Record<string, unknown>[]>(
-      `SELECT "eventId", input, "inputHash", signature FROM "public"."jobInput" ORDER BY "eventId"`,
+      `SELECT * FROM "public"."jobInput" ORDER BY "eventId"`,
     ),
     shared.$queryRawUnsafe<Record<string, unknown>[]>(
       `SELECT id, "workspaceId", "projectId", "archivedAt" FROM "public"."task" ORDER BY id`,
@@ -766,7 +899,7 @@ async function snapshotSchemaJobs(shared: World["shared"], schema: string) {
       `SELECT * FROM "${schema}"."Job" ORDER BY id`,
     ),
     shared.$queryRawUnsafe<Record<string, unknown>[]>(
-      `SELECT "eventId", input, "inputHash", signature FROM "${schema}"."jobInput" ORDER BY "eventId"`,
+      `SELECT * FROM "${schema}"."jobInput" ORDER BY "eventId"`,
     ),
   ]);
   return { jobs, jobInputs };
@@ -1497,6 +1630,7 @@ describe.runIf(enabled && !onSplitLayout)(
         status: number;
         body: string;
         jobRowsExact: string;
+        jobInputRowsExact: string;
         rows: string;
         sellerCalls: unknown[];
         publishedInvalidations: string[];
@@ -1516,6 +1650,7 @@ describe.runIf(enabled && !onSplitLayout)(
       for (const network of [undefined, "mainnet"] as const) {
         const suffix = network ?? "implicit";
         const world = await buildWorld({ preprodOn: false });
+        const generatedIdentities = new Map<string, string>();
         try {
           let previousJobs = (await snapshotPublicTables(world.shared)).jobs;
           const runAndVerify = async (
@@ -1532,6 +1667,7 @@ describe.runIf(enabled && !onSplitLayout)(
               expect(res.status, `${key}: ${res.body}`).toBe(expectedStatus);
             }
             const afterJobs = res.rows?.jobs ?? [];
+            const afterJobInputs = res.rows?.jobInputs ?? [];
             expectOnlyJobRowsChanged(
               previousJobs,
               afterJobs,
@@ -1540,21 +1676,103 @@ describe.runIf(enabled && !onSplitLayout)(
             );
             previousJobs = afterJobs;
 
+            if (
+              method === "POST" &&
+              path.endsWith("/inputs") &&
+              res.status === 201
+            ) {
+              const reqBody = body as {
+                eventId: string;
+                inputData: Record<string, unknown>;
+              };
+              const createdInputId = assertJobInputWrite({
+                label: key,
+                schema: "public",
+                res,
+                expectedEventId: reqBody.eventId,
+                expectedInputData: reqBody.inputData,
+                expectedClock: WRITE_CLOCK,
+                storedRows: afterJobInputs,
+              });
+              expect(
+                generatedIdentities.has(createdInputId),
+                `${key} unique input id`,
+              ).toBe(false);
+              generatedIdentities.set(createdInputId, `<INPUT_ID:${name}>`);
+            }
+
+            if (
+              method === "PUT" &&
+              path.endsWith("/share") &&
+              res.status === 200
+            ) {
+              const share = (
+                JSON.parse(res.body) as {
+                  data: { id: string; token: string };
+                }
+              ).data;
+              expect(share.id, `${key} generated share id`).toMatch(UUID_RE);
+              expect(share.token, `${key} generated share token`).toMatch(
+                UUID_RE,
+              );
+              const expectedPgTs = formatPgTimestampUtc(WRITE_CLOCK);
+              const insertShare = res.statements.filter((stmt) =>
+                stmt.text.includes('INSERT INTO "public"."jobShare"'),
+              );
+              expect(insertShare, `${key} INSERT jobShare count`).toHaveLength(
+                1,
+              );
+              expect(
+                insertShare[0]?.values,
+                `${key} literal INSERT jobShare binds`,
+              ).toEqual([
+                share.id,
+                expectedPgTs,
+                expectedPgTs,
+                JOB_SHARE_TARGET,
+                share.token,
+                true,
+              ]);
+              const selectShare = res.statements.filter(
+                (stmt) =>
+                  stmt.text.includes('FROM "public"."jobShare"') &&
+                  stmt.text.includes('"public"."jobShare"."id" = $1'),
+              );
+              expect(selectShare, `${key} SELECT jobShare count`).toHaveLength(
+                1,
+              );
+              expect(selectShare[0]?.values[0]).toBe(share.id);
+              generatedIdentities.set(share.id, `<SHARE_ID:${name}>`);
+              generatedIdentities.set(share.token, `<SHARE_TOKEN:${name}>`);
+            }
+
             const stmts = res.statements.map(({ text, values }) => ({
               text,
               values,
             }));
             const entry: BaselineEntry = {
               status: res.status,
-              body: sha256(normalizeForDigest(res.body)),
+              body: sha256(
+                mapGeneratedIdentities(res.body, generatedIdentities),
+              ),
               jobRowsExact: sha256(
                 JSON.stringify(afterJobs.map(serializeWholeRow)),
               ),
-              rows: sha256(normalizeForDigest(res.rows)),
+              jobInputRowsExact: sha256(
+                mapGeneratedIdentities(
+                  afterJobInputs.map(serializeWholeRow),
+                  generatedIdentities,
+                ),
+              ),
+              rows: sha256(
+                mapGeneratedIdentities(res.rows, generatedIdentities),
+              ),
               sellerCalls: res.sellerCalls,
               publishedInvalidations: res.publishedInvalidations,
               statementCount: stmts.length,
-              statementsOrdered: sha256(normalizeForDigest(stmts)),
+              statementsOrdered: sha256(
+                mapGeneratedIdentities(stmts, generatedIdentities),
+              ),
               txBoundaries: extractTxBoundaries(stmts),
             };
             recorded[key] = res;
@@ -1569,6 +1787,10 @@ describe.runIf(enabled && !onSplitLayout)(
               entry.jobRowsExact,
               `${key} all-column Job rows + exact timestamps`,
             ).toBe(expected.jobRowsExact);
+            expect(
+              entry.jobInputRowsExact,
+              `${key} all-column jobInput rows + exact timestamps`,
+            ).toBe(expected.jobInputRowsExact);
             expect(entry.rows, `${key} rows`).toBe(expected.rows);
             expect(entry.sellerCalls, `${key} sellerCalls`).toEqual(
               expected.sellerCalls,
@@ -1585,7 +1807,7 @@ describe.runIf(enabled && !onSplitLayout)(
             );
             expect(
               entry.statementsOrdered,
-              `${key} exact SQL + bound values + order`,
+              `${key} exact SQL + literal bound values + order`,
             ).toBe(expected.statementsOrdered);
           };
 
@@ -1613,17 +1835,29 @@ describe.runIf(enabled && !onSplitLayout)(
           );
           const invalidEntry: BaselineEntry = {
             status: invalidHdr.status,
-            body: sha256(normalizeForDigest(invalidHdr.body)),
+            body: sha256(
+              mapGeneratedIdentities(invalidHdr.body, generatedIdentities),
+            ),
             jobRowsExact: sha256(
               JSON.stringify(
                 (invalidHdr.rows?.jobs ?? []).map(serializeWholeRow),
               ),
             ),
-            rows: sha256(normalizeForDigest(invalidHdr.rows)),
+            jobInputRowsExact: sha256(
+              mapGeneratedIdentities(
+                (invalidHdr.rows?.jobInputs ?? []).map(serializeWholeRow),
+                generatedIdentities,
+              ),
+            ),
+            rows: sha256(
+              mapGeneratedIdentities(invalidHdr.rows, generatedIdentities),
+            ),
             sellerCalls: invalidHdr.sellerCalls,
             publishedInvalidations: invalidHdr.publishedInvalidations,
             statementCount: invalidStmts.length,
-            statementsOrdered: sha256(normalizeForDigest(invalidStmts)),
+            statementsOrdered: sha256(
+              mapGeneratedIdentities(invalidStmts, generatedIdentities),
+            ),
             txBoundaries: extractTxBoundaries(invalidStmts),
           };
           nextBaseline[`share_put_invalid_header:${suffix}`] = invalidEntry;
@@ -2236,6 +2470,61 @@ describe.runIf(enabled && !onSplitLayout)(
         } finally {
           queryGate.active = null;
           await sideDb.end();
+          await world.drop();
+        }
+      }
+
+      // 2g. PATCH /v1/jobs/:id gated at COMMIT with ticket 26 prepareTasksForUserDeletion on creator
+      {
+        const world = await buildWorld({ preprodOn: false });
+        try {
+          let patchCreatorGateHit = false;
+          queryGate.active = {
+            when: "after",
+            match: (text) => /^\s*COMMIT\b/i.test(text),
+            run: async () => {
+              patchCreatorGateHit = true;
+              await world.prepareTasksForUserDeletion(MEMBER_ID, world.shared);
+            },
+          };
+          const patchRes = await world.app.request(
+            `https://example.com/v1/jobs/${JOB_STANDALONE}`,
+            {
+              method: "PATCH",
+              headers: {
+                origin: "https://example.com",
+                "content-type": "application/json",
+                ...OWNER_ORG_A,
+              },
+              body: JSON.stringify({ name: "Renamed While Creator Removed" }),
+            },
+          );
+          expect(patchCreatorGateHit).toBe(true);
+          expect(patchRes.status).toBe(200);
+          const patchBody = (await patchRes.json()) as {
+            data: {
+              name: string;
+              creator: { type: string; id: string } | null;
+            };
+          };
+          expect(patchBody.data.name).toBe("Renamed While Creator Removed");
+          expect(patchBody.data.creator).toMatchObject({
+            type: "user",
+            id: MEMBER_ID,
+          });
+          const storedPatchJob = await world.shared.job.findUniqueOrThrow({
+            where: { id: JOB_STANDALONE },
+          });
+          expect(storedPatchJob.name).toBe("Renamed While Creator Removed");
+          expect(storedPatchJob.creatorUserId).toBeNull();
+          raceReport.inTxPatchCreatorDelete = {
+            status: patchRes.status,
+            creatorId: patchBody.data.creator?.id ?? null,
+            storedName: storedPatchJob.name,
+            storedCreatorUserId: storedPatchJob.creatorUserId,
+          };
+        } finally {
+          queryGate.active = null;
           await world.drop();
         }
       }
@@ -2884,7 +3173,19 @@ describe.runIf(enabled && onSplitLayout)(
         { eventId: `evt-await-${JOB_STANDALONE}`, inputData: { answer: "pp" } },
         "preprod",
       );
-      expect(inputPreprod.status, inputPreprod.body).toBe(201);
+      const preprodAfterInput = await snapshotSchemaJobs(
+        world.shared,
+        names.DATABASE_SCHEMA_PREPROD,
+      );
+      assertJobInputWrite({
+        label: "split preprod input",
+        schema: names.DATABASE_SCHEMA_PREPROD,
+        res: inputPreprod,
+        expectedEventId: `evt-await-${JOB_STANDALONE}`,
+        expectedInputData: { answer: "pp" },
+        expectedClock: WRITE_CLOCK,
+        storedRows: preprodAfterInput.jobInputs,
+      });
       expect(inputPreprod.sellerCalls).toHaveLength(1);
       expect(inputPreprod.sellerCalls[0]?.agent.apiBaseUrl).toBe(
         "https://seller.preprod.example.test",
@@ -2966,7 +3267,7 @@ describe.runIf(enabled && onSplitLayout)(
       );
       expect(mainnetAfterPreprod).toEqual(mainnetBefore);
 
-      // Now verify Mainnet POST /inputs calls Mainnet seller URL
+      // Now verify Mainnet POST /inputs calls Mainnet seller URL and binds/stores exact timestamps
       const inputMainnet = await runCase(
         world,
         "POST",
@@ -2975,7 +3276,19 @@ describe.runIf(enabled && onSplitLayout)(
         { eventId: `evt-await-${JOB_STANDALONE}`, inputData: { answer: "mn" } },
         "mainnet",
       );
-      expect(inputMainnet.status, inputMainnet.body).toBe(201);
+      const mainnetAfterInput = await snapshotSchemaJobs(
+        world.shared,
+        names.DATABASE_SCHEMA_MAINNET,
+      );
+      assertJobInputWrite({
+        label: "split mainnet input",
+        schema: names.DATABASE_SCHEMA_MAINNET,
+        res: inputMainnet,
+        expectedEventId: `evt-await-${JOB_STANDALONE}`,
+        expectedInputData: { answer: "mn" },
+        expectedClock: WRITE_CLOCK,
+        storedRows: mainnetAfterInput.jobInputs,
+      });
       expect(inputMainnet.sellerCalls).toHaveLength(1);
       expect(inputMainnet.sellerCalls[0]?.agent.apiBaseUrl).toBe(
         "https://seller.mainnet.example.test",
@@ -3379,6 +3692,115 @@ describe.runIf(enabled && onSplitLayout)(
         queryGate.active = null;
         await sideDb.end();
         await splitWorld.drop();
+      }
+    });
+
+    it("keeps PATCH /v1/jobs/:id response read inside its transaction on split layout when the creator is deleted (Mainnet and Preprod)", {
+      timeout: 60_000,
+    }, async () => {
+      const names = testSchemaNames();
+      for (const network of ["mainnet", "preprod"] as const) {
+        const splitWorld = await buildWorld({ preprodOn: true });
+        try {
+          let creatorId = MEMBER_ID;
+          let headers = OWNER_ORG_A;
+          if (network === "preprod") {
+            creatorId = "jw-split-pp-creator";
+            headers = PP_MEMBER_ORG_A;
+            await splitWorld.shared.user.create({
+              data: {
+                id: creatorId,
+                name: creatorId,
+                email: `${creatorId}@example.test`,
+                emailVerified: true,
+                termsAccepted: true,
+                createdAt: CLOCK,
+                updatedAt: CLOCK,
+              },
+            });
+            await splitWorld
+              .createNetworkScope("preprod")
+              .networkDb.job.update({
+                where: { id: JOB_STANDALONE },
+                data: { creatorUserId: creatorId },
+              });
+          }
+
+          let gateHit = false;
+          queryGate.active = {
+            when: "after",
+            match: (text) => /^\s*COMMIT\b/i.test(text),
+            run: async () => {
+              gateHit = true;
+              await splitWorld.prepareTasksForUserDeletion(
+                creatorId,
+                splitWorld.shared,
+              );
+            },
+          };
+
+          const patchRes = await runCase(
+            splitWorld,
+            "PATCH",
+            `/v1/jobs/${JOB_STANDALONE}`,
+            headers,
+            { name: "Renamed While Creator Removed" },
+            network,
+          );
+          expect(gateHit, `${network} commit gate hit`).toBe(true);
+          expect(patchRes.status, `${network}: ${patchRes.body}`).toBe(200);
+          const patchBody = (
+            JSON.parse(patchRes.body) as {
+              data: {
+                name: string;
+                creator: { type: string; id: string } | null;
+              };
+            }
+          ).data;
+          expect(patchBody.name).toBe("Renamed While Creator Removed");
+          expect(patchBody.creator).toMatchObject({
+            type: "user",
+            id: creatorId,
+          });
+
+          const schema =
+            network === "mainnet"
+              ? names.DATABASE_SCHEMA_MAINNET
+              : names.DATABASE_SCHEMA_PREPROD;
+          const updateIdx = patchRes.statements.findIndex((s) =>
+            s.text.includes(`UPDATE "${schema}"."Job"`),
+          );
+          const beginIdx = patchRes.statements
+            .slice(0, updateIdx)
+            .findLastIndex((s) => /^\s*BEGIN\b/i.test(s.text));
+          const commitIdx = patchRes.statements.findIndex(
+            (s, idx) => idx > updateIdx && /^\s*COMMIT\b/i.test(s.text),
+          );
+          expect(beginIdx, `${network} BEGIN before UPDATE`).toBeGreaterThan(
+            -1,
+          );
+          expect(commitIdx, `${network} COMMIT after UPDATE`).toBeGreaterThan(
+            updateIdx,
+          );
+          const txStmts = patchRes.statements.slice(beginIdx, commitIdx + 1);
+          const txConns = new Set(txStmts.map((s) => s.connection));
+          expect(txConns.size, `${network} single tx connection`).toBe(1);
+          expect(
+            txStmts.some((s) => s.text.includes('FROM "shared"."user"')),
+            `${network} creator user read inside tx`,
+          ).toBe(true);
+
+          const stored = await splitWorld
+            .createNetworkScope(network)
+            .networkDb.job.findUniqueOrThrow({
+              where: { id: JOB_STANDALONE },
+            });
+          expect(stored.name).toBe("Renamed While Creator Removed");
+          expect(stored.creatorUserId).toBeNull();
+        } finally {
+          queryGate.active = null;
+          await splitWorld.drop();
+        }
       }
     });
 

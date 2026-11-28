@@ -6,9 +6,7 @@ import {
   type JobEvent,
   type JobInput,
   type JobPurchase,
-  jobInclude,
   type Link,
-  type Prisma,
   type SharedDb,
   type Transaction,
   workCreatorInclude,
@@ -16,38 +14,7 @@ import {
 } from "@sokosumi/database";
 
 import { internalServerError } from "@/helpers/error";
-import { loadJobSharedRelations } from "@/helpers/job";
 import type { NetworkScope } from "@/lib/db/network-scope";
-
-export const jobDetailNetworkInclude = {
-  events: jobInclude.events,
-  transaction: jobInclude.transaction,
-  purchase: jobInclude.purchase,
-  agent: jobInclude.agent,
-  refundedTransaction: jobInclude.refundedTransaction,
-} satisfies Prisma.JobInclude;
-
-type JobWithDetailNetworkRelations = Prisma.JobGetPayload<{
-  include: typeof jobDetailNetworkInclude;
-}>;
-
-/**
- * Hydrates a Job loaded with {@link jobDetailNetworkInclude} with its shared
- * relations and, on Mainnet only, its public share. Preprod Jobs always return
- * `share: null` until ticket 33 moves Job shares to a Network table.
- */
-export async function hydrateJobDetail(
-  scope: NetworkScope,
-  job: JobWithDetailNetworkRelations,
-) {
-  const [relations, share] = await Promise.all([
-    loadJobSharedRelations(scope.sharedDb, [job]),
-    scope.network === "mainnet"
-      ? scope.sharedDb.publicShare.findUnique({ where: { jobId: job.id } })
-      : null,
-  ]);
-  return { ...relations[0], share };
-}
 
 /**
  * Loads full Job details on the split layout inside an open shared-side
