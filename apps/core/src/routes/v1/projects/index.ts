@@ -146,6 +146,14 @@ import mountGetProjectStats from "./stats/get.js";
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
   requireOrganizationProductSeat: true,
+  mainnetOnly: [
+    "/:id/seo",
+    "/:id/seo/*",
+    "/:id/image-studio",
+    "/:id/image-studio/*",
+    "/:id/competitors",
+    "/:id/competitors/*",
+  ],
 });
 
 app.use("*", cmoProjectLock);

@@ -46,7 +46,10 @@ import { createSeoPageChangesRouter } from "./page-changes";
 import { createSeoStatisticsRouter } from "./statistics";
 
 export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
-  const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+  const app = new OpenAPIHonoWithAuth({
+    includeWorkspaceContext: true,
+    mainnetOnly: true,
+  });
   app.route("/console-exports", createSeoConsoleExportsRouter(ownerKind));
   const responses = {
     200: jsonSuccessResponse(

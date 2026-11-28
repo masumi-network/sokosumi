@@ -85,6 +85,9 @@ vi.mock("@/middleware/workspace", () => ({
     },
 }));
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { errorHandler } from "@/helpers/error-handler";
+import { NETWORK_HEADER } from "@/middleware/network-scope";
 import { createNestedOpenAPIHono, OpenAPIHonoWithAuth } from "./hono";
 
 describe("OpenAPIHonoWithAuth", () => {
@@ -209,5 +212,75 @@ describe("OpenAPIHonoWithAuth", () => {
       "organization",
       "workspace",
     ]);
+  });
+
+  it("refuses Preprod right after auth when mainnetOnly is enabled, before context/org/workspace middleware", async () => {
+    const app = new OpenAPIHonoWithAuth({
+      includeWorkspaceContext: true,
+      mainnetOnly: true,
+    });
+    app.onError(errorHandler);
+    app.get("/feature", (c) => c.json({ ok: true }));
+
+    const preprod = await app.request("http://localhost/feature", {
+      headers: { [NETWORK_HEADER]: "preprod" },
+    });
+    expect(preprod.status).toBe(422);
+    expect(await preprod.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
+      message: "This feature is available on Mainnet only.",
+    });
+    expect(middlewareCalls.calls).toEqual(["auth"]);
+
+    middlewareCalls.calls.length = 0;
+    const mainnet = await app.request("http://localhost/feature");
+    expect(mainnet.status).toBe(200);
+    expect(middlewareCalls.calls).toEqual([
+      "auth",
+      "context",
+      "organization",
+      "workspace",
+    ]);
+  });
+
+  it("refuses Preprod only for matching path/method rules on a mixed router", async () => {
+    const app = new OpenAPIHonoWithAuth({
+      includeWorkspaceContext: true,
+      mainnetOnly: [
+        "/:id/competitors",
+        "/:id/competitors/*",
+        { path: "/:id/find", methods: ["POST"] },
+      ],
+    });
+    app.onError(errorHandler);
+    app.get("/:id", (c) => c.json({ ok: "shared" }));
+    app.get("/:id/competitors", (c) => c.json({ ok: "competitors" }));
+    app.post("/:id/competitors/check", (c) => c.json({ ok: "check" }));
+    app.get("/:id/find", (c) => c.json({ ok: "get-find" }));
+    app.post("/:id/find", (c) => c.json({ ok: "post-find" }));
+
+    const shared = await app.request("http://localhost/p1", {
+      headers: { [NETWORK_HEADER]: "preprod" },
+    });
+    expect(shared.status).toBe(200);
+
+    const getFind = await app.request("http://localhost/p1/find", {
+      headers: { [NETWORK_HEADER]: "preprod" },
+    });
+    expect(getFind.status).toBe(200);
+
+    for (const [method, path] of [
+      ["GET", "/p1/competitors"],
+      ["POST", "/p1/competitors/check"],
+      ["POST", "/p1/find"],
+    ] as const) {
+      middlewareCalls.calls.length = 0;
+      const res = await app.request(`http://localhost${path}`, {
+        method,
+        headers: { [NETWORK_HEADER]: "preprod" },
+      });
+      expect(res.status).toBe(422);
+      expect(middlewareCalls.calls).toEqual(["auth"]);
+    }
   });
 });

@@ -14,7 +14,10 @@ import mountGetImageStudioState from "./state-get.js";
  * project's images stays under `/v1/projects/{id}/image-studio`, where the
  * per-project access check lives.
  */
-const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+  mainnetOnly: true,
+});
 
 mountGetImageStudioCatalog(app);
 mountGetImageStudioState(app);

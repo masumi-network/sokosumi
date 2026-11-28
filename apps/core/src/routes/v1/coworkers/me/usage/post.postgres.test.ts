@@ -7,6 +7,7 @@ import {
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
@@ -28,6 +29,9 @@ vi.mock("@/helpers/billing-notifications", () => ({
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
+
+/** Mainnet's own tables: credits and usage are Network rows. */
+const mainnet = () => createNetworkScope("mainnet").networkDb;
 
 const vendorId = randomUUID();
 const coworkerId = randomUUID();
@@ -54,7 +58,7 @@ async function createBillableUser(): Promise<{
       workspace: { create: { id: workspaceId } },
     },
   });
-  await prisma.transaction.create({
+  await mainnet().transaction.create({
     data: {
       amount: convertCreditsToCents(10),
       userId,
@@ -87,7 +91,7 @@ async function createBillableOrganizationMember(): Promise<{
       workspace: { create: { id: organizationWorkspaceId } },
     },
   });
-  await prisma.transaction.create({
+  await mainnet().transaction.create({
     data: {
       amount: convertCreditsToCents(10),
       organizationId,
@@ -151,7 +155,7 @@ async function postUsage(userId: string, organizationId: string | null = null) {
 }
 
 async function debitsOf(userId: string, organizationId: string | null = null) {
-  return await prisma.transaction.count({
+  return await mainnet().transaction.count({
     where: { userId, organizationId, amount: { lt: 0 } },
   });
 }
@@ -179,12 +183,20 @@ describe.skipIf(!enabled)(
     });
 
     afterAll(async () => {
-      await prisma.coworkerUsage.deleteMany({ where: { coworkerId } });
+      await mainnet().coworkerUsage.deleteMany({ where: { coworkerId } });
       await prisma.task.deleteMany({ where: { assigneeId: coworkerId } });
       await prisma.vendorGrant.deleteMany({ where: { vendorId } });
-      await prisma.transaction.deleteMany({
-        where: { organizationId: { in: organizationIds } },
+      const wallets = {
+        OR: [
+          { userId: { in: userIds } },
+          { organizationId: { in: organizationIds } },
+        ],
+      };
+      await mainnet().creditConsumption.deleteMany({
+        where: { transaction: wallets },
       });
+      await mainnet().creditBucket.deleteMany({ where: wallets });
+      await mainnet().transaction.deleteMany({ where: wallets });
       await prisma.organization.deleteMany({
         where: { id: { in: organizationIds } },
       });
@@ -204,7 +216,9 @@ describe.skipIf(!enabled)(
 
       expect(response.status).toBe(403);
       expect(await debitsOf(userId)).toBe(0);
-      expect(await prisma.coworkerUsage.count({ where: { userId } })).toBe(0);
+      expect(await mainnet().coworkerUsage.count({ where: { userId } })).toBe(
+        0,
+      );
     });
 
     it.each([

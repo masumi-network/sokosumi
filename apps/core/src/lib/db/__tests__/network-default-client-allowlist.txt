@@ -16,7 +16,6 @@ apps/core/src/lib/soko-bot/write-scope.ts
 apps/core/src/routes/v1/admin/task-payment-claims/get.ts
 apps/core/src/routes/v1/admin/task-x402-payments/aggregate/get.ts
 apps/core/src/routes/v1/admin/task-x402-payments/get.ts
-apps/core/src/routes/v1/coworkers/me/usage/post.ts
 apps/core/src/routes/v1/jobs/[id]/inputs/post.ts
 apps/core/src/routes/v1/jobs/[id]/patch.ts
 apps/core/src/routes/v1/jobs/[id]/refund/post.ts
