@@ -28,6 +28,7 @@ interface ActivateEnterpriseContractParams {
   activatedAt: Date;
   paymentReference?: string | null;
   grantCredits: GrantEnterpriseCredits;
+  splitSql?: boolean;
 }
 
 interface ActivateEnterpriseContractResult {
@@ -85,6 +86,7 @@ export async function activateEnterpriseContract(
     contract.organizationId,
     tx,
     params.activatedAt,
+    params.splitSql ? { splitSql: true } : undefined,
   );
 
   if (blocker) {
@@ -199,7 +201,15 @@ export async function activateEnterpriseContract(
 export async function cancelEnterpriseContract(
   contractId: string,
   tx: Prisma.TransactionClient,
-  { now, expireCredits }: { now: Date; expireCredits: ExpireEnterpriseCredits },
+  {
+    now,
+    expireCredits,
+    splitSql,
+  }: {
+    now: Date;
+    expireCredits: ExpireEnterpriseCredits;
+    splitSql?: boolean;
+  },
 ): Promise<void> {
   const contract = await tx.enterpriseContract.findUnique({
     where: { id: contractId },
@@ -242,7 +252,11 @@ export async function cancelEnterpriseContract(
       continue;
     }
 
-    const bucket = await findEnterprisePeriodCreditBucket(period.id, tx);
+    const bucket = await findEnterprisePeriodCreditBucket(
+      period.id,
+      tx,
+      splitSql ? { splitSql: true } : undefined,
+    );
     const isFutureActive =
       bucket?.activatesAt != null &&
       bucket.activatesAt.getTime() > now.getTime();

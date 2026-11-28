@@ -17,6 +17,7 @@ interface GrantSignupBonusCreditsParams {
   expiresAt: Date | null;
   mintId?: () => string;
   network?: TableNetwork;
+  splitSql?: boolean;
   userId: string;
 }
 
@@ -27,18 +28,30 @@ interface GrantSignupBonusCreditsResult {
 
 async function findSignupBonusBucket(
   referenceId: string,
-  network: TableNetwork,
   tx: Prisma.TransactionClient,
+  options?: { network?: TableNetwork; splitSql?: boolean },
 ): Promise<{ id: string } | null> {
-  const found = await findCreditBucketByReference(
-    {
-      network,
-      referenceId,
-      referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+  if (options?.splitSql) {
+    const found = await findCreditBucketByReference(
+      {
+        network: options.network ?? "mainnet",
+        referenceId,
+        referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+      },
+      tx,
+    );
+    return found ? { id: found.id } : null;
+  }
+
+  return await tx.creditBucket.findUnique({
+    where: {
+      referenceId_referenceType: {
+        referenceId,
+        referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+      },
     },
-    tx,
-  );
-  return found ? { id: found.id } : null;
+    select: { id: true },
+  });
 }
 
 export async function grantSignupBonusCredits(
@@ -54,8 +67,12 @@ export async function grantSignupBonusCredits(
   }
 
   const network = params.network ?? "mainnet";
+  const splitSql = params.splitSql === true;
   const referenceId = buildSignupBonusCreditReferenceId(params.userId);
-  const existingBucket = await findSignupBonusBucket(referenceId, network, tx);
+  const existingBucket = await findSignupBonusBucket(referenceId, tx, {
+    network,
+    splitSql,
+  });
 
   if (existingBucket) {
     return { bucketId: existingBucket.id, created: false };
@@ -64,19 +81,54 @@ export async function grantSignupBonusCredits(
   const amount = convertCreditsToCents(params.credits);
 
   try {
-    const { bucketId } = await insertCreditGrant(
-      {
-        mintId: params.mintId,
-        network,
-        amount,
-        expiresAt: params.expiresAt,
-        organizationId: null,
-        referenceId,
-        referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
-        userId: params.userId,
-      },
-      tx,
-    );
+    let bucketId: string;
+    if (splitSql) {
+      ({ bucketId } = await insertCreditGrant(
+        {
+          mintId: params.mintId,
+          network,
+          amount,
+          expiresAt: params.expiresAt,
+          organizationId: null,
+          referenceId,
+          referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+          userId: params.userId,
+        },
+        tx,
+      ));
+    } else {
+      const transaction = await tx.transaction.create({
+        data: {
+          amount,
+          sourceCreditBucket: {
+            create: {
+              amount,
+              expiresAt: params.expiresAt,
+              organizationId: null,
+              referenceId,
+              referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+              userId: params.userId,
+            },
+          },
+          user: {
+            connect: {
+              id: params.userId,
+            },
+          },
+        },
+        select: {
+          sourceCreditBucket: {
+            select: { id: true },
+          },
+        },
+      });
+
+      const createdBucketId = transaction.sourceCreditBucket?.id;
+      if (!createdBucketId) {
+        throw new Error("Failed to create signup bonus credit bucket");
+      }
+      bucketId = createdBucketId;
+    }
 
     return { bucketId, created: true };
   } catch (error) {
@@ -84,7 +136,10 @@ export async function grantSignupBonusCredits(
       throw error;
     }
 
-    const racedBucket = await findSignupBonusBucket(referenceId, network, tx);
+    const racedBucket = await findSignupBonusBucket(referenceId, tx, {
+      network,
+      splitSql,
+    });
     if (racedBucket) {
       return { bucketId: racedBucket.id, created: false };
     }

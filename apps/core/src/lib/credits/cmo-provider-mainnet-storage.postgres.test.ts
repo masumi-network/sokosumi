@@ -1764,6 +1764,7 @@ describe.runIf(enabled)(
             now: new Date(),
             referenceIds: [expRef],
             referenceTypes: [CreditBucketReferenceType.ENTERPRISE_PERIOD],
+            splitSql: true,
           },
           core.prisma,
         );
@@ -1780,6 +1781,67 @@ describe.runIf(enabled)(
           afterExpire,
         );
       }, 90_000);
+
+      it.runIf(onSplitLayout)(
+        "proves 1,000 split-layout raw grant + writeOff pairs under real and fixed same-ms clocks always order grant before write-off",
+        async () => {
+          for (const mode of ["real", "fixed"] as const) {
+            const f = await makeOrgFixture(`split-grant-wo-1000-${mode}`);
+            const fixedNow = Date.now();
+            if (mode === "fixed") {
+              vi.useFakeTimers({ toFake: ["Date"], now: fixedNow });
+            }
+            try {
+              for (let i = 0; i < 1000; i++) {
+                await core.prisma.$transaction(async (tx) => {
+                  const { bucketId } = await insertCreditGrant(
+                    {
+                      amount: CREDIT,
+                      userId: null,
+                      organizationId: f.organizationId,
+                      projectId: f.projectId,
+                      expiresAt: null,
+                      referenceId: `split-gwo-${mode}-${i}`,
+                      referenceType: CreditBucketReferenceType.REFUND,
+                      referenceNote: null,
+                      mintId: uuidv7,
+                      network: "mainnet",
+                    },
+                    tx,
+                  );
+                  await core.writeOff({
+                    scope: core.createNetworkScope("mainnet"),
+                    tx,
+                    of: { bucketIds: [bucketId] },
+                  });
+                });
+              }
+            } finally {
+              if (mode === "fixed") vi.useRealTimers();
+            }
+
+            const allTx = await core.mainnet().transaction.findMany({
+              where: { organizationId: f.organizationId },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            });
+            expect(allTx).toHaveLength(2000);
+            for (let i = 0; i < 1000; i++) {
+              const creditTx = allTx[i * 2]!;
+              const writeOffTx = allTx[i * 2 + 1]!;
+              expect(creditTx.amount).toBe(CREDIT);
+              expect(writeOffTx.amount).toBe(-CREDIT);
+              expect(creditTx.id < writeOffTx.id).toBe(true);
+              expect(uuidV7Ms(creditTx.id)).toBeLessThanOrEqual(
+                creditTx.createdAt.getTime(),
+              );
+              expect(uuidV7Ms(writeOffTx.id)).toBeLessThanOrEqual(
+                writeOffTx.createdAt.getTime(),
+              );
+            }
+          }
+        },
+        120_000,
+      );
 
       it.skipIf(onSplitLayout)(
         "proves 1,000 createCompensatingRefund + writeOffUnlessLiveCuso pairs under real and fixed same-ms clocks always order refund before write-off",

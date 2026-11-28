@@ -2,6 +2,7 @@ import { runEnterpriseContractSchedulerPass } from "@sokosumi/database/helpers";
 import type { Hono } from "hono";
 
 import { grantEnterpriseCredits } from "@/lib/credits/grant";
+import { networkUsesSharedSchema } from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 
 import { handleSyncRequest } from "../handler.js";
@@ -18,10 +19,17 @@ export default function mount(app: Hono) {
         // The period amount read here must serialize with admin credit edits.
         const result = await serializableTransaction(
           (tx) =>
-            runEnterpriseContractSchedulerPass(
-              tx,
-              grantEnterpriseCredits(context.scope, tx),
-            ),
+            networkUsesSharedSchema()
+              ? runEnterpriseContractSchedulerPass(
+                  tx,
+                  grantEnterpriseCredits(context.scope, tx),
+                )
+              : runEnterpriseContractSchedulerPass(
+                  tx,
+                  grantEnterpriseCredits(context.scope, tx),
+                  undefined,
+                  { splitSql: true },
+                ),
           "Enterprise contract changed concurrently; retry renewal",
         );
 

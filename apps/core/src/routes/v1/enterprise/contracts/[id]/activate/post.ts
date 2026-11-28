@@ -10,7 +10,10 @@ import {
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { grantEnterpriseCredits } from "@/lib/credits/grant";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -81,6 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 tx,
               ),
               paymentReference: body.paymentReference,
+              ...(networkUsesSharedSchema() ? {} : { splitSql: true }),
             },
             tx,
           ),

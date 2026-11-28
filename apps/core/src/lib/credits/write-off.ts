@@ -3,7 +3,7 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import { netTable } from "@sokosumi/database/sql-tables";
 import { v7 as uuidv7 } from "uuid";
 
-import type { MainnetScope } from "@/lib/db/network-scope";
+import { type MainnetScope, sharedTxAsNetworkDb } from "@/lib/db/network-scope";
 import { requireChargingNetwork } from "./policy";
 
 /**
@@ -30,12 +30,13 @@ export async function writeOff(input: {
   /** A Project's credits, or the given buckets. */
   of: { projectId: string } | { bucketIds: string[] };
 }): Promise<void> {
-  const { of, tx } = input;
+  const { of, scope, tx } = input;
   // A scope that refuses its Network throws here, before anything is written;
   // so does a fabricated Preprod one, which has no credits to write off.
-  requireChargingNetwork(input.scope.network, "A credit write-off");
+  requireChargingNetwork(scope.network, "A credit write-off");
   if ("projectId" in of) {
     await writeOffCreditBuckets(
+      scope,
       PrismaRaw.sql`cb."projectId" = ${of.projectId}::uuid`,
       tx,
     );
@@ -43,12 +44,14 @@ export async function writeOff(input: {
   }
   if (of.bucketIds.length === 0) return;
   await writeOffCreditBuckets(
+    scope,
     PrismaRaw.sql`cb.id IN (${PrismaRaw.join(of.bucketIds)})`,
     tx,
   );
 }
 
 async function writeOffCreditBuckets(
+  scope: MainnetScope,
   where: PrismaRaw.Sql,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
@@ -74,8 +77,22 @@ async function writeOffCreditBuckets(
     HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
     ORDER BY cb."expiresAt" ASC NULLS LAST, cb."createdAt" ASC, cb.id ASC
   `);
+  const txNetworkDb = sharedTxAsNetworkDb(scope, tx);
   // No note/type column on Transaction: a write-off reads as a plain spend.
   for (const bucket of buckets) {
+    if (txNetworkDb) {
+      await txNetworkDb.transaction.create({
+        data: {
+          amount: bucket.remaining * -1n,
+          organizationId: bucket.organizationId,
+          userId: bucket.userId,
+          creditConsumptions: {
+            create: { amount: bucket.remaining, bucketId: bucket.id },
+          },
+        },
+      });
+      continue;
+    }
     const transactionId = uuidv7();
     const consumptionId = uuidv7();
     const writtenAt = new Date();

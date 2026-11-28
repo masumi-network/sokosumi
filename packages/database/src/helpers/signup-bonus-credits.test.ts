@@ -20,11 +20,13 @@ describe("buildSignupBonusCreditReferenceId", () => {
 
 describe("grantSignupBonusCredits", () => {
   it("creates a transaction and signup bonus bucket", async () => {
-    const queryRawMock = vi.fn().mockResolvedValue([]);
-    const executeRawMock = vi.fn().mockResolvedValue(1);
+    const findUniqueMock = vi.fn().mockResolvedValue(null);
+    const createMock = vi.fn().mockResolvedValue({
+      sourceCreditBucket: { id: "bucket-1" },
+    });
     const tx = {
-      $queryRaw: queryRawMock,
-      $executeRaw: executeRawMock,
+      creditBucket: { findUnique: findUniqueMock },
+      transaction: { create: createMock },
     };
 
     const expiresAt = new Date("2026-08-05T00:00:00.000Z");
@@ -37,28 +39,36 @@ describe("grantSignupBonusCredits", () => {
       tx as never,
     );
 
-    assert.equal(result.created, true);
-    assert.equal(result.bucketId.charAt(14), "7");
-    assert.equal(queryRawMock.mock.calls.length, 1);
-    const [, ...lookupValues] = queryRawMock.mock.calls[0] ?? [];
-    assert.ok(lookupValues.includes("user:user-1"));
-    assert.ok(lookupValues.includes(CreditBucketReferenceType.SIGNUP_BONUS));
-
-    assert.equal(executeRawMock.mock.calls.length, 2);
-    const [, ...txValues] = executeRawMock.mock.calls[0] ?? [];
-    assert.ok(txValues.includes(30_000_000_000_000n));
-    assert.ok(txValues.includes("user-1"));
-    const [, ...bucketValues] = executeRawMock.mock.calls[1] ?? [];
-    assert.ok(bucketValues.includes(result.bucketId));
-    assert.ok(bucketValues.includes("user:user-1"));
-    assert.ok(bucketValues.includes(CreditBucketReferenceType.SIGNUP_BONUS));
-    assert.ok(bucketValues.includes(expiresAt));
+    assert.deepEqual(result, { bucketId: "bucket-1", created: true });
+    assert.deepEqual(findUniqueMock.mock.calls[0]?.[0].where, {
+      referenceId_referenceType: {
+        referenceId: "user:user-1",
+        referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+      },
+    });
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.amount,
+      30_000_000_000_000n,
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
+      "user:user-1",
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .referenceType,
+      CreditBucketReferenceType.SIGNUP_BONUS,
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.expiresAt,
+      expiresAt,
+    );
   });
 
   it("rejects non-positive credits", async () => {
     const tx = {
-      $queryRaw: vi.fn(),
-      $executeRaw: vi.fn(),
+      creditBucket: { findUnique: vi.fn() },
+      transaction: { create: vi.fn() },
     };
 
     await assert.rejects(
@@ -75,70 +85,44 @@ describe("grantSignupBonusCredits", () => {
     );
   });
 
-  it.each([
-    {
-      label: "P2002",
-      error: Object.assign(new Error("Unique constraint failed"), {
-        code: "P2002",
-      }),
-    },
-    {
-      label: "raw SQL P2010 (23505)",
-      error: Object.assign(new Error("Raw query failed"), {
-        code: "P2010",
-        meta: {
-          driverAdapterError: {
-            cause: {
-              originalCode: "23505",
-              kind: "UniqueConstraintViolation",
-              constraint: {
-                index: "credit_bucket_referenceId_referenceType_key",
-              },
-            },
-          },
-        },
-      }),
-    },
-  ])(
-    "returns the existing bucket when a concurrent create hits $label",
-    async ({ error }) => {
-      const queryRawMock = vi
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ id: "bucket-raced" }]);
-      const executeRawMock = vi
-        .fn()
-        .mockResolvedValueOnce(1)
-        .mockRejectedValueOnce(error);
-      const tx = {
-        $queryRaw: queryRawMock,
-        $executeRaw: executeRawMock,
-      };
-
-      const result = await grantSignupBonusCredits(
-        {
-          credits: 3000,
-          expiresAt: null,
-          userId: "user-1",
-        },
-        tx as never,
+  it("returns the existing bucket when a concurrent create hits P2002", async () => {
+    const findUniqueMock = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "bucket-raced" });
+    const createMock = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
       );
+    const tx = {
+      creditBucket: { findUnique: findUniqueMock },
+      transaction: { create: createMock },
+    };
 
-      assert.deepEqual(result, {
-        bucketId: "bucket-raced",
-        created: false,
-      });
-      assert.equal(executeRawMock.mock.calls.length, 2);
-      assert.equal(queryRawMock.mock.calls.length, 2);
-    },
-  );
+    const result = await grantSignupBonusCredits(
+      {
+        credits: 3000,
+        expiresAt: null,
+        userId: "user-1",
+      },
+      tx as never,
+    );
+
+    assert.deepEqual(result, {
+      bucketId: "bucket-raced",
+      created: false,
+    });
+    assert.equal(createMock.mock.calls.length, 1);
+    assert.equal(findUniqueMock.mock.calls.length, 2);
+  });
 
   it("is idempotent when the signup bonus bucket already exists", async () => {
-    const queryRawMock = vi.fn().mockResolvedValue([{ id: "bucket-existing" }]);
-    const executeRawMock = vi.fn();
+    const findUniqueMock = vi.fn().mockResolvedValue({ id: "bucket-existing" });
+    const createMock = vi.fn();
     const tx = {
-      $queryRaw: queryRawMock,
-      $executeRaw: executeRawMock,
+      creditBucket: { findUnique: findUniqueMock },
+      transaction: { create: createMock },
     };
 
     const result = await grantSignupBonusCredits(
@@ -154,6 +138,6 @@ describe("grantSignupBonusCredits", () => {
       bucketId: "bucket-existing",
       created: false,
     });
-    assert.equal(executeRawMock.mock.calls.length, 0);
+    assert.equal(createMock.mock.calls.length, 0);
   });
 });

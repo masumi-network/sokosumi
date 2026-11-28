@@ -7,13 +7,18 @@ import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import {
   findTesterGrant,
+  testerCreditsWhere,
   testerFunding,
+  testerFundingQuery,
 } from "@/lib/credits/commercial-funding";
 import { requireChargingNetwork } from "@/lib/credits/policy";
 import {
   createNetworkScope,
   type MainnetScope,
   type NetworkScope,
+  networkUsesSharedSchema,
+  type SharedDb,
+  sharedTxAsNetworkDb,
 } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -35,13 +40,29 @@ import {
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
+ * A Cuso's Project that never had a CMO subscription (any status, ended or
+ * not) and never got Tester credits: nobody paid for him yet.
+ */
+const UNPAID_CUSO_PROJECT_WHERE = {
+  polarSubscriptions: { none: {} },
+  creditBuckets: { none: testerCreditsWhere() },
+} satisfies Prisma.ProjectWhereInput;
+
+/**
  * Whether a Cuso's Project never paid: no CMO subscription and no Tester
  * credits. Its approved strategy only led to Subscribe; nothing was made.
  */
 export async function isCmoProjectUnpaid(
   projectId: string,
-  db: Pick<Prisma.TransactionClient, "$queryRaw"> = prisma,
+  db: Pick<Prisma.TransactionClient, "project" | "$queryRaw"> = prisma,
 ): Promise<boolean> {
+  if (networkUsesSharedSchema()) {
+    const project = await db.project.findFirst({
+      where: { id: projectId, ...UNPAID_CUSO_PROJECT_WHERE },
+      select: { id: true },
+    });
+    return project !== null;
+  }
   const rows = await db.$queryRaw<Array<{ id: string }>>`
     SELECT p."id"
     FROM ${sharedTable("project")} AS p
@@ -154,7 +175,7 @@ export async function cmoPaidFor(
   projectId: string,
   now: Date,
   scope: NetworkScope,
-  tx?: Pick<Prisma.TransactionClient, "polarSubscription" | "$queryRaw">,
+  tx?: SharedDb,
 ): Promise<{
   subscribed: boolean;
   tier: string | null;
@@ -162,6 +183,34 @@ export async function cmoPaidFor(
 }> {
   requireChargingNetwork(scope.network, "CMO billing");
   if (tx) {
+    const txNetworkDb = sharedTxAsNetworkDb(scope, tx);
+    if (txNetworkDb) {
+      const [subscription, testerBuckets] = await Promise.all([
+        tx.polarSubscription.findFirst({
+          where: {
+            projectId,
+            endedAt: null,
+            status: "active",
+            OR: [
+              { cancelAtPeriodEnd: false },
+              { currentPeriodEnd: { gt: now } },
+            ],
+          },
+          select: { tier: true },
+        }),
+        // The grant and month reservation keep their funding guard in their open transaction.
+        txNetworkDb.creditBucket.findMany(testerFundingQuery(projectId, now)),
+      ]);
+      return {
+        subscribed: subscription !== null,
+        tier: subscription?.tier ?? null,
+        testerCreditsLeft: testerBuckets.some(
+          (bucket) =>
+            bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n) <
+            bucket.amount,
+        ),
+      };
+    }
     // The grant and month reservation keep their funding guard in their open transaction.
     const subscription = await tx.polarSubscription.findFirst({
       where: {
@@ -336,8 +385,24 @@ export async function grantCmoTesterCredits(input: {
  */
 export async function findUnpaidCusoHiredBy(
   userId: string,
-  db: Pick<Prisma.TransactionClient, "$queryRaw"> = prisma,
+  db: Pick<Prisma.TransactionClient, "sokoBot" | "$queryRaw"> = prisma,
 ): Promise<{ projectId: string; businessName: string } | null> {
+  if (networkUsesSharedSchema()) {
+    const bot = await db.sokoBot.findFirst({
+      where: {
+        ...LIVE_CUSO_WHERE,
+        createdByUserId: userId,
+        project: UNPAID_CUSO_PROJECT_WHERE,
+      },
+      select: { project: { select: { id: true, websiteUrl: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!bot?.project) return null;
+    return {
+      projectId: bot.project.id,
+      businessName: cmoBusinessNameFromUrl(bot.project.websiteUrl ?? ""),
+    };
+  }
   const versionIds = [...LIVE_CUSO_WHERE.versionId.in];
   const rows = await db.$queryRaw<
     Array<{ id: string; websiteUrl: string | null }>

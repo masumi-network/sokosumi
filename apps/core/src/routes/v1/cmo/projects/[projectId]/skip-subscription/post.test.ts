@@ -24,7 +24,6 @@ const m = vi.hoisted(() => ({
   grantFreeCredits: vi.fn(),
   member: true,
   prisma: {
-    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     creditBucket: { findMany: vi.fn() },
     polarSubscription: { findFirst: vi.fn() },
@@ -34,10 +33,7 @@ const m = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: m.prisma,
-  networkPrisma: () => m.prisma,
-}));
+vi.mock("@/lib/db/prisma", () => ({ default: m.prisma }));
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
   return {
@@ -125,15 +121,6 @@ beforeEach(() => {
   m.prisma.sokoBot.updateMany.mockResolvedValue({ count: 1 });
   m.prisma.polarSubscription.findFirst.mockResolvedValue(null);
   m.prisma.creditBucket.findMany.mockImplementation(async () => m.buckets);
-  m.prisma.$queryRaw.mockImplementation(async () =>
-    m.buckets.some(
-      (bucket) =>
-        bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n) <
-        bucket.amount,
-    )
-      ? [{ id: "tester-bucket" }]
-      : [],
-  );
   // The write lock on Cuso's row makes two grants take turns.
   let queue: Promise<unknown> = Promise.resolve();
   m.prisma.$transaction.mockImplementation((run) => {

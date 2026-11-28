@@ -1289,7 +1289,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -1300,7 +1300,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -1310,7 +1310,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -1321,13 +1329,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -1862,7 +1878,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -1873,7 +1889,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -1883,7 +1899,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -1894,13 +1918,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -5444,7 +5476,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -5455,7 +5487,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -5465,7 +5497,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -5476,13 +5516,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -6040,7 +6088,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -6051,7 +6099,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -6061,7 +6109,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -6072,13 +6128,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -9744,7 +9808,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -9755,7 +9819,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -9765,7 +9829,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -9776,13 +9848,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -10389,7 +10469,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -10400,7 +10480,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -10410,7 +10490,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -10421,13 +10509,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -12927,7 +13023,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -12938,7 +13034,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -12948,7 +13044,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -12959,13 +13063,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -13950,7 +14062,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -13961,7 +14073,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -13971,7 +14083,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -13982,13 +14102,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -16098,7 +16226,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -16109,7 +16237,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -16119,7 +16247,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -16130,13 +16266,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -16671,7 +16815,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -16682,7 +16826,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -16692,7 +16836,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -16703,13 +16855,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -20253,7 +20413,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -20264,7 +20424,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -20274,7 +20434,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -20285,13 +20453,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -20849,7 +21025,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -20860,7 +21036,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -20870,7 +21046,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -20881,13 +21065,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -24553,7 +24745,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -24564,7 +24756,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -24574,7 +24766,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -24585,13 +24785,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -25198,7 +25406,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -25209,7 +25417,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -25219,7 +25427,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -25230,13 +25446,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -27736,7 +27960,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -27747,7 +27971,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -27757,7 +27981,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -27768,13 +28000,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {
@@ -28759,7 +28999,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -28770,7 +29010,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -28780,7 +29020,15 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -28791,13 +29039,21 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_consumption\" (id, \"createdAt\", amount, \"bucketId\", \"transactionId\") VALUES ( $1, $2, $3, $4, $5 )",
+            "sql": "INSERT INTO \"public\".\"credit_consumption\" (\"id\",\"createdAt\",\"amount\",\"bucketId\",\"transactionId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"credit_consumption\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
               "5000000000",
               "<id 2>",
               "<id 7>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
             ]
           },
           {

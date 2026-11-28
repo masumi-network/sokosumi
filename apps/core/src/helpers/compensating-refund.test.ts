@@ -13,47 +13,9 @@ function refundTx({ liveCuso = true, remaining = [] as unknown[] } = {}) {
   const created: { data: Prisma.TransactionUncheckedCreateInput }[] = [];
   const queryRaw = vi.fn().mockResolvedValue(remaining);
   const updateMany = vi.fn().mockResolvedValue({ count: liveCuso ? 1 : 0 });
-  let pendingWriteOff: {
-    amount: bigint;
-    userId: string | null;
-    organizationId: string | null;
-  } | null = null;
   const tx = {
     sokoBot: { updateMany },
     $queryRaw: queryRaw,
-    $executeRaw: async (
-      strings: TemplateStringsArray,
-      ...values: unknown[]
-    ) => {
-      const sql = strings.join("?");
-      if (sql.includes("INSERT INTO") && !sql.includes("bucketId")) {
-        pendingWriteOff = {
-          amount: values[4] as bigint,
-          userId: values[5] as string | null,
-          organizationId: values[6] as string | null,
-        };
-        return 1;
-      }
-      if (sql.includes("bucketId") && pendingWriteOff) {
-        const txRow = pendingWriteOff;
-        pendingWriteOff = null;
-        created.push({
-          data: {
-            amount: txRow.amount,
-            organizationId: txRow.organizationId,
-            userId: txRow.userId,
-            creditConsumptions: {
-              create: {
-                amount: values[3] as bigint,
-                bucketId: values[4] as string,
-              },
-            },
-          },
-        });
-        return 1;
-      }
-      return 1;
-    },
     transaction: {
       create: async (args: {
         data: Prisma.TransactionUncheckedCreateInput;
@@ -84,9 +46,6 @@ describe("createCompensatingRefund", () => {
     expect(created).toEqual([
       {
         data: {
-          id: expect.stringMatching(
-            /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-          ),
           amount: 100n,
           organizationId: "org-1",
           userId: null,

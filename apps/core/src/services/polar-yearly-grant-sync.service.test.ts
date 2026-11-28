@@ -11,7 +11,6 @@ const m = vi.hoisted(() => ({
   listPolarProducts: vi.fn(),
   captureMessage: vi.fn(),
   prisma: {
-    $executeRaw: vi.fn(),
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
     polarSubscription: { findMany: vi.fn() },
@@ -144,49 +143,6 @@ beforeEach(() => {
       .map((referenceId: string) => ({ referenceId })),
   );
   m.prisma.task.findMany.mockResolvedValue([]);
-  let pendingTx: {
-    amount: bigint;
-    userId: string | null;
-    organizationId: string | null;
-  } | null = null;
-  m.prisma.$executeRaw.mockImplementation(
-    async (strings: TemplateStringsArray, ...values: unknown[]) => {
-      const sql = strings.join("?");
-      if (sql.includes("INSERT INTO") && !sql.includes("sourceTransactionId")) {
-        pendingTx = {
-          amount: values[4] as bigint,
-          userId: values[5] as string | null,
-          organizationId: values[6] as string | null,
-        };
-        return 1;
-      }
-      if (sql.includes("sourceTransactionId") && pendingTx) {
-        const txRow = pendingTx;
-        pendingTx = null;
-        await m.prisma.transaction.create({
-          data: {
-            amount: txRow.amount,
-            organizationId: txRow.organizationId,
-            userId: txRow.userId,
-            sourceCreditBucket: {
-              create: {
-                amount: values[4] as bigint,
-                expiresAt: values[5] as Date,
-                organizationId: values[13] as string,
-                projectId: values[14] as string,
-                referenceId: values[7] as string,
-                referenceNote: values[10] as string,
-                referenceType: values[8] as string,
-                userId: values[12] as string | null,
-              },
-            },
-          },
-        });
-        return 1;
-      }
-      return 1;
-    },
-  );
   m.prisma.transaction.create.mockImplementation(async ({ data }) => {
     const bucket = data.sourceCreditBucket.create;
     if (buckets.has(bucket.referenceId)) {

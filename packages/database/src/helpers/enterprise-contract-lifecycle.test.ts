@@ -96,27 +96,38 @@ function subscriptionClient(findFirst: (args: unknown) => Promise<unknown>) {
 }
 
 function createGrantClient(params?: { existingBucketReferenceIds?: string[] }) {
-  const queryRawMock = vi
-    .fn()
-    .mockImplementation(
-      (_strings: TemplateStringsArray, ...values: unknown[]) => {
-        const referenceId = values[1];
-        return Promise.resolve(
-          typeof referenceId === "string" &&
-            params?.existingBucketReferenceIds?.includes(referenceId)
-            ? [{ id: "existing-bucket", activatesAt: null, expiresAt: null }]
-            : [],
-        );
-      },
-    );
-  const executeRawMock = vi.fn().mockResolvedValue(1);
+  const findUniqueBucketMock = vi.fn().mockImplementation(
+    ({
+      where,
+    }: {
+      where: {
+        referenceId_referenceType: {
+          referenceId: string;
+        };
+      };
+    }) =>
+      Promise.resolve(
+        params?.existingBucketReferenceIds?.includes(
+          where.referenceId_referenceType.referenceId,
+        )
+          ? { id: "existing-bucket" }
+          : null,
+      ),
+  );
+  const createTransactionMock = vi.fn().mockResolvedValue({
+    sourceCreditBucket: { id: "bucket-new" },
+  });
 
   return {
-    executeRawMock,
-    queryRawMock,
+    createTransactionMock,
+    findUniqueBucketMock,
     tx: {
-      $queryRaw: queryRawMock,
-      $executeRaw: executeRawMock,
+      creditBucket: {
+        findUnique: findUniqueBucketMock,
+      },
+      transaction: {
+        create: createTransactionMock,
+      },
     } as unknown as PrismaType.TransactionClient,
   };
 }
@@ -244,6 +255,9 @@ function createLifecycleClient(params?: {
   ]);
   const updateMemberMock = vi.fn().mockResolvedValue({});
   const resolveActiveSubscriptionMock = vi.fn().mockResolvedValue(null);
+  const findFirstBucketMock = vi.fn().mockResolvedValue(null);
+  const updateManyBucketsMock = vi.fn().mockResolvedValue({ count: 0 });
+
   const grantClient = createGrantClient({
     existingBucketReferenceIds: params?.existingBucketReferenceIds,
   });
@@ -262,9 +276,15 @@ function createLifecycleClient(params?: {
     resolveActiveSubscriptionMock,
     updateContractMock,
     updateMemberMock,
+    updateManyBucketsMock,
     updatePeriodMock,
     tx: {
       ...grantClient.tx,
+      creditBucket: {
+        findFirst: findFirstBucketMock,
+        findUnique: grantClient.findUniqueBucketMock,
+        updateMany: updateManyBucketsMock,
+      },
       enterpriseContract: {
         findFirst: findActiveContractMock,
         findMany: findManyContractsMock,
@@ -283,13 +303,14 @@ function createLifecycleClient(params?: {
         update: updateMemberMock,
       },
       subscription: subscriptionClient(resolveActiveSubscriptionMock),
+      transaction: grantClient.tx.transaction,
     } as unknown as PrismaType.TransactionClient,
   };
 }
 
 describe("createEnterprisePeriodCreditBucket", () => {
   it("creates an org-level bucket with null userId", async () => {
-    const { executeRawMock, tx } = createGrantClient();
+    const { createTransactionMock, tx } = createGrantClient();
     const activatesAt = new Date("2026-05-01T00:00:00.000Z");
     const expiresAt = new Date("2026-05-31T23:59:59.999Z");
 
@@ -305,20 +326,32 @@ describe("createEnterprisePeriodCreditBucket", () => {
     );
 
     assert.equal(result.created, true);
-    assert.equal(result.bucketId.charAt(14), "7");
-    assert.equal(executeRawMock.mock.calls.length, 2);
-    assert.equal(executeRawMock.mock.calls[0]?.[6], null);
-    assert.equal(executeRawMock.mock.calls[0]?.[7], ORG_ID);
-    assert.equal(executeRawMock.mock.calls[1]?.[13], null);
+    assert.equal(result.bucketId, "bucket-new");
+    assert.equal(createTransactionMock.mock.calls.length, 1);
+    assert.equal(createTransactionMock.mock.calls[0]?.[0].data.userId, null);
     assert.equal(
-      executeRawMock.mock.calls[1]?.[9],
+      createTransactionMock.mock.calls[0]?.[0].data.organizationId,
+      ORG_ID,
+    );
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .userId,
+      null,
+    );
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .referenceType,
       CreditBucketReferenceType.ENTERPRISE_PERIOD,
     );
-    assert.equal(executeRawMock.mock.calls[1]?.[8], PERIOD_ID);
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .referenceId,
+      PERIOD_ID,
+    );
   });
 
   it("skips creation when the bucket already exists", async () => {
-    const { executeRawMock, tx } = createGrantClient({
+    const { createTransactionMock, tx } = createGrantClient({
       existingBucketReferenceIds: [PERIOD_ID],
     });
 
@@ -335,13 +368,13 @@ describe("createEnterprisePeriodCreditBucket", () => {
 
     assert.equal(result.created, false);
     assert.equal(result.bucketId, "existing-bucket");
-    assert.equal(executeRawMock.mock.calls.length, 0);
+    assert.equal(createTransactionMock.mock.calls.length, 0);
   });
 });
 
 describe("createEnterpriseTopUpCreditBucket", () => {
   it("is idempotent per contract id", async () => {
-    const { executeRawMock, tx } = createGrantClient({
+    const { createTransactionMock, tx } = createGrantClient({
       existingBucketReferenceIds: [CONTRACT_ID],
     });
 
@@ -357,16 +390,18 @@ describe("createEnterpriseTopUpCreditBucket", () => {
     );
 
     assert.equal(result.created, false);
-    assert.equal(executeRawMock.mock.calls.length, 0);
+    assert.equal(createTransactionMock.mock.calls.length, 0);
   });
 });
 
 describe("expireCreditBucketsNow", () => {
   it("expires only matching unexpired buckets", async () => {
-    const executeRawMock = vi.fn().mockResolvedValue(2);
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 2 });
     const now = new Date("2026-06-01T00:00:00.000Z");
     const tx = {
-      $executeRaw: executeRawMock,
+      creditBucket: {
+        updateMany: updateManyMock,
+      },
     } as unknown as PrismaType.TransactionClient;
 
     const count = await expireCreditBucketsNow(
@@ -382,7 +417,7 @@ describe("expireCreditBucketsNow", () => {
     );
 
     assert.equal(count, 2);
-    assert.equal(executeRawMock.mock.calls[0]?.[2], now);
+    assert.equal(updateManyMock.mock.calls[0]?.[0].data.expiresAt, now);
   });
 });
 
@@ -397,7 +432,9 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
     ]);
 
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([]),
+      creditBucket: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
       member: {
         findMany: findManyMembersMock,
       },
@@ -418,7 +455,9 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
   });
 
   it("lists an organization paid subscription with consumable buckets", async () => {
-    const queryRawMock = vi.fn().mockResolvedValueOnce([{ id: "org-bucket" }]);
+    const findFirstBucketMock = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "org-bucket" });
     const resolveActiveSubscriptionMock = vi.fn().mockResolvedValueOnce({
       id: "sub-org",
       plan: "starter",
@@ -426,7 +465,9 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
     });
 
     const tx = {
-      $queryRaw: queryRawMock,
+      creditBucket: {
+        findFirst: findFirstBucketMock,
+      },
       member: {
         findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
       },
@@ -444,7 +485,7 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
   });
 
   it("ignores member personal subscriptions", async () => {
-    const queryRawMock = vi.fn().mockResolvedValue([]);
+    const findFirstBucketMock = vi.fn().mockResolvedValue(null);
     const resolveActiveSubscriptionMock = vi
       .fn()
       .mockResolvedValueOnce(null)
@@ -455,7 +496,9 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       });
 
     const tx = {
-      $queryRaw: queryRawMock,
+      creditBucket: {
+        findFirst: findFirstBucketMock,
+      },
       member: {
         findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
       },
@@ -473,7 +516,9 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
 
   it("returns no blocker when a paid subscription has no consumable buckets", async () => {
     const tx = {
-      $queryRaw: vi.fn().mockResolvedValue([]),
+      creditBucket: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
       member: {
         findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
       },
@@ -528,9 +573,7 @@ describe("activateEnterpriseContract", () => {
       "wire-123",
     );
     assert.equal(
-      (
-        client.grantClient.executeRawMock.mock.calls[1]?.[7] as Date
-      ).toISOString(),
+      client.grantClient.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
       activatedAt.toISOString(),
     );
     assert.deepEqual(
@@ -574,6 +617,7 @@ describe("activateEnterpriseContract", () => {
 
   it("allows activation when a paid subscription has no consumable buckets", async () => {
     const client = createLifecycleClient();
+    client.tx.creditBucket.findFirst = vi.fn().mockResolvedValue(null);
     client.tx.subscription.findFirst = vi.fn().mockResolvedValue({
       id: "sub-org",
       plan: "starter",
@@ -599,12 +643,15 @@ describe("activateEnterpriseContract", () => {
 
   it("rejects activation when paid subscriptions block", async () => {
     const client = createLifecycleClient();
+    const findFirstBucketMock = vi
+      .fn()
+      .mockResolvedValue({ id: "paid-bucket" });
     const resolveActiveSubscriptionMock = vi.fn().mockResolvedValue({
       id: "sub-org",
       plan: "starter",
       stripeSubscriptionId: "sub_stripe_org",
     });
-    client.grantClient.queryRawMock.mockResolvedValue([{ id: "paid-bucket" }]);
+    client.tx.creditBucket.findFirst = findFirstBucketMock;
     client.tx.subscription.findFirst = resolveActiveSubscriptionMock;
 
     await assert.rejects(
@@ -642,7 +689,7 @@ describe("activateEnterpriseContract", () => {
     );
 
     assert.equal(result.topUpBucketCreated, true);
-    assert.equal(client.grantClient.executeRawMock.mock.calls.length, 4);
+    assert.equal(client.grantClient.createTransactionMock.mock.calls.length, 2);
   });
 
   it("returns periodBucketCreated false when period-1 bucket already exists on activation", async () => {
@@ -660,7 +707,7 @@ describe("activateEnterpriseContract", () => {
     );
 
     assert.equal(result.periodBucketCreated, false);
-    assert.equal(client.grantClient.executeRawMock.mock.calls.length, 0);
+    assert.equal(client.grantClient.createTransactionMock.mock.calls.length, 0);
   });
 
   it("completes a past-term active contract before activating a new draft", async () => {
@@ -732,7 +779,10 @@ describe("activateEnterpriseContract", () => {
     );
 
     assert.equal(result.periodBucketCreated, true);
-    assert.equal(client.grantClient.executeRawMock.mock.calls[0]?.[6], null);
+    assert.equal(
+      client.grantClient.createTransactionMock.mock.calls[0]?.[0].data.userId,
+      null,
+    );
   });
 
   it("rejects non-draft contracts", async () => {
@@ -779,18 +829,18 @@ describe("cancelEnterpriseContract", () => {
 
     const updateManyPeriodsMock = vi.fn().mockResolvedValue({ count: 1 });
     const updatePeriodMock = vi.fn().mockResolvedValue({});
-    const executeRawMock = vi.fn().mockResolvedValue(2);
+    const updateManyBucketsMock = vi.fn().mockResolvedValue({ count: 2 });
     const updateContractMock = vi.fn().mockResolvedValue({});
-    const queryRawMock = vi.fn().mockResolvedValue([
-      {
-        activatesAt: new Date("2026-07-01T00:00:00.000Z"),
-        id: "bucket-future",
-      },
-    ]);
+    const findUniqueBucketMock = vi.fn().mockResolvedValue({
+      activatesAt: new Date("2026-07-01T00:00:00.000Z"),
+      id: "bucket-future",
+    });
 
     const tx = {
-      $queryRaw: queryRawMock,
-      $executeRaw: executeRawMock,
+      creditBucket: {
+        findUnique: findUniqueBucketMock,
+        updateMany: updateManyBucketsMock,
+      },
       enterpriseContract: {
         findUnique: vi.fn().mockResolvedValue({
           id: CONTRACT_ID,
@@ -812,7 +862,7 @@ describe("cancelEnterpriseContract", () => {
       expireCredits: expiring(tx),
     });
 
-    assert.equal(executeRawMock.mock.calls.length, 1);
+    assert.equal(updateManyBucketsMock.mock.calls.length, 1);
     assert.equal(updateManyPeriodsMock.mock.calls.length, 1);
     assert.equal(
       updateManyPeriodsMock.mock.calls[0]?.[0].where.status,
@@ -841,17 +891,17 @@ describe("cancelEnterpriseContract", () => {
     };
 
     const updatePeriodMock = vi.fn().mockResolvedValue({});
-    const executeRawMock = vi.fn().mockResolvedValue(1);
-    const queryRawMock = vi.fn().mockResolvedValue([
-      {
-        activatesAt: new Date("2026-05-01T00:00:00.000Z"),
-        id: "bucket-current",
-      },
-    ]);
+    const updateManyBucketsMock = vi.fn().mockResolvedValue({ count: 1 });
+    const findUniqueBucketMock = vi.fn().mockResolvedValue({
+      activatesAt: new Date("2026-05-01T00:00:00.000Z"),
+      id: "bucket-current",
+    });
 
     const tx = {
-      $queryRaw: queryRawMock,
-      $executeRaw: executeRawMock,
+      creditBucket: {
+        findUnique: findUniqueBucketMock,
+        updateMany: updateManyBucketsMock,
+      },
       enterpriseContract: {
         findUnique: vi.fn().mockResolvedValue({
           id: CONTRACT_ID,
@@ -873,8 +923,11 @@ describe("cancelEnterpriseContract", () => {
       expireCredits: expiring(tx),
     });
 
-    assert.equal(executeRawMock.mock.calls.length, 1);
-    assert.deepEqual(executeRawMock.mock.calls[0]?.[4], ["period-current"]);
+    assert.equal(updateManyBucketsMock.mock.calls.length, 1);
+    assert.deepEqual(
+      updateManyBucketsMock.mock.calls[0]?.[0].where.referenceId.in,
+      ["period-current"],
+    );
     assert.equal(updatePeriodMock.mock.calls.length, 1);
     assert.equal(
       updatePeriodMock.mock.calls[0]?.[0].data.status,

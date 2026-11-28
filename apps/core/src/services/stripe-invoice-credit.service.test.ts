@@ -23,61 +23,13 @@ const userUpdateMock = vi.fn();
 const organizationUpdateMock = vi.fn();
 const userFindByEmailMock = vi.fn();
 
-const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
-  let pendingTransaction: {
-    amount: bigint;
-    userId: string | null;
-    organizationId: string | null;
-  } | null = null;
-  return callback({
-    $queryRaw: async (_strings: TemplateStringsArray, ...values: unknown[]) => {
-      const referenceId = values[1] as string;
-      const referenceType = values[2] as string;
-      const existing = await findExistingBucketMock({
-        where: {
-          referenceId_referenceType: { referenceId, referenceType },
-        },
-        select: { id: true },
-      });
-      return existing ? [existing] : [];
+const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
+  callback({
+    creditBucket: {
+      findUnique: (...args: unknown[]) => findExistingBucketMock(...args),
     },
-    $executeRaw: async (
-      strings: TemplateStringsArray,
-      ...values: unknown[]
-    ) => {
-      const sql = strings.join("?");
-      if (sql.includes("INSERT INTO") && !sql.includes("sourceTransactionId")) {
-        pendingTransaction = {
-          amount: values[4] as bigint,
-          userId: values[5] as string | null,
-          organizationId: values[6] as string | null,
-        };
-        return 1;
-      }
-      if (sql.includes("sourceTransactionId") && pendingTransaction) {
-        const txRow = pendingTransaction;
-        pendingTransaction = null;
-        await createTransactionMock({
-          data: {
-            amount: txRow.amount,
-            ...(txRow.userId !== null
-              ? { user: { connect: { id: txRow.userId } } }
-              : { organizationId: txRow.organizationId, userId: null }),
-            sourceCreditBucket: {
-              create: {
-                amount: values[4] as bigint,
-                expiresAt: values[5] as Date | null,
-                referenceId: values[7] as string,
-                referenceType: values[8] as string,
-                userId: values[12] as string | null,
-                organizationId: values[13] as string | null,
-              },
-            },
-          },
-        });
-        return 1;
-      }
-      return 1;
+    transaction: {
+      create: (...args: unknown[]) => createTransactionMock(...args),
     },
     notification: {
       updateManyAndReturn: (...args: unknown[]) =>
@@ -87,8 +39,8 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => {
       findMany: (...args: unknown[]) => findOutOfCreditsTasksMock(...args),
       update: (...args: unknown[]) => updateTaskMock(...args),
     },
-  });
-});
+  }),
+);
 
 const notifyInvoicePaidMock = vi.fn();
 

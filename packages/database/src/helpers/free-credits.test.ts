@@ -31,9 +31,11 @@ describe("buildFreeCreditReferenceId", () => {
 
 describe("grantFreeCredits", () => {
   it("creates a user-scoped free credit bucket", async () => {
-    const executeRawMock = vi.fn().mockResolvedValue(1);
+    const createMock = vi.fn().mockResolvedValue({
+      sourceCreditBucket: { id: "bucket-1" },
+    });
     const tx = {
-      $executeRaw: executeRawMock,
+      transaction: { create: createMock },
     };
 
     const expiresAt = new Date("2026-08-05T00:00:00.000Z");
@@ -51,26 +53,46 @@ describe("grantFreeCredits", () => {
       tx as never,
     );
 
-    assert.equal(result.bucketId.charAt(14), "7");
-    assert.equal(executeRawMock.mock.calls.length, 2);
-    const [, ...txValues] = executeRawMock.mock.calls[0] ?? [];
-    assert.equal(txValues[5], "user-1");
-    assert.equal(txValues[6], null);
-    const [, ...bucketValues] = executeRawMock.mock.calls[1] ?? [];
-    assert.equal(bucketValues[1], result.bucketId);
-    assert.equal(bucketValues[5], expiresAt);
-    assert.equal(bucketValues[7], "user:user-1:free:grant-1");
-    assert.equal(bucketValues[8], CreditBucketReferenceType.FREE);
-    assert.equal(bucketValues[10], "Goodwill gesture");
-    assert.equal(bucketValues[12], "user-1");
-    assert.equal(bucketValues[13], null);
-    assert.equal(bucketValues[14], null);
+    assert.deepEqual(result, { bucketId: "bucket-1" });
+    assert.equal(
+      Object.hasOwn(
+        createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create,
+        "projectId",
+      ),
+      false,
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
+      "user:user-1:free:grant-1",
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .referenceType,
+      CreditBucketReferenceType.FREE,
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .referenceNote,
+      "Goodwill gesture",
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.userId,
+      "user-1",
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .organizationId,
+      null,
+    );
+    assert.equal(createMock.mock.calls[0]?.[0].data.userId, "user-1");
   });
 
   it("creates an organization-scoped free credit bucket", async () => {
-    const executeRawMock = vi.fn().mockResolvedValue(1);
+    const createMock = vi.fn().mockResolvedValue({
+      sourceCreditBucket: { id: "bucket-org" },
+    });
     const tx = {
-      $executeRaw: executeRawMock,
+      transaction: { create: createMock },
     };
 
     const result = await grantFreeCredits(
@@ -87,20 +109,28 @@ describe("grantFreeCredits", () => {
       tx as never,
     );
 
-    assert.equal(result.bucketId.charAt(14), "7");
-    assert.equal(executeRawMock.mock.calls.length, 2);
-    const [, ...txValues] = executeRawMock.mock.calls[0] ?? [];
-    assert.equal(txValues[5], null);
-    assert.equal(txValues[6], "org-1");
-    const [, ...bucketValues] = executeRawMock.mock.calls[1] ?? [];
-    assert.equal(bucketValues[7], "org:org-1:free:grant-org");
-    assert.equal(bucketValues[12], null);
-    assert.equal(bucketValues[13], "org-1");
-    assert.equal(bucketValues[14], null);
+    assert.deepEqual(result, { bucketId: "bucket-org" });
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
+      "org:org-1:free:grant-org",
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.userId,
+      null,
+    );
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .organizationId,
+      "org-1",
+    );
+    assert.equal(createMock.mock.calls[0]?.[0].data.userId, null);
+    assert.equal(createMock.mock.calls[0]?.[0].data.organizationId, "org-1");
   });
 
   it("scopes an organization grant to a Project", async () => {
-    const executeRawMock = vi.fn().mockResolvedValue(1);
+    const createMock = vi.fn().mockResolvedValue({
+      sourceCreditBucket: { id: "bucket-project" },
+    });
 
     await grantFreeCredits(
       {
@@ -114,16 +144,18 @@ describe("grantFreeCredits", () => {
         targetType: "organization",
         transactionUserId: null,
       },
-      { $executeRaw: executeRawMock } as never,
+      { transaction: { create: createMock } } as never,
     );
 
-    const [, ...bucketValues] = executeRawMock.mock.calls[1] ?? [];
-    assert.equal(bucketValues[14], "project-1");
+    assert.equal(
+      createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.projectId,
+      "project-1",
+    );
   });
 
   it("rejects non-positive credits", async () => {
     const tx = {
-      $executeRaw: vi.fn(),
+      transaction: { create: vi.fn() },
     };
 
     await assert.rejects(
@@ -146,9 +178,9 @@ describe("grantFreeCredits", () => {
   });
 
   it("rejects user grants without a transaction actor", async () => {
-    const executeRawMock = vi.fn();
+    const createMock = vi.fn();
     const tx = {
-      $executeRaw: executeRawMock,
+      transaction: { create: createMock },
     };
 
     await assert.rejects(
@@ -168,13 +200,13 @@ describe("grantFreeCredits", () => {
         ),
       /User free credits require a transaction actor user id/,
     );
-    assert.equal(executeRawMock.mock.calls.length, 0);
+    assert.equal(createMock.mock.calls.length, 0);
   });
 
   it("rejects organization grants that stamp a transaction actor", async () => {
-    const executeRawMock = vi.fn();
+    const createMock = vi.fn();
     const tx = {
-      $executeRaw: executeRawMock,
+      transaction: { create: createMock },
     };
 
     await assert.rejects(
@@ -194,6 +226,6 @@ describe("grantFreeCredits", () => {
         ),
       /Organization free credits must not stamp a transaction actor/,
     );
-    assert.equal(executeRawMock.mock.calls.length, 0);
+    assert.equal(createMock.mock.calls.length, 0);
   });
 });

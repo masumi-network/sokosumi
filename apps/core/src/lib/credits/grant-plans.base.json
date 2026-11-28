@@ -565,14 +565,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<new Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 47>",
               "<time>",
@@ -583,7 +585,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 48>",
               "<time>",
@@ -593,11 +595,17 @@
               null,
               "org:<new Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 47>",
               null,
-              "<new Organization>",
-              null
+              "<new Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 47>",
+              "1",
+              "0"
             ]
           },
           {
@@ -610,7 +618,7 @@
     },
     "sendOrder": [
       "8 call in transaction 0",
-      "7 call in transaction 1"
+      "8 call in transaction 1"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -753,10 +761,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<again Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -866,7 +876,7 @@
     "captured": [
       {
         "name": "PrismaClientKnownRequestError",
-        "message": "Raw query failed. Code: `23505`. Message: `duplicate key value violates unique constraint \"credit_bucket_referenceId_referenceType_key\"`"
+        "message": "Unique constraint failed on the constraint: `credit_bucket_referenceId_referenceType_key`"
       }
     ],
     "logged": [],
@@ -1433,14 +1443,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<doubled Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 47>",
               "<time>",
@@ -1451,7 +1463,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 48>",
               "<time>",
@@ -1461,11 +1473,17 @@
               null,
               "org:<doubled Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 47>",
               null,
-              "<doubled Organization>",
-              null
+              "<doubled Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 47>",
+              "1",
+              "0"
             ]
           },
           {
@@ -1535,14 +1553,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<doubled Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 50>",
               "<time>",
@@ -1553,7 +1573,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 51>",
               "<time>",
@@ -1563,11 +1583,9 @@
               null,
               "org:<doubled Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 50>",
               null,
-              "<doubled Organization>",
-              null
+              "<doubled Organization>"
             ]
           },
           {
@@ -1586,7 +1604,7 @@
         "transactions": 2,
         "sendOrder": [
           "8 first in transaction 0",
-          "7 first in transaction 1"
+          "8 first in transaction 1"
         ],
         "sentBeforeAnswered": []
       },
@@ -2256,14 +2274,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 47>",
               "<time>",
@@ -2274,7 +2294,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 48>",
               "<time>",
@@ -2284,11 +2304,17 @@
               null,
               "org::local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 47>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 47>",
+              "1",
+              "0"
             ]
           },
           {
@@ -2301,7 +2327,7 @@
     },
     "sendOrder": [
       "8 call in transaction 0",
-      "7 call in transaction 1"
+      "8 call in transaction 1"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -2435,14 +2461,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<customer Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 2>",
               "<time>",
@@ -2453,7 +2481,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -2463,11 +2491,17 @@
               null,
               "org:<customer Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 2>",
               null,
-              "<customer Organization>",
-              null
+              "<customer Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 2>",
+              "1",
+              "0"
             ]
           },
           {
@@ -2488,7 +2522,7 @@
     },
     "sendOrder": [
       "1 call outside",
-      "7 call in transaction 0"
+      "8 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -2604,10 +2638,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<again customer Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -2721,7 +2757,7 @@
       "second": {
         "whileHeld": "waits",
         "answer": {
-          "threw": "Raw query failed. Code: `23505`. Message: `duplicate key value violates unique constraint \"credit_bucket_referenceId_referenceType_key\"`"
+          "threw": "Unique constraint failed on the constraint: `credit_bucket_referenceId_referenceType_key`"
         }
       }
     },
@@ -2764,14 +2800,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<doubled customer Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 2>",
               "<time>",
@@ -2782,7 +2820,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -2792,11 +2830,17 @@
               null,
               "org:<doubled customer Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 2>",
               null,
-              "<doubled customer Organization>",
-              null
+              "<doubled customer Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 2>",
+              "1",
+              "0"
             ]
           },
           {
@@ -2839,14 +2883,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<doubled customer Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -2857,7 +2903,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -2867,11 +2913,9 @@
               null,
               "org:<doubled customer Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 5>",
               null,
-              "<doubled customer Organization>",
-              null
+              "<doubled customer Organization>"
             ]
           },
           {
@@ -2906,7 +2950,7 @@
         "transactions": 1,
         "sendOrder": [
           "1 first outside",
-          "7 first in transaction 0"
+          "8 first in transaction 0"
         ],
         "sentBeforeAnswered": []
       },
@@ -3153,14 +3197,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:<overdue person>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -3171,7 +3217,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -3181,11 +3227,17 @@
               null,
               "user:<overdue person>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               "<overdue person>",
-              null,
               null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 4>",
+              "1",
+              "0"
             ]
           },
           {
@@ -3268,7 +3320,7 @@
     "sendOrder": [
       "6 call in transaction 0",
       "3 call outside",
-      "10 call in transaction 1",
+      "11 call in transaction 1",
       "2 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -3493,14 +3545,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<overdue Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -3511,7 +3565,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -3521,11 +3575,17 @@
               null,
               "org:<overdue Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               null,
-              "<overdue Organization>",
-              null
+              "<overdue Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 4>",
+              "1",
+              "0"
             ]
           },
           {
@@ -3608,7 +3668,7 @@
     "sendOrder": [
       "6 call in transaction 0",
       "3 call outside",
-      "9 call in transaction 1",
+      "10 call in transaction 1",
       "2 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -3833,14 +3893,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<upcoming Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -3851,7 +3913,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -3861,11 +3923,17 @@
               "<time>",
               "org:<upcoming Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               null,
-              "<upcoming Organization>",
-              null
+              "<upcoming Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 4>",
+              "1",
+              "0"
             ]
           },
           {
@@ -3940,7 +4008,7 @@
     "sendOrder": [
       "6 call in transaction 0",
       "2 call outside",
-      "8 call in transaction 1",
+      "9 call in transaction 1",
       "3 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -4402,14 +4470,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:<doubly renewed person>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -4420,7 +4490,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -4430,11 +4500,17 @@
               null,
               "user:<doubly renewed person>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               "<doubly renewed person>",
-              null,
               null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 4>",
+              "1",
+              "0"
             ]
           },
           {
@@ -4571,7 +4647,7 @@
         "sendOrder": [
           "6 first in transaction 0",
           "3 first outside",
-          "10 first in transaction 1",
+          "11 first in transaction 1",
           "2 first outside"
         ],
         "sentBeforeAnswered": []
@@ -4991,14 +5067,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<downgraded Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -5009,7 +5087,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -5019,11 +5097,17 @@
               null,
               "org:<downgraded Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 3>",
               null,
-              "<downgraded Organization>",
-              null
+              "<downgraded Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 3>",
+              "1",
+              "0"
             ]
           },
           {
@@ -5055,7 +5139,7 @@
     },
     "sendOrder": [
       "1 call outside",
-      "11 call in transaction 0"
+      "12 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -5259,14 +5343,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:<downgraded person>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -5277,7 +5363,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -5287,11 +5373,17 @@
               null,
               "user:<downgraded person>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 3>",
               "<downgraded person>",
-              null,
               null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 3>",
+              "1",
+              "0"
             ]
           },
           {
@@ -5323,7 +5415,7 @@
     },
     "sendOrder": [
       "1 call outside",
-      "12 call in transaction 0"
+      "13 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -5488,10 +5580,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<again downgraded Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -5644,7 +5738,7 @@
       "second": {
         "whileHeld": "waits",
         "answer": {
-          "threw": "Raw query failed. Code: `23505`. Message: `duplicate key value violates unique constraint \"credit_bucket_referenceId_referenceType_key\"`"
+          "threw": "Unique constraint failed on the constraint: `credit_bucket_referenceId_referenceType_key`"
         }
       }
     },
@@ -5721,14 +5815,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<doubly downgraded Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -5739,7 +5835,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -5749,11 +5845,17 @@
               null,
               "org:<doubly downgraded Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 3>",
               null,
-              "<doubly downgraded Organization>",
-              null
+              "<doubly downgraded Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 3>",
+              "1",
+              "0"
             ]
           },
           {
@@ -5840,14 +5942,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:<doubly downgraded Organization>:local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -5858,7 +5962,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
@@ -5868,11 +5972,9 @@
               null,
               "org:<doubly downgraded Organization>:local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 7>",
               null,
-              "<doubly downgraded Organization>",
-              null
+              "<doubly downgraded Organization>"
             ]
           },
           {
@@ -5909,7 +6011,7 @@
         "transactions": 1,
         "sendOrder": [
           "1 first outside",
-          "11 first in transaction 0"
+          "12 first in transaction 0"
         ],
         "sentBeforeAnswered": []
       },
@@ -6375,14 +6477,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -6393,7 +6497,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -6403,11 +6507,24 @@
               "<time>",
               "<id 2>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 5>",
               null,
-              "<enterprise Organization with a top-up>",
-              null
+              "<enterprise Organization with a top-up>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 5>",
+              "0"
             ]
           },
           {
@@ -6419,14 +6536,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 1>",
-              "ENTERPRISE_TOP_UP"
+              "ENTERPRISE_TOP_UP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -6437,7 +6556,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
@@ -6447,11 +6566,24 @@
               "<time>",
               "<id 1>",
               "ENTERPRISE_TOP_UP",
-              null,
               "<id 7>",
               null,
-              "<enterprise Organization with a top-up>",
-              null
+              "<enterprise Organization with a top-up>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 7>",
+              "0"
             ]
           },
           {
@@ -6494,7 +6626,7 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "24 call in transaction 0"
+      "28 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -6806,14 +6938,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -6824,7 +6958,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -6834,11 +6968,24 @@
               "<time>",
               "<id 2>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 5>",
               null,
-              "<enterprise Organization without a top-up>",
-              null
+              "<enterprise Organization without a top-up>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 5>",
+              "0"
             ]
           },
           {
@@ -6889,7 +7036,7 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "21 call in transaction 0"
+      "23 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -7393,14 +7540,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -7411,7 +7560,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -7421,11 +7570,24 @@
               "<time>",
               "<id 2>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 5>",
               null,
-              "<doubly activated Organization>",
-              null
+              "<doubly activated Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 5>",
+              "0"
             ]
           },
           {
@@ -7437,14 +7599,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 1>",
-              "ENTERPRISE_TOP_UP"
+              "ENTERPRISE_TOP_UP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -7455,7 +7619,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
@@ -7465,11 +7629,24 @@
               "<time>",
               "<id 1>",
               "ENTERPRISE_TOP_UP",
-              null,
               "<id 7>",
               null,
-              "<doubly activated Organization>",
-              null
+              "<doubly activated Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 7>",
+              "0"
             ]
           },
           {
@@ -7625,14 +7802,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 10>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 13>",
               "<time>",
@@ -7643,7 +7822,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 14>",
               "<time>",
@@ -7653,11 +7832,24 @@
               "<time>",
               "<id 10>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 13>",
               null,
-              "<doubly activated Organization>",
-              null
+              "<doubly activated Organization>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 13>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 13>",
+              "0"
             ]
           },
           {
@@ -7669,14 +7861,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 1>",
-              "ENTERPRISE_TOP_UP"
+              "ENTERPRISE_TOP_UP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 15>",
               "<time>",
@@ -7687,7 +7881,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 16>",
               "<time>",
@@ -7697,11 +7891,9 @@
               "<time>",
               "<id 1>",
               "ENTERPRISE_TOP_UP",
-              null,
               "<id 15>",
               null,
-              "<doubly activated Organization>",
-              null
+              "<doubly activated Organization>"
             ]
           },
           {
@@ -7748,14 +7940,14 @@
       "first": {
         "transactions": 1,
         "sendOrder": [
-          "24 first in transaction 0"
+          "28 first in transaction 0"
         ],
         "sentBeforeAnswered": []
       },
       "second": {
         "transactions": 2,
         "sendOrder": [
-          "20 second in transaction 0",
+          "22 second in transaction 0",
           "5 second in transaction 1"
         ],
         "sentBeforeAnswered": []
@@ -8069,14 +8261,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -8087,7 +8281,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -8097,11 +8291,24 @@
               "<time>",
               "<id 2>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 5>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 5>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 5>",
+              "0"
             ]
           },
           {
@@ -8113,14 +8320,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 1>",
-              "ENTERPRISE_TOP_UP"
+              "ENTERPRISE_TOP_UP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -8131,7 +8340,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 8>",
               "<time>",
@@ -8141,11 +8350,24 @@
               "<time>",
               "<id 1>",
               "ENTERPRISE_TOP_UP",
-              null,
               "<id 7>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 7>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 7>",
+              "0"
             ]
           },
           {
@@ -8188,7 +8410,7 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "24 call in transaction 0"
+      "28 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -8441,10 +8663,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -8472,21 +8696,25 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 5>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 5>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -8497,7 +8725,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -8507,11 +8735,24 @@
               "<time>",
               "<id 5>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 6>",
               null,
-              "<renewing enterprise>",
-              null
+              "<renewing enterprise>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 6>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 6>",
+              "0"
             ]
           },
           {
@@ -8540,21 +8781,25 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 8>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 8>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 9>",
               "<time>",
@@ -8565,7 +8810,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 10>",
               "<time>",
@@ -8575,11 +8820,24 @@
               "<time>",
               "<id 8>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 9>",
               null,
-              "<renewing enterprise>",
-              null
+              "<renewing enterprise>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 9>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 9>",
+              "0"
             ]
           },
           {
@@ -8620,7 +8878,7 @@
     },
     "sendOrder": [
       "6 call in transaction 0",
-      "21 call in transaction 1",
+      "25 call in transaction 1",
       "1 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -8933,17 +9191,21 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 4>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -9320,10 +9582,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -9351,21 +9615,25 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 5>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 5>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -9376,7 +9644,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -9386,11 +9654,24 @@
               "<time>",
               "<id 5>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 6>",
               null,
-              "<doubly renewed enterprise>",
-              null
+              "<doubly renewed enterprise>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 6>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 6>",
+              "0"
             ]
           },
           {
@@ -9419,21 +9700,25 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 8>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 8>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 9>",
               "<time>",
@@ -9444,7 +9729,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 10>",
               "<time>",
@@ -9454,11 +9739,24 @@
               "<time>",
               "<id 8>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 9>",
               null,
-              "<doubly renewed enterprise>",
-              null
+              "<doubly renewed enterprise>"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 9>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 9>",
+              "0"
             ]
           },
           {
@@ -9553,7 +9851,7 @@
         "transactions": 2,
         "sendOrder": [
           "6 first in transaction 0",
-          "21 first in transaction 1",
+          "25 first in transaction 1",
           "1 first outside"
         ],
         "sentBeforeAnswered": []
@@ -9875,10 +10173,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -9906,21 +10206,25 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 5>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 5>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 6>",
               "<time>",
@@ -9931,7 +10235,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 7>",
               "<time>",
@@ -9941,11 +10245,24 @@
               "<time>",
               "<id 5>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 6>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 6>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 6>",
+              "0"
             ]
           },
           {
@@ -9974,21 +10291,25 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 8>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 8>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 9>",
               "<time>",
@@ -9999,7 +10320,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 10>",
               "<time>",
@@ -10009,11 +10330,24 @@
               "<time>",
               "<id 8>",
               "ENTERPRISE_PERIOD",
-              null,
               "<id 9>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 9>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": [
+              "<id 9>",
+              "0"
             ]
           },
           {
@@ -10054,7 +10388,7 @@
     },
     "sendOrder": [
       "6 call in transaction 0",
-      "21 call in transaction 1",
+      "25 call in transaction 1",
       "1 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -10342,20 +10676,16 @@
             ]
           },
           {
-            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE \"referenceId\" = ANY($3::text[]) AND \"referenceType\" = ANY(CAST($4::text[] AS \"public\".\"CreditBucketReferenceType\"[])) AND (\"expiresAt\" IS NULL OR \"expiresAt\" > $5)",
+            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"credit_bucket\".\"referenceId\" IN ($3,$4,$5,$6) AND \"public\".\"credit_bucket\".\"referenceType\" IN (CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),CAST($8::text AS \"public\".\"CreditBucketReferenceType\")) AND (\"public\".\"credit_bucket\".\"expiresAt\" IS NULL OR \"public\".\"credit_bucket\".\"expiresAt\" > $9))",
             "values": [
               "<time>",
               "<time>",
-              [
-                "<id 2>",
-                "<id 3>",
-                "<id 4>",
-                "<id 1>"
-              ],
-              [
-                "ENTERPRISE_PERIOD",
-                "ENTERPRISE_TOP_UP"
-              ],
+              "<id 2>",
+              "<id 3>",
+              "<id 4>",
+              "<id 1>",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
               "<time>"
             ]
           },
@@ -10369,10 +10699,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -10384,10 +10716,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -10945,20 +11279,16 @@
             ]
           },
           {
-            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE \"referenceId\" = ANY($3::text[]) AND \"referenceType\" = ANY(CAST($4::text[] AS \"public\".\"CreditBucketReferenceType\"[])) AND (\"expiresAt\" IS NULL OR \"expiresAt\" > $5)",
+            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"credit_bucket\".\"referenceId\" IN ($3,$4,$5,$6) AND \"public\".\"credit_bucket\".\"referenceType\" IN (CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),CAST($8::text AS \"public\".\"CreditBucketReferenceType\")) AND (\"public\".\"credit_bucket\".\"expiresAt\" IS NULL OR \"public\".\"credit_bucket\".\"expiresAt\" > $9))",
             "values": [
               "<time>",
               "<time>",
-              [
-                "<id 2>",
-                "<id 3>",
-                "<id 4>",
-                "<id 1>"
-              ],
-              [
-                "ENTERPRISE_PERIOD",
-                "ENTERPRISE_TOP_UP"
-              ],
+              "<id 2>",
+              "<id 3>",
+              "<id 4>",
+              "<id 1>",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
               "<time>"
             ]
           },
@@ -10972,10 +11302,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -10987,10 +11319,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -11036,20 +11370,16 @@
             ]
           },
           {
-            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE \"referenceId\" = ANY($3::text[]) AND \"referenceType\" = ANY(CAST($4::text[] AS \"public\".\"CreditBucketReferenceType\"[])) AND (\"expiresAt\" IS NULL OR \"expiresAt\" > $5)",
+            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"credit_bucket\".\"referenceId\" IN ($3,$4,$5,$6) AND \"public\".\"credit_bucket\".\"referenceType\" IN (CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),CAST($8::text AS \"public\".\"CreditBucketReferenceType\")) AND (\"public\".\"credit_bucket\".\"expiresAt\" IS NULL OR \"public\".\"credit_bucket\".\"expiresAt\" > $9))",
             "values": [
               "<time>",
               "<time>",
-              [
-                "<id 2>",
-                "<id 3>",
-                "<id 4>",
-                "<id 1>"
-              ],
-              [
-                "ENTERPRISE_PERIOD",
-                "ENTERPRISE_TOP_UP"
-              ],
+              "<id 2>",
+              "<id 3>",
+              "<id 4>",
+              "<id 1>",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
               "<time>"
             ]
           },
@@ -11063,10 +11393,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -11078,10 +11410,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -11401,20 +11735,16 @@
             ]
           },
           {
-            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE \"referenceId\" = ANY($3::text[]) AND \"referenceType\" = ANY(CAST($4::text[] AS \"public\".\"CreditBucketReferenceType\"[])) AND (\"expiresAt\" IS NULL OR \"expiresAt\" > $5)",
+            "sql": "UPDATE \"public\".\"credit_bucket\" SET \"expiresAt\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"credit_bucket\".\"referenceId\" IN ($3,$4,$5,$6) AND \"public\".\"credit_bucket\".\"referenceType\" IN (CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),CAST($8::text AS \"public\".\"CreditBucketReferenceType\")) AND (\"public\".\"credit_bucket\".\"expiresAt\" IS NULL OR \"public\".\"credit_bucket\".\"expiresAt\" > $9))",
             "values": [
               "<time>",
               "<time>",
-              [
-                "<id 2>",
-                "<id 3>",
-                "<id 4>",
-                "<id 1>"
-              ],
-              [
-                "ENTERPRISE_PERIOD",
-                "ENTERPRISE_TOP_UP"
-              ],
+              "<id 2>",
+              "<id 3>",
+              "<id 4>",
+              "<id 1>",
+              "ENTERPRISE_PERIOD",
+              "ENTERPRISE_TOP_UP",
               "<time>"
             ]
           },
@@ -11428,10 +11758,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 2>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -11443,10 +11775,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"activatesAt\", \"public\".\"credit_bucket\".\"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "<id 3>",
-              "ENTERPRISE_PERIOD"
+              "ENTERPRISE_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -23635,14 +23969,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -23653,7 +23989,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -23663,11 +23999,17 @@
               null,
               "user::local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               "",
-              null,
               null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 4>",
+              "1",
+              "0"
             ]
           },
           {
@@ -23750,7 +24092,7 @@
     "sendOrder": [
       "6 call in transaction 0",
       "3 call outside",
-      "10 call in transaction 1",
+      "11 call in transaction 1",
       "2 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -23975,14 +24317,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -23993,7 +24337,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<time>",
@@ -24003,11 +24347,17 @@
               null,
               "org::local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 4>",
+              "1",
+              "0"
             ]
           },
           {
@@ -24090,7 +24440,7 @@
     "sendOrder": [
       "6 call in transaction 0",
       "3 call outside",
-      "9 call in transaction 1",
+      "10 call in transaction 1",
       "2 call outside"
     ],
     "sentBeforeAnswered": [],
@@ -24295,14 +24645,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -24313,7 +24665,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -24323,11 +24675,17 @@
               null,
               "user::local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 3>",
               "",
-              null,
               null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 3>",
+              "1",
+              "0"
             ]
           },
           {
@@ -24359,7 +24717,7 @@
     },
     "sendOrder": [
       "1 call outside",
-      "12 call in transaction 0"
+      "13 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -24555,14 +24913,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 3>",
               "<time>",
@@ -24573,7 +24933,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 4>",
               "<time>",
@@ -24583,11 +24943,17 @@
               null,
               "org::local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 3>",
               null,
-              "",
-              null
+              ""
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 3>",
+              "1",
+              "0"
             ]
           },
           {
@@ -24619,7 +24985,7 @@
     },
     "sendOrder": [
       "1 call outside",
-      "11 call in transaction 0"
+      "12 call in transaction 0"
     ],
     "sentBeforeAnswered": [],
     "rows": {
@@ -24823,10 +25189,12 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
@@ -25573,14 +25941,16 @@
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user::local-free:<time>:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 47>",
               "<time>",
@@ -25591,7 +25961,7 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"activatesAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,$7,CAST($8::text AS \"public\".\"CreditBucketReferenceType\"),$9,$10,$11) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 48>",
               "<time>",
@@ -25601,11 +25971,17 @@
               null,
               "user::local-free:<time>:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 47>",
               "",
-              null,
               null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<id 47>",
+              "1",
+              "0"
             ]
           },
           {
@@ -25618,7 +25994,7 @@
     },
     "sendOrder": [
       "9 call in transaction 0",
-      "9 call in transaction 1"
+      "10 call in transaction 1"
     ],
     "sentBeforeAnswered": [],
     "rows": {

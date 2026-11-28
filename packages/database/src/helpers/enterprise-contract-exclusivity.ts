@@ -4,6 +4,7 @@ import {
 } from "../generated/prisma/client.js";
 import { subscriptionRepository } from "../repositories/subscription.repository.js";
 import { netTable, netType } from "../sql-tables.js";
+import { creditBucketActivatesAtOrBefore } from "./credit.js";
 import { getSortedUniqueUserIds } from "./organization-seats.js";
 import { LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS } from "./subscription.js";
 
@@ -22,34 +23,57 @@ async function hasConsumablePaidSubscriptionPeriodBucket(
     userId: string;
   },
   tx: Prisma.TransactionClient,
+  options?: { splitSql?: boolean },
 ): Promise<boolean> {
-  const excludedPattern = `%${LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS}%`;
-  const rows =
-    params.organizationId === null
-      ? await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id
-          FROM ${netTable("mainnet", "credit_bucket")}
-          WHERE "userId" = ${params.userId}
-            AND "organizationId" IS NULL
-            AND "referenceType" = CAST(${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
-            AND NOT ("referenceId" LIKE ${excludedPattern})
-            AND ("activatesAt" IS NULL OR "activatesAt" <= ${params.now})
-            AND ("expiresAt" IS NULL OR "expiresAt" > ${params.now})
-          LIMIT 1
-        `
-      : await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id
-          FROM ${netTable("mainnet", "credit_bucket")}
-          WHERE "userId" = ${params.userId}
-            AND "organizationId" = ${params.organizationId}
-            AND "referenceType" = CAST(${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
-            AND NOT ("referenceId" LIKE ${excludedPattern})
-            AND ("activatesAt" IS NULL OR "activatesAt" <= ${params.now})
-            AND ("expiresAt" IS NULL OR "expiresAt" > ${params.now})
-          LIMIT 1
-        `;
+  if (options?.splitSql) {
+    const excludedPattern = `%${LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS}%`;
+    const rows =
+      params.organizationId === null
+        ? await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id
+            FROM ${netTable("mainnet", "credit_bucket")}
+            WHERE "userId" = ${params.userId}
+              AND "organizationId" IS NULL
+              AND "referenceType" = CAST(${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
+              AND NOT ("referenceId" LIKE ${excludedPattern})
+              AND ("activatesAt" IS NULL OR "activatesAt" <= ${params.now})
+              AND ("expiresAt" IS NULL OR "expiresAt" > ${params.now})
+            LIMIT 1
+          `
+        : await tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id
+            FROM ${netTable("mainnet", "credit_bucket")}
+            WHERE "userId" = ${params.userId}
+              AND "organizationId" = ${params.organizationId}
+              AND "referenceType" = CAST(${CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
+              AND NOT ("referenceId" LIKE ${excludedPattern})
+              AND ("activatesAt" IS NULL OR "activatesAt" <= ${params.now})
+              AND ("expiresAt" IS NULL OR "expiresAt" > ${params.now})
+            LIMIT 1
+          `;
 
-  return rows.length > 0;
+    return rows.length > 0;
+  }
+
+  const bucket = await tx.creditBucket.findFirst({
+    where: {
+      userId: params.userId,
+      organizationId: params.organizationId,
+      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+      NOT: {
+        referenceId: {
+          contains: LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS,
+        },
+      },
+      ...creditBucketActivatesAtOrBefore(params.now),
+      OR: [{ expiresAt: null }, { expiresAt: { gt: params.now } }],
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return bucket != null;
 }
 
 async function hasConsumableOrgPaidSubscriptionBuckets(
@@ -57,6 +81,7 @@ async function hasConsumableOrgPaidSubscriptionBuckets(
   memberUserIds: string[],
   now: Date,
   tx: Prisma.TransactionClient,
+  options?: { splitSql?: boolean },
 ): Promise<boolean> {
   for (const userId of memberUserIds) {
     if (
@@ -67,6 +92,7 @@ async function hasConsumableOrgPaidSubscriptionBuckets(
           userId,
         },
         tx,
+        options,
       )
     ) {
       return true;
@@ -80,6 +106,7 @@ export async function findPaidSubscriptionsBlockingEnterpriseActivation(
   organizationId: string,
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
+  options?: { splitSql?: boolean },
 ): Promise<PaidSubscriptionBlocker | null> {
   const members = await tx.member.findMany({
     where: {
@@ -110,6 +137,7 @@ export async function findPaidSubscriptionsBlockingEnterpriseActivation(
     memberUserIds,
     now,
     tx,
+    options,
   );
 
   if (!hasConsumableBuckets) {

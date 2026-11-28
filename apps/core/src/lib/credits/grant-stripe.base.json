@@ -8,40 +8,46 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-one-time-single:in_one-time-single:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-one-time-single", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-one-time-single",
-              null
+              "user-one-time-single"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-one-time-single:in_one-time-single:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-one-time-single",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -158,20 +164,22 @@
         "flow": "call",
         "order": [
           "1 call outside",
-          "10 call in transaction 0",
+          "12 call in transaction 0",
           "5 call outside"
         ],
         "overlap": []
       }
     ],
-    "order": ["1 call outside", "10 call in transaction 0", "5 call outside"],
+    "order": ["1 call outside", "12 call in transaction 0", "5 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -281,10 +289,12 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-one-time-single:in_one-time-single:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
@@ -384,7 +394,7 @@
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "91bec91e9b59207dff8f94564a6f8691a7b194172e66c74a2d3ff24ba0ac78e4",
         "e7985c5660f94ef2e707c2fbeda63ad3b6fad9d9f58cffde766acea16ca2f29f",
@@ -465,40 +475,46 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-one-time-race:in_one-time-race:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-one-time-race", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-one-time-race",
-              null
+              "user-one-time-race"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-one-time-race:in_one-time-race:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-one-time-race",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -552,38 +568,40 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-one-time-race:in_one-time-race:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-one-time-race", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-one-time-race",
-              null
+              "user-one-time-race"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-one-time-race:in_one-time-race:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 4>",
               "user-one-time-race",
-              null,
               null
             ]
           },
@@ -652,7 +670,7 @@
       "answers": [
         null,
         {
-          "error": "Raw query failed. Code: `23505`. Message: `duplicate key value violates unique constraint \"credit_bucket_referenceId_referenceType_key\"`"
+          "error": "Unique constraint failed on the constraint: `credit_bucket_referenceId_referenceType_key`"
         }
       ]
     },
@@ -674,22 +692,22 @@
         "flow": "first",
         "order": [
           "1 first outside",
-          "10 first in transaction 0",
+          "12 first in transaction 0",
           "5 first outside"
         ],
         "overlap": []
       },
       {
         "flow": "second",
-        "order": ["1 second outside", "5 second in transaction 0"],
+        "order": ["1 second outside", "6 second in transaction 0"],
         "overlap": []
       }
     ],
     "order": [
       "1 first outside",
-      "9 first in transaction 0",
+      "11 first in transaction 0",
       "1 second outside",
-      "4 second in transaction 1",
+      "5 second in transaction 1",
       "1 first in transaction 0",
       "1 second in transaction 1",
       "5 first outside"
@@ -698,9 +716,11 @@
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -708,9 +728,10 @@
         "4e3bb8e80d7a5da96e59ec432008372a8081893d6db64646c85c82d5a7c86e01",
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710",
         "91bec91e9b59207dff8f94564a6f8691a7b194172e66c74a2d3ff24ba0ac78e4",
@@ -816,73 +837,88 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
-            "values": ["user:user-mixed:in_mixed:topup", "STRIPE_TOPUP"]
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "user:user-mixed:in_mixed:topup",
+              "STRIPE_TOPUP",
+              "1",
+              "0"
+            ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-mixed", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "120000000000",
-              "user-mixed",
-              null
+              "user-mixed"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "120000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-mixed:in_mixed:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-mixed",
-              null,
               null
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-mixed:in_mixed:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-mixed", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 3>",
               "<call time>",
               "<call time>",
               "14000000000000",
-              "user-mixed",
-              null
+              "user-mixed"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 4>",
               "<call time>",
               "<call time>",
               "14000000000000",
               "<ms 1801000000000>",
-              null,
               "user:user-mixed:in_mixed:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 3>",
               "user-mixed",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 3>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -999,23 +1035,27 @@
         "flow": "call",
         "order": [
           "1 call outside",
-          "13 call in transaction 0",
+          "17 call in transaction 0",
           "5 call outside"
         ],
         "overlap": []
       }
     ],
-    "order": ["1 call outside", "13 call in transaction 0", "5 call outside"],
+    "order": ["1 call outside", "17 call in transaction 0", "5 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -1223,37 +1263,46 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
-            "values": ["user:user-rollback:in_rollback:topup", "STRIPE_TOPUP"]
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "user:user-rollback:in_rollback:topup",
+              "STRIPE_TOPUP",
+              "1",
+              "0"
+            ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-rollback", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-rollback",
-              null
+              "user-rollback"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-rollback:in_rollback:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-rollback",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -1316,18 +1365,20 @@
     "flows": [
       {
         "flow": "call",
-        "order": ["1 call outside", "10 call in transaction 0"],
+        "order": ["1 call outside", "12 call in transaction 0"],
         "overlap": []
       }
     ],
-    "order": ["1 call outside", "10 call in transaction 0"],
+    "order": ["1 call outside", "12 call in transaction 0"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -1365,40 +1416,46 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-admin-pay-false:in_admin-pay-false:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-admin-pay-false", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-admin-pay-false",
-              null
+              "user-admin-pay-false"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-admin-pay-false:in_admin-pay-false:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-admin-pay-false",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -1539,21 +1596,23 @@
         "flow": "call",
         "order": [
           "2 call outside",
-          "10 call in transaction 0",
+          "12 call in transaction 0",
           "6 call outside"
         ],
         "overlap": []
       }
     ],
-    "order": ["2 call outside", "10 call in transaction 0", "6 call outside"],
+    "order": ["2 call outside", "12 call in transaction 0", "6 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -1664,10 +1723,12 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-admin-pay-false:in_admin-pay-false:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
@@ -1792,7 +1853,7 @@
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "91bec91e9b59207dff8f94564a6f8691a7b194172e66c74a2d3ff24ba0ac78e4",
         "e7985c5660f94ef2e707c2fbeda63ad3b6fad9d9f58cffde766acea16ca2f29f",
@@ -1921,40 +1982,46 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-admin-issue:in_admin-issue:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-admin-issue", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-admin-issue",
-              null
+              "user-admin-issue"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-admin-issue:in_admin-issue:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-admin-issue",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -2099,22 +2166,24 @@
         "flow": "call",
         "order": [
           "3 call outside",
-          "10 call in transaction 0",
+          "12 call in transaction 0",
           "6 call outside"
         ],
         "overlap": ["call 1 before 0"]
       }
     ],
-    "order": ["3 call outside", "10 call in transaction 0", "6 call outside"],
+    "order": ["3 call outside", "12 call in transaction 0", "6 call outside"],
     "raw": {
       "statementDigests": [
         "aad06ea32daa993450e01412a8396ad956ee0275cad8ad274b25c27dcff35db8",
         "9fdd8a9464a4804ec525dee87da6a3191831c6130e6c7f6fd78132b60e8388aa",
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -2225,14 +2294,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-recurring-single:in_recurring-single:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -2243,22 +2314,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "6000000000000",
               "<ms 1800000000000>",
-              null,
               "org:org-recurring-single:in_recurring-single:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 1>",
               null,
-              "org-recurring-single",
-              null
+              "org-recurring-single"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -2420,13 +2492,13 @@
         "flow": "call",
         "order": [
           "8 call outside",
-          "10 call in transaction 0",
+          "11 call in transaction 0",
           "2 call outside"
         ],
         "overlap": []
       }
     ],
-    "order": ["8 call outside", "10 call in transaction 0", "2 call outside"],
+    "order": ["8 call outside", "11 call in transaction 0", "2 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
@@ -2438,9 +2510,10 @@
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -2692,14 +2765,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-recurring-race:in_recurring-race:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -2710,22 +2785,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "6000000000000",
               "<ms 1800000000000>",
-              null,
               "org:org-recurring-race:in_recurring-race:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 1>",
               null,
-              "org-recurring-race",
-              null
+              "org-recurring-race"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -2779,14 +2855,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-recurring-race:in_recurring-race:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<call time>",
@@ -2797,21 +2875,18 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<call time>",
               "<call time>",
               "6000000000000",
               "<ms 1800000000000>",
-              null,
               "org:org-recurring-race:in_recurring-race:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 4>",
               null,
-              "org-recurring-race",
-              null
+              "org-recurring-race"
             ]
           },
           {
@@ -2993,7 +3068,7 @@
       "answers": [
         null,
         {
-          "error": "Raw query failed. Code: `23505`. Message: `duplicate key value violates unique constraint \"credit_bucket_referenceId_referenceType_key\"`"
+          "error": "Unique constraint failed on the constraint: `credit_bucket_referenceId_referenceType_key`"
         }
       ]
     },
@@ -3015,7 +3090,7 @@
         "flow": "first",
         "order": [
           "8 first outside",
-          "10 first in transaction 0",
+          "11 first in transaction 0",
           "2 first outside"
         ],
         "overlap": []
@@ -3028,7 +3103,7 @@
     ],
     "order": [
       "8 first outside",
-      "9 first in transaction 0",
+      "10 first in transaction 0",
       "8 second outside",
       "4 second in transaction 1",
       "1 first in transaction 0",
@@ -3046,9 +3121,10 @@
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -3063,9 +3139,9 @@
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710",
         "60dbb113dcd22003a4ba6190a13d0cdb617bdc8caa533bd55d9bf7788c6b2f59",
@@ -3143,14 +3219,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-project-tagged-single:in_project-tagged-single:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -3161,22 +3239,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-project-tagged-single:in_project-tagged-single:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               null,
-              "org-project-tagged-single",
-              null
+              "org-project-tagged-single"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -3331,13 +3410,13 @@
         "flow": "call",
         "order": [
           "4 call outside",
-          "10 call in transaction 0",
+          "11 call in transaction 0",
           "7 call outside"
         ],
-        "overlap": ["call 17 before 16"]
+        "overlap": ["call 18 before 17"]
       }
     ],
-    "order": ["4 call outside", "10 call in transaction 0", "7 call outside"],
+    "order": ["4 call outside", "11 call in transaction 0", "7 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
@@ -3345,9 +3424,10 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -3459,10 +3539,12 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-project-tagged-single:in_project-tagged-single:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
@@ -3603,7 +3685,7 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "60dbb113dcd22003a4ba6190a13d0cdb617bdc8caa533bd55d9bf7788c6b2f59",
         "91bec91e9b59207dff8f94564a6f8691a7b194172e66c74a2d3ff24ba0ac78e4",
@@ -3686,14 +3768,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-project-tagged-race:in_project-tagged-race:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -3704,22 +3788,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-project-tagged-race:in_project-tagged-race:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               null,
-              "org-project-tagged-race",
-              null
+              "org-project-tagged-race"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -3773,14 +3858,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-project-tagged-race:in_project-tagged-race:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 4>",
               "<call time>",
@@ -3791,21 +3878,18 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 5>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-project-tagged-race:in_project-tagged-race:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 4>",
               null,
-              "org-project-tagged-race",
-              null
+              "org-project-tagged-race"
             ]
           },
           {
@@ -3941,7 +4025,7 @@
       "answers": [
         null,
         {
-          "error": "Raw query failed. Code: `23505`. Message: `duplicate key value violates unique constraint \"credit_bucket_referenceId_referenceType_key\"`"
+          "error": "Unique constraint failed on the constraint: `credit_bucket_referenceId_referenceType_key`"
         }
       ]
     },
@@ -3963,10 +4047,10 @@
         "flow": "first",
         "order": [
           "4 first outside",
-          "10 first in transaction 0",
+          "11 first in transaction 0",
           "7 first outside"
         ],
-        "overlap": ["first 17 before 16"]
+        "overlap": ["first 18 before 17"]
       },
       {
         "flow": "second",
@@ -3976,7 +4060,7 @@
     ],
     "order": [
       "4 first outside",
-      "9 first in transaction 0",
+      "10 first in transaction 0",
       "4 second outside",
       "4 second in transaction 1",
       "1 first in transaction 0",
@@ -3990,9 +4074,10 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -4003,9 +4088,9 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "587fa628a9fe4642ac0e22825a97e81d388af674f7251a9fb699f96901dcb710",
         "60dbb113dcd22003a4ba6190a13d0cdb617bdc8caa533bd55d9bf7788c6b2f59",
@@ -4113,14 +4198,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-admin-pay-true:in_admin-pay-true:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -4131,22 +4218,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-admin-pay-true:in_admin-pay-true:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               null,
-              "org-admin-pay-true",
-              null
+              "org-admin-pay-true"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -4329,13 +4417,13 @@
         "flow": "call",
         "order": [
           "6 call outside",
-          "10 call in transaction 0",
+          "11 call in transaction 0",
           "8 call outside"
         ],
-        "overlap": ["call 19 before 18"]
+        "overlap": ["call 20 before 19"]
       }
     ],
-    "order": ["6 call outside", "10 call in transaction 0", "8 call outside"],
+    "order": ["6 call outside", "11 call in transaction 0", "8 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
@@ -4345,9 +4433,10 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -4460,10 +4549,12 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-admin-pay-true:in_admin-pay-true:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
@@ -4634,7 +4725,7 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "60dbb113dcd22003a4ba6190a13d0cdb617bdc8caa533bd55d9bf7788c6b2f59",
         "91bec91e9b59207dff8f94564a6f8691a7b194172e66c74a2d3ff24ba0ac78e4",
@@ -9532,14 +9623,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-project-empty:in_project-empty:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -9550,22 +9643,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-project-empty:in_project-empty:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               null,
-              "org-project-empty",
-              null
+              "org-project-empty"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -9720,13 +9814,13 @@
         "flow": "call",
         "order": [
           "4 call outside",
-          "10 call in transaction 0",
+          "11 call in transaction 0",
           "7 call outside"
         ],
-        "overlap": ["call 17 before 16"]
+        "overlap": ["call 18 before 17"]
       }
     ],
-    "order": ["4 call outside", "10 call in transaction 0", "7 call outside"],
+    "order": ["4 call outside", "11 call in transaction 0", "7 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
@@ -9734,9 +9828,10 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -9848,14 +9943,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "org:org-project-null:in_project-null:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -9866,22 +9963,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-project-null:in_project-null:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               null,
-              "org-project-null",
-              null
+              "org-project-null"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -10036,13 +10134,13 @@
         "flow": "call",
         "order": [
           "4 call outside",
-          "10 call in transaction 0",
+          "11 call in transaction 0",
           "7 call outside"
         ],
-        "overlap": ["call 17 before 16"]
+        "overlap": ["call 18 before 17"]
       }
     ],
-    "order": ["4 call outside", "10 call in transaction 0", "7 call outside"],
+    "order": ["4 call outside", "11 call in transaction 0", "7 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
@@ -10050,9 +10148,10 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -11034,40 +11133,46 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-mixed-replay:in_mixed-replay:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-mixed-replay", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "70000000000",
-              "user-mixed-replay",
-              null
+              "user-mixed-replay"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "user:user-mixed-replay:in_mixed-replay:topup",
               "STRIPE_TOPUP",
-              null,
               "<id 1>",
               "user-mixed-replay",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -11184,20 +11289,22 @@
         "flow": "call",
         "order": [
           "1 call outside",
-          "10 call in transaction 0",
+          "12 call in transaction 0",
           "5 call outside"
         ],
         "overlap": []
       }
     ],
-    "order": ["1 call outside", "10 call in transaction 0", "5 call outside"],
+    "order": ["1 call outside", "12 call in transaction 0", "5 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",
@@ -11307,47 +11414,55 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-mixed-replay:in_mixed-replay:topup",
-              "STRIPE_TOPUP"
+              "STRIPE_TOPUP",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
             "values": [
               "user:user-mixed-replay:in_mixed-replay:subscription",
-              "STRIPE_SUBSCRIPTION_PERIOD"
+              "STRIPE_SUBSCRIPTION_PERIOD",
+              "1",
+              "0"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "SELECT \"public\".\"user\".\"id\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["user-mixed-replay", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
               "<call time>",
               "14000000000000",
-              "user-mixed-replay",
-              null
+              "user-mixed-replay"
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "14000000000000",
               "<ms 1801000000000>",
-              null,
               "user:user-mixed-replay:in_mixed-replay:subscription",
               "STRIPE_SUBSCRIPTION_PERIOD",
-              null,
               "<id 1>",
               "user-mixed-replay",
-              null,
               null
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -11439,21 +11554,23 @@
         "flow": "call",
         "order": [
           "1 call outside",
-          "7 call in transaction 0",
+          "9 call in transaction 0",
           "6 call outside"
         ],
         "overlap": []
       }
     ],
-    "order": ["1 call outside", "7 call in transaction 0", "6 call outside"],
+    "order": ["1 call outside", "9 call in transaction 0", "6 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "fa8e73e8ac7fc309cbe6acb500ba06eb607261c00de50d319cce386e24dce841",
+        "606915b2281a561d2ca9c68b593b4e1c2cbc09cfbba1931715263ec980993a9c",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "9fdbc5b6f485e336afa26291381e37ca22f8d1eed72897269948971c3175cbdb",
         "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
         "91bec91e9b59207dff8f94564a6f8691a7b194172e66c74a2d3ff24ba0ac78e4",
@@ -11560,11 +11677,16 @@
             "values": []
           },
           {
-            "sql": "SELECT id, \"activatesAt\", \"expiresAt\" FROM \"public\".\"credit_bucket\" WHERE \"referenceId\" = $1 AND \"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\") LIMIT 1",
-            "values": ["org:org-admin-free:in_admin-free:topup", "STRIPE_FREE"]
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\" FROM \"public\".\"credit_bucket\" WHERE ((\"public\".\"credit_bucket\".\"referenceId\" = $1 AND \"public\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"public\".\"CreditBucketReferenceType\")) AND 1=1) LIMIT $3 OFFSET $4",
+            "values": [
+              "org:org-admin-free:in_admin-free:topup",
+              "STRIPE_FREE",
+              "1",
+              "0"
+            ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"Transaction\" (id, \"createdAt\", \"updatedAt\", amount, \"userId\", \"organizationId\") VALUES ( $1, $2, $3, $4, $5, $6 )",
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
             "values": [
               "<id 1>",
               "<call time>",
@@ -11575,22 +11697,23 @@
             ]
           },
           {
-            "sql": "INSERT INTO \"public\".\"credit_bucket\" (id, \"createdAt\", \"updatedAt\", amount, \"expiresAt\", \"activatesAt\", \"referenceId\", \"referenceType\", \"referenceNote\", \"sourceTransactionId\", \"userId\", \"organizationId\", \"projectId\") VALUES ( $1, $2, $3, $4, $5, $6, $7, CAST($8::text AS \"public\".\"CreditBucketReferenceType\"), $9, $10, $11, $12, CAST($13::text AS uuid) )",
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"sourceTransactionId\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10) RETURNING \"public\".\"credit_bucket\".\"id\"",
             "values": [
               "<id 2>",
               "<call time>",
               "<call time>",
               "70000000000",
               "<ms 1735948800000>",
-              null,
               "org:org-admin-free:in_admin-free:topup",
               "STRIPE_FREE",
-              null,
               "<id 1>",
               null,
-              "org-admin-free",
-              null
+              "org-admin-free"
             ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\", \"public\".\"Transaction\".\"createdAt\", \"public\".\"Transaction\".\"updatedAt\", \"public\".\"Transaction\".\"amount\", \"public\".\"Transaction\".\"userId\", \"public\".\"Transaction\".\"organizationId\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 1>", "1", "0"]
           },
           {
             "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
@@ -11773,13 +11896,13 @@
         "flow": "call",
         "order": [
           "6 call outside",
-          "10 call in transaction 0",
+          "11 call in transaction 0",
           "8 call outside"
         ],
-        "overlap": ["call 19 before 18"]
+        "overlap": ["call 20 before 19"]
       }
     ],
-    "order": ["6 call outside", "10 call in transaction 0", "8 call outside"],
+    "order": ["6 call outside", "11 call in transaction 0", "8 call outside"],
     "raw": {
       "statementDigests": [
         "492afe43dc700685fc449698f6a92218a140c216eafaa8eb7b68b57a7ef32289",
@@ -11789,9 +11912,10 @@
         "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
         "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
         "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
-        "8d8f9a8fe9d3cb07604bcd2c1bd6937168bb001162c63968462254aafa9925a9",
-        "90efab964964f3c0953e539402b49c1d1745a87d580d79b549eb35c558dc8b6b",
-        "66b8e1347e00a2fe72f7b6f98ecaf078555e1f6f09e2a01fe8ddc1289a0630f2",
+        "d25d82d8f9ea42a090c5ccf331c51101658ae9a8fc4029b2f149fac9d03be186",
+        "f8a03a9955bc14c5d0ccf66ed08ee29583f80cb516a4e61d8fc86a2ceba5e043",
+        "1d4dd6c903d0ca9dcb8ad7b87506ce449304f479491e432e7feaa35a369dff6c",
+        "b20093834d75dc48dee737334cb705b936eb1efd39a44d7dbf7854ff391ae824",
         "903d2ec28fc36c8a471d9ab4d4516c130fa19b1cc685ea214fa0a5ab95f32e43",
         "b4746d97dcb4871f3d3afe8facb7ee6d313fd40fc9dfc14f5bf85410210dabff",
         "3b736e40647d3135596bcb5a5bbe537dfed5ea2d7107852bdf5136d6676f19c1",

@@ -29,6 +29,7 @@ interface GrantFreeCreditsParams extends CreditBucketProjectOption {
   network?: TableNetwork;
   organizationId: string | null;
   referenceNote: string | null;
+  splitSql?: boolean;
   targetId: string;
   targetType: "user" | "organization";
   transactionUserId: string | null;
@@ -91,22 +92,58 @@ export async function grantFreeCredits(
   const amount = convertCreditsToCents(params.credits);
   const bucketUserId = params.targetType === "user" ? params.targetId : null;
 
-  const { bucketId } = await insertCreditGrant(
-    {
-      mintId: params.mintId,
-      network: params.network ?? "mainnet",
+  if (params.splitSql) {
+    const { bucketId } = await insertCreditGrant(
+      {
+        mintId: params.mintId,
+        network: params.network ?? "mainnet",
+        amount,
+        expiresAt: params.expiresAt,
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        referenceId,
+        referenceNote: params.referenceNote,
+        referenceType: params.referenceType ?? CreditBucketReferenceType.FREE,
+        transactionUserId: params.transactionUserId,
+        userId: bucketUserId,
+      },
+      tx,
+    );
+
+    return { bucketId };
+  }
+
+  const transaction = await tx.transaction.create({
+    data: {
       amount,
-      expiresAt: params.expiresAt,
       organizationId: params.organizationId,
-      projectId: params.projectId,
-      referenceId,
-      referenceNote: params.referenceNote,
-      referenceType: params.referenceType ?? CreditBucketReferenceType.FREE,
-      transactionUserId: params.transactionUserId,
-      userId: bucketUserId,
+      userId: params.transactionUserId,
+      sourceCreditBucket: {
+        create: {
+          amount,
+          expiresAt: params.expiresAt,
+          organizationId: params.organizationId,
+          ...(params.projectId !== undefined && {
+            projectId: params.projectId,
+          }),
+          referenceId,
+          referenceNote: params.referenceNote,
+          referenceType: params.referenceType ?? CreditBucketReferenceType.FREE,
+          userId: bucketUserId,
+        },
+      },
     },
-    tx,
-  );
+    select: {
+      sourceCreditBucket: {
+        select: { id: true },
+      },
+    },
+  });
+
+  const bucketId = transaction.sourceCreditBucket?.id;
+  if (!bucketId) {
+    throw new Error("Failed to create free credit bucket");
+  }
 
   return { bucketId };
 }

@@ -10,7 +10,10 @@ import {
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { expireEnterpriseGrants } from "@/lib/credits/grant";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -55,6 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               scope: createNetworkScope("mainnet"),
               tx,
             }),
+          ...(networkUsesSharedSchema() ? {} : { splitSql: true }),
         }),
       );
     } catch (error) {

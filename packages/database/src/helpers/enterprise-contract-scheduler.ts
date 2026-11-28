@@ -62,8 +62,13 @@ export async function grantEnterpriseScheduledPeriod(
   tx: Prisma.TransactionClient,
   grantCredits: GrantEnterpriseCredits,
   now?: Date,
+  options?: { splitSql?: boolean },
 ): Promise<GrantEnterpriseScheduledPeriodResult> {
-  const existingBucket = await findEnterprisePeriodCreditBucket(period.id, tx);
+  const existingBucket = await findEnterprisePeriodCreditBucket(
+    period.id,
+    tx,
+    options,
+  );
 
   let bucketCreated = false;
   if (!existingBucket) {
@@ -105,6 +110,7 @@ export async function grantEnterpriseScheduledPeriod(
 export async function expireActiveEnterprisePeriodsWithElapsedBuckets(
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
+  options?: { splitSql?: boolean },
 ): Promise<number> {
   const activePeriods = await tx.enterpriseContractPeriod.findMany({
     where: {
@@ -119,7 +125,11 @@ export async function expireActiveEnterprisePeriodsWithElapsedBuckets(
   let expiredCount = 0;
 
   for (const period of activePeriods) {
-    const bucket = await findEnterprisePeriodCreditBucket(period.id, tx);
+    const bucket = await findEnterprisePeriodCreditBucket(
+      period.id,
+      tx,
+      options,
+    );
     if (!bucket?.expiresAt) {
       continue;
     }
@@ -146,6 +156,7 @@ export async function catchUpScheduledEnterprisePeriods(
   tx: Prisma.TransactionClient,
   grantCredits: GrantEnterpriseCredits,
   now: Date = new Date(),
+  options?: { splitSql?: boolean },
 ): Promise<number> {
   const duePeriods = await tx.enterpriseContractPeriod.findMany({
     where: {
@@ -169,6 +180,7 @@ export async function catchUpScheduledEnterprisePeriods(
       tx,
       grantCredits,
       now,
+      options,
     );
     if (result.bucketCreated || result.periodActivated) {
       catchUpGranted += 1;
@@ -182,6 +194,7 @@ export async function preCreateUpcomingEnterprisePeriods(
   tx: Prisma.TransactionClient,
   grantCredits: GrantEnterpriseCredits,
   now: Date = new Date(),
+  options?: { splitSql?: boolean },
 ): Promise<number> {
   const lookaheadEnd = new Date(
     now.getTime() + ENTERPRISE_CONTRACT_PRECREATE_LOOKAHEAD_MS,
@@ -208,6 +221,8 @@ export async function preCreateUpcomingEnterprisePeriods(
       period.periodStart,
       tx,
       grantCredits,
+      undefined,
+      options,
     );
     if (result.bucketCreated || result.periodActivated) {
       preCreated += 1;
@@ -221,20 +236,24 @@ export async function runEnterpriseContractSchedulerPass(
   tx: Prisma.TransactionClient,
   grantCredits: GrantEnterpriseCredits,
   now: Date = new Date(),
+  options?: { splitSql?: boolean },
 ): Promise<EnterpriseContractSchedulerPassResult> {
   const expiredPeriods = await expireActiveEnterprisePeriodsWithElapsedBuckets(
     tx,
     now,
+    options,
   );
   const catchUpGranted = await catchUpScheduledEnterprisePeriods(
     tx,
     grantCredits,
     now,
+    options,
   );
   const preCreated = await preCreateUpcomingEnterprisePeriods(
     tx,
     grantCredits,
     now,
+    options,
   );
   const completedContracts = await completeEnterpriseContractsAfterLastPeriod(
     tx,

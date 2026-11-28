@@ -17,7 +17,12 @@ import {
 
 import { v7 as uuidv7 } from "uuid";
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import {
+  type NetworkDb,
+  type NetworkScope,
+  networkUsesSharedSchema,
+  sharedTxAsNetworkDb,
+} from "@/lib/db/network-scope";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { requireChargingNetwork } from "./policy";
 
@@ -227,16 +232,24 @@ export function findStripeInvoiceGrant(
   requireChargingNetwork(scope.network, "A Stripe invoice credit lookup");
   const referenceId = stripeInvoiceReferenceId(owner, invoiceId, entry);
   if (referenceType !== undefined) {
-    return scope.networkDb.creditBucket.findUnique({
-      where: { referenceId_referenceType: { referenceId, referenceType } },
-      select: { id: true },
-    });
+    return findKeyedStripeGrant(scope.networkDb, referenceId, referenceType);
   }
   return scope.networkDb.creditBucket.findFirst({
     where:
       owner.userId !== undefined
         ? { userId: owner.userId, organizationId: null, referenceId }
         : { organizationId: owner.organizationId, referenceId },
+    select: { id: true },
+  });
+}
+
+function findKeyedStripeGrant(
+  db: NetworkDb,
+  referenceId: string,
+  referenceType: CreditBucketReferenceType,
+) {
+  return db.creditBucket.findUnique({
+    where: { referenceId_referenceType: { referenceId, referenceType } },
     select: { id: true },
   });
 }
@@ -271,34 +284,57 @@ export async function grant(
   // A scope that refuses its Network throws here, before anything is written;
   // so does Preprod's, which charges no credits and has no grants.
   requireChargingNetwork(scope.network, "A credit grant");
+  const txNetworkDb = sharedTxAsNetworkDb(scope, tx);
+  const splitSql = txNetworkDb === null;
 
   if (input.kind === "stripe_invoice") {
     const { owner, invoiceId, entry, referenceType } = input;
     const referenceId = stripeInvoiceReferenceId(owner, invoiceId, entry);
-    if (
-      await findCreditBucketByReference(
-        { network: scope.network, referenceId, referenceType },
-        tx,
-      )
-    ) {
+    const existing = txNetworkDb
+      ? await findKeyedStripeGrant(txNetworkDb, referenceId, referenceType)
+      : await findCreditBucketByReference(
+          { network: scope.network, referenceId, referenceType },
+          tx,
+        );
+    if (existing) {
       return { outcome: "already_granted", bucketId: null };
     }
     const { cents } = input;
     const userId = owner.userId ?? null;
     const organizationId = owner.organizationId ?? null;
-    await insertCreditGrant(
-      {
-        mintId: uuidv7,
-        network: scope.network,
+    if (txNetworkDb) {
+      const bucket = {
         amount: cents,
         expiresAt: input.expiresAt,
-        organizationId,
         referenceId,
         referenceType,
         userId,
-      },
-      tx,
-    );
+        organizationId,
+      };
+      await txNetworkDb.transaction.create({
+        data: {
+          amount: cents,
+          ...(owner.userId !== undefined
+            ? { user: { connect: { id: owner.userId } } }
+            : { organizationId, userId: null }),
+          sourceCreditBucket: { create: bucket },
+        },
+      });
+    } else {
+      await insertCreditGrant(
+        {
+          mintId: uuidv7,
+          network: scope.network,
+          amount: cents,
+          expiresAt: input.expiresAt,
+          organizationId,
+          referenceId,
+          referenceType,
+          userId,
+        },
+        tx,
+      );
+    }
     if (input.wakeTasks) {
       await markOutOfCreditsTasksAsToppedUp({ organizationId, userId, tx });
     }
@@ -315,7 +351,9 @@ export async function grant(
         activatesAt: input.activatesAt,
       },
       tx,
-      { mintId: uuidv7, network: scope.network },
+      splitSql
+        ? { mintId: uuidv7, network: scope.network, splitSql: true }
+        : undefined,
     );
     if (!created) return { outcome: "already_granted", bucketId: null };
     if (input.wakeTasks) {
@@ -335,8 +373,10 @@ export async function grant(
     const written = {
       activatesAt: input.activatesAt,
       amount: input.cents,
-      mintId: uuidv7,
       organizationId: input.organizationId,
+      ...(splitSql
+        ? { mintId: uuidv7, network: scope.network, splitSql: true }
+        : {}),
     };
     const { bucketId, created } =
       input.kind === "enterprise_period"
@@ -369,22 +409,46 @@ export async function grant(
 
   if (input.kind === "polar") {
     const { cents, organizationId, projectId } = input;
-    // The bucket's unique key refuses a second grant of the same reference.
-    await insertCreditGrant(
-      {
-        mintId: uuidv7,
-        network: scope.network,
-        amount: cents,
-        expiresAt: input.expiresAt,
-        organizationId,
-        projectId,
-        referenceId: input.referenceId,
-        referenceNote: input.note,
-        referenceType: input.referenceType,
-        userId: null,
-      },
-      tx,
-    );
+    if (txNetworkDb) {
+      // Prisma's nested create, as the Polar grant wrote it: the bucket's key
+      // refuses a second grant of the same reference.
+      await txNetworkDb.transaction.create({
+        data: {
+          amount: cents,
+          organizationId,
+          userId: null,
+          sourceCreditBucket: {
+            create: {
+              amount: cents,
+              expiresAt: input.expiresAt,
+              organizationId,
+              projectId,
+              referenceId: input.referenceId,
+              referenceNote: input.note,
+              referenceType: input.referenceType,
+              userId: null,
+            },
+          },
+        },
+      });
+    } else {
+      // The bucket's unique key refuses a second grant of the same reference.
+      await insertCreditGrant(
+        {
+          mintId: uuidv7,
+          network: scope.network,
+          amount: cents,
+          expiresAt: input.expiresAt,
+          organizationId,
+          projectId,
+          referenceId: input.referenceId,
+          referenceNote: input.note,
+          referenceType: input.referenceType,
+          userId: null,
+        },
+        tx,
+      );
+    }
     if (input.wakeTasks) {
       await markOutOfCreditsTasksAsToppedUp({
         organizationId,
@@ -401,8 +465,10 @@ export async function grant(
       {
         credits: input.credits,
         expiresAt: input.expiresAt,
-        mintId: uuidv7,
         userId: input.userId,
+        ...(splitSql
+          ? { mintId: uuidv7, network: scope.network, splitSql: true }
+          : {}),
       },
       tx,
     );
@@ -426,7 +492,6 @@ export async function grant(
       credits: input.credits,
       expiresAt: input.expiresAt,
       grantId: input.grantId,
-      mintId: uuidv7,
       organizationId,
       // As given: absent, null, or an id, for the helper to check and write.
       projectId: input.projectId,
@@ -436,6 +501,9 @@ export async function grant(
         target.targetType === "user" ? target.userId : target.organizationId,
       targetType: target.targetType,
       transactionUserId: userId,
+      ...(splitSql
+        ? { mintId: uuidv7, network: scope.network, splitSql: true }
+        : {}),
     },
     tx,
   );
@@ -507,6 +575,9 @@ export async function expireEnterpriseGrants(input: {
         CreditBucketReferenceType.ENTERPRISE_PERIOD,
         CreditBucketReferenceType.ENTERPRISE_TOP_UP,
       ],
+      ...(networkUsesSharedSchema()
+        ? {}
+        : { network: input.scope.network, splitSql: true }),
     },
     input.tx,
   );
