@@ -6,6 +6,7 @@
  * lookup of a follow-up retry by Network.
  */
 import { randomUUID } from "node:crypto";
+import { Client, Pool, type PoolClient } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const flag = vi.hoisted(() => ({ on: false }));
@@ -665,46 +666,6 @@ describe("Mainnet, on each layout", () => {
     expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 0 });
   });
 
-  it("skips a Job deleted between the delegation page read and hydration", async () => {
-    const { botId, turnId } = await createBot(owner);
-    const doomed = await createJob("mainnet", { name: "Deleted mid-tick" });
-    const survivor = await createJob("mainnet", { name: "Surviving Job" });
-    await delegate(turnId, "mainnet", { jobId: doomed.id });
-    await delegate(turnId, "mainnet", { jobId: survivor.id });
-    recordStarts();
-
-    const realFindMany = prisma.sokoBotDelegation.findMany.bind(
-      prisma.sokoBotDelegation,
-    );
-    let deleted = false;
-    const scanSpy = vi
-      .spyOn(prisma.sokoBotDelegation, "findMany")
-      .mockImplementation((async (
-        args?: Parameters<typeof realFindMany>[0],
-      ) => {
-        const page = await realFindMany(args);
-        if (!deleted) {
-          deleted = true;
-          await createNetworkScope("mainnet").networkDb.job.delete({
-            where: { id: doomed.id },
-          });
-        }
-        return page;
-      }) as typeof prisma.sokoBotDelegation.findMany);
-
-    expect(await tick(botId)).toMatchObject({
-      scanned: 2,
-      woken: 1,
-      failed: 0,
-    });
-    scanSpy.mockRestore();
-    expect(starts).toHaveLength(1);
-    expect(starts[0].eventBatch?.map((item) => item.entityId)).toEqual([
-      survivor.id,
-    ]);
-    expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 0 });
-  });
-
   it("never selects, loads, writes, or starts a Preprod Job delegation while Preprod is off", async () => {
     const { botId, turnId } = await createBot(owner);
     // Written while Preprod was on; read while it is off.
@@ -890,221 +851,437 @@ describe("Mainnet, on each layout", () => {
   });
 });
 
-describe("the failed-turn lookup of a follow-up retry", () => {
-  it("collects the failed turns of the retry's own Network only", async () => {
-    const { botId } = await createBot(owner);
-    const jobId = "job-on-both";
-    const turn = async (network: Network, status: "FAILED" | "RUNNING") =>
-      (
-        await prisma.sokoBotTurn.create({
-          data: {
-            ...turnData(botId, owner, randomUUID(), network, GENERATION),
-            status,
-          },
-        })
-      ).id;
-    const inbox = (
-      turnId: string,
-      network: Network | null,
-      eventId: string,
-      entityId = jobId,
-      purpose = "JOB_EVENT",
-    ) =>
-      prisma.sokoBotEventInbox.create({
+async function runContendedDeletionCheck(
+  botId: string,
+  turnId: string,
+  parentTaskId: string,
+) {
+  const jobTable = onSplitLayout ? '"mainnet"."Job"' : '"public"."Job"';
+  const taskTable = onSplitLayout ? '"shared"."task"' : '"public"."task"';
+  const doomed = await createJob("mainnet", {
+    name: "Deleted under pool contention",
+    status: "FAILED",
+    taskId: parentTaskId,
+  });
+  await delegate(turnId, "mainnet", { jobId: doomed.id });
+  recordStarts();
+
+  let activePool: Pool | undefined;
+  const origEmit = Pool.prototype.emit;
+  Pool.prototype.emit = function (
+    type: string | symbol,
+    ...args: unknown[]
+  ): boolean {
+    if (type === "acquire") activePool = this;
+    return origEmit.call(this, type, ...args);
+  };
+  try {
+    await prisma.$queryRawUnsafe("SELECT 1");
+  } finally {
+    Pool.prototype.emit = origEmit;
+  }
+  expect(activePool).toBeDefined();
+  expect(activePool!.options.max).toBe(10);
+  const held: PoolClient[] = [];
+  for (let index = 0; index < 9; index++) {
+    held.push(await activePool!.connect());
+  }
+
+  const external = new Pool({ connectionString: process.env.DATABASE_URL });
+  const writer = await external.connect();
+  await writer.query("BEGIN");
+  await writer.query(`DELETE FROM ${jobTable} WHERE id = $1`, [doomed.id]);
+
+  const origQuery = Client.prototype.query;
+  let committed = false;
+  let commitPromise: Promise<unknown> | undefined;
+  Client.prototype.query = function (
+    this: Client,
+    ...args: Parameters<Client["query"]>
+  ) {
+    const cfg = args[0] as string | { text?: string; values?: unknown[] };
+    const sql = typeof cfg === "string" ? cfg : cfg?.text;
+    const binds =
+      (typeof cfg === "object" && cfg?.values) ||
+      (Array.isArray(args[1]) ? args[1] : []);
+    if (
+      !committed &&
+      sql?.includes(` FROM ${taskTable} `) &&
+      binds.includes(parentTaskId)
+    ) {
+      committed = true;
+      commitPromise = writer.query("COMMIT").finally(() => {
+        writer.release();
+        for (const client of held) client.release();
+        return external.end();
+      });
+      return commitPromise.then(() =>
+        origQuery.apply(this, args as never),
+      ) as never;
+    }
+    return origQuery.apply(this, args as never);
+  } as Client["query"];
+
+  try {
+    expect(await tick(botId)).toMatchObject({ woken: 0, failed: 0 });
+    expect(await tick(botId)).toMatchObject({ woken: 0, failed: 0 });
+  } finally {
+    Client.prototype.query = origQuery;
+    if (commitPromise) {
+      await commitPromise;
+    } else {
+      await writer.query("ROLLBACK").catch(() => undefined);
+      writer.release();
+      for (const client of held) client.release();
+      await external.end();
+    }
+  }
+  expect(committed).toBe(true);
+  expect(starts).toEqual([]);
+  expect(await prisma.sokoBotEventInbox.findMany({ where: { botId } })).toEqual(
+    [],
+  );
+}
+
+describe.runIf(!onSplitLayout)(
+  "Today's layout keeps origin/main's unchanged loader",
+  () => {
+    it("executes origin/main's relation loader without calling the split Job loader", async () => {
+      const { botId, turnId } = await createBot(owner);
+      const parent = await createTask({ name: "Parent Task", eventId: null });
+      const job = await createJob("mainnet", {
+        name: "Public layout Job",
+        taskId: parent,
+      });
+      await delegate(turnId, "mainnet", { jobId: job.id });
+      recordStarts();
+
+      const splitJobSpy = vi.spyOn(
+        createNetworkScope("mainnet").networkDb.job,
+        "findMany",
+      );
+      expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 1 });
+      expect(splitJobSpy).not.toHaveBeenCalled();
+    });
+
+    it("skips a Job deleted during parent Task loading under pool contention", async () => {
+      const { botId, turnId } = await createBot(owner);
+      const parent = await createTask({
+        name: "Contended parent",
+        eventId: null,
+      });
+      await runContendedDeletionCheck(botId, turnId, parent);
+    });
+
+    it("keeps origin/main's unscoped failed-turn lookup statement", async () => {
+      const { botId } = await createBot(owner);
+      const retryTurn = await prisma.sokoBotTurn.create({
+        data: {
+          ...turnData(botId, owner, randomUUID(), "mainnet"),
+          status: "RUNNING",
+        },
+      });
+      await prisma.sokoBotEventInbox.create({
         data: {
           botId,
-          turnId,
-          network,
-          eventId,
-          entityId,
-          purpose,
+          turnId: retryTurn.id,
+          network: "mainnet",
+          eventId: `evt${FOLLOW_UP_RETRY_SUFFIX}`,
+          entityId: "job-public",
+          purpose: "JOB_EVENT",
           designatedHandlerBotId: botId,
         },
       });
-    const mainnetFailed = await turn("mainnet", "FAILED");
-    const legacyFailed = await turn("mainnet", "FAILED");
-    const preprodFailed = await turn("preprod", "FAILED");
-    const taskFailed = await turn("mainnet", "FAILED");
-    await inbox(mainnetFailed, "mainnet", "evt");
-    await inbox(legacyFailed, null, "evt-legacy");
-    await inbox(preprodFailed, "preprod", "evt");
-    await inbox(taskFailed, null, "task-evt", "task-on-both", "TASK_EVENT");
-    const retry = async (network: Network) => {
-      const id = await turn(network, "RUNNING");
-      await inbox(id, network, `evt${FOLLOW_UP_RETRY_SUFFIX}`);
-      await inbox(
-        id,
-        null,
-        `task-evt-${network}${FOLLOW_UP_RETRY_SUFFIX}`,
-        "task-on-both",
-        "TASK_EVENT",
-      );
-      return id;
-    };
-    const lookup = async (network: Network) => {
-      const id = await retry(network);
-      const found = await planTurnIds({
-        turn: { id, sokoBotId: botId },
-        scope: { network },
-      } as Parameters<typeof planTurnIds>[0]);
-      return { id, found: found.slice().sort() };
-    };
-
-    const preprod = await lookup("preprod");
-    expect(preprod.found).toEqual(
-      [preprod.id, preprodFailed, taskFailed].sort(),
-    );
-    const mainnet = await lookup("mainnet");
-    expect(mainnet.found).toEqual(
-      [mainnet.id, mainnetFailed, legacyFailed, taskFailed].sort(),
-    );
-  });
-});
-
-describe.runIf(onSplitLayout)("Preprod exclusion on split layout", () => {
-  beforeEach(() => {
-    flag.on = true;
-  });
-
-  it("never selects, loads, writes, or starts Preprod Job delegations over several ticks, across pause and generation changes", async () => {
-    const { botId, turnId } = await createBot(owner);
-    const preprodJob = await createJob("preprod", { name: "Preprod Job" });
-    const preprod = await delegate(turnId, "preprod", { jobId: preprodJob.id });
-    const before = await row(preprod.id);
-    recordStarts();
-
-    const transitions: (() => Promise<unknown>)[] = [
-      () => setControl("open", String(GENERATION)),
-      () => setControl("paused", String(GENERATION)),
-      () => setControl("open", "not a count"),
-      async () => {
-        await setControl("open", String(GENERATION));
-        await raisePreprodGeneration();
-      },
-    ];
-    for (const [index, transition] of transitions.entries()) {
-      await transition();
-      const mainnetJob = await createJob("mainnet", {
-        name: `Mainnet Job ${index}`,
-      });
-      await delegate(turnId, "mainnet", { jobId: mainnetJob.id });
-      starts = [];
       const recorded = recordStatements();
+      await planTurnIds({
+        turn: { id: retryTurn.id, sokoBotId: botId },
+        scope: { network: "mainnet" },
+      } as Parameters<typeof planTurnIds>[0]);
+      recorded.restore();
+      const lookupSql = recorded.texts.find(
+        (sql) =>
+          sql.includes('FROM "public"."soko_bot_event_inbox"') &&
+          sql.includes('"soko_bot_turn"'),
+      );
+      expect(lookupSql).toBeDefined();
+      expect(lookupSql).not.toContain('"purpose"');
+      expect(lookupSql).not.toContain('"network"');
+    });
+  },
+);
+
+describe.runIf(onSplitLayout)(
+  "the failed-turn lookup of a follow-up retry on split layout",
+  () => {
+    it("collects the failed turns of the retry's own Network only", async () => {
+      const { botId } = await createBot(owner);
+      const jobId = "job-on-both";
+      const turn = async (network: Network, status: "FAILED" | "RUNNING") =>
+        (
+          await prisma.sokoBotTurn.create({
+            data: {
+              ...turnData(botId, owner, randomUUID(), network, GENERATION),
+              status,
+            },
+          })
+        ).id;
+      const inbox = (
+        turnId: string,
+        network: Network | null,
+        eventId: string,
+        entityId = jobId,
+        purpose = "JOB_EVENT",
+      ) =>
+        prisma.sokoBotEventInbox.create({
+          data: {
+            botId,
+            turnId,
+            network,
+            eventId,
+            entityId,
+            purpose,
+            designatedHandlerBotId: botId,
+          },
+        });
+      const mainnetFailed = await turn("mainnet", "FAILED");
+      const legacyFailed = await turn("mainnet", "FAILED");
+      const preprodFailed = await turn("preprod", "FAILED");
+      const taskFailed = await turn("mainnet", "FAILED");
+      await inbox(mainnetFailed, "mainnet", "evt");
+      await inbox(legacyFailed, null, "evt-legacy");
+      await inbox(preprodFailed, "preprod", "evt");
+      await inbox(taskFailed, null, "task-evt", "task-on-both", "TASK_EVENT");
+      const retry = async (network: Network) => {
+        const id = await turn(network, "RUNNING");
+        await inbox(id, network, `evt${FOLLOW_UP_RETRY_SUFFIX}`);
+        await inbox(
+          id,
+          null,
+          `task-evt-${network}${FOLLOW_UP_RETRY_SUFFIX}`,
+          "task-on-both",
+          "TASK_EVENT",
+        );
+        return id;
+      };
+      const lookup = async (network: Network) => {
+        const id = await retry(network);
+        const found = await planTurnIds({
+          turn: { id, sokoBotId: botId },
+          scope: { network },
+        } as Parameters<typeof planTurnIds>[0]);
+        return { id, found: found.slice().sort() };
+      };
+
+      const preprod = await lookup("preprod");
+      expect(preprod.found).toEqual(
+        [preprod.id, preprodFailed, taskFailed].sort(),
+      );
+      const mainnet = await lookup("mainnet");
+      expect(mainnet.found).toEqual(
+        [mainnet.id, mainnetFailed, legacyFailed, taskFailed].sort(),
+      );
+    });
+  },
+);
+
+describe.runIf(onSplitLayout)(
+  "Preprod exclusion and split loader on split layout",
+  () => {
+    beforeEach(() => {
+      flag.on = true;
+    });
+
+    it("skips a Job deleted between the delegation page read and hydration", async () => {
+      const { botId, turnId } = await createBot(owner);
+      const doomed = await createJob("mainnet", { name: "Deleted mid-tick" });
+      const survivor = await createJob("mainnet", { name: "Surviving Job" });
+      await delegate(turnId, "mainnet", { jobId: doomed.id });
+      await delegate(turnId, "mainnet", { jobId: survivor.id });
+      recordStarts();
+
+      const realFindMany = prisma.sokoBotDelegation.findMany.bind(
+        prisma.sokoBotDelegation,
+      );
+      let deleted = false;
+      const scanSpy = vi
+        .spyOn(prisma.sokoBotDelegation, "findMany")
+        .mockImplementation((async (
+          args?: Parameters<typeof realFindMany>[0],
+        ) => {
+          const page = await realFindMany(args);
+          if (!deleted) {
+            deleted = true;
+            await createNetworkScope("mainnet").networkDb.job.delete({
+              where: { id: doomed.id },
+            });
+          }
+          return page;
+        }) as typeof prisma.sokoBotDelegation.findMany);
+
       expect(await tick(botId)).toMatchObject({
-        scanned: index + 1,
+        scanned: 2,
         woken: 1,
         failed: 0,
       });
-      recorded.restore();
-      expect(
-        recorded.texts.some(
-          (sql) =>
-            sql.includes('"preprod"."Job"') ||
-            sql.includes('"preprod"."jobEvent"'),
-        ),
-      ).toBe(false);
-      expect(starts.map((start) => start.network)).toEqual(["mainnet"]);
-      expect(await row(preprod.id)).toEqual(before);
-    }
-  });
+      scanSpy.mockRestore();
+      expect(starts).toHaveLength(1);
+      expect(starts[0].eventBatch?.map((item) => item.entityId)).toEqual([
+        survivor.id,
+      ]);
+      expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 0 });
+    });
 
-  it.each([0, 1, 200])(
-    "starts all 20 waiting Mainnet wakes on a saturated 500-row page behind %i older Preprod Job delegations",
-    async (preprodCount) => {
-      await setControl("open", String(GENERATION));
-      const cursor = await prisma.syncMetadata.findUniqueOrThrow({
-        where: { key: SOKO_EVENTS_SYNC_KEY },
+    it("skips a Job deleted during parent Task hydration under pool contention", async () => {
+      const { botId, turnId } = await createBot(owner);
+      const parent = await createTask({
+        name: "Contended split parent",
+        eventId: null,
       });
-      await prisma.syncMetadata.update({
-        where: { key: SOKO_EVENTS_SYNC_KEY },
-        data: { cursorId: null },
+      await runContendedDeletionCheck(botId, turnId, parent);
+    });
+
+    it("never selects, loads, writes, or starts Preprod Job delegations over several ticks, across pause and generation changes", async () => {
+      const { botId, turnId } = await createBot(owner);
+      const preprodJob = await createJob("preprod", { name: "Preprod Job" });
+      const preprod = await delegate(turnId, "preprod", {
+        jobId: preprodJob.id,
       });
-      cleanUps.push(() =>
-        prisma.syncMetadata.update({
-          where: { key: SOKO_EVENTS_SYNC_KEY },
-          data: { cursorId: cursor.cursorId },
-        }),
-      );
-      // Older Preprod rows sort first by UUID when created with low prefix.
-      workspaceId = randomUUID();
-      const preprodUser = await createUser(workspaceId);
-      const preprodBot = await createBot(preprodUser, preprodUser);
-      const preprodJob = await createJob("preprod", { ownerId: preprodUser });
-      await prisma.sokoBotDelegation.createMany({
-        data: Array.from({ length: preprodCount }, (_, index) => ({
-          id: `00000000-0000-4000-8000-0000000${String(index + 1).padStart(5, "0")}`,
-          turnId: preprodBot.turnId,
-          toolCallId: randomUUID(),
-          kind: "JOB" as const,
-          action: "delegate",
-          network: "preprod",
-          preprodGeneration: GENERATION,
-          lastSeenStatus: "RUNNING",
-          jobId: preprodJob.id,
-        })),
-      });
-      const preprodRows = () =>
-        prisma.sokoBotDelegation.findMany({
-          where: { turnId: preprodBot.turnId, network: "preprod" },
-          orderBy: { id: "asc" },
+      const before = await row(preprod.id);
+      recordStarts();
+
+      const transitions: (() => Promise<unknown>)[] = [
+        () => setControl("open", String(GENERATION)),
+        () => setControl("paused", String(GENERATION)),
+        () => setControl("open", "not a count"),
+        async () => {
+          await setControl("open", String(GENERATION));
+          await raisePreprodGeneration();
+        },
+      ];
+      for (const [index, transition] of transitions.entries()) {
+        await transition();
+        const mainnetJob = await createJob("mainnet", {
+          name: `Mainnet Job ${index}`,
         });
-      const before = await preprodRows();
+        await delegate(turnId, "mainnet", { jobId: mainnetJob.id });
+        starts = [];
+        const recorded = recordStatements();
+        expect(await tick(botId)).toMatchObject({
+          scanned: index + 1,
+          woken: 1,
+          failed: 0,
+        });
+        recorded.restore();
+        expect(
+          recorded.texts.some(
+            (sql) =>
+              sql.includes('"preprod"."Job"') ||
+              sql.includes('"preprod"."jobEvent"'),
+          ),
+        ).toBe(false);
+        expect(starts.map((start) => start.network)).toEqual(["mainnet"]);
+        expect(await row(preprod.id)).toEqual(before);
+      }
+    });
 
-      // Fill the 500-row page with 480 already-seen Mainnet rows + 20 ready Mainnet bots.
-      const seenJob = await createJob("mainnet", {
-        ownerId: preprodUser,
-        status: "RUNNING",
-      });
-      await prisma.sokoBotDelegation.createMany({
-        data: Array.from({ length: 480 }, (_, index) => ({
-          id: `00000000-0000-4000-8000-0000010${String(index + 1).padStart(5, "0")}`,
-          turnId: preprodBot.turnId,
-          toolCallId: randomUUID(),
-          kind: "JOB" as const,
-          action: "delegate",
-          network: "mainnet",
-          lastSeenStatus: "RUNNING",
-          lastSeenEventId: seenJob.eventId,
-          jobId: seenJob.id,
-        })),
-      });
-      const mainnetBots = new Set<string>();
-      for (let index = 0; index < 20; index++) {
+    it.each([0, 1, 200])(
+      "starts all 20 waiting Mainnet wakes on a saturated 500-row page behind %i older Preprod Job delegations",
+      async (preprodCount) => {
+        await setControl("open", String(GENERATION));
+        const cursor = await prisma.syncMetadata.findUniqueOrThrow({
+          where: { key: SOKO_EVENTS_SYNC_KEY },
+        });
+        await prisma.syncMetadata.update({
+          where: { key: SOKO_EVENTS_SYNC_KEY },
+          data: { cursorId: null },
+        });
+        cleanUps.push(() =>
+          prisma.syncMetadata.update({
+            where: { key: SOKO_EVENTS_SYNC_KEY },
+            data: { cursorId: cursor.cursorId },
+          }),
+        );
+        // Older Preprod rows sort first by UUID when created with low prefix.
         workspaceId = randomUUID();
-        const user = await createUser(workspaceId);
-        const bot = await createBot(user, user);
-        mainnetBots.add(bot.botId);
-        const job = await createJob("mainnet", { ownerId: user });
-        await prisma.sokoBotDelegation.create({
-          data: {
-            id: `00000000-0000-4000-8000-0000020${String(index + 1).padStart(5, "0")}`,
-            turnId: bot.turnId,
+        const preprodUser = await createUser(workspaceId);
+        const preprodBot = await createBot(preprodUser, preprodUser);
+        const preprodJob = await createJob("preprod", { ownerId: preprodUser });
+        await prisma.sokoBotDelegation.createMany({
+          data: Array.from({ length: preprodCount }, (_, index) => ({
+            id: `00000000-0000-4000-8000-0000000${String(index + 1).padStart(5, "0")}`,
+            turnId: preprodBot.turnId,
             toolCallId: randomUUID(),
-            kind: "JOB",
+            kind: "JOB" as const,
+            action: "delegate",
+            network: "preprod",
+            preprodGeneration: GENERATION,
+            lastSeenStatus: "RUNNING",
+            jobId: preprodJob.id,
+          })),
+        });
+        const preprodRows = () =>
+          prisma.sokoBotDelegation.findMany({
+            where: { turnId: preprodBot.turnId, network: "preprod" },
+            orderBy: { id: "asc" },
+          });
+        const before = await preprodRows();
+
+        // Fill the 500-row page with 480 already-seen Mainnet rows + 20 ready Mainnet bots.
+        const seenJob = await createJob("mainnet", {
+          ownerId: preprodUser,
+          status: "RUNNING",
+        });
+        await prisma.sokoBotDelegation.createMany({
+          data: Array.from({ length: 480 }, (_, index) => ({
+            id: `00000000-0000-4000-8000-0000010${String(index + 1).padStart(5, "0")}`,
+            turnId: preprodBot.turnId,
+            toolCallId: randomUUID(),
+            kind: "JOB" as const,
             action: "delegate",
             network: "mainnet",
             lastSeenStatus: "RUNNING",
-            jobId: job.id,
-          },
+            lastSeenEventId: seenJob.eventId,
+            jobId: seenJob.id,
+          })),
         });
-      }
-      recordStarts();
+        const mainnetBots = new Set<string>();
+        for (let index = 0; index < 20; index++) {
+          workspaceId = randomUUID();
+          const user = await createUser(workspaceId);
+          const bot = await createBot(user, user);
+          mainnetBots.add(bot.botId);
+          const job = await createJob("mainnet", { ownerId: user });
+          await prisma.sokoBotDelegation.create({
+            data: {
+              id: `00000000-0000-4000-8000-0000020${String(index + 1).padStart(5, "0")}`,
+              turnId: bot.turnId,
+              toolCallId: randomUUID(),
+              kind: "JOB",
+              action: "delegate",
+              network: "mainnet",
+              lastSeenStatus: "RUNNING",
+              jobId: job.id,
+            },
+          });
+        }
+        recordStarts();
 
-      const perTick: number[] = [];
-      for (let index = 0; index < 4; index++) {
-        starts = [];
-        await tick();
-        perTick.push(
-          starts.filter(
-            (start) =>
-              start.network === "mainnet" &&
-              mainnetBots.has(start.sokoBotId ?? ""),
-          ).length,
-        );
-      }
-      expect(perTick).toEqual([20, 0, 0, 0]);
-      expect(await preprodRows()).toEqual(before);
-    },
-    120_000,
-  );
-});
+        const perTick: number[] = [];
+        for (let index = 0; index < 4; index++) {
+          starts = [];
+          await tick();
+          perTick.push(
+            starts.filter(
+              (start) =>
+                start.network === "mainnet" &&
+                mainnetBots.has(start.sokoBotId ?? ""),
+            ).length,
+          );
+        }
+        expect(perTick).toEqual([20, 0, 0, 0]);
+        expect(await preprodRows()).toEqual(before);
+      },
+      120_000,
+    );
+  },
+);
