@@ -95,6 +95,7 @@ import {
   useContactRows,
   useQuietCount,
   useTeammates,
+  writeContact,
 } from "./use-contacts-data";
 
 // The map and its world outline load only when someone opens it.
@@ -365,13 +366,21 @@ export function ContactsWorkspace({
       duration: 10_000,
       action: {
         label: t("bulk.undo"),
+        // Saved before the row changes back: an optimistic undo would offer
+        // the button again on a version Core is about to replace.
         onClick: () =>
           void contactsService
             .get(contact.id)
-            .then((saved) => update(saved, { followUpAt: null }))
-            .then(() =>
-              cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY }),
+            .then((saved) =>
+              contactsService.update(contact.id, {
+                followUpAt: null,
+                version: saved.version,
+              }),
             )
+            .then((restored) => {
+              writeContact(cache, restored);
+              return cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
+            })
             .catch((error) =>
               toast.error(coreErrorOf(error).message ?? t("errors.saveFailed")),
             ),

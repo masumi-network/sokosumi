@@ -11,16 +11,27 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rows, setStage, undoStage, unarchive, toast, update, quietCount } =
-  vi.hoisted(() => ({
-    rows: { current: [] as Array<Pick<Contact, "id" | "name" | "channels">> },
-    update: vi.fn(async () => true),
-    quietCount: { current: 0 },
-    setStage: vi.fn(),
-    undoStage: vi.fn(),
-    unarchive: vi.fn(),
-    toast: { success: vi.fn(), error: vi.fn() },
-  }));
+const {
+  rows,
+  setStage,
+  undoStage,
+  unarchive,
+  toast,
+  update,
+  quietCount,
+  getContact,
+  saveContact,
+} = vi.hoisted(() => ({
+  rows: { current: [] as Array<Pick<Contact, "id" | "name" | "channels">> },
+  update: vi.fn(async () => true),
+  quietCount: { current: 0 },
+  getContact: vi.fn(),
+  saveContact: vi.fn(),
+  setStage: vi.fn(),
+  undoStage: vi.fn(),
+  unarchive: vi.fn(),
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: { count?: number }) =>
@@ -29,7 +40,13 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/services/contacts.client", () => ({
-  contactsService: { setStage, undoStage, unarchive },
+  contactsService: {
+    setStage,
+    undoStage,
+    unarchive,
+    get: getContact,
+    update: saveContact,
+  },
 }));
 vi.mock("./use-contact-update", () => ({
   useContactUpdate: () => update,
@@ -116,6 +133,7 @@ vi.mock("./use-contacts-data", () => ({
   useQuietCount: () => ({ data: quietCount.current }),
   DUPLICATE_GROUP_LIMIT: 200,
   refreshContacts: vi.fn(async () => {}),
+  writeContact: vi.fn(),
   useContactDuplicates: () => ({ data: [] }),
   useContactLists: () => ({ data: [SMART_LIST] }),
   useCompanyLists: () => ({ data: [] }),
@@ -491,7 +509,23 @@ describe("Gone quiet", () => {
       { followUpAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
     );
     expect(toast.success.mock.lastCall?.[0]).toBe("quiet.followUpSet");
-    expect(undoAction("success")).toBeTypeOf("function");
+  });
+
+  it("undoes on the saved version, so a quick second follow-up is not stale", async () => {
+    quietCount.current = 1;
+    getContact.mockResolvedValue({ id: "c1", name: "Ada Lead", version: 7 });
+    saveContact.mockResolvedValue({ id: "c1", name: "Ada Lead", version: 8 });
+    renderSmartList("?list=quiet");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow up Ada Lead" }),
+    );
+    await act(async () => undoAction("success")());
+    expect(saveContact).toHaveBeenCalledExactlyOnceWith("c1", {
+      followUpAt: null,
+      version: 7,
+    });
+    // The hook's optimistic write would show the button before the save.
+    expect(update).toHaveBeenCalledTimes(1);
   });
 
   it("shows no count when nobody went quiet", () => {
