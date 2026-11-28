@@ -51,6 +51,7 @@ export function CompetitorsStart({
             projectId={projectId}
             projectName={projectName}
             room={limit}
+            size="default"
             variant="primary"
           />
           <Button
@@ -58,7 +59,6 @@ export function CompetitorsStart({
             ref={(button) => {
               if (button && takeStartFocus()) button.focus();
             }}
-            size="sm"
           >
             {t("start.add")}
           </Button>
