@@ -87,7 +87,10 @@ export function canUsePreprodInWorkspace(
 /** Keep interpreting scoped keys and headers while a configuration failure keeps Preprod offline. */
 export function isNetworkRoutingEnabled(): boolean {
   const env = getEnv();
-  return env.NETWORK_PREPROD_ENABLED || env.preprodDisabledByMasumi === true;
+  return (
+    env.NETWORK_PREPROD_ENABLED ||
+    env.missingPreprodMasumiVariables !== undefined
+  );
 }
 
 export function networksThatAreOn(): readonly Network[] {

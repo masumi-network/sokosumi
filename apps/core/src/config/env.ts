@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import { captureMessage } from "@sentry/node";
 import {
   resolveBetterAuthPublicBaseUrl,
   TURNSTILE_ALWAYS_PASS_SECRET,
@@ -10,7 +9,11 @@ import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
 // The checks below report through Core's logger: started before they run.
 import "@/lib/evlog-init";
 import { invalidVariables } from "@/config/invalid-variables";
-import { masumiConfiguration, masumiEnvShape } from "@/config/masumi";
+import {
+  masumiConfiguration,
+  masumiEnvShape,
+  PREPROD_MASUMI_WARNING,
+} from "@/config/masumi";
 import {
   checkNetworkLayout,
   networkLayoutShape,
@@ -652,7 +655,7 @@ const envSchema = baseEnvSchema.superRefine((value, context) => {
 });
 
 export type EnvConfig = z.infer<typeof envSchema> & {
-  preprodDisabledByMasumi?: boolean;
+  missingPreprodMasumiVariables?: string[];
 };
 
 let envConfig: EnvConfig | null = null;
@@ -744,21 +747,12 @@ export function validateEnv(): EnvConfig {
       emitCoreWarning(
         { operation: "masumi_configuration", missingVariables: missing },
         {
-          message:
-            "Preprod is disabled because its Masumi configuration is incomplete",
+          message: PREPROD_MASUMI_WARNING,
           why: "Preprod was enabled without valid payment and registry settings",
           fix: "Set the listed Preprod variables and restart Core.",
         },
       );
-      captureMessage(
-        "Preprod is disabled because its Masumi configuration is incomplete",
-        {
-          level: "warning",
-          tags: { operation: "masumi_configuration" },
-          extra: { missingVariables: missing },
-        },
-      );
-      config.preprodDisabledByMasumi = true;
+      config.missingPreprodMasumiVariables = missing;
       config.NETWORK_PREPROD_ENABLED = false;
     }
   }

@@ -1,6 +1,9 @@
 import { z } from "zod";
 import type { Network } from "@/lib/network";
 
+export const PREPROD_MASUMI_WARNING =
+  "Preprod is disabled because its Masumi configuration is incomplete";
+
 const optionalValue = z.string().optional();
 export const masumiEnvShape = {
   MAINNET_PAYMENT_API_URL: optionalValue,

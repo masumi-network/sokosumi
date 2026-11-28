@@ -83,7 +83,9 @@ vi.mock("@/config/env", async (importOriginal) => {
       ...actual.getEnv(),
       NETWORK: "Preprod" as const,
       NETWORK_PREPROD_ENABLED: preprod.on,
-      preprodDisabledByMasumi: preprod.disabledByMasumi,
+      missingPreprodMasumiVariables: preprod.disabledByMasumi
+        ? ["PREPROD_REGISTRY_API_URL"]
+        : undefined,
     }),
   };
 });

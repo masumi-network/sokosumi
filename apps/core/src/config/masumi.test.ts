@@ -39,7 +39,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-for (const mode of ["production", "development"] as const) {
+for (const mode of ["production", "development", "preview"] as const) {
   describe.each(Object.entries(masks))(
     `${mode} Mainnet %s`,
     (_main, mainMask) => {
@@ -49,7 +49,9 @@ for (const mode of ["production", "development"] as const) {
           it.each([false, true])(
             "boots and routes with the Preprod switch %s",
             async (flag) => {
-              vi.stubEnv("NODE_ENV", mode);
+              vi.stubEnv("NODE_ENV", mode === "preview" ? "production" : mode);
+              if (mode === "preview") vi.stubEnv("VERCEL_ENV", "preview");
+              vi.stubEnv("SENTRY_DSN", "http://public@localhost/1");
               vi.stubEnv("NETWORK_PREPROD_ENABLED", String(flag));
               setNetwork("mainnet", mainMask);
               setNetwork("preprod", preprodMask);
@@ -85,6 +87,9 @@ for (const mode of ["production", "development"] as const) {
               expect(getEnv().NETWORK_PREPROD_ENABLED).toBe(flag && !disabled);
               const { isNetworkRoutingEnabled } = await import("@/lib/network");
               expect(isNetworkRoutingEnabled()).toBe(flag);
+              expect(captureMessage).not.toHaveBeenCalled();
+              const { initSentry } = await import("@/lib/sentry");
+              initSentry();
               expect(captureMessage).toHaveBeenCalledTimes(disabled ? 1 : 0);
               const { masumiClients } = await import("@/clients/masumi");
               for (const [network, configured] of [
