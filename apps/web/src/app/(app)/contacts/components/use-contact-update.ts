@@ -4,7 +4,7 @@ import type {
   ContactList,
   PatchContactsByIdData,
 } from "@sokosumi/core-client";
-import { useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -86,6 +86,31 @@ export function useContactUser() {
 }
 
 /**
+ * Shows a contact Core saved with `fields`, and reloads what it changes. For
+ * any save of a contact, through `useContactUpdate` or not (Undo).
+ */
+export function writeSavedContact(
+  cache: QueryClient,
+  saved: Contact,
+  fields: ContactFields,
+) {
+  // Rows keep their place until the next load, so an edit under a sort
+  // by "Updated" does not pull the row out from under the reader.
+  writeContact(cache, saved);
+  // A new or cleared follow-up moves people in or out of Gone quiet.
+  if (fields.followUpAt !== undefined)
+    void cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
+  void cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY });
+  void cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY });
+  void cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY });
+  void cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY });
+  // A new name or organization can make or end a duplicate group.
+  void cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY });
+  void cache.invalidateQueries({ queryKey: contactKey(saved.id) });
+  void cache.invalidateQueries({ queryKey: ["contact-timeline", saved.id] });
+}
+
+/**
  * Saves fields on the version the reader saw. The row changes at once; a
  * stale version (someone else saved first) reloads the contact and says so,
  * any other failure puts the old values back. `onSaved` gets the saved
@@ -106,23 +131,8 @@ export function useContactUpdate() {
         ...fields,
         version: contact.version,
       });
-      // Rows keep their place until the next load, so an edit under a sort
-      // by "Updated" does not pull the row out from under the reader.
-      writeContact(cache, saved);
+      writeSavedContact(cache, saved, fields);
       onSaved?.(saved);
-      // A new or cleared follow-up moves people in or out of Gone quiet.
-      if (fields.followUpAt !== undefined)
-        void cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
-      void cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY });
-      void cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY });
-      void cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY });
-      void cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY });
-      // A new name or organization can make or end a duplicate group.
-      void cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY });
-      void cache.invalidateQueries({ queryKey: contactKey(contact.id) });
-      void cache.invalidateQueries({
-        queryKey: ["contact-timeline", contact.id],
-      });
       return true;
     } catch (error) {
       writeContact(cache, contact);

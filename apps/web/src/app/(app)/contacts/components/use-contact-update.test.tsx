@@ -7,6 +7,7 @@ import {
   FAILURE_TOAST_WAIT_MS,
   useContactUpdate,
   useListToggle,
+  writeSavedContact,
 } from "./use-contact-update";
 import {
   CONTACT_QUIET_KEY,
@@ -329,5 +330,26 @@ describe("useContactUpdate", () => {
       update({ ...contact, version: 1 } as Contact, { role: "CEO" }),
     );
     expect(quietRefresh(invalidate)).toBe(false);
+  });
+});
+
+describe("writeSavedContact", () => {
+  it("refreshes for a write made without the hook (Undo) what the hook refreshes", () => {
+    const cache = new QueryClient();
+    cache.setQueryData(contactKey(contact.id), contact);
+    const invalidate = vi.spyOn(cache, "invalidateQueries");
+    const saved = { ...contact, version: 3, followUpAt: null } as Contact;
+    writeSavedContact(cache, saved, { followUpAt: null });
+    const keys = invalidate.mock.calls.map(
+      ([filters]) => (filters as { queryKey?: unknown } | undefined)?.queryKey,
+    );
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        CONTACT_QUIET_KEY,
+        contactKey(contact.id),
+        ["contact-timeline", contact.id],
+      ]),
+    );
+    expect(cache.getQueryData(contactKey(contact.id))).toEqual(saved);
   });
 });

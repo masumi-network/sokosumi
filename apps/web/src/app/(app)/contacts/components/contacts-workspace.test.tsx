@@ -21,7 +21,7 @@ const {
   quietCount,
   getContact,
   saveContact,
-  written,
+  savedWrite,
 } = vi.hoisted(() => ({
   rows: { current: [] as Array<Pick<Contact, "id" | "name" | "channels">> },
   // Like the real hook: saves, then hands the saved contact to `onSaved`.
@@ -36,7 +36,7 @@ const {
       return true;
     },
   ),
-  written: vi.fn(),
+  savedWrite: vi.fn(),
   quietCount: { current: 0 },
   getContact: vi.fn(),
   saveContact: vi.fn(),
@@ -63,6 +63,7 @@ vi.mock("@/lib/services/contacts.client", () => ({
 }));
 vi.mock("./use-contact-update", () => ({
   useContactUpdate: () => update,
+  writeSavedContact: savedWrite,
   useImportanceUpdate: () => vi.fn(),
 }));
 vi.mock("./list-overview", () => ({ ListOverview: () => null }));
@@ -146,7 +147,6 @@ vi.mock("./use-contacts-data", () => ({
   useQuietCount: () => ({ data: quietCount.current }),
   DUPLICATE_GROUP_LIMIT: 200,
   refreshContacts: vi.fn(async () => {}),
-  writeContact: written,
   useContactDuplicates: () => ({ data: [] }),
   useContactLists: () => ({ data: [SMART_LIST] }),
   useCompanyLists: () => ({ data: [] }),
@@ -200,7 +200,7 @@ beforeEach(() => {
   toast.success.mockReset();
   toast.error.mockReset();
   update.mockClear();
-  written.mockReset();
+  savedWrite.mockReset();
   getContact.mockReset();
   saveContact.mockReset();
   quietCount.current = 0;
@@ -549,9 +549,11 @@ describe("Gone quiet", () => {
       followUpAt: null,
       version: 8,
     });
-    expect(written).toHaveBeenCalledWith(
+    // The same refresh a hook save gets: row, panel, timeline, counts.
+    expect(savedWrite).toHaveBeenCalledExactlyOnceWith(
       expect.anything(),
       expect.objectContaining({ version: 9 }),
+      { followUpAt: null },
     );
   });
 
@@ -564,13 +566,13 @@ describe("Gone quiet", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "follow up Ada Lead" }),
     );
-    written.mockClear();
+    savedWrite.mockClear();
     await act(async () => undoAction("success")());
     expect(saveContact).toHaveBeenCalledExactlyOnceWith("c1", {
       followUpAt: null,
       version: 8,
     });
-    expect(written).not.toHaveBeenCalled();
+    expect(savedWrite).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("errors.versionConflict");
   });
 

@@ -85,11 +85,14 @@ import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactArchive } from "./use-contact-archive";
-import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
+import {
+  useContactUpdate,
+  useImportanceUpdate,
+  writeSavedContact,
+} from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
   CONTACT_LISTS_KEY,
-  CONTACT_QUIET_KEY,
   DUPLICATE_GROUP_LIMIT,
   refreshContacts,
   useContactDuplicates,
@@ -99,7 +102,6 @@ import {
   useContactRows,
   useQuietCount,
   useTeammates,
-  writeContact,
 } from "./use-contacts-data";
 
 // The map and its world outline load only when someone opens it.
@@ -383,12 +385,13 @@ export function ContactsWorkspace({
    * row changes back, so the button never comes back on a stale version.
    */
   async function undoFollowUp(id: string, version: number) {
+    const fields = { followUpAt: null };
     try {
-      writeContact(
+      writeSavedContact(
         cache,
-        await contactsService.update(id, { followUpAt: null, version }),
+        await contactsService.update(id, { ...fields, version }),
+        fields,
       );
-      await cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
     } catch (error) {
       const { kind, message } = coreErrorOf(error);
       if (kind === "contact_version_conflict") {

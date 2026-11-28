@@ -14,8 +14,15 @@ import { createMailbox } from "./mailbox.ts";
 // interaction, so the spec creates an API key in Developer settings and logs
 // both through Core's public `/v1/contacts/{id}/interactions`.
 const BASE_URL = resolveBaseUrl(process.env);
-// Only a PR preview pairs with a Core that takes test data; elsewhere this throws.
-const CORE_URL = resolvePreviewCoreUrl(BASE_URL);
+// Anywhere but a PR preview the spec skips with the reason: only a PR
+// preview pairs with a Core that takes test data.
+const CORE = (() => {
+  try {
+    return { url: resolvePreviewCoreUrl(BASE_URL), skip: false as const };
+  } catch (error) {
+    return { url: "", skip: (error as Error).message };
+  }
+})();
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const QUIET = "Mira Quietperson";
 const RECENT = "Lena Recentperson";
@@ -47,17 +54,21 @@ async function addContact(page: Page, name: string) {
   return id;
 }
 
-let browser: Browser;
+let browser: Browser | undefined;
 before(async () => {
+  if (CORE.skip) return;
   mkdirSync(RESULTS_DIR, { recursive: true });
   console.log(`E2E_BASE_URL=${BASE_URL}`);
   browser = await chromium.launch();
 });
-after(() => browser.close());
+after(() => browser?.close());
 
 for (const { name: size, isMobile, ...viewport } of PROJECTS) {
   describe(size, () => {
-    test("a new user plans a follow-up with someone who went quiet", async () => {
+    test("a new user plans a follow-up with someone who went quiet", {
+      skip: CORE.skip,
+    }, async () => {
+      if (!browser) throw new Error("no browser");
       // Desktop setup, so Developer settings and the grid are one click away;
       // the feature itself runs at this size below.
       const context = await browser.newContext({
@@ -111,7 +122,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         [recentId, 5],
       ] as const) {
         const response = await fetch(
-          `${CORE_URL}/v1/contacts/${id}/interactions`,
+          `${CORE.url}/v1/contacts/${id}/interactions`,
           {
             method: "POST",
             headers: {
@@ -162,7 +173,17 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.getByText(/^Follow-up /).waitFor();
       await page.getByRole("button", { name: "Undo" }).click();
       await followUp.waitFor();
+      // Calendar reads from Core: open it only once Core has this save. The
+      // first save's toast can still show the same words, so wait for the
+      // save itself.
+      const saved = page.waitForResponse(
+        (response) =>
+          response.request().method() === "PATCH" &&
+          response.url().includes("/v1/contacts/") &&
+          response.ok(),
+      );
       await followUp.click();
+      await saved;
       await page.getByText(/^Follow-up /).waitFor();
       await shot(page, size, "2-planned");
 
