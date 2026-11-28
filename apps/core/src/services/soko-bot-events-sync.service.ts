@@ -576,23 +576,28 @@ async function withJobs<
 >(rows: T[], preprodPicked: boolean) {
   const ids = new Map<Network, Set<string>>();
   for (const row of rows) {
-    if (!row.jobId) continue;
+    if (row.jobId == null) continue;
     const network = jobNetwork(row);
     if (network === "preprod" && !preprodPicked) continue;
     ids.set(network, (ids.get(network) ?? new Set()).add(row.jobId));
   }
-  const jobs = new Map<
-    string,
-    Prisma.JobGetPayload<{ select: typeof JOB_SELECT }>
-  >();
-  for (const [network, jobIds] of ids)
+  type LoadedJob = Prisma.JobGetPayload<{ select: typeof JOB_SELECT }>;
+  const jobs = new Map<Network, Map<string, LoadedJob>>();
+  for (const [network, jobIds] of ids) {
+    const byId = new Map<string, LoadedJob>();
     for (const job of await createNetworkScope(network).networkDb.job.findMany({
       where: { id: { in: [...jobIds] } },
       select: JOB_SELECT,
     }))
-      jobs.set(networkKey(network, job.id), job);
+      byId.set(job.id, job);
+    jobs.set(network, byId);
+  }
   const taskIds = [
-    ...new Set([...jobs.values()].flatMap((job) => job.taskId ?? [])),
+    ...new Set(
+      [...jobs.values()].flatMap((byId) =>
+        [...byId.values()].flatMap((job) => job.taskId ?? []),
+      ),
+    ),
   ];
   const tasks = new Map(
     (taskIds.length
@@ -609,13 +614,15 @@ async function withJobs<
     ).map(({ id, ...task }) => [id, task]),
   );
   return rows.map((row) => {
-    const job = row.jobId
-      ? jobs.get(networkKey(jobNetwork(row), row.jobId))
-      : undefined;
+    const job =
+      row.jobId != null ? jobs.get(jobNetwork(row))?.get(row.jobId) : undefined;
     return {
       ...row,
       job: job
-        ? { ...job, task: (job.taskId && tasks.get(job.taskId)) || null }
+        ? {
+            ...job,
+            task: job.taskId != null ? (tasks.get(job.taskId) ?? null) : null,
+          }
         : null,
     };
   });
@@ -658,114 +665,116 @@ export class SokoBotEventsSyncService {
       update: {},
     });
     const preprodGeneration = await preprodJobGeneration();
-    const readPage = (cursor?: string | null) =>
-      prisma.sokoBotDelegation.findMany({
-        where: {
-          ...(cursor ? { id: { gt: cursor } } : {}),
-          // A Job is read afterwards from its delegation's Network. Preprod
-          // rows come only from the generation a fresh turn would start under.
-          OR: [
-            { taskId: { not: null } },
-            {
-              jobId: { not: null },
-              OR: [
-                { network: "mainnet" },
-                { network: null },
-                ...(preprodGeneration === null
-                  ? []
-                  : [{ network: "preprod", preprodGeneration }]),
-              ],
-            },
-          ],
-          ...INVOLVING_DELEGATION,
-          // Unattended work the bot starts itself honours the owner's pause,
-          // not just the administrator's.
-          turn: {
-            ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
-            sokoBot: {
-              archivedAt: null,
-              adminPausedAt: null,
-              proactivePaused: false,
+    const readPage = async (cursor?: string | null) =>
+      withJobs(
+        await prisma.sokoBotDelegation.findMany({
+          where: {
+            ...(cursor ? { id: { gt: cursor } } : {}),
+            // A Job is read afterwards from its delegation's Network. Preprod
+            // rows come only from the generation a fresh turn would start under.
+            OR: [
+              { taskId: { not: null } },
+              {
+                jobId: { not: null },
+                OR: [
+                  { network: "mainnet" },
+                  { network: null },
+                  ...(preprodGeneration === null
+                    ? []
+                    : [{ network: "preprod", preprodGeneration }]),
+                ],
+              },
+            ],
+            ...INVOLVING_DELEGATION,
+            // Unattended work the bot starts itself honours the owner's pause,
+            // not just the administrator's.
+            turn: {
+              ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
+              sokoBot: {
+                archivedAt: null,
+                adminPausedAt: null,
+                proactivePaused: false,
+              },
             },
           },
-        },
-        // Stable keyset rotation visits old unresolved work without rescanning
-        // the whole table or starving it behind newer delegations.
-        orderBy: { id: "asc" },
-        take: BATCH_SIZE,
-        select: {
-          id: true,
-          turnId: true,
-          kind: true,
-          network: true,
-          preprodGeneration: true,
-          jobId: true,
-          lastSeenStatus: true,
-          lastSeenEventId: true,
-          lastSeenEventAt: true,
-          followUp: true,
-          followUpAllows: true,
-          authority: true,
-          followUpTurnId: true,
-          task: {
-            select: {
-              id: true,
-              name: true,
-              status: true,
-              visibility: true,
-              ownerId: true,
-              workspaceId: true,
-              projectId: true,
-              archivedAt: true,
-              assigneeSokoBotId: true,
-              events: {
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                take: 1,
-                select: {
-                  id: true,
-                  comment: true,
-                  createdAt: true,
-                  sokoBotId: true,
+          // Stable keyset rotation visits old unresolved work without rescanning
+          // the whole table or starving it behind newer delegations.
+          orderBy: { id: "asc" },
+          take: BATCH_SIZE,
+          select: {
+            id: true,
+            turnId: true,
+            kind: true,
+            network: true,
+            preprodGeneration: true,
+            jobId: true,
+            lastSeenStatus: true,
+            lastSeenEventId: true,
+            lastSeenEventAt: true,
+            followUp: true,
+            followUpAllows: true,
+            authority: true,
+            followUpTurnId: true,
+            task: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                visibility: true,
+                ownerId: true,
+                workspaceId: true,
+                projectId: true,
+                archivedAt: true,
+                assigneeSokoBotId: true,
+                events: {
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  take: 1,
+                  select: {
+                    id: true,
+                    comment: true,
+                    createdAt: true,
+                    sokoBotId: true,
+                  },
+                },
+              },
+            },
+            turn: {
+              select: {
+                id: true,
+                sokoBotId: true,
+                requestedByUserId: true,
+                sokoBot: { select: { userId: true, projectId: true } },
+                workspaceId: true,
+                versionId: true,
+                parentTurnId: true,
+                status: true,
+                source: true,
+                chainDepth: true,
+                askedByUserId: true,
+                capabilityNames: true,
+                parentTurn: {
+                  select: {
+                    source: true,
+                    chainDepth: true,
+                    askedByUserId: true,
+                    requestedByUserId: true,
+                  },
                 },
               },
             },
           },
-          turn: {
-            select: {
-              id: true,
-              sokoBotId: true,
-              requestedByUserId: true,
-              sokoBot: { select: { userId: true, projectId: true } },
-              workspaceId: true,
-              versionId: true,
-              parentTurnId: true,
-              status: true,
-              source: true,
-              chainDepth: true,
-              askedByUserId: true,
-              capabilityNames: true,
-              parentTurn: {
-                select: {
-                  source: true,
-                  chainDepth: true,
-                  askedByUserId: true,
-                  requestedByUserId: true,
-                },
-              },
-            },
-          },
-        },
-      });
-    const rows = await readPage(input.sokoBotId ? null : scan.cursorId);
+        }),
+        preprodGeneration !== null,
+      );
+    const delegations = await readPage(input.sokoBotId ? null : scan.cursorId);
     // A scoped scan has no cursor to resume from: it reads every page.
     if (input.sokoBotId) {
-      let page = rows;
+      let page = delegations;
       while (page.length === BATCH_SIZE) {
         page = await readPage(page.at(-1)?.id);
-        rows.push(...page);
+        delegations.push(...page);
       }
     }
-    const delegations = await withJobs(rows, preprodGeneration !== null);
     result.scanned = delegations.length;
     const retryableFollowUps = await failedFollowUpTurns(
       delegations.flatMap((delegation) =>
@@ -1137,8 +1146,17 @@ export class SokoBotEventsSyncService {
           });
         }
       }
-      await this.markSeen(consumedPrefix);
-      work.changes = work.changes.filter((change) => !isConsumed(change));
+      const remaining = work.changes.filter((change) => !isConsumed(change));
+      // Preprod cursor updates for a pending start wait for an admitted start
+      // so a retryable pause leaves the delegation row untouched.
+      const stagedConsumedPrefix =
+        work.network === "preprod" && remaining.length > 0
+          ? consumedPrefix
+          : [];
+      if (stagedConsumedPrefix.length === 0) {
+        await this.markSeen(consumedPrefix);
+      }
+      work.changes = remaining;
       if (!work.changes.length) continue;
       // Collapse duplicate delegations, preserving distinct event occurrences.
       const unique = new Map<string, Change>();
@@ -1183,6 +1201,24 @@ export class SokoBotEventsSyncService {
           claimed.has(change.delegationId) ? (change.ownerGranted ?? []) : [],
         ),
       );
+      const eventBatch = changes.map((change) => ({
+        eventId: inboxEventId(change),
+        entityId: change.entityId,
+        purpose: `${change.kind}_EVENT`,
+        status: change.to,
+        designatedHandlerBotId:
+          change.designatedHandlerBotId === undefined
+            ? work.sokoBotId
+            : change.designatedHandlerBotId,
+        delegationEventAt: change.eventAt,
+        delegationIds: work.changes
+          .filter((item) => item.entityId === change.entityId)
+          .map((item) => item.delegationId),
+        followUpDelegationIds: claimsOf.get(change),
+        ...(change.retryOfTurnId && claimsOf.has(change)
+          ? { followUpRetryOfTurnId: change.retryOfTurnId }
+          : {}),
+      }));
       try {
         const started = await sokoBotControlPlane.startTurn({
           network: work.network,
@@ -1196,25 +1232,18 @@ export class SokoBotEventsSyncService {
           message: buildEventMessage(changes, plans),
           source: "EVENT",
           presetRoute,
-          eventBatch: changes.map((change) => ({
-            eventId: inboxEventId(change),
-            entityId: change.entityId,
-            purpose: `${change.kind}_EVENT`,
-            status: change.to,
-            designatedHandlerBotId:
-              change.designatedHandlerBotId === undefined
-                ? work.sokoBotId
-                : change.designatedHandlerBotId,
-            delegationEventAt: change.eventAt,
-            delegationIds: work.changes
-              .filter((item) => item.entityId === change.entityId)
-              .map((item) => item.delegationId),
-            followUpDelegationIds: claimsOf.get(change),
-            ...(change.retryOfTurnId && claimsOf.has(change)
-              ? { followUpRetryOfTurnId: change.retryOfTurnId }
-              : {}),
-          })),
+          eventBatch,
         });
+        if (stagedConsumedPrefix.length > 0) {
+          const admittedDelegations = new Set(
+            eventBatch.flatMap((occurrence) => occurrence.delegationIds),
+          );
+          await this.markSeen(
+            stagedConsumedPrefix.filter(
+              (item) => !admittedDelegations.has(item.delegationId),
+            ),
+          );
+        }
         result.woken += 1;
         // The start result grants this call the drain after its own fresh start
         // or won recovery claim, including when a CAS proves its acknowledgement
@@ -1268,20 +1297,27 @@ export class SokoBotEventsSyncService {
           error instanceof DetachedNetworkRefusal &&
           error.final
         ) {
-          await this.markSeen(
-            work.changes.flatMap((change) =>
-              change.retryOfTurnId
-                ? []
-                : [
-                    {
-                      delegationId: change.delegationId,
-                      status: change.to,
-                      eventId: change.eventId,
-                      eventAt: change.eventAt,
-                    },
-                  ],
-            ),
+          const finalChanges = work.changes.flatMap((change) =>
+            change.retryOfTurnId
+              ? []
+              : [
+                  {
+                    delegationId: change.delegationId,
+                    status: change.to,
+                    eventId: change.eventId,
+                    eventAt: change.eventAt,
+                  },
+                ],
           );
+          const finalDelegations = new Set(
+            finalChanges.map((item) => item.delegationId),
+          );
+          await this.markSeen([
+            ...stagedConsumedPrefix.filter(
+              (item) => !finalDelegations.has(item.delegationId),
+            ),
+            ...finalChanges,
+          ]);
           result.failed += 1;
           continue;
         }

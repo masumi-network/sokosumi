@@ -49,43 +49,57 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
 }));
 /**
  * The fixtures give each delegation its Job as the old relation did; the scan
- * now returns `jobId`, and the Job comes from its Network's client and its
- * parent Task from the shared one. These derive both reads from the rows.
+ * now returns `jobId` without `job`, and the Job comes from its Network's
+ * client and its parent Task from the shared one.
  */
-const { scanRows, jobsById, parentTasks } = vi.hoisted(() => {
-  let rows: {
-    job?: { id: string; task?: Record<string, unknown> | null } | null;
-  }[] = [];
-  return {
-    scanRows: async (...args: unknown[]) => {
-      rows = (await delegationFindManyMock(...args)) as typeof rows;
-      return rows.map((row) => ({ jobId: row.job?.id ?? null, ...row }));
-    },
-    jobsById: (ids: string[]) =>
-      rows.flatMap((row) =>
-        row.job && ids.includes(row.job.id)
-          ? [
-              {
-                ...row.job,
-                taskId: row.job.task ? `parent_${row.job.id}` : null,
-              },
-            ]
-          : [],
-      ),
-    parentTasks: async (args: { where: { id: { in: string[] } } }) =>
-      rows.flatMap((row) =>
-        row.job?.task && args.where.id.in.includes(`parent_${row.job.id}`)
-          ? [{ id: `parent_${row.job.id}`, ...row.job.task }]
-          : [],
-      ),
-  };
-});
+const { scanRows, jobFindManyMock, parentTasks, resetJobFixtures } = vi.hoisted(
+  () => {
+    type FixtureJob = {
+      id: string;
+      task?: Record<string, unknown> | null;
+      [key: string]: unknown;
+    };
+    const jobs = new Map<string, FixtureJob>();
+    const jobFindManyMock = vi.fn(
+      async (args: { where: { id: { in: string[] } } }) =>
+        args.where.id.in.flatMap((id) => {
+          const job = jobs.get(id);
+          if (!job) return [];
+          const { task, ...rest } = job;
+          return [{ ...rest, taskId: task ? `parent_${job.id}` : null }];
+        }),
+    );
+    return {
+      jobFindManyMock,
+      resetJobFixtures: () => jobs.clear(),
+      scanRows: async (...args: unknown[]) => {
+        const page = (await delegationFindManyMock(...args)) as {
+          jobId?: string | null;
+          job?: FixtureJob | null;
+          [key: string]: unknown;
+        }[];
+        for (const row of page) {
+          if (row.job) jobs.set(row.job.id, row.job);
+        }
+        return page.map(({ job, ...rest }) => ({
+          ...rest,
+          jobId: job ? job.id : (rest.jobId ?? null),
+        }));
+      },
+      parentTasks: async (args: { where: { id: { in: string[] } } }) =>
+        [...jobs.values()].flatMap((job) =>
+          job.task && args.where.id.in.includes(`parent_${job.id}`)
+            ? [{ id: `parent_${job.id}`, ...job.task }]
+            : [],
+        ),
+    };
+  },
+);
 vi.mock("@/lib/db/network-scope", () => ({
   createNetworkScope: () => ({
     networkDb: {
       job: {
-        findMany: async (args: { where: { id: { in: string[] } } }) =>
-          jobsById(args.where.id.in),
+        findMany: jobFindManyMock,
       },
       jobEvent: { findMany: async () => [] },
     },
@@ -194,6 +208,7 @@ function plannedDelegation(
 describe("SokoBotEventsSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetJobFixtures();
     metadataUpsertMock.mockResolvedValue({
       key: "soko-events-v2",
       createdAt: new Date(0),
@@ -299,6 +314,58 @@ describe("SokoBotEventsSyncService", () => {
     );
     expect(result.woken).toBe(1);
     expect(metadataUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("hydrates each page's distinct Jobs per page during a multi-page scoped scan", async () => {
+    const jobRow = (index: number, status: string) => ({
+      id: `d${index}`,
+      kind: "JOB",
+      network: "mainnet",
+      lastSeenStatus: "RUNNING",
+      lastSeenEventId: null,
+      lastSeenEventAt: null,
+      task: null,
+      job: {
+        id: `job_${index}`,
+        name: `Job ${index}`,
+        ownerId: "user_1",
+        workspaceId: "ws_1",
+        task: null,
+        events: [
+          {
+            id: `ev_${index}`,
+            status,
+            createdAt: new Date("2026-10-23T10:00:00Z"),
+          },
+        ],
+      },
+      turn,
+      followUp: null,
+      followUpTurnId: null,
+    });
+    const page1 = Array.from({ length: 500 }, (_, i) => jobRow(i, "RUNNING"));
+    const page2 = Array.from({ length: 500 }, (_, i) =>
+      jobRow(500 + i, "RUNNING"),
+    );
+    const page3 = [jobRow(1000, "COMPLETED")];
+    delegationFindManyMock
+      .mockResolvedValueOnce(page1)
+      .mockResolvedValueOnce(page2)
+      .mockResolvedValueOnce(page3);
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork({
+      ...input,
+      sokoBotId: "bot_fixture",
+    });
+
+    expect(result).toMatchObject({ scanned: 1001, woken: 1 });
+    expect(jobFindManyMock).toHaveBeenCalledTimes(3);
+    expect(
+      jobFindManyMock.mock.calls.map(([arg]) => arg.where.id.in.length),
+    ).toEqual([500, 500, 1]);
+    expect(startTurnMock.mock.calls[0]?.[0].eventBatch).toEqual([
+      expect.objectContaining({ entityId: "job_1000", eventId: "ev_1000" }),
+    ]);
   });
 
   it("baselines historical actionable events before the persisted cutover", async () => {
