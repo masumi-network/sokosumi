@@ -64,6 +64,11 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
     setOpen(true);
   };
 
+  // The page filter matched none: its own "No matches" says so, not an empty box.
+  if (visible.length === 0) {
+    return null;
+  }
+
   return (
     <div className="bg-background flex flex-col divide-y rounded-xl border py-2">
       {visible.map(({ provider, account, label }) => (

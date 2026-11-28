@@ -8998,15 +8998,15 @@
       "AuthorizedClients": {
         "title": "Authorized applications",
         "description": "Applications that have access to your account",
-        "loading": "Loading...",
-        "error": "Error: {error}",
+        "loadErrorTitle": "Could not load connected apps",
+        "loadError": "Check your connection and try again.",
+        "retry": "Retry",
         "noApplications": "No applications have been authorized.",
         "authorized": "Authorized: {date}",
         "revokeAccess": "Revoke access",
         "confirmRevoke": "Are you sure you want to revoke access for this application?",
         "revokeSuccess": "Access revoked successfully",
-        "revokeError": "Failed to revoke access",
-        "fetchError": "Failed to fetch authorized clients"
+        "revokeError": "Failed to revoke access"
       },
       "OAuthConsent": {
         "invalidRequest": {

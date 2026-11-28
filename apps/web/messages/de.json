@@ -8962,15 +8962,15 @@
       "AuthorizedClients": {
         "title": "Autorisierte Anwendungen",
         "description": "Anwendungen, die Zugriff auf deinen Account haben",
-        "loading": "Wird geladen...",
-        "error": "Fehler: {error}",
+        "loadErrorTitle": "Verbundene Apps konnten nicht geladen werden",
+        "loadError": "Prüfe deine Verbindung und versuche es erneut.",
+        "retry": "Erneut versuchen",
         "noApplications": "Keine Anwendungen wurden autorisiert.",
         "authorized": "Autorisiert: {date}",
         "revokeAccess": "Zugriff widerrufen",
         "confirmRevoke": "Möchtest du den Zugriff für diese Anwendung wirklich widerrufen?",
         "revokeSuccess": "Zugriff erfolgreich widerrufen",
-        "revokeError": "Zugriff konnte nicht widerrufen werden",
-        "fetchError": "Autorisierte Clients konnten nicht geladen werden"
+        "revokeError": "Zugriff konnte nicht widerrufen werden"
       },
       "OAuthConsent": {
         "invalidRequest": {

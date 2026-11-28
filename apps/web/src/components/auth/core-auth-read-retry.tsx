@@ -16,12 +16,17 @@ interface CoreAuthReadRetryProps {
   description: string;
   retryLabel: string;
   title: string;
+  /** A client read retries itself; a server read refreshes the route. */
+  onRetry?: () => unknown;
+  retrying?: boolean;
 }
 
 export function CoreAuthReadRetry({
   description,
   retryLabel,
   title,
+  onRetry,
+  retrying = false,
 }: CoreAuthReadRetryProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -37,7 +42,10 @@ export function CoreAuthReadRetry({
           type="button"
           variant="outline"
           disabled={isPending}
-          onClick={() => startTransition(() => router.refresh())}
+          loading={retrying}
+          onClick={() =>
+            onRetry ? onRetry() : startTransition(() => router.refresh())
+          }
         >
           {retryLabel}
         </Button>

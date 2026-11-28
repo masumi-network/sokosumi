@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { usePageListSearch } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { revokeOAuthClientAccess } from "@/lib/actions/oauth/action";
 import { authClient } from "@/lib/auth/auth.client";
 
@@ -35,66 +37,55 @@ export function OAuthAuthorizedClients() {
   const consentsQuery = useQuery({
     queryKey: AUTHORIZED_CLIENTS_QUERY_KEY,
     retry: false,
-    staleTime: 0,
-    gcTime: 0,
+    // Keep the list across tab switches so returning shows it while it refreshes.
     networkMode: "always",
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<AuthorizedClientWithDetails[]> => {
-      try {
-        const result = await authClient.oauth2.getConsents();
-        if (result.error) {
-          throw new Error(result.error.message || t("fetchError"));
-        }
-
-        const consentsData: OAuthConsentItem[] = result.data || [];
-        return await Promise.all(
-          consentsData.map(async (consent: OAuthConsentItem) => {
-            try {
-              // `getClient` answers only the app's owner, so an app the
-              // viewer authorized but does not own came back 401 and showed
-              // as its raw id. The public fields carry the name for anyone.
-              const clientResult = await authClient.oauth2.publicClient({
-                query: {
-                  client_id: consent.clientId,
-                },
-              });
-              const clientName =
-                typeof clientResult.data?.client_name === "string"
-                  ? clientResult.data.client_name
-                  : consent.clientId;
-              return {
-                ...consent,
-                clientName,
-              };
-            } catch {
-              return {
-                ...consent,
-                clientName: consent.clientId,
-              };
-            }
-          }),
-        );
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error";
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
+      const result = await authClient.oauth2.getConsents();
+      if (result.error) {
+        throw new Error(result.error.message);
       }
+
+      const consentsData: OAuthConsentItem[] = result.data || [];
+      return await Promise.all(
+        consentsData.map(async (consent: OAuthConsentItem) => {
+          try {
+            // `getClient` answers only the app's owner, so an app the
+            // viewer authorized but does not own came back 401 and showed
+            // as its raw id. The public fields carry the name for anyone.
+            const clientResult = await authClient.oauth2.publicClient({
+              query: {
+                client_id: consent.clientId,
+              },
+            });
+            const clientName =
+              typeof clientResult.data?.client_name === "string"
+                ? clientResult.data.client_name
+                : consent.clientId;
+            return {
+              ...consent,
+              clientName,
+            };
+          } catch {
+            return {
+              ...consent,
+              clientName: consent.clientId,
+            };
+          }
+        }),
+      );
     },
   });
 
   const consents = consentsQuery.data ?? [];
   const loading = consentsQuery.isPending;
-  const error =
-    consentsQuery.isError && consentsQuery.data === undefined
-      ? consentsQuery.error instanceof Error
-        ? consentsQuery.error.message
-        : "Unknown error"
-      : null;
+  const loadFailed = consentsQuery.isError && consentsQuery.data === undefined;
 
   const visible = usePageListSearch(consents, (consent) => ({
     primary: [consent.clientName, consent.clientId],
   }));
+  // The page filter matched none: its own "No matches" says so, not an empty body.
+  const filteredOut = consents.length > 0 && visible.length === 0;
 
   async function handleRevoke(consentId: string, clientId: string) {
     if (!confirm(t("confirmRevoke"))) {
@@ -130,25 +121,15 @@ export function OAuthAuthorizedClients() {
     }
   }
 
-  if (loading) {
+  if (loadFailed) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("loading")}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("title")}</CardTitle>
-          <CardDescription>{t("error", { error })}</CardDescription>
-        </CardHeader>
-      </Card>
+      <CoreAuthReadRetry
+        description={t("loadError")}
+        onRetry={() => consentsQuery.refetch()}
+        retryLabel={t("retry")}
+        retrying={consentsQuery.isFetching}
+        title={t("loadErrorTitle")}
+      />
     );
   }
 
@@ -158,41 +139,61 @@ export function OAuthAuthorizedClients() {
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {consents.length === 0 ? (
-          <p className="text-muted-foreground">{t("noApplications")}</p>
-        ) : (
-          <div className="space-y-4">
-            {visible.map((consent) => (
-              <div
-                key={consent.clientId}
-                className="flex items-center justify-between rounded-lg border p-4"
-              >
-                <div className="flex-1">
-                  <p className="font-semibold">
-                    {consent.clientName || consent.clientId}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    {t("authorized", {
-                      date: formatter.dateTime(new Date(consent.createdAt), {
-                        dateStyle: "medium",
-                      }),
-                    })}
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleRevoke(consent.id, consent.clientId)}
-                  loading={revoking === consent.clientId}
-                >
-                  {t("revokeAccess")}
-                </Button>
+      {loading ? (
+        <CardContent
+          data-testid="authorized-clients-loading"
+          className="space-y-4"
+        >
+          {Array.from({ length: 2 }, (_, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between gap-4 rounded-lg border p-4"
+            >
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-28" />
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
+              <Skeleton className="h-8 w-28 shrink-0 rounded-md" />
+            </div>
+          ))}
+        </CardContent>
+      ) : filteredOut ? null : (
+        <CardContent>
+          {consents.length === 0 ? (
+            <p className="text-muted-foreground">{t("noApplications")}</p>
+          ) : (
+            <div className="space-y-4">
+              {visible.map((consent) => (
+                <div
+                  key={consent.clientId}
+                  className="flex items-center justify-between rounded-lg border p-4"
+                >
+                  <div className="flex-1">
+                    <p className="font-semibold">
+                      {consent.clientName || consent.clientId}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {t("authorized", {
+                        date: formatter.dateTime(new Date(consent.createdAt), {
+                          dateStyle: "medium",
+                        }),
+                      })}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleRevoke(consent.id, consent.clientId)}
+                    loading={revoking === consent.clientId}
+                  >
+                    {t("revokeAccess")}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }
