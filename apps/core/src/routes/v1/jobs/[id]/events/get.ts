@@ -5,7 +5,6 @@ import { requireJobReadForRouteVars } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -78,8 +77,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    await requireJobReadForRouteVars(c.var, id, prisma);
-    const job = await prisma.job.findFirst({
+    const { networkScope } = c.var;
+    await requireJobReadForRouteVars(c.var, id, networkScope);
+    const job = await networkScope.networkDb.job.findFirst({
       where: {
         id,
         workspaceId: workspaceContext.workspaceId,

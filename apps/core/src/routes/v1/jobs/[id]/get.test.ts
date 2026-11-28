@@ -179,6 +179,7 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
 });
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ job: { findFirst: jobFindFirstMock } }),
   default: {
     // organizationContextMiddleware verifies membership on every request.
     member: {

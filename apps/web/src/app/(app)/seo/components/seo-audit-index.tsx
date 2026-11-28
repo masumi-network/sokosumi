@@ -291,10 +291,13 @@ function SeoAuditCheckStatus({ check }: { check: SeoAuditLastCheck }) {
     check,
     useNow({ updateInterval: CHECK_CLOCK_TICK_MS }),
   );
-  if (state === "running") {
+  if (state === "queued" || state === "running") {
     return (
-      <StatusBadge tone="working" live>
-        {t("setup.checkRunningBadge")}
+      <StatusBadge
+        tone={state === "queued" ? "neutral" : "working"}
+        live={state === "running"}
+      >
+        {t(state === "queued" ? "runs.queued" : "setup.checkRunningBadge")}
       </StatusBadge>
     );
   }

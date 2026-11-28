@@ -536,6 +536,35 @@ describe("SEO audit first run", () => {
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
   });
 
+  it("keeps the Google step current while the free first check waits to start", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.analyses = [
+      {
+        id: "queued",
+        kind: "page_check",
+        status: "requested",
+        taskId: null,
+        pageIds: workspace.scope.pageIds,
+        scopeVersion: 2,
+        createdAt: new Date(),
+      },
+    ];
+    network(workspace, {
+      connection: (provider) => ({
+        provider,
+        name: provider,
+        status: "not_connected",
+        source: "none",
+      }),
+    });
+    await renderWorkspace(workspace);
+    const current = await screen.findAllByRole("listitem", { current: "step" });
+    expect(current).toHaveLength(1);
+    expect(
+      within(current[0]).getByRole("button", { name: "Connect Google" }),
+    ).toBeVisible();
+  });
+
   it("has three steps, and a connected account unlocks the first audit", async () => {
     const workspace = seoTestWorkspace();
     network(workspace);
@@ -1155,11 +1184,17 @@ describe("SEO audit first run", () => {
     ];
     finish({ ok: true, value: null });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    // Core accepted the check and its Task has not started: it waits, and no word says that it runs.
     expect(
-      screen.getByText((text) => text.startsWith(copy.setup.checkStartedNow)),
+      screen.getByText((text) => text.startsWith(copy.setup.checkRequestedNow)),
     ).toBeVisible();
+    expect(screen.queryByText(copy.setup.checkStartedNow)).toBeNull();
+    expect(screen.getByText(copy.setup.checkQueued)).toBeVisible();
+    // Neither the step, a badge, nor the status region says that it runs.
+    expect(screen.queryByText(copy.setup.checkRunning)).toBeNull();
+    expect(screen.queryByText(copy.setup.checkRunningBadge)).toBeNull();
     for (const button of screen.getAllByRole("button", {
-      name: copy.setup.checkRunningBadge,
+      name: copy.runs.queued,
     }))
       expect(button).toHaveAttribute("aria-disabled", "true");
   });

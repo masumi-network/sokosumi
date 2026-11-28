@@ -1,13 +1,22 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { JobType, jobInclude, OnChainJobStatus } from "@sokosumi/database";
+import {
+  JobType,
+  jobInclude,
+  OnChainJobStatus,
+  type Prisma,
+} from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 
 import { requireJobReadForRouteVars } from "@/helpers/access-control.js";
 import { notFound } from "@/helpers/error";
+import { loadJobSharedRelations } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import {
+  type NetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -106,19 +115,49 @@ const route = withCoworkerContextHeaderParameters(
   }),
 );
 
+async function readJobDetails(
+  scope: NetworkScope,
+  id: string,
+  workspaceId: string,
+) {
+  const { networkDb, sharedDb } = scope;
+  const where = { id, workspaceId };
+  if (networkUsesSharedSchema()) {
+    return await networkDb.job.findFirst({ where, include: jobInclude });
+  }
+
+  const job = await networkDb.job.findFirst({
+    where,
+    include: {
+      events: jobInclude.events,
+      transaction: jobInclude.transaction,
+      purchase: jobInclude.purchase,
+      agent: jobInclude.agent,
+      refundedTransaction: jobInclude.refundedTransaction,
+    } satisfies Prisma.JobInclude,
+  });
+  if (!job) return null;
+  const [relations, share] = await Promise.all([
+    loadJobSharedRelations(sharedDb, [job]),
+    scope.network === "mainnet"
+      ? sharedDb.publicShare.findUnique({ where: { jobId: id } })
+      : null,
+  ]);
+  return { ...relations[0], share };
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
 
-    await requireJobReadForRouteVars(c.var, id, prisma);
-    const job = await prisma.job.findFirst({
-      where: {
-        id,
-        workspaceId: workspaceContext.workspaceId,
-      },
-      include: jobInclude,
-    });
+    const { networkScope } = c.var;
+    await requireJobReadForRouteVars(c.var, id, networkScope);
+    const job = await readJobDetails(
+      networkScope,
+      id,
+      workspaceContext.workspaceId,
+    );
     if (!job) {
       throw notFound("Job not found");
     }

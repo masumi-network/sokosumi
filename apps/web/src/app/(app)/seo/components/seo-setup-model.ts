@@ -72,10 +72,13 @@ const MINUTE_MS = 60_000;
  * is the middle time of the earlier runs of the same kind. A full audit takes at least the time of its pages: the
  * selected pages and the pages it adds. An earlier full audit can be shorter, because it added no page. A first
  * check of another kind has no usual time: no share and no time left.
+ * A check whose Task has not started yet is queued: it has no estimate, because the time until the start is unknown.
  */
 export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
   const check = seoRunningCheck(workspace, now);
   if (!check) return null;
+  if (check.status === "requested")
+    return { queued: true, share: null, minutesLeft: null, late: false };
   const earlier = (workspace.runs ?? [])
     .flatMap((run) =>
       run.kind === check.kind && run.seconds ? [run.seconds] : [],
@@ -91,7 +94,8 @@ export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
         SEO_AFTER_PAGES_SECONDS
       : 0;
   const usualSeconds = Math.max(middle, pagesSeconds);
-  if (!usualSeconds) return { share: null, minutesLeft: null, late: false };
+  if (!usualSeconds)
+    return { queued: false, share: null, minutesLeft: null, late: false };
   const usual = usualSeconds * 1000;
   // A clock that runs behind Core's gives a time before the start.
   const elapsed = Math.max(
@@ -100,6 +104,7 @@ export function seoRunProgress(workspace: ProjectSeoWorkspace, now: Date) {
   );
   const late = elapsed >= usual;
   return {
+    queued: false,
     share: Math.min(SEO_RUN_SHARE_MAX, elapsed / usual),
     // To the nearest minute, like the start time beside it, and never "0 minutes".
     minutesLeft: late
@@ -129,7 +134,10 @@ function seoRunReady(workspace: ProjectSeoWorkspace) {
 export function seoRunAction(workspace: ProjectSeoWorkspace) {
   const { canEdit, canUsePaidSearchData, canRequestAnalysis } =
     workspace.availableActions;
-  const running = seoCheckRunning(workspace);
+  const check = seoRunningCheck(workspace);
+  const running = check !== null;
+  // Accepted, and its Task has not started.
+  const queued = check?.status === "requested";
   const pageIds = new Set(workspace.scope.pageIds);
   if (!canEdit || !pageIds.size || (!canRequestAnalysis && !running))
     return null;
@@ -153,12 +161,15 @@ export function seoRunAction(workspace: ProjectSeoWorkspace) {
     canUsePaidSearchData === true && hosts.size === 1 && !retriesFreeFirstCheck;
   return {
     kind: full ? "audit_full" : "page_check",
-    label: running
-      ? "setup.checkRunningBadge"
-      : full
-        ? "runFullAudit"
-        : "runPageCheck",
+    label: queued
+      ? "runs.queued"
+      : running
+        ? "setup.checkRunningBadge"
+        : full
+          ? "runFullAudit"
+          : "runPageCheck",
     running,
+    queued,
     ready: seoRunReady(workspace),
   } as const satisfies { kind: SeoAnalysisKind; [key: string]: unknown };
 }

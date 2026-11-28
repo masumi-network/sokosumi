@@ -306,7 +306,7 @@ it("shows the ranked sales or support page on Actions and its advice in the matc
     };
   }
   const { rerender } = render(
-    <SeoActions model={withGoal("sales", [sales, help])} />,
+    <SeoActions model={withGoal("sales", [sales, help])} openPage={vi.fn()} />,
     { wrapper },
   );
   const recommendation = () =>
@@ -315,7 +315,12 @@ it("shows the ranked sales or support page on Actions and its advice in the matc
     recommendation().getByRole("link", { name: "Pricing" }),
   ).toHaveAttribute("href", price.url);
   expect(recommendation().getByText(sales.nextStep)).toBeVisible();
-  rerender(<SeoActions model={withGoal("support", [help, sales])} />);
+  rerender(
+    <SeoActions
+      model={withGoal("support", [help, sales])}
+      openPage={vi.fn()}
+    />,
+  );
   expect(recommendation().getByRole("link", { name: "Help" })).toHaveAttribute(
     "href",
     support.url,

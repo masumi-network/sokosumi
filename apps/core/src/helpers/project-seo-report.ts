@@ -2,17 +2,13 @@ import { z } from "@hono/zod-openapi";
 import { badRequest } from "@/helpers/error";
 import {
   seoDeviceSchema,
-  seoEditorialKeywordSchema,
-  seoIdeaRankSchema,
   seoModuleCoverageSchema,
-  seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
 import {
   OPEN_STRATEGY,
   publicDecisionSourceSchema,
   publicPageSnapshotSchema,
-  seoBodyDraftSchema,
   storedSeoDecisionsSchema,
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
@@ -23,6 +19,7 @@ import {
   storedSeoChecklist,
 } from "@/schemas/seo-audit-coverage.schema";
 import { seoPageSpeed } from "@/schemas/seo-page-speed.schema";
+import { seoSiteCrawlSchema } from "@/schemas/seo-site-crawl.schema";
 import { storedSiteSpeed } from "@/schemas/seo-site-speed.schema";
 import * as seoDecisions from "./project-seo-decisions";
 import { legacySeoReportSchema } from "./project-seo-legacy-report";
@@ -35,11 +32,17 @@ import {
   skippedPages,
 } from "./project-seo-public-report";
 import {
-  difficulty,
   ESTIMATE_KEYS,
   legacyReportKeywords,
-  storedEstimate,
 } from "./project-seo-report-keywords";
+import {
+  action,
+  competitor,
+  finding,
+  keyword,
+  observedAt,
+  text,
+} from "./project-seo-report-rows";
 import { seoReportPageScope } from "./project-seo-report-scope";
 import {
   focusedSerpFields,
@@ -71,59 +74,9 @@ import {
   pageResearchCoverage,
   siteResearchCoverage,
 } from "./seo-research-coverage";
+import { readSiteCrawl } from "./seo-site-crawl";
 import { readableStoredSiteSpeed, readSiteSpeed } from "./seo-site-speed";
 
-const text = z.string().max(20_000);
-const nullableNumber = z.number().finite().nullable();
-const observedAt = z.string().datetime();
-const source = z.object({ sourceRef: text, observedAt });
-const finding = source.extend({
-  id: text,
-  pageUrl: seoUrlSchema,
-  device: seoDeviceSchema.nullable(),
-  rowId: text,
-  title: text,
-  severity: seoSeveritySchema,
-  evidence: z.array(text).max(100),
-});
-const keyword = source.extend({
-  keyword: text,
-  pageUrl: seoUrlSchema,
-  device: seoDeviceSchema.nullable(),
-  position: nullableNumber,
-  positionStatus: z.enum(["ranked", "not_in_range", "unavailable"]),
-  checkedResults: z.number().int().nullable(),
-  volume: nullableNumber.optional(),
-  difficulty,
-  intent: text.nullable().optional(),
-  editorial: seoEditorialKeywordSchema.optional(),
-  ideaRank: seoIdeaRankSchema,
-  ...storedEstimate,
-  source: text.optional(),
-});
-const competitor = source.extend({
-  pageUrl: seoUrlSchema,
-  scopePageUrls: z.array(seoUrlSchema).max(10).optional(),
-  role: z.enum(["page", "competitor"]),
-  backlinks: nullableNumber,
-  referringDomains: nullableNumber,
-  rank: nullableNumber.optional(),
-  source: text.optional(),
-});
-const action = z.object({
-  id: text,
-  pageUrl: seoUrlSchema,
-  findingIds: z.array(text),
-  title: text,
-  why: text,
-  effort: z.enum(["low", "medium", "high"]),
-  expectedEffect: text,
-  edit: z
-    .object({ target: text, before: text.nullable(), after: text })
-    .nullable(),
-  // Focused results and stored payloads read actions here: a draft Core cannot read is dropped, not the result.
-  bodyDraft: seoBodyDraftSchema.optional().catch(undefined),
-});
 const publicSeoPayload = z.object({
   version: z.literal(1),
   kind: z.string().max(100),
@@ -142,6 +95,8 @@ const publicSeoPayload = z.object({
     readableStoredSiteSpeed,
     storedSiteSpeed.optional().catch(undefined),
   ),
+  /** A site audit's crawl of the rest of the site. Older rows and focused checks have none. */
+  siteCrawl: seoSiteCrawlSchema.optional().catch(undefined),
   checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
   competitors: z.array(competitor).max(1000),
@@ -382,6 +337,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       pageUrls,
       pageSpeed,
       siteSpeed: readSiteSpeed(raw, pageUrls, pageSpeed),
+      siteCrawl: readSiteCrawl(raw),
       strategyDecisions: decisions,
       decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
         ? sources

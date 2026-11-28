@@ -311,6 +311,8 @@ export function projectSeoProjection(
       ...(checklistBreakdown && { checklistBreakdown }),
       ...scopedReportEvidence(data, selectedUrls),
       ...observationPageSpeed(data, row, selectedUrls, input, observations),
+      ...(data.kind === "audit_full" &&
+        data.siteCrawl && { siteCrawl: data.siteCrawl }),
       coverage,
     });
     for (const check of data.checks) {
