@@ -86,6 +86,22 @@ vi.mock("@vercel/functions", async (importOriginal) => {
     },
   };
 });
+/**
+ * While on, the controlled clock moves one millisecond just before each UUID
+ * v7 the `uuid` package mints, and at no other time: an id taken after a row's
+ * time is then always a millisecond after it.
+ */
+const mintClock = vi.hoisted(() => ({ ticking: false }));
+vi.mock("uuid", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("uuid")>();
+  return {
+    ...actual,
+    v7: ((...args: Parameters<typeof actual.v7>) => {
+      if (mintClock.ticking) vi.setSystemTime(Date.now() + 1);
+      return actual.v7(...args);
+    }) as typeof actual.v7,
+  };
+});
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -1001,6 +1017,73 @@ describe.skipIf(!enabled)(
       },
       CASE_TIMEOUT,
     );
+
+    /** The time a UUID v7 holds: its first 48 bits, in milliseconds. */
+    const uuidTime = (id: string) =>
+      Number.parseInt(id.replaceAll("-", "").slice(0, 12), 16);
+
+    /**
+     * Writes 1,000 receipts one after another and returns their ids in
+     * creation order. A number controls `Date` alone (no timer): that many
+     * receipts in each millisecond, so their order rests on the id generator
+     * alone. "ticks at each id" moves that clock only as the `uuid` package
+     * mints (`mintClock`). "real" runs the real clock.
+     */
+    async function writeReceipts(
+      payer: Payer,
+      clock: "real" | "ticks at each id" | number,
+    ) {
+      const start = Date.now();
+      const ids: string[] = [];
+      const perMillisecond = typeof clock === "number" ? clock : undefined;
+      if (clock !== "real") vi.useFakeTimers({ toFake: ["Date"] });
+      mintClock.ticking = clock === "ticks at each id";
+      try {
+        for (let receipt = 0; receipt < 1_000; receipt += 1) {
+          if (perMillisecond)
+            vi.setSystemTime(start + Math.floor(receipt / perMillisecond));
+          const answer = await postUsage(payer, {
+            idempotencyKey: `receipt-id-${receipt}-${randomUUID()}`,
+            credits: SMALLEST_CREDITS,
+          });
+          expect(answer.status).toBe(201);
+          ids.push(answer.body.data.id);
+        }
+      } finally {
+        mintClock.ticking = false;
+        vi.useRealTimers();
+      }
+      await drainBackground();
+      return ids;
+    }
+
+    for (const clock of ["real", 4, "ticks at each id"] as const) {
+      it(
+        `mints each of 1,000 receipt ids before its time, in creation order (clock: ${clock === 4 ? "4 receipts in each millisecond" : clock})`,
+        async () => {
+          const payer = await person("receipt ids", { later: 200 });
+          const ids = await writeReceipts(payer, clock);
+
+          const rows = await mainnet().coworkerUsage.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, createdAt: true },
+          });
+          const createdAt = new Map(
+            rows.map((row) => [row.id, row.createdAt.getTime()]),
+          );
+          expect(createdAt.size).toBe(1_000);
+          const late = ids.filter(
+            (id) => uuidTime(id) > (createdAt.get(id) ?? -Infinity),
+          );
+          expect(late, "ids whose time is after the row's createdAt").toEqual(
+            [],
+          );
+          // Ids sort as the receipts were created, those of one millisecond too.
+          expect([...ids].sort()).toEqual(ids);
+        },
+        10 * CASE_TIMEOUT,
+      );
+    }
 
     /** The usage row as `origin/main`'s route wrote it: Prisma's nested create. */
     async function createAsOnMain(payer: Payer, usage: Usage) {

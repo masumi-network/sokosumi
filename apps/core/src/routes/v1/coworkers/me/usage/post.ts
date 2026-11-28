@@ -1,4 +1,3 @@
-import { randomUUIDv7 } from "node:crypto";
 import { createRoute } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
@@ -6,6 +5,7 @@ import { InsufficientBalanceError } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { HTTPException } from "hono/http-exception";
+import { v7 as uuidv7 } from "uuid";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
@@ -240,12 +240,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cents,
       });
 
-      // On the debit's Network, in its transaction. Times of this process, as
-      // Prisma's create set them, after the debit's.
+      // On the debit's Network, in its transaction. The id and times as
+      // Prisma's create made them: the `uuid` package's v7 (ordered within a
+      // millisecond in this process), taken before the time, so its time is
+      // never after `createdAt`; the times after the debit's.
+      const id = uuidv7();
       const now = new Date();
       const [usage] = await tx.$queryRaw<UsageRow[]>`
         INSERT INTO ${scope.networkTable("coworker_usage")} (${USAGE_COLUMNS})
-        VALUES (${randomUUIDv7()}, ${now}, ${now}, ${idempotencyKey}, ${referenceId ?? null}, ${coworkerId}, ${userId}, ${organizationId}, ${cents}, ${transactionId})
+        VALUES (${id}, ${now}, ${now}, ${idempotencyKey}, ${referenceId ?? null}, ${coworkerId}, ${userId}, ${organizationId}, ${cents}, ${transactionId})
         RETURNING ${USAGE_COLUMNS}
       `;
       if (!usage) throw new Error("The usage insert returned no row");
