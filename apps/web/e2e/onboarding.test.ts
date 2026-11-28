@@ -304,6 +304,26 @@ for (const { name, ...viewport } of PROJECTS) {
         .getByRole("button", { name: `${BOT} (Soko Bot)`, exact: true })
         .first()
         .waitFor();
+      // The room header shows who the Direct is with at every width, as the
+      // sidebar row does, not a generic chat icon.
+      const face = page
+        .locator("[data-testid=room-title-face]:visible")
+        .first();
+      await face.waitFor();
+      // The face fills its mark box and never spills toward the title.
+      const fits = await face.evaluate((mark) => {
+        const box = mark.getBoundingClientRect();
+        const img = mark.querySelector("[data-slot=avatar]");
+        const r = img?.getBoundingClientRect();
+        return (
+          !!r &&
+          r.left >= box.left - 0.5 &&
+          r.right <= box.right + 0.5 &&
+          r.top >= box.top - 0.5 &&
+          r.bottom <= box.bottom + 0.5
+        );
+      });
+      assert.ok(fits, "the header face fits inside its mark box");
       const banner = page.getByRole("banner");
       const globalSearch = banner.getByRole("button", {
         name: "Search",
