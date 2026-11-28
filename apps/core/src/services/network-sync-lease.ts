@@ -20,6 +20,7 @@ export function networkSyncLease(
 ) {
   const conflict = "Preprod changed during the scheduled sync";
   async function stamp(tx: NetworkDb | SharedDb) {
+    if (scope.network === "mainnet") return;
     const { networkStamp } = await import("@/helpers/preprod-control");
     await networkStamp(
       { network: scope.network, expectedPreprodGeneration: generation },
@@ -35,10 +36,20 @@ export function networkSyncLease(
     }, conflict);
   }
 
+  function writeShared<T>(work: (db: SharedDb) => Promise<T>): Promise<T> {
+    if (scope.network === "mainnet") return work(scope.sharedDb);
+    return scope.sharedTransaction(async (tx) => {
+      await stamp(tx);
+      return work(tx);
+    }, conflict);
+  }
+
   const cursorKey = (name: string) => networkKey(scope.network, name);
   return {
     network: scope.network,
+    stamp,
     write,
+    writeShared,
     cursorKey,
     /** Pass null to remove the cursor, including on manual replay. */
     async writeCursor(name: string, cursor: Cursor | null): Promise<void> {
@@ -71,11 +82,7 @@ export function networkSyncLease(
             "Scheduled sync lease expired or changed owner",
           );
       }
-      if (scope.network === "mainnet") return persist(scope.sharedDb);
-      await scope.sharedTransaction(async (tx) => {
-        await stamp(tx);
-        return persist(tx);
-      }, conflict);
+      await writeShared(persist);
     },
   };
 }

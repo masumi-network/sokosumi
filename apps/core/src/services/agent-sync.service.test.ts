@@ -151,22 +151,47 @@ vi.mock("@/lib/db/prisma", () => {
 async function getAgentSyncService() {
   const module = await import("./agent-sync.service");
   const scope = testNetworkScope();
+  const { syncRegistryAgents, syncAgentSummaries } = module.agentSyncService;
+  const lease = {
+    stamp: async () => {},
+    write: <T>(work: (db: typeof scope.networkDb) => Promise<T>) =>
+      work(scope.networkDb),
+    writeShared: <T>(work: (db: typeof scope.sharedDb) => Promise<T>) =>
+      work(scope.sharedDb),
+    writeCursor: async (
+      name: string,
+      cursor: Parameters<
+        Parameters<typeof syncRegistryAgents>[3]["lease"]["writeCursor"]
+      >[1],
+    ) => {
+      if (cursor === null) resetCursorMock(name);
+      else advanceCursorMock(name, cursor);
+    },
+  };
   return {
     ...module.agentSyncService,
-    syncRegistryAgents: module.agentSyncService.syncRegistryAgents.bind(
-      null,
-      scope,
-      { network: scope.network, getAgentsDiff: getAgentsDiffMock },
-    ),
-    syncAgentSummaries: module.agentSyncService.syncAgentSummaries.bind(
-      null,
-      scope,
-      { generateAgentSummary: openrouterGenerateAgentSummaryMock },
-    ),
+    syncRegistryAgents: (
+      name: string,
+      options: Omit<Parameters<typeof syncRegistryAgents>[3], "lease">,
+    ) =>
+      syncRegistryAgents(
+        scope,
+        { network: scope.network, getAgentsDiff: getAgentsDiffMock },
+        name,
+        { ...options, lease },
+      ),
+    syncAgentSummaries: (options: SyncExecutionOptions) =>
+      syncAgentSummaries(
+        scope,
+        { generateAgentSummary: openrouterGenerateAgentSummaryMock },
+        { ...options, write: lease.write },
+      ),
   };
 }
 
 const AGENTS_SYNC_METADATA_KEY = "agents-sync-metadata";
+const advanceCursorMock = vi.fn();
+const resetCursorMock = vi.fn();
 
 interface SyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -370,7 +395,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
               },
         ),
     );
-    syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     tagUpsertMock.mockResolvedValue(undefined);
     agentFindFirstMock.mockResolvedValue(null);
     // Curated-twin lookup for newly discovered registry entries.
@@ -396,7 +420,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
     agentPaymentSourceDeleteManyMock.mockResolvedValue({ count: 0 });
     exampleOutputDeleteManyMock.mockResolvedValue({ count: 0 });
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
-    syncMetadataUpsertMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback(createTransactionClientMock()),
@@ -438,10 +461,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(syncMetadataDeleteManyMock).not.toHaveBeenCalled();
+    expect(resetCursorMock).not.toHaveBeenCalled();
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(advanceCursorMock).not.toHaveBeenCalled();
   });
 
   it("continues to the next batch when the diff returns a full page", async () => {
@@ -473,11 +496,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       expect.anything(),
     );
     // The cursor advanced after each batch, ending on the short page.
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(2);
-    expect(syncMetadataUpsertMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        update: expect.objectContaining({ cursorId: "page2-0" }),
-      }),
+    expect(advanceCursorMock).toHaveBeenCalledTimes(2);
+    expect(advanceCursorMock).toHaveBeenLastCalledWith(
+      AGENTS_SYNC_METADATA_KEY,
+      expect.objectContaining({ cursorId: "page2-0" }),
     );
     expect(agentCreateMock).toHaveBeenCalledTimes(51);
   });
@@ -888,7 +910,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(agentUpdateMock).not.toHaveBeenCalled();
     // …and the cursor still advances past the skipped entry.
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
     expect(collisions[0]?.event).toMatchObject({
       operation: "agent_registry_sync",
       agent: { identifier: V2_AGENT_ROOT },
@@ -971,7 +993,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(getAgentsDiffMock).not.toHaveBeenCalled();
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(advanceCursorMock).not.toHaveBeenCalled();
   });
 
   it("passes abort signal to registry diff request", async () => {
@@ -1004,7 +1026,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(advanceCursorMock).not.toHaveBeenCalled();
     expect(causeMessage(errors[0]?.cause)).toBe("registry unavailable");
     expect(errors[0]).toMatchObject({
       why: "The registry did not return the agent diff",
@@ -1063,7 +1085,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(advanceCursorMock).not.toHaveBeenCalled();
   });
 
   it("clears the cursor before reading it when resetCursor is set", async () => {
@@ -1075,10 +1097,8 @@ describe("agentSyncService.syncRegistryAgents", () => {
       resetCursor: true,
     });
 
-    expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: "agents-sync-metadata" },
-    });
-    expect(syncMetadataDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(resetCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY);
+    expect(resetCursorMock.mock.invocationCallOrder[0]).toBeLessThan(
       syncMetadataFindUniqueMock.mock.invocationCallOrder[0] ?? Infinity,
     );
   });
@@ -1189,19 +1209,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
       PricingType.UNKNOWN,
     );
 
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
-      where: {
-        key: "agents-sync-metadata",
-      },
-      create: {
-        key: "agents-sync-metadata",
-        cursorId: "entry-3",
-        lastSyncedAt: new Date(lastStatusUpdatedAt),
-      },
-      update: {
-        cursorId: "entry-3",
-        lastSyncedAt: new Date(lastStatusUpdatedAt),
-      },
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-3",
+      lastSyncedAt: new Date(lastStatusUpdatedAt),
     });
     expect(warnings[0]?.event).toMatchObject({
       agent: { identifier: "identifier-entry-3" },
@@ -1322,14 +1332,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       ],
     });
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: {
-          cursorId: "entry-v2",
-          lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
-        },
-      }),
-    );
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-v2",
+      lastSyncedAt: new Date("2026-02-24T13:00:00.000Z"),
+    });
   });
 
   it("projects pricing only from a source ready for the agent policy", async () => {
@@ -1977,7 +1983,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
     expect(agentUpdateMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
   });
 
   it("stores unknown registry status and entry type as unavailable", async () => {
@@ -2111,7 +2117,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock.mock.calls[0]?.[0].data.blockchainIdentifier).toBe(
       "v1agent",
     );
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
   });
 
   it("stores V2 entries without a matching-network source with UNKNOWN pricing", async () => {
@@ -2225,7 +2231,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       ],
     });
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
   });
 
   it("preserves dynamic X402 source pricing for runtime quotes", async () => {
@@ -2289,14 +2295,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const noUrlCall = agentCreateMock.mock.calls[0]?.[0];
     expect(noUrlCall.data.blockchainIdentifier).toBe("identifier-entry-no-url");
     expect(noUrlCall.data.apiBaseUrl).toBeNull();
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: {
-          cursorId: "entry-valid",
-          lastSyncedAt: new Date("2026-02-24T14:00:00.000Z"),
-        },
-      }),
-    );
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-valid",
+      lastSyncedAt: new Date("2026-02-24T14:00:00.000Z"),
+    });
   });
 
   it("stores entries with null AgentPricing as UNKNOWN pricing without warning", async () => {
@@ -2319,7 +2321,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       PricingType.UNKNOWN,
     );
     expect(createCall.data.paymentType).toBe(PaymentType.WEB3_CARDANO_V1);
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
     // Null pricing is legitimate for V2/pointer entries — no warning.
   });
 
@@ -2355,7 +2357,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(warnings[0]?.event).toMatchObject({
       agent: { identifier: "identifier-entry-bad-amount" },
     });
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
   });
 
   it("records an audit entry when a registry sync reprices a live agent", async () => {
@@ -2597,7 +2599,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         },
       ],
     });
-    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+    expect(advanceCursorMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not recreate fixed pricing rows when the existing pricing was not fixed", async () => {
@@ -2833,14 +2835,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       "identifier-entry-valid",
     );
     expect(captureMessageMock).toHaveBeenCalledTimes(3);
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: {
-          cursorId: "entry-valid",
-          lastSyncedAt: new Date("2026-02-24T16:00:00.000Z"),
-        },
-      }),
-    );
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-valid",
+      lastSyncedAt: new Date("2026-02-24T16:00:00.000Z"),
+    });
   });
 
   it("validates malformed entries before the rollback fence", async () => {
@@ -2871,14 +2869,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       "The registry entry has a value Core cannot store",
     );
     expect(unquarantined[0]?.event.registryIssue).toEqual(expect.any(String));
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: {
-          cursorId: "entry-missing-identifier",
-          lastSyncedAt: new Date("2026-02-24T12:00:00.000Z"),
-        },
-      }),
-    );
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-missing-identifier",
+      lastSyncedAt: new Date("2026-02-24T12:00:00.000Z"),
+    });
   });
 
   it("parks at invalid cursor data after advancing a valid prefix", async () => {
@@ -2908,14 +2902,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       "Registry entry has invalid cursor fields",
       expect.anything(),
     );
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: {
-          cursorId: "entry-valid-prefix",
-          lastSyncedAt: new Date("2026-02-24T16:00:00.000Z"),
-        },
-      }),
-    );
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-valid-prefix",
+      lastSyncedAt: new Date("2026-02-24T16:00:00.000Z"),
+    });
   });
 
   it("ingests entries from a registry that predates the V2 surface", async () => {
@@ -2970,14 +2960,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(agentUpdateManyMock).toHaveBeenCalledTimes(1);
     expect(agentCreateMock).toHaveBeenCalledTimes(1);
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: {
-          cursorId: "entry-after-null-source",
-          lastSyncedAt: new Date("2026-02-24T17:00:00.000Z"),
-        },
-      }),
-    );
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-after-null-source",
+      lastSyncedAt: new Date("2026-02-24T17:00:00.000Z"),
+    });
     expect(quarantines[0]?.event).toMatchObject({
       operation: "agent_registry_sync",
       agent: { identifier: "identifier-entry-null-source" },
@@ -3052,7 +3038,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).toHaveBeenCalledTimes(1);
     const createCall = agentCreateMock.mock.calls[0]?.[0];
     expect(createCall.data.blockchainIdentifier).toBe("identifier-entry-1");
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+    expect(advanceCursorMock).not.toHaveBeenCalled();
     // The failure that ends the run sits on the run's own event.
     expect(upsertErrors[0]?.event).toMatchObject({
       operation: "agent_registry_sync",
@@ -3087,19 +3073,9 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
 
     expect(agentCreateMock).toHaveBeenCalledTimes(2);
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
-      where: {
-        key: "agents-sync-metadata",
-      },
-      create: {
-        key: "agents-sync-metadata",
-        cursorId: "entry-1",
-        lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
-      },
-      update: {
-        cursorId: "entry-1",
-        lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
-      },
+    expect(advanceCursorMock).toHaveBeenCalledWith(AGENTS_SYNC_METADATA_KEY, {
+      cursorId: "entry-1",
+      lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
     });
     expect(upsertErrors[0]?.event).toMatchObject({
       agent: { identifier: "identifier-entry-2" },

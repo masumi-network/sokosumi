@@ -41,6 +41,7 @@ vi.mock("../handler.js", () => ({
     _lockKey: string,
     operation: (context: {
       scope: import("@/lib/db/network-scope").NetworkScope;
+      lease: import("../handler.js").NetworkSyncRunContext["lease"];
       abortSignal: AbortSignal;
       deadlineMs: number;
       msRemaining: () => number;
@@ -54,6 +55,7 @@ vi.mock("../handler.js", () => ({
     const { testNetworkScope } = await import("@/test-fixtures/network-scope");
     await operation({
       scope: testNetworkScope(),
+      lease: {} as import("../handler.js").NetworkSyncRunContext["lease"],
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       msRemaining: () => 60_000,

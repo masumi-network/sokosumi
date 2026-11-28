@@ -1,8 +1,11 @@
 import * as Sentry from "@sentry/node";
 import type { Hono } from "hono";
 import { masumiClients } from "@/clients/masumi";
+import { getEnv } from "@/config/env";
+import { masumiConfiguration } from "@/config/masumi";
+import type { ReadinessScope } from "@/lib/agent-catalog/readiness";
 import { logCoreWarning } from "@/lib/evlog";
-import { networkKey } from "@/lib/network";
+import { NETWORKS } from "@/lib/network";
 import { agentSyncService } from "@/services/agent-sync.service";
 // Imported from the module directly, not through agentSyncService: the
 // service file sits at the size ceiling and the x402 readiness sync has no
@@ -11,8 +14,7 @@ import { syncX402BuySideReadiness } from "@/services/agent-sync.x402-readiness";
 
 import { handleSyncRequest } from "../handler.js";
 
-const network = "mainnet";
-const AGENTS_SYNC_LOCK_KEY = networkKey(network, "agents-sync");
+const AGENTS_SYNC_LOCK_KEY = "agents-sync";
 // Projection versions use distinct cursor keys so old and new binaries cannot
 // advance each other's cursors during a rolling deployment. Bump the suffix
 // whenever already-synced registry rows require a full replay.
@@ -52,75 +54,89 @@ const X402_READINESS_SYNC_TIMEOUT_MS = 10_000;
 // toward its minimum, needs that traded off deliberately.
 
 export default function mount(app: Hono) {
-  app.get("/agents", async (c) => {
-    const replayRequested = c.req.query("replay") === "true";
-    return await handleSyncRequest(
-      c,
-      AGENTS_SYNC_LOCK_KEY,
-      async (context) => {
-        // Readiness first: it is cheap, independent of registry data, and must
-        // not be starved by a long registry replay eating the time budget. It
-        // needs no ceiling from here: the sync owns one that already covers its
-        // retries, so a hung payment node cannot pin the lock either way.
-        const { payment, registry } = masumiClients(context.scope.network);
-        const readinessChanged =
-          await agentSyncService.syncCardanoV2RailReadiness(
+  for (const network of NETWORKS) {
+    const path = network === "mainnet" ? "/agents" : "/preprod/agents";
+    app.get(path, async (c) => {
+      const replayRequested = c.req.query("replay") === "true";
+      return await handleSyncRequest(
+        c,
+        AGENTS_SYNC_LOCK_KEY,
+        async (context) => {
+          // Readiness first: it is cheap, independent of registry data, and must
+          // not be starved by a long registry replay eating the time budget. It
+          // needs no ceiling from here: the sync owns one that already covers its
+          // retries, so a hung payment node cannot pin the lock either way.
+          const { payment, registry } = masumiClients(context.scope.network);
+          const readinessScope: ReadinessScope =
+            network === "mainnet"
+              ? context.scope
+              : { ...context.scope, writeShared: context.lease.writeShared };
+          const readinessChanged =
+            await agentSyncService.syncCardanoV2RailReadiness(
+              readinessScope,
+              payment,
+              {
+                signal: context.abortSignal,
+              },
+            );
+          // x402 buy-side readiness rides the same cron under its own ceiling
+          // above. Its change signal deliberately does NOT reset the registry
+          // cursor: the x402 listing reads getX402ReadySources at request time,
+          // so nothing readiness-dependent is baked into agent rows (unlike the
+          // Cardano readiness, which feeds the projected availability filters).
+          //
+          // Isolated: x402 readiness is advisory, and the registry sync below is
+          // this route's primary job. syncX402BuySideReadiness handles its own
+          // failures internally (aborts and node errors land in its check-error
+          // path and return false), so a throw reaching here is genuinely
+          // exceptional — e.g. initializing the payment readiness check or getEnv() failing on
+          // misconfiguration — and must not abort the registry sync: swallow it,
+          // last-known readiness stays served, and the next cron retries.
+          try {
+            await syncX402BuySideReadiness(readinessScope, payment, {
+              signal: AbortSignal.any([
+                context.abortSignal,
+                AbortSignal.timeout(X402_READINESS_SYNC_TIMEOUT_MS),
+              ]),
+            });
+          } catch (error) {
+            logCoreWarning(context.log, {
+              message:
+                "The x402 buy-side readiness sync failed; the registry sync continues",
+              why: "The readiness sync threw outside its own failure handling",
+              fix: "The last known readiness stays served and the next run retries. If it repeats, check the payment node configuration; Sentry has the error.",
+              cause: error,
+            });
+            // Report it too. Only paths that BYPASS the sync's own handled-failure
+            // alerting land here, so a swallowed throw would otherwise leave the
+            // stale cache serving "ready" with nothing louder than a log line —
+            // exactly the outage the handled path pages for.
+            Sentry.captureException(error, {
+              tags: { x402_readiness: "sync_threw" },
+            });
+          }
+          await agentSyncService.syncRegistryAgents(
             context.scope,
-            payment,
+            registry,
+            AGENTS_SYNC_METADATA_KEY,
             {
-              signal: context.abortSignal,
+              abortSignal: context.abortSignal,
+              shouldContinue: context.shouldContinue,
+              lease: context.lease,
+              ...(readinessChanged || replayRequested
+                ? { resetCursor: true }
+                : {}),
             },
           );
-        // x402 buy-side readiness rides the same cron under its own ceiling
-        // above. Its change signal deliberately does NOT reset the registry
-        // cursor: the x402 listing reads getX402ReadySources at request time,
-        // so nothing readiness-dependent is baked into agent rows (unlike the
-        // Cardano readiness, which feeds the projected availability filters).
-        //
-        // Isolated: x402 readiness is advisory, and the registry sync below is
-        // this route's primary job. syncX402BuySideReadiness handles its own
-        // failures internally (aborts and node errors land in its check-error
-        // path and return false), so a throw reaching here is genuinely
-        // exceptional — e.g. initializing the payment readiness check or getEnv() failing on
-        // misconfiguration — and must not abort the registry sync: swallow it,
-        // last-known readiness stays served, and the next cron retries.
-        try {
-          await syncX402BuySideReadiness(context.scope, payment, {
-            signal: AbortSignal.any([
-              context.abortSignal,
-              AbortSignal.timeout(X402_READINESS_SYNC_TIMEOUT_MS),
-            ]),
-          });
-        } catch (error) {
-          logCoreWarning(context.log, {
-            message:
-              "The x402 buy-side readiness sync failed; the registry sync continues",
-            why: "The readiness sync threw outside its own failure handling",
-            fix: "The last known readiness stays served and the next run retries. If it repeats, check the payment node configuration; Sentry has the error.",
-            cause: error,
-          });
-          // Report it too. Only paths that BYPASS the sync's own handled-failure
-          // alerting land here, so a swallowed throw would otherwise leave the
-          // stale cache serving "ready" with nothing louder than a log line —
-          // exactly the outage the handled path pages for.
-          Sentry.captureException(error, {
-            tags: { x402_readiness: "sync_threw" },
-          });
-        }
-        await agentSyncService.syncRegistryAgents(
-          context.scope,
-          registry,
-          AGENTS_SYNC_METADATA_KEY,
-          {
-            abortSignal: context.abortSignal,
-            shouldContinue: context.shouldContinue,
-            ...(readinessChanged || replayRequested
-              ? { resetCursor: true }
-              : {}),
-          },
-        );
-      },
-      { network, errorDetail: "safe-fields" },
-    );
-  });
+        },
+        {
+          network,
+          errorDetail: "safe-fields",
+          enabled: () =>
+            network === "mainnet" ||
+            !masumiConfiguration(getEnv(), network).missing,
+        },
+      );
+    });
+  }
 }

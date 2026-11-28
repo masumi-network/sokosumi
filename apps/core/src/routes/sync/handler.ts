@@ -88,8 +88,9 @@ export interface SyncRequestOptions {
 
 /** The Network a cron works on, declared where it is registered. */
 export interface NetworkSyncRequestOptions
-  extends Omit<SyncRequestOptions, "network"> {
+  extends Omit<SyncRequestOptions, "network" | "idleRunsAlert"> {
   network: Network;
+  idleRunsAlert?: never;
 }
 const MIN_SYNC_TIMEOUT_MS = 1000;
 
@@ -334,7 +335,7 @@ export async function handleSyncRequest(
   const skip = (reason: string) => {
     const key = networkKey("preprod", lockKey);
     tryUseLogger()?.set({ sync: { lockKey: key, outcome: "skipped", reason } });
-    cronStillRunning(c.req.path, key, idleRunsAlert);
+    cronStillRunning(c.req.path, key);
     waitUntil(flushCronMonitor());
     return Response.json({ message: "Sync skipped", reason });
   };

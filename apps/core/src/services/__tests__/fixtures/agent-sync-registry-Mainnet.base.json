@@ -1097,8 +1097,13 @@
         "pending": []
       },
       {
-        "sql": "b7b97dac7e63134cc13ebb4cb14ef4d6a65b1b95ba251fad6c6a85bb136e73a2",
-        "values": ["0404a3fd-3260-7152-a8a8-c22a2a2a2a2a", "rollback-copy"],
+        "sql": "4608c02530d3026697b31cf55ee812f5d44488f55d087392096a9a2fcdf7065b",
+        "values": [
+          "0404a3fd-3260-7152-a8a8-c22a2a2a2a2a",
+          "mainnet",
+          "mainnet",
+          "rollback-copy"
+        ],
         "pending": []
       },
       {
@@ -1512,7 +1517,7 @@
         },
         {
           "id": "notification-2",
-          "metadata": "{\"other\": 1, \"agentId\": \"0404a3fd-3260-7152-a8a8-c22a2a2a2a2a\"}",
+          "metadata": "{\"agentId\":\"rollback-copy\",\"other\":1}",
           "network": "preprod"
         },
         {
@@ -1961,7 +1966,7 @@
         },
         {
           "id": "notification-2",
-          "metadata": "{\"other\": 1, \"agentId\": \"0404a3fd-3260-7152-a8a8-c22a2a2a2a2a\"}",
+          "metadata": "{\"agentId\":\"rollback-copy\",\"other\":1}",
           "network": "preprod"
         },
         {
@@ -2663,7 +2668,7 @@
         },
         {
           "id": "notification-2",
-          "metadata": "{\"other\": 1, \"agentId\": \"0404a3fd-3260-7152-a8a8-c22a2a2a2a2a\"}",
+          "metadata": "{\"agentId\":\"rollback-copy\",\"other\":1}",
           "network": "preprod"
         },
         {
@@ -3110,7 +3115,7 @@
         },
         {
           "id": "notification-2",
-          "metadata": "{\"other\": 1, \"agentId\": \"0404a3fd-3260-7152-a8a8-c22a2a2a2a2a\"}",
+          "metadata": "{\"agentId\":\"rollback-copy\",\"other\":1}",
           "network": "preprod"
         },
         {

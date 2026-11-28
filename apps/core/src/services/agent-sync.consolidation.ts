@@ -3,6 +3,7 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import type { NetworkDb, SharedDb } from "@/lib/db/network-scope";
 import { emitCoreWarning } from "@/lib/evlog";
+import type { Network } from "@/lib/network";
 
 /**
  * Prefix stamped onto a duplicate Agent row's identifiers when it is parked,
@@ -134,6 +135,7 @@ export async function consolidateDuplicateAgentRelations(
  */
 export async function retargetDuplicateAgentNotifications(
   sharedDb: SharedDb,
+  network: Network,
   duplicateAgentId: string,
   canonicalAgentId: string,
 ): Promise<void> {
@@ -147,7 +149,8 @@ export async function retargetDuplicateAgentNotifications(
       )::text
       WHERE "id" IN (
         SELECT "id" FROM ${sharedTable("notification")}
-        WHERE CASE
+        WHERE ("network" = ${network} OR ("network" IS NULL AND ${network} = 'mainnet'))
+        AND CASE
           WHEN "metadata" IS NULL THEN FALSE
           WHEN NOT pg_input_is_valid("metadata", 'jsonb') THEN FALSE
           ELSE "metadata"::jsonb ->> 'agentId' = ${duplicateAgentId}
