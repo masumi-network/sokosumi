@@ -2,8 +2,8 @@
 
 import { client } from './client.gen.js';
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client/index.js';
-import { getPaymentInformationResponseTransformer, postInboxAgentRegistrationDiffResponseTransformer, postInboxAgentRegistrationRefreshResponseTransformer, postInboxAgentRegistrationResponseTransformer, postInboxAgentRegistrationSearchResponseTransformer, postRegistryDiffResponseTransformer, postRegistryEntryRefreshResponseTransformer, postRegistryEntryResponseTransformer, postRegistryEntrySearchResponseTransformer } from './transformers.gen.js';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInboxAgentRegistrationData, PostInboxAgentRegistrationDiffData, PostInboxAgentRegistrationDiffErrors, PostInboxAgentRegistrationDiffResponses, PostInboxAgentRegistrationErrors, PostInboxAgentRegistrationRefreshData, PostInboxAgentRegistrationRefreshErrors, PostInboxAgentRegistrationRefreshResponses, PostInboxAgentRegistrationResponses, PostInboxAgentRegistrationSearchData, PostInboxAgentRegistrationSearchErrors, PostInboxAgentRegistrationSearchResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryRefreshData, PostRegistryEntryRefreshErrors, PostRegistryEntryRefreshResponses, PostRegistryEntryResponses, PostRegistryEntrySearchData, PostRegistryEntrySearchErrors, PostRegistryEntrySearchResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen.js';
+import { getPaymentInformationResponseTransformer, getRegistryEntryPurchasesResponseTransformer, getRegistryEntrySpecResponseTransformer, postInboxAgentRegistrationDiffResponseTransformer, postInboxAgentRegistrationRefreshResponseTransformer, postInboxAgentRegistrationResponseTransformer, postInboxAgentRegistrationSearchResponseTransformer, postRegistryDiffResponseTransformer, postRegistryEntryRefreshResponseTransformer, postRegistryEntryResponseTransformer, postRegistryEntrySearchResponseTransformer } from './transformers.gen.js';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteRegistrySourceData, DeleteRegistrySourceResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetCapabilityData, GetCapabilityErrors, GetCapabilityResponses, GetHealthData, GetHealthResponses, GetPaymentInformationData, GetPaymentInformationErrors, GetPaymentInformationResponses, GetRegistryEntryPurchasesData, GetRegistryEntryPurchasesErrors, GetRegistryEntryPurchasesResponses, GetRegistryEntrySpecData, GetRegistryEntrySpecErrors, GetRegistryEntrySpecResponses, GetRegistrySourceData, GetRegistrySourceResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchRegistrySourceData, PatchRegistrySourceResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostInboxAgentRegistrationData, PostInboxAgentRegistrationDiffData, PostInboxAgentRegistrationDiffErrors, PostInboxAgentRegistrationDiffResponses, PostInboxAgentRegistrationErrors, PostInboxAgentRegistrationRefreshData, PostInboxAgentRegistrationRefreshErrors, PostInboxAgentRegistrationRefreshResponses, PostInboxAgentRegistrationResponses, PostInboxAgentRegistrationSearchData, PostInboxAgentRegistrationSearchErrors, PostInboxAgentRegistrationSearchResponses, PostRegistryDiffData, PostRegistryDiffErrors, PostRegistryDiffResponses, PostRegistryEntryData, PostRegistryEntryErrors, PostRegistryEntryRefreshData, PostRegistryEntryRefreshErrors, PostRegistryEntryRefreshResponses, PostRegistryEntryResponses, PostRegistryEntrySearchData, PostRegistryEntrySearchErrors, PostRegistryEntrySearchResponses, PostRegistrySourceData, PostRegistrySourceResponses } from './types.gen.js';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -71,7 +71,7 @@ export const postRegistryEntrySearch = <ThrowOnError extends boolean = false>(op
 /**
  * REQUIRES API KEY Authentication (+user)
  *
- * Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then immediately re-runs the health check for the requested agent and returns the refreshed entry.
+ * Refresh one registry entry by agent identifier. The service first syncs the blockchain cursor, then re-runs the health check for the requested agent (unless it was checked within the last minute) and returns the refreshed entry.
  */
 export const postRegistryEntryRefresh = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryEntryRefreshData, ThrowOnError>): RequestResult<PostRegistryEntryRefreshResponses, PostRegistryEntryRefreshErrors, ThrowOnError> => (options?.client ?? client).post<PostRegistryEntryRefreshResponses, PostRegistryEntryRefreshErrors, ThrowOnError>({
     responseTransformer: postRegistryEntryRefreshResponseTransformer,
@@ -82,6 +82,57 @@ export const postRegistryEntryRefresh = <ThrowOnError extends boolean = false>(o
         'Content-Type': 'application/json',
         ...options?.headers
     }
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Returns the registry's cached, validated copy of an OpenApi or X402 agent's spec (OpenAPI document or x402 resource manifest), so callers do not have to fetch the agent's URL themselves. The periodic health check re-validates it; spec and specValidatedAt stay null until the first successful validation.
+ */
+export const getRegistryEntrySpec = <ThrowOnError extends boolean = false>(options: Options<GetRegistryEntrySpecData, ThrowOnError>): RequestResult<GetRegistryEntrySpecResponses, GetRegistryEntrySpecErrors, ThrowOnError> => (options.client ?? client).get<GetRegistryEntrySpecResponses, GetRegistryEntrySpecErrors, ThrowOnError>({
+    responseTransformer: getRegistryEntrySpecResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-entry-spec/',
+    ...options
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Query registry entries whose status was updated after the provided timestamp. Supports pagination. Always use statusUpdatedAt of the last item + its cursorId to paginate forward. This guarantees to include all items at least once, when paginating. Note: if the cursorId is not valid it will include all items with an id greater than the cursorId (in string comparison order). If no cursorId is provided, all items, including those with the same statusUpdatedAt, will be included. In case the statusUpdatedAt is before the provided statusUpdatedAfter, all items after the statusUpdatedAfter will be included, regardless of the cursorId.
+ */
+export const postRegistryDiff = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDiffData, ThrowOnError>): RequestResult<PostRegistryDiffResponses, PostRegistryDiffErrors, ThrowOnError> => (options?.client ?? client).post<PostRegistryDiffResponses, PostRegistryDiffErrors, ThrowOnError>({
+    responseTransformer: postRegistryDiffResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-diff/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Gets all capabilities that are currently online
+ */
+export const getCapability = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilityData, ThrowOnError>): RequestResult<GetCapabilityResponses, GetCapabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetCapabilityResponses, GetCapabilityErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/capability/',
+    ...options
+});
+
+/**
+ * REQUIRES API KEY Authentication (+user)
+ *
+ * Returns an agent's all-time purchase totals (count, distinct funded buyers, paid amount per asset unit) and a UTC time series of its purchases. Purchases are seller withdrawals indexed from the masumi payment contracts; amounts exclude the collateral returned to the buyer.
+ */
+export const getRegistryEntryPurchases = <ThrowOnError extends boolean = false>(options: Options<GetRegistryEntryPurchasesData, ThrowOnError>): RequestResult<GetRegistryEntryPurchasesResponses, GetRegistryEntryPurchasesErrors, ThrowOnError> => (options.client ?? client).get<GetRegistryEntryPurchasesResponses, GetRegistryEntryPurchasesErrors, ThrowOnError>({
+    responseTransformer: getRegistryEntryPurchasesResponseTransformer,
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-entry-purchases/',
+    ...options
 });
 
 /**
@@ -202,33 +253,6 @@ export const postRegistrySource = <ThrowOnError extends boolean = false>(options
         'Content-Type': 'application/json',
         ...options?.headers
     }
-});
-
-/**
- * REQUIRES API KEY Authentication (+user)
- *
- * Query registry entries whose status was updated after the provided timestamp. Supports pagination. Always use statusUpdatedAt of the last item + its cursorId to paginate forward. This guarantees to include all items at least once, when paginating. Note: if the cursorId is not valid it will include all items with an id greater than the cursorId (in string comparison order). If no cursorId is provided, all items, including those with the same statusUpdatedAt, will be included. In case the statusUpdatedAt is before the provided statusUpdatedAfter, all items after the statusUpdatedAfter will be included, regardless of the cursorId.
- */
-export const postRegistryDiff = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDiffData, ThrowOnError>): RequestResult<PostRegistryDiffResponses, PostRegistryDiffErrors, ThrowOnError> => (options?.client ?? client).post<PostRegistryDiffResponses, PostRegistryDiffErrors, ThrowOnError>({
-    responseTransformer: postRegistryDiffResponseTransformer,
-    security: [{ name: 'token', type: 'apiKey' }],
-    url: '/registry-diff/',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers
-    }
-});
-
-/**
- * REQUIRES API KEY Authentication (+user)
- *
- * Gets all capabilities that are currently online
- */
-export const getCapability = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilityData, ThrowOnError>): RequestResult<GetCapabilityResponses, GetCapabilityErrors, ThrowOnError> => (options?.client ?? client).get<GetCapabilityResponses, GetCapabilityErrors, ThrowOnError>({
-    security: [{ name: 'token', type: 'apiKey' }],
-    url: '/capability/',
-    ...options
 });
 
 /**
