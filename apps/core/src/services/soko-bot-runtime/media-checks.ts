@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { networkUsesSharedSchema } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { resolveImageSettings } from "@/lib/image-studio/catalog";
@@ -598,8 +599,8 @@ export async function mayMakeMediaForOwner(
  * follow-up's retry continues the failed turn's images, it does not start
  * the owner's allowance again.
  */
-async function planTurnIds(
-  authorized: AuthorizedSokoBotRuntime,
+export async function planTurnIds(
+  authorized: Pick<AuthorizedSokoBotRuntime, "turn" | "scope">,
 ): Promise<string[]> {
   const retried = (
     await prisma.sokoBotEventInbox.findMany({
@@ -610,11 +611,27 @@ async function planTurnIds(
   if (!retried.length) return [authorized.turn.id];
   // The failed wakes on the same Task or Job: the retry's occurrence can be
   // a later event than the failed turn's, when that turn wrote one itself.
+  // On the split layout a Job's id names it on one Network only; a NULL Job row is Mainnet's.
+  const network = networkUsesSharedSchema() ? null : authorized.scope.network;
   const earlier = await prisma.sokoBotEventInbox.findMany({
     where: {
       botId: authorized.turn.sokoBotId,
       entityId: { in: [...new Set(retried.map((entry) => entry.entityId))] },
       turn: { status: "FAILED" },
+      ...(network
+        ? {
+            OR: [
+              { purpose: { not: "JOB_EVENT" } },
+              {
+                purpose: "JOB_EVENT",
+                OR:
+                  network === "mainnet"
+                    ? [{ network: "mainnet" }, { network: null }]
+                    : [{ network }],
+              },
+            ],
+          }
+        : {}),
     },
     select: { turnId: true },
   });

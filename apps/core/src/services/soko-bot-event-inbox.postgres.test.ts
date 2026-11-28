@@ -122,6 +122,7 @@ async function source(
     name: "work",
     workspaceId,
     ownerId,
+    taskId: null as string | null,
     events: eventId
       ? [
           {
@@ -134,6 +135,7 @@ async function source(
   };
   return {
     ...delegation,
+    jobId: kind === "JOB" ? entityId : null,
     job: kind === "JOB" ? entity : null,
     task:
       kind === "TASK"
@@ -142,15 +144,72 @@ async function source(
   };
 }
 
-async function scan(rows: SokoBotDelegation[]) {
-  // Ticket 24-6 owns the per-Network source query. Deliver its observations
-  // at that boundary; grouping, consumed lookups, turns and inbox use PostgreSQL.
-  vi.spyOn(prisma.sokoBotDelegation, "findMany").mockResolvedValueOnce(rows);
-  return sokoBotEventsSyncService.syncDelegatedWork({
-    abortSignal: new AbortController().signal,
-    shouldContinue: () => true,
-    sokoBotId: botId,
-  });
+type ScannedRow = SokoBotDelegation & {
+  job?: {
+    id: string;
+    name: string | null;
+    workspaceId: string;
+    ownerId: string | null;
+    taskId?: string | null;
+    events: { id: string; status: string; createdAt: Date }[];
+  } | null;
+};
+
+async function scan(rows: ScannedRow[]) {
+  if (!onSplitLayout) {
+    // Ticket 30-3 owns the Preprod Job event wake. Deliver observations at the
+    // page-read boundary; grouping, consumed lookups, turns and inbox use PostgreSQL.
+    vi.spyOn(prisma.sokoBotDelegation, "findMany").mockResolvedValueOnce(
+      rows as never,
+    );
+    return await sokoBotEventsSyncService.syncDelegatedWork({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+      sokoBotId: botId,
+    });
+  }
+  vi.spyOn(prisma.sokoBotDelegation, "findMany").mockResolvedValueOnce(
+    rows.map(({ job, ...rest }) => ({
+      ...rest,
+      jobId: job ? job.id : rest.jobId,
+    })),
+  );
+  const byId = new Map(
+    rows.flatMap((row) =>
+      row.job ? [[row.job.id, { taskId: null, ...row.job }] as const] : [],
+    ),
+  );
+  const mainnetDb = createNetworkScope("mainnet").networkDb;
+  const jobSpy = vi
+    .spyOn(mainnetDb.job, "findMany")
+    .mockImplementation((async (args?: {
+      where?: { id?: { in?: string[] } };
+    }) =>
+      (args?.where?.id?.in ?? []).flatMap((id) => {
+        const job = byId.get(id);
+        if (!job) return [];
+        const { events: _events, ...scalar } = job;
+        return [scalar];
+      })) as never);
+  const jobEventSpy = vi
+    .spyOn(mainnetDb.jobEvent, "findMany")
+    .mockImplementation((async (args?: {
+      where?: { jobId?: { in?: string[] } };
+    }) =>
+      (args?.where?.jobId?.in ?? []).flatMap((id) => {
+        const job = byId.get(id);
+        return job ? job.events.map((event) => ({ ...event, jobId: id })) : [];
+      })) as never);
+  try {
+    return await sokoBotEventsSyncService.syncDelegatedWork({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+      sokoBotId: botId,
+    });
+  } finally {
+    jobSpy.mockRestore();
+    jobEventSpy.mockRestore();
+  }
 }
 
 async function oldInsert(eventId: string, purpose: string) {

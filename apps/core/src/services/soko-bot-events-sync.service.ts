@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Prisma } from "@sokosumi/database";
+import type { AgentJobStatus, Prisma } from "@sokosumi/database";
 import {
   type SokoBotFollowUpAllows,
   sokoBotFollowUpAllowsSchema,
@@ -7,6 +7,10 @@ import {
 import { createError } from "evlog";
 import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
+import {
+  createNetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
@@ -33,6 +37,7 @@ import {
 } from "@/lib/soko-bot/owner-authority";
 import { type OwnerRequestTurn } from "@/lib/soko-bot/owner-request";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
+import { freshPreprodTurnsDeferred } from "@/lib/soko-bot/schedule-resume";
 import {
   DELEGATION_EVENT_TURN_PREFIX,
   inheritedFollowUpRoute,
@@ -525,6 +530,195 @@ interface FailedFollowUpTurn {
   retried: ReadonlySet<string>;
 }
 
+const SPLIT_JOB_SELECT = {
+  id: true,
+  name: true,
+  ownerId: true,
+  workspaceId: true,
+  taskId: true,
+} as const satisfies Prisma.JobSelect;
+
+/**
+ * Split-layout per-page Job hydration: loads Job scalars from the Mainnet
+ * client, parent Tasks from the shared client, and newest Job events after
+ * parent hydration so a Job deleted during the page load has no events and
+ * wakes no bot.
+ */
+async function withMainnetJobs<T extends { jobId: string | null }>(rows: T[]) {
+  const jobIds = [
+    ...new Set(rows.flatMap((row) => (row.jobId != null ? [row.jobId] : []))),
+  ];
+  const mainnetDb = jobIds.length
+    ? createNetworkScope("mainnet").networkDb
+    : null;
+  const jobs = new Map(
+    (mainnetDb
+      ? await mainnetDb.job.findMany({
+          where: { id: { in: jobIds } },
+          select: SPLIT_JOB_SELECT,
+        })
+      : []
+    ).map((job) => [job.id, job]),
+  );
+  const taskIds = [
+    ...new Set(
+      [...jobs.values()].flatMap((job) =>
+        job.taskId != null ? [job.taskId] : [],
+      ),
+    ),
+  ];
+  const tasks = new Map(
+    (taskIds.length
+      ? await prisma.task.findMany({
+          where: { id: { in: taskIds } },
+          select: {
+            id: true,
+            visibility: true,
+            ownerId: true,
+            projectId: true,
+          },
+        })
+      : []
+    ).map(({ id, ...task }) => [id, task]),
+  );
+  const loadedJobIds = [...jobs.keys()];
+  const newestEvents = new Map<
+    string,
+    { id: string; status: AgentJobStatus; createdAt: Date }
+  >();
+  if (mainnetDb && loadedJobIds.length) {
+    const events = await mainnetDb.jobEvent.findMany({
+      where: { jobId: { in: loadedJobIds } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { jobId: true, id: true, status: true, createdAt: true },
+    });
+    for (const event of events) {
+      if (!newestEvents.has(event.jobId)) {
+        newestEvents.set(event.jobId, {
+          id: event.id,
+          status: event.status,
+          createdAt: event.createdAt,
+        });
+      }
+    }
+  }
+  return rows.map(({ jobId, ...rest }) => {
+    const job = jobId != null ? jobs.get(jobId) : undefined;
+    if (!job) return { ...rest, job: null };
+    const { taskId, ...jobFields } = job;
+    const newestEvent = newestEvents.get(job.id);
+    return {
+      ...rest,
+      job: {
+        ...jobFields,
+        task: taskId != null ? (tasks.get(taskId) ?? null) : null,
+        events: newestEvent ? [newestEvent] : [],
+      },
+    };
+  });
+}
+
+async function readSplitDelegationPage(
+  sokoBotId: string | undefined,
+  cursor?: string | null,
+) {
+  const excludePreprodJobs = freshPreprodTurnsDeferred();
+  const rows = await prisma.sokoBotDelegation.findMany({
+    where: {
+      ...(cursor ? { id: { gt: cursor } } : {}),
+      // Slice 30-3 opens fresh Preprod turns and builds the Preprod Job
+      // event wake. Until then Preprod Job delegations stay out of the
+      // scan so they take no slot from Mainnet.
+      OR: [
+        { taskId: { not: null } },
+        {
+          jobId: { not: null },
+          ...(excludePreprodJobs
+            ? { OR: [{ network: "mainnet" }, { network: null }] }
+            : {}),
+        },
+      ],
+      ...INVOLVING_DELEGATION,
+      // Unattended work the bot starts itself honours the owner's pause,
+      // not just the administrator's.
+      turn: {
+        ...(sokoBotId ? { sokoBotId } : {}),
+        sokoBot: {
+          archivedAt: null,
+          adminPausedAt: null,
+          proactivePaused: false,
+        },
+      },
+    },
+    // Stable keyset rotation visits old unresolved work without rescanning
+    // the whole table or starving it behind newer delegations.
+    orderBy: { id: "asc" },
+    take: BATCH_SIZE,
+    select: {
+      id: true,
+      turnId: true,
+      kind: true,
+      network: true,
+      jobId: true,
+      lastSeenStatus: true,
+      lastSeenEventId: true,
+      lastSeenEventAt: true,
+      followUp: true,
+      followUpAllows: true,
+      authority: true,
+      followUpTurnId: true,
+      task: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          visibility: true,
+          ownerId: true,
+          workspaceId: true,
+          projectId: true,
+          archivedAt: true,
+          assigneeSokoBotId: true,
+          events: {
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: 1,
+            select: {
+              id: true,
+              comment: true,
+              createdAt: true,
+              sokoBotId: true,
+            },
+          },
+        },
+      },
+      turn: {
+        select: {
+          id: true,
+          sokoBotId: true,
+          requestedByUserId: true,
+          sokoBot: { select: { userId: true, projectId: true } },
+          workspaceId: true,
+          versionId: true,
+          parentTurnId: true,
+          status: true,
+          source: true,
+          chainDepth: true,
+          askedByUserId: true,
+          capabilityNames: true,
+          parentTurn: {
+            select: {
+              source: true,
+              chainDepth: true,
+              askedByUserId: true,
+              requestedByUserId: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  return withMainnetJobs(rows);
+}
+
 const BACKGROUND_RUN_ACTIVE_STATUSES = new Set<string>([
   "QUEUED",
   "STARTING",
@@ -561,111 +755,118 @@ export class SokoBotEventsSyncService {
       create: { key: SOKO_EVENTS_SYNC_KEY, lastSyncedAt: new Date() },
       update: {},
     });
-    const readPage = (cursor?: string | null) =>
-      prisma.sokoBotDelegation.findMany({
-        where: {
-          ...(cursor ? { id: { gt: cursor } } : {}),
-          // The Job relation still reads Mainnet. Slice 24-6 supplies Preprod Jobs.
-          OR: [
-            { taskId: { not: null } },
-            {
-              jobId: { not: null },
-              OR: [{ network: "mainnet" }, { network: null }],
-            },
-          ],
-          ...INVOLVING_DELEGATION,
-          // Unattended work the bot starts itself honours the owner's pause,
-          // not just the administrator's.
-          turn: {
-            ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
-            sokoBot: {
-              archivedAt: null,
-              adminPausedAt: null,
-              proactivePaused: false,
-            },
-          },
-        },
-        // Stable keyset rotation visits old unresolved work without rescanning
-        // the whole table or starving it behind newer delegations.
-        orderBy: { id: "asc" },
-        take: BATCH_SIZE,
-        select: {
-          id: true,
-          turnId: true,
-          kind: true,
-          network: true,
-          lastSeenStatus: true,
-          lastSeenEventId: true,
-          lastSeenEventAt: true,
-          followUp: true,
-          followUpAllows: true,
-          authority: true,
-          followUpTurnId: true,
-          task: {
-            select: {
-              id: true,
-              name: true,
-              status: true,
-              visibility: true,
-              ownerId: true,
-              workspaceId: true,
-              projectId: true,
-              archivedAt: true,
-              assigneeSokoBotId: true,
-              events: {
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                take: 1,
-                select: {
-                  id: true,
-                  comment: true,
-                  createdAt: true,
-                  sokoBotId: true,
+    const readPage = networkUsesSharedSchema()
+      ? (cursor?: string | null) =>
+          prisma.sokoBotDelegation.findMany({
+            where: {
+              ...(cursor ? { id: { gt: cursor } } : {}),
+              // The Job relation still reads Mainnet. Slice 24-6 supplies Preprod Jobs.
+              OR: [
+                { taskId: { not: null } },
+                {
+                  jobId: { not: null },
+                  OR: [{ network: "mainnet" }, { network: null }],
+                },
+              ],
+              ...INVOLVING_DELEGATION,
+              // Unattended work the bot starts itself honours the owner's pause,
+              // not just the administrator's.
+              turn: {
+                ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
+                sokoBot: {
+                  archivedAt: null,
+                  adminPausedAt: null,
+                  proactivePaused: false,
                 },
               },
             },
-          },
-          job: {
+            // Stable keyset rotation visits old unresolved work without rescanning
+            // the whole table or starving it behind newer delegations.
+            orderBy: { id: "asc" },
+            take: BATCH_SIZE,
             select: {
               id: true,
-              name: true,
-              ownerId: true,
-              workspaceId: true,
+              turnId: true,
+              kind: true,
+              network: true,
+              lastSeenStatus: true,
+              lastSeenEventId: true,
+              lastSeenEventAt: true,
+              followUp: true,
+              followUpAllows: true,
+              authority: true,
+              followUpTurnId: true,
               task: {
-                select: { visibility: true, ownerId: true, projectId: true },
-              },
-              events: {
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                take: 1,
-                select: { id: true, status: true, createdAt: true },
-              },
-            },
-          },
-          turn: {
-            select: {
-              id: true,
-              sokoBotId: true,
-              requestedByUserId: true,
-              sokoBot: { select: { userId: true, projectId: true } },
-              workspaceId: true,
-              versionId: true,
-              parentTurnId: true,
-              status: true,
-              source: true,
-              chainDepth: true,
-              askedByUserId: true,
-              capabilityNames: true,
-              parentTurn: {
                 select: {
+                  id: true,
+                  name: true,
+                  status: true,
+                  visibility: true,
+                  ownerId: true,
+                  workspaceId: true,
+                  projectId: true,
+                  archivedAt: true,
+                  assigneeSokoBotId: true,
+                  events: {
+                    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                    take: 1,
+                    select: {
+                      id: true,
+                      comment: true,
+                      createdAt: true,
+                      sokoBotId: true,
+                    },
+                  },
+                },
+              },
+              job: {
+                select: {
+                  id: true,
+                  name: true,
+                  ownerId: true,
+                  workspaceId: true,
+                  task: {
+                    select: {
+                      visibility: true,
+                      ownerId: true,
+                      projectId: true,
+                    },
+                  },
+                  events: {
+                    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                    take: 1,
+                    select: { id: true, status: true, createdAt: true },
+                  },
+                },
+              },
+              turn: {
+                select: {
+                  id: true,
+                  sokoBotId: true,
+                  requestedByUserId: true,
+                  sokoBot: { select: { userId: true, projectId: true } },
+                  workspaceId: true,
+                  versionId: true,
+                  parentTurnId: true,
+                  status: true,
                   source: true,
                   chainDepth: true,
                   askedByUserId: true,
-                  requestedByUserId: true,
+                  capabilityNames: true,
+                  parentTurn: {
+                    select: {
+                      source: true,
+                      chainDepth: true,
+                      askedByUserId: true,
+                      requestedByUserId: true,
+                    },
+                  },
                 },
               },
             },
-          },
-        },
-      });
+          })
+      : (cursor?: string | null) =>
+          readSplitDelegationPage(input.sokoBotId, cursor);
     const delegations = await readPage(input.sokoBotId ? null : scan.cursorId);
     // A scoped scan has no cursor to resume from: it reads every page.
     if (input.sokoBotId) {
@@ -889,7 +1090,7 @@ export class SokoBotEventsSyncService {
               },
             })
           : (
-              await prisma.jobEvent.findMany({
+              await createNetworkScope("mainnet").networkDb.jobEvent.findMany({
                 where: { jobId: current.id, ...cursor },
                 orderBy: [{ createdAt: "asc" }, { id: "asc" }],
                 take: MAX_CHANGES_PER_TURN,

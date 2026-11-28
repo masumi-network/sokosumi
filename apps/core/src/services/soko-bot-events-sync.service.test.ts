@@ -47,8 +47,86 @@ vi.mock("@/lib/soko-bot/task-charges", () => ({
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
 }));
+const {
+  layoutState,
+  scanRows,
+  jobFindManyMock,
+  jobEventFindManyMock,
+  parentTasksMock,
+  resetJobFixtures,
+} = vi.hoisted(() => {
+  type FixtureJob = {
+    id: string;
+    task?: Record<string, unknown> | null;
+    events?: { id: string; status: string; createdAt: Date }[];
+    [key: string]: unknown;
+  };
+  const layoutState = { shared: true };
+  const jobs = new Map<string, FixtureJob>();
+  const jobFindManyMock = vi.fn(
+    async (args: { where: { id: { in: string[] } } }) =>
+      args.where.id.in.flatMap((id) => {
+        const job = jobs.get(id);
+        if (!job) return [];
+        const { task, events: _events, ...rest } = job;
+        return [{ ...rest, taskId: task ? `parent_${job.id}` : null }];
+      }),
+  );
+  const jobEventFindManyMock = vi.fn(
+    async (args: { where?: { jobId?: { in?: string[] } } }) =>
+      (args?.where?.jobId?.in ?? []).flatMap((id) => {
+        const job = jobs.get(id);
+        return (job?.events ?? []).map((event) => ({ ...event, jobId: id }));
+      }),
+  );
+  const parentTasksMock = vi.fn(
+    async (args: { where: { id: { in: string[] } } }) =>
+      [...jobs.values()].flatMap((job) =>
+        job.task && args.where.id.in.includes(`parent_${job.id}`)
+          ? [{ id: `parent_${job.id}`, ...job.task }]
+          : [],
+      ),
+  );
+  return {
+    layoutState,
+    jobFindManyMock,
+    jobEventFindManyMock,
+    parentTasksMock,
+    resetJobFixtures: () => {
+      layoutState.shared = true;
+      jobs.clear();
+    },
+    scanRows: async (...args: unknown[]) => {
+      const page = (await delegationFindManyMock(...args)) as {
+        jobId?: string | null;
+        job?: FixtureJob | null;
+        [key: string]: unknown;
+      }[];
+      if (layoutState.shared) return page;
+      for (const row of page) {
+        if (row.job) jobs.set(row.job.id, row.job);
+      }
+      return page.map(({ job, ...rest }) => ({
+        ...rest,
+        jobId: job ? job.id : (rest.jobId ?? null),
+      }));
+    },
+  };
+});
+vi.mock("@/lib/db/network-scope", () => ({
+  networkUsesSharedSchema: () => layoutState.shared,
+  createNetworkScope: () => ({
+    networkDb: {
+      job: {
+        findMany: jobFindManyMock,
+      },
+      jobEvent: { findMany: jobEventFindManyMock },
+    },
+  }),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    task: { findMany: parentTasksMock },
     syncMetadata: { upsert: metadataUpsertMock, update: metadataUpdateMock },
     sokoBotEventInbox: { findMany: inboxFindManyMock },
     taskEvent: { findMany: taskEventFindManyMock },
@@ -58,7 +136,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { findMany: turnFindManyMock },
     sokoBotSchedule: { findMany: scheduleFindManyMock },
     sokoBotDelegation: {
-      findMany: delegationFindManyMock,
+      findMany: scanRows,
       update: delegationUpdateMock,
     },
   },
@@ -149,6 +227,7 @@ function plannedDelegation(
 describe("SokoBotEventsSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetJobFixtures();
     metadataUpsertMock.mockResolvedValue({
       key: "soko-events-v2",
       createdAt: new Date(0),
@@ -254,6 +333,118 @@ describe("SokoBotEventsSyncService", () => {
     );
     expect(result.woken).toBe(1);
     expect(metadataUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("uses origin/main's relation loader on today's layout without calling the split Job loader", async () => {
+    layoutState.shared = true;
+    delegationFindManyMock.mockResolvedValueOnce([
+      {
+        id: "d0",
+        kind: "JOB",
+        network: "mainnet",
+        lastSeenStatus: "RUNNING",
+        lastSeenEventId: null,
+        lastSeenEventAt: null,
+        task: null,
+        job: {
+          id: "job_0",
+          name: "Job 0",
+          ownerId: "user_1",
+          workspaceId: "ws_1",
+          task: { visibility: "PUBLIC", ownerId: "user_1", projectId: null },
+          events: [
+            {
+              id: "ev_0",
+              status: "COMPLETED",
+              createdAt: new Date("2026-10-23T10:00:00Z"),
+            },
+          ],
+        },
+        turn,
+        followUp: null,
+        followUpTurnId: null,
+      },
+    ]);
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+
+    expect(result).toMatchObject({ scanned: 1, woken: 1 });
+    const [query] = delegationFindManyMock.mock.calls[0] as [
+      { select: Record<string, unknown> },
+    ];
+    expect(query.select.job).toBeDefined();
+    expect(query.select.jobId).toBeUndefined();
+    expect(jobFindManyMock).not.toHaveBeenCalled();
+    expect(parentTasksMock).not.toHaveBeenCalled();
+    expect(jobEventFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("hydrates each page's distinct Jobs per page during a multi-page scoped scan on the split layout", async () => {
+    layoutState.shared = false;
+    const jobRow = (index: number, status: string) => ({
+      id: `d${index}`,
+      kind: "JOB",
+      network: "mainnet",
+      lastSeenStatus: "RUNNING",
+      lastSeenEventId: null,
+      lastSeenEventAt: null,
+      task: null,
+      job: {
+        id: `job_${index}`,
+        name: `Job ${index}`,
+        ownerId: "user_1",
+        workspaceId: "ws_1",
+        task: { visibility: "PUBLIC", ownerId: "user_1", projectId: null },
+        events: [
+          {
+            id: `ev_${index}`,
+            status,
+            createdAt: new Date("2026-10-23T10:00:00Z"),
+          },
+        ],
+      },
+      turn,
+      followUp: null,
+      followUpTurnId: null,
+    });
+    const page1 = Array.from({ length: 500 }, (_, i) => jobRow(i, "RUNNING"));
+    const page2 = Array.from({ length: 500 }, (_, i) =>
+      jobRow(500 + i, "RUNNING"),
+    );
+    const page3 = [jobRow(1000, "COMPLETED")];
+    delegationFindManyMock
+      .mockResolvedValueOnce(page1)
+      .mockResolvedValueOnce(page2)
+      .mockResolvedValueOnce(page3);
+
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork({
+      ...input,
+      sokoBotId: "bot_fixture",
+    });
+
+    expect(result).toMatchObject({ scanned: 1001, woken: 1 });
+    expect(jobFindManyMock).toHaveBeenCalledTimes(3);
+    expect(parentTasksMock).toHaveBeenCalledTimes(3);
+    expect(jobEventFindManyMock).toHaveBeenCalledTimes(3);
+    expect(
+      jobFindManyMock.mock.calls.map(([arg]) => arg.where.id.in.length),
+    ).toEqual([500, 500, 1]);
+    expect(
+      jobEventFindManyMock.mock.calls.map(
+        ([arg]) => arg.where?.jobId?.in?.length,
+      ),
+    ).toEqual([500, 500, 1]);
+    // Parent Tasks load before newest Job events on each page.
+    for (let page = 0; page < 3; page++) {
+      expect(parentTasksMock.mock.invocationCallOrder[page]).toBeLessThan(
+        jobEventFindManyMock.mock.invocationCallOrder[page],
+      );
+    }
+    expect(startTurnMock.mock.calls[0]?.[0].eventBatch).toEqual([
+      expect.objectContaining({ entityId: "job_1000", eventId: "ev_1000" }),
+    ]);
   });
 
   it("baselines historical actionable events before the persisted cutover", async () => {

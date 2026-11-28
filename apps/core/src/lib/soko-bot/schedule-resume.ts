@@ -24,6 +24,14 @@ export type ScheduledTurnProvenance = Pick<
   "network" | "expectedPreprodGeneration"
 >;
 
+/**
+ * Slice 30-3 opens fresh Preprod turns. Until then the schedule and Job event
+ * pickups leave Preprod work waiting, so it takes no place in a tick.
+ */
+export function freshPreprodTurnsDeferred(): boolean {
+  return true;
+}
+
 export async function scheduleTurnProvenance(
   schedule: ScheduleSource,
   deferFreshPreprodTurn = false,
@@ -41,7 +49,7 @@ export async function scheduleTurnProvenance(
   });
   if (!job) throw staleScheduleNetwork();
   // Slice 30-3 opens fresh Preprod turns. Until then leave their occurrences due.
-  if (deferFreshPreprodTurn)
+  if (deferFreshPreprodTurn && freshPreprodTurnsDeferred())
     throw new DetachedNetworkRefusal(
       CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
     );
