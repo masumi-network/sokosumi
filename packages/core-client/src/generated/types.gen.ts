@@ -13181,6 +13181,7 @@ export type ProjectSeoObservation = {
         };
     }>;
     pageSpeedRecoveryFileId?: string;
+    siteCrawl?: ProjectSeoSiteCrawl;
     pageMarketEvidence?: {
         regionalVersions: Array<{
             country: string;
@@ -13223,6 +13224,101 @@ export type SeoAuditPlan = {
     };
     revisit?: string;
     source?: string;
+};
+
+export type ProjectSeoSiteCrawl = {
+    state: 'crawled';
+    fetched: number;
+    read: number;
+    stop: 'complete' | 'page cap' | 'depth cap' | 'template cap' | 'link cap' | 'time' | 'rate limited' | 'robots.txt' | 'fetch failed';
+    links: {
+        broken: Array<{
+            target: string;
+            status: number;
+            linkedFrom: number;
+            sources: Array<string>;
+            javascript?: 'needed' | 'not determined';
+        }>;
+        brokenTotal: number;
+        chains: Array<{
+            start: string;
+            kind: 'chain' | 'loop' | 'too many hops';
+            hops: Array<{
+                url: string;
+                status: number;
+            }>;
+            final: string | null;
+            linkedFrom: number;
+        }>;
+        chainsTotal: number;
+        notJudged: number;
+    } | null;
+    javascript: {
+        unseen: number;
+        groups: Array<{
+            group: string;
+            state: 'needs javascript' | 'no difference' | 'sampled, one page' | 'not determined';
+            shellPages: number;
+            reason?: string;
+        }>;
+    } | null;
+    orphans: {
+        state: 'found';
+        urls: Array<string>;
+        total: number;
+        nofollowOnly?: {
+            urls: Array<string>;
+            total: number;
+        };
+        candidates: boolean;
+    } | {
+        state: 'not determined';
+        reason: string;
+    } | null;
+    pageChecks: {
+        pages: number;
+        checked: number;
+        missingTitle: {
+            urls: Array<string>;
+            total: number;
+        };
+        missingH1: {
+            urls: Array<string>;
+            total: number;
+        };
+        duplicateTitles: {
+            groups: Array<{
+                text: string;
+                size: number;
+                urls: Array<string>;
+            }>;
+            total: number;
+            notDetermined: number;
+        };
+        noindexInSitemap: {
+            urls: Array<string>;
+            total: number;
+            sitemapUrls: number;
+            checked: number;
+        } | null;
+        badCanonicals: {
+            pages: Array<{
+                kind: 'target not 2xx' | 'other host' | 'conflicting' | 'changed in render' | 'removed in render' | 'unreadable';
+                url: string;
+                canonical: string | null;
+                status: number | null;
+            }>;
+            total: number;
+            notDetermined: number;
+        };
+    } | null;
+    gaps: Array<{
+        item: string;
+        reason: string;
+    }>;
+} | {
+    state: 'not crawled';
+    reason: string;
 };
 
 export type ProjectSeoKeyword = {

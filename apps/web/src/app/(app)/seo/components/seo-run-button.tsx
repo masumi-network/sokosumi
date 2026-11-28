@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Loader2, Play } from "lucide-react";
+import { CalendarClock, Clock, Loader2, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,9 @@ export function SeoRunButton({
           if (ready) model.openAnalysis(run.kind);
         }}
       >
-        {run.running ? (
+        {run.queued ? (
+          <Clock className="size-4" />
+        ) : run.running ? (
           <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
         ) : (
           <Play className="size-4" />

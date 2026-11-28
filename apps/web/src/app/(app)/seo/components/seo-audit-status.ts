@@ -6,6 +6,7 @@ export const SEO_AUDIT_LIST_PAGE_MAX = 100;
 
 export type SeoAuditLastCheck = NonNullable<SeoAuditSummary["lastCheck"]>;
 export type SeoAuditCheckState =
+  | "queued"
   | "running"
   | "failed"
   | "unfinished"
@@ -21,10 +22,10 @@ export function seoAuditCheckState(
 ): SeoAuditCheckState {
   if (check.status === "completed") return "finished";
   if (check.status === "failed") return "failed";
-  return now.getTime() - new Date(check.createdAt).getTime() <
-    SEO_CHECK_STALE_MS
-    ? "running"
-    : "unfinished";
+  if (now.getTime() - new Date(check.createdAt).getTime() >= SEO_CHECK_STALE_MS)
+    return "unfinished";
+  // Core says "requested" until the agent's Task starts.
+  return check.status === "requested" ? "queued" : "running";
 }
 
 /** How often the Audit list reads again while a check is open. */
@@ -40,7 +41,8 @@ export function seoAuditListRefetchMs(
 ): number | false {
   return audits.some(
     ({ lastCheck }) =>
-      lastCheck && seoAuditCheckState(lastCheck, now) === "running",
+      lastCheck &&
+      ["queued", "running"].includes(seoAuditCheckState(lastCheck, now)),
   )
     ? SEO_AUDIT_LIST_REFRESH_MS
     : false;
