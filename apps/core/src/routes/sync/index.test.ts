@@ -679,6 +679,8 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
@@ -725,6 +727,8 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
@@ -743,6 +747,8 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       "agents-sync-metadata:dynamic-pricing-v1",
       expect.objectContaining({ resetCursor: true }),
     );
@@ -761,7 +767,11 @@ describe("sync routes", () => {
     expect(acquireLockMock).toHaveBeenCalledWith("agents-summary-sync");
 
     await flushMicrotasks();
-    expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+    expect(syncAgentSummariesMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ generateAgentSummary: expect.any(Function) }),
+      expect.any(Object),
+    );
   });
 
   it("returns 200 and starts enterprise-contract renewal sync exactly once in background", async () => {
@@ -1453,7 +1463,12 @@ describe("sync routes", () => {
 
     try {
       syncRegistryAgentsMock.mockImplementation(
-        (_metadataKey: string, options: { abortSignal: AbortSignal }) =>
+        (
+          _scope: unknown,
+          _client: unknown,
+          _metadataKey: string,
+          options: { abortSignal: AbortSignal },
+        ) =>
           new Promise<void>((resolve) => {
             options.abortSignal.addEventListener("abort", () => {
               resolve();

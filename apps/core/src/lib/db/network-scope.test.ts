@@ -67,6 +67,21 @@ describe("createNetworkScope", () => {
     );
   });
 
+  it("returns a registry conflict on the first attempt with its full upsert timeout", async () => {
+    const { createNetworkScope } = await import("./network-scope");
+    const conflict = Object.assign(new Error("lost"), { code: "P2034" });
+    const $transaction = vi.fn().mockRejectedValue(conflict);
+    networkPrisma.mockReturnValue({ $transaction });
+    const scope = createNetworkScope("mainnet");
+
+    await expect(
+      scope.netTransactionOnce(async () => {}, { timeout: 20_000 }),
+    ).rejects.toBe(conflict);
+    expect($transaction).toHaveBeenCalledExactlyOnceWith(expect.any(Function), {
+      timeout: 20_000,
+    });
+  });
+
   it("opens a Network transaction on the Network's client, with the retry", async () => {
     const { createNetworkScope } = await import("./network-scope");
     const tx = { side: "mainnet transaction" };

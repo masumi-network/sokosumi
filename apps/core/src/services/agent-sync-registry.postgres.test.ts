@@ -1,5 +1,6 @@
-// Record with the writers at de314fe8c on today's layout.
-import { readFileSync, writeFileSync } from "node:fs";
+// The public-layout recording commit ran the writers at de314fe8c.
+import { readFileSync } from "node:fs";
+import { Hono } from "hono";
 import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 import {
@@ -7,12 +8,17 @@ import {
   stubMasumiSyncHttp,
 } from "@/test/masumi-sync-http";
 import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
-import { observing, statementDigest } from "@/test/spend-comparison";
+import {
+  observing,
+  statementDigest,
+  statements,
+} from "@/test/spend-comparison";
 import { onSplitLayout } from "@/test/split-layout";
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
   pools: [] as Pool[],
+  preprodEnabled: false,
 }));
 vi.mock("@/config/env", async (load) => {
   const actual = await load<typeof import("@/config/env")>();
@@ -21,6 +27,7 @@ vi.mock("@/config/env", async (load) => {
     getEnv: () => ({
       ...actual.getEnv(),
       NETWORK: state.network,
+      NETWORK_PREPROD_ENABLED: state.preprodEnabled,
       SHOW_AGENTS_BY_DEFAULT: state.network === "Mainnet",
     }),
   };
@@ -30,6 +37,7 @@ vi.mock("@vercel/functions", async (load) => {
   const { observePool } = await import("@/test/spend-comparison");
   return {
     ...actual,
+    waitUntil: vi.fn(),
     attachDatabasePool(pool: Pool) {
       state.pools.push(pool);
       observePool(pool);
@@ -56,6 +64,11 @@ if (enabled) {
     database = await copyPostgresTestDatabase(source, "catalog_test");
     vi.stubEnv("DATABASE_URL", database.url);
     vi.stubEnv("DATABASE_URL_UNPOOLED", database.url);
+    const { createNetworkScope } = await import("@/lib/db/network-scope");
+    const shared = createNetworkScope("mainnet").sharedDb;
+    expect(await shared.$queryRaw`SELECT current_database() AS name`).toEqual([
+      { name: database.name },
+    ]);
   }, 60_000);
   afterEach(async () => {
     vi.restoreAllMocks();
@@ -93,13 +106,14 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     const { AGENTS_SYNC_METADATA_KEY: key } = await import(
       "@/routes/sync/agents/get"
     );
-    const { registryClient } = await import("@/clients/masumi-registry.client");
+    const { openrouterClient } = await import("@/clients/openrouter.client");
     const { createRegistryClient } = await import("@sokosumi/masumi/clients");
     const { getEnv } = await import("@/config/env");
     const env = getEnv();
-    vi.spyOn(registryClient, "getAgentsDiff").mockImplementation(
-      createRegistryClient(network, env.REGISTRY_API_URL, env.REGISTRY_API_KEY)
-        .getAgentsDiff,
+    const registryClient = createRegistryClient(
+      network,
+      env.REGISTRY_API_URL,
+      env.REGISTRY_API_KEY,
     );
     const node = stubMasumiSyncHttp();
     const options = {
@@ -163,10 +177,12 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     const ticks: {
       phase: string;
       requests: typeof node.registryRequests;
+      transactions: unknown[][];
       queries: { sql: string; values: unknown[]; pending?: number[] }[];
       rows: Awaited<ReturnType<typeof snapshot>>;
     }[] = [];
-    const registry = () => service.syncRegistryAgents(key, options);
+    const registry = () =>
+      service.syncRegistryAgents(scope, registryClient, key, options);
     const tick = async (phase: string, run: () => Promise<void>) => {
       vi.setSystemTime(clock + (ticks.length + 1) * 60_000);
       const { log, outcome } = await observing(run, { trackResponses: true });
@@ -175,6 +191,11 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       ticks.push({
         phase,
         requests: node.registryRequests.splice(0),
+        // Identify each transaction by the indexes of its actual sends on the
+        // same connection. The queries below keep their original bindings.
+        transactions: statements(
+          log.map((query, index) => ({ ...query, values: [index] })),
+        ).transactions.map((tx) => tx.map((query) => query.values[0])),
         queries: log.map((q) => ({
           sql: statementDigest(q.text),
           values: q.values,
@@ -347,7 +368,9 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       where: { id: canonical.id },
       data: { isShown: true },
     });
-    await tick("summaries", () => service.syncAgentSummaries(options));
+    await tick("summaries", () =>
+      service.syncAgentSummaries(scope, openrouterClient, options),
+    );
     const declined = await db.agent.findUniqueOrThrow({
       where: { id: decline.id },
     });
@@ -365,11 +388,135 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       `./__tests__/fixtures/agent-sync-registry-${network}.base.json`,
       import.meta.url,
     );
-    if (process.env.RECORD_AGENT_REGISTRY_BASE === "true") {
-      expect(onSplitLayout).toBe(false);
-      writeFileSync(file, JSON.stringify(actual));
-    }
     expect(actual).toEqual(JSON.parse(readFileSync(file, "utf8")));
   },
   60_000,
+);
+
+it.skipIf(!enabled)(
+  "keeps overlapping registry ticks on the shared cron lock and resumes from the committed cursor",
+  async () => {
+    const { default: mount } = await import("@/routes/sync/agents/get");
+    const { waitUntil } = await import("@vercel/functions");
+    const app = new Hono();
+    mount(app);
+    const arrived = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const node = stubMasumiSyncHttp(async () => {
+      arrived.resolve();
+      await release.promise;
+    });
+    node.registryEntries = [registrySyncRevision(1)];
+    const request = () =>
+      app.request("/agents", {
+        headers: { authorization: "Bearer test-cron-secret" },
+      });
+    try {
+      expect((await request()).status).toBe(200);
+      await arrived.promise;
+      const second = await request();
+      expect(second.status).toBe(409);
+      expect(node.registryRequests).toHaveLength(1);
+    } finally {
+      release.resolve();
+      await Promise.all(
+        vi.mocked(waitUntil).mock.calls.map(([promise]) => promise),
+      );
+    }
+    node.registryEntries = [];
+    expect((await request()).status).toBe(200);
+    await Promise.all(
+      vi.mocked(waitUntil).mock.calls.map(([promise]) => promise),
+    );
+    expect(node.registryRequests[1]).toMatchObject({
+      cursorId: "registry-1",
+      statusUpdatedAfter: registrySyncRevision(1).statusUpdatedAt.toISOString(),
+    });
+  },
+  30_000,
+);
+
+it.skipIf(!enabled || !onSplitLayout)(
+  "adopts and summarizes only the named Network's legacy row",
+  async () => {
+    const { configureSqlTables } = await import(
+      "@sokosumi/database/sql-tables"
+    );
+    const { getEnv } = await import("@/config/env");
+    const env = getEnv();
+    const restore = configureSqlTables({
+      shared: env.DATABASE_SCHEMA_SHARED,
+      mainnet: env.DATABASE_SCHEMA_MAINNET,
+      preprod: env.DATABASE_SCHEMA_PREPROD,
+      preprodOn: true,
+    });
+    state.preprodEnabled = true;
+    try {
+      const { createNetworkScope } = await import("@/lib/db/network-scope");
+      const { agentSyncService: service } = await import(
+        "./agent-sync.service"
+      );
+      const { registryClient } = await import(
+        "@/clients/masumi-registry.client"
+      );
+      const { openrouterClient } = await import("@/clients/openrouter.client");
+      const { paymentClient } = await import("@/clients/masumi-payment.client");
+      const { AGENTS_SYNC_METADATA_KEY: key } = await import(
+        "@/routes/sync/agents/get"
+      );
+      const main = createNetworkScope("mainnet");
+      const preprod = createNetworkScope("preprod");
+      const entry = registrySyncRevision(1);
+      const node = stubMasumiSyncHttp();
+      node.registryEntries = [entry];
+      for (const scope of [main, preprod]) {
+        await scope.networkDb.agent.create({
+          data: {
+            id: scope.network,
+            blockchainIdentifier: entry.agentIdentifier.toUpperCase(),
+            name: "Legacy",
+            description: "Describe",
+            lastUptimeCheck: entry.lastUptimeCheck,
+            uptimeCount: 0,
+            uptimeCheckCount: 0,
+            isShown: true,
+            pricing: { create: { pricingType: "FREE" } },
+          },
+        });
+      }
+      const options = {
+        abortSignal: new AbortController().signal,
+        shouldContinue: () => true,
+      };
+      await service.syncCardanoV2RailReadiness(preprod, paymentClient());
+      await service.syncRegistryAgents(preprod, registryClient, key, options);
+      await service.syncAgentSummaries(preprod, openrouterClient, options);
+      expect(
+        await main.networkDb.agent.findMany({
+          select: { id: true, summary: true, registryVersion: true },
+        }),
+      ).toEqual([{ id: "mainnet", summary: null, registryVersion: 0 }]);
+      expect(
+        await preprod.networkDb.agent.findMany({
+          select: { id: true, summary: true, registryVersion: true },
+        }),
+      ).toEqual([
+        { id: "preprod", summary: "Generated summary", registryVersion: 1 },
+      ]);
+      expect(
+        await main.sharedDb.syncMetadata.findUnique({ where: { key } }),
+      ).toBeNull();
+      expect(
+        await preprod.sharedDb.syncMetadata.findUnique({
+          where: { key: "preprod:" + key },
+        }),
+      ).toMatchObject({
+        cursorId: entry.id,
+        lastSyncedAt: entry.statusUpdatedAt,
+      });
+    } finally {
+      state.preprodEnabled = false;
+      restore();
+    }
+  },
 );

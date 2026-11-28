@@ -7,7 +7,7 @@ import {
 } from "@/services/__tests__/fixtures/agent-sync.x402-readiness.fixtures";
 
 /** Both real Masumi SDK clients use fetch. No request leaves the test process. */
-export function stubMasumiSyncHttp() {
+export function stubMasumiSyncHttp(beforeRegistryReply?: () => Promise<void>) {
   const networks = [mainnetNetwork(), availableNetwork()];
   const wallets = networks.map((network) =>
     fundedWalletStateFor(network, { id: network.id + "-wallet" }),
@@ -35,6 +35,7 @@ export function stubMasumiSyncHttp() {
           request.method === "POST"
         ) {
           state.registryRequests.push(await request.json());
+          await beforeRegistryReply?.();
           return success({ entries: state.registryEntries });
         }
         if (request.method === "GET" && url.pathname.startsWith("/payment/")) {

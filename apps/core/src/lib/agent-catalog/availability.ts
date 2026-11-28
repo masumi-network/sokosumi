@@ -34,6 +34,13 @@ function deploymentRail() {
   return getEnv().NETWORK;
 }
 
+export function registrySourceOnDeployment(
+  _scope: NetworkScope,
+  network: string,
+) {
+  return network === deploymentRail();
+}
+
 export function allowedX402ReadinessNetworks(_scope: NetworkScope) {
   return getAllowedX402Caip2Networks(deploymentRail());
 }
