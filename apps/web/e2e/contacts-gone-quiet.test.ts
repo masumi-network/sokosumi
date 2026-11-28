@@ -26,6 +26,8 @@ const CORE = (() => {
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
 const QUIET = "Mira Quietperson";
 const RECENT = "Lena Recentperson";
+/** The row's planned date, "Follow-up Nov 30"; not the toast's sentence. */
+const PLANNED = /^Follow-up [A-Z][a-z]{2} \d{1,2}$/;
 
 const PROJECTS = [
   { name: "phone", width: 375, height: 812, isMobile: true },
@@ -170,7 +172,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         name: new RegExp(`^(Follow up next week|Next week) for ${QUIET}$`),
       });
       await followUp.click();
-      await page.getByText(/^Follow-up /).waitFor();
+      await page.getByText(PLANNED).waitFor();
       await page.getByRole("button", { name: "Undo" }).click();
       await followUp.waitFor();
       // Calendar reads from Core: open it only once Core has this save. The
@@ -184,7 +186,7 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       );
       await followUp.click();
       await saved;
-      await page.getByText(/^Follow-up /).waitFor();
+      await page.getByText(PLANNED).waitFor();
       await shot(page, size, "2-planned");
 
       await page.goto(`${BASE_URL}/calendar`);
