@@ -40,6 +40,7 @@ const ENTRY_POINTS = [
   "services/free-credit-admin.service.ts",
   "helpers/task.ts",
   "helpers/public-share.ts",
+  "helpers/admin-seo-billing.ts",
 ];
 const NETWORK_NAMES: ReadonlySet<string> = new Set(NETWORKS);
 const EQUALITY = new Set([
