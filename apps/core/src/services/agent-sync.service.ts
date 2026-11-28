@@ -967,7 +967,7 @@ async function runRegistrySync(
         processedEntryCount++;
         lastProcessedCursor = entryCursor;
       } catch (error) {
-        if (isNetworkSyncRefusal(error)) throw error;
+        if (isNetworkSyncRefusal(error, scope.network)) throw error;
         // Failure (infra error, or a data shape the defensive parsing above
         // did not anticipate): stop the batch WITHOUT advancing the cursor
         // past this entry so the next run retries it. Transient errors
@@ -1146,7 +1146,7 @@ async function runSummarySync(
       }
       run.updated++;
     } catch (error) {
-      if (isNetworkSyncRefusal(error)) throw error;
+      if (isNetworkSyncRefusal(error, scope.network)) throw error;
       run.failed++;
       // The AI call's error can quote the description and the update's the
       // summary, so only the error's shape is logged.

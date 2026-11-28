@@ -3,15 +3,19 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { v7 as uuidv7 } from "uuid";
 import { getEnv } from "@/config/env";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
-import { networkKey } from "@/lib/network";
+import { type Network, networkKey } from "@/lib/network";
 import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 
 export class SyncLeaseLost extends Error {}
 
-export function isNetworkSyncRefusal(error: unknown): boolean {
+export function isNetworkSyncRefusal(
+  error: unknown,
+  network: Network,
+): boolean {
   return (
-    error instanceof SyncLeaseLost || error instanceof DetachedNetworkRefusal
+    error instanceof SyncLeaseLost ||
+    (network === "preprod" && error instanceof DetachedNetworkRefusal)
   );
 }
 

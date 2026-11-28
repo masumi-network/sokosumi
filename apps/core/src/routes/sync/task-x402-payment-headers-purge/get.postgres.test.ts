@@ -468,7 +468,7 @@ describe.skipIf(!enabled)("GET /sync/task-x402-payment-headers-purge", () => {
       ]);
     });
 
-    it.each(["pause", "raise"] as const)(
+    it.each(["pause", "raise", "lease takeover"] as const)(
       "stops an admitted purge when %s commits before its write",
       async (action) => {
         await open();
@@ -494,7 +494,15 @@ describe.skipIf(!enabled)("GET /sync/task-x402-payment-headers-purge", () => {
         const run = runPurge("preprod");
         try {
           await reached.promise;
-          await operator(action);
+          if (action === "lease takeover") {
+            await prisma.lock.update({
+              where: { key: `preprod:${key}` },
+              data: { lockedBy: "successor" },
+            });
+            expectCoreLog("warn", "A scheduled sync's lock was not released");
+          } else {
+            await operator(action);
+          }
         } finally {
           release.resolve();
           await run;

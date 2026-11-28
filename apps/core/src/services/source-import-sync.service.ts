@@ -12,7 +12,7 @@ import { del, head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import type { NetworkDb, NetworkScope } from "@/lib/db/network-scope";
-import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
+import { isNetworkSyncRefusal } from "@/services/network-sync-lease";
 
 const MAX_CONCURRENT_IMPORTS = 5;
 const MAX_IMPORT_SIZE_BYTES = FILE_UPLOAD_MAX_SIZE_BYTES;
@@ -210,12 +210,15 @@ async function importBlob(
   } catch (error) {
     if (options.scope.network === "preprod" && uploadedUrl) {
       // An unknown commit outcome could already reference the object.
-      if (readyStatementSucceeded && !(error instanceof DetachedNetworkRefusal))
+      if (
+        readyStatementSucceeded &&
+        !isNetworkSyncRefusal(error, options.scope.network)
+      )
         throw error;
       // The upload has a random suffix: remove only this attempt's object.
       await del(uploadedUrl, { token: getEnv().BLOB_READ_WRITE_TOKEN });
     }
-    if (error instanceof DetachedNetworkRefusal) throw error;
+    if (isNetworkSyncRefusal(error, options.scope.network)) throw error;
     if (!shouldContinueSync(options) && isAbortLikeError(error)) {
       // Keep the blob pending so a future sync run can retry it.
       return;
@@ -384,7 +387,7 @@ async function importPendingResultBlobs(
     const rejected = results.filter((result) => result.status === "rejected");
     const failure =
       rejected.find(
-        ({ reason }) => !(reason instanceof DetachedNetworkRefusal),
+        ({ reason }) => !isNetworkSyncRefusal(reason, options.scope.network),
       ) ?? rejected[0];
     if (failure) throw failure.reason;
   }

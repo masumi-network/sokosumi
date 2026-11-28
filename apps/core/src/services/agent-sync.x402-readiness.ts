@@ -316,7 +316,7 @@ export async function syncX402BuySideReadiness(
         );
       }
     } catch (markerError) {
-      if (isNetworkSyncRefusal(markerError)) throw markerError;
+      if (isNetworkSyncRefusal(markerError, scope.network)) throw markerError;
       // Readiness is advisory and must never crash the sync loop.
       emitCoreWarning(
         { operation: OPERATION },
@@ -348,7 +348,7 @@ export async function syncX402BuySideReadiness(
       serializedReadySources,
     );
   } catch (cacheError) {
-    if (isNetworkSyncRefusal(cacheError)) throw cacheError;
+    if (isNetworkSyncRefusal(cacheError, scope.network)) throw cacheError;
     // Readiness is advisory and must never crash the sync loop. A failed
     // write leaves the old cache intact, so retry on the next cycle.
     emitCoreWarning(
@@ -366,7 +366,7 @@ export async function syncX402BuySideReadiness(
   try {
     await clearReadinessFailure(scope, "x402");
   } catch (cleanupError) {
-    if (isNetworkSyncRefusal(cleanupError)) throw cleanupError;
+    if (isNetworkSyncRefusal(cleanupError, scope.network)) throw cleanupError;
     // Cache persistence already succeeded. Keep readinessChanged so source
     // changes still propagate; retry marker cleanup next time. Loud, not just
     // a log line: while the stale marker survives, the createMany latch above

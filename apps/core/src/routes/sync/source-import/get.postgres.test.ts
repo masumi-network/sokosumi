@@ -175,6 +175,14 @@ describe.skipIf(
     return [response.status, await response.json()];
   }
 
+  async function takeOver(network: "mainnet" | "preprod") {
+    await shared.lock.update({
+      where: { key: network === "preprod" ? `preprod:${key}` : key },
+      data: { lockedBy: "successor" },
+    });
+    expectCoreLog("warn", "A scheduled sync's lock was not released");
+  }
+
   beforeAll(async () => {
     db = await copyPostgresTestDatabase(
       process.env.POSTGRES_TEST_TEMPLATE_URL ?? url!,
@@ -365,14 +373,69 @@ describe.skipIf(
         lastSyncedAt: now,
       },
     });
-  const change = (action: "pause" | "raise") =>
-    action === "pause"
-      ? control.setPreprodPaused({
+  const change = (action: "pause" | "raise" | "takeover") => {
+    switch (action) {
+      case "pause":
+        return control.setPreprodPaused({
           paused: true,
           operatorId: "operator",
           reason: "cron fence",
-        })
-      : control.raisePreprodGeneration();
+        });
+      case "raise":
+        return control.raisePreprodGeneration();
+      case "takeover":
+        return takeOver("preprod");
+    }
+  };
+
+  it.each(["Job", "Task file"])(
+    "finishes the Mainnet %s pass after a lease takeover",
+    async (pass) => {
+      if (pass === "Job") await seedJobs(main, 1);
+      else await seedTasks(shared, 1);
+      const reached = Promise.withResolvers<void>();
+      const held = Promise.withResolvers<void>();
+      const metadata = blobStore.head;
+      const head = vi
+        .spyOn(blobStore, "head")
+        .mockImplementationOnce(async () => {
+          reached.resolve();
+          await held.promise;
+          return metadata();
+        });
+      const running = run();
+      try {
+        await reached.promise;
+        await takeOver("mainnet");
+      } finally {
+        held.resolve();
+        await running;
+        head.mockRestore();
+      }
+      expect(await running).toEqual([200, { message: "Syncing started" }]);
+      const row =
+        pass === "Job"
+          ? await main.blob.findFirstOrThrow()
+          : await shared.taskFile.findFirstOrThrow();
+      expect(row).toMatchObject({
+        status: "READY",
+        fileUrl: expect.stringMatching(/^https:\/\/blob\.test\//),
+      });
+      expect(
+        await shared.lock.findUniqueOrThrow({ where: { key } }),
+      ).toMatchObject({
+        isLocked: true,
+        lockedBy: "successor",
+      });
+      expect(coreLogEvents()).toContainEqual(
+        expect.objectContaining({
+          sync: expect.objectContaining({ outcome: "completed" }),
+        }),
+      );
+      expect(state.checkIn.mock.lastCall?.[0]).toMatchObject({ status: "ok" });
+    },
+  );
+
   describe.runIf(onSplitLayout)("on the split layout", () => {
     it("isolates same-id jobs and leaves the shared files for Mainnet", async () => {
       await seedJobs(preprod, 1);
@@ -468,6 +531,49 @@ describe.skipIf(
       expect(state.calls.map(([method]) => method)).toEqual(["put", "head"]);
     });
 
+    it("removes the upload when a rolled-back READY write retries after takeover", async () => {
+      await open();
+      await seedJobs(preprod, 1);
+      const { sourceImportSyncService } = await import(
+        "@/services/source-import-sync.service"
+      );
+      const importBlobs = sourceImportSyncService.importPendingResultBlobs;
+      const rolledBack = new Error("Roll back the first attempt");
+      const spy = vi
+        .spyOn(sourceImportSyncService, "importPendingResultBlobs")
+        .mockImplementationOnce((options) =>
+          importBlobs({
+            ...options,
+            write: async (work) => {
+              // Model a retry whose first transaction ran READY but rolled back.
+              await expect(
+                options.write(async (tx) => {
+                  await work(tx);
+                  throw rolledBack;
+                }),
+              ).rejects.toBe(rolledBack);
+              await takeOver("preprod");
+              return options.write(work);
+            },
+          }),
+        );
+      try {
+        await run("preprod");
+      } finally {
+        spy.mockRestore();
+      }
+      expect(await preprod.blob.findFirstOrThrow()).toMatchObject({
+        status: "PENDING",
+        fileUrl: null,
+      });
+      expect(state.calls.map(([method]) => method)).toEqual([
+        "put",
+        "head",
+        "del",
+      ]);
+      expect(uploads).toHaveLength(0);
+    });
+
     it("lets Mainnet finish while Preprod is stuck at storage", async () => {
       await open();
       await seedJobs(preprod, 1);
@@ -491,7 +597,7 @@ describe.skipIf(
         await running;
       }
     });
-    it.each(["pause", "raise"] as const)(
+    it.each(["pause", "raise", "takeover"] as const)(
       "removes its upload if %s wins before publication",
       async (action) => {
         await open();
@@ -527,43 +633,66 @@ describe.skipIf(
         );
       },
     );
-    it("reports a cleanup failure even when another worker skipped after pause", async () => {
-      await open();
-      await seedJobs(preprod, 2);
-      const held = Promise.withResolvers<void>();
-      const metadata = blobStore.head;
-      const head = vi.spyOn(blobStore, "head").mockImplementation(async () => {
-        await held.promise;
-        return metadata();
-      });
-      const remove = blobStore.del;
-      const del = vi.spyOn(blobStore, "del").mockImplementation(async (url) => {
-        if (url.endsWith("job-2.md")) throw new Error("Storage unavailable");
-        await remove(url);
-      });
-      expectCoreLog("error", "A scheduled sync failed");
-      const running = run("preprod");
-      try {
-        await vi.waitFor(() => expect(head).toHaveBeenCalledTimes(2));
-        await change("pause");
-      } finally {
-        held.resolve();
-        await running;
-        head.mockRestore();
-        del.mockRestore();
-      }
-      expect(
-        await preprod.blob.count({
-          where: { status: "PENDING", fileUrl: null },
-        }),
-      ).toBe(2);
-      expect(uploads.map(({ pathname }) => pathname)).toEqual([
-        "preprod/jobs/job/job-2.md",
-      ]);
-      expect(state.checkIn.mock.calls.at(-1)?.[0]).toMatchObject({
-        status: "error",
-      });
-    });
+    it.each(["pause", "takeover"] as const)(
+      "reports a cleanup failure even when another worker skipped after %s",
+      async (action) => {
+        await open();
+        await seedJobs(preprod, 2);
+        const reached = Promise.withResolvers<void>();
+        const held = Promise.withResolvers<void>();
+        let uploadsReady = 0;
+        const metadata = blobStore.head;
+        const head = vi
+          .spyOn(blobStore, "head")
+          .mockImplementation(async () => {
+            if (++uploadsReady === 2) reached.resolve();
+            await held.promise;
+            return metadata();
+          });
+        const remove = blobStore.del;
+        const del = vi
+          .spyOn(blobStore, "del")
+          .mockImplementation(async (url) => {
+            if (url.endsWith("job-2.md"))
+              throw new Error("Storage unavailable");
+            await remove(url);
+          });
+        expectCoreLog("error", "A scheduled sync failed");
+        const { log, outcome } = await observing(async () => {
+          const running = run("preprod");
+          try {
+            await reached.promise;
+            await change(action);
+          } finally {
+            held.resolve();
+            await running;
+          }
+          return running;
+        }).finally(() => {
+          head.mockRestore();
+          del.mockRestore();
+        });
+        expect(outcome).toEqual([200, { message: "Syncing started" }]);
+        if (action === "takeover") {
+          expect(
+            log.filter(({ text }) =>
+              text.includes("WITH owner AS MATERIALIZED"),
+            ),
+          ).toHaveLength(2);
+        }
+        expect(
+          await preprod.blob.count({
+            where: { status: "PENDING", fileUrl: null },
+          }),
+        ).toBe(2);
+        expect(uploads.map(({ pathname }) => pathname)).toEqual([
+          "preprod/jobs/job/job-2.md",
+        ]);
+        expect(state.checkIn.mock.calls.at(-1)?.[0]).toMatchObject({
+          status: "error",
+        });
+      },
+    );
 
     it.each(["pause", "raise"] as const)(
       "serializes %s after a write that won the fence",

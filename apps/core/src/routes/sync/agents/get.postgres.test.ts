@@ -18,7 +18,7 @@ import {
 } from "@/test/masumi-sync-http";
 import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { observing } from "@/test/spend-comparison";
-import { onSplitLayout, withFixtureSchemas } from "@/test/split-layout";
+import { onSplitLayout } from "@/test/split-layout";
 
 const state = vi.hoisted(() => ({
   preprod: false,
@@ -202,15 +202,16 @@ if (enabled) {
   });
 
   afterEach(async () => {
+    const { netTable, sharedTable } = await import(
+      "@sokosumi/database/sql-tables"
+    );
     if (onSplitLayout) {
-      const { netTable } = await import("@sokosumi/database/sql-tables");
       await mainnet.networkDb
         .$executeRaw`TRUNCATE ${netTable("preprod", "Agent")}, ${netTable("preprod", "AgentPricing")}, ${netTable("preprod", "AgentFixedPricing")}, ${netTable("preprod", "Tag")} CASCADE`;
     }
-    await withFixtureSchemas(
-      (tx) =>
-        tx.$executeRaw`TRUNCATE "Agent", "AgentPricing", "AgentFixedPricing", "Tag", "sync_metadata", "Lock", "notification", "user" CASCADE`,
-    );
+    await mainnet.networkDb
+      .$executeRaw`TRUNCATE ${netTable("mainnet", "Agent")}, ${netTable("mainnet", "AgentPricing")}, ${netTable("mainnet", "AgentFixedPricing")}, ${netTable("mainnet", "Tag")}, ${sharedTable("sync_metadata")}, ${sharedTable("Lock")}, ${sharedTable("notification")} CASCADE`;
+    await mainnet.sharedDb.user.deleteMany({ where: { id: "reader" } });
     state.preprod = false;
     state.configured = true;
     vi.unstubAllGlobals();
@@ -346,33 +347,99 @@ describe.runIf(enabled && onSplitLayout)(
     );
 
     describe.each([
-      ["Cardano", "/payment/rail-readiness"],
-      ["x402", "/payment/x402/networks/available"],
-    ])("%s readiness", (_rail, path) => {
-      it.each(invalidations)(
-        "preserves Preprod readiness and failure markers after %s",
-        async (invalidation) => {
-          const keys = [
-            "preprod:cardano-v2-rail-readiness",
-            "preprod:x402-buy-side-readiness",
-          ].flatMap((key) => [key, key + "-failure"]);
-          for (const key of keys) {
-            await setControl(key, key.endsWith("-failure") ? "failed" : "[]");
-          }
-          const gate = writeGate();
-          const node = stubMasumiSyncHttp();
-          node.beforePaymentReply = async (pathname) => {
-            if (pathname === path) await gate.wait();
-          };
-          await expectRefusedTick("agents", gate, invalidation, () =>
-            mainnet.sharedDb.syncMetadata.findMany({
-              where: { key: { in: [...keys, preprodCursor] } },
-              orderBy: { key: "asc" },
-            }),
-          );
-        },
-      );
-    });
+      [
+        "Cardano",
+        "/payment/rail-readiness",
+        "cardano-v2-rail-readiness",
+        1,
+        "The Cardano V2 rail readiness check failed",
+      ],
+      [
+        "x402",
+        "/payment/x402/networks/available",
+        "x402-buy-side-readiness",
+        3,
+        "The x402 buy-side readiness check failed",
+      ],
+    ] as const)(
+      "%s readiness",
+      (_rail, path, readinessKey, saveCall, offlineWarning) => {
+        it.each(invalidations)(
+          "preserves Preprod readiness and failure markers after %s",
+          async (invalidation) => {
+            const keys = [
+              "preprod:cardano-v2-rail-readiness",
+              "preprod:x402-buy-side-readiness",
+            ].flatMap((key) => [key, key + "-failure"]);
+            for (const key of keys) {
+              await setControl(key, key.endsWith("-failure") ? "failed" : "[]");
+            }
+            const gate = writeGate();
+            const node = stubMasumiSyncHttp();
+            node.beforePaymentReply = async (pathname) => {
+              if (pathname === path) await gate.wait();
+            };
+            await expectRefusedTick("agents", gate, invalidation, () =>
+              mainnet.sharedDb.syncMetadata.findMany({
+                where: { key: { in: [...keys, preprodCursor] } },
+                orderBy: { key: "asc" },
+              }),
+            );
+          },
+        );
+
+        it.each(["mark", "clear"] as const)(
+          "refuses to %s the failure marker after takeover",
+          async (action) => {
+            const marker = `preprod:${readinessKey}-failure`;
+            const node = stubMasumiSyncHttp();
+            if (action === "mark") {
+              node.beforePaymentReply = async (pathname) => {
+                if (pathname === path) node.offline = true;
+              };
+              expectCoreLog("warn", offlineWarning);
+              if (saveCall === 1) {
+                expectCoreLog(
+                  "warn",
+                  "A Cardano V2 rail readiness check attempt failed",
+                  3,
+                );
+              }
+            } else {
+              await setControl(marker, "failed");
+            }
+
+            const gate = writeGate();
+            const leaseModule = await import("@/services/network-sync-lease");
+            const createLease = leaseModule.networkSyncLease;
+            let writes = 0;
+            const markerCall = action === "mark" ? saveCall : saveCall + 1;
+            const spy = vi
+              .spyOn(leaseModule, "networkSyncLease")
+              .mockImplementationOnce((...args) => {
+                const lease = createLease(...args);
+                return {
+                  ...lease,
+                  async writeShared(work) {
+                    if (++writes === markerCall) await gate.wait();
+                    return lease.writeShared(work);
+                  },
+                };
+              });
+            try {
+              await expectRefusedTick("agents", gate, "lease takeover", () =>
+                mainnet.sharedDb.syncMetadata.findUnique({
+                  where: { key: marker },
+                }),
+              );
+            } finally {
+              spy.mockRestore();
+            }
+            expect(node.registryRequests).toEqual([]);
+          },
+        );
+      },
+    );
 
     it.each(invalidations)(
       "preserves a Preprod Agent's missing summary after %s",

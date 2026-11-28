@@ -17,7 +17,6 @@ import {
 } from "@/lib/evlog";
 import { isPreprodOn, type Network, networkKey } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
 import type { networkSyncLease } from "@/services/network-sync-lease";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
@@ -363,7 +362,7 @@ export async function handleSyncRequest(
     const preprodControl = preprod
       ? await import("@/helpers/preprod-control")
       : undefined;
-    const { networkSyncLease, SyncLeaseLost } = await import(
+    const { networkSyncLease, isNetworkSyncRefusal } = await import(
       "@/services/network-sync-lease"
     );
     const admission = await preprodControl?.readPreprodControl();
@@ -387,11 +386,7 @@ export async function handleSyncRequest(
       try {
         await syncOperation({ ...context, scope, lease });
       } catch (error) {
-        if (
-          error instanceof SyncLeaseLost ||
-          (preprod && error instanceof DetachedNetworkRefusal)
-        )
-          return "skipped";
+        if (isNetworkSyncRefusal(error, network)) return "skipped";
         throw error;
       }
     };

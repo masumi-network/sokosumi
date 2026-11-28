@@ -102,7 +102,7 @@ export default function mount(app: Hono) {
               ]),
             });
           } catch (error) {
-            if (isNetworkSyncRefusal(error)) throw error;
+            if (isNetworkSyncRefusal(error, network)) throw error;
             logCoreWarning(context.log, {
               message:
                 "The x402 buy-side readiness sync failed; the registry sync continues",
