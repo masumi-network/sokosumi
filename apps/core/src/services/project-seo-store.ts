@@ -21,7 +21,10 @@ export const SEO_EVIDENCE_ORDER = [
   { id: "desc" },
 ] satisfies Prisma.ProjectSeoObservationOrderByWithRelationInput[];
 export const SEO_ARTIFACT_MAX_BYTES = 2 * 1024 * 1024;
-/** Full audits and crawl continuations include evidence from multiple pages in one report. */
+/**
+ * Paid full audits and crawl continuations bundle evidence for multiple pages. A continuation can
+ * include crawl examples and up to 15 page audits (about 2.4 MB at the worker's limits).
+ */
 export const SEO_MULTI_PAGE_REPORT_MAX_BYTES = 8 * 1024 * 1024;
 export const SEO_ARTIFACT_TIMEOUT_MS = 20_000;
 export const sha256 = (value: string): string =>
