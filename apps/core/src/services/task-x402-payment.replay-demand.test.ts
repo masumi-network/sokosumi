@@ -15,6 +15,8 @@ vi.mock("@/config/env", async (importOriginal) => {
   };
 });
 
+import { findListedX402Agent } from "@/lib/agent-catalog/availability";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 import {
   AGENT_ID,
   agentRow,
@@ -27,15 +29,12 @@ import {
   USDC,
   verificationInput,
 } from "./__tests__/fixtures/task-x402-payment.replay.fixtures";
-import {
-  assertReplayMatchesStoredDemand,
-  findListedX402Agent,
-} from "./task-x402-payment.replay-demand";
+import { assertReplayMatchesStoredDemand } from "./task-x402-payment.replay-demand";
 
 describe("findListedX402Agent", () => {
   it("mirrors the listing's correlated entry-type and discovery-URL gates", async () => {
     const tx = createTx();
-    await findListedX402Agent(AGENT_ID, tx);
+    await findListedX402Agent(testNetworkScope(), AGENT_ID, tx);
     expect(tx.agent.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -79,7 +78,9 @@ describe("findListedX402Agent", () => {
     async (_type, overrides) => {
       const tx = createTx(agentRow(overrides));
 
-      await expect(findListedX402Agent(AGENT_ID, tx)).resolves.toBeNull();
+      await expect(
+        findListedX402Agent(testNetworkScope(), AGENT_ID, tx),
+      ).resolves.toBeNull();
     },
   );
 
@@ -90,7 +91,7 @@ describe("findListedX402Agent", () => {
     // agree on row identity or a listed price and a paid price can come from
     // different rows of the same source.
     const tx = createTx();
-    await findListedX402Agent(AGENT_ID, tx);
+    await findListedX402Agent(testNetworkScope(), AGENT_ID, tx);
     expect(tx.agent.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         include: {
@@ -113,6 +114,7 @@ describe("assertReplayMatchesStoredDemand", () => {
   it("returns the normalized 402 when it re-verifies to the stored tuple", async () => {
     const tx = createTx();
     const normalized = await assertReplayMatchesStoredDemand(
+      testNetworkScope(),
       storedRecord(),
       verificationInput(),
       tx,
@@ -137,6 +139,7 @@ describe("assertReplayMatchesStoredDemand", () => {
     );
 
     const normalized = await assertReplayMatchesStoredDemand(
+      testNetworkScope(),
       storedRecord(),
       verificationInput(),
       tx,
@@ -160,7 +163,12 @@ describe("assertReplayMatchesStoredDemand", () => {
     const tx = createTx(poisoned);
 
     await expect(
-      assertReplayMatchesStoredDemand(storedRecord(), verificationInput(), tx),
+      assertReplayMatchesStoredDemand(
+        testNetworkScope(),
+        storedRecord(),
+        verificationInput(),
+        tx,
+      ),
     ).rejects.toThrow("verifier crashed");
   });
 
@@ -187,6 +195,7 @@ describe("assertReplayMatchesStoredDemand", () => {
     const tx = createTx();
 
     const normalized = await assertReplayMatchesStoredDemand(
+      testNetworkScope(),
       storedRecord(),
       verificationInput([
         verified,
@@ -213,6 +222,7 @@ describe("assertReplayMatchesStoredDemand", () => {
     const tx = createTx();
     const err = await captureThrow(
       assertReplayMatchesStoredDemand(
+        testNetworkScope(),
         storedRecord(),
         verificationInput([
           {
