@@ -126,6 +126,10 @@
       "schedule": "30 * * * *"
     },
     {
+      "path": "/sync/preprod/task-x402-payment-headers-purge",
+      "schedule": "30 * * * *"
+    },
+    {
       "path": "/sync/expired-verifications-purge",
       "schedule": "45 * * * *"
     },
