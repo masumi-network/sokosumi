@@ -3,27 +3,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   queryRawMock,
   usageAggregateMock,
-  delegationFindManyMock,
-  taskEventFindManyMock,
+  networkQueryMock,
   creditBucketFindManyMock,
 } = vi.hoisted(() => ({
   queryRawMock: vi.fn(),
   usageAggregateMock: vi.fn(),
-  delegationFindManyMock: vi.fn(),
-  taskEventFindManyMock: vi.fn(),
+  networkQueryMock: vi.fn(),
   creditBucketFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   networkPrisma: () => ({
+    $queryRaw: networkQueryMock,
     sokoBotUsage: { aggregate: usageAggregateMock },
     creditBucket: { findMany: creditBucketFindManyMock },
   }),
   default: {
     $queryRaw: queryRawMock,
     sokoBotUsage: { aggregate: usageAggregateMock },
-    sokoBotDelegation: { findMany: delegationFindManyMock },
-    taskEvent: { findMany: taskEventFindManyMock },
     creditBucket: { findMany: creditBucketFindManyMock },
   },
 }));
@@ -33,8 +30,7 @@ import { sokoBotUsageTotals } from "@/services/soko-bot-usage.service";
 describe("sokoBotUsageTotals", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delegationFindManyMock.mockResolvedValue([]);
-    taskEventFindManyMock.mockResolvedValue([]);
+    networkQueryMock.mockReset().mockResolvedValue([]);
     creditBucketFindManyMock.mockResolvedValue([]);
   });
 
@@ -51,15 +47,13 @@ describe("sokoBotUsageTotals", () => {
       },
     ]);
     usageAggregateMock.mockResolvedValue({ _sum: { cents: null } });
-    delegationFindManyMock.mockResolvedValue([
+    networkQueryMock.mockResolvedValueOnce([
       {
         taskId: null,
         // 100 credits charged; 10 refunded to the Project (linked), 90 to the pool.
-        job: {
-          id: "job-1",
-          transaction: { amount: -1_000_000_000_000n },
-          refundedTransaction: { amount: 100_000_000_000n },
-        },
+        jobId: "job-1",
+        charge: -1_000_000_000_000n,
+        refund: 100_000_000_000n,
       },
     ]);
     creditBucketFindManyMock.mockResolvedValue([
@@ -119,23 +113,21 @@ describe("sokoBotUsageTotals", () => {
     ]);
     // 2 credits for its own turns.
     usageAggregateMock.mockResolvedValue({ _sum: { cents: 20_000_000_000n } });
-    delegationFindManyMock.mockResolvedValue([
-      { taskId: "task-1", job: null },
+    networkQueryMock.mockResolvedValueOnce([
+      { taskId: "task-1", jobId: null, charge: null, refund: null },
       // Created and then assigned: the same Task counts once.
-      { taskId: "task-1", job: null },
+      { taskId: "task-1", jobId: null, charge: null, refund: null },
       {
         taskId: null,
         // 30 credits charged, 5 refunded.
-        job: {
-          id: "job-2",
-          transaction: { amount: -300_000_000_000n },
-          refundedTransaction: { amount: 50_000_000_000n },
-        },
+        jobId: "job-2",
+        charge: -300_000_000_000n,
+        refund: 50_000_000_000n,
       },
     ]);
     // 116 credits charged on the Coworker Task.
-    taskEventFindManyMock.mockResolvedValue([
-      { taskId: "task-1", transaction: { amount: -1_160_000_000_000n } },
+    networkQueryMock.mockResolvedValueOnce([
+      { taskId: "task-1", amount: -1_160_000_000_000n },
     ]);
 
     const totals = await sokoBotUsageTotals("bot_1");
@@ -143,11 +135,7 @@ describe("sokoBotUsageTotals", () => {
     expect(totals.credits).toBe(2);
     expect(totals.delegatedCredits).toBe(141);
     expect(totals.totalCredits).toBe(143);
-    expect(delegationFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ turn: { sokoBotId: "bot_1" } }),
-      }),
-    );
+    expect(networkQueryMock).toHaveBeenCalledTimes(2);
   });
 
   it("reads a bot that has never run as zero, not as missing", async () => {

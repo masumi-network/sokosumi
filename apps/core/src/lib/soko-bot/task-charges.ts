@@ -1,6 +1,7 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
-import prisma from "@/lib/db/prisma";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 /**
  * Credits actually charged on each Task, from the debits its events carry
@@ -12,16 +13,21 @@ export async function taskCreditsCharged(
 ): Promise<Map<string, number>> {
   const charged = new Map<string, number>();
   if (taskIds.length === 0) return charged;
-  const events = await prisma.taskEvent.findMany({
-    where: { taskId: { in: [...taskIds] }, transaction: { amount: { lt: 0 } } },
-    select: { taskId: true, transaction: { select: { amount: true } } },
-  });
-  for (const event of events) {
-    const amount = event.transaction?.amount;
-    if (amount == null) continue;
+  const scope = createNetworkScope("mainnet");
+  const events = await scope.networkDb.$queryRaw<
+    { taskId: string; amount: bigint }[]
+  >`
+    SELECT event."taskId", debit.amount
+    FROM ${sharedTable("taskEvent")} event
+    JOIN ${scope.networkTable("Transaction")} debit ON debit.id = event."transactionId"
+    WHERE event."taskId" = ANY(${[...taskIds]}::text[])
+      AND (event.network IS NULL OR event.network = 'mainnet')
+      AND debit.amount < 0
+  `;
+  for (const { taskId, amount } of events) {
     charged.set(
-      event.taskId,
-      (charged.get(event.taskId) ?? 0) + convertCentsToCredits(-amount),
+      taskId,
+      (charged.get(taskId) ?? 0) + convertCentsToCredits(-amount),
     );
   }
   return charged;

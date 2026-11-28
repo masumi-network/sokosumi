@@ -557,7 +557,10 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  networkPrisma: () => ({ agent: { findFirst: agentFindFirstMock } }),
+  networkPrisma: () => ({
+    agent: { findFirst: agentFindFirstMock },
+    $queryRaw: taskChargeEventsMock,
+  }),
   default: {
     // The search for text only a full audit's hidden line holds finds none.
     $queryRaw: () => Promise.resolve([]),
@@ -568,7 +571,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: vi.fn().mockResolvedValue([]),
     },
     sokoBotMemoryRevision: { findFirst: memoryRevisionFindFirstMock },
-    taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     fileResource: {
       findUnique: files.resourceFindUnique,
@@ -2726,8 +2728,8 @@ describe("SokoBotRuntimeService authorization", () => {
     taskCountMock.mockResolvedValue(1);
     // Two debits and a refund: only what was billed counts.
     taskChargeEventsMock.mockResolvedValueOnce([
-      { taskId: "task-1", transaction: { amount: -4_000_000_000_000n } },
-      { taskId: "task-1", transaction: { amount: -213_100_000_000n } },
+      { taskId: "task-1", amount: -4_000_000_000_000n },
+      { taskId: "task-1", amount: -213_100_000_000n },
     ]);
 
     const result = await new SokoBotRuntimeService().executeTool({
