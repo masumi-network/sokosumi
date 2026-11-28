@@ -13081,6 +13081,7 @@
         "hint": "Personen, mit denen du gesprochen hast, aber nicht in den letzten 60 Tagen, ohne geplantes Follow-up.",
         "open": "{count, plural, =1 {1 still geworden} other {# still geworden}}",
         "followUp": "Nächste Woche nachfassen",
+        "followUpShort": "Nächste Woche",
         "followUpName": "Nächste Woche bei {name} nachfassen",
         "followUpOn": "Follow-up {date}",
         "followUpSet": "Follow-up mit {name} für nächste Woche geplant",

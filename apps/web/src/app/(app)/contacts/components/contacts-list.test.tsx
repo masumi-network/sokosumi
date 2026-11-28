@@ -115,6 +115,8 @@ describe("ContactsList", () => {
     expect(onFollowUp).toHaveBeenCalledExactlyOnceWith(quiet);
     expect(onOpen).not.toHaveBeenCalled();
     expect(screen.getByText("quiet.followUpOn:Nov 30")).toBeTruthy();
+    // The row says when they last talked, not the reply chip, to keep room.
+    expect(screen.queryByText("replyStates.NO_REPLY")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "quiet.followUpName:Ana Ruiz" }),
     ).toBeNull();

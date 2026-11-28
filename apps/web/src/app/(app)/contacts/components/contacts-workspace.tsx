@@ -361,6 +361,8 @@ export function ContactsWorkspace({
     if (!(await update(contact, { followUpAt }))) return;
     void cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
     toast.success(t("quiet.followUpSet", { name: contact.name }), {
+      // Long enough to reach Undo after reading the message.
+      duration: 10_000,
       action: {
         label: t("bulk.undo"),
         onClick: () =>

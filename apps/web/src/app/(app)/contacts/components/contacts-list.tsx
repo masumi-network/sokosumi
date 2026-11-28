@@ -81,8 +81,10 @@ export function ContactsList({
                     </span>
                   ) : null}
                 </span>
-                {contact.replyState === "NO_REPLY" ||
-                contact.replyState === "AWAITING_REPLY" ? (
+                {/* Gone quiet rows say when they last talked instead. */}
+                {!onFollowUp &&
+                (contact.replyState === "NO_REPLY" ||
+                  contact.replyState === "AWAITING_REPLY") ? (
                   <ReplyChip
                     state={contact.replyState}
                     since={contact.awaitingReplySince}
@@ -120,7 +122,11 @@ export function ContactsList({
                   onClick={() => onFollowUp(contact)}
                 >
                   <CalendarPlus aria-hidden className="size-4" />
-                  {t("quiet.followUp")}
+                  {/* Phones keep room for the name: the short label. */}
+                  <span className="sm:hidden">{t("quiet.followUpShort")}</span>
+                  <span className="hidden sm:inline">
+                    {t("quiet.followUp")}
+                  </span>
                 </Button>
               ) : null}
             </li>

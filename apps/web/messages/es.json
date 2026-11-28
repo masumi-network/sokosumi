@@ -13081,6 +13081,7 @@
         "hint": "Personas con las que hablaste antes, pero no en los últimos 60 días, sin seguimiento planificado.",
         "open": "{count, plural, =1 {1 sin contacto reciente} other {# sin contacto reciente}}",
         "followUp": "Seguimiento la próxima semana",
+        "followUpShort": "Próxima semana",
         "followUpName": "Hacer seguimiento con {name} la próxima semana",
         "followUpOn": "Seguimiento {date}",
         "followUpSet": "Seguimiento con {name} planificado para la próxima semana",
