@@ -276,7 +276,7 @@ describe("contacts routes", () => {
     });
     const listId = "0199f1c2-7a3b-7c1d-9e2f-3a4b5c6d7e90";
     const response = await request(
-      `/contacts?stage=INVESTOR&replyState=NO_REPLY&kind=PERSON&knownByMe=true&lastContactOlderThanDays=90&listId=${listId}&sort=lastContactAt&limit=5`,
+      `/contacts?stage=INVESTOR&replyState=NO_REPLY&kind=PERSON&knownByMe=true&lastContactOlderThanDays=90&hasFollowUp=false&listId=${listId}&sort=lastContactAt&limit=5`,
     );
     expect(response.status).toBe(200);
     expect(services.listContacts).toHaveBeenCalledWith(
@@ -288,6 +288,7 @@ describe("contacts routes", () => {
           kind: "PERSON",
           knownByMe: true,
           lastContactOlderThanDays: 90,
+          hasFollowUp: false,
         }),
         listId,
         sort: "lastContactAt",

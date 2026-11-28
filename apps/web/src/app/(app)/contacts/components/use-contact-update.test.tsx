@@ -3,10 +3,23 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FAILURE_TOAST_WAIT_MS, useListToggle } from "./use-contact-update";
-import { CONTACTS_KEY, contactKey } from "./use-contacts-data";
+import {
+  FAILURE_TOAST_WAIT_MS,
+  useContactUpdate,
+  useListToggle,
+  writeSavedContact,
+} from "./use-contact-update";
+import {
+  CONTACT_QUIET_KEY,
+  CONTACTS_KEY,
+  contactKey,
+} from "./use-contacts-data";
 
-const f = vi.hoisted(() => ({ changeMembers: vi.fn(), toastError: vi.fn() }));
+const f = vi.hoisted(() => ({
+  changeMembers: vi.fn(),
+  update: vi.fn(),
+  toastError: vi.fn(),
+}));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     [key, ...Object.values(values ?? {})].join(" "),
@@ -14,7 +27,7 @@ vi.mock("next-intl", () => ({
 vi.mock("sonner", () => ({ toast: { error: f.toastError } }));
 vi.mock("@/lib/auth/auth.client", () => ({ useSession: () => ({}) }));
 vi.mock("@/lib/services/contacts.client", () => ({
-  contactsService: { changeMembers: f.changeMembers },
+  contactsService: { changeMembers: f.changeMembers, update: f.update },
 }));
 
 const list = { id: "list-1", name: "Investors", color: "blue" } as ContactList;
@@ -270,5 +283,73 @@ describe("useListToggle", () => {
     finish();
     await act(async () => done);
     expect(result.current.isSaving("contact-1", "list-1")).toBe(false);
+  });
+});
+
+describe("useContactUpdate", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  function setupUpdate() {
+    const cache = new QueryClient();
+    const invalidate = vi.spyOn(cache, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={cache}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useContactUpdate(), { wrapper });
+    return { update: result.current, invalidate };
+  }
+  const quietRefresh = (invalidate: { mock: { calls: unknown[][] } }) =>
+    invalidate.mock.calls.some(
+      ([filters]) =>
+        (filters as { queryKey?: unknown } | undefined)?.queryKey ===
+        CONTACT_QUIET_KEY,
+    );
+
+  it("refreshes the Gone quiet count when a follow-up date changes", async () => {
+    const saved = { ...contact, version: 2, followUpAt: null };
+    f.update.mockResolvedValue(saved);
+    const { update, invalidate } = setupUpdate();
+    const onSaved = vi.fn();
+    await act(() =>
+      update(
+        { ...contact, version: 1 } as Contact,
+        { followUpAt: null },
+        {},
+        onSaved,
+      ),
+    );
+    expect(quietRefresh(invalidate)).toBe(true);
+    // The caller gets the saved contact, e.g. its new version for an Undo.
+    expect(onSaved).toHaveBeenCalledExactlyOnceWith(saved);
+  });
+
+  it("leaves the Gone quiet count alone for other fields", async () => {
+    f.update.mockResolvedValue({ ...contact, version: 2 });
+    const { update, invalidate } = setupUpdate();
+    await act(() =>
+      update({ ...contact, version: 1 } as Contact, { role: "CEO" }),
+    );
+    expect(quietRefresh(invalidate)).toBe(false);
+  });
+});
+
+describe("writeSavedContact", () => {
+  it("refreshes for a write made without the hook (Undo) what the hook refreshes", () => {
+    const cache = new QueryClient();
+    cache.setQueryData(contactKey(contact.id), contact);
+    const invalidate = vi.spyOn(cache, "invalidateQueries");
+    const saved = { ...contact, version: 3, followUpAt: null } as Contact;
+    writeSavedContact(cache, saved, { followUpAt: null });
+    const keys = invalidate.mock.calls.map(
+      ([filters]) => (filters as { queryKey?: unknown } | undefined)?.queryKey,
+    );
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        CONTACT_QUIET_KEY,
+        contactKey(contact.id),
+        ["contact-timeline", contact.id],
+      ]),
+    );
+    expect(cache.getQueryData(contactKey(contact.id))).toEqual(saved);
   });
 });

@@ -99,6 +99,15 @@ describe("contactFilterWhere", () => {
     ]);
   });
 
+  it("keeps people with or without a follow-up date", async () => {
+    expect(
+      await contactFilterWhere(actor, { hasFollowUp: false }, now),
+    ).toEqual([{ followUpAt: null }]);
+    expect(await contactFilterWhere(actor, { hasFollowUp: true }, now)).toEqual(
+      [{ followUpAt: { not: null } }],
+    );
+  });
+
   it("searches names, organizations, roles, summaries, channels and locations without case", async () => {
     queryRaw.mockResolvedValueOnce([]);
     const [search] = await contactFilterWhere(actor, { search: "acme" }, now);

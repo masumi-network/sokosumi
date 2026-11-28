@@ -12481,7 +12481,8 @@
         "mine": "Nobody you have talked to yet. Everyone you email or meet shows up here.",
         "recent": "Nobody was added in the last two weeks.",
         "list": "This list is empty. Select people in All contacts and add them here.",
-        "archived": "No archived contacts. People you archive show up here, ready to restore."
+        "archived": "No archived contacts. People you archive show up here, ready to restore.",
+        "quiet": "Nobody has gone quiet. People you have not talked to in 60 days show up here."
       },
       "views": {
         "label": "Contact views",
@@ -13074,6 +13075,17 @@
         "import": "Import",
         "cancel": "Cancel",
         "done": "Done"
+      },
+      "quiet": {
+        "title": "Gone quiet",
+        "hint": "People you talked to before, not in the last 60 days, with no follow-up planned.",
+        "open": "{count, plural, =1 {1 gone quiet} other {# gone quiet}}",
+        "followUp": "Follow up next week",
+        "followUpShort": "Next week",
+        "followUpFor": " for {name}",
+        "followUpOn": "Follow-up {date}",
+        "followUpSet": "Follow-up with {name} planned for next week",
+        "lastTalked": "Last talked {when}"
       }
     },
     "Fundraising": {

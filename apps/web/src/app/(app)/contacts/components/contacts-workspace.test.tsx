@@ -11,8 +11,35 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { rows, setStage, undoStage, unarchive, toast } = vi.hoisted(() => ({
+const {
+  rows,
+  setStage,
+  undoStage,
+  unarchive,
+  toast,
+  update,
+  quietCount,
+  getContact,
+  saveContact,
+  savedWrite,
+} = vi.hoisted(() => ({
   rows: { current: [] as Array<Pick<Contact, "id" | "name" | "channels">> },
+  // Like the real hook: saves, then hands the saved contact to `onSaved`.
+  update: vi.fn(
+    async (
+      contact: { id: string; version?: number },
+      _fields: unknown,
+      _optimistic?: unknown,
+      onSaved?: (saved: unknown) => void,
+    ) => {
+      onSaved?.({ ...contact, version: 8 });
+      return true;
+    },
+  ),
+  savedWrite: vi.fn(),
+  quietCount: { current: 0 },
+  getContact: vi.fn(),
+  saveContact: vi.fn(),
   setStage: vi.fn(),
   undoStage: vi.fn(),
   unarchive: vi.fn(),
@@ -26,10 +53,17 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("sonner", () => ({ toast }));
 vi.mock("@/lib/services/contacts.client", () => ({
-  contactsService: { setStage, undoStage, unarchive },
+  contactsService: {
+    setStage,
+    undoStage,
+    unarchive,
+    get: getContact,
+    update: saveContact,
+  },
 }));
 vi.mock("./use-contact-update", () => ({
-  useContactUpdate: () => vi.fn(),
+  useContactUpdate: () => update,
+  writeSavedContact: savedWrite,
   useImportanceUpdate: () => vi.fn(),
 }));
 vi.mock("./list-overview", () => ({ ListOverview: () => null }));
@@ -39,11 +73,23 @@ vi.mock("./contacts-list", () => ({
   ContactsList: ({
     contacts,
     onRestore,
+    onFollowUp,
   }: {
     contacts: Contact[];
     onRestore?: (contact: Contact) => void;
+    onFollowUp?: (contact: Contact) => void;
   }) =>
-    onRestore ? (
+    onFollowUp ? (
+      <ul aria-label="quiet rows">
+        {contacts.map((contact) => (
+          <li key={contact.id}>
+            <button type="button" onClick={() => onFollowUp(contact)}>
+              follow up {contact.name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : onRestore ? (
       <ul aria-label="archived rows">
         {contacts.map((contact) => (
           <li key={contact.id}>
@@ -97,6 +143,8 @@ const SMART_LIST: ContactList = {
 vi.mock("./use-contacts-data", () => ({
   CONTACTS_KEY: ["contacts"],
   CONTACT_LISTS_KEY: ["contact-lists"],
+  CONTACT_QUIET_KEY: ["contact-quiet"],
+  useQuietCount: () => ({ data: quietCount.current }),
   DUPLICATE_GROUP_LIMIT: 200,
   refreshContacts: vi.fn(async () => {}),
   useContactDuplicates: () => ({ data: [] }),
@@ -151,6 +199,11 @@ beforeEach(() => {
   unarchive.mockReset();
   toast.success.mockReset();
   toast.error.mockReset();
+  update.mockClear();
+  savedWrite.mockReset();
+  getContact.mockReset();
+  saveContact.mockReset();
+  quietCount.current = 0;
 });
 
 function renderSmartList(searchParams = "?list=list-leads") {
@@ -452,5 +505,79 @@ describe("ContactsWorkspace Archived view", () => {
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("panel.restored"),
     );
+  });
+});
+
+describe("Gone quiet", () => {
+  it("opens from its count, not a tab, and plans a follow-up next week", async () => {
+    quietCount.current = 2;
+    renderSmartList("");
+    expect(screen.queryByRole("radio", { name: "quiet.title" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "quiet.open" }));
+    expect(screen.getByRole("heading", { name: "quiet.title" })).toBeTruthy();
+    expect(screen.getByText("quiet.hint")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "quiet.open" })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow up Ada Lead" }),
+    );
+    expect(update).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: "c1" }),
+      { followUpAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
+      {},
+      expect.any(Function),
+    );
+    expect(toast.success.mock.lastCall?.[0]).toBe("quiet.followUpSet");
+  });
+
+  it("moves focus to the Gone quiet heading on entry", async () => {
+    quietCount.current = 2;
+    renderSmartList("");
+    await userEvent.click(screen.getByRole("button", { name: "quiet.open" }));
+    expect(screen.getByRole("heading", { name: "quiet.title" })).toHaveFocus();
+  });
+
+  it("undoes on the version its own save returned", async () => {
+    quietCount.current = 1;
+    saveContact.mockResolvedValue({ id: "c1", name: "Ada Lead", version: 9 });
+    renderSmartList("?list=quiet");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow up Ada Lead" }),
+    );
+    await act(async () => undoAction("success")());
+    expect(getContact).not.toHaveBeenCalled();
+    expect(saveContact).toHaveBeenCalledExactlyOnceWith("c1", {
+      followUpAt: null,
+      version: 8,
+    });
+    // The same refresh a hook save gets: row, panel, timeline, counts.
+    expect(savedWrite).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      expect.objectContaining({ version: 9 }),
+      { followUpAt: null },
+    );
+  });
+
+  it("keeps a teammate's later follow-up: Undo after their edit is refused", async () => {
+    quietCount.current = 1;
+    // A teammate rescheduled after our save, so Core holds version 9 and
+    // refuses our Undo on version 8.
+    saveContact.mockRejectedValue({ kind: "contact_version_conflict" });
+    renderSmartList("?list=quiet");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow up Ada Lead" }),
+    );
+    savedWrite.mockClear();
+    await act(async () => undoAction("success")());
+    expect(saveContact).toHaveBeenCalledExactlyOnceWith("c1", {
+      followUpAt: null,
+      version: 8,
+    });
+    expect(savedWrite).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("errors.versionConflict");
+  });
+
+  it("shows no count when nobody went quiet", () => {
+    renderSmartList("");
+    expect(screen.queryByRole("button", { name: "quiet.open" })).toBeNull();
   });
 });

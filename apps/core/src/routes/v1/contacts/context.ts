@@ -35,6 +35,7 @@ export function contactQueryOptions(
       lastContactOlderThanDays: query.lastContactOlderThanDays,
       createdWithinDays: query.createdWithinDays,
       followUpDue: flag(query.followUpDue),
+      hasFollowUp: flag(query.hasFollowUp),
       hasChannel: query.hasChannel,
       hasInteractions: flag(query.hasInteractions),
       organization: query.organization,

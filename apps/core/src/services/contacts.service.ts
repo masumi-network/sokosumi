@@ -1640,6 +1640,10 @@ export async function contactFilterWhere(
         : { OR: [{ followUpAt: null }, { followUpAt: { gt: today } }] },
     );
   }
+  if (filter.hasFollowUp !== undefined)
+    and.push({
+      followUpAt: filter.hasFollowUp ? { not: null } : null,
+    });
   if (filter.hasChannel)
     and.push({ channels: { some: { type: filter.hasChannel } } });
   if (filter.hasInteractions !== undefined)

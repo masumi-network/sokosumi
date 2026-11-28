@@ -10,11 +10,12 @@ import type {
   PostContactsStageUndoData,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { GitMerge, Users } from "lucide-react";
+import { Clock, GitMerge, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
@@ -31,6 +32,7 @@ import {
   defaultDirection,
   isContactPreset,
   matchesContactSearch,
+  nextWeekFollowUp,
   replaceVisibleSelection,
   smartFilterOf,
 } from "@/app/contacts/contacts-view";
@@ -72,7 +74,10 @@ import {
   ContactsFilterBar,
 } from "./contacts-toolbar";
 import { ContactsViewMenus } from "./contacts-views-bar";
-import { ContactsWorkspaceHeader } from "./contacts-workspace-header";
+import {
+  ContactsWorkspaceHeader,
+  SIDE_ROOM_HEADING_ID,
+} from "./contacts-workspace-header";
 import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { ImportLinkedInDialog } from "./import-linkedin-dialog";
@@ -80,7 +85,11 @@ import { ListOverview } from "./list-overview";
 import { ListSuggestions } from "./list-suggestions";
 import { MergeContactsDialog } from "./merge-contacts-dialog";
 import { useContactArchive } from "./use-contact-archive";
-import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
+import {
+  useContactUpdate,
+  useImportanceUpdate,
+  writeSavedContact,
+} from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
   CONTACT_LISTS_KEY,
@@ -91,6 +100,7 @@ import {
   useContactMap,
   useContactOrganizations,
   useContactRows,
+  useQuietCount,
   useTeammates,
 } from "./use-contacts-data";
 
@@ -171,7 +181,9 @@ export function ContactsWorkspace({
   // The archive is a plain list: the live layouts never show archived people,
   // and a link that names both opens the archive.
   const archived = view === "archived";
-  const layout = archived ? null : urlLayout;
+  // Gone quiet is a to-do list: one plain list, like the archive.
+  const quiet = view === "quiet";
+  const layout = archived || quiet ? null : urlLayout;
   const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -187,6 +199,7 @@ export function ContactsWorkspace({
   const duplicates = useContactDuplicates();
   const duplicateGroups = duplicates.data ?? [];
   const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
+  const quietCount = useQuietCount().data ?? 0;
   const organizations = useContactOrganizations(debouncedCompanySearch);
   const filters: ContactFilters = {
     stage,
@@ -349,6 +362,44 @@ export function ContactsWorkspace({
         : undefined,
     });
   }
+  /** Plans a follow-up next week; only offered to people without one. */
+  async function followUpNextWeek(contact: Contact) {
+    const followUpAt = nextWeekFollowUp(new Date());
+    let version = contact.version;
+    const saved = await update(contact, { followUpAt }, {}, (result) => {
+      version = result.version;
+    });
+    if (!saved) return;
+    toast.success(t("quiet.followUpSet", { name: contact.name }), {
+      // Long enough to reach Undo after reading the message.
+      duration: 10_000,
+      action: {
+        label: t("bulk.undo"),
+        onClick: () => void undoFollowUp(contact.id, version),
+      },
+    });
+  }
+  /**
+   * Clears the follow-up on the version our own save returned, so Core
+   * refuses it when a teammate changed the contact since. Saved before the
+   * row changes back, so the button never comes back on a stale version.
+   */
+  async function undoFollowUp(id: string, version: number) {
+    const fields = { followUpAt: null };
+    try {
+      writeSavedContact(
+        cache,
+        await contactsService.update(id, { ...fields, version }),
+        fields,
+      );
+    } catch (error) {
+      const { kind, message } = coreErrorOf(error);
+      if (kind === "contact_version_conflict") {
+        toast.error(t("errors.versionConflict"));
+        await refreshContacts(cache, id);
+      } else toast.error(message ?? t("errors.saveFailed"));
+    }
+  }
   async function markNotSame(group: Contact[]) {
     try {
       await contactsService.notDuplicates(group.map((contact) => contact.id));
@@ -387,6 +438,8 @@ export function ContactsWorkspace({
                 placeholder={t("toolbar.searchPlaceholder")}
                 value={search}
                 maxLength={200}
+                // Side rooms hide the layout toggles; let search fill their room.
+                className={archived || quiet ? "sm:max-w-none" : undefined}
                 onValueChange={(value) => void setSearch(value || null)}
               />
             )
@@ -501,6 +554,22 @@ export function ContactsWorkspace({
                 {viewList?.name.trim().toLowerCase() === "investors" ? (
                   <FundraisingLink className="h-10 md:h-8" />
                 ) : null}
+                {quietCount > 0 && !quiet && !archived ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 md:h-8"
+                    onClick={() => {
+                      // The button leaves with the view; land on its heading,
+                      // as the archive does.
+                      flushSync(() => changeView("quiet"));
+                      document.getElementById(SIDE_ROOM_HEADING_ID)?.focus();
+                    }}
+                  >
+                    <Clock aria-hidden className="size-4" />
+                    {t("quiet.open", { count: quietCount })}
+                  </Button>
+                ) : null}
                 {duplicateGroups.length ? (
                   <Button
                     size="sm"
@@ -519,6 +588,11 @@ export function ContactsWorkspace({
                 </span>
               </span>
             </div>
+            {quiet ? (
+              <p className="text-muted-foreground -mt-1 text-sm">
+                {t("quiet.hint")}
+              </p>
+            ) : null}
             {viewList?.description ? (
               <p className="text-muted-foreground -mt-1 truncate text-sm">
                 {viewList.description}
@@ -597,6 +671,16 @@ export function ContactsWorkspace({
                         </Button>
                       ) : undefined
                     }
+                  />
+                ) : quiet ? (
+                  <ContactsList
+                    contacts={contacts}
+                    onOpen={open}
+                    onFollowUp={(contact) => void followUpNextWeek(contact)}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
                   />
                 ) : archived ? (
                   // Archived people are read-only: no editable grid, no bulk

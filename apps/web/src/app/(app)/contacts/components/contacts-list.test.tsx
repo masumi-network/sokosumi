@@ -7,6 +7,10 @@ import { ContactsBulkBar, ContactsFilterBar } from "./contacts-toolbar";
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join(",")}` : key,
+  useFormatter: () => ({
+    relativeTime: () => "3 months ago",
+    dateTime: () => "Nov 30",
+  }),
 }));
 
 const contact = (overrides: Partial<Contact>): Contact => ({
@@ -78,6 +82,42 @@ describe("ContactsList", () => {
     );
     expect(onRestore).toHaveBeenCalledExactlyOnceWith(archived);
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("offers a follow-up next week per quiet row, and shows one once set", () => {
+    const onOpen = vi.fn();
+    const onFollowUp = vi.fn();
+    const quiet = contact({
+      lastContactAt: new Date(Date.now() - 90 * 86_400_000),
+    });
+    const planned = contact({
+      id: "c-2",
+      name: "Ana Ruiz",
+      followUpAt: "2026-11-30",
+    });
+    render(
+      <ContactsList
+        contacts={[quiet, planned]}
+        onOpen={onOpen}
+        onFollowUp={onFollowUp}
+        hasMore={false}
+        loadingMore={false}
+        onLoadMore={() => {}}
+        footer="2 of 2"
+      />,
+    );
+    expect(screen.getAllByText("quiet.lastTalked:3 months ago")).toHaveLength(
+      1,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /^quiet.followUpShort.*Marc Dubois/ }),
+    );
+    expect(onFollowUp).toHaveBeenCalledExactlyOnceWith(quiet);
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(screen.getByText("quiet.followUpOn:Nov 30")).toBeTruthy();
+    // The row says when they last talked, not the reply chip, to keep room.
+    expect(screen.queryByText("replyStates.NO_REPLY")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Ana Ruiz$/ })).toBeNull();
   });
 
   it("shows the email and how long a reply has been missing, and opens the person", () => {

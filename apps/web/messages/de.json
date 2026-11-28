@@ -12481,7 +12481,8 @@
         "mine": "Noch niemand, mit dem du gesprochen hast. Alle, denen du schreibst oder die du triffst, erscheinen hier.",
         "recent": "In den letzten zwei Wochen kam niemand dazu.",
         "list": "Diese Liste ist leer. Wähle Menschen unter „Alle Kontakte“ aus und füge sie hier hinzu.",
-        "archived": "Keine archivierten Kontakte. Wen du archivierst, findest du hier und kannst ihn wiederherstellen."
+        "archived": "Keine archivierten Kontakte. Wen du archivierst, findest du hier und kannst ihn wiederherstellen.",
+        "quiet": "Niemand ist still geworden. Personen, mit denen du seit 60 Tagen nicht gesprochen hast, erscheinen hier."
       },
       "views": {
         "label": "Kontaktansichten",
@@ -13074,6 +13075,17 @@
         "import": "Importieren",
         "cancel": "Abbrechen",
         "done": "Fertig"
+      },
+      "quiet": {
+        "title": "Still geworden",
+        "hint": "Personen, mit denen du gesprochen hast, aber nicht in den letzten 60 Tagen, ohne geplantes Follow-up.",
+        "open": "{count, plural, =1 {1 still geworden} other {# still geworden}}",
+        "followUp": "Nächste Woche nachfassen",
+        "followUpShort": "Nächste Woche",
+        "followUpFor": " für {name}",
+        "followUpOn": "Follow-up {date}",
+        "followUpSet": "Follow-up mit {name} für nächste Woche geplant",
+        "lastTalked": "Zuletzt gesprochen {when}"
       }
     },
     "Fundraising": {
