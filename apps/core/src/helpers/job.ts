@@ -1022,6 +1022,9 @@ async function readSplitJobPage(
   const { networkDb, sharedDb, networkTable } = networkScope;
   const { sql, empty } = PrismaRaw;
   const jobTable = networkTable("Job");
+  const coworkerTask = coworkerId
+    ? buildCoworkerJobParentTaskSql(coworkerId, coworkerVendorId)
+    : undefined;
   const projectFilter =
     projectId === undefined
       ? empty
@@ -1031,9 +1034,10 @@ async function readSplitJobPage(
   const matching = sql`
     FROM ${jobTable} j
     LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
+    ${coworkerTask?.join ?? empty}
     WHERE j."workspaceId" = ${workspaceContext.workspaceId}::uuid
     ${(options.scope ?? "owned") === "owned" ? sql`AND j."ownerId" = ${userContext.userId}` : empty}
-    ${coworkerId ? buildCoworkerJobParentTaskSql(coworkerId, coworkerVendorId) : buildHumanJobParentVisibilitySql(userContext.userId)}
+    ${coworkerTask?.predicate ?? buildHumanJobParentVisibilitySql(userContext.userId)}
     ${agentId ? sql`AND j."agentId" = ${agentId}` : empty}
     ${projectFilter}
     ${sokoBotId ? sql`AND t."assigneeSokoBotId" = ${sokoBotId}::uuid` : empty}

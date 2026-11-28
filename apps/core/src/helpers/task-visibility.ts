@@ -416,17 +416,19 @@ export function buildHumanJobParentVisibilitySql(
 export function buildCoworkerJobParentTaskSql(
   coworkerId: string,
   vendorId?: string,
-): PrismaRaw.Sql {
+) {
   const privateSibling = vendorId
     ? PrismaRaw.sql`
         OR (
           t.visibility = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
-          AND EXISTS (
-            SELECT 1 FROM ${sharedTable("coworker")} c
-            WHERE c.id = t."assigneeId" AND c."vendorId" = ${vendorId}::uuid
-          )
+          AND c."vendorId" = ${vendorId}::uuid
         )
       `
     : PrismaRaw.empty;
-  return PrismaRaw.sql`AND (t."assigneeId" = ${coworkerId} ${privateSibling})`;
+  return {
+    join: vendorId
+      ? PrismaRaw.sql`LEFT JOIN ${sharedTable("coworker")} c ON c.id = t."assigneeId"`
+      : PrismaRaw.empty,
+    predicate: PrismaRaw.sql`AND (t."assigneeId" = ${coworkerId} ${privateSibling})`,
+  };
 }
