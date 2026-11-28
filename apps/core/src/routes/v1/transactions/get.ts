@@ -12,7 +12,6 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
 import { creditViewForRequest } from "@/lib/credits/view";
 import prisma from "@/lib/db/prisma";
 import {
@@ -108,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       loadUserPreviewsByIds(userIds, prisma),
     ]);
     const items = rows.map((row) =>
-      mapTransactionHistoryRow(row, { agentPreviewById, userPreviewById }),
+      view.item(row, { agentPreviewById, userPreviewById }),
     );
     const paginationMeta = createPaginationMeta(
       items,

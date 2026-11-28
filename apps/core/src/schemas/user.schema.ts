@@ -8,6 +8,7 @@ import {
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SOCIAL_PROVIDER_IDS } from "@/lib/auth-social-providers";
+import { NETWORKS } from "@/lib/network";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 const creditBucketBreakdownItemSchema = z
@@ -332,6 +333,7 @@ export const creditsResponseSchema = z.object({
     description:
       "Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.",
   }),
+  network: z.enum(NETWORKS),
 });
 
 export const updateUserNameSchema = z

@@ -14,6 +14,8 @@ import { errorHandler } from "@/helpers/error-handler";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { NETWORK_HEADER } from "@/middleware/network-scope";
+import { onSplitLayout } from "@/test/split-layout";
 
 import transactionsApp from "./index";
 
@@ -196,6 +198,37 @@ describe.skipIf(!enabled)(
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }, 60000);
 
+    it("names Mainnet on its ledger row", async () => {
+      const response = await appFor(memberA, organizationId).request(
+        `/transactions?scope=workspace&taskId=${publicTaskId}`,
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).data).toEqual([
+        expect.objectContaining({
+          id: transactionIds[0],
+          credits: 2,
+          network: "mainnet",
+          charged: true,
+        }),
+      ]);
+    });
+
+    it.skipIf(onSplitLayout)(
+      "refuses a Preprod ledger on today's layout",
+      async () => {
+        const response = await appFor(memberA, organizationId).request(
+          "/transactions",
+          {
+            headers: { [NETWORK_HEADER]: "preprod" },
+          },
+        );
+        expect(response.status).toBe(403);
+        const body = await response.json();
+        expect(body.kind).toBe("preprod_off");
+        expect(body).not.toHaveProperty("data");
+      },
+    );
+
     it("totals a public Task for any member and a private one for its owner", async () => {
       const publicTotal = await appFor(memberB, organizationId).request(
         `/transactions/total?scope=workspace&taskId=${publicTaskId}`,
@@ -204,13 +237,18 @@ describe.skipIf(!enabled)(
       expect((await publicTotal.json()).data).toEqual({
         credits: 2,
         count: 1,
+        network: "mainnet",
       });
 
       const ownPrivate = await appFor(memberA, organizationId).request(
         `/transactions/total?scope=workspace&taskId=${privateTaskId}`,
       );
       expect(ownPrivate.status).toBe(200);
-      expect((await ownPrivate.json()).data).toEqual({ credits: 2, count: 1 });
+      expect((await ownPrivate.json()).data).toEqual({
+        credits: 2,
+        count: 1,
+        network: "mainnet",
+      });
     });
 
     it.each(["/total", "", "/daily", "/export"])(

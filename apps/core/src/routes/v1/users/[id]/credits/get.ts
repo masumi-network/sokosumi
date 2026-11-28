@@ -93,6 +93,7 @@ const route = withCoworkerContextHeaderParameters(
               buffer: 12.5,
               total: 70,
             },
+            network: "mainnet",
           },
           meta: {
             timestamp: "2025-01-01T00:00:00.000Z",

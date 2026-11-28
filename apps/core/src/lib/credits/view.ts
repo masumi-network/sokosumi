@@ -1,5 +1,7 @@
+import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
 import { streamTransactionCsv } from "@/helpers/transaction-history-csv";
 import type { NetworkScope } from "@/lib/db/network-scope";
+import type { TransactionHistoryItem } from "@/schemas/transaction-history.schema";
 import { buildCreditsPayload } from "./funding";
 import {
   type BuildTransactionHistoryParams,
@@ -22,21 +24,34 @@ export function creditViewForRequest(requestScope: NetworkScope) {
   // A scope that refuses its Network answers here, with its own 403, before
   // any credit, plan or ledger read: a refused request sees no wallet.
   const { network } = billingScope;
+  const charged = chargesCredits(network);
   return {
     billingScope,
     network,
-    charged: chargesCredits(network),
-    funding: (
+    charged,
+    item: (
+      ...args: Parameters<typeof mapTransactionHistoryRow>
+    ): TransactionHistoryItem => ({
+      ...mapTransactionHistoryRow(...args),
+      network,
+      charged,
+    }),
+    funding: async (
       params: Omit<Parameters<typeof buildCreditsPayload>[0], "scope">,
-    ) => buildCreditsPayload({ ...params, scope: billingScope }),
+    ) => ({
+      ...(await buildCreditsPayload({ ...params, scope: billingScope })),
+      network,
+    }),
     page: (
       filter: HistoryFilter,
       pagination: { cursor?: string; take: number },
     ) => findTransactionHistoryPage({ ...filter, billingScope }, pagination),
     count: (filter: HistoryFilter) =>
       countTransactionHistory({ ...filter, billingScope }),
-    total: (filter: HistoryFilter) =>
-      sumTransactionHistory({ ...filter, billingScope }),
+    total: async (filter: HistoryFilter) => ({
+      ...(await sumTransactionHistory({ ...filter, billingScope })),
+      network,
+    }),
     daily: (filter: HistoryFilter) =>
       findTransactionDailySpend({ ...filter, billingScope }),
     csv: (filter: HistoryFilter) =>

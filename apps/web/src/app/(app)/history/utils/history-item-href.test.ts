@@ -12,6 +12,8 @@ function stripComments(source: string): string {
 }
 
 const base = {
+  network: "mainnet",
+  charged: true,
   consumedAt: new Date("2026-05-27T10:00:00.000Z"),
   credits: 3,
   description: null,
@@ -22,6 +24,7 @@ const base = {
 it("keeps a billed SEO chat row as a receipt without exposing a private conversation link", () => {
   expect(
     getHistoryItemHref({
+      ...base,
       id: "seo-charge",
       kind: "seoChat",
       title: "SEO chat",
