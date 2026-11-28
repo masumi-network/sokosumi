@@ -16,7 +16,7 @@ function maintenanceUrl(source: string): string {
  */
 export async function copyPostgresTestDatabase(
   source: string,
-  prefix: "catalog_test" | "files_import_test",
+  prefix: "catalog_test" | "files_import_test" | "failed_hire_test",
 ) {
   const { Client } = await import("pg");
 

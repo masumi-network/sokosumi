@@ -13,6 +13,7 @@ import {
 } from "vitest";
 
 import type { Network } from "@/lib/network";
+import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 import {
   digests,
@@ -172,8 +173,9 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
             "soko_bot_usage.sokoBotId": 0,
           });
           expect(await digests(tx)).toEqual(base);
+          // With the keys it is origin/main's call, and so is its error.
           await expect(cleanUp(tx, world.projectId)).rejects.toMatchObject({
-            code: "PROJECT_NOT_FOUND",
+            code: "P2025",
           });
           await tx.$executeRaw`ROLLBACK TO SAVEPOINT before_cleanup`;
 
@@ -183,6 +185,9 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
             "credit_bucket.projectId": on.length,
             "Job.projectId": on.length,
             "soko_bot_usage.sokoBotId": on.length,
+          });
+          await expect(cleanUp(tx, world.projectId)).rejects.toMatchObject({
+            code: "PROJECT_NOT_FOUND",
           });
           const withoutKeys = await digests(tx);
           if (on.length === networks.length) {
@@ -219,8 +224,9 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
             "foreign key",
           );
           expect(await digests(tx)).toEqual(seeded);
+          // While its key exists the key refuses, as on origin/main.
           expect(await attempt(tx, "head", world.projectId)).toBe(
-            "PROJECT_DELETION_SOKO_BOT_HIRED_JOB",
+            "foreign key",
           );
           expect(await digests(tx)).toEqual(seeded);
           await dropFlowCrossingKeys(tx, "failed CMO hire", networks);
@@ -500,6 +506,71 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
           bot: w.projectId,
           mainnet: { bucket: true, usage: true, job: w.projectId },
         });
+      },
+      60_000,
+    );
+
+    /** A Job hired by the Project's bot, committed: the key's blocker. */
+    async function hiredJob(w: SokoBotDeletionWorld) {
+      await db.$transaction((tx) =>
+        seedJob(tx, "mainnet", {
+          id: w.id("job.hired"),
+          agentId: w.id("agent"),
+          workspaceId: w.id("workspace"),
+          creatorSokoBotId: w.id("bot.project"),
+        }),
+      );
+    }
+
+    it.each(modes)(
+      "%s: a blocking Job deleted while the clean-up waits lets the Project go",
+      async (mode) => {
+        const w = await world();
+        await hiredJob(w);
+        const remover = await session();
+        await remover.run("BEGIN");
+        await remover.run(
+          `DELETE FROM ${t(netTable("mainnet", "Job"))} WHERE id = $1`,
+          [w.id("job.hired")],
+        );
+        const pending = removeProject(mode, db, w.projectId);
+        await blockedBy(remover.pid);
+        await remover.run("COMMIT");
+        expect(await pending).toBe("deleted");
+        expect(await rows(w)).toMatchObject({
+          project: false,
+          bot: undefined,
+          mainnet: { bucket: false, usage: false, job: null },
+        });
+      },
+      60_000,
+    );
+
+    it.each(modes)(
+      "%s: a blocking Job's bot that leaves the Project while the clean-up waits lets the Project go",
+      async (mode) => {
+        const w = await world();
+        await hiredJob(w);
+        const mover = await session();
+        await mover.run("BEGIN");
+        await mover.run(
+          `UPDATE ${t(sharedTable("soko_bot"))} SET "projectId" = $2::uuid WHERE id = $1::uuid`,
+          [w.id("bot.project"), w.id("otherProject")],
+        );
+        const pending = removeProject(mode, db, w.projectId);
+        await blockedBy(mover.pid);
+        await mover.run("COMMIT");
+        expect(await pending).toBe("deleted");
+        expect(await rows(w)).toMatchObject({
+          project: false,
+          bot: w.id("otherProject"),
+          mainnet: { bucket: false, usage: true, job: null },
+        });
+        const [job] = await db.$queryRaw<{ creator: string }[]>`
+          SELECT "creatorSokoBotId"::text AS creator FROM ${netTable("mainnet", "Job")}
+          WHERE id = ${w.id("job.hired")}
+        `;
+        expect(job).toEqual({ creator: w.id("bot.project") });
       },
       60_000,
     );
@@ -1044,4 +1115,230 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
       },
     );
   });
+
+  // A key dropped needs a database of its own: other sessions run beside it.
+  describe.runIf(Boolean(process.env.POSTGRES_TEST_TEMPLATE_URL))(
+    "with crossing keys dropped, in a private copy",
+    () => {
+      beforeAll(() => {
+        core.preprodOn = onSplitLayout;
+      });
+
+      const usage = () => netTable("mainnet", "soko_bot_usage").sql;
+      const project = () => sharedTable("project").sql;
+      const bot = () => sharedTable("soko_bot").sql;
+
+      /**
+       * A copy of the template with Mainnet's `drop` keys dropped, a seeded
+       * world, a client of its own over one connection, a writer and an
+       * observer.
+       */
+      async function inCopy(
+        drop: [table: "soko_bot_usage" | "credit_bucket", key: string][],
+        run: (copy: {
+          w: SokoBotDeletionWorld;
+          own: Client_;
+          pid: number;
+          connection: () => PoolClient | undefined;
+          writer: Client;
+          writerPid: number;
+          observer: Client;
+        }) => Promise<void>,
+      ) {
+        const copy = await copyPostgresTestDatabase(
+          process.env.POSTGRES_TEST_TEMPLATE_URL ?? "",
+          "failed_hire_test",
+        );
+        const writer = new Client({ connectionString: copy.url });
+        const observer = new Client({ connectionString: copy.url });
+        writer.on("error", () => undefined);
+        const pool = new Pool({ connectionString: copy.url, max: 1 });
+        let connection: PoolClient | undefined;
+        pool.on("connect", (client) => {
+          connection = client;
+          client.on("error", () => undefined);
+        });
+        pool.on("error", () => undefined);
+        const own = createPrismaClient(pool, {
+          schema: testSchemaNames().DATABASE_SCHEMA_SHARED,
+        });
+        try {
+          await writer.connect();
+          await observer.connect();
+          for (const [table, key] of drop) {
+            await writer.query(
+              `ALTER TABLE ${netTable("mainnet", table).sql} DROP CONSTRAINT "${key}"`,
+            );
+          }
+          const w = newSokoBotDeletionWorld();
+          await own.$transaction((tx) =>
+            seedSokoBotDeletionWorld(tx, networks, w, "nothing"),
+          );
+          const [{ pid }] = await own.$queryRaw<
+            { pid: number }[]
+          >`SELECT pg_backend_pid() AS pid`;
+          const {
+            rows: [{ pid: writerPid }],
+          } = await writer.query<{ pid: number }>(
+            "SELECT pg_backend_pid() AS pid",
+          );
+          await run({
+            w,
+            own,
+            pid,
+            connection: () => connection,
+            writer,
+            writerPid,
+            observer,
+          });
+        } finally {
+          await writer.end().catch(() => undefined);
+          await observer.end();
+          await own.$disconnect().catch(() => undefined);
+          await pool.end().catch(() => undefined);
+          await copy.drop();
+        }
+      }
+
+      async function waitBlocked(
+        observer: Client,
+        holder: number,
+        pid: number,
+      ) {
+        await expect
+          .poll(
+            async () =>
+              (
+                await observer.query<{ blocked: boolean }>(
+                  "SELECT $1 = ANY(pg_blocking_pids($2)) AS blocked",
+                  [holder, pid],
+                )
+              ).rows[0].blocked,
+          )
+          .toBe(true);
+      }
+
+      // Review of #8549 (M4): the bots' delete keeps a bot that moved out.
+      it("keeps a bot that leaves the Project while the clean-up waits, with its usage, without Mainnet's usage key", async () => {
+        await inCopy(
+          [["soko_bot_usage", "soko_bot_usage_sokoBotId_fkey"]],
+          async ({ w, own, pid, writer, writerPid, observer }) => {
+            await writer.query("BEGIN");
+            await writer.query(
+              `SELECT 1 FROM ${project()} WHERE id = $1 FOR UPDATE`,
+              [w.projectId],
+            );
+            const pending = cleanUp(own, w.projectId);
+            await waitBlocked(observer, writerPid, pid);
+            await writer.query(
+              `UPDATE ${bot()} SET "projectId" = $1 WHERE id = $2`,
+              [w.id("otherProject"), w.id("bot.project")],
+            );
+            await writer.query("COMMIT");
+            await pending;
+            const {
+              rows: [state],
+            } = await observer.query(
+              `SELECT EXISTS (SELECT FROM ${project()} WHERE id = $1) AS project,
+                (SELECT "projectId" FROM ${bot()} WHERE id = $2) AS owner,
+                EXISTS (SELECT FROM ${usage()} WHERE id = $3 AND "sokoBotId" = $2) AS usage`,
+              [w.projectId, w.id("bot.project"), w.id("usage.project")],
+            );
+            expect(state).toEqual({
+              project: false,
+              owner: w.id("otherProject"),
+              usage: true,
+            });
+          },
+        );
+      }, 60_000);
+
+      // The refusal stays the key's while `Job.creatorSokoBotId` exists, even
+      // with another key gone: a blocker deleted meanwhile lets the Project go.
+      it("lets the Project go when its blocking Job is deleted while the clean-up waits, without Mainnet's bucket key", async () => {
+        await inCopy(
+          [["credit_bucket", "credit_bucket_projectId_fkey"]],
+          async ({ w, own, pid, writer, writerPid, observer }) => {
+            await own.$transaction((tx) =>
+              seedJob(tx, "mainnet", {
+                id: w.id("job.hired"),
+                agentId: w.id("agent"),
+                workspaceId: w.id("workspace"),
+                creatorSokoBotId: w.id("bot.project"),
+              }),
+            );
+            await writer.query("BEGIN");
+            await writer.query(
+              `DELETE FROM ${netTable("mainnet", "Job").sql} WHERE id = $1`,
+              [w.id("job.hired")],
+            );
+            const pending = cleanUp(own, w.projectId);
+            await waitBlocked(observer, writerPid, pid);
+            await writer.query("COMMIT");
+            expect(await pending).toMatchObject({
+              "credit_bucket.projectId": 1,
+            });
+            const {
+              rows: [state],
+            } = await observer.query(
+              `SELECT EXISTS (SELECT FROM ${project()} WHERE id = $1) AS project,
+                EXISTS (SELECT FROM ${netTable("mainnet", "credit_bucket").sql} WHERE id = $2) AS bucket`,
+              [w.projectId, w.id("bucket.project")],
+            );
+            expect(state).toEqual({ project: false, bucket: false });
+          },
+        );
+      }, 60_000);
+
+      // The keys-dropped statement is one statement too: lost, it still ends.
+      it("finishes on the server when the client's connection is lost while it waits, without Mainnet's bucket and usage keys", async () => {
+        await inCopy(
+          [
+            ["credit_bucket", "credit_bucket_projectId_fkey"],
+            ["soko_bot_usage", "soko_bot_usage_sokoBotId_fkey"],
+          ],
+          async ({ w, own, pid, connection, writer, writerPid, observer }) => {
+            await writer.query("BEGIN");
+            await writer.query(
+              `SELECT 1 FROM ${bot()} WHERE id = $1 FOR UPDATE`,
+              [w.id("bot.project")],
+            );
+            const pending = cleanUp(own, w.projectId).then(
+              () => "deleted",
+              () => "lost",
+            );
+            await waitBlocked(observer, writerPid, pid);
+            connection()?.connection.stream.destroy();
+            expect(await pending).toBe("lost");
+            await waitBlocked(observer, writerPid, pid);
+            await writer.query("COMMIT");
+            await expect
+              .poll(
+                async () =>
+                  (
+                    await observer.query<{ running: boolean }>(
+                      "SELECT EXISTS (SELECT FROM pg_stat_activity WHERE pid = $1) AS running",
+                      [pid],
+                    )
+                  ).rows[0].running,
+              )
+              .toBe(false);
+            const {
+              rows: [state],
+            } = await observer.query(
+              `SELECT EXISTS (SELECT FROM ${project()} WHERE id = $1) AS project,
+                EXISTS (SELECT FROM ${netTable("mainnet", "credit_bucket").sql} WHERE id = $2) AS bucket,
+                EXISTS (SELECT FROM ${usage()} WHERE id = $3) AS usage`,
+              [w.projectId, w.id("bucket.project"), w.id("usage.project")],
+            );
+            expect(state).toEqual({
+              project: false,
+              bucket: false,
+              usage: false,
+            });
+          },
+        );
+      }, 60_000);
+    },
+  );
 });

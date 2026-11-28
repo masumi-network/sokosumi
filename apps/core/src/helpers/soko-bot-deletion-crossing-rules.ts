@@ -66,8 +66,10 @@ interface FailedHireCleanupRow {
 /**
  * Whether the foreign key from `child.column` to `parent` still exists, read
  * from the catalog by the statement that uses it. A statement that names the
- * child table locks it first, so a key dropped concurrently is either gone
- * before the statement reads the catalog or dropped after it commits.
+ * child table locks it first, so with a snapshot of its own (Read Committed,
+ * as the hire's caller runs it) a key dropped concurrently is either gone
+ * before the statement reads the catalog or dropped after it commits. An
+ * older snapshot (Repeatable Read) can still see a key that is gone.
  */
 function keyExists(
   child: PrismaRaw.Sql,
@@ -87,40 +89,64 @@ function keyExists(
 
 /**
  * The failed CMO hire's clean-up: deletes the Project made for the hire, which
- * takes its Soko Bots, and the Network rows that pointed at either, in ONE
- * statement. `origin/main` sent one `DELETE`, which the server finishes and
- * commits alone when the client's connection is lost or its time runs out; a
- * transaction the client drives cannot, and keeps the Project and its credit
- * buckets (review of #8509).
+ * takes its Soko Bots, and the Network rows that pointed at either.
  *
- * While a key exists, its sweep changes nothing and the key does the work at
- * the Project's delete: with every key in place the only write is that
- * `DELETE`, so rows, row locks and their order are `origin/main`'s (review of
- * #8549: a sweep running ahead of the cascade reversed the lock order against
- * an account deletion). Once a key is dropped (ticket 54), its sweep runs on
- * the ids the deletes return, and the bots are deleted here so their usage is
- * swept by the ids of the bots really gone. Refuses, deleting nothing, where
- * `Job.creatorSokoBotId` would.
+ * While a crossing key exists, the key does the work, refusal included.
+ * With every key of this flow in place in every Network that is on, the
+ * clean-up is `origin/main`'s own call, `project.delete`: the same statement,
+ * rows, row and table locks, and errors (`P2003` from
+ * `Job_creatorSokoBotId_fkey`, `P2025` for a Project already gone). Reviews of
+ * #8549 found Core's own refusal and sweeps, run beside the keys, refusing a
+ * delete the key let through and reversing a lock order.
  *
- * What one statement cannot do once the keys are dropped: it sees the rows of
- * its snapshot, not a row a writer commits while it waits (a usage row, a Job
- * hired by the bot or linked to the Project, a bot that joins). The keys
- * caught those with a fresh read; their replacement belongs to ticket 54.
+ * Once a key is gone (ticket 54), ONE statement does what the missing keys
+ * did, each part only where its key is gone (read from the catalog by that
+ * statement): the readable refusal for `Job.creatorSokoBotId`, and the sweeps
+ * keyed on the ids the deletes return, the bots deleted here so their usage
+ * is swept by the ids of the bots really gone. One statement, because the
+ * server finishes it alone when the client is lost (review of #8509).
+ *
+ * What it cannot do: see a row a writer commits while it waits (a usage row,
+ * a Job hired by the bot or linked to the Project, a bucket, a bot that
+ * joins). The keys caught those with a fresh read. A key dropped between the
+ * catalog read below and `project.delete` leaves its rows behind. Ticket 54
+ * drops no key before a server-side replacement does that work.
  */
 export async function deleteFailedHireProject(
-  client: Pick<Prisma.TransactionClient, "$queryRaw">,
+  client: Pick<Prisma.TransactionClient, "$queryRaw" | "project">,
   projectId: string,
 ): Promise<RuleCounts> {
   const networks = networksThatAreOn();
   const project = sharedTable("project");
   const sokoBot = sharedTable("soko_bot");
-  const blockers = networks.map(
-    (network) => PrismaRaw.sql`
+  const nothing: RuleCounts = {
+    "credit_bucket.projectId": 0,
+    "Job.projectId": 0,
+    "soko_bot_usage.sokoBotId": 0,
+  };
+  const everyKey = networks.flatMap((network) => [
+    keyExists(netTable(network, "Job"), "creatorSokoBotId", sokoBot),
+    keyExists(netTable(network, "Job"), "projectId", project),
+    keyExists(netTable(network, "credit_bucket"), "projectId", project),
+    keyExists(netTable(network, "soko_bot_usage"), "sokoBotId", sokoBot),
+  ]);
+  const [{ keyed }] = await client.$queryRaw<{ keyed: boolean }[]>`
+    SELECT (${PrismaRaw.join(everyKey, " AND ")}) AS keyed
+  `;
+  if (keyed) {
+    await client.project.delete({ where: { id: projectId } });
+    return nothing;
+  }
+
+  const blockers = networks.map((network) => {
+    const job = netTable(network, "Job");
+    return PrismaRaw.sql`
       SELECT ${network}::text AS network, job."id"
-      FROM ${netTable(network, "Job")} AS job
+      FROM ${job} AS job
       INNER JOIN ${sokoBot} AS bot ON bot."id" = job."creatorSokoBotId"
-      WHERE bot."projectId" = ${projectId}::uuid`,
-  );
+      WHERE bot."projectId" = ${projectId}::uuid
+        AND NOT ${keyExists(job, "creatorSokoBotId", sokoBot)}`;
+  });
   const usageKeys = networks.map((network) =>
     keyExists(netTable(network, "soko_bot_usage"), "sokoBotId", sokoBot),
   );
@@ -147,9 +173,9 @@ export async function deleteFailedHireProject(
         RETURNING 1)`,
     ];
   });
-  // Without the keys these run in the order the list reads them, as
-  // PostgreSQL 18 plans it (its docs leave the order open): an observation
-  // for ticket 54, not a guarantee. With the keys only `gone` writes.
+  // These run in the order the list reads them, as PostgreSQL 18 plans it
+  // (its docs leave the order open): an observation for ticket 54, not a
+  // guarantee.
   const counted = [
     "job_0",
     "bots",
@@ -209,14 +235,14 @@ export async function deleteFailedHireProject(
       data: { projectId },
     });
   }
-  const counts: RuleCounts = {};
+  const counts: RuleCounts = { ...nothing };
   networks.forEach((_, index) => {
     for (const [name, key] of [
       ["bucket", "credit_bucket.projectId"],
       ["job", "Job.projectId"],
       ["usage", "soko_bot_usage.sokoBotId"],
     ]) {
-      counts[key] = (counts[key] ?? 0) + Number(result[`${name}_${index}`]);
+      counts[key] += Number(result[`${name}_${index}`]);
     }
   });
   return counts;
