@@ -91,13 +91,83 @@ beforeEach(() => {
   m.verifyPolarWebhook.mockResolvedValue(orderRefunded());
   m.prisma.$transaction.mockImplementation((run) => run(m.prisma));
   m.prisma.creditBucket.findMany.mockResolvedValue([{ id: "bucket_0" }]);
-  m.prisma.$queryRaw.mockResolvedValue([]);
+  let pendingWriteOff: {
+    amount: bigint;
+    userId: string | null;
+    organizationId: string | null;
+  } | null = null;
+  m.prisma.$executeRaw.mockImplementation(
+    async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const sql = strings.join("?");
+      if (sql.includes("INSERT INTO") && sql.includes('"updatedAt"')) {
+        pendingWriteOff = {
+          amount: values[4] as bigint,
+          userId: values[5] as string | null,
+          organizationId: values[6] as string | null,
+        };
+        return 1;
+      }
+      if (sql.includes("bucketId") && pendingWriteOff) {
+        const txRow = pendingWriteOff;
+        pendingWriteOff = null;
+        await m.prisma.transaction.create({
+          data: {
+            amount: txRow.amount,
+            organizationId: txRow.organizationId,
+            userId: txRow.userId,
+            creditConsumptions: {
+              create: {
+                amount: values[3] as bigint,
+                bucketId: values[4] as string,
+              },
+            },
+          },
+        });
+        return 1;
+      }
+      return 1;
+    },
+  );
+  m.prisma.$queryRaw.mockImplementation(
+    async (first: unknown, ...rest: unknown[]) => {
+      if (Array.isArray(first) && first.join("?").includes("starts_with")) {
+        return m.prisma.creditBucket.findMany({
+          where: {
+            referenceId: { startsWith: rest[1] as string },
+            referenceType: { in: rest[2] as string[] },
+          },
+          select: { id: true },
+        });
+      }
+      return [];
+    },
+  );
   m.prisma.transaction.create.mockResolvedValue({ id: "tx_1" });
 });
 
 describe("POST /v1/webhooks/polar on order.refunded", () => {
+  const mockWriteOffBalances = (
+    ...batches: ReturnType<typeof left>[][]
+  ): void => {
+    const queue = [...batches];
+    m.prisma.$queryRaw.mockImplementation(
+      async (first: unknown, ...rest: unknown[]) => {
+        if (Array.isArray(first) && first.join("?").includes("starts_with")) {
+          return m.prisma.creditBucket.findMany({
+            where: {
+              referenceId: { startsWith: rest[1] as string },
+              referenceType: { in: rest[2] as string[] },
+            },
+            select: { id: true },
+          });
+        }
+        return queue.length > 1 ? queue.shift() : (queue[0] ?? []);
+      },
+    );
+  };
+
   it("writes off what is left of a partly spent grant", async () => {
-    m.prisma.$queryRaw.mockResolvedValue([left("bucket_0", 18_000n)]);
+    mockWriteOffBalances([left("bucket_0", 18_000n)]);
 
     const response = await post();
 
@@ -120,7 +190,7 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
 
   it("leaves a fully spent grant alone", async () => {
     // The write-off query answers only buckets with something left.
-    m.prisma.$queryRaw.mockResolvedValue([]);
+    mockWriteOffBalances([]);
 
     const response = await post();
 
@@ -136,15 +206,12 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
       { id: "bucket_2" },
     ]);
     // Month 0 is spent; months 1 and 2 are not.
-    m.prisma.$queryRaw.mockResolvedValue([
-      left("bucket_1", 4_000n),
-      left("bucket_2", 25_000n),
-    ]);
+    mockWriteOffBalances([left("bucket_1", 4_000n), left("bucket_2", 25_000n)]);
 
     const response = await post();
 
     expect(response.status).toBe(200);
-    expect(m.prisma.$queryRaw.mock.calls[0]?.[0].values).toEqual(
+    expect(m.prisma.$queryRaw.mock.calls[1]?.[0].values).toEqual(
       expect.arrayContaining(["bucket_0", "bucket_1", "bucket_2"]),
     );
     expect(writeOffs()).toEqual([
@@ -154,9 +221,7 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
   });
 
   it("writes off nothing more when the refund is delivered again", async () => {
-    m.prisma.$queryRaw
-      .mockResolvedValueOnce([left("bucket_0", 18_000n)])
-      .mockResolvedValue([]);
+    mockWriteOffBalances([left("bucket_0", 18_000n)], []);
 
     const first = await post();
     const again = await post();
@@ -179,13 +244,14 @@ describe("POST /v1/webhooks/polar on order.refunded", () => {
       "order_1",
       new Date("2026-11-20T09:00:00.000Z"),
     ]);
-    expect(m.prisma.$queryRaw).not.toHaveBeenCalled();
+    // Only the bucket-id lookup runs; writeOff skips its balance query for [].
+    expect(m.prisma.$queryRaw).toHaveBeenCalledTimes(1);
     expect(writeOffs()).toEqual([]);
     expect(m.captureMessage).not.toHaveBeenCalled();
   });
 
   it("answers 500 when the write-off cannot be written, so Polar delivers again", async () => {
-    m.prisma.$queryRaw.mockResolvedValue([left("bucket_0", 18_000n)]);
+    mockWriteOffBalances([left("bucket_0", 18_000n)]);
     m.prisma.transaction.create.mockRejectedValue(new Error("db down"));
 
     const response = await post();

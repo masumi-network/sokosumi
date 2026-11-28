@@ -6,10 +6,15 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
+import type { TableNetwork } from "../sql-tables.js";
 import {
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
+import {
+  findCreditBucketByReference,
+  insertCreditGrant,
+} from "./credit-grant-sql.js";
 import { resolvePurchasedSeats } from "./organization-seats.js";
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [
@@ -472,7 +477,9 @@ export async function ensureLocalFreeSubscriptionPeriod(
 export async function grantLocalFreePeriodCredits(
   input: LocalFreePeriodCredits,
   tx: Prisma.TransactionClient,
+  options?: { mintId?: () => string; network?: TableNetwork },
 ): Promise<{ created: boolean }> {
+  const network = options?.network ?? "mainnet";
   const organizationId = input.owner.organizationId ?? null;
   const userId = input.owner.userId ?? null;
   const referenceId =
@@ -485,41 +492,34 @@ export async function grantLocalFreePeriodCredits(
           input.owner.userId,
           input.periodEnd,
         );
-  const existingBucket = await tx.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      },
+  const existingBucket = await findCreditBucketByReference(
+    {
+      network,
+      referenceId,
+      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
     },
-    select: {
-      id: true,
-    },
-  });
+    tx,
+  );
 
   if (existingBucket) {
     return { created: false };
   }
 
   const amount = convertCreditsToCents(input.credits);
-  await tx.transaction.create({
-    data: {
+  await insertCreditGrant(
+    {
+      mintId: options?.mintId,
+      network,
+      activatesAt: input.activatesAt,
       amount,
+      expiresAt: input.periodEnd,
       organizationId,
+      referenceId,
+      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       userId,
-      sourceCreditBucket: {
-        create: {
-          activatesAt: input.activatesAt,
-          amount,
-          expiresAt: input.periodEnd,
-          organizationId,
-          referenceId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-          userId,
-        },
-      },
     },
-  });
+    tx,
+  );
 
   return { created: true };
 }

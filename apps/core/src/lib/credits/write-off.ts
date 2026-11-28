@@ -1,6 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { netTable } from "@sokosumi/database/sql-tables";
+import { v7 as uuidv7 } from "uuid";
 
 import type { MainnetScope } from "@/lib/db/network-scope";
 import { requireChargingNetwork } from "./policy";
@@ -75,15 +76,31 @@ async function writeOffCreditBuckets(
   `);
   // No note/type column on Transaction: a write-off reads as a plain spend.
   for (const bucket of buckets) {
-    await tx.transaction.create({
-      data: {
-        amount: bucket.remaining * -1n,
-        organizationId: bucket.organizationId,
-        userId: bucket.userId,
-        creditConsumptions: {
-          create: { amount: bucket.remaining, bucketId: bucket.id },
-        },
-      },
-    });
+    const transactionId = uuidv7();
+    const consumptionId = uuidv7();
+    const writtenAt = new Date();
+    await tx.$executeRaw`
+      INSERT INTO ${netTable("mainnet", "Transaction")}
+        (id, "createdAt", "updatedAt", amount, "userId", "organizationId")
+      VALUES (
+        ${transactionId},
+        ${writtenAt},
+        ${writtenAt},
+        ${bucket.remaining * -1n},
+        ${bucket.userId},
+        ${bucket.organizationId}
+      )
+    `;
+    await tx.$executeRaw`
+      INSERT INTO ${netTable("mainnet", "credit_consumption")}
+        (id, "createdAt", amount, "bucketId", "transactionId")
+      VALUES (
+        ${consumptionId},
+        ${writtenAt},
+        ${bucket.remaining},
+        ${bucket.id},
+        ${transactionId}
+      )
+    `;
   }
 }

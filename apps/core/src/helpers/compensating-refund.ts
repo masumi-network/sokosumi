@@ -1,4 +1,5 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { v7 as uuidv7 } from "uuid";
 
 import { writeOffUnlessLiveCuso } from "@/helpers/cuso-project-credits";
 
@@ -89,6 +90,7 @@ export async function createCompensatingRefund(
   for (const [index, { projectId, amount }] of parts.entries()) {
     const refund = await tx.transaction.create({
       data: {
+        id: uuidv7(),
         amount,
         organizationId: input.organizationId,
         userId,

@@ -144,9 +144,10 @@ export async function syncPolarYearlyGrants(
   if (due.length === 0) return result;
 
   const referenceType = CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH;
+  const scope = createNetworkScope("mainnet");
   const granted = new Set(
     (
-      await prisma.creditBucket.findMany({
+      await scope.networkDb.creditBucket.findMany({
         where: {
           referenceType,
           referenceId: { in: due.map((grant) => grant.referenceId) },
@@ -159,7 +160,6 @@ export async function syncPolarYearlyGrants(
   if (missing.length === 0) return result;
 
   const { plans } = await getCmoCatalog();
-  const scope = createNetworkScope("mainnet");
   for (const grant of missing) {
     if (!shouldContinue()) {
       result.stoppedEarly = true;

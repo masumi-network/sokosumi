@@ -80,25 +80,19 @@ function createScheduledPeriod(overrides?: {
 }
 
 function createGrantClient() {
-  const findUniqueBucketMock = vi.fn().mockResolvedValue(null);
-  const createTransactionMock = vi.fn().mockResolvedValue({
-    sourceCreditBucket: { id: "bucket-new" },
-  });
+  const queryRawMock = vi.fn().mockResolvedValue([]);
+  const executeRawMock = vi.fn().mockResolvedValue(1);
   const updatePeriodMock = vi.fn().mockResolvedValue({});
 
   return {
-    createTransactionMock,
-    findUniqueBucketMock,
+    executeRawMock,
+    queryRawMock,
     updatePeriodMock,
     tx: {
-      creditBucket: {
-        findUnique: findUniqueBucketMock,
-      },
+      $queryRaw: queryRawMock,
+      $executeRaw: executeRawMock,
       enterpriseContractPeriod: {
         update: updatePeriodMock,
-      },
-      transaction: {
-        create: createTransactionMock,
       },
     } as unknown as PrismaType.TransactionClient,
   };
@@ -118,9 +112,9 @@ describe("grantEnterpriseScheduledPeriod", () => {
 
     assert.equal(result.bucketCreated, true);
     assert.equal(result.periodActivated, true);
-    assert.equal(client.createTransactionMock.mock.calls.length, 1);
+    assert.equal(client.executeRawMock.mock.calls.length, 2);
     assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
+      (client.executeRawMock.mock.calls[1]?.[7] as Date).toISOString(),
       activatesAt.toISOString(),
     );
     assert.equal(
@@ -131,10 +125,12 @@ describe("grantEnterpriseScheduledPeriod", () => {
 
   it("is idempotent when the period bucket already exists", async () => {
     const client = createGrantClient();
-    client.tx.creditBucket.findUnique = vi.fn().mockResolvedValue({
-      activatesAt: new Date("2026-06-01T00:00:00.000Z"),
-      id: "existing-bucket",
-    });
+    client.queryRawMock.mockResolvedValue([
+      {
+        activatesAt: new Date("2026-06-01T00:00:00.000Z"),
+        id: "existing-bucket",
+      },
+    ]);
 
     const result = await grantEnterpriseScheduledPeriod(
       createScheduledPeriod(),
@@ -145,7 +141,7 @@ describe("grantEnterpriseScheduledPeriod", () => {
 
     assert.equal(result.bucketCreated, false);
     assert.equal(result.periodActivated, true);
-    assert.equal(client.createTransactionMock.mock.calls.length, 0);
+    assert.equal(client.executeRawMock.mock.calls.length, 0);
   });
 });
 
@@ -154,16 +150,16 @@ describe("expireActiveEnterprisePeriodsWithElapsedBuckets", () => {
     const now = new Date("2026-06-15T00:00:00.000Z");
     const updatePeriodMock = vi.fn().mockResolvedValue({});
     const findManyPeriodsMock = vi.fn().mockResolvedValue([{ id: PERIOD_ID }]);
-    const findUniqueBucketMock = vi.fn().mockResolvedValue({
-      activatesAt: new Date("2026-05-01T00:00:00.000Z"),
-      expiresAt: new Date("2026-06-01T00:00:00.000Z"),
-      id: "bucket-1",
-    });
+    const queryRawMock = vi.fn().mockResolvedValue([
+      {
+        activatesAt: new Date("2026-05-01T00:00:00.000Z"),
+        expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+        id: "bucket-1",
+      },
+    ]);
 
     const tx = {
-      creditBucket: {
-        findUnique: findUniqueBucketMock,
-      },
+      $queryRaw: queryRawMock,
       enterpriseContractPeriod: {
         findMany: findManyPeriodsMock,
         update: updatePeriodMock,
@@ -187,13 +183,13 @@ describe("expireActiveEnterprisePeriodsWithElapsedBuckets", () => {
     const updatePeriodMock = vi.fn().mockResolvedValue({});
 
     const tx = {
-      creditBucket: {
-        findUnique: vi.fn().mockResolvedValue({
+      $queryRaw: vi.fn().mockResolvedValue([
+        {
           activatesAt: new Date("2026-05-01T00:00:00.000Z"),
           expiresAt: new Date("2026-07-01T00:00:00.000Z"),
           id: "bucket-1",
-        }),
-      },
+        },
+      ]),
       enterpriseContractPeriod: {
         findMany: vi.fn().mockResolvedValue([{ id: PERIOD_ID }]),
         update: updatePeriodMock,
@@ -252,11 +248,7 @@ describe("catchUpScheduledEnterprisePeriods", () => {
     );
 
     assert.equal(count, 1);
-    assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket
-        .create.activatesAt,
-      now,
-    );
+    assert.equal(client.executeRawMock.mock.calls[1]?.[7], now);
   });
 
   it("uses periodStart when catch-up runs after periodEnd", async () => {
@@ -276,11 +268,11 @@ describe("catchUpScheduledEnterprisePeriods", () => {
 
     assert.equal(count, 1);
     assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
+      (client.executeRawMock.mock.calls[1]?.[7] as Date).toISOString(),
       periodStart.toISOString(),
     );
     assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.expiresAt.toISOString(),
+      (client.executeRawMock.mock.calls[1]?.[6] as Date).toISOString(),
       periodEnd.toISOString(),
     );
     assert.equal(
@@ -307,12 +299,11 @@ describe("preCreateUpcomingEnterprisePeriods", () => {
 
     assert.equal(count, 1);
     assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
+      (client.executeRawMock.mock.calls[1]?.[7] as Date).toISOString(),
       periodStart.toISOString(),
     );
     assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket
-        .create.referenceType,
+      client.executeRawMock.mock.calls[1]?.[9],
       CreditBucketReferenceType.ENTERPRISE_PERIOD,
     );
   });
@@ -407,9 +398,9 @@ describe("runEnterpriseContractSchedulerPass", () => {
 
     assert.equal(result.catchUpGranted, 1);
     assert.equal(result.completedContracts, 1);
-    assert.equal(client.createTransactionMock.mock.calls.length, 1);
+    assert.equal(client.executeRawMock.mock.calls.length, 2);
     assert.equal(
-      client.createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt.toISOString(),
+      (client.executeRawMock.mock.calls[1]?.[7] as Date).toISOString(),
       scheduledLastPeriod.periodStart.toISOString(),
     );
     assert.equal(

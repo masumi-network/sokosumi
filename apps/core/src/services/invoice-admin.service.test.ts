@@ -90,10 +90,12 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       update: (...args: unknown[]) => userUpdateMock(...args),
     },
+  },
+  networkPrisma: () => ({
     creditBucket: {
       findFirst: (...args: unknown[]) => creditBucketFindFirstMock(...args),
     },
-  },
+  }),
 }));
 
 vi.mock("@/services/stripe-invoice-credit.service", () => ({

@@ -3251,19 +3251,6 @@
             "<TS>",
             "0"
           ]
-        },
-        {
-          "text": "SELECT \"shared\".\"subscription\".\"id\", \"shared\".\"subscription\".\"createdAt\", \"shared\".\"subscription\".\"updatedAt\", \"shared\".\"subscription\".\"plan\", \"shared\".\"subscription\".\"referenceId\", \"shared\".\"subscription\".\"stripeCustomerId\", \"shared\".\"subscription\".\"stripeSubscriptionId\", \"shared\".\"subscription\".\"status\", \"shared\".\"subscription\".\"periodStart\", \"shared\".\"subscription\".\"periodEnd\", \"shared\".\"subscription\".\"trialStart\", \"shared\".\"subscription\".\"trialEnd\", \"shared\".\"subscription\".\"cancelAtPeriodEnd\", \"shared\".\"subscription\".\"cancelAt\", \"shared\".\"subscription\".\"canceledAt\", \"shared\".\"subscription\".\"endedAt\", \"shared\".\"subscription\".\"seats\", \"shared\".\"subscription\".\"billingInterval\", \"shared\".\"subscription\".\"stripeScheduleId\" FROM \"shared\".\"subscription\" WHERE (\"shared\".\"subscription\".\"referenceId\" = $1 AND \"shared\".\"subscription\".\"status\" IN ($2,$3,$4,$5) AND (\"shared\".\"subscription\".\"periodStart\" IS NULL OR \"shared\".\"subscription\".\"periodStart\" <= $6)) ORDER BY \"shared\".\"subscription\".\"periodEnd\"DESC NULLS LAST, \"shared\".\"subscription\".\"updatedAt\" DESC LIMIT $7 OFFSET $8",
-          "values": [
-            "11111111-1111-4111-8111-111111111102",
-            "active",
-            "trialing",
-            "past_due",
-            "unpaid",
-            "<TS>",
-            "1",
-            "0"
-          ]
         }
       ],
       "providers": []
@@ -3280,7 +3267,7 @@
           "__Secure-sokosumi-localhost-preprod.session_data=<SESSION_DATA>; Max-Age=300; Path=/; HttpOnly; Secure; SameSite=Lax"
         ]
       },
-      "bodyText": "[]",
+      "bodyText": "[{\"plan\":\"free\",\"referenceId\":\"11111111-1111-4111-8111-111111111102\",\"stripeCustomerId\":\"cus_user_28_2\",\"stripeSubscriptionId\":null,\"status\":\"active\",\"periodStart\":\"<TS>\",\"periodEnd\":\"<TS>\",\"trialStart\":null,\"trialEnd\":null,\"cancelAtPeriodEnd\":false,\"cancelAt\":null,\"canceledAt\":null,\"endedAt\":null,\"seats\":1,\"billingInterval\":\"month\",\"stripeScheduleId\":null,\"id\":\"<UUID>\"}]",
       "statements": [
         {
           "text": "SELECT \"shared\".\"session\".\"id\", \"shared\".\"session\".\"expiresAt\", \"shared\".\"session\".\"token\", \"shared\".\"session\".\"createdAt\", \"shared\".\"session\".\"updatedAt\", \"shared\".\"session\".\"ipAddress\", \"shared\".\"session\".\"userAgent\", \"shared\".\"session\".\"userId\", \"shared\".\"session\".\"impersonatedBy\", \"shared\".\"session\".\"activeOrganizationId\" FROM \"shared\".\"session\" WHERE \"shared\".\"session\".\"token\" = $1 LIMIT $2 OFFSET $3",
@@ -3345,29 +3332,6 @@
             "trialing",
             "1",
             "0"
-          ]
-        },
-        {
-          "text": "SELECT \"shared\".\"subscription\".\"id\", \"shared\".\"subscription\".\"createdAt\", \"shared\".\"subscription\".\"updatedAt\", \"shared\".\"subscription\".\"plan\", \"shared\".\"subscription\".\"referenceId\", \"shared\".\"subscription\".\"stripeCustomerId\", \"shared\".\"subscription\".\"stripeSubscriptionId\", \"shared\".\"subscription\".\"status\", \"shared\".\"subscription\".\"periodStart\", \"shared\".\"subscription\".\"periodEnd\", \"shared\".\"subscription\".\"trialStart\", \"shared\".\"subscription\".\"trialEnd\", \"shared\".\"subscription\".\"cancelAtPeriodEnd\", \"shared\".\"subscription\".\"cancelAt\", \"shared\".\"subscription\".\"canceledAt\", \"shared\".\"subscription\".\"endedAt\", \"shared\".\"subscription\".\"seats\", \"shared\".\"subscription\".\"billingInterval\", \"shared\".\"subscription\".\"stripeScheduleId\" FROM \"shared\".\"subscription\" WHERE (\"shared\".\"subscription\".\"referenceId\" = $1 AND \"shared\".\"subscription\".\"status\" = $2) LIMIT $3 OFFSET $4",
-          "values": [
-            "11111111-1111-4111-8111-111111111102",
-            "incomplete",
-            "1",
-            "0"
-          ]
-        },
-        {
-          "text": "INSERT INTO \"shared\".\"subscription\" (\"id\",\"createdAt\",\"updatedAt\",\"plan\",\"referenceId\",\"stripeCustomerId\",\"status\",\"cancelAtPeriodEnd\",\"seats\") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING \"shared\".\"subscription\".\"id\", \"shared\".\"subscription\".\"createdAt\", \"shared\".\"subscription\".\"updatedAt\", \"shared\".\"subscription\".\"plan\", \"shared\".\"subscription\".\"referenceId\", \"shared\".\"subscription\".\"stripeCustomerId\", \"shared\".\"subscription\".\"stripeSubscriptionId\", \"shared\".\"subscription\".\"status\", \"shared\".\"subscription\".\"periodStart\", \"shared\".\"subscription\".\"periodEnd\", \"shared\".\"subscription\".\"trialStart\", \"shared\".\"subscription\".\"trialEnd\", \"shared\".\"subscription\".\"cancelAtPeriodEnd\", \"shared\".\"subscription\".\"cancelAt\", \"shared\".\"subscription\".\"canceledAt\", \"shared\".\"subscription\".\"endedAt\", \"shared\".\"subscription\".\"seats\", \"shared\".\"subscription\".\"billingInterval\", \"shared\".\"subscription\".\"stripeScheduleId\"",
-          "values": [
-            "<UUID>",
-            "<TS>",
-            "<TS>",
-            "starter",
-            "11111111-1111-4111-8111-111111111102",
-            "cus_user_28_2",
-            "incomplete",
-            false,
-            1
           ]
         },
         {

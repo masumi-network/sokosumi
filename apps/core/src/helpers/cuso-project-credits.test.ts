@@ -14,17 +14,49 @@ function forfeitTx(cuso: { projectId: string | null } | null, rows: unknown[]) {
   const findFirst = vi.fn().mockResolvedValue(cuso);
   const queries: unknown[][] = [];
   const created: unknown[] = [];
+  let pending: {
+    amount: bigint;
+    userId: string | null;
+    organizationId: string | null;
+  } | null = null;
   const tx = {
     sokoBot: { findFirst },
     $queryRaw: async (...rawArgs: unknown[]) => {
       queries.push(rawArgs);
       return rows;
     },
-    transaction: {
-      create: async (args: unknown) => {
-        created.push(args);
-        return {};
-      },
+    $executeRaw: async (
+      strings: TemplateStringsArray,
+      ...values: unknown[]
+    ) => {
+      const sql = strings.join("?");
+      if (sql.includes("INSERT INTO") && !sql.includes("bucketId")) {
+        pending = {
+          amount: values[4] as bigint,
+          userId: values[5] as string | null,
+          organizationId: values[6] as string | null,
+        };
+        return 1;
+      }
+      if (sql.includes("bucketId") && pending) {
+        const txRow = pending;
+        pending = null;
+        created.push({
+          data: {
+            amount: txRow.amount,
+            organizationId: txRow.organizationId,
+            userId: txRow.userId,
+            creditConsumptions: {
+              create: {
+                amount: values[3] as bigint,
+                bucketId: values[4] as string,
+              },
+            },
+          },
+        });
+        return 1;
+      }
+      return 1;
     },
   } as unknown as Prisma.TransactionClient;
   return { tx, findFirst, queries, created };

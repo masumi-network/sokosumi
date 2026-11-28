@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isCreditBucketReferenceUniqueConstraintError,
   isPrismaForeignKeyViolation,
   isPrismaRecordNotFoundError,
   isPrismaTransactionConflict,
@@ -114,5 +115,67 @@ describe("isProjectIdentifierUniqueConstraintError", () => {
     expect(isProjectIdentifierUniqueConstraintError(new Error("boom"))).toBe(
       false,
     );
+  });
+});
+
+describe("isCreditBucketReferenceUniqueConstraintError", () => {
+  it("detects Prisma P2002 on referenceId + referenceType", () => {
+    expect(
+      isCreditBucketReferenceUniqueConstraintError({
+        code: "P2002",
+        meta: { target: ["referenceId", "referenceType"] },
+      }),
+    ).toBe(true);
+  });
+
+  it("detects raw SQL P2010 (23505) on credit_bucket_referenceId_referenceType_key", () => {
+    expect(
+      isCreditBucketReferenceUniqueConstraintError({
+        code: "P2010",
+        meta: {
+          driverAdapterError: {
+            cause: {
+              originalCode: "23505",
+              kind: "UniqueConstraintViolation",
+              constraint: {
+                index: "credit_bucket_referenceId_referenceType_key",
+              },
+            },
+          },
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects raw SQL P2010 on other constraints or non-23505 SQLSTATEs", () => {
+    expect(
+      isCreditBucketReferenceUniqueConstraintError({
+        code: "P2010",
+        meta: {
+          driverAdapterError: {
+            cause: {
+              originalCode: "23505",
+              kind: "UniqueConstraintViolation",
+              constraint: { index: "Transaction_pkey" },
+            },
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isCreditBucketReferenceUniqueConstraintError({
+        code: "P2010",
+        meta: {
+          driverAdapterError: {
+            cause: {
+              originalCode: "23503",
+              constraint: {
+                index: "credit_bucket_referenceId_referenceType_key",
+              },
+            },
+          },
+        },
+      }),
+    ).toBe(false);
   });
 });

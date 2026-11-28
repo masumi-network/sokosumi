@@ -324,6 +324,12 @@ function createWorld(loaded: Loaded, networks: readonly NetworkName[]) {
       userIds.push(user.id);
       labels.set(user.id, `<${name}>`);
       await loaded.createPersonalWorkspace(user.id);
+      await networkDb("mainnet").creditBucket.deleteMany({
+        where: { userId: user.id },
+      });
+      await networkDb("mainnet").transaction.deleteMany({
+        where: { userId: user.id },
+      });
       if (preprodEnabled) {
         await prisma.user.update({
           where: { id: user.id },

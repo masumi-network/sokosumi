@@ -313,6 +313,12 @@ describe.runIf(enabled)(
         );
         userIds.push(admin.id);
         await createPersonalWorkspace(admin.id);
+        await mainnet().networkDb.creditBucket.deleteMany({
+          where: { userId: admin.id },
+        });
+        await mainnet().networkDb.transaction.deleteMany({
+          where: { userId: admin.id },
+        });
         cookie = await fixture.signIn(app, admin.email);
         const payer = {
           userId: admin.id,
@@ -875,6 +881,12 @@ describe.runIf(enabled)(
         const user = await fixture.createPasswordUser("Refused person");
         userIds.push(user.id);
         await createPersonalWorkspace(user.id);
+        await mainnet().networkDb.creditBucket.deleteMany({
+          where: { userId: user.id },
+        });
+        await mainnet().networkDb.transaction.deleteMany({
+          where: { userId: user.id },
+        });
         await fund(user.id, 9n * CREDIT);
         cookie = await fixture.signIn(app, user.email);
       }, SETUP_TIMEOUT);

@@ -10,6 +10,12 @@ export {
   hasAssignedOrganizationSeat,
 } from "./credit-bucket-scope.js";
 export {
+  findCreditBucketByReference,
+  type InsertCreditGrantParams,
+  insertCreditGrant,
+  mintMonotonicUuidV7,
+} from "./credit-grant-sql.js";
+export {
   deriveEnterpriseContractEndDate,
   MIN_ENTERPRISE_CREDITS_PER_MONTH,
   MIN_ENTERPRISE_PERIOD_COUNT,

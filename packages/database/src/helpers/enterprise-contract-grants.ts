@@ -2,6 +2,11 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
+import { netTable, netType, type TableNetwork } from "../sql-tables.js";
+import {
+  findCreditBucketByReference,
+  insertCreditGrant,
+} from "./credit-grant-sql.js";
 
 function buildEnterprisePeriodCreditReferenceId(periodId: string): string {
   return periodId;
@@ -53,6 +58,8 @@ interface CreateEnterprisePeriodCreditBucketParams {
   activatesAt: Date;
   amount: bigint;
   expiresAt: Date;
+  mintId?: () => string;
+  network?: TableNetwork;
   organizationId: string;
   periodId: string;
 }
@@ -66,49 +73,35 @@ export async function createEnterprisePeriodCreditBucket(
   params: CreateEnterprisePeriodCreditBucketParams,
   tx: Prisma.TransactionClient,
 ): Promise<CreateEnterprisePeriodCreditBucketResult> {
+  const network = params.network ?? "mainnet";
   const referenceId = buildEnterprisePeriodCreditReferenceId(params.periodId);
-  const existingBucket = await tx.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
-      },
+  const existingBucket = await findCreditBucketByReference(
+    {
+      network,
+      referenceId,
+      referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
     },
-    select: { id: true },
-  });
+    tx,
+  );
 
   if (existingBucket) {
     return { bucketId: existingBucket.id, created: false };
   }
 
-  const transaction = await tx.transaction.create({
-    data: {
+  const { bucketId } = await insertCreditGrant(
+    {
+      mintId: params.mintId,
+      network,
+      activatesAt: params.activatesAt,
       amount: params.amount,
+      expiresAt: params.expiresAt,
       organizationId: params.organizationId,
+      referenceId,
+      referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
       userId: null,
-      sourceCreditBucket: {
-        create: {
-          activatesAt: params.activatesAt,
-          amount: params.amount,
-          expiresAt: params.expiresAt,
-          organizationId: params.organizationId,
-          referenceId,
-          referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
-          userId: null,
-        },
-      },
     },
-    select: {
-      sourceCreditBucket: {
-        select: { id: true },
-      },
-    },
-  });
-
-  const bucketId = transaction.sourceCreditBucket?.id;
-  if (!bucketId) {
-    throw new Error("Failed to create enterprise period credit bucket");
-  }
+    tx,
+  );
 
   return { bucketId, created: true };
 }
@@ -118,6 +111,8 @@ interface CreateEnterpriseTopUpCreditBucketParams {
   amount: bigint;
   contractId: string;
   expiresAt: Date | null;
+  mintId?: () => string;
+  network?: TableNetwork;
   organizationId: string;
 }
 
@@ -130,55 +125,42 @@ export async function createEnterpriseTopUpCreditBucket(
   params: CreateEnterpriseTopUpCreditBucketParams,
   tx: Prisma.TransactionClient,
 ): Promise<CreateEnterpriseTopUpCreditBucketResult> {
+  const network = params.network ?? "mainnet";
   const referenceId = buildEnterpriseTopUpCreditReferenceId(params.contractId);
-  const existingBucket = await tx.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType: CreditBucketReferenceType.ENTERPRISE_TOP_UP,
-      },
+  const existingBucket = await findCreditBucketByReference(
+    {
+      network,
+      referenceId,
+      referenceType: CreditBucketReferenceType.ENTERPRISE_TOP_UP,
     },
-    select: { id: true },
-  });
+    tx,
+  );
 
   if (existingBucket) {
     return { bucketId: existingBucket.id, created: false };
   }
 
-  const transaction = await tx.transaction.create({
-    data: {
+  const { bucketId } = await insertCreditGrant(
+    {
+      mintId: params.mintId,
+      network,
+      activatesAt: params.activatesAt,
       amount: params.amount,
+      expiresAt: params.expiresAt,
       organizationId: params.organizationId,
+      referenceId,
+      referenceType: CreditBucketReferenceType.ENTERPRISE_TOP_UP,
       userId: null,
-      sourceCreditBucket: {
-        create: {
-          activatesAt: params.activatesAt,
-          amount: params.amount,
-          expiresAt: params.expiresAt,
-          organizationId: params.organizationId,
-          referenceId,
-          referenceType: CreditBucketReferenceType.ENTERPRISE_TOP_UP,
-          userId: null,
-        },
-      },
     },
-    select: {
-      sourceCreditBucket: {
-        select: { id: true },
-      },
-    },
-  });
-
-  const bucketId = transaction.sourceCreditBucket?.id;
-  if (!bucketId) {
-    throw new Error("Failed to create enterprise top-up credit bucket");
-  }
+    tx,
+  );
 
   return { bucketId, created: true };
 }
 
 export async function expireCreditBucketsNow(
   params: {
+    network?: TableNetwork;
     now?: Date;
     referenceIds: string[];
     referenceTypes: CreditBucketReferenceType[];
@@ -189,44 +171,33 @@ export async function expireCreditBucketsNow(
     return 0;
   }
 
+  const network = params.network ?? "mainnet";
   const now = params.now ?? new Date();
-  const result = await tx.creditBucket.updateMany({
-    where: {
-      referenceId: {
-        in: params.referenceIds,
-      },
-      referenceType: {
-        in: params.referenceTypes,
-      },
-      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-    },
-    data: {
-      expiresAt: now,
-    },
-  });
-
-  return result.count;
+  const updatedAt = new Date();
+  return await tx.$executeRaw`
+    UPDATE ${netTable(network, "credit_bucket")}
+    SET "expiresAt" = ${now}, "updatedAt" = ${updatedAt}
+    WHERE "referenceId" = ANY(${params.referenceIds}::text[])
+      AND "referenceType" = ANY(CAST(${params.referenceTypes}::text[] AS ${netType(network, "CreditBucketReferenceType")}[]))
+      AND ("expiresAt" IS NULL OR "expiresAt" > ${now})
+  `;
 }
 
 export async function findEnterprisePeriodCreditBucket(
   periodId: string,
   tx: Prisma.TransactionClient,
+  network: TableNetwork = "mainnet",
 ): Promise<{
   activatesAt: Date | null;
   expiresAt: Date | null;
   id: string;
 } | null> {
-  return await tx.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId: buildEnterprisePeriodCreditReferenceId(periodId),
-        referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
-      },
+  return await findCreditBucketByReference(
+    {
+      network,
+      referenceId: buildEnterprisePeriodCreditReferenceId(periodId),
+      referenceType: CreditBucketReferenceType.ENTERPRISE_PERIOD,
     },
-    select: {
-      activatesAt: true,
-      expiresAt: true,
-      id: true,
-    },
-  });
+    tx,
+  );
 }

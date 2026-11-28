@@ -137,6 +137,7 @@ describe("grant", () => {
         amount: 7n,
         contractId: "contract-1",
         expiresAt: null,
+        mintId: expect.any(Function),
         organizationId: "org-1",
       },
       tx,
@@ -162,13 +163,13 @@ describe("grant", () => {
   it.each([false, true])(
     "Stripe grant with an existing reference = %s",
     async (existing) => {
-      const findUnique = vi
+      const queryRaw = vi
         .fn()
-        .mockResolvedValue(existing ? { id: "bucket-1" } : null);
-      const create = vi.fn().mockResolvedValue({});
+        .mockResolvedValue(existing ? [{ id: "bucket-1" }] : []);
+      const executeRaw = vi.fn().mockResolvedValue(1);
       const tx = {
-        creditBucket: { findUnique },
-        transaction: { create },
+        $queryRaw: queryRaw,
+        $executeRaw: executeRaw,
       } as unknown as Prisma.TransactionClient;
       const receipt = await grant({
         scope,
@@ -190,16 +191,16 @@ describe("grant", () => {
         bucketId: null,
       });
       if (existing) {
-        expect(create).not.toHaveBeenCalled();
+        expect(executeRaw).not.toHaveBeenCalled();
         expect(database.wake).not.toHaveBeenCalled();
       } else {
-        expect(create).toHaveBeenCalledTimes(1);
+        expect(executeRaw).toHaveBeenCalledTimes(2);
         expect(database.wake).toHaveBeenCalledExactlyOnceWith({
           organizationId: "org-1",
           userId: null,
           tx,
         });
-        expect(create.mock.invocationCallOrder[0]).toBeLessThan(
+        expect(executeRaw.mock.invocationCallOrder[1]).toBeLessThan(
           database.wake.mock.invocationCallOrder[0],
         );
       }
@@ -209,10 +210,10 @@ describe("grant", () => {
   describe("a Polar grant", () => {
     const expiresAt = new Date("2026-12-28T00:00:00.000Z");
     function polarTx() {
-      const create = vi.fn().mockResolvedValue({ id: "transaction-1" });
+      const executeRaw = vi.fn().mockResolvedValue(1);
       return {
-        create,
-        tx: { transaction: { create } } as unknown as Prisma.TransactionClient,
+        executeRaw,
+        tx: { $executeRaw: executeRaw } as unknown as Prisma.TransactionClient,
       };
     }
     const polar = (polarTx: Prisma.TransactionClient) =>
@@ -230,37 +231,32 @@ describe("grant", () => {
       }) as const;
 
     it("writes its cents as the Project's bucket with no member, on the caller's transaction", async () => {
-      const { create, tx: written } = polarTx();
+      const { executeRaw, tx: written } = polarTx();
 
       await expect(
         grant({ ...polar(written), wakeTasks: false }),
       ).resolves.toEqual({ outcome: "granted", bucketId: null });
-      expect(create).toHaveBeenCalledExactlyOnceWith({
-        data: {
-          amount: 7n,
-          organizationId: "org-1",
-          userId: null,
-          sourceCreditBucket: {
-            create: {
-              amount: 7n,
-              expiresAt,
-              organizationId: "org-1",
-              projectId: "project-1",
-              referenceId: "order-1:0",
-              referenceNote: "Growth",
-              referenceType: "POLAR_SUBSCRIPTION_MONTH",
-              userId: null,
-            },
-          },
-        },
-      });
+      expect(executeRaw).toHaveBeenCalledTimes(2);
+      const [, ...txValues] = executeRaw.mock.calls[0] ?? [];
+      expect(txValues[4]).toBe(7n);
+      expect(txValues[5]).toBeNull();
+      expect(txValues[6]).toBe("org-1");
+      const [, ...bucketValues] = executeRaw.mock.calls[1] ?? [];
+      expect(bucketValues[4]).toBe(7n);
+      expect(bucketValues[5]).toBe(expiresAt);
+      expect(bucketValues[7]).toBe("order-1:0");
+      expect(bucketValues[8]).toBe("POLAR_SUBSCRIPTION_MONTH");
+      expect(bucketValues[10]).toBe("Growth");
+      expect(bucketValues[12]).toBeNull();
+      expect(bucketValues[13]).toBe("org-1");
+      expect(bucketValues[14]).toBe("project-1");
       expect(database.wake).not.toHaveBeenCalled();
     });
 
     it("wakes the Project's Tasks after the write when asked", async () => {
-      const { create, tx: written } = polarTx();
+      const { executeRaw, tx: written } = polarTx();
       database.wake.mockImplementationOnce(async () => {
-        expect(create).toHaveBeenCalledOnce();
+        expect(executeRaw).toHaveBeenCalledTimes(2);
       });
 
       await grant({ ...polar(written), wakeTasks: true });
@@ -274,9 +270,9 @@ describe("grant", () => {
     });
 
     it("throws the key's refusal and wakes nothing", async () => {
-      const { create, tx: written } = polarTx();
+      const { executeRaw, tx: written } = polarTx();
       const refusal = new Error("Unique constraint failed");
-      create.mockRejectedValueOnce(refusal);
+      executeRaw.mockResolvedValueOnce(1).mockRejectedValueOnce(refusal);
 
       await expect(grant({ ...polar(written), wakeTasks: true })).rejects.toBe(
         refusal,
@@ -285,7 +281,7 @@ describe("grant", () => {
     });
 
     it("writes nothing for a scope that refuses its Network", async () => {
-      const { create, tx: written } = polarTx();
+      const { executeRaw, tx: written } = polarTx();
       const refusal = new Error("Preprod is off");
       const refused = {
         get network(): never {
@@ -296,7 +292,7 @@ describe("grant", () => {
       await expect(
         grant({ ...polar(written), scope: refused, wakeTasks: true }),
       ).rejects.toBe(refusal);
-      expect(create).not.toHaveBeenCalled();
+      expect(executeRaw).not.toHaveBeenCalled();
     });
   });
 });

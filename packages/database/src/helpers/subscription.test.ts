@@ -66,6 +66,11 @@ function createTransactionClient(params?: {
     id: "tx_local_free",
   });
   const findManyMembersMock = vi.fn().mockResolvedValue(params?.members ?? []);
+  let pendingTransaction: {
+    amount: bigint;
+    userId: string | null;
+    organizationId: string | null;
+  } | null = null;
 
   return {
     createSubscriptionMock,
@@ -74,8 +79,60 @@ function createTransactionClient(params?: {
     findManyMembersMock,
     findUniqueBucketMock,
     tx: {
-      creditBucket: {
-        findUnique: findUniqueBucketMock,
+      $queryRaw: async (
+        _strings: TemplateStringsArray,
+        ...values: unknown[]
+      ) => {
+        const referenceId = values[1] as string;
+        const referenceType = values[2] as string;
+        const existing = await findUniqueBucketMock({
+          where: {
+            referenceId_referenceType: { referenceId, referenceType },
+          },
+          select: { id: true },
+        });
+        return existing ? [existing] : [];
+      },
+      $executeRaw: async (
+        strings: TemplateStringsArray,
+        ...values: unknown[]
+      ) => {
+        const sql = strings.join("?");
+        if (
+          sql.includes("INSERT INTO") &&
+          !sql.includes("sourceTransactionId")
+        ) {
+          pendingTransaction = {
+            amount: values[4] as bigint,
+            userId: values[5] as string | null,
+            organizationId: values[6] as string | null,
+          };
+          return 1;
+        }
+        if (sql.includes("sourceTransactionId") && pendingTransaction) {
+          const txRow = pendingTransaction;
+          pendingTransaction = null;
+          await createTransactionMock({
+            data: {
+              amount: txRow.amount,
+              organizationId: txRow.organizationId,
+              userId: txRow.userId,
+              sourceCreditBucket: {
+                create: {
+                  activatesAt: values[6] as Date | null,
+                  amount: values[4] as bigint,
+                  expiresAt: values[5] as Date | null,
+                  organizationId: values[13] as string | null,
+                  referenceId: values[7] as string,
+                  referenceType: values[8] as string,
+                  userId: values[12] as string | null,
+                },
+              },
+            },
+          });
+          return 1;
+        }
+        return 1;
       },
       member: {
         findMany: findManyMembersMock,
@@ -83,9 +140,6 @@ function createTransactionClient(params?: {
       subscription: {
         create: createSubscriptionMock,
         findFirst: findSubscriptionMock,
-      },
-      transaction: {
-        create: createTransactionMock,
       },
     } as unknown as PrismaType.TransactionClient,
   };

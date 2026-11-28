@@ -10,9 +10,14 @@ function jobTx(
   { liveCuso = true, remaining = [] as unknown[] } = {},
 ) {
   const update = vi.fn().mockResolvedValue({});
-  const transactionCreate = vi.fn(async () => ({
+  const transactionCreate = vi.fn(async (_args?: unknown) => ({
     id: `refund-${transactionCreate.mock.calls.length}`,
   }));
+  let pendingWriteOff: {
+    amount: bigint;
+    userId: string | null;
+    organizationId: string | null;
+  } | null = null;
   const tx = {
     job: { findUnique: async () => job, update },
     transaction: { create: transactionCreate },
@@ -20,6 +25,39 @@ function jobTx(
       updateMany: vi.fn().mockResolvedValue({ count: liveCuso ? 1 : 0 }),
     },
     $queryRaw: vi.fn().mockResolvedValue(remaining),
+    $executeRaw: async (
+      strings: TemplateStringsArray,
+      ...values: unknown[]
+    ) => {
+      const sql = strings.join("?");
+      if (sql.includes("INSERT INTO") && !sql.includes("bucketId")) {
+        pendingWriteOff = {
+          amount: values[4] as bigint,
+          userId: values[5] as string | null,
+          organizationId: values[6] as string | null,
+        };
+        return 1;
+      }
+      if (sql.includes("bucketId") && pendingWriteOff) {
+        const txRow = pendingWriteOff;
+        pendingWriteOff = null;
+        await transactionCreate({
+          data: {
+            amount: txRow.amount,
+            organizationId: txRow.organizationId,
+            userId: txRow.userId,
+            creditConsumptions: {
+              create: {
+                amount: values[3] as bigint,
+                bucketId: values[4] as string,
+              },
+            },
+          },
+        });
+        return 1;
+      }
+      return 1;
+    },
   } as unknown as Prisma.TransactionClient;
   const created = () =>
     transactionCreate.mock.calls.map(

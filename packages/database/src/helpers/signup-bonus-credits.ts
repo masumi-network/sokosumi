@@ -5,11 +5,18 @@ import {
   type Prisma,
 } from "../generated/prisma/client.js";
 import { isPrismaUniqueConstraintError } from "../prisma-errors.js";
+import type { TableNetwork } from "../sql-tables.js";
 import { buildSignupBonusCreditReferenceId } from "./credit.js";
+import {
+  findCreditBucketByReference,
+  insertCreditGrant,
+} from "./credit-grant-sql.js";
 
 interface GrantSignupBonusCreditsParams {
   credits: number;
   expiresAt: Date | null;
+  mintId?: () => string;
+  network?: TableNetwork;
   userId: string;
 }
 
@@ -20,17 +27,18 @@ interface GrantSignupBonusCreditsResult {
 
 async function findSignupBonusBucket(
   referenceId: string,
+  network: TableNetwork,
   tx: Prisma.TransactionClient,
 ): Promise<{ id: string } | null> {
-  return await tx.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
-      },
+  const found = await findCreditBucketByReference(
+    {
+      network,
+      referenceId,
+      referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
     },
-    select: { id: true },
-  });
+    tx,
+  );
+  return found ? { id: found.id } : null;
 }
 
 export async function grantSignupBonusCredits(
@@ -45,8 +53,9 @@ export async function grantSignupBonusCredits(
     throw new Error("Signup bonus credits must be a positive integer");
   }
 
+  const network = params.network ?? "mainnet";
   const referenceId = buildSignupBonusCreditReferenceId(params.userId);
-  const existingBucket = await findSignupBonusBucket(referenceId, tx);
+  const existingBucket = await findSignupBonusBucket(referenceId, network, tx);
 
   if (existingBucket) {
     return { bucketId: existingBucket.id, created: false };
@@ -55,36 +64,19 @@ export async function grantSignupBonusCredits(
   const amount = convertCreditsToCents(params.credits);
 
   try {
-    const transaction = await tx.transaction.create({
-      data: {
+    const { bucketId } = await insertCreditGrant(
+      {
+        mintId: params.mintId,
+        network,
         amount,
-        sourceCreditBucket: {
-          create: {
-            amount,
-            expiresAt: params.expiresAt,
-            organizationId: null,
-            referenceId,
-            referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
-            userId: params.userId,
-          },
-        },
-        user: {
-          connect: {
-            id: params.userId,
-          },
-        },
+        expiresAt: params.expiresAt,
+        organizationId: null,
+        referenceId,
+        referenceType: CreditBucketReferenceType.SIGNUP_BONUS,
+        userId: params.userId,
       },
-      select: {
-        sourceCreditBucket: {
-          select: { id: true },
-        },
-      },
-    });
-
-    const bucketId = transaction.sourceCreditBucket?.id;
-    if (!bucketId) {
-      throw new Error("Failed to create signup bonus credit bucket");
-    }
+      tx,
+    );
 
     return { bucketId, created: true };
   } catch (error) {
@@ -92,7 +84,7 @@ export async function grantSignupBonusCredits(
       throw error;
     }
 
-    const racedBucket = await findSignupBonusBucket(referenceId, tx);
+    const racedBucket = await findSignupBonusBucket(referenceId, network, tx);
     if (racedBucket) {
       return { bucketId: racedBucket.id, created: false };
     }

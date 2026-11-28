@@ -43,27 +43,20 @@ function createLocalFreePeriodClient() {
   const createSubscriptionMock = vi.fn().mockResolvedValue({
     id: "subscription-local-free",
   });
-  const findUniqueBucketMock = vi.fn().mockResolvedValue(null);
-  const createTransactionMock = vi.fn().mockResolvedValue({
-    id: "tx_local_free",
-  });
+  const queryRawMock = vi.fn().mockResolvedValue([]);
+  const executeRawMock = vi.fn().mockResolvedValue(1);
 
   return {
     createSubscriptionMock,
-    createTransactionMock,
+    executeRawMock,
     findSubscriptionMock,
-    findUniqueBucketMock,
+    queryRawMock,
     tx: {
-      creditBucket: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        findUnique: findUniqueBucketMock,
-      },
+      $queryRaw: queryRawMock,
+      $executeRaw: executeRawMock,
       subscription: {
         create: createSubscriptionMock,
         findFirst: findSubscriptionMock,
-      },
-      transaction: {
-        create: createTransactionMock,
       },
     } as unknown as PrismaType.TransactionClient,
   };
@@ -118,7 +111,7 @@ describe("organization subscription credit routing matrix", () => {
         params,
       } = testCase;
       it("creates the expected number of 250-credit buckets", async () => {
-        const { createTransactionMock, tx } = createLocalFreePeriodClient();
+        const { executeRawMock, tx } = createLocalFreePeriodClient();
 
         const result = await ensureLocalFreeSubscriptionPeriod(
           { ...params, grantCredits: writing(tx) },
@@ -126,24 +119,20 @@ describe("organization subscription credit routing matrix", () => {
         );
 
         assert.equal(result.grantsCreated, expectedGrantCount);
-        assert.equal(
-          createTransactionMock.mock.calls.length,
-          expectedGrantCount,
-        );
+        // Each grant writes one Transaction INSERT and one credit_bucket INSERT.
+        assert.equal(executeRawMock.mock.calls.length, expectedGrantCount * 2);
 
-        const grantUserIds = createTransactionMock.mock.calls.map(
-          (call) => call[0].data.sourceCreditBucket.create.userId,
+        const bucketCalls = executeRawMock.mock.calls.filter(
+          (_call, index) => index % 2 === 1,
         );
+        const grantUserIds = bucketCalls.map((call) => call[13]);
         assert.deepEqual(grantUserIds, expectedGrantUserIds);
 
-        const grantReferenceIds = createTransactionMock.mock.calls.map(
-          (call) => call[0].data.sourceCreditBucket.create.referenceId,
-        );
+        const grantReferenceIds = bucketCalls.map((call) => call[8]);
         assert.deepEqual(grantReferenceIds, expectedReferenceIds);
 
-        for (const call of createTransactionMock.mock.calls) {
-          const grantAmount = call[0].data.sourceCreditBucket.create
-            .amount as bigint;
+        for (const call of bucketCalls) {
+          const grantAmount = call[5] as bigint;
           assert.equal(
             grantAmount,
             BigInt(FREE_SUBSCRIPTION_MONTHLY_CREDITS * 10_000_000_000),

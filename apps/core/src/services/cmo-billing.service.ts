@@ -1,16 +1,15 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { netType, sharedTable } from "@sokosumi/database/sql-tables";
+import { netTable, netType, sharedTable } from "@sokosumi/database/sql-tables";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
 import { type CmoVolumeLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import {
   findTesterGrant,
-  testerCreditsWhere,
   testerFunding,
-  testerFundingQuery,
 } from "@/lib/credits/commercial-funding";
+import { requireChargingNetwork } from "@/lib/credits/policy";
 import {
   createNetworkScope,
   type MainnetScope,
@@ -36,27 +35,31 @@ import {
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
- * A Cuso's Project that never had a CMO subscription (any status, ended or
- * not) and never got Tester credits: nobody paid for him yet.
- */
-const UNPAID_CUSO_PROJECT_WHERE = {
-  polarSubscriptions: { none: {} },
-  creditBuckets: { none: testerCreditsWhere() },
-} satisfies Prisma.ProjectWhereInput;
-
-/**
  * Whether a Cuso's Project never paid: no CMO subscription and no Tester
  * credits. Its approved strategy only led to Subscribe; nothing was made.
  */
 export async function isCmoProjectUnpaid(
   projectId: string,
-  db: Pick<Prisma.TransactionClient, "project"> = prisma,
+  db: Pick<Prisma.TransactionClient, "$queryRaw"> = prisma,
 ): Promise<boolean> {
-  const project = await db.project.findFirst({
-    where: { id: projectId, ...UNPAID_CUSO_PROJECT_WHERE },
-    select: { id: true },
-  });
-  return project !== null;
+  const rows = await db.$queryRaw<Array<{ id: string }>>`
+    SELECT p."id"
+    FROM ${sharedTable("project")} AS p
+    WHERE p."id" = ${projectId}::uuid
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("polar_subscription")} AS ps
+        WHERE ps."projectId" = p."id"
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${netTable("mainnet", "credit_bucket")} AS cb
+        WHERE cb."referenceType" = CAST(${CreditBucketReferenceType.CMO_TESTER_CREDITS}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
+          AND cb."projectId" = p."id"
+      )
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }
 
 /** An unpaid Cuso's Project whose strategy is not approved yet (Launch). */
@@ -151,14 +154,43 @@ export async function cmoPaidFor(
   projectId: string,
   now: Date,
   scope: NetworkScope,
-  tx?: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
+  tx?: Pick<Prisma.TransactionClient, "polarSubscription" | "$queryRaw">,
 ): Promise<{
   subscribed: boolean;
   tier: string | null;
   testerCreditsLeft: boolean;
 }> {
+  requireChargingNetwork(scope.network, "CMO billing");
+  if (tx) {
+    // The grant and month reservation keep their funding guard in their open transaction.
+    const subscription = await tx.polarSubscription.findFirst({
+      where: {
+        projectId,
+        endedAt: null,
+        status: "active",
+        OR: [{ cancelAtPeriodEnd: false }, { currentPeriodEnd: { gt: now } }],
+      },
+      select: { tier: true },
+    });
+    const remaining = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT cb."id"
+      FROM ${netTable("mainnet", "credit_bucket")} AS cb
+      LEFT JOIN ${netTable("mainnet", "credit_consumption")} AS cc ON cc."bucketId" = cb."id"
+      WHERE cb."referenceType" = CAST(${CreditBucketReferenceType.CMO_TESTER_CREDITS}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
+        AND cb."projectId" = ${projectId}::uuid
+        AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
+      GROUP BY cb."id", cb."amount"
+      HAVING cb."amount" > COALESCE(SUM(cc."amount"), 0)
+      LIMIT 1
+    `;
+    return {
+      subscribed: subscription !== null,
+      tier: subscription?.tier ?? null,
+      testerCreditsLeft: remaining.length > 0,
+    };
+  }
   const [subscription, testerBuckets] = await Promise.all([
-    (tx ?? scope.sharedDb).polarSubscription.findFirst({
+    scope.sharedDb.polarSubscription.findFirst({
       where: {
         projectId,
         endedAt: null,
@@ -167,10 +199,7 @@ export async function cmoPaidFor(
       },
       select: { tier: true },
     }),
-    // The grant and month reservation keep their funding guard in their open transaction.
-    tx
-      ? tx.creditBucket.findMany(testerFundingQuery(projectId, now))
-      : testerFunding(scope, projectId, now),
+    testerFunding(scope, projectId, now),
   ]);
   return {
     subscribed: subscription !== null,
@@ -307,21 +336,40 @@ export async function grantCmoTesterCredits(input: {
  */
 export async function findUnpaidCusoHiredBy(
   userId: string,
-  db: Pick<Prisma.TransactionClient, "sokoBot"> = prisma,
+  db: Pick<Prisma.TransactionClient, "$queryRaw"> = prisma,
 ): Promise<{ projectId: string; businessName: string } | null> {
-  const bot = await db.sokoBot.findFirst({
-    where: {
-      ...LIVE_CUSO_WHERE,
-      createdByUserId: userId,
-      project: UNPAID_CUSO_PROJECT_WHERE,
-    },
-    select: { project: { select: { id: true, websiteUrl: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!bot?.project) return null;
+  const versionIds = [...LIVE_CUSO_WHERE.versionId.in];
+  const rows = await db.$queryRaw<
+    Array<{ id: string; websiteUrl: string | null }>
+  >`
+    SELECT p."id", p."websiteUrl"
+    FROM ${sharedTable("soko_bot")} AS sb
+    INNER JOIN ${sharedTable("project")} AS p ON p."id" = sb."projectId"
+    WHERE sb."versionId" = ANY(${versionIds}::text[])
+      AND sb."userId" IS NULL
+      AND sb."projectId" IS NOT NULL
+      AND sb."deletedAt" IS NULL
+      AND sb."archivedAt" IS NULL
+      AND sb."createdByUserId" = ${userId}
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${sharedTable("polar_subscription")} AS ps
+        WHERE ps."projectId" = p."id"
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM ${netTable("mainnet", "credit_bucket")} AS cb
+        WHERE cb."referenceType" = CAST(${CreditBucketReferenceType.CMO_TESTER_CREDITS}::text AS ${netType("mainnet", "CreditBucketReferenceType")})
+          AND cb."projectId" = p."id"
+      )
+    ORDER BY sb."createdAt" DESC
+    LIMIT 1
+  `;
+  const project = rows[0];
+  if (!project) return null;
   return {
-    projectId: bot.project.id,
-    businessName: cmoBusinessNameFromUrl(bot.project.websiteUrl ?? ""),
+    projectId: project.id,
+    businessName: cmoBusinessNameFromUrl(project.websiteUrl ?? ""),
   };
 }
 
