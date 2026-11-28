@@ -265,4 +265,10 @@ describe("which Task events count on a Network", () => {
   ] as const)("an event tagged %s counts on %s: %s", (tag, network, counts) => {
     expect(taskEventCountsOn(tag, network)).toBe(counts);
   });
+
+  it("excludes an event whose Network tag was not selected", () => {
+    // A missing select must fail credit assertions instead of counting Preprod receipts as Mainnet.
+    // @ts-expect-error Simulate a reader that omitted network from its select.
+    expect(taskEventCountsOn(undefined, "mainnet")).toBe(false);
+  });
 });
