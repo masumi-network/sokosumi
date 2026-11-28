@@ -90,6 +90,7 @@ vi.mock("./jev", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./jev")>()),
   evaluateWithJev: () => Promise.reject(new Error("No Jev in tests")),
 }));
+vi.mock("./action-response", { spy: true });
 vi.mock("./active-background-runs", () => ({
   withActiveBackgroundRuns: activeRunsMock,
 }));
@@ -116,7 +117,7 @@ import {
   TIME_UP_PROMPT,
 } from "@/soko-bot-runner/rounds";
 import { expectCoreLog } from "@/test/core-log";
-import { REPLY_CHECK_NOTES } from "./action-response";
+import { buildActionResponse, REPLY_CHECK_NOTES } from "./action-response";
 import * as evaluation from "./evaluation-dispatch";
 import { InProcessSokoBotRuntime } from "./in-process-runtime";
 import { sokoBotRegionMiddleware } from "./model-policy";
@@ -185,6 +186,12 @@ describe("InProcessSokoBotRuntime", () => {
   it("runs the turn and records the events the drain settles on", async () => {
     // The canned reply claims a delegation no receipt backs, so it is held.
     claimsActionMock.mockResolvedValueOnce(true);
+    const scope = { network: "preprod" };
+    authorizeMock.mockResolvedValueOnce({
+      turn: { id: TURN_ID, versionId: "v11" },
+      grant: { capabilities: ["create_task"] },
+      scope,
+    });
     const withheld = expectCoreLog(
       "warn",
       "Cut a Soko Bot reply's claim of an unconfirmed change",
@@ -203,6 +210,7 @@ describe("InProcessSokoBotRuntime", () => {
     await Promise.all(pendingTurns);
 
     expect(ref.runtimeVersion).toBe("in-process-1");
+    expect(vi.mocked(buildActionResponse).mock.calls[0]?.[0]).toBe(scope);
     expect(recordedEvents().map((event) => event.type)).toEqual([
       "session.started",
       "turn.started",

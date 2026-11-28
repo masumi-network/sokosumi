@@ -405,7 +405,7 @@ export async function requireMutationAuthority(
         "Soko Bot is paused or unavailable",
       );
     }
-    await runtime.requireWriteScope(tx, activeBot, targets);
+    await runtime.requireWriteScope(tx, authorized.scope, activeBot, targets);
     return workspace;
   }
 
@@ -443,7 +443,12 @@ export async function requireMutationAuthority(
       "Soko Bot turn is no longer writable",
     );
   }
-  await runtime.requireWriteScope(tx, writable.sokoBot, targets);
+  await runtime.requireWriteScope(
+    tx,
+    authorized.scope,
+    writable.sokoBot,
+    targets,
+  );
   return workspace;
 }
 
@@ -451,11 +456,13 @@ export async function requireMutationAuthority(
 export async function requireWriteScope(
   runtime: RuntimeOperations,
   tx: Prisma.TransactionClient,
+  scope: AuthorizedSokoBotRuntime["scope"],
   bot: Parameters<typeof sokoBotSharedScopeOf>[0] | undefined,
   targets: SokoBotWriteTargets,
 ) {
   const refusal = await sokoBotWriteScopeRefusal(
     tx,
+    scope,
     bot ? sokoBotSharedScopeOf(bot) : null,
     targets,
   );

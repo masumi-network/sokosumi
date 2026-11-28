@@ -10,7 +10,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: db,
-  networkPrisma: () => ({ agent: db.agent }),
+  networkPrisma: () => ({ agent: db.agent, job: db.job }),
 }));
 
 import {

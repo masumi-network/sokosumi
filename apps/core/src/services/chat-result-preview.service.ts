@@ -1,5 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { jobInclude, type Prisma } from "@sokosumi/database";
+import {
+  type Job,
+  type Blob as JobBlob,
+  type JobEvent,
+  type JobInput,
+  type JobPurchase,
+  jobInclude,
+  type Link,
+  type Prisma,
+  type Transaction,
+} from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
 import {
@@ -25,7 +36,12 @@ import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
 import { sokoBotFace } from "@/lib/cuso-face";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  type NetworkDb,
+  type NetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { requireProjectAccess } from "@/lib/image-studio/access";
@@ -510,8 +526,100 @@ async function readWorkspace(
   };
 }
 
+type JobJsonRow<T> = Omit<T, "createdAt" | "updatedAt"> & {
+  createdAt: string;
+  updatedAt: string;
+};
+
+type JobJsonEvent = JobJsonRow<JobEvent> & {
+  input: JobJsonRow<JobInput> | null;
+  blobs: JobJsonRow<Omit<JobBlob, "size"> & { size: string | null }>[];
+  links: JobJsonRow<Link>[];
+};
+
+type SplitBotJobRow = Job & {
+  agentName: string;
+  agentIcon: string | null;
+  events: JobJsonEvent[];
+  purchase: JobJsonRow<JobPurchase> | null;
+  charge: JobJsonRow<Omit<Transaction, "amount"> & { amount: string }> | null;
+};
+
+/** PostgreSQL embeds Prisma's timestamp-without-time-zone fields as UTC text. */
+function jobJsonDates<T extends { createdAt: string; updatedAt: string }>(
+  row: T,
+) {
+  const { createdAt, updatedAt, ...fields } = row;
+  return {
+    ...fields,
+    createdAt: new Date(`${createdAt}Z`),
+    updatedAt: new Date(`${updatedAt}Z`),
+  };
+}
+
+/** Split detail reads only the relations used by the Job card and status tool. */
+export async function readSplitBotJob(
+  scope: NetworkScope,
+  db: NetworkDb | Prisma.TransactionClient,
+  jobId: string,
+  workspaceId: string,
+  visibility: PrismaRaw.Sql = PrismaRaw.empty,
+) {
+  const [row] = await db.$queryRaw<SplitBotJobRow[]>`
+    SELECT j.*, a.name AS "agentName", a.icon AS "agentIcon", to_jsonb(p) AS purchase,
+           CASE WHEN tx.id IS NOT NULL
+                THEN to_jsonb(tx) || jsonb_build_object('amount', tx.amount::text)
+           END AS charge,
+           COALESCE((
+             SELECT jsonb_agg(
+               to_jsonb(e) || jsonb_build_object(
+                 'input', to_jsonb(i),
+                 'blobs', ARRAY(
+                   SELECT to_jsonb(b) || jsonb_build_object('size', b.size::text)
+                   FROM ${scope.networkTable("blob")} b WHERE b."eventId" = e.id
+                 ),
+                 'links', ARRAY(
+                   SELECT to_jsonb(l)
+                   FROM ${scope.networkTable("link")} l WHERE l."eventId" = e.id
+                 )
+               ) ORDER BY e."createdAt" DESC
+             )
+             FROM ${scope.networkTable("jobEvent")} e
+             LEFT JOIN ${scope.networkTable("jobInput")} i ON i."eventId" = e.id
+             WHERE e."jobId" = j.id
+           ), '[]'::jsonb) AS events
+    FROM ${scope.networkTable("Job")} j
+    JOIN ${scope.networkTable("Agent")} a ON a.id = j."agentId"
+    LEFT JOIN ${scope.networkTable("jobPurchase")} p ON p."jobId" = j.id
+    LEFT JOIN ${scope.networkTable("Transaction")} tx ON tx.id = j."transactionId"
+    WHERE j.id = ${jobId} AND j."workspaceId" = ${workspaceId}::uuid
+    ${visibility}
+  `;
+  if (!row) return null;
+  const { agentName, agentIcon, purchase, charge, events, ...job } = row;
+  return {
+    ...job,
+    agent: { name: agentName, icon: agentIcon },
+    purchase: purchase && jobJsonDates(purchase),
+    transaction: charge && {
+      ...jobJsonDates(charge),
+      amount: BigInt(charge.amount),
+    },
+    events: events.map(({ input, blobs, links, ...event }) => ({
+      ...jobJsonDates(event),
+      input: input && jobJsonDates(input),
+      blobs: blobs.map((blob) => ({
+        ...jobJsonDates(blob),
+        size: blob.size === null ? null : BigInt(blob.size),
+      })),
+      links: links.map(jobJsonDates),
+    })),
+  };
+}
+
 export async function resolveChatResultReference(
   input: {
+    networkScope: NetworkScope;
     reference: ChatResultReference;
     actor: ChatResultActor;
     previewId?: string;
@@ -920,18 +1028,22 @@ export async function resolveChatResultReference(
       break;
     }
     case "job": {
-      // shortcut: Job previews stay on Mainnet until ticket 30.
+      const { networkScope } = input;
+      const legacyTx = client === prisma ? undefined : client;
       await requireJobRead(
         workspace,
         ref.id,
-        createNetworkScope("mainnet"),
+        networkScope,
         actor.userId,
-        client === prisma ? undefined : client,
+        legacyTx,
       );
-      const row = await client.job.findFirst({
-        where: { id: ref.id, workspaceId: actor.workspaceId },
-        include: jobInclude,
-      });
+      const db = legacyTx ?? networkScope.networkDb;
+      const row = networkUsesSharedSchema()
+        ? await db.job.findFirst({
+            where: { id: ref.id, workspaceId: actor.workspaceId },
+            include: jobInclude,
+          })
+        : await readSplitBotJob(networkScope, db, ref.id, actor.workspaceId);
       if (!row) throw notFound("Result unavailable");
       const job = mapJobWithStatus(row);
       const digest = digestJob(job);
@@ -1029,7 +1141,10 @@ export async function hydrateChatResultSnapshots(
   snapshots: ChatResultSnapshot[],
   viewerUserId: string,
   scope?: ChatResultHydrationScope,
+  turnScope?: NetworkScope,
 ): Promise<ChatResultPreview[]> {
+  // shortcut: passive result hydration stays on Mainnet until 30-3 tags outputs.
+  const networkScope = turnScope ?? createNetworkScope("mainnet");
   const resolved =
     scope ?? (await preloadChatResultHydration(snapshots, viewerUserId));
   return Promise.all(
@@ -1037,6 +1152,7 @@ export async function hydrateChatResultSnapshots(
       if (snapshot.data.state === "unavailable") {
         try {
           const current = await resolveChatResultReference({
+            networkScope,
             reference: snapshot.reference,
             actor: { userId: viewerUserId, workspaceId: snapshot.workspaceId },
             previewId: snapshot.data.id,
@@ -1054,6 +1170,7 @@ export async function hydrateChatResultSnapshots(
       }
       try {
         const current = await resolveChatResultReference({
+          networkScope,
           reference: snapshot.reference,
           actor: { userId: viewerUserId, workspaceId: snapshot.workspaceId },
           previewId: snapshot.data.id,

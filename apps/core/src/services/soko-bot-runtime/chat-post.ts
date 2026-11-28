@@ -103,6 +103,7 @@ export async function postChat(
   for (const reference of input.resultReferences ?? []) {
     snapshots.push(
       await resolveChatResultReference({
+        networkScope: authorized.scope,
         reference,
         actor: {
           userId: actingMemberOf(authorized),

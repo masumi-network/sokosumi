@@ -181,7 +181,7 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 export interface SandboxTurnStart
   extends Omit<
     PreparedTurn,
-    "inferenceRegion" | "meetingPrep" | "granted" | "requestPlan"
+    "inferenceRegion" | "meetingPrep" | "granted" | "requestPlan" | "scope"
   > {
   message: string;
   deadlineAt: string;
@@ -229,6 +229,7 @@ export async function startSandboxTurn(
   await announceTurn(logFor(claims), stored.userMessage);
   const {
     inferenceRegion: _region,
+    scope: _scope,
     meetingPrep: _meetingPrep,
     // Already in the message below; the runner needs only planInherited.
     requestPlan: _requestPlan,
@@ -796,6 +797,7 @@ export async function completeSandboxTurn(
   const log = logFor(claims);
   try {
     await finishTurn({
+      scope: authorized.scope,
       log,
       turnId: claims.turnId,
       text: input.text,

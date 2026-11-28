@@ -111,6 +111,7 @@ export async function dispatchChatTools(
         throw new SokoBotRuntimeValidationError(uuidRefusal);
       }
       return resolveChatResultReference({
+        networkScope: authorized.scope,
         reference,
         actor: {
           userId: actingMemberOf(authorized),

@@ -1,7 +1,8 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
-import { buildActionResponse } from "./action-response";
+import { buildActionResponse as buildScopedActionResponse } from "./action-response";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
@@ -9,7 +10,9 @@ const db = vi.hoisted(() => ({
   task: { findFirst: vi.fn(), findMany: vi.fn() },
   job: { findMany: vi.fn() },
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: db }));
+const scope = createNetworkScope("mainnet");
+const buildActionResponse = buildScopedActionResponse.bind(null, scope);
+vi.mock("@/lib/db/prisma", () => ({ default: db, networkPrisma: () => db }));
 
 function receipt(overrides: Partial<SokoBotToolCall> = {}): SokoBotToolCall {
   return {

@@ -328,6 +328,7 @@ async function runTurn(
       callModel,
     );
     await finishTurn({
+      scope: turn.scope,
       log,
       turnId: input.turnId,
       text: result.text,

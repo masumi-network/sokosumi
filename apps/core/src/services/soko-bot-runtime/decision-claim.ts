@@ -140,6 +140,7 @@ export async function prepareDecision(
     decision.toolName === "hire_agent" ||
     decision.toolName === "provide_job_input";
   const actionContext: SokoBotActionContext = {
+    scope,
     provenance,
     confirmationTurnId: confirmation?.id,
     turn: {

@@ -22,6 +22,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { databaseNow } from "@/lib/db/database-now";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -306,6 +307,7 @@ const ACTION_PROOF_INSTRUCTION =
   'Final response MUST be one JSON object: {"kind":"REPORT"|"CLARIFY"|"SILENT","message":string|null,"question":"TARGET"|"SCOPE"|"TIME"|"APPROVAL"|"DETAILS"|null,"observationToolCallIds":[]}. "message" is what you say to the owner in your own words: what you found, a draft, what happens next, or the one question you need answered. Never state in "message" that you created, assigned, sent, scheduled, hired, posted or changed anything, or name ids: Core lists every verified action from its receipts above your message, and a claim it cannot verify misleads the owner. To explain task/job status or project social accounts/posts, copy the evidenceToolCallId from successful get_task_status, get_job_status, list_project_social_accounts, list_social_posts, or get_social_post read results into observationToolCallIds. Use CLARIFY when required information is missing and ask in "message". Use SILENT when there is nothing new worth flagging.';
 
 export interface PreparedTurn {
+  scope: NetworkScope;
   turnId: string;
   sessionId: string;
   system: string;
@@ -606,6 +608,7 @@ export async function prepareTurn(
       : {}),
   };
   return {
+    scope: authorized.scope,
     turnId,
     sessionId,
     system,
@@ -1086,6 +1089,7 @@ async function citationEvidence(turnId: string): Promise<Set<string>> {
 
 /** Turns the model's final text into the owner's answer and records it. */
 export async function finishTurn(input: {
+  scope: NetworkScope;
   log: RuntimeEventLog;
   turnId: string;
   text: string;
@@ -1098,6 +1102,7 @@ export async function finishTurn(input: {
     ? input.text
     : (parseActionNarrativeText(input.text)?.message ?? input.text);
   const response = await buildActionResponse(
+    input.scope,
     prisma,
     input.turnId,
     text,

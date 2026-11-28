@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { notFound } from "@/helpers/error";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 
@@ -38,7 +39,9 @@ const {
   projects: vi.fn(),
   reportMessage: vi.fn(),
 }));
+const networkScope = createNetworkScope("mainnet");
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ job: { findFirst: job } }),
   default: {
     workspace: {
       findFirst: workspace,
@@ -133,6 +136,7 @@ describe("authorized chat results", () => {
   });
   it("records the real task state and turns revoked access into an opaque fallback", async () => {
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task", id: "task-1" },
       actor,
       previewId: id,
@@ -191,6 +195,7 @@ describe("authorized chat results", () => {
       events: [{ comment: "Which audience?" }],
     });
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task", id: "task-1" },
       actor,
     });
@@ -225,6 +230,7 @@ describe("authorized chat results", () => {
       events: [],
     });
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task", id: "task-1" },
       actor,
     });
@@ -233,6 +239,7 @@ describe("authorized chat results", () => {
 
   it("shows tags added after the turn while keeping the reported status", async () => {
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task", id: "task-1" },
       actor,
     });
@@ -274,10 +281,12 @@ describe("authorized chat results", () => {
       runOnce: true,
     });
     const execution = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task_schedule", id: "schedule-1" },
       actor,
     });
     const followUp = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "bot_schedule", id: "follow-up" },
       actor,
     });
@@ -324,6 +333,7 @@ describe("authorized chat results", () => {
       organizationId: "organization",
     });
     await resolveChatResultReference({
+      networkScope,
       reference: { kind: "bot_schedule", id: "follow-up" },
       actor,
     });
@@ -355,6 +365,7 @@ describe("authorized chat results", () => {
       expr: "0 9 * * 1",
     });
     const card = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task_schedule", id: "schedule-1" },
       actor,
     });
@@ -391,6 +402,7 @@ describe("authorized chat results", () => {
       media: [],
     });
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "social_post", id: "post", projectId: "project" },
       actor,
     });
@@ -434,6 +446,7 @@ describe("authorized chat results", () => {
         media: [],
       });
       const snapshot = await resolveChatResultReference({
+        networkScope,
         reference: { kind: "social_post", id: "post", projectId: "project" },
         actor,
       });
@@ -539,6 +552,7 @@ describe("authorized chat results", () => {
       },
     ]);
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "social_post", id: "post", projectId: "project" },
       actor,
       capturedAt,
@@ -640,6 +654,7 @@ describe("authorized chat results", () => {
         assetId: null,
       });
       const snapshot = await resolveChatResultReference({
+        networkScope,
         reference: {
           kind: "studio_job",
           id: "generation",
@@ -669,6 +684,7 @@ describe("authorized chat results", () => {
       bytes: 1200,
     });
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "studio_job", id: "generation", projectId: "project" },
       actor,
     });
@@ -717,6 +733,7 @@ describe("authorized chat results", () => {
   ])("summarizes a $status job as plain text", async (state) => {
     job.mockResolvedValue(jobRow(state));
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "job", id: "job" },
       actor,
       previewId: id,
@@ -739,6 +756,7 @@ describe("authorized chat results", () => {
       }),
     );
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "job", id: "job" },
       actor,
     });
@@ -791,6 +809,7 @@ describe("authorized chat results", () => {
       }),
     );
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "job", id: "job" },
       actor,
     });
@@ -808,6 +827,7 @@ describe("authorized chat results", () => {
   it("keeps a job card live after the turn that recorded it", async () => {
     job.mockResolvedValue(jobRow({ status: "processing" }));
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "job", id: "job" },
       actor,
     });
@@ -822,6 +842,7 @@ describe("authorized chat results", () => {
         { id: "file", displayName: "Output", mimeType, sizeBytes: null },
       ]);
       const snapshot = await resolveChatResultReference({
+        networkScope,
         reference: { kind: "file", id: "file" },
         actor,
       });
@@ -840,6 +861,7 @@ describe("authorized chat results", () => {
       },
     ]);
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "file", id: "file" },
       actor,
     });
@@ -869,6 +891,7 @@ describe("authorized chat results", () => {
     };
     decision.mockResolvedValue(row);
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "decision", id },
       actor,
     });
@@ -903,6 +926,7 @@ describe("authorized chat results", () => {
       room: { sharedSokoBot: { projectId: "project-1" } },
     });
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "cmo_report", id },
       actor,
     });
@@ -957,6 +981,7 @@ describe("authorized chat results", () => {
       }),
     );
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "job", id: "job" },
       actor,
     });
@@ -969,6 +994,7 @@ describe("authorized chat results", () => {
   });
   it("hydrates mixed-access collections without leaking an inaccessible file", async () => {
     const task = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "task", id: "task-1" },
       actor,
     });
@@ -981,6 +1007,7 @@ describe("authorized chat results", () => {
       },
     ]);
     const file = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "file", id: "private-file" },
       actor,
     });
@@ -1006,6 +1033,7 @@ describe("project selection previews", () => {
       { id, name: "Books", identifier: "BOOK", logo: null },
     ]);
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "project_selection", projectIds: [id] },
       actor,
     });
@@ -1031,6 +1059,7 @@ describe("project selection previews", () => {
       { id, name: "Books", identifier: null, logo: null },
     ]);
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "project_selection", projectIds: [id] },
       actor,
     });
@@ -1047,6 +1076,7 @@ describe("project selection previews", () => {
       organizationId: null,
     });
     const snapshot = await resolveChatResultReference({
+      networkScope,
       reference: { kind: "project_selection", projectIds: ["Acme Marketing"] },
       actor,
     });

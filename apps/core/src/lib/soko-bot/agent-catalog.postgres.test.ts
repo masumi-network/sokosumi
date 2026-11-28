@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
+import {
+  configureSqlTables,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
 import { Hono } from "hono";
 import type { Pool } from "pg";
-import { afterAll, expect, it, vi } from "vitest";
+import { afterAll, expect, it, onTestFinished, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import {
   forBotTool,
@@ -11,7 +15,6 @@ import {
   searchForBot,
 } from "@/lib/agent-catalog/bot";
 import type { NetworkScope } from "@/lib/db/network-scope";
-import prisma from "@/lib/db/prisma";
 import type { AuthVariables } from "@/middleware/auth";
 import {
   NETWORK_HEADER,
@@ -181,6 +184,12 @@ it
   async (rail, header) => {
     state.rail = rail;
     state.preprodEnabled = header === "preprod";
+    onTestFinished(
+      configureSqlTables({
+        ...sqlTableLayoutFromEnv(process.env),
+        preprodOn: state.preprodEnabled,
+      }),
+    );
     await withRequestScope(header, async (scope) => {
       state.fetchAgentInputSchema.mockClear();
       const db = scope.networkDb;
@@ -192,8 +201,11 @@ it
       const nameOfFixture = (id: string) => `${id} ${suffix}`;
       const seeded: string[] = [];
       let rateId: string | undefined;
-      // Job evidence is a separate reader still on the shared client.
-      const job = vi.spyOn(prisma.job, "findMany").mockResolvedValue([]);
+      // The catalog baseline excluded Job evidence, then a separate reader on the shared client.
+      // Keep that boundary now that Job reads have their own recording.
+      const job = onSplitLayout
+        ? vi.spyOn(db, "$queryRaw").mockResolvedValue([])
+        : vi.spyOn(db.job, "findMany").mockResolvedValue([]);
       const observations: Record<string, unknown> = {};
       async function capture<T>(label: string, run: () => Promise<T>) {
         const { outcome, log } = await observing(run);

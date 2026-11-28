@@ -1,0 +1,32 @@
+{
+  "personal": {
+    "packet": "1efe464506554cfc696d11d8cf29c44481120f5fff8af671445ee99b3478c99d",
+    "classification": "e2d1d2d3c163c215697d3d4743a3d338d476d5cfdf4b6f46036765186cdf71cb",
+    "actionResponse": "3c60e9357f3ea868fdc6b788a0348503666db493173696153111ee75c4265298"
+  },
+  "shared": {
+    "packet": "90f6c72e55ad72814fcf63d896788801d4c9c42ee9ab57668f21d1cdd969e442",
+    "classification": "9ee41133040d0c162755d7146838d0b0ea2ce3d636e985aa718d0def9b7c8830",
+    "actionResponse": "14612baec6f1c96e37d36a419e95a8f61d9464429b3f90b04eeabacf96872d1f"
+  },
+  "cuso": {
+    "packet": "cf60b74d4be39ecf8954902f3d9ab342be7a38e821717e012f0f433b6bd42ce8",
+    "classification": "9ee41133040d0c162755d7146838d0b0ea2ce3d636e985aa718d0def9b7c8830",
+    "actionResponse": "2b1695eb524faafda4a9e62ab408d3e69d6d1db0d74deec4cf9e8e66bbfdd63b"
+  },
+  "hire-offer": {
+    "packet": "b828ab0c6e64030a995b4c733e7cd3337d7e793183541f106be20b91b7a75cc8",
+    "classification": "e2d1d2d3c163c215697d3d4743a3d338d476d5cfdf4b6f46036765186cdf71cb",
+    "actionResponse": "793d1d0d49597f0b68dde6fdd6cecfb6219a2ff548d7bda3c0d390d2839e9fc2"
+  },
+  "event": {
+    "packet": "b301099a0cd2f1e8c2698e7b5b2ec87912bad54e0bbea09d13873617d03b58b1",
+    "classification": "e2d1d2d3c163c215697d3d4743a3d338d476d5cfdf4b6f46036765186cdf71cb",
+    "actionResponse": "0ac5869ab878d2068066fb050a087801302afa550858d1af3109ec411b7826f3"
+  },
+  "scheduled": {
+    "packet": "fd492e115c1d0dee8eadfa88d5d067e33b5a15a1e6208a56cf84cf491d55982a",
+    "classification": "e2d1d2d3c163c215697d3d4743a3d338d476d5cfdf4b6f46036765186cdf71cb",
+    "actionResponse": "8d8e45060f9cf60420c165fc5bfda25695e14ef3e789373a965a73ec6c82c8a9"
+  }
+}

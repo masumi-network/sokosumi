@@ -16,10 +16,12 @@ import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { digestJob } from "@/helpers/job-digest";
 import { buildSokoBotReaderJobWhere } from "@/helpers/task-visibility";
 import { forBotTool } from "@/lib/agent-catalog/bot";
-import prisma from "@/lib/db/prisma";
+import { networkUsesSharedSchema } from "@/lib/db/network-scope";
 import { parseHireAgentInput } from "@/lib/soko-bot/decision-proposal";
+import { buildSokoBotReaderJobVisibilitySql } from "@/lib/soko-bot/job-visibility";
 import { unattendedChaseRefusal } from "@/lib/soko-bot/unattended-comment";
 import { unattendedHireRefusal } from "@/lib/soko-bot/unattended-hire";
+import { readSplitBotJob } from "@/services/chat-result-preview.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
@@ -180,15 +182,28 @@ export async function dispatchTasksTools(
 
     case "get_job_status": {
       const { jobId } = jobIdInputSchema.parse(input.input);
-      const row = await prisma.job.findFirst({
-        where: {
-          AND: [
-            { id: jobId, workspaceId: authorized.turn.workspaceId },
-            buildSokoBotReaderJobWhere(authorized.reader),
-          ],
-        },
-        include: jobInclude,
-      });
+      const {
+        scope,
+        reader,
+        turn: { workspaceId },
+      } = authorized;
+      const row = networkUsesSharedSchema()
+        ? await scope.networkDb.job.findFirst({
+            where: {
+              AND: [
+                { id: jobId, workspaceId },
+                buildSokoBotReaderJobWhere(reader),
+              ],
+            },
+            include: jobInclude,
+          })
+        : await readSplitBotJob(
+            scope,
+            scope.networkDb,
+            jobId,
+            workspaceId,
+            buildSokoBotReaderJobVisibilitySql(reader, scope.network),
+          );
       if (!row) return null;
       const job = mapJobWithStatus(row);
       const polling = await repeatedPollRefusal(authorized.turn.id, {

@@ -1,5 +1,6 @@
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 const { resolve, calls, upsert, jobInput, captureException } = vi.hoisted(
   () => ({
@@ -33,6 +34,7 @@ const turn = {
   chainDepth: 0,
 };
 const tx = prisma;
+const scope = { network: "mainnet" } as NetworkScope;
 const receipt = {
   id: "receipt",
   capability: "create_task",
@@ -65,7 +67,7 @@ describe("automatic result previews", () => {
           result: { projectId: "project", taskId: "task" },
         },
       ]);
-      await prepareTurnActionResultPreviews("turn", turn, tx);
+      await prepareTurnActionResultPreviews("turn", turn, scope, tx);
       expect(resolve).toHaveBeenCalledWith(
         expect.objectContaining({ reference: { kind: "task", id: "task" } }),
         tx,
@@ -79,7 +81,7 @@ describe("automatic result previews", () => {
         },
       ]);
       resolve.mockClear();
-      await prepareTurnActionResultPreviews("turn", turn, tx);
+      await prepareTurnActionResultPreviews("turn", turn, scope, tx);
       expect(resolve).not.toHaveBeenCalled();
     },
   );
@@ -88,7 +90,7 @@ describe("automatic result previews", () => {
       receipt,
       { ...receipt, capability: "assign_task" },
     ]);
-    await prepareTurnActionResultPreviews("turn", turn, tx);
+    await prepareTurnActionResultPreviews("turn", turn, scope, tx);
     expect(resolve).toHaveBeenCalledTimes(1);
     expect(resolve).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -136,7 +138,7 @@ describe("automatic result previews", () => {
       },
       { ...receipt, capability: "assign_task" },
     ]);
-    await prepareTurnActionResultPreviews("turn", turn, tx);
+    await prepareTurnActionResultPreviews("turn", turn, scope, tx);
     expect(resolve).toHaveBeenCalledWith(
       expect.objectContaining({
         previewId: snapshot.data.id,
@@ -162,7 +164,7 @@ describe("automatic result previews", () => {
       calls.mockResolvedValue([
         { ...receipt, capability, result: { projectId: "project" } },
       ]);
-      await prepareTurnActionResultPreviews("turn", turn, tx);
+      await prepareTurnActionResultPreviews("turn", turn, scope, tx);
       expect(resolve).toHaveBeenCalledWith(
         expect.objectContaining({
           reference: { kind, id: "task", projectId: "project" },
@@ -179,7 +181,7 @@ describe("automatic result previews", () => {
   ])(
     "never widens old versions or another caller's access",
     async (context) => {
-      await prepareTurnActionResultPreviews("turn", context, tx);
+      await prepareTurnActionResultPreviews("turn", context, scope, tx);
       expect(calls).not.toHaveBeenCalled();
       expect(resolve).not.toHaveBeenCalled();
     },
@@ -191,7 +193,7 @@ describe("automatic result previews", () => {
       { ...receipt, verification: "NONE" },
       { ...receipt, committedAt: null },
     ]);
-    await prepareTurnActionResultPreviews("turn", turn, tx);
+    await prepareTurnActionResultPreviews("turn", turn, scope, tx);
     expect(resolve).not.toHaveBeenCalled();
   });
   it("maps a verified JobInput receipt through its event to the owning job", async () => {
@@ -209,7 +211,7 @@ describe("automatic result previews", () => {
       },
     ]);
     jobInput.mockResolvedValue({ event: { jobId: "job-1" } });
-    await prepareTurnActionResultPreviews("turn", turn, tx);
+    await prepareTurnActionResultPreviews("turn", turn, scope, tx);
     expect(jobInput).toHaveBeenCalledWith({
       where: { id: "input-1" },
       select: { event: { select: { jobId: true } } },
@@ -227,7 +229,7 @@ describe("automatic result previews", () => {
     });
     upsert.mockRejectedValue(conflict);
     await expect(
-      prepareTurnActionResultPreviews("turn", turn, tx),
+      prepareTurnActionResultPreviews("turn", turn, scope, tx),
     ).rejects.toBe(conflict);
   });
 
@@ -236,7 +238,7 @@ describe("automatic result previews", () => {
     const error = new Error("Database unavailable");
     resolve.mockRejectedValue(error);
     await expect(
-      prepareTurnActionResultPreviews("turn", turn, tx),
+      prepareTurnActionResultPreviews("turn", turn, scope, tx),
     ).rejects.toBe(error);
   });
 
@@ -277,7 +279,7 @@ describe("automatic result previews", () => {
       },
     );
     await expect(
-      prepareTurnActionResultPreviews("turn", turn, tx),
+      prepareTurnActionResultPreviews("turn", turn, scope, tx),
     ).resolves.toBeUndefined();
     expect(resolve).toHaveBeenCalledWith(
       expect.objectContaining({ reference: { kind: "task", id: "kept-task" } }),
@@ -319,13 +321,13 @@ describe("automatic result previews", () => {
         targetId: `task-${i}`,
       })),
     );
-    await prepareTurnActionResultPreviews("turn", turn, tx);
+    await prepareTurnActionResultPreviews("turn", turn, scope, tx);
     expect(upsert).toHaveBeenCalledTimes(6);
     resolve.mockRejectedValue(
       new HTTPException(404, { message: "Preview unavailable" }),
     );
     await expect(
-      prepareTurnActionResultPreviews("turn", turn, tx),
+      prepareTurnActionResultPreviews("turn", turn, scope, tx),
     ).resolves.toBeUndefined();
   });
 });

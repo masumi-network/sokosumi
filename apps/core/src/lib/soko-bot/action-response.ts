@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   ACTION_LABELS,
   getSokoBotVersion,
@@ -7,6 +8,11 @@ import {
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { z } from "zod";
 import { getWebAppBaseUrl } from "@/config/env";
+import {
+  type NetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
+import prisma from "@/lib/db/prisma";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 import {
   ACCOUNT_QUESTION_HEADING,
@@ -464,6 +470,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 /** Model text cannot confer evidence. Replays reference original committed proof. */
 export async function buildActionResponse(
+  scope: NetworkScope,
   tx: Prisma.TransactionClient,
   turnId: string,
   answerText: string,
@@ -599,13 +606,19 @@ export async function buildActionResponse(
   const hiredJobIds = unique.flatMap((call) =>
     call.capability === "hire_agent" && call.targetId ? [call.targetId] : [],
   );
+  // A refusal still permits shared receipt reads, but cannot read a Job.
+  if (hiredJobIds.length) void scope.network;
   const jobAgents = new Map(
     hiredJobIds.length
-      ? (
-          await tx.job.findMany({
-            where: { id: { in: hiredJobIds } },
-            select: { id: true, agentId: true },
-          })
+      ? (tx !== prisma && !networkUsesSharedSchema()
+          ? await tx.$queryRaw<{ id: string; agentId: string }[]>`
+                SELECT id, "agentId" FROM ${scope.networkTable("Job")}
+                WHERE id IN (${PrismaRaw.join(hiredJobIds)})
+              `
+          : await (tx === prisma ? scope.networkDb : tx).job.findMany({
+              where: { id: { in: hiredJobIds } },
+              select: { id: true, agentId: true },
+            })
         ).map((job) => [job.id, job.agentId])
       : [],
   );

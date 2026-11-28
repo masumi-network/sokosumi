@@ -16,7 +16,7 @@ import {
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import { SokosumiJobStatus } from "@sokosumi/utils";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
 import {
   attenuateForChildWork,
   mintTurnOwnerAuthority,
@@ -334,11 +334,11 @@ export interface RequireScheduledRunMayEndOptions {
   ) => Promise<boolean>;
 }
 
-async function readMainnetJobStatus(input: {
-  jobId: string;
-  workspaceId: string;
-}): Promise<SokosumiJobStatus | null> {
-  const job = await createNetworkScope("mainnet").networkDb.job.findFirst({
+async function readScheduleJobStatus(
+  scope: NetworkScope,
+  input: { jobId: string; workspaceId: string },
+): Promise<SokosumiJobStatus | null> {
+  const job = await scope.networkDb.job.findFirst({
     where: { id: input.jobId, workspaceId: input.workspaceId },
     select: jobForStatusComputeSelect,
   });
@@ -357,7 +357,10 @@ export async function requireScheduledRunMayEnd(
   turnId: string,
   capability: SokoBotCapability,
   rawInput: unknown,
-  authorized?: Pick<AuthorizedSokoBotRuntime, "askedByKind" | "turn"> & {
+  authorized?: Pick<
+    AuthorizedSokoBotRuntime,
+    "askedByKind" | "turn" | "scope"
+  > & {
     grant: { capabilities: readonly SokoBotCapability[] };
   },
   options?: RequireScheduledRunMayEndOptions,
@@ -457,11 +460,14 @@ export async function requireScheduledRunMayEnd(
       });
       targetSettled = task !== null && SETTLED_TASK_STATUSES.has(task.status);
     } else {
-      const readJobStatus = options?.readJobStatus ?? readMainnetJobStatus;
-      const jobStatus = await readJobStatus({
-        jobId: targetId,
-        workspaceId: run.schedule.workspaceId,
-      });
+      const target = { jobId: targetId, workspaceId: run.schedule.workspaceId };
+      // Unattended schedules without a parent turn run on Mainnet.
+      const jobStatus = options?.readJobStatus
+        ? await options.readJobStatus(target)
+        : await readScheduleJobStatus(
+            authorized?.scope ?? createNetworkScope("mainnet"),
+            target,
+          );
       targetSettled = jobStatus !== null && SETTLED_JOB_STATUSES.has(jobStatus);
     }
   }

@@ -557,7 +557,10 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  networkPrisma: () => ({ agent: { findFirst: agentFindFirstMock } }),
+  networkPrisma: () => ({
+    agent: { findFirst: agentFindFirstMock },
+    job: { findFirst: jobFindFirstMock },
+  }),
   default: {
     // The search for text only a full audit's hidden line holds finds none.
     $queryRaw: () => Promise.resolve([]),

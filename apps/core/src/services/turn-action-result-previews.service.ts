@@ -9,6 +9,12 @@ import {
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import {
+  assertMainnetScope,
+  createNetworkScope,
+  type NetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { actionInputHash } from "@/lib/soko-bot/action-receipts";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
@@ -53,6 +59,7 @@ export async function prepareTurnActionResultPreviews(
     | "askedByUserId"
     | "chainDepth"
   > & { sokoBot: { userId: string | null } },
+  scope: NetworkScope,
   tx: Prisma.TransactionClient,
 ) {
   const actingUserId = sokoBotActingUserId(turn);
@@ -102,14 +109,25 @@ export async function prepareTurnActionResultPreviews(
       removed.add(`bot_schedule\0${call.targetId}`);
     const kind = ACTION_RESULTS[call.capability];
     if (!kind || !call.targetId) continue;
-    const jobInput =
-      call.capability === "provide_job_input"
-        ? await tx.jobInput.findUnique({
-            where: { id: call.targetId },
-            select: { event: { select: { jobId: true } } },
-          })
-        : null;
-    if (call.capability === "provide_job_input" && !jobInput) continue;
+    let jobId: string | undefined;
+    if (call.capability === "provide_job_input") {
+      if (networkUsesSharedSchema()) {
+        assertMainnetScope(scope);
+        const jobInput = await tx.jobInput.findUnique({
+          where: { id: call.targetId },
+          select: { event: { select: { jobId: true } } },
+        });
+        jobId = jobInput?.event.jobId;
+      } else {
+        const [jobInput] = await tx.$queryRaw<{ jobId: string }[]>`
+          SELECT e."jobId" FROM ${scope.networkTable("jobInput")} i
+          JOIN ${scope.networkTable("jobEvent")} e ON e.id = i."eventId"
+          WHERE i.id = ${call.targetId}
+        `;
+        jobId = jobInput?.jobId;
+      }
+      if (jobId === undefined) continue;
+    }
     const project = z.object({ projectId: z.string() }).safeParse(call.result);
     const seoTask = ["request_seo_analysis", "create_seo_action_task"].includes(
       call.capability,
@@ -119,9 +137,7 @@ export async function prepareTurnActionResultPreviews(
     if (seoTask && !seoTask.success) continue;
     const parsed = chatResultReferenceSchema.safeParse({
       kind,
-      id: seoTask?.success
-        ? seoTask.data.taskId
-        : (jobInput?.event.jobId ?? call.targetId),
+      id: seoTask?.success ? seoTask.data.taskId : (jobId ?? call.targetId),
       ...(kind === "social_post" || kind === "studio_job"
         ? { projectId: project.success ? project.data.projectId : undefined }
         : {}),
@@ -152,6 +168,8 @@ export async function prepareTurnActionResultPreviews(
             })
           : await resolveChatResultReference(
               {
+                // shortcut: 30-3 adds scoped Job preview authorization in the settlement snapshot.
+                networkScope: createNetworkScope("mainnet"),
                 reference,
                 actor: {
                   userId: actingUserId,
