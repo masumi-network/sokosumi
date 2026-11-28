@@ -3642,6 +3642,23 @@
           "waiting": "En espera",
           "done": "Hecho"
         },
+        "results": {
+          "open": "Descargar resultados",
+          "title": "Descargar resultados",
+          "description": "Elige el trabajo terminado que quieres reunir en un documento. El archivo es solo para ti; no se comparte ni se guarda en Archivos.",
+          "loading": "Cargando resultados",
+          "empty": "Aún no hay resultados. Cuando una Tarea de este Proyecto termine con un resultado, aparecerá aquí.",
+          "failed": "No se cargaron los resultados.",
+          "retry": "Reintentar",
+          "selectAll": "Seleccionar todo",
+          "selected": "{count} de {total} seleccionados",
+          "finished": "Terminado el {date}",
+          "openTask": "Abrir en Sokosumi",
+          "documentTitle": "{name}: resultados",
+          "fileName": "{name} resultados",
+          "downloadPdf": "Descargar PDF",
+          "downloadWord": "Descargar Word"
+        },
         "emptyBriefing": "Aún no hay briefing.",
         "writeBriefing": "Escribir briefing",
         "showMore": "Mostrar más",

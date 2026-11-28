@@ -10,6 +10,7 @@ import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
+import { ProjectResultsDownload } from "@/app/projects/components/project-results-download";
 import {
   ProjectStatusStrip,
   projectTaskCounts,
@@ -60,6 +61,13 @@ export default async function ProjectDetailPage({
     notFound();
   }
   const { project, closeStatus, stats, showBots, isHidden } = data;
+  const counts = stats ? projectTaskCounts(stats.tasks) : null;
+  // Done also counts failed and canceled Tasks, which have no result.
+  const hasResults = Boolean(
+    stats?.tasks.byStatus.some(
+      ({ status, count }) => status === "COMPLETED" && count > 0,
+    ),
+  );
 
   // Started before the page's own awaits, awaited inside their panels'
   // boundaries, so a slow feed holds up nothing above it. Each waits for the
@@ -139,18 +147,26 @@ export default async function ProjectDetailPage({
         <div className="min-w-0 space-y-8">
           {closeStatus ? <ProjectCloseStatusCard status={closeStatus} /> : null}
 
-          {stats ? (
-            <ProjectStatusStrip
-              projectId={project.id}
-              counts={projectTaskCounts(stats.tasks)}
-              formatCount={(value) => formatter.number(value)}
-              labels={{
-                label: t("stats.label"),
-                running: t("stats.running"),
-                waiting: t("stats.waiting"),
-                done: t("stats.done"),
-              }}
-            />
+          {counts ? (
+            <div className="flex flex-col gap-3">
+              <ProjectStatusStrip
+                projectId={project.id}
+                counts={counts}
+                formatCount={(value) => formatter.number(value)}
+                labels={{
+                  label: t("stats.label"),
+                  running: t("stats.running"),
+                  waiting: t("stats.waiting"),
+                  done: t("stats.done"),
+                }}
+              />
+              {hasResults ? (
+                <ProjectResultsDownload
+                  projectId={project.id}
+                  projectName={project.name}
+                />
+              ) : null}
+            </div>
           ) : null}
 
           {project.latestUpdate ? (

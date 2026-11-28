@@ -3642,6 +3642,23 @@
           "waiting": "Waiting",
           "done": "Done"
         },
+        "results": {
+          "open": "Download results",
+          "title": "Download results",
+          "description": "Pick the finished work to put in one document. The file goes only to you; nothing is shared or saved in Files.",
+          "loading": "Loading results",
+          "empty": "No results yet. When a Task in this Project finishes with a result, it shows up here.",
+          "failed": "Results didn't load.",
+          "retry": "Try again",
+          "selectAll": "Select all",
+          "selected": "{count} of {total} selected",
+          "finished": "Finished {date}",
+          "openTask": "Open in Sokosumi",
+          "documentTitle": "{name}: results",
+          "fileName": "{name} results",
+          "downloadPdf": "Download PDF",
+          "downloadWord": "Download Word"
+        },
         "emptyBriefing": "No briefing yet.",
         "writeBriefing": "Write briefing",
         "showMore": "Show more",
