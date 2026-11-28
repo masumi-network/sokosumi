@@ -7998,7 +7998,9 @@
           "365": "365 días",
           "all": "Todo"
         },
+        "all": "Todos",
         "empty": "No se siguió ningún cambio de página en este periodo.",
+        "emptyFiltered": "Ningún cambio de página seguido coincide con estos filtros.",
         "customer": "Cliente",
         "page": "Página",
         "suggestion": "Sugerencia",

@@ -834,6 +834,33 @@ export const AdminSeoImpactVerdictsSchema = {
             type: 'integer',
             minimum: 0
         },
+        counts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'waiting_crawl',
+                            'waiting_window',
+                            'ready',
+                            'waiting_retry',
+                            'measured',
+                            'not_measurable'
+                        ]
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'state',
+                    'count'
+                ]
+            }
+        },
         rows: {
             type: 'array',
             items: {
@@ -955,6 +982,7 @@ export const AdminSeoImpactVerdictsSchema = {
     },
     required: [
         'total',
+        'counts',
         'rows'
     ]
 } as const;

@@ -4,7 +4,8 @@ import { getTranslations } from "next-intl/server";
 import { SeoImpactTable } from "@/components/admin/seo-impact-table";
 import {
   ADMIN_SEO_IMPACT_PERIODS,
-  adminSeoImpactPeriod,
+  ADMIN_SEO_IMPACT_SOURCES,
+  adminSeoImpactFilters,
   readAdminSeoImpact,
 } from "@/lib/services/admin-seo-impact.service";
 
@@ -18,12 +19,12 @@ export const metadata: Metadata = {
 export default async function AdminSeoImpactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; state?: string; source?: string }>;
 }) {
-  const period = adminSeoImpactPeriod((await searchParams).period);
+  const filters = adminSeoImpactFilters(await searchParams);
   const [t, verdicts] = await Promise.all([
     getTranslations("App.Admin.SeoImpact"),
-    readAdminSeoImpact(period),
+    readAdminSeoImpact(filters),
   ]);
   return (
     <div className="min-h-full w-full">
@@ -36,8 +37,9 @@ export default async function AdminSeoImpactPage({
         </div>
         <SeoImpactTable
           verdicts={verdicts}
-          period={period}
+          filters={filters}
           periods={ADMIN_SEO_IMPACT_PERIODS}
+          sources={ADMIN_SEO_IMPACT_SOURCES}
         />
       </div>
     </div>
