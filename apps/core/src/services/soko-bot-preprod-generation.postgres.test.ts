@@ -15,7 +15,6 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import type { SokoBotCapability } from "@sokosumi/soko-bot";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
   afterAll,
@@ -454,165 +453,113 @@ describe.skipIf(!enabled)(
       },
     );
 
-    it.runIf(onSplitLayout).each(["mainnet", "preprod"] as const)(
-      "known Preprod billing gap: a fresh turn checks Mainnet funding before disabled Preprod admission (only %s funded)",
-      async (fundedNetwork) => {
+    it
+      .runIf(onSplitLayout)
+      .each(["off", "paused", "unavailable", "open"] as const)(
+      "refuses fresh Preprod work before funding with both wallet balances while %s",
+      async (state) => {
+        const { createNetworkScope } = await import("@/lib/db/network-scope");
         const fixture = await seed();
-        const { userId, bot } = fixture;
-        const scopes = await import("@/lib/db/network-scope");
-        const wallets = {
-          mainnet: scopes.createNetworkScope("mainnet").networkDb,
-          preprod: scopes.createNetworkScope("preprod").networkDb,
-        };
-        const amount = 1_000_000_000_000_000n;
-        const grant = await wallets[fundedNetwork].transaction.create({
+        const wallet = createNetworkScope("mainnet").networkDb;
+        const env = await import("@/config/env");
+        vi.spyOn(env, "getEnv").mockReturnValue({
+          ...env.getEnv(),
+          NETWORK_PREPROD_ENABLED: state !== "off",
+        });
+        await writeControl(
+          state === "paused" ? "paused" : "open",
+          state === "unavailable" ? "invalid" : "3",
+        );
+        const billing = await import("./soko-bot-billing.service");
+        const realBilling = await vi.importActual<typeof billing>(
+          "./soko-bot-billing.service",
+        );
+        const funding = vi.mocked(billing.requireSokoBotTurnFunding);
+        funding.mockClear();
+        funding.mockImplementation(realBilling.requireSokoBotTurnFunding);
+        const refusal =
+          state === "off"
+            ? {
+                status: 500,
+                message: expect.stringContaining("Preprod is off"),
+              }
+            : {
+                status: 503,
+                cause: {
+                  kind:
+                    state === "paused"
+                      ? "preprod_paused"
+                      : "preprod_control_unavailable",
+                },
+              };
+        if (state === "unavailable")
+          expectCoreLog(
+            "error",
+            "Could not read the Preprod pause and generation",
+            4,
+          );
+        const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+        const turns = new OpenAPIHonoWithAuth({
+          includeWorkspaceContext: true,
+          requireOrganizationProductSeat: true,
+        });
+        (await import("@/routes/v1/soko-bots/me/turns/post")).default(turns);
+        turns.onError((await import("@/helpers/error-handler")).errorHandler);
+        const where = { userId: fixture.userId };
+        const grant = await wallet.transaction.create({
           data: {
-            userId,
-            amount,
-            sourceCreditBucket: { create: { userId, amount } },
+            ...where,
+            amount: 1_000_000_000_000_000n,
+            sourceCreditBucket: {
+              create: { ...where, amount: 1_000_000_000_000_000n },
+            },
           },
         });
         try {
-          // Set up the distinct wallets first, then disable Preprod for the actual start.
-          const env = await import("@/config/env");
-          vi.spyOn(env, "getEnv").mockReturnValue({
-            ...env.getEnv(),
-            NETWORK_PREPROD_ENABLED: false,
-          });
-          const billing = await import("./soko-bot-billing.service");
-          const realBilling = await vi.importActual<typeof billing>(
-            "./soko-bot-billing.service",
-          );
-          vi.mocked(billing.requireSokoBotTurnFunding).mockImplementationOnce(
-            realBilling.requireSokoBotTurnFunding,
-          );
-          const scopeCalls = vi.spyOn(scopes, "createNetworkScope");
-          const recorded = recordStatements();
-          try {
-            const turn = startTurn(fixture, "preprod");
-            if (fundedNetwork === "mainnet") {
-              await expect(turn).rejects.toMatchObject({
-                status: 500,
-                message: expect.stringContaining("Preprod is off"),
+          for (const funded of [true, false]) {
+            if (!funded)
+              await wallet.creditBucket.updateMany({
+                where,
+                data: { amount: 0n },
               });
-              expect(scopeCalls).toHaveBeenCalledWith("preprod");
-            } else {
-              await expect(turn).rejects.toBeInstanceOf(
-                realBilling.SokoBotBillingAccessError,
+            const recorded = recordStatements();
+            try {
+              await expect(startTurn(fixture, "preprod")).rejects.toMatchObject(
+                refusal,
               );
-              await expect(turn).rejects.toMatchObject({
-                reason: "credits",
-                message:
-                  "Insufficient personal credits to start a Soko Bot turn.",
-              });
-              expect(scopeCalls).not.toHaveBeenCalledWith("preprod");
+              expect(funding).not.toHaveBeenCalled();
+              // These are the original shared admission reads, plus a control read when on.
+              expect(recorded.texts).toHaveLength(state === "off" ? 4 : 5);
+            } finally {
+              recorded.restore();
             }
-          } finally {
-            recorded.restore();
-          }
-          const schema = testSchemaNames().DATABASE_SCHEMA_MAINNET;
-          const reads = recorded.texts.filter((sql) =>
-            sql.includes("AS balance"),
-          );
-          expect(reads).toHaveLength(1);
-          expect(reads[0]).toContain(`FROM "${schema}"."credit_bucket"`);
-          expect(reads[0]).toContain(`JOIN "${schema}"."credit_consumption"`);
-          const balance = recorded.texts.indexOf(reads[0]);
-          expect(recorded.statements[balance][0]).toBe(userId);
-          await expect(
-            prisma.sokoBotTurn.count({ where: { sokoBotId: bot.id } }),
-          ).resolves.toBe(0);
-          for (const [network, db] of Object.entries(wallets)) {
-            await expect(
-              db.transaction.findMany({
-                where: { userId },
-                select: { id: true, amount: true },
+            const response = await turns.request("/me/turns", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "X-Sokosumi-Network": "preprod",
+              },
+              body: JSON.stringify({
+                message: "Check my board",
+                clientTurnId: randomUUID(),
               }),
-            ).resolves.toEqual(
-              network === fundedNetwork ? [{ id: grant.id, amount }] : [],
-            );
-            await expect(
-              db.creditBucket.findMany({
-                where: { userId },
-                select: {
-                  amount: true,
-                  consumptions: { select: { id: true } },
-                },
-              }),
-            ).resolves.toEqual(
-              network === fundedNetwork ? [{ amount, consumptions: [] }] : [],
-            );
-            await expect(
-              db.sokoBotUsage.count({ where: { sokoBotId: bot.id } }),
-            ).resolves.toBe(0);
+            });
+            expect(response.status).toBe(state === "off" ? 403 : 503);
+            expect(await response.json()).toMatchObject({
+              kind: state === "off" ? "preprod_off" : refusal.cause?.kind,
+            });
+            expect(funding).not.toHaveBeenCalled();
           }
         } finally {
-          await wallets[fundedNetwork].transaction.delete({
-            where: { id: grant.id },
-          });
+          funding.mockReset();
+          await wallet.transaction.delete({ where: { id: grant.id } });
         }
-      },
-    );
-
-    // The turn insert stamps from its input alone. This public-layout fixture
-    // bypasses admission and supplies public catalog tables. On the split
-    // layout the classifier and packet still read Job and Project-to-Job
-    // through the shared client (ticket 30).
-    it.skipIf(onSplitLayout)(
-      "stamps the current generation on a Preprod turn (on the split layout this waits for ticket 30: startTurn reads Job through the shared client)",
-      async () => {
-        const fixture = await seed();
-        await writeControl("open", "3");
-        const networkScopes = await import("@/lib/db/network-scope");
-        const scope = networkScopes.createNetworkScope("mainnet");
-        const startPreprodTurn = () => {
-          // Bypass only this turn's Preprod catalog scope. Billing uses its real Mainnet scope.
-          vi.spyOn(networkScopes, "createNetworkScope").mockImplementationOnce(
-            (network) => {
-              expect(network).toBe("preprod");
-              return scope;
-            },
-          );
-          return startTurn(fixture, "preprod");
-        };
-        const session = (
-          await import("@/lib/soko-bot/factory")
-        ).getSokoBotRuntime();
-        vi.spyOn(session, "createSession").mockResolvedValue({
-          sessionId: randomUUID(),
-          runtimeVersion: "test",
-          acceptedAt: new Date().toISOString(),
-        });
-        const { turnId } = await startPreprodTurn();
-        await expect(
-          prisma.sokoBotTurn.findUniqueOrThrow({
-            where: { id: turnId },
-            select: { network: true, preprodGeneration: true },
-          }),
-        ).resolves.toEqual({ network: "preprod", preprodGeneration: 3 });
-        // Paused: no Preprod turn is reserved. The first one ends, so the bot
-        // is free for the next start.
-        await prisma.sokoBotTurn.update({
-          where: { id: turnId },
-          data: { status: "COMPLETED" },
-        });
-        await writeControl("paused", "3");
-        await expect(startPreprodTurn()).rejects.toMatchObject({
-          status: 503,
-          cause: { kind: CORE_API_ERROR_KINDS.PREPROD_PAUSED },
-        });
-        await writeControl("open", "not a count");
-        expectCoreLog(
-          "error",
-          "Could not read the Preprod pause and generation",
-        );
-        await expect(startPreprodTurn()).rejects.toMatchObject({
-          status: 503,
-          cause: { kind: CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE },
-        });
         await expect(
           prisma.sokoBotTurn.count({ where: { sokoBotId: fixture.bot.id } }),
-        ).resolves.toBe(1);
+        ).resolves.toBe(0);
+        await expect(
+          wallet.sokoBotUsage.count({ where: { sokoBotId: fixture.bot.id } }),
+        ).resolves.toBe(0);
       },
     );
 

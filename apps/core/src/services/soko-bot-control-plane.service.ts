@@ -49,7 +49,7 @@ import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
 } from "@/helpers/cuso-project-credits";
-import { networkStamp } from "@/helpers/preprod-control";
+import { networkStamp, readPreprodControl } from "@/helpers/preprod-control";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
@@ -1796,6 +1796,7 @@ export class SokoBotControlPlane {
     requireMissingEveSession?: boolean;
     staleNetwork?: true;
   }): Promise<boolean> {
+    const billingScope = createNetworkScope("mainnet");
     // Set inside the transaction and read after it commits, because the
     // low-balance check publishes over realtime and must not run for a
     // charge that rolled back. Reset per attempt: a serialization retry
@@ -1890,6 +1891,7 @@ export class SokoBotControlPlane {
               ranModel: turnRanModel(turn.usage),
             },
             tx,
+            billingScope,
           );
       const chargedUserId = sokoBotActingUserId(turn);
       if (
@@ -2106,15 +2108,12 @@ export class SokoBotControlPlane {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
         if (chargedWallet) {
-          await notifyLowBalanceAfterCharge(
-            chargedWallet,
-            createNetworkScope("mainnet"),
-          );
+          await notifyLowBalanceAfterCharge(chargedWallet, billingScope);
         }
         if (chargedCusoProjectId) {
           await notifyCusoLowCreditsAfterCharge(
             chargedCusoProjectId,
-            createNetworkScope("mainnet"),
+            billingScope,
           );
         }
         if (settled && cmoTurnEnded) {
@@ -2483,6 +2482,25 @@ export class SokoBotControlPlane {
     if (input.chat?.mentionId)
       await requireOpenMention(prisma, input.chat.mentionId);
 
+    // Slice 30-3 removes this temporary refusal when Preprod turns can run.
+    if (input.network === "preprod") {
+      createNetworkScope(input.network);
+      const control = await readPreprodControl();
+      if (
+        control.state !== "unavailable" &&
+        input.expectedPreprodGeneration !== undefined &&
+        control.generation !== input.expectedPreprodGeneration
+      ) {
+        throw new DetachedNetworkRefusal(
+          CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+        );
+      }
+      throw new DetachedNetworkRefusal(
+        control.state === "paused"
+          ? CORE_API_ERROR_KINDS.PREPROD_PAUSED
+          : CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+      );
+    }
     try {
       await requireSokoBotTurnFunding(input.userId, bot.id);
     } catch (error) {

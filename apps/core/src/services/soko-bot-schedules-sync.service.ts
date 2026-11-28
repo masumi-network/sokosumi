@@ -337,12 +337,13 @@ export class SokoBotSchedulesSyncService {
     });
     if (!pending) return null;
     const { schedule, ...run } = pending;
-    const provenance = await scheduleTurnProvenance(schedule).catch(
-      (error: unknown) => {
-        if (error instanceof DetachedNetworkRefusal) return error;
-        throw error;
-      },
-    );
+    const provenance = await scheduleTurnProvenance(
+      schedule,
+      !run.turnId,
+    ).catch((error: unknown) => {
+      if (error instanceof DetachedNetworkRefusal) return error;
+      throw error;
+    });
     if (provenance instanceof DetachedNetworkRefusal) {
       if (provenance.final) await finishStaleSchedule(schedule, run);
       skipped.add(schedule.id);
@@ -412,7 +413,7 @@ export class SokoBotSchedulesSyncService {
       orderBy: [{ nextRunAt: "asc" }, { id: "asc" }],
     });
     if (!due?.nextRunAt) return null;
-    const provenance = await scheduleTurnProvenance(due).catch(
+    const provenance = await scheduleTurnProvenance(due, true).catch(
       (error: unknown) => {
         if (error instanceof DetachedNetworkRefusal) return error;
         throw error;

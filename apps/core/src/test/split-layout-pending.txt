@@ -50,7 +50,6 @@ src/services/chat-room-soko-bot-retry.postgres.test.ts 17  # SQL outside a trigg
 src/services/cmo-free-hiring.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket (from the server log; the test reports Error: promise rejected "PrismaClientKnownRequestError{ …(7))
 src/services/cmo-month-calendar.postgres.test.ts 30  # the shared client reaches the Network table credit_bucket
 src/services/cmo-seo.postgres.test.ts 27  # the shared client reaches the Network table Transaction
-src/services/cmo-test-copy.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket
 src/services/cmo-tester-credits.postgres.test.ts 27  # the shared client reaches the Network table credit_bucket
 src/services/competitor-check-project.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/competitor-feed.postgres.test.ts 27  # the shared client reaches the Network table Transaction
@@ -78,10 +77,9 @@ src/services/seo-chat.postgres.test.ts 27  # the shared client reaches the Netwo
 src/services/seo-credit-gate.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/seo-shared-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-task-execution.postgres.test.ts 25  # the shared client reaches the Network table Job
-src/services/soko-bot-follow-ups.postgres.test.ts 30  # the shared client reaches the Network table Transaction
-src/services/soko-bot-lease-clock.postgres.test.ts 27  # the shared client reaches the Network table Transaction
+src/services/soko-bot-follow-ups.postgres.test.ts 30  # fresh admission and follow-ups still read shared.Job
+src/services/soko-bot-lease-clock.postgres.test.ts 30  # fresh admission still reads shared.Job in the classifier (slice 30-2)
 src/services/soko-bot-plan-loop.postgres.test.ts 17  # runtime authorize locks bare soko_bot
-src/services/soko-bot-reconcile-writers.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/soko-bot-schedule-run-changes.postgres.test.ts 30  # the shared client reaches the Network table Job
 src/services/soko-bot-shared-background-runs.postgres.test.ts 30  # the shared client still reaches the Network table Job
 src/services/studio-campaign.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
