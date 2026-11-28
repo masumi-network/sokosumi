@@ -1,11 +1,7 @@
 import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
-  agentMetadataOverrideScalarsInclude,
-  agentPricingInclude,
-  type CreditCost,
   JobType,
-  PaymentType,
   PricingType,
   Prisma,
 } from "@sokosumi/database";
@@ -18,8 +14,6 @@ import {
 import {
   type AgentJobStartFailure,
   createAgentClient,
-  isV2RegistryIdentifier,
-  normalizeMasumiPaymentUnit,
   normalizeV2RegistryIdentifier,
   toMasumiPaymentNodeAmounts,
 } from "@sokosumi/masumi";
@@ -32,25 +26,18 @@ import type {
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
 import { openrouterClient } from "@/clients/openrouter.client";
-import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
-import {
-  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
-  buildAvailableAgentWhereClause,
-  type CardanoV2ReadySource,
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-  isCardanoV2SourceReady,
-  toMasumiAgent,
-} from "@/helpers/agent";
-import {
-  calculateCentsFromMasumiAmountStrings,
-  getAgentCost,
-} from "@/helpers/agent-cost";
+import { isCardanoV2SourceReady, toMasumiAgent } from "@/helpers/agent";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { registerJobPurchase } from "@/helpers/job-purchase-registration";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { creatorFields, type WorkCreator } from "@/helpers/work-creator";
+import {
+  aggregateAmountsByUnit,
+  isV2HireAgent,
+  MAX_PAYMENT_NODE_PURCHASE_AMOUNTS,
+  requireAgentForHire,
+} from "@/lib/agent-catalog/hire";
 import { getBalance } from "@/lib/credits/balance";
 import { spend } from "@/lib/credits/spend";
 import { createNetworkScope } from "@/lib/db/network-scope";
@@ -384,8 +371,6 @@ export interface JobOwnerContext {
   workspaceId: string;
 }
 
-const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
-
 /**
  * Records that a hire failed AFTER `start_job` was accepted, so the seller is
  * doing work for a job Sokosumi will never track. MIP-003 has no cancel, so
@@ -462,89 +447,6 @@ function reportStrandedStartJobFailure(
   );
 }
 
-interface PreparedV2Source {
-  amounts: { unit: string; amount: string }[];
-  cents: bigint;
-}
-
-function prepareEligibleV2Sources(
-  agentIdentifier: string,
-  sources: readonly {
-    sourceIndex: number;
-    pricingType: PricingType;
-    address: string;
-    amounts: { unit: string; amount: bigint }[];
-  }[],
-  creditCosts: CreditCost[],
-  readySources: readonly CardanoV2ReadySource[],
-  acceptedCeilingCents: bigint,
-  hasExplicitCeiling: boolean,
-): Map<number, PreparedV2Source> {
-  const prepared = new Map<number, PreparedV2Source>();
-  for (const source of sources) {
-    if (
-      !isCardanoV2SourceReady(agentIdentifier, source.address, readySources)
-    ) {
-      continue;
-    }
-    if (
-      source.pricingType !== PricingType.FIXED ||
-      source.amounts.length === 0
-    ) {
-      throw unprocessableEntity(
-        "Paid V2 agent has a purchase-ready source without fixed pricing",
-        { reportToSentry: true },
-      );
-    }
-    const amounts = aggregateAmountsByUnit(source.amounts);
-    if (amounts.length > MAX_PAYMENT_NODE_PURCHASE_AMOUNTS) {
-      throw unprocessableEntity(
-        "Paid V2 agent has a purchase-ready source with too many assets",
-        { reportToSentry: true },
-      );
-    }
-    let cents: bigint;
-    try {
-      cents = calculateCentsFromMasumiAmountStrings(amounts, creditCosts);
-    } catch {
-      throw unprocessableEntity(
-        "Paid V2 agent has a purchase-ready source with unbillable units",
-        { reportToSentry: true },
-      );
-    }
-    if (cents > acceptedCeilingCents) {
-      if (hasExplicitCeiling) {
-        throw badRequest("Credit cost exceeds maximum accepted credits");
-      }
-      throw unprocessableEntity(
-        "The agent's purchase-ready payment sources exceed its listed price",
-        { reportToSentry: true },
-      );
-    }
-    prepared.set(source.sourceIndex, { amounts, cents });
-  }
-  return prepared;
-}
-
-/**
- * Sums pricing rows per unit. The payment node compares Amounts as per-unit
- * sums and caps the array at 7 entries, so duplicate-unit registrations must
- * be aggregated before sending.
- */
-function aggregateAmountsByUnit(
-  rows: readonly { unit: string; amount: bigint }[],
-): { unit: string; amount: string }[] {
-  const sums = new Map<string, bigint>();
-  for (const row of rows) {
-    const unit = normalizeMasumiPaymentUnit(row.unit);
-    sums.set(unit, (sums.get(unit) ?? 0n) + row.amount);
-  }
-  return Array.from(sums, ([unit, amount]) => ({
-    unit,
-    amount: amount.toString(),
-  }));
-}
-
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithListSummaryRelations> {
@@ -556,71 +458,15 @@ export async function createAgentJobForUser(
       ? convertCreditsToCents(agentInput.maxCredits)
       : null);
 
-  const creditCosts = await getCreditCostsOrThrow();
-  const cardanoV2ReadySources = await getCardanoV2ReadySources();
-
-  // Price and payment sources must come from ONE snapshot: they are separate
-  // statements, and a registry replay landing between them would price this
-  // hire from an amount set that no longer exists. See
-  // AGENT_PRICING_READ_TRANSACTION_OPTIONS.
-  const [agent] = await prisma.$transaction(
-    [
-      prisma.agent.findFirst({
-        where: {
-          id: agentInput.agentId,
-          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-        },
-        include: {
-          ...agentPricingInclude,
-          ...agentMetadataOverrideScalarsInclude,
-          paymentSources: {
-            where: {
-              chain: "Cardano",
-              network: getEnv().NETWORK,
-              paymentSourceType: "Web3CardanoV2",
-            },
-            include: {
-              amounts: true,
-            },
-            orderBy: { sourceIndex: "asc" },
-          },
-        },
-      }),
-    ],
-    AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+  // shortcut: the hire reads Mainnet's catalog, as it did; ticket 25 passes the Job's Network.
+  const hire = await requireAgentForHire(
+    createNetworkScope("mainnet"),
+    agentInput.agentId,
+    maxCents,
   );
-
-  if (!agent) {
-    throw notFound("Agent not found");
-  }
-
-  let cost = getAgentCost(agent, creditCosts);
-  const isV2Agent =
-    agent.paymentType === PaymentType.WEB3_CARDANO_V2 ||
-    isV2RegistryIdentifier(agent.blockchainIdentifier);
-
-  if (!isV2Agent && maxCents !== null && cost.cents > maxCents) {
-    throw badRequest("Credit cost exceeds maximum accepted credits");
-  }
-  let preparedV2Sources = new Map<number, PreparedV2Source>();
-  if (isV2Agent && agent.pricing.pricingType === PricingType.FIXED) {
-    preparedV2Sources = prepareEligibleV2Sources(
-      agent.blockchainIdentifier,
-      agent.paymentSources,
-      creditCosts,
-      cardanoV2ReadySources,
-      maxCents ?? cost.cents,
-      maxCents !== null,
-    );
-    // No billable ready source can satisfy this hire — fail before start_job
-    // so the seller never accepts work we will refuse to track.
-    if (preparedV2Sources.size === 0) {
-      throw unprocessableEntity(
-        "No purchase-ready payment sources available for this agent",
-        { reportToSentry: true },
-      );
-    }
-  }
+  const { agent, cardanoV2ReadySources, preparedV2Sources } = hire;
+  let cost = hire.cost;
+  const isV2Agent = isV2HireAgent(agent);
 
   if (agentInput.projectId !== null && agentInput.projectId !== undefined) {
     const project = await prisma.project.findFirst({

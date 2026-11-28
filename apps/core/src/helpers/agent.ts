@@ -182,7 +182,10 @@ export const calculateAverageExecutionTime = async (
 ): Promise<number | null> => {
   // Calculate cutoff date in JavaScript to avoid SQL injection risk
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
+  // UTC arithmetic: local-zone setDate moves the cutoff an hour across a DST change.
+  cutoffDate.setUTCDate(
+    cutoffDate.getUTCDate() - TIME.AGENT_EXECUTION_METRICS_DAYS,
+  );
 
   const result = await scope.networkDb.$queryRaw<
     [{ avg_duration_seconds: PrismaRaw.Decimal | null }]
