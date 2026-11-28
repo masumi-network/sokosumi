@@ -16,6 +16,7 @@ import {
   CONTACT_DUPLICATES_KEY,
   CONTACT_LISTS_KEY,
   CONTACT_MAP_KEY,
+  CONTACT_QUIET_KEY,
   CONTACTS_KEY,
   contactKey,
   refreshContacts,
@@ -87,7 +88,8 @@ export function useContactUser() {
 /**
  * Saves fields on the version the reader saw. The row changes at once; a
  * stale version (someone else saved first) reloads the contact and says so,
- * any other failure puts the old values back.
+ * any other failure puts the old values back. `onSaved` gets the saved
+ * contact, e.g. for an Undo that must not overwrite a later edit.
  */
 export function useContactUpdate() {
   const t = useTranslations("App.Contacts");
@@ -96,6 +98,7 @@ export function useContactUpdate() {
     contact: Contact,
     fields: ContactFields,
     optimistic: Partial<Contact> = {},
+    onSaved?: (saved: Contact) => void,
   ): Promise<boolean> {
     writeContact(cache, { ...contact, ...fields, ...optimistic } as Contact);
     try {
@@ -106,6 +109,10 @@ export function useContactUpdate() {
       // Rows keep their place until the next load, so an edit under a sort
       // by "Updated" does not pull the row out from under the reader.
       writeContact(cache, saved);
+      onSaved?.(saved);
+      // A new or cleared follow-up moves people in or out of Gone quiet.
+      if (fields.followUpAt !== undefined)
+        void cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
       void cache.invalidateQueries({ queryKey: CONTACT_LISTS_KEY });
       void cache.invalidateQueries({ queryKey: CONTACT_MAP_KEY });
       void cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY });

@@ -36,6 +36,9 @@ import { ContactsPresetTabs } from "./contacts-views-bar";
 
 type Layout = "map" | "companies" | null;
 
+/** The Archived or Gone quiet heading, focused when one of them opens. */
+export const SIDE_ROOM_HEADING_ID = "contacts-side-room-heading";
+
 export function ContactsWorkspaceHeader({
   searchField,
   archived,
@@ -112,6 +115,7 @@ export function ContactsWorkspaceHeader({
             </Button>
             <h2
               ref={archiveHeading}
+              id={SIDE_ROOM_HEADING_ID}
               tabIndex={-1}
               className="flex h-10 min-w-0 items-center gap-2 text-sm font-medium outline-none md:h-8"
             >

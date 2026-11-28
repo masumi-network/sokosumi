@@ -110,16 +110,14 @@ describe("ContactsList", () => {
       1,
     );
     fireEvent.click(
-      screen.getByRole("button", { name: "quiet.followUpName:Marc Dubois" }),
+      screen.getByRole("button", { name: /^quiet.followUpShort.*Marc Dubois/ }),
     );
     expect(onFollowUp).toHaveBeenCalledExactlyOnceWith(quiet);
     expect(onOpen).not.toHaveBeenCalled();
     expect(screen.getByText("quiet.followUpOn:Nov 30")).toBeTruthy();
     // The row says when they last talked, not the reply chip, to keep room.
     expect(screen.queryByText("replyStates.NO_REPLY")).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "quiet.followUpName:Ana Ruiz" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /Ana Ruiz$/ })).toBeNull();
   });
 
   it("shows the email and how long a reply has been missing, and opens the person", () => {

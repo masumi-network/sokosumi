@@ -13082,7 +13082,7 @@
         "open": "{count, plural, =1 {1 still geworden} other {# still geworden}}",
         "followUp": "Nächste Woche nachfassen",
         "followUpShort": "Nächste Woche",
-        "followUpName": "Nächste Woche bei {name} nachfassen",
+        "followUpFor": " für {name}",
         "followUpOn": "Follow-up {date}",
         "followUpSet": "Follow-up mit {name} für nächste Woche geplant",
         "lastTalked": "Zuletzt gesprochen {when}"

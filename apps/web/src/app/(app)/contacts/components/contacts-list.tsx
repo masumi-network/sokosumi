@@ -76,7 +76,14 @@ export function ContactsList({
                     {contact.name}
                   </span>
                   {detail ? (
-                    <span className="text-muted-foreground truncate text-xs">
+                    <span
+                      className={cn(
+                        "text-muted-foreground truncate text-xs",
+                        // Gone quiet: when they last talked is why the row
+                        // is here, so it wraps on phones instead of cutting.
+                        onFollowUp && "max-sm:whitespace-normal",
+                      )}
+                    >
                       {detail}
                     </span>
                   ) : null}
@@ -118,14 +125,24 @@ export function ContactsList({
                   size="sm"
                   variant="outline"
                   className="mx-3 h-10 shrink-0 md:h-8"
-                  aria-label={t("quiet.followUpName", { name: contact.name })}
-                  onClick={() => onFollowUp(contact)}
+                  onClick={(event) => {
+                    // The button gives way to the date; keep focus in the row.
+                    event.currentTarget
+                      .closest("li")
+                      ?.querySelector("button")
+                      ?.focus();
+                    onFollowUp(contact);
+                  }}
                 >
                   <CalendarPlus aria-hidden className="size-4" />
-                  {/* Phones keep room for the name: the short label. */}
+                  {/* Phones keep room for the name: the short label. The name
+                      starts with the visible words, then says who. */}
                   <span className="sm:hidden">{t("quiet.followUpShort")}</span>
                   <span className="hidden sm:inline">
                     {t("quiet.followUp")}
+                  </span>
+                  <span className="sr-only">
+                    {t("quiet.followUpFor", { name: contact.name })}
                   </span>
                 </Button>
               ) : null}

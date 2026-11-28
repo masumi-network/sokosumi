@@ -15,6 +15,7 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { type ExternalToast, toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import {
@@ -73,7 +74,10 @@ import {
   ContactsFilterBar,
 } from "./contacts-toolbar";
 import { ContactsViewMenus } from "./contacts-views-bar";
-import { ContactsWorkspaceHeader } from "./contacts-workspace-header";
+import {
+  ContactsWorkspaceHeader,
+  SIDE_ROOM_HEADING_ID,
+} from "./contacts-workspace-header";
 import { DuplicatesDialog } from "./duplicates-dialog";
 import { ImportContactsDialog } from "./import-contacts-dialog";
 import { ImportLinkedInDialog } from "./import-linkedin-dialog";
@@ -359,33 +363,39 @@ export function ContactsWorkspace({
   /** Plans a follow-up next week; only offered to people without one. */
   async function followUpNextWeek(contact: Contact) {
     const followUpAt = nextWeekFollowUp(new Date());
-    if (!(await update(contact, { followUpAt }))) return;
-    void cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
+    let version = contact.version;
+    const saved = await update(contact, { followUpAt }, {}, (result) => {
+      version = result.version;
+    });
+    if (!saved) return;
     toast.success(t("quiet.followUpSet", { name: contact.name }), {
       // Long enough to reach Undo after reading the message.
       duration: 10_000,
       action: {
         label: t("bulk.undo"),
-        // Saved before the row changes back: an optimistic undo would offer
-        // the button again on a version Core is about to replace.
-        onClick: () =>
-          void contactsService
-            .get(contact.id)
-            .then((saved) =>
-              contactsService.update(contact.id, {
-                followUpAt: null,
-                version: saved.version,
-              }),
-            )
-            .then((restored) => {
-              writeContact(cache, restored);
-              return cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
-            })
-            .catch((error) =>
-              toast.error(coreErrorOf(error).message ?? t("errors.saveFailed")),
-            ),
+        onClick: () => void undoFollowUp(contact.id, version),
       },
     });
+  }
+  /**
+   * Clears the follow-up on the version our own save returned, so Core
+   * refuses it when a teammate changed the contact since. Saved before the
+   * row changes back, so the button never comes back on a stale version.
+   */
+  async function undoFollowUp(id: string, version: number) {
+    try {
+      writeContact(
+        cache,
+        await contactsService.update(id, { followUpAt: null, version }),
+      );
+      await cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
+    } catch (error) {
+      const { kind, message } = coreErrorOf(error);
+      if (kind === "contact_version_conflict") {
+        toast.error(t("errors.versionConflict"));
+        await refreshContacts(cache, id);
+      } else toast.error(message ?? t("errors.saveFailed"));
+    }
   }
   async function markNotSame(group: Contact[]) {
     try {
@@ -425,6 +435,8 @@ export function ContactsWorkspace({
                 placeholder={t("toolbar.searchPlaceholder")}
                 value={search}
                 maxLength={200}
+                // Side rooms hide the layout toggles; let search fill their room.
+                className={archived || quiet ? "sm:max-w-none" : undefined}
                 onValueChange={(value) => void setSearch(value || null)}
               />
             )
@@ -544,7 +556,12 @@ export function ContactsWorkspace({
                     size="sm"
                     variant="ghost"
                     className="h-10 md:h-8"
-                    onClick={() => changeView("quiet")}
+                    onClick={() => {
+                      // The button leaves with the view; land on its heading,
+                      // as the archive does.
+                      flushSync(() => changeView("quiet"));
+                      document.getElementById(SIDE_ROOM_HEADING_ID)?.focus();
+                    }}
                   >
                     <Clock aria-hidden className="size-4" />
                     {t("quiet.open", { count: quietCount })}

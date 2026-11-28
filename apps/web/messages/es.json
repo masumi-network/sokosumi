@@ -13082,7 +13082,7 @@
         "open": "{count, plural, =1 {1 sin contacto reciente} other {# sin contacto reciente}}",
         "followUp": "Seguimiento la próxima semana",
         "followUpShort": "Próxima semana",
-        "followUpName": "Hacer seguimiento con {name} la próxima semana",
+        "followUpFor": " con {name}",
         "followUpOn": "Seguimiento {date}",
         "followUpSet": "Seguimiento con {name} planificado para la próxima semana",
         "lastTalked": "Última conversación {when}"

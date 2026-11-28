@@ -13082,7 +13082,7 @@
         "open": "{count, plural, =1 {1 gone quiet} other {# gone quiet}}",
         "followUp": "Follow up next week",
         "followUpShort": "Next week",
-        "followUpName": "Follow up with {name} next week",
+        "followUpFor": " for {name}",
         "followUpOn": "Follow-up {date}",
         "followUpSet": "Follow-up with {name} planned for next week",
         "lastTalked": "Last talked {when}"

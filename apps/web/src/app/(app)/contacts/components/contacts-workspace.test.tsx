@@ -21,9 +21,22 @@ const {
   quietCount,
   getContact,
   saveContact,
+  written,
 } = vi.hoisted(() => ({
   rows: { current: [] as Array<Pick<Contact, "id" | "name" | "channels">> },
-  update: vi.fn(async () => true),
+  // Like the real hook: saves, then hands the saved contact to `onSaved`.
+  update: vi.fn(
+    async (
+      contact: { id: string; version?: number },
+      _fields: unknown,
+      _optimistic?: unknown,
+      onSaved?: (saved: unknown) => void,
+    ) => {
+      onSaved?.({ ...contact, version: 8 });
+      return true;
+    },
+  ),
+  written: vi.fn(),
   quietCount: { current: 0 },
   getContact: vi.fn(),
   saveContact: vi.fn(),
@@ -133,7 +146,7 @@ vi.mock("./use-contacts-data", () => ({
   useQuietCount: () => ({ data: quietCount.current }),
   DUPLICATE_GROUP_LIMIT: 200,
   refreshContacts: vi.fn(async () => {}),
-  writeContact: vi.fn(),
+  writeContact: written,
   useContactDuplicates: () => ({ data: [] }),
   useContactLists: () => ({ data: [SMART_LIST] }),
   useCompanyLists: () => ({ data: [] }),
@@ -187,6 +200,9 @@ beforeEach(() => {
   toast.success.mockReset();
   toast.error.mockReset();
   update.mockClear();
+  written.mockReset();
+  getContact.mockReset();
+  saveContact.mockReset();
   quietCount.current = 0;
 });
 
@@ -507,25 +523,55 @@ describe("Gone quiet", () => {
     expect(update).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ id: "c1" }),
       { followUpAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
+      {},
+      expect.any(Function),
     );
     expect(toast.success.mock.lastCall?.[0]).toBe("quiet.followUpSet");
   });
 
-  it("undoes on the saved version, so a quick second follow-up is not stale", async () => {
+  it("moves focus to the Gone quiet heading on entry", async () => {
+    quietCount.current = 2;
+    renderSmartList("");
+    await userEvent.click(screen.getByRole("button", { name: "quiet.open" }));
+    expect(screen.getByRole("heading", { name: "quiet.title" })).toHaveFocus();
+  });
+
+  it("undoes on the version its own save returned", async () => {
     quietCount.current = 1;
-    getContact.mockResolvedValue({ id: "c1", name: "Ada Lead", version: 7 });
-    saveContact.mockResolvedValue({ id: "c1", name: "Ada Lead", version: 8 });
+    saveContact.mockResolvedValue({ id: "c1", name: "Ada Lead", version: 9 });
     renderSmartList("?list=quiet");
     await userEvent.click(
       screen.getByRole("button", { name: "follow up Ada Lead" }),
     );
     await act(async () => undoAction("success")());
+    expect(getContact).not.toHaveBeenCalled();
     expect(saveContact).toHaveBeenCalledExactlyOnceWith("c1", {
       followUpAt: null,
-      version: 7,
+      version: 8,
     });
-    // The hook's optimistic write would show the button before the save.
-    expect(update).toHaveBeenCalledTimes(1);
+    expect(written).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ version: 9 }),
+    );
+  });
+
+  it("keeps a teammate's later follow-up: Undo after their edit is refused", async () => {
+    quietCount.current = 1;
+    // A teammate rescheduled after our save, so Core holds version 9 and
+    // refuses our Undo on version 8.
+    saveContact.mockRejectedValue({ kind: "contact_version_conflict" });
+    renderSmartList("?list=quiet");
+    await userEvent.click(
+      screen.getByRole("button", { name: "follow up Ada Lead" }),
+    );
+    written.mockClear();
+    await act(async () => undoAction("success")());
+    expect(saveContact).toHaveBeenCalledExactlyOnceWith("c1", {
+      followUpAt: null,
+      version: 8,
+    });
+    expect(written).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("errors.versionConflict");
   });
 
   it("shows no count when nobody went quiet", () => {
