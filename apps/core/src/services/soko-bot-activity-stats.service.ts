@@ -1,6 +1,7 @@
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { buildSokoBotTaskWhere } from "@/helpers/task-visibility";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import { createNetworkScope, type MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { roundCredits } from "@/lib/soko-bot/task-charges";
 
@@ -43,6 +44,7 @@ interface Window {
 
 /** The owner's Tasks in the window, and how many the bot completed for them. */
 async function ownActivity(
+  scope: MainnetScope,
   bot: ActivityStatsBot,
   ownerId: string,
   window: Window,
@@ -63,19 +65,40 @@ async function ownActivity(
     finished("COMPLETED", {
       sokoBotDelegations: { some: { turn: { sokoBotId: bot.id } } },
     }),
-    prisma.taskEvent.findMany({
-      where: {
-        createdAt: window,
-        task: ownTask,
-        transaction: { amount: { lt: 0 } },
-      },
-      select: {
-        transaction: { select: { amount: true } },
-        task: { select: { assignee: { select: { name: true } } } },
-      },
-    }),
+    scope.networkDb.$queryRaw<{ assigneeId: string | null; amount: bigint }[]>`
+      SELECT task."assigneeId", debit.amount
+      FROM ${sharedTable("taskEvent")} event
+      JOIN ${sharedTable("task")} task ON task.id = event."taskId"
+      JOIN ${scope.networkTable("Transaction")} debit ON debit.id = event."transactionId"
+      WHERE event."createdAt" >= ${window.gte} AND event."createdAt" < ${window.lt}
+        AND task."workspaceId" = ${bot.workspaceId}::uuid AND task."ownerId" = ${ownerId}
+        AND (event.network IS NULL OR event.network = 'mainnet')
+        AND debit.amount < 0
+    `,
   ]);
-  return { own: { created, completed, failed, viaBot }, debits };
+  const assigneeIds = [
+    ...new Set(
+      debits.flatMap(({ assigneeId }) =>
+        assigneeId === null ? [] : [assigneeId],
+      ),
+    ),
+  ];
+  const assignees = assigneeIds.length
+    ? await prisma.$queryRaw<{ id: string; name: string }[]>`
+        SELECT id, name FROM ${sharedTable("coworker")}
+        WHERE id = ANY(${assigneeIds}::text[])
+      `
+    : [];
+  const names = new Map(assignees.map(({ id, name }) => [id, name]));
+  return {
+    own: { created, completed, failed, viaBot },
+    debits: debits.map(({ amount, assigneeId }) => ({
+      amount,
+      who:
+        (assigneeId === null ? undefined : names.get(assigneeId)) ??
+        "Unassigned",
+    })),
+  };
 }
 
 /**
@@ -107,7 +130,7 @@ export async function activityStats(
     teamCreated,
     teamCompleted,
   ] = await Promise.all([
-    ownerId === null ? null : ownActivity(bot, ownerId, window),
+    ownerId === null ? null : ownActivity(scope, bot, ownerId, window),
     ownerId === null
       ? null
       : prisma.chatRoomMessage.count({
@@ -154,10 +177,7 @@ export async function activityStats(
   const debits = owner?.debits ?? [];
 
   const byCoworker = new Map<string, number>();
-  for (const debit of debits) {
-    const amount = debit.transaction?.amount;
-    if (amount == null) continue;
-    const who = debit.task.assignee?.name ?? "Unassigned";
+  for (const { who, amount } of debits) {
     byCoworker.set(
       who,
       (byCoworker.get(who) ?? 0) + convertCentsToCredits(-amount),

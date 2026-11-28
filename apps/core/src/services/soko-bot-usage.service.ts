@@ -4,7 +4,7 @@ import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { REFUND_PART_SEPARATOR } from "@/helpers/compensating-refund";
 import { refundParts, turnCharges } from "@/lib/credits/commercial-funding";
-import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
+import { createNetworkScope, type MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { labTurnTree } from "@/lib/soko-bot/lab-turns";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
@@ -47,28 +47,28 @@ export interface SokoBotUsageTotals {
 const SPENDING_TASK_ACTIONS = ["create_task", "assign_task"];
 
 async function delegatedCreditsSpent(
-  scope: NetworkScope,
+  scope: MainnetScope,
   sokoBotId: string,
 ): Promise<number> {
-  const delegations = await prisma.sokoBotDelegation.findMany({
-    where: {
-      turn: { sokoBotId },
-      OR: [
-        { taskId: { not: null }, action: { in: SPENDING_TASK_ACTIONS } },
-        { jobId: { not: null }, action: "hire_agent" },
-      ],
-    },
-    select: {
-      taskId: true,
-      job: {
-        select: {
-          id: true,
-          transaction: { select: { amount: true } },
-          refundedTransaction: { select: { amount: true } },
-        },
-      },
-    },
-  });
+  const delegations = await scope.networkDb.$queryRaw<
+    {
+      taskId: string | null;
+      jobId: string | null;
+      charge: bigint | null;
+      refund: bigint | null;
+    }[]
+  >`
+    SELECT d."taskId", job.id AS "jobId", charge.amount AS charge, refund.amount AS refund
+    FROM ${sharedTable("soko_bot_turn")} turn
+    JOIN ${sharedTable("soko_bot_delegation")} d ON d."turnId" = turn.id
+    LEFT JOIN ${scope.networkTable("Job")} job ON job.id = d."jobId"
+      AND (d.network IS NULL OR d.network = 'mainnet')
+    LEFT JOIN ${scope.networkTable("Transaction")} charge ON charge.id = job."transactionId"
+    LEFT JOIN ${scope.networkTable("Transaction")} refund ON refund.id = job."refundedTransactionId"
+    WHERE turn."sokoBotId" = ${sokoBotId}::uuid
+      AND ((d."taskId" IS NOT NULL AND d.action = ANY(${SPENDING_TASK_ACTIONS}::text[]))
+        OR (d."jobId" IS NOT NULL AND d.action = 'hire_agent'))
+  `;
   const taskIds = [
     ...new Set(delegations.flatMap((d) => (d.taskId ? [d.taskId] : []))),
   ];
@@ -77,8 +77,8 @@ async function delegatedCreditsSpent(
     credits += charged;
   // A split refund links one part to the Job; the others carry the Job id
   // in their bucket's referenceId (`createCompensatingRefund`).
-  const refundedJobIds = delegations.flatMap(({ job }) =>
-    job?.refundedTransaction ? [job.id] : [],
+  const refundedJobIds = delegations.flatMap(({ jobId, refund }) =>
+    jobId !== null && refund !== null ? [jobId] : [],
   );
   const otherRefundParts = new Map<string, bigint>();
   if (refundedJobIds.length > 0) {
@@ -88,11 +88,11 @@ async function delegatedCreditsSpent(
       otherRefundParts.set(jobId, (otherRefundParts.get(jobId) ?? 0n) + amount);
     }
   }
-  for (const { job } of delegations) {
+  for (const { jobId, charge, refund } of delegations) {
     const net =
-      -(job?.transaction?.amount ?? 0n) -
-      (job?.refundedTransaction?.amount ?? 0n) -
-      (job ? (otherRefundParts.get(job.id) ?? 0n) : 0n);
+      -(charge ?? 0n) -
+      (refund ?? 0n) -
+      (jobId === null ? 0n : (otherRefundParts.get(jobId) ?? 0n));
     if (net > 0n) credits += convertCentsToCredits(net);
   }
   return credits;

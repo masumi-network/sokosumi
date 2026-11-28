@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  queryRawMock,
   taskCountMock,
   taskFindManyMock,
   eventFindManyMock,
@@ -8,6 +9,7 @@ const {
   turnCountMock,
   usageAggregateMock,
 } = vi.hoisted(() => ({
+  queryRawMock: vi.fn(),
   taskCountMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   eventFindManyMock: vi.fn(),
@@ -17,8 +19,12 @@ const {
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  networkPrisma: () => ({ sokoBotUsage: { aggregate: usageAggregateMock } }),
+  networkPrisma: () => ({
+    $queryRaw: queryRawMock,
+    sokoBotUsage: { aggregate: usageAggregateMock },
+  }),
   default: {
+    $queryRaw: async () => [{ id: "h", name: "Hannah" }],
     task: { count: taskCountMock, findMany: taskFindManyMock },
     taskEvent: { findMany: eventFindManyMock },
     chatRoomMessage: { count: messageCountMock },
@@ -54,19 +60,11 @@ beforeEach(() => {
     { owner: { name: "Albina" } },
     { owner: { name: "Keanu Klestil" } },
   ]);
+  queryRawMock.mockResolvedValue([
+    { amount: -10_000_000n, assigneeId: "h" },
+    { amount: -2_131_000n, assigneeId: "h" },
+  ]);
   eventFindManyMock.mockImplementation(async ({ where }) => {
-    if (where.transaction) {
-      return [
-        {
-          transaction: { amount: -10_000_000n },
-          task: { assignee: { name: "Hannah" } },
-        },
-        {
-          transaction: { amount: -2_131_000n },
-          task: { assignee: { name: "Hannah" } },
-        },
-      ];
-    }
     if (where.task?.OR) {
       return [{ taskId: "t1", task: { owner: { name: "Albina" } } }];
     }

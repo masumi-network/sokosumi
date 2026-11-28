@@ -57,7 +57,6 @@ src/services/competitors-overview.postgres.test.ts 27  # the shared client reach
 src/services/competitors.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/contact-suggestions.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/evals/eval-lanes.postgres.test.ts 27  # the shared client reaches the Network table Transaction
-src/services/evals/eval-seo-fixtures.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/evals/ownerbench/journey-checks.postgres.test.ts 25  # the shared client reaches the Network table Agent
 src/services/file-table-index.postgres.test.ts 17  # SQL outside a trigger names bare data_table
 src/services/fts-cut-drops-newest.postgres.test.ts 17  # SQL outside a trigger names bare file_chunk (from the server log; the test reports a failed hook)
