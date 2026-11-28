@@ -7,6 +7,7 @@ import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { Network } from "@/lib/network";
 import { reserveEventOccurrence } from "@/lib/soko-bot/event-inbox";
+import { expectCoreLog } from "@/test/core-log";
 import { onSplitLayout } from "@/test/split-layout";
 import * as billing from "./soko-bot-billing.service";
 import { sokoBotControlPlane } from "./soko-bot-control-plane.service";
@@ -103,7 +104,7 @@ async function source(
   kind: "JOB" | "TASK",
   network: Network,
   entityId: string,
-  eventId: string,
+  eventId?: string,
 ) {
   const delegation = await prisma.sokoBotDelegation.create({
     data: {
@@ -121,9 +122,15 @@ async function source(
     name: "work",
     workspaceId,
     ownerId,
-    events: [
-      { id: eventId, status: "COMPLETED", createdAt: new Date("2100-01-01") },
-    ],
+    events: eventId
+      ? [
+          {
+            id: eventId,
+            status: "COMPLETED",
+            createdAt: new Date("2100-01-01"),
+          },
+        ]
+      : [],
   };
   return {
     ...delegation,
@@ -151,6 +158,46 @@ async function oldInsert(eventId: string, purpose: string) {
     (id,"botId","turnId","entityId","eventId",purpose)
     VALUES (${randomUUID()}::uuid,${botId}::uuid,${parentId}::uuid,'job-A',${eventId},${purpose})`;
 }
+
+it("rejects a network on a Task and an unknown network on a Job", async () => {
+  for (const [purpose, network] of [
+    ["TASK_EVENT", "preprod"],
+    ["JOB_EVENT", "testnet"],
+  ]) {
+    await expect(
+      prisma.$executeRaw`INSERT INTO ${sharedTable("soko_bot_event_inbox")}
+        (id,"botId","turnId","entityId","eventId",purpose,network)
+        VALUES (${randomUUID()}::uuid,${botId}::uuid,${parentId}::uuid,'entity','evt',${purpose},${network})`,
+    ).rejects.toMatchObject({
+      meta: { driverAdapterError: { cause: { originalCode: "23514" } } },
+    });
+  }
+});
+
+it("retries a status-only Mainnet Task each tick when taskboard already reserved its synthetic ID", async () => {
+  const task = await source("TASK", "mainnet", "task-B");
+  await reserveEventOccurrence(prisma, botId, parentId, "mainnet", {
+    eventId: "task-B:INPUT_REQUIRED",
+    entityId: "task-B",
+    purpose: "TASK_EVENT",
+    status: "INPUT_REQUIRED",
+    designatedHandlerBotId: botId,
+  });
+  expectCoreLog(
+    "error",
+    "Could not wake a Soko Bot for changes in its delegated work",
+    2,
+  );
+  for (let tick = 0; tick < 2; tick++) {
+    expect(await scan([task])).toMatchObject({ woken: 0, failed: 1 });
+    expect(
+      await prisma.sokoBotDelegation.findUniqueOrThrow({
+        where: { id: task.id },
+        select: { lastSeenStatus: true },
+      }),
+    ).toEqual({ lastSeenStatus: "RUNNING" });
+  }
+});
 
 it.each(["job-A", "different-job"])(
   "wakes each Network once when Preprod entity is %s",

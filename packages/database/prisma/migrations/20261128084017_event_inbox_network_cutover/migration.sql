@@ -7,6 +7,16 @@ SET lock_timeout = '5s';
 DO $$
 BEGIN
   IF to_regclass('soko_bot_event_inbox_network_build') IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT FROM pg_index
+      WHERE indexrelid = 'soko_bot_event_inbox_network_build'::regclass
+        AND indisvalid AND indisready AND indisunique
+        AND pg_get_indexdef(indexrelid, 0, true) =
+          'CREATE UNIQUE INDEX soko_bot_event_inbox_network_build ON soko_bot_event_inbox USING btree '
+          '("botId", "eventId", purpose, COALESCE(network, ''mainnet''::text))'
+    ) THEN
+      RAISE EXCEPTION 'Unsafe staging index. Follow the recovery documented in 20261128084016_event_inbox_network_index before retrying cutover.';
+    END IF;
     DROP INDEX "soko_bot_event_inbox_botId_eventId_purpose_key";
     ALTER INDEX "soko_bot_event_inbox_network_build" RENAME TO "soko_bot_event_inbox_botId_eventId_purpose_key";
   END IF;

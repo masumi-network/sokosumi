@@ -1018,13 +1018,16 @@ export class SokoBotEventsSyncService {
         prisma,
         work.sokoBotId,
         work.network,
-        work.changes.map(inboxEventId),
+        work.changes.flatMap((change) =>
+          change.eventId ? [change.eventId] : [],
+        ),
       );
       const consumedIds = new Set(
         consumed.map((item) => `${item.purpose}:${item.eventId}`),
       );
       const isConsumed = (change: Change) =>
-        consumedIds.has(`${change.kind}_EVENT:${inboxEventId(change)}`);
+        !!change.eventId &&
+        consumedIds.has(`${change.kind}_EVENT:${change.eventId}`);
       // Advance only a consumed prefix for each delegation. A later event
       // consumed by taskboard must not skip an earlier pending occurrence.
       const blockedDelegations = new Set<string>();
