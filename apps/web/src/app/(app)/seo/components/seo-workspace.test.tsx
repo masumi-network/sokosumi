@@ -1233,7 +1233,7 @@ describe("SEO workspace integration", () => {
       screen.queryByRole("button", { name: "Ask the SEO agent" }),
     ).toBeNull();
     // The first step is part of the verdict card: the headline says what is wrong, its figures how the
-    // keywords do, the step what to do first. The pictures are a card of their own before it.
+    // keywords do, the step what to do first. The pictures follow in a separate card.
     const verdict = screen.getByTestId("seo-agent-verdict");
     const figures = screen.getByTestId("seo-agent-figures");
     const tiles = screen.getByTestId("seo-agent-graphics");
@@ -1256,7 +1256,7 @@ describe("SEO workspace integration", () => {
       }),
     ).not.toHaveClass("border");
     expect(
-      tiles.compareDocumentPosition(verdict) & Node.DOCUMENT_POSITION_FOLLOWING,
+      verdict.compareDocumentPosition(tiles) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     cleanup();
     // With an Audit one floating button leads to the agent. The page itself has no question field.
@@ -9361,9 +9361,12 @@ it("opens a report plan on the Agent tab and switches its recommendation and rea
   expect(
     await card.findByText("Current objective: Search traffic"),
   ).toBeVisible();
-  expect(screen.getByTestId("seo-agent-graphics").nextElementSibling).toBe(
-    screen.getByRole("region", { name: "Recommended plan" }),
-  );
+  expect(
+    screen
+      .getByRole("region", { name: "Recommended plan" })
+      .compareDocumentPosition(screen.getByTestId("seo-agent-graphics")) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
   expect(card.getByText(candidate.title)).toBeVisible();
   // The plan holds this action, so the steps below the plan do not list it again.
   expect(
@@ -9497,6 +9500,17 @@ it("shows the worker's written plan in place of the plan block and the verdict, 
     card.getByText("The audit found two prices on the home page."),
   ).toBeVisible();
   // The written plan is the one result of the tab: no second plan, no verdict, no row for an action.
+  const writePlan = vi.spyOn(navigator.clipboard, "writeText");
+  await user.click(
+    card.getByRole("button", { name: "Copy agent instructions" }),
+  );
+  const copiedPlan = writePlan.mock.lastCall?.[0];
+  expect(copiedPlan).toContain("1. Give the page one price");
+  expect(copiedPlan).toContain(pageUrl);
+  expect(copiedPlan).toContain("Make the markup price match the page");
+  expect(copiedPlan).toContain("2. Read the next audit");
+  expect(copiedPlan).toContain("Next check: No price finding.");
+  expect(copiedPlan).not.toContain("Shorten the page title");
   expect(screen.queryByRole("region", { name: "Recommended plan" })).toBeNull();
   expect(screen.queryByTestId("seo-agent-verdict")).toBeNull();
   expect(screen.queryByText("Shorten the page title")).toBeNull();
@@ -9513,16 +9527,25 @@ it("shows the worker's written plan in place of the plan block and the verdict, 
   expect(
     steps.getAllByRole("heading").map((heading) => heading.textContent),
   ).toEqual(["Give the page one price", "Read the next audit"]);
+  await user.click(steps.getByText("Details & how to verify"));
   expect(
     steps.getByText("A search result can show the wrong price today."),
   ).toBeVisible();
   // The step takes the rating of the issue its action fixes.
   expect(steps.getByText("High impact")).toBeVisible();
-  // A step that names no action is text.
-  expect(
-    steps.queryByRole("button", { name: "Read the next audit" }),
-  ).toBeNull();
-  const step = steps.getByRole("button", { name: "Give the page one price" });
+  const firstFold = steps
+    .getByText("Give the page one price")
+    .closest("details")!;
+  const nextToggle = steps.getByText("Read the next audit").closest("summary")!;
+  expect(firstFold.open).toBe(true);
+  expect(nextToggle.closest("details")!.open).toBe(false);
+  await user.click(nextToggle);
+  expect(nextToggle.closest("details")!.open).toBe(true);
+  expect(firstFold.open).toBe(true);
+  // Opening a step and opening its action are separate controls.
+  const step = within(firstFold).getByRole("button", {
+    name: "Open action details",
+  });
   await user.click(step);
   expect(
     within(await screen.findByRole("dialog")).getAllByText(

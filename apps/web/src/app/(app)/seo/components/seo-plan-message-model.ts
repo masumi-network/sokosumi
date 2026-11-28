@@ -25,7 +25,7 @@ export function seoPlanMessage(
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null,
 ) {
   const plan = report?.auditPlan;
-  if (!report || !plan?.summary) return null;
+  if (!report || !plan?.summary || !plan.steps?.length) return null;
   const linked = new Set<ProjectSeoAction>();
   const steps = plan.steps.map((step) => {
     // A later check can replace an action. Its step then stays as text.
@@ -66,3 +66,22 @@ export function seoPlanMessage(
 export type SeoPlanMessageModel = NonNullable<
   ReturnType<typeof seoPlanMessage>
 >;
+
+// Keep whole sentences together, especially two measurements that explain one discrepancy.
+const PLAN_LEAD_CHARACTERS = 180;
+const sentenceSegments = new Intl.Segmenter("en", { granularity: "sentence" });
+
+export function seoPlanExcerpt(text: string) {
+  const full = text.trim();
+  if (full.length <= PLAN_LEAD_CHARACTERS) return { lead: full, rest: "" };
+  let end = 0;
+  for (const { index, segment } of sentenceSegments.segment(full)) {
+    const next = index + segment.length;
+    if (next > PLAN_LEAD_CHARACTERS) break;
+    end = next;
+  }
+  return {
+    lead: full.slice(0, end).trimEnd(),
+    rest: full.slice(end).trimStart(),
+  };
+}
