@@ -1,7 +1,8 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
@@ -19,6 +20,7 @@ import {
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import { sokoBotScheduleCron } from "@/lib/soko-bot/schedule-cron";
 import { isValidCronExpression } from "@/lib/utils/task-schedule";
+import { SCHEDULE_FORM_TRIGGER_ID } from "./schedule-form-trigger";
 import { useSokoBotTargetId } from "./soko-bot-target";
 
 const DEFAULT_CRON = "0 9 * * 1-5";
@@ -36,10 +38,20 @@ const REPEATS: readonly ScheduleRepeat[] = [
 export function ScheduleForm({ timezone }: { timezone?: string }) {
   const t = useTranslations("App.SokoBot.Schedules.Form");
   const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  // The form replaces the button that held focus, and the button replaces the
+  // form, so focus would fall to the page start: hand it across each time.
+  function close() {
+    flushSync(() => setOpen(false));
+    trigger.current?.focus();
+  }
 
   if (!open) {
     return (
       <Button
+        ref={trigger}
+        id={SCHEDULE_FORM_TRIGGER_ID}
         type="button"
         variant="outline"
         size="sm"
@@ -49,9 +61,7 @@ export function ScheduleForm({ timezone }: { timezone?: string }) {
       </Button>
     );
   }
-  return (
-    <OpenScheduleForm timezone={timezone} onClose={() => setOpen(false)} />
-  );
+  return <OpenScheduleForm timezone={timezone} onClose={close} />;
 }
 
 function OpenScheduleForm({
@@ -114,6 +124,7 @@ function OpenScheduleForm({
           onChange={(event) => setName(event.target.value)}
           maxLength={120}
           required
+          autoFocus
         />
       </div>
       <TaskScheduleWhen

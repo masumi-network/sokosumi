@@ -111,6 +111,9 @@ vi.mock("../avatar-studio.client", () => ({
       >
         save look
       </button>
+      <button type="button" onClick={() => onOpenChange(false)}>
+        close look
+      </button>
     </div>
   ),
 }));
@@ -772,5 +775,19 @@ describe("SokoBotConsole header portrait", () => {
     cleanup();
     renderConsole({ canManage: true });
     expect(screen.queryByRole("button", { name: "edit" })).toBeNull();
+  });
+
+  it("gives focus back to the edit button when the picture dialog closes", async () => {
+    renderConsole({ botId: null, sharedRoomId: null });
+    const edit = screen.getByRole("button", { name: "edit" });
+    edit.focus();
+    fireEvent.click(edit);
+    // The dialog takes focus while open, as Radix's does.
+    const close = await screen.findByRole("button", { name: "close look" });
+    close.focus();
+    fireEvent.click(close);
+
+    expect(screen.queryByTestId("avatar")).toBeNull();
+    expect(screen.getByRole("button", { name: "edit" })).toHaveFocus();
   });
 });

@@ -24,6 +24,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accounts-section";
@@ -368,6 +369,17 @@ export function SokoBotConsole({
   );
   const avatarState = useChatAvatarState(state);
   const [editingPicture, setEditingPicture] = useState(false);
+  const editPictureButton = useRef<HTMLButtonElement>(null);
+  // The dialog unmounts with `editingPicture`, so it never hands focus back:
+  // return it to the edit button, not the page start.
+  function setPictureDialogOpen(open: boolean) {
+    if (open) {
+      setEditingPicture(true);
+      return;
+    }
+    flushSync(() => setEditingPicture(false));
+    editPictureButton.current?.focus();
+  }
   // A shared bot's `botId` is set; the personal bot's is not.
   const ownsBot = !botId;
   const turns = useMemo(() => orderedTurns(state).reverse(), [state]);
@@ -413,7 +425,8 @@ export function SokoBotConsole({
                     avatarState={avatarState}
                     // Only the owner changes their own bot's picture here;
                     // shared bots get theirs from admin.
-                    onEdit={ownsBot ? () => setEditingPicture(true) : null}
+                    onEdit={ownsBot ? () => setPictureDialogOpen(true) : null}
+                    editRef={editPictureButton}
                   />
                 }
                 title={botName}
@@ -497,7 +510,7 @@ export function SokoBotConsole({
               {ownsBot && editingPicture ? (
                 <AvatarStudioDialog
                   open
-                  onOpenChange={setEditingPicture}
+                  onOpenChange={setPictureDialogOpen}
                   initialCode={bot.avatarCode ?? null}
                   onSaved={refresh}
                 />

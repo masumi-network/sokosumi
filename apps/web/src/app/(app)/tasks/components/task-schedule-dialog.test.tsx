@@ -803,7 +803,7 @@ describe("TaskScheduleDialog", () => {
       const user = userEvent.setup();
       renderDialog({ schedule: EVERY_THREE_DAYS });
 
-      const time = screen.getByRole("button", { name: "time" });
+      const time = screen.getByRole("button", { name: /^time / });
       expect(time).toHaveTextContent("10:00");
       await user.click(time);
       await user.click(screen.getByRole("option", { name: "07:15" }));
@@ -827,7 +827,7 @@ describe("TaskScheduleDialog", () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });
 
-    await user.click(screen.getByRole("button", { name: "time" }));
+    await user.click(screen.getByRole("button", { name: /^time / }));
     await user.type(screen.getByPlaceholderText("timeSearch"), "10:40");
     await user.click(screen.getByRole("option", { name: "useTime" }));
     await user.click(screen.getByRole("button", { name: "save" }));
@@ -957,7 +957,7 @@ describe("TaskScheduleDialog", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "time" })).toHaveTextContent(
+    expect(screen.getByRole("button", { name: /^time / })).toHaveTextContent(
       "10:00",
     );
     await user.type(screen.getByLabelText("name"), " updated");

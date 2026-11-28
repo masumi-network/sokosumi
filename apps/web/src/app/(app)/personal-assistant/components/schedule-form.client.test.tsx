@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,6 +57,35 @@ describe("ScheduleForm", () => {
     expect(screen.queryByRole("button", { name: "Every few days" })).toBeNull();
     expect(screen.queryByText("Ends")).toBeNull();
     expect(screen.queryByLabelText("Cron expression")).toBeNull();
+  });
+
+  it("moves focus to Name on open and back to New schedule on Cancel", async () => {
+    const user = await openForm();
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "New schedule" })).toHaveFocus();
+  });
+
+  it("returns focus to New schedule once the schedule is created", async () => {
+    const user = await openForm();
+    await user.type(screen.getByLabelText("Name"), "Friday check-in");
+    await user.type(screen.getByLabelText("Prompt"), "Sum up my week");
+    await user.click(screen.getByRole("button", { name: "Create schedule" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "New schedule" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("names the time and timezone chips with their visible values", async () => {
+    await openForm();
+    expect(screen.getByRole("button", { name: "Time 09:00" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Timezone America/Los_Angeles" }),
+    ).toBeTruthy();
   });
 
   it("shows the next run in the bot's timezone", async () => {

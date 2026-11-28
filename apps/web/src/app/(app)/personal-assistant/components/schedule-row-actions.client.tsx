@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -21,6 +21,7 @@ import {
   deleteSokoBotScheduleAction,
   updateSokoBotScheduleAction,
 } from "@/lib/actions/soko-bot/action";
+import { focusScheduleFormTrigger } from "./schedule-form-trigger";
 import { useSokoBotTargetId } from "./soko-bot-target";
 
 interface ScheduleRowActionsProps {
@@ -75,7 +76,11 @@ export function ScheduleRowActions({
     });
   }
 
+  // Set once Delete is confirmed: the row and its Delete button leave with it.
+  const removing = useRef(false);
+
   function remove() {
+    removing.current = true;
     onRemovedChange?.(true);
     startTransition(async () => {
       const result = await deleteSokoBotScheduleAction({
@@ -83,6 +88,7 @@ export function ScheduleRowActions({
         botId,
       }).catch(() => null);
       if (!result?.ok) {
+        removing.current = false;
         onRemovedChange?.(false);
         toast.error(result?.error.message ?? t("deleteError"));
         return;
@@ -114,7 +120,14 @@ export function ScheduleRowActions({
               {t("delete")}
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent>
+          <AlertDialogContent
+            // The row leaves on delete, so focus has no Delete to return to;
+            // New schedule sits right under the list.
+            onCloseAutoFocus={(event) => {
+              if (removing.current && focusScheduleFormTrigger())
+                event.preventDefault();
+            }}
+          >
             <AlertDialogHeader>
               {/* wrap-anywhere: a long unbroken name would widen the dialog past the screen. */}
               <AlertDialogTitle className="wrap-anywhere">

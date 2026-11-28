@@ -3,6 +3,7 @@
 import type { AvatarState } from "@sokosumi/soko-bot";
 import { Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { Ref } from "react";
 
 import { BotFace } from "@/components/soko-bot/bot-face";
 
@@ -14,6 +15,8 @@ interface BotProfileAvatarProps {
   avatarState?: AvatarState;
   /** Opens the picture picker; null when the viewer cannot change it. */
   onEdit: (() => void) | null;
+  /** The edit button, so focus can come back to it when the picker closes. */
+  editRef?: Ref<HTMLButtonElement>;
 }
 
 /** The bot's picture beside its console's name, or its orb without one. */
@@ -24,6 +27,7 @@ export function BotProfileAvatar({
   avatarCode,
   avatarState,
   onEdit,
+  editRef,
 }: BotProfileAvatarProps) {
   const t = useTranslations("App.SokoBot.Avatar");
   return (
@@ -43,6 +47,7 @@ export function BotProfileAvatar({
       </div>
       {onEdit ? (
         <button
+          ref={editRef}
           type="button"
           onClick={onEdit}
           aria-label={t("edit")}
