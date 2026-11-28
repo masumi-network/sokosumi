@@ -9,13 +9,19 @@ import { getEnv } from "@/config/env";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
+import {
+  DETACHED_SOKO_BOT_NETWORK,
+  type Network,
+  networkKey,
+  requireNetwork,
+} from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import {
   JOB_WAKE_STATUSES,
   TASK_WAKE_STATUSES,
 } from "@/lib/soko-bot/delegation-wake";
+import { consumedEventOccurrences } from "@/lib/soko-bot/event-inbox";
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
   capabilitiesForDelegationFollowUp,
@@ -234,6 +240,7 @@ function followUpLine(plan: FollowUpPlan): string {
 }
 
 interface BotWork {
+  network: Network;
   sokoBotId: string;
   /** Who the turn acts for; null when a shared bot acts on its own. */
   userId: string | null;
@@ -248,11 +255,20 @@ interface BotWork {
   }[];
 }
 
-export function sokoBotEventClientTurnId(changes: Change[]): string {
+function inboxEventId(change: Change) {
+  return change.eventId ?? `${change.entityId}:${change.to}`;
+}
+
+export function sokoBotEventClientTurnId(
+  changes: Change[],
+  network: Network,
+): string {
   const occurrences = changes
     .map((c) => [c.kind, c.entityId, c.eventId ?? c.to])
     .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  return `${DELEGATION_EVENT_TURN_PREFIX}${createHash("sha256").update(JSON.stringify(occurrences)).digest("hex")}`;
+  return `${DELEGATION_EVENT_TURN_PREFIX}${createHash("sha256")
+    .update(networkKey(network, JSON.stringify(occurrences)))
+    .digest("hex")}`;
 }
 
 export function buildEventMessage(
@@ -549,7 +565,14 @@ export class SokoBotEventsSyncService {
       prisma.sokoBotDelegation.findMany({
         where: {
           ...(cursor ? { id: { gt: cursor } } : {}),
-          OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
+          // The Job relation still reads Mainnet. Slice 24-6 supplies Preprod Jobs.
+          OR: [
+            { taskId: { not: null } },
+            {
+              jobId: { not: null },
+              OR: [{ network: "mainnet" }, { network: null }],
+            },
+          ],
           ...INVOLVING_DELEGATION,
           // Unattended work the bot starts itself honours the owner's pause,
           // not just the administrator's.
@@ -570,6 +593,7 @@ export class SokoBotEventsSyncService {
           id: true,
           turnId: true,
           kind: true,
+          network: true,
           lastSeenStatus: true,
           lastSeenEventId: true,
           lastSeenEventAt: true,
@@ -728,19 +752,42 @@ export class SokoBotEventsSyncService {
         delegation.followUp && delegation.followUpTurnId
           ? retryableFollowUps.get(delegation.followUpTurnId)
           : undefined;
+      const retryTurnId =
+        failedFollowUp && !failedFollowUp.retried.has(current.id)
+          ? delegation.followUpTurnId
+          : null;
       if (
-        failedFollowUp &&
-        !failedFollowUp.retried.has(current.id) &&
-        delegation.followUpTurnId
+        !retryTurnId &&
+        current.status === delegation.lastSeenStatus &&
+        (!current.eventId || current.eventId === delegation.lastSeenEventId)
       ) {
-        const retry = {
-          sokoBotId: delegation.turn.sokoBotId,
-          userId: sokoBotActingUserId(delegation.turn),
-          workspaceId: delegation.turn.workspaceId,
-        };
-        const key = `${retry.sokoBotId}:${retry.userId ?? ""}`;
-        const work = byBot.get(key) ?? { ...retry, changes: [], baselines: [] };
-        byBot.set(key, work);
+        continue;
+      }
+      // A shared bot's delegations belong to different members; each result
+      // turn runs for the member who asked for that work, never another one.
+      const actingUserId = sokoBotActingUserId({
+        requestedByUserId: delegation.turn.requestedByUserId,
+        sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
+      });
+      // A NULL Job tag from the Mainnet-only scan belongs to legacy Mainnet work.
+      const network =
+        delegation.task || delegation.network == null
+          ? DETACHED_SOKO_BOT_NETWORK
+          : requireNetwork(delegation.network);
+      const workKey = networkKey(
+        network,
+        `${delegation.turn.sokoBotId}:${actingUserId ?? ""}`,
+      );
+      const work = byBot.get(workKey) ?? {
+        network,
+        sokoBotId: delegation.turn.sokoBotId,
+        userId: actingUserId,
+        workspaceId: delegation.turn.workspaceId,
+        changes: [],
+        baselines: [],
+      };
+      byBot.set(workKey, work);
+      if (retryTurnId) {
         work.changes.push({
           delegationId: delegation.id,
           eventId: `${current.eventId ?? `${current.id}:${current.status}`}${FOLLOW_UP_RETRY_SUFFIX}`,
@@ -754,7 +801,7 @@ export class SokoBotEventsSyncService {
           note: current.note,
           followUp: delegation.followUp,
           followUpAllows: delegationWakeAllows(delegation, revokedSources),
-          retryOfTurnId: delegation.followUpTurnId,
+          retryOfTurnId: retryTurnId,
           ownerGranted: ownerRequestGrant(
             {
               ...delegation,
@@ -765,27 +812,6 @@ export class SokoBotEventsSyncService {
         });
         continue;
       }
-      if (
-        current.status === delegation.lastSeenStatus &&
-        (!current.eventId || current.eventId === delegation.lastSeenEventId)
-      ) {
-        continue;
-      }
-      // A shared bot's delegations belong to different members; each result
-      // turn runs for the member who asked for that work, never another one.
-      const actingUserId = sokoBotActingUserId({
-        requestedByUserId: delegation.turn.requestedByUserId,
-        sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
-      });
-      const workKey = `${delegation.turn.sokoBotId}:${actingUserId ?? ""}`;
-      const work = byBot.get(workKey) ?? {
-        sokoBotId: delegation.turn.sokoBotId,
-        userId: actingUserId,
-        workspaceId: delegation.turn.workspaceId,
-        changes: [],
-        baselines: [],
-      };
-      byBot.set(workKey, work);
       // A background run follows the Tasks and Jobs it started itself; an
       // event turn beside it would act on the same result without its plan.
       // The change stays unseen meanwhile: a run that fails before reading it
@@ -988,24 +1014,26 @@ export class SokoBotEventsSyncService {
         result.deferred += 1;
         continue;
       }
-      const consumed = await prisma.sokoBotEventInbox.findMany({
-        where: {
-          botId: work.sokoBotId,
-          eventId: {
-            in: work.changes.flatMap((change) =>
-              change.eventId ? [change.eventId] : [],
-            ),
-          },
-        },
-        select: { eventId: true },
-      });
-      const consumedIds = new Set(consumed.map((item) => item.eventId));
+      const consumed = await consumedEventOccurrences(
+        prisma,
+        work.sokoBotId,
+        work.network,
+        work.changes.flatMap((change) =>
+          change.eventId ? [change.eventId] : [],
+        ),
+      );
+      const consumedIds = new Set(
+        consumed.map((item) => `${item.purpose}:${item.eventId}`),
+      );
+      const isConsumed = (change: Change) =>
+        !!change.eventId &&
+        consumedIds.has(`${change.kind}_EVENT:${change.eventId}`);
       // Advance only a consumed prefix for each delegation. A later event
       // consumed by taskboard must not skip an earlier pending occurrence.
       const blockedDelegations = new Set<string>();
       const consumedPrefix: BotWork["baselines"] = [];
       for (const change of work.changes) {
-        if (!change.eventId || !consumedIds.has(change.eventId)) {
+        if (!isConsumed(change)) {
           blockedDelegations.add(change.delegationId);
         } else if (!blockedDelegations.has(change.delegationId)) {
           consumedPrefix.push({
@@ -1017,14 +1045,15 @@ export class SokoBotEventsSyncService {
         }
       }
       await this.markSeen(consumedPrefix);
-      work.changes = work.changes.filter(
-        (change) => !change.eventId || !consumedIds.has(change.eventId),
-      );
+      work.changes = work.changes.filter((change) => !isConsumed(change));
       if (!work.changes.length) continue;
       // Collapse duplicate delegations, preserving distinct event occurrences.
       const unique = new Map<string, Change>();
       for (const change of work.changes)
-        unique.set(`${change.entityId}:${change.eventId ?? change.to}`, change);
+        unique.set(
+          `${change.kind}:${change.entityId}:${change.eventId ?? change.to}`,
+          change,
+        );
       const changes = Array.from(unique.values())
         .sort(
           (a, b) =>
@@ -1063,16 +1092,16 @@ export class SokoBotEventsSyncService {
       );
       try {
         const started = await sokoBotControlPlane.startTurn({
-          network: DETACHED_SOKO_BOT_NETWORK,
+          network: work.network,
           userId: work.userId,
           sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
-          clientTurnId: sokoBotEventClientTurnId(changes),
+          clientTurnId: sokoBotEventClientTurnId(changes, work.network),
           message: buildEventMessage(changes, plans),
           source: "EVENT",
           presetRoute,
           eventBatch: changes.map((change) => ({
-            eventId: change.eventId ?? `${change.entityId}:${change.to}`,
+            eventId: inboxEventId(change),
             entityId: change.entityId,
             purpose: `${change.kind}_EVENT`,
             status: change.to,
