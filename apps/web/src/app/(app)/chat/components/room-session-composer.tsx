@@ -60,7 +60,7 @@ import { useRoomTypingContext } from "./room-typing-provider";
 
 /** The room composer's handle, plus adding text to the draft. */
 export type RoomSessionComposerHandle = RoomComposerHandle &
-  Pick<RoomComposerEditHandle, "addText">;
+  Pick<RoomComposerEditHandle, "addText" | "focusAtEnd">;
 
 export interface RoomSessionSendRequest {
   content: string;
@@ -287,6 +287,7 @@ export function RoomSessionComposer({
     () => ({
       attachFiles: (files) => composerRef.current?.attachFiles(files),
       focus: () => composerRef.current?.focus(),
+      focusAtEnd: () => composerRef.current?.focusAtEnd(),
       addText: (text) => composerRef.current?.addText(text),
     }),
     [],

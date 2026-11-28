@@ -2552,7 +2552,7 @@ function RoomView({
   usePrivateReplyHandoff(selectedRoomId ?? null, (quote) => {
     setPendingQuote(quote);
     requestAnimationFrame(() => {
-      roomComposerRef.current?.focus();
+      roomComposerRef.current?.focusAtEnd();
     });
   });
 

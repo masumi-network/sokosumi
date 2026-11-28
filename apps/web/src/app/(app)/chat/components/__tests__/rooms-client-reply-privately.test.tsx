@@ -1,11 +1,11 @@
 import "./rooms-client-harness";
 import type { ChatRoomMessage } from "@sokosumi/core-client";
-import { act, screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { RoomComposerHandle } from "../room-composer";
 import type { PendingRoomQuote } from "../room-helpers";
+import type { RoomSessionComposerHandle } from "../room-session-composer";
 import {
   channelRoom,
   createRoomsClient,
@@ -14,8 +14,9 @@ import {
   userParticipant,
 } from "./rooms-client-harness";
 
-const { openDirectWithParticipantMock } = vi.hoisted(() => ({
+const { openDirectWithParticipantMock, focusAtEndMock } = vi.hoisted(() => ({
   openDirectWithParticipantMock: vi.fn(),
+  focusAtEndMock: vi.fn(),
 }));
 
 vi.mock("../open-direct-with-participant", async (importOriginal) => ({
@@ -36,12 +37,14 @@ vi.mock("../room-session-composer", () => ({
     ref,
     pendingQuote,
   }: {
-    ref?: Ref<RoomComposerHandle>;
+    ref?: Ref<RoomSessionComposerHandle>;
     pendingQuote?: PendingRoomQuote | null;
   }) => {
     useImperativeHandle(ref, () => ({
       attachFiles: () => undefined,
       focus: () => undefined,
+      focusAtEnd: focusAtEndMock,
+      addText: () => undefined,
     }));
     return (
       <div data-testid="room-session-composer">
@@ -129,6 +132,10 @@ describe("Reply privately", () => {
     expect(screen.getByTestId("room-session-composer")).toHaveTextContent(
       "quote:Grace:room-channel",
     );
+    // The caret goes after any draft already in the Direct, not before it.
+    await waitFor(() => {
+      expect(focusAtEndMock).toHaveBeenCalled();
+    });
   });
 
   it("is not offered in a Direct", async () => {
