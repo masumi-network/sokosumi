@@ -7,12 +7,19 @@ import { writeOff } from "./write-off";
 
 const scope = { network: "mainnet" } as MainnetScope;
 
-function writeOffTx(left: { id: string; remaining: bigint }[]) {
+function writeOffTx(
+  left: {
+    id: string;
+    remaining: bigint;
+    organizationId?: string | null;
+    userId?: string | null;
+  }[],
+) {
   const queryRaw = vi.fn().mockResolvedValue(
     left.map((bucket) => ({
-      ...bucket,
       organizationId: "org-1",
       userId: null,
+      ...bucket,
     })),
   );
   const create = vi.fn().mockResolvedValue({});
@@ -51,6 +58,50 @@ describe("writeOff", () => {
         },
       ]),
     );
+  });
+
+  it("writes each spend to its bucket's owner as stored, an empty id included", async () => {
+    const { tx, create } = writeOffTx([
+      {
+        id: "bucket-person",
+        remaining: 3n,
+        organizationId: null,
+        userId: "user-1",
+      },
+      {
+        id: "bucket-empty-person",
+        remaining: 2n,
+        organizationId: null,
+        userId: "",
+      },
+      {
+        id: "bucket-empty-org",
+        remaining: 1n,
+        organizationId: "",
+        userId: null,
+      },
+    ]);
+
+    await writeOff({
+      scope,
+      tx,
+      of: {
+        bucketIds: ["bucket-person", "bucket-empty-person", "bucket-empty-org"],
+      },
+    });
+
+    expect(
+      create.mock.calls.map(([args]) => {
+        const { data } = args as {
+          data: { organizationId: unknown; userId: unknown; amount: bigint };
+        };
+        return [data.organizationId, data.userId, data.amount];
+      }),
+    ).toEqual([
+      [null, "user-1", -3n],
+      [null, "", -2n],
+      ["", null, -1n],
+    ]);
   });
 
   it("reads a Project's buckets by its id", async () => {
