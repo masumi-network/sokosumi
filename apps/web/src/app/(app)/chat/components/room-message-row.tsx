@@ -23,6 +23,7 @@ import {
   Ellipsis,
   Link2,
   MessageCircle,
+  MessageSquareLock,
   Pencil,
   Pin,
   PinOff,
@@ -1032,6 +1033,7 @@ function MessageActionControls({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onReplyPrivately,
   onSaveForLater,
   onEdit,
   onDelete,
@@ -1058,6 +1060,8 @@ function MessageActionControls({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent unless another member wrote the message in a Channel. */
+  onReplyPrivately?: () => void;
   /** Absent for a message that is not stored yet. */
   onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
@@ -1084,6 +1088,7 @@ function MessageActionControls({
     (showPin ||
       showCopyLink ||
       Boolean(onSendToSelf) ||
+      Boolean(onReplyPrivately) ||
       Boolean(onSaveForLater) ||
       showCopy ||
       showDelete);
@@ -1284,6 +1289,17 @@ function MessageActionControls({
                 {t("Copy.link")}
               </DropdownMenuItem>
             ) : null}
+            {onReplyPrivately ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onReplyPrivately();
+                  onAfterAction?.();
+                }}
+              >
+                <MessageSquareLock className="size-4" aria-hidden />
+                {t("ReplyPrivately.action")}
+              </DropdownMenuItem>
+            ) : null}
             {onSendToSelf ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1377,6 +1393,7 @@ function MessageActions({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onReplyPrivately,
   onSaveForLater,
   onEdit,
   onDelete,
@@ -1399,6 +1416,8 @@ function MessageActions({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent unless another member wrote the message in a Channel. */
+  onReplyPrivately?: () => void;
   /** Absent for a message that is not stored yet. */
   onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
@@ -1466,6 +1485,7 @@ function MessageActions({
         onCopy={onCopy}
         onCopyLink={onCopyLink}
         onSendToSelf={onSendToSelf}
+        onReplyPrivately={onReplyPrivately}
         onSaveForLater={onSaveForLater}
         onEdit={onEdit}
         onDelete={onDelete}
@@ -1639,6 +1659,7 @@ function TouchMessageActionsSheet({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  onReplyPrivately,
   onSaveForLater,
   onEdit,
   onDelete,
@@ -1662,6 +1683,8 @@ function TouchMessageActionsSheet({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent unless another member wrote the message in a Channel. */
+  onReplyPrivately?: () => void;
   /** Absent for a message that is not stored yet. */
   onSaveForLater?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
@@ -1859,6 +1882,19 @@ function TouchMessageActionsSheet({
             >
               <Link2 className="size-4 shrink-0" aria-hidden />
               {t("Copy.link")}
+            </Button>
+          ) : null}
+          {onReplyPrivately ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onReplyPrivately);
+              }}
+            >
+              <MessageSquareLock className="size-4 shrink-0" aria-hidden />
+              {t("ReplyPrivately.action")}
             </Button>
           ) : null}
           {onSendToSelf ? (
@@ -2441,6 +2477,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  onReplyPrivately,
   isSelfDirect = false,
   showOutboundSentTick = false,
   isEditing = false,
@@ -2492,6 +2529,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onJumpToQuotedMessage?: (messageId: string) => void;
   /** Send to yourself. The room omits it inside the Self Direct. */
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  /** Reply privately. The room passes it only in a Channel. */
+  onReplyPrivately?: (message: ChatRoomMessage) => void;
   /** Self Direct: delete copy speaks of a private note, not a shared message. */
   isSelfDirect?: boolean;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
@@ -2704,6 +2743,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const canCopy = isDurableRoomMessage && message.content.trim().length > 0;
   const canCopyLink = isDurableRoomMessage;
   const canSendToSelf = isDurableRoomMessage && onSendToSelf != null;
+  const canReplyPrivately =
+    isDurableRoomMessage &&
+    onReplyPrivately != null &&
+    message.sender.type === "user" &&
+    Boolean(currentUserId) &&
+    message.sender.user.id !== currentUserId;
 
   function handleCopy() {
     void copyTextWithToast(message.content, {
@@ -2724,6 +2769,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   function handleSendToSelf() {
     onSendToSelf?.(message);
+  }
+
+  function handleReplyPrivately() {
+    onReplyPrivately?.(message);
   }
 
   async function handleSaveForLater() {
@@ -3193,6 +3242,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              onReplyPrivately={
+                canReplyPrivately ? handleReplyPrivately : undefined
+              }
               onSaveForLater={
                 isDurableRoomMessage
                   ? () => void handleSaveForLater()
@@ -3223,6 +3275,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              onReplyPrivately={
+                canReplyPrivately ? handleReplyPrivately : undefined
+              }
               onSaveForLater={
                 isDurableRoomMessage
                   ? () => void handleSaveForLater()

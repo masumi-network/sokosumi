@@ -10357,6 +10357,9 @@
         "sendToSelfError": "Failed to send to yourself",
         "sendToSelfOpen": "Open"
       },
+      "ReplyPrivately": {
+        "action": "Reply privately"
+      },
       "MentionAll": {
         "label": "Everyone"
       },

@@ -119,6 +119,7 @@ export function ThreadPanel({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  onReplyPrivately,
   isSelfDirect = false,
   outboundSentTickIds,
   editSession = null,
@@ -180,6 +181,7 @@ export function ThreadPanel({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  onReplyPrivately?: (message: ChatRoomMessage) => void;
   isSelfDirect?: boolean;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
@@ -312,6 +314,7 @@ export function ThreadPanel({
             onRemoveOutbound={isParent ? undefined : onRemoveOutbound}
             onJumpToQuotedMessage={onJumpToQuotedMessage}
             onSendToSelf={onSendToSelf}
+            onReplyPrivately={onReplyPrivately}
             isSelfDirect={isSelfDirect}
             showOutboundSentTick={
               isParent ? undefined : outboundSentTickIds?.has(message.id)

@@ -10355,6 +10355,9 @@
         "sendToSelfError": "Senden an dich selbst fehlgeschlagen",
         "sendToSelfOpen": "Öffnen"
       },
+      "ReplyPrivately": {
+        "action": "Privat antworten"
+      },
       "Edit": {
         "action": "Bearbeiten",
         "cancel": "Abbrechen",
