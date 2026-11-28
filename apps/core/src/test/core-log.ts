@@ -200,6 +200,11 @@ export function causeMessage(cause: unknown): string | undefined {
   return isRecord(cause) ? optionalString(cause.message) : undefined;
 }
 
+/** Every entry the current test logged so far, declared or not, in order. */
+export function coreLogEntries(): readonly CoreLogEntry[] {
+  return recorded.map((record) => record.entry);
+}
+
 /**
  * The current test's failures: undeclared entries, and declarations that
  * matched another number of times. Clears the test's state.

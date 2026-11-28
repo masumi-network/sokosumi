@@ -8,6 +8,8 @@ import {
 import { subscriptionRepository } from "@sokosumi/database/repositories";
 import type Stripe from "stripe";
 
+import { grantLocalFreePeriods } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { SEAT_RECONCILIATION_CONFLICT_MESSAGE } from "@/services/organization-seat.service";
@@ -162,6 +164,8 @@ export async function handleSubscriptionDeletedEvent(
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        // The free plan's credits are Mainnet's.
+        grantCredits: grantLocalFreePeriods(createNetworkScope("mainnet"), tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: localSubscription.canceledAt,

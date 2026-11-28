@@ -73,6 +73,7 @@ describe("handleCustomerCreatedEvent", () => {
     });
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
       {
+        grantCredits: expect.any(Function),
         createdAt: new Date("2026-04-09T07:03:48.591Z"),
         kind: "organization",
         organizationId: "org-1",

@@ -8,6 +8,8 @@ import {
   transitionToNextLocalFreeSubscriptionPeriod,
 } from "@sokosumi/database/helpers";
 
+import { grantLocalFreePeriods } from "@/lib/credits/grant";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 
@@ -18,6 +20,8 @@ interface SyncExecutionOptions {
   deadlineMs: number;
   msRemaining: () => number;
   shouldContinue: () => boolean;
+  /** The Network whose credits each new period gives: the cron's. */
+  scope: NetworkScope;
 }
 
 /** The run's options, carrying where it stopped early for its summary. */
@@ -264,6 +268,7 @@ async function preCreateUpcomingLocalFreeSubscriptions(
           return ensureNextLocalFreeSubscriptionPeriod(
             {
               activatesAt: nextPeriod.periodStart,
+              grantCredits: grantLocalFreePeriods(options.scope, tx),
               subscription,
             },
             tx,
@@ -377,6 +382,7 @@ async function closeOverdueLocalFreeSubscriptions(
           } else {
             await transitionToNextLocalFreeSubscriptionPeriod(
               {
+                grantCredits: grantLocalFreePeriods(options.scope, tx),
                 setCanceledAt: false,
                 subscription,
               },

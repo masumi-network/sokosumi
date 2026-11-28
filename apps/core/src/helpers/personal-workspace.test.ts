@@ -80,6 +80,7 @@ describe("createPersonalWorkspace", () => {
 
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
       {
+        grantCredits: expect.any(Function),
         createdAt: workspaceCreatedAt,
         kind: "user",
         stripeCustomerId: "cus_1",

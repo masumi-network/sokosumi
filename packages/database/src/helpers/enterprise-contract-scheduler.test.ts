@@ -7,6 +7,11 @@ import {
   type Prisma as PrismaType,
 } from "../generated/prisma/client.js";
 import {
+  createEnterprisePeriodCreditBucket,
+  createEnterpriseTopUpCreditBucket,
+  type GrantEnterpriseCredits,
+} from "./enterprise-contract-grants.js";
+import {
   catchUpScheduledEnterprisePeriods,
   expireActiveEnterprisePeriodsWithElapsedBuckets,
   grantEnterpriseScheduledPeriod,
@@ -14,6 +19,38 @@ import {
   resolveCatchUpActivatesAt,
   runEnterpriseContractSchedulerPass,
 } from "./enterprise-contract-scheduler.js";
+
+/**
+ * The grant port as Core's credits module fills it (`grant`): the bucket
+ * writers, on the same transaction.
+ */
+function writing(tx: PrismaType.TransactionClient): GrantEnterpriseCredits {
+  return async ({ cents, ...credits }) => {
+    const { bucketId, created } =
+      credits.kind === "enterprise_period"
+        ? await createEnterprisePeriodCreditBucket(
+            {
+              activatesAt: credits.activatesAt,
+              amount: cents,
+              expiresAt: credits.expiresAt,
+              organizationId: credits.organizationId,
+              periodId: credits.periodId,
+            },
+            tx,
+          )
+        : await createEnterpriseTopUpCreditBucket(
+            {
+              activatesAt: credits.activatesAt,
+              amount: cents,
+              contractId: credits.contractId,
+              expiresAt: credits.expiresAt,
+              organizationId: credits.organizationId,
+            },
+            tx,
+          );
+    return { outcome: created ? "granted" : "already_granted", bucketId };
+  };
+}
 
 const CENTS_PER_MONTH = 600_000_000_000_000n;
 const ORG_ID = "org-1";
@@ -76,6 +113,7 @@ describe("grantEnterpriseScheduledPeriod", () => {
       createScheduledPeriod(),
       activatesAt,
       client.tx,
+      writing(client.tx),
     );
 
     assert.equal(result.bucketCreated, true);
@@ -102,6 +140,7 @@ describe("grantEnterpriseScheduledPeriod", () => {
       createScheduledPeriod(),
       new Date("2026-06-01T00:00:00.000Z"),
       client.tx,
+      writing(client.tx),
     );
 
     assert.equal(result.bucketCreated, false);
@@ -206,7 +245,11 @@ describe("catchUpScheduledEnterprisePeriods", () => {
       }),
     ]);
 
-    const count = await catchUpScheduledEnterprisePeriods(client.tx, now);
+    const count = await catchUpScheduledEnterprisePeriods(
+      client.tx,
+      writing(client.tx),
+      now,
+    );
 
     assert.equal(count, 1);
     assert.equal(
@@ -225,7 +268,11 @@ describe("catchUpScheduledEnterprisePeriods", () => {
       .fn()
       .mockResolvedValue([createScheduledPeriod({ periodEnd, periodStart })]);
 
-    const count = await catchUpScheduledEnterprisePeriods(client.tx, now);
+    const count = await catchUpScheduledEnterprisePeriods(
+      client.tx,
+      writing(client.tx),
+      now,
+    );
 
     assert.equal(count, 1);
     assert.equal(
@@ -252,7 +299,11 @@ describe("preCreateUpcomingEnterprisePeriods", () => {
       .fn()
       .mockResolvedValue([createScheduledPeriod({ periodStart })]);
 
-    const count = await preCreateUpcomingEnterprisePeriods(client.tx, now);
+    const count = await preCreateUpcomingEnterprisePeriods(
+      client.tx,
+      writing(client.tx),
+      now,
+    );
 
     assert.equal(count, 1);
     assert.equal(
@@ -299,7 +350,11 @@ describe("runEnterpriseContractSchedulerPass", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    const result = await runEnterpriseContractSchedulerPass(tx, now);
+    const result = await runEnterpriseContractSchedulerPass(
+      tx,
+      writing(tx),
+      now,
+    );
 
     assert.deepEqual(callOrder, [
       "expire",
@@ -344,7 +399,11 @@ describe("runEnterpriseContractSchedulerPass", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    const result = await runEnterpriseContractSchedulerPass(tx, now);
+    const result = await runEnterpriseContractSchedulerPass(
+      tx,
+      writing(tx),
+      now,
+    );
 
     assert.equal(result.catchUpGranted, 1);
     assert.equal(result.completedContracts, 1);
@@ -381,7 +440,11 @@ describe("runEnterpriseContractSchedulerPass", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    const result = await runEnterpriseContractSchedulerPass(tx, now);
+    const result = await runEnterpriseContractSchedulerPass(
+      tx,
+      writing(tx),
+      now,
+    );
 
     assert.equal(result.completedContracts, 1);
     assert.equal(
