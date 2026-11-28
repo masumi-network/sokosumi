@@ -1,4 +1,4 @@
-import { BlobStatus } from "@sokosumi/database";
+import { BlobStatus, type Prisma } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import {
   buildJobBlobPathname,
@@ -8,15 +8,18 @@ import {
   isUnexpectedHtmlImport,
   resolveDownloadableFileUrl,
 } from "@sokosumi/utils";
-import { head, put } from "@vercel/blob";
+import { del, head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
-import prisma from "@/lib/db/prisma";
+import type { NetworkDb, NetworkScope } from "@/lib/db/network-scope";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
 
 const MAX_CONCURRENT_IMPORTS = 5;
 const MAX_IMPORT_SIZE_BYTES = FILE_UPLOAD_MAX_SIZE_BYTES;
 
 interface ImportPendingResultBlobsOptions {
+  scope: NetworkScope;
+  write: <T>(work: (db: NetworkDb) => Promise<T>) => Promise<T>;
   abortSignal: AbortSignal;
   deadlineMs: number;
   shouldContinue: () => boolean;
@@ -96,7 +99,7 @@ async function importBlob(
     return;
   }
 
-  const blob = await prisma.blob.findUnique({
+  const blob = await options.scope.networkDb.blob.findUnique({
     where: { id: blobId },
     include: {
       event: {
@@ -109,17 +112,16 @@ async function importBlob(
     return;
   }
 
+  const update = (data: Prisma.BlobUpdateInput) =>
+    options.write((db) => db.blob.update({ where: { id: blob.id }, data }));
   const jobId = blob.event?.jobId;
   if (!jobId) {
-    await prisma.blob.update({
-      where: { id: blob.id },
-      data: {
-        status: BlobStatus.FAILED,
-      },
-    });
+    await update({ status: BlobStatus.FAILED });
     return;
   }
 
+  let uploadedUrl: string | undefined;
+  let publishing = false;
   try {
     const abortSignal = createImportAbortSignal(options);
     // SSRF guard: validate the source URL (and every redirect hop) against
@@ -179,39 +181,42 @@ async function importBlob(
     }
 
     const pathname = buildJobBlobPathname(jobId, suggestedName);
-    const uploadResult = await put(pathname, sourceFile, {
+    const uploadPath =
+      options.scope.network === "preprod" ? `preprod/${pathname}` : pathname;
+    const uploadResult = await put(uploadPath, sourceFile, {
       access: "public",
       addRandomSuffix: true,
       abortSignal,
       token: blobToken,
     });
+    uploadedUrl = uploadResult.url;
     const blobMetadata = await head(uploadResult.url, {
       abortSignal,
       token: blobToken,
     });
 
-    await prisma.blob.update({
-      where: { id: blob.id },
-      data: {
-        fileUrl: uploadResult.url,
-        mimeType: blobMetadata.contentType,
-        name: suggestedName,
-        size: BigInt(blobMetadata.size),
-        status: BlobStatus.READY,
-      },
+    publishing = true;
+    await update({
+      fileUrl: uploadResult.url,
+      mimeType: blobMetadata.contentType,
+      name: suggestedName,
+      size: BigInt(blobMetadata.size),
+      status: BlobStatus.READY,
     });
   } catch (error) {
+    if (options.scope.network === "preprod" && uploadedUrl) {
+      // An unknown commit outcome could already reference the object.
+      if (publishing && !(error instanceof DetachedNetworkRefusal)) throw error;
+      // The upload has a random suffix: remove only this attempt's object.
+      await del(uploadedUrl, { token: getEnv().BLOB_READ_WRITE_TOKEN });
+    }
+    if (error instanceof DetachedNetworkRefusal) throw error;
     if (!shouldContinueSync(options) && isAbortLikeError(error)) {
       // Keep the blob pending so a future sync run can retry it.
       return;
     }
 
-    await prisma.blob.update({
-      where: { id: blob.id },
-      data: {
-        status: BlobStatus.FAILED,
-      },
-    });
+    await update({ status: BlobStatus.FAILED });
   }
 }
 
@@ -223,7 +228,7 @@ async function importTaskFile(
     return;
   }
 
-  const taskFile = await prisma.taskFile.findUnique({
+  const taskFile = await options.scope.sharedDb.taskFile.findUnique({
     where: { id: taskFileId },
     include: {
       task: {
@@ -296,7 +301,7 @@ async function importTaskFile(
       token: blobToken,
     });
 
-    await prisma.taskFile.update({
+    await options.scope.sharedDb.taskFile.update({
       where: { id: taskFile.id },
       data: {
         fileUrl: uploadResult.url,
@@ -312,7 +317,7 @@ async function importTaskFile(
       return;
     }
 
-    await prisma.taskFile.update({
+    await options.scope.sharedDb.taskFile.update({
       where: { id: taskFile.id },
       data: {
         status: "FAILED",
@@ -324,15 +329,18 @@ async function importTaskFile(
 async function importPendingResultBlobs(
   options: ImportPendingResultBlobsOptions,
 ): Promise<number> {
-  const pendingBlobs = await prisma.blob.findMany({
+  const pendingBlobs = await options.scope.networkDb.blob.findMany({
     where: { status: BlobStatus.PENDING },
     orderBy: { createdAt: "asc" },
   });
 
-  const pendingTaskFiles = await prisma.taskFile.findMany({
-    where: { status: "PENDING", origin: "TASK_OUTPUT" },
-    orderBy: { createdAt: "asc" },
-  });
+  const pendingTaskFiles =
+    options.scope.network === "mainnet"
+      ? await options.scope.sharedDb.taskFile.findMany({
+          where: { status: "PENDING", origin: "TASK_OUTPUT" },
+          orderBy: { createdAt: "asc" },
+        })
+      : [];
 
   const totalPending = pendingBlobs.length + pendingTaskFiles.length;
 
@@ -365,7 +373,16 @@ async function importPendingResultBlobs(
     })(),
   );
 
-  await Promise.allSettled(workers);
+  const results = await Promise.allSettled(workers);
+  if (options.scope.network === "preprod") {
+    // A planned refusal in another worker must not hide a failed cleanup.
+    const rejected = results.filter((result) => result.status === "rejected");
+    const failure =
+      rejected.find(
+        ({ reason }) => !(reason instanceof DetachedNetworkRefusal),
+      ) ?? rejected[0];
+    if (failure) throw failure.reason;
+  }
 
   return totalPending;
 }

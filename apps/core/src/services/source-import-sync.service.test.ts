@@ -3,6 +3,8 @@ import type { SsrfSafeFetchInit } from "@sokosumi/net";
 import { FILE_UPLOAD_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createNetworkScope, type NetworkDb } from "@/lib/db/network-scope";
+
 const {
   blobFindManyMock,
   blobFindUniqueMock,
@@ -32,12 +34,14 @@ vi.mock("@/config/env", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
+  networkPrisma: () => ({
     blob: {
       findMany: blobFindManyMock,
       findUnique: blobFindUniqueMock,
       update: blobUpdateMock,
     },
+  }),
+  default: {
     taskFile: {
       findMany: taskFileFindManyMock,
       findUnique: taskFileFindUniqueMock,
@@ -85,8 +89,11 @@ interface ImportPendingResultBlobsOptions {
 
 function createImportOptions(
   overrides: Partial<ImportPendingResultBlobsOptions> = {},
-): ImportPendingResultBlobsOptions {
+) {
+  const scope = createNetworkScope("mainnet");
   return {
+    scope,
+    write: <T>(work: (db: NetworkDb) => Promise<T>) => work(scope.networkDb),
     abortSignal: new AbortController().signal,
     deadlineMs: Date.now() + 60_000,
     shouldContinue: () => true,

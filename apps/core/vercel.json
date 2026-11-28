@@ -66,6 +66,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/sync/preprod/source-import",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/sync/stripe-customers",
       "schedule": "0 * * * *"
     },

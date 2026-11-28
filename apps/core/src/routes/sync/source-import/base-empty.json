@@ -1,0 +1,110 @@
+{
+  "outcome": [
+    200,
+    {
+      "message": "Syncing started"
+    }
+  ],
+  "sql": [
+    {
+      "text": "BEGIN",
+      "values": []
+    },
+    {
+      "text": "SELECT \"public\".\"Lock\".\"id\" FROM \"public\".\"Lock\" WHERE (\"public\".\"Lock\".\"key\" = $1 AND 1=1) OFFSET $2",
+      "values": ["source-import-sync", "0"]
+    },
+    {
+      "text": "INSERT INTO \"public\".\"Lock\" (\"id\",\"createdAt\",\"updatedAt\",\"key\",\"isLocked\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Lock\".\"id\"",
+      "values": [
+        "<lock id>",
+        "2026-11-27 12:00:00",
+        "2026-11-27 12:00:00",
+        "source-import-sync",
+        false
+      ]
+    },
+    {
+      "text": "SELECT \"public\".\"Lock\".\"id\", \"public\".\"Lock\".\"createdAt\", \"public\".\"Lock\".\"updatedAt\", \"public\".\"Lock\".\"key\", \"public\".\"Lock\".\"isLocked\", \"public\".\"Lock\".\"lockedAt\", \"public\".\"Lock\".\"lockedBy\" FROM \"public\".\"Lock\" WHERE \"public\".\"Lock\".\"id\" = $1 LIMIT $2 OFFSET $3",
+      "values": ["<lock id>", "1", "0"]
+    },
+    {
+      "text": "UPDATE \"public\".\"Lock\" SET \"isLocked\" = $1, \"lockedBy\" = $2, \"lockedAt\" = $3, \"updatedAt\" = $4 WHERE (\"public\".\"Lock\".\"key\" = $5 AND (\"public\".\"Lock\".\"isLocked\" = $6 OR (\"public\".\"Lock\".\"isLocked\" = $7 AND \"public\".\"Lock\".\"lockedAt\" IS NULL) OR (\"public\".\"Lock\".\"isLocked\" = $8 AND \"public\".\"Lock\".\"lockedAt\" < $9)))",
+      "values": [
+        true,
+        "<owner token>",
+        "2026-11-27 12:00:00",
+        "2026-11-27 12:00:00",
+        "source-import-sync",
+        false,
+        true,
+        true,
+        "2026-11-27 11:45:00"
+      ]
+    },
+    {
+      "text": "COMMIT",
+      "values": []
+    },
+    {
+      "text": "SELECT \"public\".\"blob\".\"id\", \"public\".\"blob\".\"createdAt\", \"public\".\"blob\".\"updatedAt\", \"public\".\"blob\".\"fileUrl\", \"public\".\"blob\".\"name\", \"public\".\"blob\".\"mimeType\", \"public\".\"blob\".\"size\", \"public\".\"blob\".\"sourceUrl\", \"public\".\"blob\".\"status\"::text, \"public\".\"blob\".\"eventId\" FROM \"public\".\"blob\" WHERE \"public\".\"blob\".\"status\" = CAST($1::text AS \"public\".\"BlobStatus\") ORDER BY \"public\".\"blob\".\"createdAt\" ASC OFFSET $2",
+      "values": ["PENDING", "0"]
+    },
+    {
+      "text": "SELECT \"public\".\"task_file\".\"id\", \"public\".\"task_file\".\"createdAt\", \"public\".\"task_file\".\"updatedAt\", \"public\".\"task_file\".\"taskId\", \"public\".\"task_file\".\"name\", \"public\".\"task_file\".\"fileUrl\", \"public\".\"task_file\".\"sourceUrl\", \"public\".\"task_file\".\"mimeType\", \"public\".\"task_file\".\"size\", \"public\".\"task_file\".\"status\"::text, \"public\".\"task_file\".\"origin\"::text, \"public\".\"task_file\".\"uploadedByUserId\", \"public\".\"task_file\".\"uploadedByCoworkerId\", \"public\".\"task_file\".\"uploadedBySokoBotId\" FROM \"public\".\"task_file\" WHERE (\"public\".\"task_file\".\"status\" = CAST($1::text AS \"public\".\"TaskFileStatus\") AND \"public\".\"task_file\".\"origin\" = CAST($2::text AS \"public\".\"TaskFileOrigin\")) ORDER BY \"public\".\"task_file\".\"createdAt\" ASC OFFSET $3",
+      "values": ["PENDING", "TASK_OUTPUT", "0"]
+    },
+    {
+      "text": "UPDATE \"public\".\"Lock\" SET \"isLocked\" = $1, \"lockedBy\" = $2, \"lockedAt\" = $3, \"updatedAt\" = $4 WHERE (\"public\".\"Lock\".\"key\" = $5 AND \"public\".\"Lock\".\"isLocked\" = $6 AND \"public\".\"Lock\".\"lockedBy\" = $7)",
+      "values": [
+        false,
+        null,
+        null,
+        "2026-11-27 12:00:00",
+        "source-import-sync",
+        true,
+        "<owner token>"
+      ]
+    }
+  ],
+  "locks": [
+    {
+      "id": "<lock id>",
+      "createdAt": "2026-11-27T12:00:00.000Z",
+      "updatedAt": "2026-11-27T12:00:00.000Z",
+      "key": "source-import-sync",
+      "isLocked": false,
+      "lockedAt": null,
+      "lockedBy": null
+    }
+  ],
+  "cursors": [],
+  "storage": [],
+  "monitor": [
+    [
+      {
+        "monitorSlug": "source-import-sync",
+        "status": "in_progress"
+      },
+      {
+        "schedule": {
+          "type": "crontab",
+          "value": "*/5 * * * *"
+        },
+        "checkinMargin": 10,
+        "timezone": "UTC",
+        "failureIssueThreshold": 3,
+        "recoveryThreshold": 1,
+        "maxRuntime": 16
+      }
+    ],
+    [
+      {
+        "checkInId": "check-in",
+        "monitorSlug": "source-import-sync",
+        "status": "ok",
+        "duration": 0
+      }
+    ]
+  ]
+}
