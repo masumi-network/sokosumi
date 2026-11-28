@@ -1284,6 +1284,16 @@ export function ProjectSocialPosts({
         <SocialPostPreview
           account={previewAccountFor(post, connections)}
           compact
+          edit={
+            !readOnly && post.canEdit
+              ? {
+                  label: t("editNamed", {
+                    handle: actionSubject(post, t("thisDraft")),
+                  }),
+                  onSelect: () => setComposer({ kind: "edit", post }),
+                }
+              : undefined
+          }
           media={post.media}
           quotedPost={post.quotedPost}
           onSeeMore={openPreview}

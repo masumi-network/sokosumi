@@ -43,11 +43,13 @@ export function getSocialReconnections(
           new Date(connection.connectedAt) > new Date(failureAt)
         )
           return false;
+        // An inactive-connection failure is about the post's linked row,
+        // which connectionNeedsReconnect already reports live. The post may
+        // have failed on a retired row before Core moved it to this one.
         return (
           post.connectionNeedsReconnect ||
           post.lastAttempt?.errorKind === "unauthorized" ||
-          post.lastAttempt?.outcome === "authorization_revoked" ||
-          post.lastError === "Social connection needs reconnecting"
+          post.lastAttempt?.outcome === "authorization_revoked"
         );
       });
     return broken ? [{ connection, affectedPosts }] : [];

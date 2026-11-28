@@ -60,6 +60,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "generate:sql-table-names": "tsx scripts/generate-sql-table-names.ts",
+    "data-migration:repoint-reconnected-social-posts": "tsx scripts/repoint-reconnected-social-posts.ts",
     "data-migration:task-work-type-presets": "tsx scripts/backfill-task-work-type-presets.ts",
     "data-migration:requeue-empty-company-lookups": "tsx scripts/requeue-empty-company-lookups.ts",
     "data-migration:cmo-clear-first-competitor-week": "tsx scripts/cmo-clear-first-competitor-week.ts",

@@ -162,6 +162,7 @@ const MESSAGES: Record<string, string> = {
   newPost: "New post",
   moreActions: "Post actions",
   moreActionsNamed: "Post actions for {handle}",
+  editNamed: "Edit {handle}",
   thisDraft: "this draft",
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
@@ -1600,6 +1601,47 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByRole("dialog")).getByText("Post preview"),
     ).toBeVisible();
+  });
+
+  it("opens the editor from the ... at the top of a draft card", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const preview = within(
+      screen.getByTestId("social-post-post-draft"),
+    ).getByTestId("social-post-preview");
+    await user.click(
+      within(preview).getByRole("button", { name: "Edit this draft" }),
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("heading", {
+        name: "Edit post",
+      }),
+    ).toBeVisible();
+  });
+
+  it("keeps the ... at the top of a draft card inert when it cannot be edited", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost({ canEdit: false })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const preview = within(
+      screen.getByTestId("social-post-post-draft"),
+    ).getByTestId("social-post-preview");
+    expect(
+      within(preview).queryByRole("button", { name: /^Edit / }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the reconnect warning on a draft card", () => {

@@ -88,6 +88,7 @@ import {
   socialPostStatisticsSchema,
 } from "@/schemas/social-post-statistics.schema";
 import {
+  RECONNECT_SENSITIVE_POST_STATUSES,
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
@@ -137,14 +138,6 @@ const PUBLISH_NOW_STATUSES: readonly SocialPostStatus[] = [
 ];
 const DUPLICATABLE_STATUSES: readonly SocialPostStatus[] = [
   "PUBLISHED",
-  "FAILED",
-  "MISSED",
-];
-/** Statuses where a stale connection blocks the next publish. */
-const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
-  "DRAFT",
-  "NEEDS_APPROVAL",
-  "SCHEDULED",
   "FAILED",
   "MISSED",
 ];
@@ -512,7 +505,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     canApprove: providerEnabled && record.status === "NEEDS_APPROVAL",
     canReject: record.status === "NEEDS_APPROVAL",
     connectionNeedsReconnect:
-      RECONNECT_SENSITIVE_STATUSES.includes(record.status) &&
+      RECONNECT_SENSITIVE_POST_STATUSES.includes(record.status) &&
       record.socialConnection !== null &&
       record.socialConnection.status !== "active",
   };

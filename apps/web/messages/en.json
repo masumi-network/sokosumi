@@ -3063,6 +3063,7 @@
         "title": "Social posts",
         "newPost": "New post",
         "moreActionsNamed": "Post actions for {handle}",
+        "editNamed": "Edit {handle}",
         "thisDraft": "this draft",
         "noAccount": "No account",
         "outcomes": {
