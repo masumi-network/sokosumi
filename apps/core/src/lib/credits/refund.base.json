@@ -282,7 +282,8 @@
         "count": 1,
         "total": {
           "credits": -2,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -325,7 +326,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -618,7 +620,8 @@
         "count": 1,
         "total": {
           "credits": -1.5,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -661,7 +664,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -1074,7 +1078,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -1117,7 +1122,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -1661,7 +1667,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -1704,7 +1711,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -2242,7 +2250,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -2285,7 +2294,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -2698,7 +2708,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -2741,7 +2752,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -2956,7 +2968,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -3017,7 +3030,8 @@
         "count": 5,
         "total": {
           "credits": -4,
-          "count": 5
+          "count": 5,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -3515,7 +3529,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -3558,7 +3573,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -3718,7 +3734,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -3761,7 +3778,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -4037,7 +4055,8 @@
         "count": 1,
         "total": {
           "credits": 0,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -4080,7 +4099,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -4396,7 +4416,8 @@
         "count": 1,
         "total": {
           "credits": -2,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -4439,7 +4460,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -4755,7 +4777,8 @@
         "count": 1,
         "total": {
           "credits": -1.5,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -4798,7 +4821,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -5234,7 +5258,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -5277,7 +5302,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -5844,7 +5870,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -5887,7 +5914,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -6448,7 +6476,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -6491,7 +6520,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -6927,7 +6957,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -6970,7 +7001,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -7208,7 +7240,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -7269,7 +7302,8 @@
         "count": 5,
         "total": {
           "credits": -4,
-          "count": 5
+          "count": 5,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -7764,7 +7798,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -7807,7 +7842,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -7988,7 +8024,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -8031,7 +8068,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -8203,7 +8241,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -8246,7 +8285,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -8611,7 +8651,8 @@
         "count": 1,
         "total": {
           "credits": -2,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -8654,7 +8695,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -9019,7 +9061,8 @@
         "count": 1,
         "total": {
           "credits": -1.5,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -9062,7 +9105,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -9547,7 +9591,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -9590,7 +9635,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -10206,7 +10252,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -10249,7 +10296,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -10859,7 +10907,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -10902,7 +10951,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -11387,7 +11437,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -11430,7 +11481,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -11692,7 +11744,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -11753,7 +11806,8 @@
         "count": 5,
         "total": {
           "credits": -4,
-          "count": 5
+          "count": 5,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -12296,7 +12350,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -12339,7 +12394,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -12525,7 +12581,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -12568,7 +12625,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -12745,7 +12803,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -12788,7 +12847,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -13407,7 +13467,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -13450,7 +13511,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -13742,7 +13804,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -13821,7 +13884,8 @@
         "count": 7,
         "total": {
           "credits": -3,
-          "count": 7
+          "count": 7,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2.5",
@@ -14442,7 +14506,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -14485,7 +14550,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -14779,7 +14845,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -14858,7 +14925,8 @@
         "count": 7,
         "total": {
           "credits": -3,
-          "count": 7
+          "count": 7,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2.5",
@@ -15151,7 +15219,8 @@
         "count": 1,
         "total": {
           "credits": -2,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -15194,7 +15263,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -15487,7 +15557,8 @@
         "count": 1,
         "total": {
           "credits": -1.5,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -15530,7 +15601,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -15943,7 +16015,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -15986,7 +16059,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -16530,7 +16604,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -16573,7 +16648,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -17111,7 +17187,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -17154,7 +17231,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -17567,7 +17645,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -17610,7 +17689,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -17825,7 +17905,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -17886,7 +17967,8 @@
         "count": 5,
         "total": {
           "credits": -4,
-          "count": 5
+          "count": 5,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -18384,7 +18466,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -18427,7 +18510,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -18587,7 +18671,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -18630,7 +18715,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -18906,7 +18992,8 @@
         "count": 1,
         "total": {
           "credits": 0,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -18949,7 +19036,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -19265,7 +19353,8 @@
         "count": 1,
         "total": {
           "credits": -2,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -19308,7 +19397,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -19624,7 +19714,8 @@
         "count": 1,
         "total": {
           "credits": -1.5,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -19667,7 +19758,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -20103,7 +20195,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -20146,7 +20239,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -20713,7 +20807,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -20756,7 +20851,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -21317,7 +21413,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -21360,7 +21457,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -21796,7 +21894,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -21839,7 +21938,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -22077,7 +22177,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -22138,7 +22239,8 @@
         "count": 5,
         "total": {
           "credits": -4,
-          "count": 5
+          "count": 5,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -22633,7 +22735,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -22676,7 +22779,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -22857,7 +22961,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -22900,7 +23005,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -23072,7 +23178,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -23115,7 +23222,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -23480,7 +23588,8 @@
         "count": 1,
         "total": {
           "credits": -2,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -23523,7 +23632,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -23888,7 +23998,8 @@
         "count": 1,
         "total": {
           "credits": -1.5,
-          "count": 1
+          "count": 1,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -23931,7 +24042,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -24416,7 +24528,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -24459,7 +24572,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -25075,7 +25189,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -25118,7 +25233,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -25728,7 +25844,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -25771,7 +25888,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -26256,7 +26374,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -26299,7 +26418,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -26561,7 +26681,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -26622,7 +26743,8 @@
         "count": 5,
         "total": {
           "credits": -4,
-          "count": 5
+          "count": 5,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -27165,7 +27287,8 @@
         "count": 2,
         "total": {
           "credits": -1.5,
-          "count": 2
+          "count": 2,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -27208,7 +27331,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -27394,7 +27518,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -27437,7 +27562,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -27614,7 +27740,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -27657,7 +27784,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -28276,7 +28404,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -28319,7 +28448,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -28611,7 +28741,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -28690,7 +28821,8 @@
         "count": 7,
         "total": {
           "credits": -3,
-          "count": 7
+          "count": 7,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2.5",
@@ -29311,7 +29443,8 @@
         "count": 4,
         "total": {
           "credits": -0.5,
-          "count": 4
+          "count": 4,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -29354,7 +29487,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -29648,7 +29782,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -29727,7 +29862,8 @@
         "count": 7,
         "total": {
           "credits": -3,
-          "count": 7
+          "count": 7,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2.5",
@@ -29867,7 +30003,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -29910,7 +30047,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -30050,7 +30188,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -30093,7 +30232,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -30239,7 +30379,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -30282,7 +30423,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -30428,7 +30570,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -30471,7 +30614,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -30611,7 +30755,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -30654,7 +30799,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -30800,7 +30946,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -30843,7 +30990,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -30989,7 +31137,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -31032,7 +31181,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -31207,7 +31357,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -31250,7 +31401,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -31383,7 +31535,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -31426,7 +31579,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -31551,7 +31705,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -31594,7 +31749,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -31754,7 +31910,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -31797,7 +31954,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -31957,7 +32115,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -32000,7 +32159,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -32166,7 +32326,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -32209,7 +32370,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -32375,7 +32537,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -32418,7 +32581,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -32578,7 +32742,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -32621,7 +32786,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -32787,7 +32953,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -32830,7 +32997,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -32996,7 +33164,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -33039,7 +33208,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -33238,7 +33408,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -33281,7 +33452,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -33434,7 +33606,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -33477,7 +33650,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -33622,7 +33796,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -33665,7 +33840,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -33830,7 +34006,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -33873,7 +34050,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -34038,7 +34216,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -34081,7 +34260,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -34252,7 +34432,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -34295,7 +34476,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -34466,7 +34648,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -34509,7 +34692,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -34674,7 +34858,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -34717,7 +34902,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -34888,7 +35074,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -34931,7 +35118,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -35102,7 +35290,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -35145,7 +35334,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -35348,7 +35538,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -35391,7 +35582,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -35549,7 +35741,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -35592,7 +35785,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -35742,7 +35936,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -35785,7 +35980,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -35954,7 +36150,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -35997,7 +36194,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -36166,7 +36364,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -36209,7 +36408,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -36380,7 +36580,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -36423,7 +36624,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -36594,7 +36796,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -36637,7 +36840,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -36777,7 +36981,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -36820,7 +37025,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -36960,7 +37166,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -37003,7 +37210,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -37149,7 +37357,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -37192,7 +37401,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -37338,7 +37548,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -37381,7 +37592,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -37521,7 +37733,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -37564,7 +37777,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -37710,7 +37924,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -37753,7 +37968,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -37899,7 +38115,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -37942,7 +38159,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -38117,7 +38335,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -38160,7 +38379,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -38293,7 +38513,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -38336,7 +38557,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -38461,7 +38683,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -38504,7 +38727,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -38664,7 +38888,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -38707,7 +38932,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -38867,7 +39093,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -38910,7 +39137,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -39076,7 +39304,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -39119,7 +39348,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -39285,7 +39515,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -39328,7 +39559,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -39488,7 +39720,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -39531,7 +39764,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -39697,7 +39931,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -39740,7 +39975,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -39906,7 +40142,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -39949,7 +40186,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -40148,7 +40386,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -40191,7 +40430,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -40344,7 +40584,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -40387,7 +40628,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -40532,7 +40774,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -40575,7 +40818,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -40740,7 +40984,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -40783,7 +41028,8 @@
         "count": 3,
         "total": {
           "credits": -2,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-2",
@@ -40948,7 +41194,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -40991,7 +41238,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -41162,7 +41410,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -41205,7 +41454,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -41376,7 +41626,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -41419,7 +41670,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -41584,7 +41836,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -41627,7 +41880,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -41798,7 +42052,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -41841,7 +42096,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -42012,7 +42268,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -42055,7 +42312,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -42258,7 +42516,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -42301,7 +42560,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -42459,7 +42719,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -42502,7 +42763,8 @@
         "count": 3,
         "total": {
           "credits": -3,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1",
@@ -42652,7 +42914,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -42695,7 +42958,8 @@
         "count": 3,
         "total": {
           "credits": -4,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -42864,7 +43128,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -42907,7 +43172,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -43076,7 +43342,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -43119,7 +43386,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -43290,7 +43558,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -43333,7 +43602,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",
@@ -43504,7 +43774,8 @@
         "count": 0,
         "total": {
           "credits": 0,
-          "count": 0
+          "count": 0,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,0",
@@ -43547,7 +43818,8 @@
         "count": 3,
         "total": {
           "credits": -2.5,
-          "count": 3
+          "count": 3,
+          "network": "mainnet"
         },
         "csvTotals": [
           ",total,Spent,-1.5",

@@ -55,6 +55,7 @@ describe("creditsResponseSchema", () => {
       },
     };
     const result = creditsResponseSchema.parse({
+      network: "mainnet",
       scope: "personal",
       spendable: 70,
       enterprise: null,
@@ -98,6 +99,7 @@ describe("creditsResponseSchema", () => {
 
   it("accepts null subscription credits payload with credit buffer", () => {
     const result = creditsResponseSchema.parse({
+      network: "mainnet",
       scope: "organization",
       spendable: 20,
       enterprise: null,
@@ -130,6 +132,7 @@ describe("creditsResponseSchema", () => {
   it("rejects a payload without scope", () => {
     expect(() =>
       creditsResponseSchema.parse({
+        network: "mainnet",
         subscription: null,
         spendable: 0,
         enterprise: null,
@@ -146,6 +149,7 @@ describe("creditsResponseSchema", () => {
   it("rejects legacy numeric credits shape", () => {
     expect(() =>
       creditsResponseSchema.parse({
+        network: "mainnet",
         credits: 100,
       }),
     ).toThrow();
@@ -161,6 +165,7 @@ describe("creditsResponseSchema", () => {
       { total: 2, remaining: 2, expiresAt: null },
     ];
     const result = creditsResponseSchema.parse({
+      network: "mainnet",
       scope: "personal",
       spendable: 5,
       enterprise: null,
@@ -193,6 +198,7 @@ describe("creditsResponseSchema", () => {
 
   it("accepts buckets with only non-expiring entries", () => {
     const result = creditsResponseSchema.parse({
+      network: "mainnet",
       scope: "personal",
       spendable: 5,
       enterprise: null,

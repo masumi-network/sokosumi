@@ -18629,6 +18629,11 @@ export type TransactionHistoryJobItem = {
      * Resolved icon URL for the agent
      */
     agentIcon: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryOwner = {
@@ -18684,6 +18689,11 @@ export type TransactionHistoryImageItem = {
      * Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
      */
     modelLabel: string;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryTaskItem = {
@@ -18728,6 +18738,11 @@ export type TransactionHistoryTaskItem = {
      * Whether the task is archived. An archived task cannot be opened, so clients should not link to it.
      */
     taskArchived: boolean;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryCoworkerItem = {
@@ -18764,6 +18779,11 @@ export type TransactionHistoryCoworkerItem = {
      * Coworker whose usage consumed the credits
      */
     coworkerId: string;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistorySokoBotItem = {
@@ -18800,6 +18820,11 @@ export type TransactionHistorySokoBotItem = {
      * Soko Bot whose usage consumed the credits
      */
     sokoBotId: string;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistorySeoChatItem = {
@@ -18832,6 +18857,11 @@ export type TransactionHistorySeoChatItem = {
      */
     owner: TransactionHistoryOwner | null;
     kind: 'seoChat';
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryContactsItem = {
@@ -18868,6 +18898,11 @@ export type TransactionHistoryContactsItem = {
      * Contact list a Find people run searched for. Null once the list is deleted.
      */
     contactListId: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryTopUpItem = {
@@ -18916,6 +18951,11 @@ export type TransactionHistoryTopUpItem = {
      * Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.
      */
     refundedTaskId: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryUnattributedItem = {
@@ -18952,6 +18992,11 @@ export type TransactionHistoryUnattributedItem = {
      * Credit bucket the spend drew from, when a consumption row records one. Null when nothing about the source is known.
      */
     bucketSource: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionDailySpendList = Array<{
@@ -18963,6 +19008,7 @@ export type TransactionDailySpendList = Array<{
      * Credits spent that day. Top ups are not counted.
      */
     credits: number;
+    network: 'mainnet' | 'preprod';
 }>;
 
 export type TransactionTotal = {
@@ -18974,6 +19020,7 @@ export type TransactionTotal = {
      * Matching ledger rows.
      */
     count: number;
+    network: 'mainnet' | 'preprod';
 };
 
 export type CreditPriceOption = {
@@ -56317,6 +56364,7 @@ export type GetUsersByIdCreditsResponses = {
                  */
                 total: number;
             };
+            network: 'mainnet' | 'preprod';
         };
         meta: {
             timestamp: Date;
@@ -56961,6 +57009,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                  */
                 total: number;
             };
+            network: 'mainnet' | 'preprod';
         };
         meta: {
             timestamp: Date;

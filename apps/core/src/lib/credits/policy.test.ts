@@ -229,7 +229,7 @@ describe("the credit view of a request", () => {
 
     expect(view.billingScope).toBe(scope);
     expect(view.network).toBe("preprod");
-    expect(view.charged).toBe(false);
+    expect(view.affectsBalance).toBe(false);
   });
 
   it("is Mainnet's, charged, for a Mainnet request", () => {
@@ -238,7 +238,7 @@ describe("the credit view of a request", () => {
 
     expect(view.billingScope).toBe(scope);
     expect(view.network).toBe("mainnet");
-    expect(view.charged).toBe(true);
+    expect(view.affectsBalance).toBe(true);
   });
 
   it("passes a refused scope's own error, before any read: no Mainnet view", () => {

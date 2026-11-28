@@ -6,7 +6,9 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { NETWORKS } from "@/lib/network";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { NETWORK_HEADER } from "@/middleware/network-scope";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   requireLedgerTaskFilter,
@@ -30,6 +32,12 @@ const route = withOrganizationSlugHeaderParameter(
     responses: {
       200: {
         description: "Ledger rows as CSV",
+        headers: {
+          [NETWORK_HEADER]: {
+            description: "Network of the exported ledger.",
+            schema: { type: "string", enum: [...NETWORKS] },
+          },
+        },
         content: { "text/csv": { schema: { type: "string" } } },
       },
       400: jsonErrorResponse("Bad Request"),
@@ -70,6 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     return c.body(stream, 200, {
+      [NETWORK_HEADER]: view.network,
       "content-type": "text/csv; charset=utf-8",
       "content-disposition": `attachment; filename="transactions-${from ?? "start"}_${to ?? "today"}.csv"`,
       "cache-control": "private, no-store",

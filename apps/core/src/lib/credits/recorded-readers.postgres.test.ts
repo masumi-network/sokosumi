@@ -8,19 +8,15 @@ import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { loadAgentPreviewsByIds } from "@/helpers/history";
-import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
 import { streamTransactionCsv } from "@/helpers/transaction-history-csv";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { requireSeoChatBalance } from "@/lib/seo/chat-billing";
 import { observing, statementDigest } from "@/test/spend-comparison";
 import { getBalance, getOrganizationPoolBalance } from "./balance";
-import {
-  countTransactionHistory,
-  findTransactionHistoryPage,
-  sumTransactionHistory,
-} from "./history";
+import { countTransactionHistory, findTransactionHistoryPage } from "./history";
 import base from "./readers.base.json";
+import { creditViewForRequest } from "./view";
 
 vi.mock("@vercel/functions", async (original) => {
   const { observePool } = await import("@/test/spend-comparison");
@@ -218,6 +214,7 @@ describe.runIf(enabled)(
               })),
             ),
           });
+          const view = creditViewForRequest(scope);
           const filter = {
             ...params,
             projectId,
@@ -255,14 +252,14 @@ describe.runIf(enabled)(
                   amount: BigInt(base.row.amount),
                 })),
               );
-              expect(rows.map((row) => mapTransactionHistoryRow(row))).toEqual(
+              expect(rows.map((row) => view.item(row))).toEqual(
                 expected.map((row) => ({
                   ...base.item,
                   ...row,
                   consumedAt: row.consumedAt.toISOString(),
                 })),
               );
-              expect(await sumTransactionHistory(filter)).toEqual(base.total);
+              expect(await view.total(filter)).toEqual(base.total);
               expect(await countTransactionHistory(filter)).toBe(base.count);
               const csv = Buffer.from(
                 await new Response(streamTransactionCsv(filter)).arrayBuffer(),
