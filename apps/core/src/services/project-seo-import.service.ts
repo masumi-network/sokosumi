@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isOwnedTaskFileUrl,
   isVercelBlobPublicHost,
@@ -29,10 +30,13 @@ import {
 } from "@/helpers/project-seo-report";
 import { readAuditPlan } from "@/helpers/seo-audit-plan";
 import { assertCrawlNextMatchesRequest } from "@/helpers/seo-crawl-next-report";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { recheckSeoAuditSafely } from "./project-seo-audit-recheck-run";
+import { PAGE_RULE_KINDS } from "./project-seo-fix-results";
 import { notifySeoMonitorClicksDropSafely } from "./project-seo-monitor-clicks";
 import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
 import { seoRankPoints } from "./project-seo-rank-points";
@@ -50,6 +54,8 @@ import {
   seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
+
+const omitRecheckState = { needsAuditRecheck: true } as const;
 
 async function requireSourceFile(
   actor: SeoActor,
@@ -208,6 +214,7 @@ export async function importProjectSeoAudit(
   const sourceKey = `task-file:${file.id}`;
   const existing = await prisma.projectSeoObservation.findUnique({
     where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
+    omit: omitRecheckState,
   });
   const recover = input.recoverMarkets || input.recoverPageSpeed;
   if (recover && !existing)
@@ -227,13 +234,17 @@ export async function importProjectSeoAudit(
       (input.recoverMarkets && !recoveryStrategy(existing, input).missing) ||
       (input.recoverPageSpeed &&
         reportObject(existing.payload)?.pageSpeed !== undefined))
-  )
-    return serializableTransaction(async (tx) => {
+  ) {
+    const replay = await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor, !analysis);
       await requireSourceFile(actor, input, tx);
       await options.authorize?.(tx);
       return commitSeoMutation(tx, existing, options);
     }, "The report import changed. Please retry.");
+    // A replay runs the recheck again: the first one can have failed after the import committed.
+    await recheckSeoAuditSafely(existing.id);
+    return replay;
+  }
   const body = await readSeoArtifact(
     fileUrl,
     options.fetchImpl ?? fetch,
@@ -288,6 +299,7 @@ export async function importProjectSeoAudit(
       throw conflict("The source report changed during import");
     const prior = await tx.projectSeoObservation.findUnique({
       where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
+      omit: omitRecheckState,
     });
     if (prior) {
       if (prior.artifactHash !== artifactHash)
@@ -299,6 +311,7 @@ export async function importProjectSeoAudit(
         if (stored.pageSpeed === undefined) {
           const updated = await tx.projectSeoObservation.update({
             where: { id: prior.id },
+            omit: omitRecheckState,
             data: {
               payload: jsonInput({
                 ...stored,
@@ -319,6 +332,7 @@ export async function importProjectSeoAudit(
             : { marketNote: payload.strategy?.marketNote ?? "unavailable" };
           const updated = await tx.projectSeoObservation.update({
             where: { id: prior.id },
+            omit: omitRecheckState,
             data: {
               payload: jsonInput({
                 ...stored,
@@ -335,6 +349,7 @@ export async function importProjectSeoAudit(
     // One paid continuation is one crawl: a second Report file of its Task keeps the first accepted one.
     if (payload.kind === "crawl_next") {
       const first = await tx.projectSeoObservation.findFirst({
+        omit: omitRecheckState,
         where: {
           ...seoOwnerWhere(actor),
           kind: "crawl_next",
@@ -369,9 +384,32 @@ export async function importProjectSeoAudit(
             sourceFailures: failedSeoSources(raw),
           }
         : payload;
+    const observedAt = new Date(payload.observedAt);
+    const owner = seoOwnerData(actor);
+    const canRecheck = PAGE_RULE_KINDS.has(payload.kind);
+    if (canRecheck) {
+      const ownerTable = sharedTable(
+        actor.owner.kind === "project" ? "project" : "seo_audit",
+      );
+      // Version the locked row so an import with an older serializable snapshot retries.
+      // Leave the owner's visible updatedAt unchanged.
+      await tx.$executeRaw`UPDATE ${ownerTable} SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid`;
+    }
+    // Decide with the owner locked. A later commit must not disqualify a pending recheck.
+    const needsAuditRecheck =
+      canRecheck &&
+      !(await tx.projectSeoObservation.findFirst({
+        where: {
+          ...owner,
+          kind: { in: [...PAGE_RULE_KINDS] },
+          observedAt: { gt: observedAt },
+        },
+        select: { id: true },
+      }));
     const observation = await tx.projectSeoObservation.create({
+      omit: omitRecheckState,
       data: {
-        ...seoOwnerData(actor),
+        ...owner,
         kind: payload.kind,
         source: "seo_coworker",
         sourceKey,
@@ -381,7 +419,9 @@ export async function importProjectSeoAudit(
         scopeVersion: analysis?.scopeVersion ?? 0,
         artifactHash,
         payload: jsonInput(reportPayload),
-        observedAt: new Date(payload.observedAt),
+        observedAt,
+        ...(canRecheck && { createdAt: await databaseNow(tx) }),
+        needsAuditRecheck,
       },
     });
     const rankPoints = seoRankPoints(observation.id, payload);
@@ -398,6 +438,7 @@ export async function importProjectSeoAudit(
   if (createdId) {
     await notifySeoMonitorWorseSafely(task.id, createdId);
     await notifySeoMonitorClicksDropSafely(task.id, createdId);
+    await recheckSeoAuditSafely(createdId);
   }
   return result;
 }

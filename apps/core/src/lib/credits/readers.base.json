@@ -323,12 +323,19 @@
   ],
   "historyQueries": [
     {
-      "sha256": "0f87662250db4d31457fad3ec755ed7e27d8ad854010d7c07761ba0930211465",
-      "bindings": ["$organizationId", ["unattributed"], "$projectId", 8]
+      "sha256": "bd85245ed46477761a83f624fc74fdd6f3b6fdae2f39834570c27be9d8020f6a",
+      "bindings": [
+        "mainnet",
+        "$organizationId",
+        ["unattributed"],
+        "$projectId",
+        8
+      ]
     },
     {
-      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "sha256": "a12261b1bbcc4983156a28f406bb24f886bd3b1497f2ff7721f3b9e1b1428e7a",
       "bindings": [
+        "mainnet",
         "$organizationId",
         ["unattributed"],
         "$projectId",
@@ -337,8 +344,9 @@
       ]
     },
     {
-      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "sha256": "a12261b1bbcc4983156a28f406bb24f886bd3b1497f2ff7721f3b9e1b1428e7a",
       "bindings": [
+        "mainnet",
         "$organizationId",
         ["unattributed"],
         "$projectId",
@@ -347,8 +355,9 @@
       ]
     },
     {
-      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "sha256": "a12261b1bbcc4983156a28f406bb24f886bd3b1497f2ff7721f3b9e1b1428e7a",
       "bindings": [
+        "mainnet",
         "$organizationId",
         ["unattributed"],
         "$projectId",
@@ -357,8 +366,9 @@
       ]
     },
     {
-      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "sha256": "a12261b1bbcc4983156a28f406bb24f886bd3b1497f2ff7721f3b9e1b1428e7a",
       "bindings": [
+        "mainnet",
         "$organizationId",
         ["unattributed"],
         "$projectId",
@@ -367,16 +377,22 @@
       ]
     },
     {
-      "sha256": "b9109404efed9b67a99a9f67a4be6f7826a9e201892e7d26a1f03215899399ed",
-      "bindings": ["$organizationId", ["unattributed"], "$projectId"]
+      "sha256": "ce71350be6874368b028542175840f571e193d9f93e1fdb4aa06b2b8612c9952",
+      "bindings": ["mainnet", "$organizationId", ["unattributed"], "$projectId"]
     },
     {
-      "sha256": "25540a56108c05739e2fced2f1dece68bf14120509cd5b4d9ffa6fae55c16b8d",
-      "bindings": ["$organizationId", ["unattributed"], "$projectId"]
+      "sha256": "6ab45edaed2aac81aeb199e703b760396dae654cff6f9d33352635e6e2349027",
+      "bindings": ["mainnet", "$organizationId", ["unattributed"], "$projectId"]
     },
     {
-      "sha256": "0f87662250db4d31457fad3ec755ed7e27d8ad854010d7c07761ba0930211465",
-      "bindings": ["$organizationId", ["unattributed"], "$projectId", 1001]
+      "sha256": "bd85245ed46477761a83f624fc74fdd6f3b6fdae2f39834570c27be9d8020f6a",
+      "bindings": [
+        "mainnet",
+        "$organizationId",
+        ["unattributed"],
+        "$projectId",
+        1001
+      ]
     }
   ],
   "publicAlert": {

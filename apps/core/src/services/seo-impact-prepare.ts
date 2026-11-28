@@ -60,7 +60,9 @@ interface FinalRow {
   verdict: Prisma.JsonValue;
   pageUrl: string;
   property: string | null;
+  changeSource: string;
   changedAt: Date;
+  changeLatest: Date | null;
   crawledAt: Date | null;
   measuredUrl: string | null;
   suggestion: { status: string; doneAt: Date | null } | null;
@@ -142,13 +144,18 @@ async function readCandidates(
     .slice(0, SEO_IMPACT_MAX_CANDIDATES);
 }
 
+const isAuditRecheck = (row: Pick<FinalRow, "changeSource">) =>
+  row.changeSource === "audit_recheck";
+
 /**
  * Only a check of this done change counts: a reopened suggestion that was
- * done and verified again has a later doneAt.
+ * done and verified again has a later doneAt. An audit recheck is the check:
+ * a newer audit read the page's rules pass.
  */
 const isVerifiedChange = (row: FinalRow) =>
-  row.suggestion?.status === "verified" &&
-  row.suggestion.doneAt?.getTime() === row.changedAt.getTime();
+  isAuditRecheck(row) ||
+  (row.suggestion?.status === "verified" &&
+    row.suggestion.doneAt?.getTime() === row.changedAt.getTime());
 
 /**
  * The URL Google reports the page under. A change crawled before Core kept
@@ -182,8 +189,16 @@ function inputHeader(row: PreparedRow, now: Date) {
     pageUrl: page.href,
     property: row.property,
     changedAt: row.changedAt.toISOString(),
-    changeSource: "cuso_done" as const,
-    changeBounds: null,
+    // An audit recheck went live between the last audit that read the rule fail and the one that read it pass.
+    ...(isAuditRecheck(row)
+      ? {
+          changeSource: "audit_recheck" as const,
+          changeBounds: {
+            earliest: row.changedAt.toISOString(),
+            latest: (row.changeLatest ?? row.changedAt).toISOString(),
+          },
+        }
+      : { changeSource: "cuso_done" as const, changeBounds: null }),
     windowCrawl: row.crawledAt.toISOString(),
     pin: null,
     readAt: now.toISOString(),
@@ -385,7 +400,6 @@ export async function prepareSeoImpactInputs(
   const lastFinalEnd = addDays(searchConsoleDay(now), -IMPACT_FINAL_LAG_DAYS);
   const rows: FinalRow[] = await prisma.projectSeoImpactVerdict.findMany({
     where: {
-      changeSource: "cuso_done",
       OR: [
         {
           state: "waiting_window",
@@ -406,7 +420,9 @@ export async function prepareSeoImpactInputs(
       verdict: true,
       pageUrl: true,
       property: true,
+      changeSource: true,
       changedAt: true,
+      changeLatest: true,
       crawledAt: true,
       measuredUrl: true,
       suggestion: { select: { status: true, doneAt: true } },

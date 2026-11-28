@@ -250,6 +250,7 @@ describe("OpenAPIHonoWithAuth", () => {
         "/:id/competitors",
         "/:id/competitors/*",
         { path: "/:id/find", methods: ["POST"] },
+        { path: "/:id/billing-details", methods: ["GET"] },
       ],
     });
     app.onError(errorHandler);
@@ -258,6 +259,7 @@ describe("OpenAPIHonoWithAuth", () => {
     app.post("/:id/competitors/check", (c) => c.json({ ok: "check" }));
     app.get("/:id/find", (c) => c.json({ ok: "get-find" }));
     app.post("/:id/find", (c) => c.json({ ok: "post-find" }));
+    app.get("/:id/billing-details", (c) => c.json({ ok: "billing" }));
 
     const shared = await app.request("http://localhost/p1", {
       headers: { [NETWORK_HEADER]: "preprod" },
@@ -269,10 +271,20 @@ describe("OpenAPIHonoWithAuth", () => {
     });
     expect(getFind.status).toBe(200);
 
+    const headFind = await app.request("http://localhost/p1/find", {
+      method: "HEAD",
+      headers: { [NETWORK_HEADER]: "preprod" },
+    });
+    expect(headFind.status).toBe(200);
+    expect(await headFind.text()).toBe("");
+
     for (const [method, path] of [
       ["GET", "/p1/competitors"],
+      ["HEAD", "/p1/competitors"],
       ["POST", "/p1/competitors/check"],
       ["POST", "/p1/find"],
+      ["GET", "/p1/billing-details"],
+      ["HEAD", "/p1/billing-details"],
     ] as const) {
       middlewareCalls.calls.length = 0;
       const res = await app.request(`http://localhost${path}`, {
@@ -280,7 +292,24 @@ describe("OpenAPIHonoWithAuth", () => {
         headers: { [NETWORK_HEADER]: "preprod" },
       });
       expect(res.status).toBe(422);
+      if (method === "HEAD") {
+        expect(await res.text()).toBe("");
+      }
       expect(middlewareCalls.calls).toEqual(["auth"]);
     }
+
+    middlewareCalls.calls.length = 0;
+    const mainnetHeadBilling = await app.request(
+      "http://localhost/p1/billing-details",
+      { method: "HEAD" },
+    );
+    expect(mainnetHeadBilling.status).toBe(200);
+    expect(await mainnetHeadBilling.text()).toBe("");
+    expect(middlewareCalls.calls).toEqual([
+      "auth",
+      "context",
+      "organization",
+      "workspace",
+    ]);
   });
 });

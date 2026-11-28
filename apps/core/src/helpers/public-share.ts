@@ -14,6 +14,7 @@ import {
 import { convertCentsToCredits, removeSeoTaskRequest } from "@sokosumi/utils";
 
 import { getAgentName } from "@/helpers/agent";
+import { taskEventCountsOn } from "@/lib/credits/policy";
 import prisma from "@/lib/db/prisma";
 import { serializeJobDetails } from "@/types/job";
 
@@ -81,6 +82,7 @@ const publicTaskInclude = {
       status: true,
       comment: true,
       cents: true,
+      network: true,
       transactionId: true,
       user: {
         select: {
@@ -126,8 +128,11 @@ function mapPublicTaskMilestone(
   // historical settled rows that stored a transaction but null cents.
   const creditsFromCents =
     event.cents != null ? convertCentsToCredits(event.cents) : null;
+  // A Preprod event's relation reads Mainnet's transaction of an equal id.
   const creditsFromSpend =
-    event.transaction?.amount != null && event.transaction.amount < 0n
+    taskEventCountsOn(event.network, "mainnet") &&
+    event.transaction?.amount != null &&
+    event.transaction.amount < 0n
       ? convertCentsToCredits(event.transaction.amount * -1n)
       : null;
   const credits = creditsFromCents ?? creditsFromSpend;

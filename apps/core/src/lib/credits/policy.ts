@@ -26,8 +26,9 @@ export function chargesCredits(network: Network): boolean {
  * Mainnet-only feature (images, SEO chat, contact search), which has no
  * Network column. All of them are Mainnet's. Another Network's ledger reads a
  * shared receipt only when it names that Network, so a Preprod entry never
- * picks up a Mainnet receipt of an equal id. The reverse is not closed yet:
- * see the Task event join in `history.ts`.
+ * picks up a Mainnet receipt of an equal id; Mainnet's reads a Task event
+ * only when it names no Network or Mainnet, so the reverse never happens
+ * either (`history.ts`).
  */
 const OWNS_UNTAGGED_SHARED_ROWS = {
   mainnet: true,
@@ -36,6 +37,22 @@ const OWNS_UNTAGGED_SHARED_ROWS = {
 
 export function ownsUntaggedSharedRows(network: Network): boolean {
   return OWNS_UNTAGGED_SHARED_ROWS[network];
+}
+
+/**
+ * Whether a Task event's receipt counts on `network`: the event names that
+ * Network, or names none (`eventNetwork` null) and `network` owns the
+ * untagged rows. Mainnet's ledger joins only these events (`history.ts`), and
+ * a Task's credit total and its public milestones, which read Mainnet's
+ * transaction of the event's id, count only these.
+ */
+export function taskEventCountsOn(
+  eventNetwork: string | null,
+  network: Network,
+): boolean {
+  return eventNetwork === null
+    ? ownsUntaggedSharedRows(network)
+    : eventNetwork === network;
 }
 
 /**

@@ -85,6 +85,7 @@ function observation(
     payload,
     observedAt: new Date(capturedAt),
     createdAt: new Date(capturedAt),
+    needsAuditRecheck: false,
   };
 }
 function metricObservation(input: Input, at: string, value: number) {
