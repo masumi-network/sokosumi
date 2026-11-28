@@ -14,6 +14,7 @@ import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
   canUsePreprodInWorkspace,
+  isNetworkRoutingEnabled,
   isPreprodOn,
   NETWORKS,
   type Network,
@@ -210,7 +211,7 @@ export async function paymentScope(
   },
 ): Promise<NetworkScope> {
   const { networkScope, authContext } = c.var;
-  if (!isPreprodOn()) return networkScope;
+  if (!isNetworkRoutingEnabled()) return networkScope;
   const header = namedNetwork(c);
   const { payloadNetwork, billed, db } = payment;
   if (payloadNetwork && header.sent && payloadNetwork !== header.network) {
@@ -221,6 +222,11 @@ export async function paymentScope(
   }
   if ((payloadNetwork ?? header.network) === "mainnet") {
     return createNetworkScope("mainnet");
+  }
+  if (!isPreprodOn()) {
+    throw forbidden("Preprod is switched off", {
+      kind: CORE_API_ERROR_KINDS.PREPROD_OFF,
+    });
   }
   if (
     authContext?.actor !== "coworker" ||
@@ -287,7 +293,7 @@ export async function publicRequestNetworkScope(
   c: Context,
 ): Promise<NetworkScope> {
   const network = requestNetwork(c);
-  if (!isPreprodOn()) {
+  if (!isNetworkRoutingEnabled()) {
     return network === "mainnet"
       ? createNetworkScope("mainnet")
       : preprodScopeFor(async () => undefined);

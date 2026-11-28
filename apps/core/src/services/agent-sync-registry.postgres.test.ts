@@ -2,7 +2,15 @@
 import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
-import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import {
   registrySyncRevision,
   stubMasumiSyncHttp,
@@ -74,6 +82,13 @@ if (enabled) {
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    if (onSplitLayout && state.preprodEnabled) {
+      const { createNetworkScope } = await import("@/lib/db/network-scope");
+      const preprod = createNetworkScope("preprod");
+      await preprod.networkDb
+        .$executeRaw`TRUNCATE ${preprod.networkTable("Agent")}, ${preprod.networkTable("AgentPricing")}, ${preprod.networkTable("AgentFixedPricing")}, ${preprod.networkTable("Tag")}, ${preprod.networkTable("Category")} CASCADE`;
+      state.preprodEnabled = false;
+    }
     const { withFixtureSchemas } = await import("@/test/split-layout");
     await withFixtureSchemas(
       (tx) =>
@@ -93,28 +108,46 @@ if (enabled) {
   }, 60_000);
 }
 
-it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
+it
+  .skipIf(!enabled)
+  .each(
+    onSplitLayout ? (["Mainnet", "Preprod"] as const) : (["Mainnet"] as const),
+  )(
   "preserves registry writes, consolidation and summaries on deployment %s",
   async (network) => {
     state.network = network;
+    state.preprodEnabled = network === "Preprod";
+    if (state.preprodEnabled) {
+      const { getEnv } = await import("@/config/env");
+      const { configureSqlTables } = await import(
+        "@sokosumi/database/sql-tables"
+      );
+      const env = getEnv();
+      onTestFinished(
+        configureSqlTables({
+          shared: env.DATABASE_SCHEMA_SHARED,
+          mainnet: env.DATABASE_SCHEMA_MAINNET,
+          preprod: env.DATABASE_SCHEMA_PREPROD,
+          preprodOn: true,
+        }),
+      );
+    }
     const { createNetworkScope } = await import("@/lib/db/network-scope");
-    const scope = createNetworkScope("mainnet");
+    const scope = createNetworkScope(
+      network === "Preprod" ? "preprod" : "mainnet",
+    );
     const db = scope.networkDb;
     const shared = scope.sharedDb;
     const { agentSyncService: service } = await import("./agent-sync.service");
-    const { paymentClient } = await import("@/clients/masumi-payment.client");
+    const { masumiClients } = await import("@/clients/masumi");
     const { AGENTS_SYNC_METADATA_KEY: key } = await import(
       "@/routes/sync/agents/get"
     );
     const { openrouterClient } = await import("@/clients/openrouter.client");
-    const { createRegistryClient } = await import("@sokosumi/masumi/clients");
-    const { getEnv } = await import("@/config/env");
-    const env = getEnv();
-    const registryClient = createRegistryClient(
-      network,
-      env.REGISTRY_API_URL,
-      env.REGISTRY_API_KEY,
+    const { payment: paymentNode, registry: registryClient } = masumiClients(
+      scope.network,
     );
+    const storedKey = scope.network === "preprod" ? "preprod:" + key : key;
     const node = stubMasumiSyncHttp();
     const options = {
       abortSignal: new AbortController().signal,
@@ -160,7 +193,9 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
         select: { id: true, metadata: true, network: true },
         orderBy: byId,
       }),
-      cursor: await shared.syncMetadata.findUnique({ where: { key } }),
+      cursor: await shared.syncMetadata.findUnique({
+        where: { key: storedKey },
+      }),
     });
     const before = await snapshot();
     expect(before.agents).toHaveLength(0);
@@ -173,7 +208,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       new Uint8Array(array.buffer, array.byteOffset, array.byteLength).fill(42);
       return array;
     });
-    await service.syncCardanoV2RailReadiness(scope, paymentClient());
+    await service.syncCardanoV2RailReadiness(scope, paymentNode);
     const ticks: {
       phase: string;
       requests: typeof node.registryRequests;
@@ -388,6 +423,31 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       `./__tests__/fixtures/agent-sync-registry-${network}.base.json`,
       import.meta.url,
     );
+    for (const request of node.requests) {
+      expect(new URL(request.url).origin).toBe(
+        scope.network === "mainnet"
+          ? "https://example.com"
+          : "https://preprod.example.com",
+      );
+      expect(request.credential).toBe(
+        scope.network +
+          (request.url.includes("/payment/") ? " payment" : " registry"),
+      );
+    }
+    if (scope.network === "preprod") {
+      const mainnet = masumiClients("mainnet");
+      const sends = node.requests.length;
+      const { syncX402BuySideReadiness } = await import(
+        "./agent-sync.x402-readiness"
+      );
+      for (const crossed of [
+        () => service.syncRegistryAgents(scope, mainnet.registry, key, options),
+        () => service.syncCardanoV2RailReadiness(scope, mainnet.payment),
+        () => syncX402BuySideReadiness(scope, mainnet.payment),
+      ])
+        await expect(crossed()).rejects.toThrow("does not belong");
+      expect(node.requests).toHaveLength(sends);
+    }
     expect(actual).toEqual(JSON.parse(readFileSync(file, "utf8")));
   },
   60_000,
@@ -456,11 +516,9 @@ it.skipIf(!enabled || !onSplitLayout)(
       const { agentSyncService: service } = await import(
         "./agent-sync.service"
       );
-      const { registryClient } = await import(
-        "@/clients/masumi-registry.client"
-      );
+      const { masumiClients } = await import("@/clients/masumi");
       const { openrouterClient } = await import("@/clients/openrouter.client");
-      const { paymentClient } = await import("@/clients/masumi-payment.client");
+
       const { AGENTS_SYNC_METADATA_KEY: key } = await import(
         "@/routes/sync/agents/get"
       );
@@ -488,8 +546,16 @@ it.skipIf(!enabled || !onSplitLayout)(
         abortSignal: new AbortController().signal,
         shouldContinue: () => true,
       };
-      await service.syncCardanoV2RailReadiness(preprod, paymentClient());
-      await service.syncRegistryAgents(preprod, registryClient, key, options);
+      await service.syncCardanoV2RailReadiness(
+        preprod,
+        masumiClients(preprod.network).payment,
+      );
+      await service.syncRegistryAgents(
+        preprod,
+        masumiClients(preprod.network).registry,
+        key,
+        options,
+      );
       await service.syncAgentSummaries(preprod, openrouterClient, options);
       expect(
         await main.networkDb.agent.findMany({

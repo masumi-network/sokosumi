@@ -11,7 +11,7 @@ import {
 describe("collectEnvSecrets", () => {
   it("collects values of secret-named variables", () => {
     const secrets = collectEnvSecrets({
-      PAYMENT_API_KEY: "paykey_abcdef123456",
+      MAINNET_PAYMENT_API_KEY: "paykey_abcdef123456",
       BETTER_AUTH_SECRET: "authsecret_abcdef",
       HERMES_ORCH_TOKEN: "token_abcdef1234",
       DATABASE_PASSWORD: "password_abcdef12",
@@ -25,7 +25,7 @@ describe("collectEnvSecrets", () => {
   it("ignores variables that are not credentials", () => {
     // A redactor that masks the app URL blanks out most of every log line.
     const secrets = collectEnvSecrets({
-      PAYMENT_API_URL: "https://payment.example.com",
+      MAINNET_PAYMENT_API_URL: "https://payment.example.com",
       NODE_ENV: "production",
       SENTRY_DSN: "https://abc@o1.ingest.sentry.io/2",
     });

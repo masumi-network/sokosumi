@@ -1,6 +1,6 @@
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { testNetworkScope } from "@/test-fixtures/network-scope";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const {
   captureExceptionMock,
@@ -18,7 +18,8 @@ const {
   captureExceptionMock: vi.fn(),
   captureMessageMock: vi.fn(),
   envState: {
-    NETWORK: "Preprod" as const,
+    NETWORK: "Mainnet" as const,
+    NETWORK_PREPROD_ENABLED: true,
     DATABASE_URL: "https://example.com/database",
     VERCEL_ENV: undefined as
       | "production"
@@ -83,17 +84,20 @@ import {
 const X402_CHECK_WHY =
   "The payment node did not answer one or more x402 readiness reads";
 
-let scope: ReturnType<typeof testNetworkScope>;
+let scope: ReturnType<typeof createNetworkScope>;
 const node = {
-  getX402AvailableNetworks: getX402AvailableNetworksMock,
-  getX402KeySpendCaps: getX402KeySpendCapsMock,
-  getX402PurchasingWallets: getX402PurchasingWalletsMock,
-  getX402WalletBalances: getX402WalletBalancesMock,
+  network: "preprod" as const,
+  beginX402Readiness: () => ({
+    getX402AvailableNetworks: getX402AvailableNetworksMock,
+    getX402KeySpendCaps: getX402KeySpendCapsMock,
+    getX402PurchasingWallets: getX402PurchasingWalletsMock,
+    getX402WalletBalances: getX402WalletBalancesMock,
+  }),
 };
 
 describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
-    scope = testNetworkScope();
+    scope = createNetworkScope("preprod");
     vi.clearAllMocks();
     envState.VERCEL_ENV = undefined;
     envState.VERCEL_URL = undefined;
@@ -252,9 +256,9 @@ describe("syncX402BuySideReadiness", () => {
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
-      where: { key: "x402-buy-side-readiness" },
+      where: { key: "preprod:x402-buy-side-readiness" },
       create: {
-        key: "x402-buy-side-readiness",
+        key: "preprod:x402-buy-side-readiness",
         cursorId: JSON.stringify([READY_SOURCE]),
         lastSyncedAt: expect.any(Date),
       },
@@ -264,7 +268,7 @@ describe("syncX402BuySideReadiness", () => {
       },
     });
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: "x402-buy-side-readiness-failure" },
+      where: { key: "preprod:x402-buy-side-readiness-failure" },
     });
   });
 
@@ -312,7 +316,7 @@ describe("syncX402BuySideReadiness", () => {
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { key: "x402-buy-side-readiness" },
+        where: { key: "preprod:x402-buy-side-readiness" },
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
@@ -354,7 +358,7 @@ describe("syncX402BuySideReadiness", () => {
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { key: "x402-buy-side-readiness" },
+        where: { key: "preprod:x402-buy-side-readiness" },
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
@@ -403,7 +407,7 @@ describe("syncX402BuySideReadiness", () => {
     expect(captureMessageMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { key: "x402-buy-side-readiness" },
+        where: { key: "preprod:x402-buy-side-readiness" },
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
@@ -470,7 +474,7 @@ describe("syncX402BuySideReadiness", () => {
       expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
         data: [
           {
-            key: "x402-buy-side-readiness-failure",
+            key: "preprod:x402-buy-side-readiness-failure",
             cursorId: "failed",
             lastSyncedAt: expect.any(Date),
           },
@@ -507,7 +511,7 @@ describe("syncX402BuySideReadiness", () => {
 
     // Warm: readiness HAS been recorded — one page per streak.
     syncMetadataFindUniqueMock.mockResolvedValue({
-      key: "x402-buy-side-readiness",
+      key: "preprod:x402-buy-side-readiness",
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
     });
@@ -532,7 +536,7 @@ describe("syncX402BuySideReadiness", () => {
     expectCoreLog("warn", "The x402 buy-side readiness check failed");
 
     syncMetadataFindUniqueMock.mockResolvedValue({
-      key: "x402-buy-side-readiness",
+      key: "preprod:x402-buy-side-readiness",
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
     });
@@ -568,9 +572,9 @@ describe("syncX402BuySideReadiness", () => {
   it("redacts an env secret the far side echoed back", () => {
     // The exposure this closes: extractNodeErrorMessage falls back to a JSON
     // dump of the whole response body, so a proxy in front of the node that
-    // answers with the request headers echoed hands our own PAYMENT_API_KEY
+    // answers with the request headers echoed hands our own MAINNET_PAYMENT_API_KEY
     // back to us. That string goes to stdout AND into a Sentry message.
-    const key = process.env.PAYMENT_API_KEY as string;
+    const key = process.env.MAINNET_PAYMENT_API_KEY as string;
 
     const bounded = boundCheckErrorForLogging([
       `api-key-status 502: {"headers":{"token":"${key}"}}`,
@@ -584,7 +588,7 @@ describe("syncX402BuySideReadiness", () => {
     // Order matters on its own. The per-item cap is 200 characters, so a key
     // starting at 195 is cut in half by the slice; five characters of key
     // material is still key material. Redacting first removes it whole.
-    const key = process.env.PAYMENT_API_KEY as string;
+    const key = process.env.MAINNET_PAYMENT_API_KEY as string;
 
     const bounded = boundCheckErrorForLogging([`${"x".repeat(195)}${key}`]);
 
@@ -632,7 +636,7 @@ describe("syncX402BuySideReadiness", () => {
 
   it("does not page Sentry for readiness check failures on Vercel preview", async () => {
     // Preview mainnet Core crons hit the same never-recorded path with a
-    // non-admin PAYMENT_API_KEY and were paging CORE-37 as a fake prod
+    // non-admin MAINNET_PAYMENT_API_KEY and were paging CORE-37 as a fake prod
     // outage. Gate only captureException — warn + failure marker +
     // fail-closed (no readiness row) stay.
     const warnings = expectCoreLog(
@@ -653,7 +657,7 @@ describe("syncX402BuySideReadiness", () => {
     expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
       data: [
         {
-          key: "x402-buy-side-readiness-failure",
+          key: "preprod:x402-buy-side-readiness-failure",
           cursorId: "failed",
           lastSyncedAt: expect.any(Date),
         },
@@ -677,7 +681,7 @@ describe("syncX402BuySideReadiness", () => {
     // takes the latched (stale) path — never the cold-start bypass. The
     // latch alone decides who pages, which is what this test proves.
     syncMetadataFindUniqueMock.mockResolvedValue({
-      key: "x402-buy-side-readiness",
+      key: "preprod:x402-buy-side-readiness",
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date(),
     });
@@ -699,7 +703,7 @@ describe("syncX402BuySideReadiness", () => {
     getX402AvailableNetworksMock.mockResolvedValue(ok([availableNetwork()]));
     await syncX402BuySideReadiness(scope, node);
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: "x402-buy-side-readiness-failure" },
+      where: { key: "preprod:x402-buy-side-readiness-failure" },
     });
 
     // … so the next failure's createMany inserts a fresh marker (count 1)

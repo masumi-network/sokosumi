@@ -5,7 +5,7 @@ import type {
   X402Wallet,
 } from "@sokosumi/masumi";
 
-import type { paymentClient } from "@/clients/masumi-payment.client";
+import { type masumiClients, requireSameMasumiNetwork } from "@/clients/masumi";
 import { getEnv } from "@/config/env";
 import { allowedX402ReadinessNetworks } from "@/lib/agent-catalog/availability";
 import {
@@ -62,7 +62,7 @@ function hasPreviewHost(candidate: string | undefined): boolean {
 /**
  * Whether this deploy must warn and write its markers but never page Sentry.
  *
- * Preview mainnet crons run a deliberately non-admin `PAYMENT_API_KEY`, so
+ * Preview mainnet crons run a deliberately non-admin `MAINNET_PAYMENT_API_KEY`, so
  * they report unready pairs that live mainnet does not have. Fail-closed
  * listing and pay behavior are unchanged here; only the page is suppressed.
  *
@@ -180,15 +180,20 @@ function summarizeEmptyX402Readiness(
  */
 export async function syncX402BuySideReadiness(
   scope: NetworkScope,
-  nodeClient: Pick<
-    ReturnType<typeof paymentClient>,
-    | "getX402AvailableNetworks"
-    | "getX402KeySpendCaps"
-    | "getX402PurchasingWallets"
-    | "getX402WalletBalances"
-  >,
+  payment: {
+    readonly network: NetworkScope["network"];
+    beginX402Readiness(): Pick<
+      ReturnType<typeof masumiClients>["payment"],
+      | "getX402AvailableNetworks"
+      | "getX402KeySpendCaps"
+      | "getX402PurchasingWallets"
+      | "getX402WalletBalances"
+    >;
+  },
   options: { signal?: AbortSignal } = {},
 ): Promise<boolean> {
+  requireSameMasumiNetwork(scope, payment);
+  const nodeClient = payment.beginX402Readiness();
   // ONE client instance for the whole cycle: the spend caps read IS the
   // memoized `GET /api-key-status` the client already resolves, so this
   // costs one request, not two, because separate instances each fetch it.
@@ -262,7 +267,7 @@ export async function syncX402BuySideReadiness(
           "The x402 buy-side readiness check failed, so the last recorded readiness stays served",
         why: "The payment node did not answer one or more x402 readiness reads",
         cause: checkError,
-        fix: "Check that the payment node is reachable and that Soko's PAYMENT_API_KEY can read its x402 networks, api-key status and wallets. The next agents sync checks again.",
+        fix: "Check that the payment node is reachable and that the payment key for this Network can read its x402 networks, api-key status and wallets. The next agents sync checks again.",
       },
     );
     try {

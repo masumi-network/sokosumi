@@ -4,7 +4,7 @@ import "@hono/zod-openapi";
 import { readFileSync, writeFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
-import { afterAll, expect, it, vi } from "vitest";
+import { afterAll, expect, it, onTestFinished, vi } from "vitest";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { observing, statements } from "@/test/spend-comparison";
@@ -16,6 +16,7 @@ let catalogDatabase:
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
+  preprodEnabled: false,
   pools: [] as Pool[],
   work: [] as Promise<unknown>[],
 }));
@@ -23,7 +24,11 @@ vi.mock("@/config/env", async (load) => {
   const actual = await load<typeof import("@/config/env")>();
   return {
     ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NETWORK: state.network }),
+    getEnv: () => ({
+      ...actual.getEnv(),
+      NETWORK: state.network,
+      NETWORK_PREPROD_ENABLED: state.preprodEnabled,
+    }),
   };
 });
 vi.mock("@vercel/functions", async (load) => {
@@ -83,7 +88,7 @@ const ids = [
   "catalog-d",
   "catalog-hidden",
 ];
-const key = "x402-buy-side-readiness";
+
 const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
 const recording = process.env.RECORD_AGENT_CATALOG_BASE === "true";
 
@@ -100,10 +105,17 @@ if (enabled) {
   afterAll(releaseCatalogDatabase);
 }
 
-it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
-  "preserves catalog responses and SQL with deployment NETWORK=%s",
-  async (network) => {
+it
+  .skipIf(!enabled)
+  .each([
+    ["Mainnet", "mainnet"],
+    ["Preprod", "mainnet"],
+    ...(onSplitLayout ? [["Mainnet", "preprod"] as const] : []),
+  ] as const)(
+  "preserves catalog responses and SQL with deployment NETWORK=%s and request scope %s",
+  async (network, scopeNetwork) => {
     state.network = network;
+    state.preprodEnabled = scopeNetwork === "preprod";
     // Core builds its pool on import. The private database must already exist.
     const { createNetworkScope } = await import("@/lib/db/network-scope");
     const { coreEvlogMiddleware } = await import("@/lib/evlog");
@@ -113,7 +125,24 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     const { createApiKey, createCoreApp, createPasswordUser } = await import(
       "@/test-fixtures/core-session"
     );
-    const scope = createNetworkScope("mainnet");
+    if (state.preprodEnabled) {
+      const { configureSqlTables } = await import(
+        "@sokosumi/database/sql-tables"
+      );
+      const { testSchemaNames } = await import("@/test/split-layout");
+      const names = testSchemaNames();
+      onTestFinished(
+        configureSqlTables({
+          shared: names.DATABASE_SCHEMA_SHARED,
+          mainnet: names.DATABASE_SCHEMA_MAINNET,
+          preprod: names.DATABASE_SCHEMA_PREPROD,
+          preprodOn: true,
+        }),
+      );
+    }
+    const scope = createNetworkScope(scopeNetwork);
+    const { networkKey } = await import("@/lib/network");
+    const key = networkKey(scopeNetwork, "x402-buy-side-readiness");
     const shared = scope.sharedDb;
     const app = new Hono();
     app.use(coreEvlogMiddleware());
@@ -123,9 +152,9 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     });
     app.route("/", createCoreApp());
 
-    const chain = network === "Mainnet" ? "eip155:8453" : "eip155:84532";
+    const chain = scopeNetwork === "mainnet" ? "eip155:8453" : "eip155:84532";
     const asset =
-      network === "Mainnet"
+      scopeNetwork === "mainnet"
         ? "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913"
         : "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
     const payTo = "0x1111111111111111111111111111111111111111";
@@ -143,7 +172,15 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     }
     try {
       await createPersonalWorkspace(owner.id);
-      const token = await createApiKey(owner.id);
+      if (state.preprodEnabled)
+        await shared.user.update({
+          where: { id: owner.id },
+          data: { preprodEnabled: true },
+        });
+      const token = await createApiKey(
+        owner.id,
+        state.preprodEnabled ? "soko_preprod_" : undefined,
+      );
       await scope.netTransaction(async (tx) => {
         await tx.category.create({
           data: {
@@ -241,13 +278,13 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       vi.setSystemTime(clock);
       async function compare(label: string, path: string, status = 200) {
         let cursor: string | null = null;
-        for (const header of ["absent", "mainnet"]) {
+        for (const header of ["absent", scopeNetwork]) {
           const start = coreLogEvents().length;
           const { outcome, log } = await observing(async () => {
             const response = await app.request(path, {
               headers: {
                 authorization: `Bearer ${token}`,
-                ...(header === "mainnet" && { "X-Sokosumi-Network": header }),
+                ...(header !== "absent" && { "X-Sokosumi-Network": header }),
               },
             });
             const body = await response.text();
@@ -257,6 +294,13 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
           if ("threw" in outcome)
             throw new Error(JSON.stringify(outcome.threw));
           expect(outcome.status, path).toBe(status);
+          if (label === "x402") {
+            const response = JSON.parse(outcome.body);
+            expect(
+              response.data.map((agent: { id: string }) => agent.id),
+            ).toEqual(["catalog-b"]);
+            expect(outcome.body).toContain(chain);
+          }
           cursor =
             JSON.parse(outcome.body).meta?.pagination?.nextCursor ?? null;
           const drops = coreLogEvents()
@@ -297,15 +341,13 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       await compare("x402", "/v1/agents?kind=x402");
       await compare("detail", "/v1/agents/catalog-a");
       await compare("unavailable", "/v1/agents/catalog-hidden", 404);
-      const path = new URL(
-        `./catalog-${network.toLowerCase()}.base.json`,
-        import.meta.url,
-      );
+      const path = new URL("./catalog-mainnet.base.json", import.meta.url);
       const result = {
         sql,
         results: results.map((row) => JSON.parse(row)),
         calls,
       };
+      if (scopeNetwork === "preprod") return;
       if (recording) {
         expect(onSplitLayout).toBe(false);
         writeFileSync(path, JSON.stringify(result, null, 2) + "\n");

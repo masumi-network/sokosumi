@@ -55,13 +55,17 @@ export async function requireAgentForHire(
       db.agent.findFirst({
         where: {
           id,
-          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+          ...buildAvailableAgentWhereClause(
+            scope,
+            creditCosts,
+            cardanoV2ReadySources,
+          ),
         },
         include: {
           ...agentPricingInclude,
           ...agentMetadataOverrideScalarsInclude,
           paymentSources: {
-            where: cardanoV2PaymentSourcesOnRail(),
+            where: cardanoV2PaymentSourcesOnRail(scope),
             include: {
               amounts: true,
             },

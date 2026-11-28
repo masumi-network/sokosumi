@@ -134,8 +134,8 @@ vi.mock("@sokosumi/masumi", async (importOriginal) => ({
   }),
 }));
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: paymentClientFactoryMock,
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({ payment: paymentClientFactoryMock() }),
 }));
 
 vi.mock("@/clients/email.client", () => ({

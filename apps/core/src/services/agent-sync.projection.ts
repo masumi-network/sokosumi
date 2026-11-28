@@ -16,7 +16,7 @@ import {
   type CardanoV2ReadySource,
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
-import { registrySourceOnDeployment } from "@/lib/agent-catalog/availability";
+import { registrySourceOnNetwork } from "@/lib/agent-catalog/availability";
 import type { NetworkScope } from "@/lib/db/network-scope";
 import { type CoreWarning, emitCoreWarning } from "@/lib/evlog";
 
@@ -606,7 +606,7 @@ function projectV2AgentPricing(
   const matching = (entry.SupportedPaymentSources ?? []).filter(
     (candidate) =>
       candidate.chain === "Cardano" &&
-      registrySourceOnDeployment(scope, candidate.network) &&
+      registrySourceOnNetwork(scope, candidate.network) &&
       candidate.paymentSourceType === "Web3CardanoV2",
   );
   const readyMatching = matching.filter((candidate) =>
@@ -700,7 +700,7 @@ export function warnOnUnbillableReadyV2Sources(
   for (const source of entry.SupportedPaymentSources ?? []) {
     if (
       source.chain !== "Cardano" ||
-      !registrySourceOnDeployment(scope, source.network) ||
+      !registrySourceOnNetwork(scope, source.network) ||
       source.paymentSourceType !== "Web3CardanoV2" ||
       !isCardanoV2SourceReady(
         entry.agentIdentifier,

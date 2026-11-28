@@ -28,6 +28,7 @@
  * the alert. The fixture runs on a private copy of the database, so the
  * catalog it reads holds only its own rows.
  */
+import "@hono/zod-openapi";
 import { readFileSync, writeFileSync } from "node:fs";
 import type { Pool } from "pg";
 import { afterAll, expect, it, vi } from "vitest";
@@ -39,6 +40,7 @@ import { onSplitLayout } from "@/test/split-layout";
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
   pools: [] as Pool[],
+  useNode: false,
   /** Statements every pool sent, counted while a hire runs. */
   sent: 0,
   /** Each statement's send and its answer, numbered by `sent`. */
@@ -144,14 +146,26 @@ vi.mock("@sokosumi/masumi", async (load) => {
     }),
   };
 });
-vi.mock("@/helpers/job-purchase-registration", () => ({
-  registerJobPurchase: async (input: {
-    job: { id: string };
-    amounts?: unknown;
-  }) => {
-    state.calls.push({ call: "registerJobPurchase", with: input });
-  },
-}));
+vi.mock("uuid", async (load) => {
+  const actual = await load<typeof import("uuid")>();
+  return {
+    ...actual,
+    v4: () =>
+      state.useNode ? "bb000000-0000-4000-a000-000000000000" : actual.v4(),
+  };
+});
+vi.mock("@/helpers/job-purchase-registration", async (load) => {
+  const actual =
+    await load<typeof import("@/helpers/job-purchase-registration")>();
+  return {
+    registerJobPurchase: async (
+      input: Parameters<typeof actual.registerJobPurchase>[0],
+    ) => {
+      if (state.useNode) return actual.registerJobPurchase(input);
+      state.calls.push({ call: "registerJobPurchase", with: input });
+    },
+  };
+});
 vi.mock("@/helpers/billing-notifications", async (load) => ({
   ...(await load<typeof import("@/helpers/billing-notifications")>()),
   notifyLowBalanceAfterCharge: async (input: unknown) => {
@@ -526,7 +540,7 @@ async function observeHire(hire: Hire) {
   state.sent = 0;
   state.trace = [];
   state.priced = undefined;
-  state.sellerSourceIndex = hire.sellerSourceIndex?.[state.network];
+  state.sellerSourceIndex = hire.sellerSourceIndex?.Mainnet;
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(clock));
   let observed: Awaited<ReturnType<typeof observing>>;
@@ -726,7 +740,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       // reach the next.
       await emptyTheCopy();
       await seed();
-      recorded[`${network}: ${name}`] = await observeHire(hire);
+      recorded[`Mainnet: ${name}`] = await observeHire(hire);
     }
     // The seller started a Job on a source that was not ready.
     expectCoreLog(
@@ -772,3 +786,74 @@ function existsBase(): Record<string, unknown> {
     throw error;
   }
 }
+
+it.skipIf(!enabled)(
+  "sends the same Mainnet free hire, paid hire and refund requests",
+  async () => {
+    state.network = "Mainnet";
+    await emptyTheCopy();
+    await seed();
+    const { createApiKey, createCoreApp } = await import(
+      "@/test-fixtures/core-session"
+    );
+    const { stubMasumiSyncHttp } = await import("@/test/masumi-sync-http");
+    const app = createCoreApp();
+    const headers = {
+      authorization: "Bearer " + (await createApiKey(USER)),
+      "content-type": "application/json",
+    };
+    const node = stubMasumiSyncHttp();
+    state.useNode = true;
+    try {
+      const hire = (id: string) =>
+        app.request("https://example.com/v1/agents/" + id + "/jobs", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            inputSchema: {
+              input_data: [{ name: "prompt", id: "prompt", type: "string" }],
+            },
+            inputData: { prompt: "hello" },
+          }),
+        });
+      if (onSplitLayout) {
+        expectCoreLog(
+          "error",
+          "Kept a database schema mismatch out of Sentry",
+          3,
+        );
+        const statuses = [
+          (await hire("hire-free")).status,
+          (await hire("hire-v1")).status,
+          (
+            await app.request(
+              "https://example.com/v1/jobs/fixture-paid-job/refund",
+              { method: "POST", headers },
+            )
+          ).status,
+        ];
+        expect(statuses).toEqual([500, 500, 500]);
+        expect(node.requests).toEqual([]);
+        return;
+      }
+      expect((await hire("hire-free")).status).toBe(201);
+      expect(node.requests).toHaveLength(0);
+      const paid = await hire("hire-v1");
+      expect(paid.status).toBe(201);
+      const job = (await paid.json()).data;
+      const refund = await app.request(
+        "https://example.com/v1/jobs/" + job.id + "/refund",
+        { method: "POST", headers },
+      );
+      expect(refund.status).toBe(200);
+      expect(node.requests).toHaveLength(2);
+      await expect(
+        JSON.stringify(node.requests, null, 2) + "\n",
+      ).toMatchFileSnapshot("./masumi-mainnet-jobs.http.json");
+    } finally {
+      state.useNode = false;
+      vi.unstubAllGlobals();
+    }
+  },
+  60_000,
+);

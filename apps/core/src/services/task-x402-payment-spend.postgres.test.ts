@@ -103,9 +103,9 @@ vi.mock("@/helpers/task-notifications", async (importOriginal) => ({
   notifyTaskParticipantsAdded: vi.fn(),
   notifyTaskStatusEvent: vi.fn(),
 }));
-vi.mock("@/clients/masumi-payment.client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/clients/masumi-payment.client")>()),
-  paymentClient: () => ({ payX402: outside.payX402 }),
+vi.mock("@/clients/masumi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/masumi")>()),
+  masumiClients: () => ({ payment: { payX402: outside.payX402 } }),
 }));
 // The step after the debit inside the charge's transaction: a case makes it
 // throw once, or wait for its release. It sends no statement of its own.
@@ -1041,9 +1041,8 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
   "the Task x402 payment's charge on a deployment with NETWORK=%s, Preprod off, as on origin/main (PostgreSQL)",
   (deploymentNetwork) => {
     let loaded: Loaded;
-    const otherChain = deploymentNetwork === "Mainnet" ? "Preprod" : "Mainnet";
-    const key = (name: string) =>
-      `${LAYOUT}, NETWORK=${deploymentNetwork}: ${name}`;
+    const otherChain = "Preprod";
+    const key = (name: string) => `${LAYOUT}, NETWORK=Mainnet: ${name}`;
 
     let setup: Promise<void> | undefined;
     beforeAll(() => {
@@ -1062,7 +1061,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           where: { key: "x402-buy-side-readiness" },
         });
       const before = await originalReadiness();
-      const world = createWorld(loaded, deploymentNetwork);
+      const world = createWorld(loaded, "Mainnet");
       const now = new Date();
       // Hold the auth throttle, payment leases and signing deadlines steady
       // across requests. PostgreSQL and the concurrency gates still run live.
@@ -1085,7 +1084,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           const payer = await world.person("catalog refusal payer");
           const taskId = await world.task(payer, "catalog refusal Task");
           const wrongChain = await world.x402Agent("wrong chain", otherChain);
-          const ready = await world.x402Agent("ready", deploymentNetwork);
+          const ready = await world.x402Agent("ready", "Mainnet");
           const badSource = wrongChain.pay("bad source", {
             payTo: OTHER_PAY_TO,
           });
@@ -1198,7 +1197,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
               expect(new Set(log.map((s) => s.connection)).size).toBe(1);
               // Observation starts on the already-open connection, so retain its exact statement order.
               catalogBase.expectAsOnBase(
-                key("V2 event price"),
+                `${LAYOUT}, NETWORK=${deploymentNetwork}: V2 event price`,
                 plain(
                   {
                     outcome,
@@ -1255,7 +1254,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           stopsOnTheSplitLayout(2);
           const payer = await world.person("paying person");
           const taskId = await world.task(payer, "paying person's Task");
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           const body = agent.pay("fresh");
           outside.payX402.mockImplementation((request) =>
             agent.signed(request),
@@ -1283,7 +1282,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           stopsOnTheSplitLayout(1);
           const payer = await world.organization("Owner's Organization");
           const taskId = await world.task(payer, "Organization Task");
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           outside.payX402.mockImplementation((request) =>
             agent.signed(request),
           );
@@ -1305,7 +1304,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           stopsOnTheSplitLayout(3);
           const payer = await world.person("pending person");
           const taskId = await world.task(payer, "pending person's Task");
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           const body = agent.pay("pending");
 
           outside.payX402.mockResolvedValue(lost);
@@ -1339,7 +1338,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           stopsOnTheSplitLayout(2);
           const payer = await world.person("refused person");
           const taskId = await world.task(payer, "refused person's Task");
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           const body = agent.pay("refused");
           outside.payX402.mockImplementation(() => {
             // The debit's native UUIDv7 uses real time. Give Prisma's refund
@@ -1370,7 +1369,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           stopsOnTheSplitLayout(2);
           const payer = await world.person("rolled back person");
           const taskId = await world.task(payer, "rolled back person's Task");
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           const body = agent.pay("rolled back");
           outside.payX402.mockImplementation((request) =>
             agent.signed(request),
@@ -1399,7 +1398,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
           stopsOnTheSplitLayout(3);
           const payer = await world.person("mismatched person");
           const taskId = await world.task(payer, "mismatched person's Task");
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           const otherChainAgent = await world.x402Agent(
             "Agent on the other chain",
             otherChain,
@@ -1447,7 +1446,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
             "short person's finished Task",
             "COMPLETED",
           );
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           outside.payX402.mockImplementation((request) =>
             agent.signed(request),
           );
@@ -1502,7 +1501,7 @@ describe.runIf(enabled).each(["Mainnet", "Preprod"] as const)(
             ),
           };
           const projects = { first: payer.projectId, second: second.projectId };
-          const agent = await world.x402Agent("Agent", deploymentNetwork);
+          const agent = await world.x402Agent("Agent", "Mainnet");
           outside.payX402.mockImplementation((request) =>
             agent.signed(request),
           );

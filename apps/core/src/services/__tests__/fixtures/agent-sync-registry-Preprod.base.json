@@ -16,16 +16,16 @@
     "queries": [
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
         "pending": []
       },
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["cardano-v2-rail-readiness", "1", "0"],
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
         "pending": []
       },
       {
-        "sql": "95050eaf404de17444eedfa4f77046c768710aaf7e3a4acc61d0b94048a5db83",
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
         "values": ["0"],
         "pending": []
       },
@@ -35,12 +35,12 @@
         "pending": []
       },
       {
-        "sql": "c865e992072edcf0c655c9c91225d885fc73473e6e5a6e9be1b35d69f964e18f",
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
         "values": ["z-sync", "0"],
         "pending": []
       },
       {
-        "sql": "11a50c8d66609e8bd7dde136fe583cd411f19f763a3a5ecbb94e5c7f38ef1a26",
+        "sql": "06be9f9fbe2dbe13800db6c795e9e3708332ba49028a1d71fd052d02612fd4a2",
         "values": [
           "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -50,7 +50,7 @@
         "pending": []
       },
       {
-        "sql": "facd6936b66b36565aae65437f7b2cebc8568dae12632fd0ac6bffbcb979e474",
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
         "values": ["040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -65,12 +65,12 @@
         "pending": []
       },
       {
-        "sql": "c865e992072edcf0c655c9c91225d885fc73473e6e5a6e9be1b35d69f964e18f",
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
         "values": ["a-sync", "0"],
         "pending": []
       },
       {
-        "sql": "11a50c8d66609e8bd7dde136fe583cd411f19f763a3a5ecbb94e5c7f38ef1a26",
+        "sql": "06be9f9fbe2dbe13800db6c795e9e3708332ba49028a1d71fd052d02612fd4a2",
         "values": [
           "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -80,7 +80,7 @@
         "pending": []
       },
       {
-        "sql": "facd6936b66b36565aae65437f7b2cebc8568dae12632fd0ac6bffbcb979e474",
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
         "values": ["040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -90,7 +90,7 @@
         "pending": []
       },
       {
-        "sql": "a40dfd8eb5c8e3cf5a0d8ee7c5474c5085aaaced6eb3293e334c966f7b42bdfe",
+        "sql": "c0b66884032fab2eb6dcbc9f5d843b32f79976b7a44a14c71097fc92a4f64031",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
           "1",
@@ -99,14 +99,14 @@
         "pending": []
       },
       {
-        "sql": "35325ade1a7484290c4c7793bffc1bab6cb5db261f3d2b0be7d7bab02d8f0680",
+        "sql": "0db125214f98d46c9e2cf83deb879331f19f580f017836b5ec1b721e42b18efa",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000001"
         ],
         "pending": []
       },
       {
-        "sql": "0ffe862a4dffdb39f69e3073aae9058be1711b05d58271827645e41e3e918e46",
+        "sql": "3c79f0b6eb4bc9d111084a98a40e3ca1b7c0caae0edc4d520a431944da315344",
         "values": ["1", "0"],
         "pending": []
       },
@@ -116,7 +116,7 @@
         "pending": []
       },
       {
-        "sql": "5da41ae51a3f5ee1e05d0c7f7390c26d6bbea223da596a326852481e1311bb2a",
+        "sql": "f85ff860454d8a3f4eb6b04d8d654b3c8513b5f8c9ede8dbe29f675515b2aed7",
         "values": [
           "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -125,7 +125,7 @@
         "pending": []
       },
       {
-        "sql": "6803acfd5f0eb8f6ddcd9eea2f48a12f3ef763543e2c320cdc400a63a2054e32",
+        "sql": "2c05339db33a21fcaa3743decf89ba3cf264029d998b9cc5efd5e8161a76f8df",
         "values": [
           "040bfbae-5e60-7152-a8a8-b62a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -143,7 +143,7 @@
         "pending": []
       },
       {
-        "sql": "39a68bf861979a9b36bd8e7002f233d172e4fbd34327332a6c7df8f10e2e95ee",
+        "sql": "8bdcba6b8453a159943cf9dc6caf72d97735ef7235f2b31ac16a6a291700a5e8",
         "values": [
           "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -154,7 +154,7 @@
         "pending": []
       },
       {
-        "sql": "b32bcea03da641b2b16e19c2ffae0338569856d17c6187732e1d332652ec8b8b",
+        "sql": "a10474dacb514238bb4dcdc08da5f802438973e0887ee151c20f4c5cfd06c9a5",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -193,12 +193,12 @@
         "pending": []
       },
       {
-        "sql": "bbc924b8dff1a2dd3a35d02f3ac5d9f56e19e409fb5484a1d4fb1fc47bb0e22b",
+        "sql": "5ef170a81944a427dfec7895fb918c1090e73972c58135b54e8428f820143e8a",
         "values": ["z-sync", "a-sync", "0"],
         "pending": []
       },
       {
-        "sql": "83884983ea910542edea37ad7612c430a2807635595aaddb336a757747cdadcc",
+        "sql": "40b15803d0d1522eb39c805767b71f4c750564cdd3c0085b3b0dca133b42a67d",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
@@ -208,7 +208,7 @@
         "pending": []
       },
       {
-        "sql": "e5ee271572f3e5f29673930c9b4713e0b807faca3d3400eb32e1033adcfa27ae",
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
         "values": [
           "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -227,7 +227,7 @@
         "pending": []
       },
       {
-        "sql": "5ab670abdb20bff683baa7fe2c4f03c126911b4041e60d42ef4e70acf9b18d41",
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
         "values": [
           "040bfbae-5e60-7152-a8a8-ca2a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -247,7 +247,7 @@
         "pending": []
       },
       {
-        "sql": "e5ee271572f3e5f29673930c9b4713e0b807faca3d3400eb32e1033adcfa27ae",
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
         "values": [
           "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -266,7 +266,7 @@
         "pending": []
       },
       {
-        "sql": "5ab670abdb20bff683baa7fe2c4f03c126911b4041e60d42ef4e70acf9b18d41",
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
         "values": [
           "040bfbae-5e60-7152-a8a8-d62a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -286,7 +286,7 @@
         "pending": []
       },
       {
-        "sql": "9b3f45cb23eacbfe5ee51071493a6be6d44e17879e4115720796aea21662851f",
+        "sql": "e8727f58d7b52a7955e1ad9f0caa05d73cb96abedf2fce6980fbb940acf12fed",
         "values": [
           "040bfbae-5e60-7152-a8a8-de2a2a2a2a2a",
           "2111-01-01 00:01:00",
@@ -306,7 +306,7 @@
         "pending": []
       },
       {
-        "sql": "6ebfb1e154e9222db02b966c6f8378f1c6661f7ae1f0bd8571aa0c6c35243bc0",
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -319,7 +319,7 @@
         "sql": "f33e94ce170b9b08a6804e19420889b25d6a5ff434f0fa25b45708f6c3bc33f2",
         "values": [
           "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
-          "agents-sync-metadata:dynamic-pricing-v1",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1",
           "2026-11-01 00:00:01",
           "registry-1",
           "2111-01-01 00:01:00",
@@ -327,7 +327,7 @@
           "registry-1",
           "2026-11-01 00:00:01",
           "2111-01-01 00:01:00",
-          "agents-sync-metadata:dynamic-pricing-v1"
+          "preprod:agents-sync-metadata:dynamic-pricing-v1"
         ],
         "pending": []
       }
@@ -528,7 +528,7 @@
       "notifications": [],
       "cursor": {
         "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
-        "key": "agents-sync-metadata:dynamic-pricing-v1",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
         "lastSyncedAt": "2026-11-01T00:00:01.000Z",
         "cursorId": "registry-1",
         "updatedAt": "2111-01-01T00:01:00.000Z",
@@ -558,16 +558,16 @@
     "queries": [
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
         "pending": []
       },
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["cardano-v2-rail-readiness", "1", "0"],
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
         "pending": []
       },
       {
-        "sql": "95050eaf404de17444eedfa4f77046c768710aaf7e3a4acc61d0b94048a5db83",
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
         "values": ["0"],
         "pending": []
       },
@@ -577,17 +577,17 @@
         "pending": []
       },
       {
-        "sql": "c865e992072edcf0c655c9c91225d885fc73473e6e5a6e9be1b35d69f964e18f",
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
         "values": ["z-sync", "0"],
         "pending": []
       },
       {
-        "sql": "bf492be158b29ecbde86fa30f36846f1c8a91eebd3aecc1314c63d2bcfbb6d24",
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
         "values": ["z-sync", "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "facd6936b66b36565aae65437f7b2cebc8568dae12632fd0ac6bffbcb979e474",
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
         "values": ["040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -602,17 +602,17 @@
         "pending": []
       },
       {
-        "sql": "c865e992072edcf0c655c9c91225d885fc73473e6e5a6e9be1b35d69f964e18f",
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
         "values": ["a-sync", "0"],
         "pending": []
       },
       {
-        "sql": "bf492be158b29ecbde86fa30f36846f1c8a91eebd3aecc1314c63d2bcfbb6d24",
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
         "values": ["a-sync", "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "facd6936b66b36565aae65437f7b2cebc8568dae12632fd0ac6bffbcb979e474",
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
         "values": ["040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -622,7 +622,7 @@
         "pending": []
       },
       {
-        "sql": "a40dfd8eb5c8e3cf5a0d8ee7c5474c5085aaaced6eb3293e334c966f7b42bdfe",
+        "sql": "c0b66884032fab2eb6dcbc9f5d843b32f79976b7a44a14c71097fc92a4f64031",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
           "1",
@@ -631,19 +631,19 @@
         "pending": []
       },
       {
-        "sql": "35325ade1a7484290c4c7793bffc1bab6cb5db261f3d2b0be7d7bab02d8f0680",
+        "sql": "0db125214f98d46c9e2cf83deb879331f19f580f017836b5ec1b721e42b18efa",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002"
         ],
         "pending": []
       },
       {
-        "sql": "31553724489d64833aa37823b1352a1611fca02107c33fdf7db6c0da873a3f8e",
+        "sql": "acc088274978c1e4e6eb35a51613cafa3efd0f1a9197a17603d557436d703a6f",
         "values": ["rollback-copy", "1", "0"],
         "pending": []
       },
       {
-        "sql": "aedbaf40020e69b04baf2605d689a3a635cc58b3d7c4c39f69b55af2c186626a",
+        "sql": "70a47144dcd93edf9b759a11ce141be203dbe85624cd55dfbd089964b448b058",
         "values": ["rollback-copy", "0"],
         "pending": []
       },
@@ -653,7 +653,7 @@
         "pending": []
       },
       {
-        "sql": "afbfd0a7e23c9ae8688c45198075018aa5c2310bc52104c9078a49a67fd02d2a",
+        "sql": "c8c30c55bac7d0ef01cb8b762a019c92e58c21d2ed28be43ca0f935ba9e6b7ea",
         "values": [
           "67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
           "2111-01-01 00:02:00",
@@ -662,7 +662,7 @@
         "pending": []
       },
       {
-        "sql": "9669e78c745fd0272b734faf92dde5c09253d834a9b13986cb34263bfba1d0bb",
+        "sql": "98de36013f45d7fe1e3fdc97acb7de52eaf94d0a60bb33d6b2593217fc957e57",
         "values": [
           "https://seller.example",
           "2111-01-01 00:02:00",
@@ -671,7 +671,7 @@
         "pending": []
       },
       {
-        "sql": "0df748f49746efd0a908c5dbd0b147df6576cbfe681a877051bf3c660c6c43ff",
+        "sql": "ee739cc46838196627106d387b84f5bf700e706b7c3249c6784b5843aa90517d",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -680,7 +680,7 @@
         "pending": []
       },
       {
-        "sql": "81d266c3e13eaa59861d391dae246a3edaaa5e013286d1ea2758aff8520d8c66",
+        "sql": "34583d52d3cf31b3abc60f3cce07f9ff04c8ac1da4b4c6d7176dce74b2037d0d",
         "values": [
           1,
           "2111-01-01 00:02:00",
@@ -689,27 +689,27 @@
         "pending": []
       },
       {
-        "sql": "28c14d9c4f7e54e9b1a56c900085640a0df46d3ee03958d1a1c3cca744902e7c",
+        "sql": "0e1959a9a798c13237d2b3bb81238ad30f2ef05ab91c29670e6849a615093903",
         "values": [0, "2111-01-01 00:02:00", "rollback-copy"],
         "pending": []
       },
       {
-        "sql": "b56df533a461ef952ad98bd88644e51b15e3e421dbed31f07f45def38a8c2375",
+        "sql": "e2816f34aded0447a179160c4555326026af800836ac59b06e4a5d6b800a8a0d",
         "values": ["rollback-copy", "0"],
         "pending": []
       },
       {
-        "sql": "b56df533a461ef952ad98bd88644e51b15e3e421dbed31f07f45def38a8c2375",
+        "sql": "e2816f34aded0447a179160c4555326026af800836ac59b06e4a5d6b800a8a0d",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "32463da7ea3ba5734baab852464c7254b07855e718741c7cfb23e926dc6ea630",
+        "sql": "3014a621e03550a9942f4386a62c40c7d38354c25240fcd869b8836cfd546375",
         "values": ["newer-canonical"],
         "pending": []
       },
       {
-        "sql": "2052d9eb2cab1ffa37442e9267eccdabdf0a917b2a81586868df066545db9f36",
+        "sql": "b1bb9f393eb19f0ece6e3fed394a583c16e9ef77993c7ff159f29eb944808f51",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -718,12 +718,12 @@
         "pending": []
       },
       {
-        "sql": "32463da7ea3ba5734baab852464c7254b07855e718741c7cfb23e926dc6ea630",
+        "sql": "3014a621e03550a9942f4386a62c40c7d38354c25240fcd869b8836cfd546375",
         "values": ["equal-copy"],
         "pending": []
       },
       {
-        "sql": "2052d9eb2cab1ffa37442e9267eccdabdf0a917b2a81586868df066545db9f36",
+        "sql": "b1bb9f393eb19f0ece6e3fed394a583c16e9ef77993c7ff159f29eb944808f51",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -732,32 +732,32 @@
         "pending": []
       },
       {
-        "sql": "8b22f6d3edb85f674763777b0b5bb89e8fbe941e8fbbe095ddf67ae1d90d7244",
+        "sql": "82b31568778cca2c16e22c5c1ed0a4d625030f44705735f3ed892334c5a7fd4b",
         "values": ["rollback-copy", "1", "0"],
         "pending": []
       },
       {
-        "sql": "df4e3b8183eec6f537ad23393fd4503c79663bd9724aeb5cce2f21f24b53b92d",
+        "sql": "f61ada13bec8c7c4edb529d4949d3b4c67b1797e6a0700a16f9b36132cd5c5c0",
         "values": ["rollback-copy", "0"],
         "pending": []
       },
       {
-        "sql": "6fc4aead00c32a2db2816badc743a5e95ae8ce6ac8973018fc4107becfbb808c",
+        "sql": "cefc987dd33b8fbde44a1b535ac458d4ebedf38ba0511f7e8711531885b0abef",
         "values": ["rollback-copy", "0"],
         "pending": [30]
       },
       {
-        "sql": "3a3945040fcdace9c427715fbea1247c6c14f683eb86f50b505dc570d793d7f5",
+        "sql": "e20492acdd3b41cb771291ce851f7e2fdd52ffb80138308fb241616c91b2fc53",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "3bfd2cef76d099cbe1e621052c59bbd0645da23acc6184a3c8d7e201d88ca190",
+        "sql": "86727bf8d73228e3f58a9a7d65ead7a6d38bf1d0dd2e12c02edf4f9fa2758014",
         "values": ["040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "a12704ddcc3eae8ba5f3529fac27a6799ab5f8f3c262df352f3aecc2a8018d8c",
+        "sql": "4429e1259cf16f7449fcd5baef4947394b37e03207a16c3dd0cee2e7ba41aa57",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a"
@@ -765,17 +765,17 @@
         "pending": []
       },
       {
-        "sql": "6ebfb1e154e9222db02b966c6f8378f1c6661f7ae1f0bd8571aa0c6c35243bc0",
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "d3d97702d18c4672a3a878014d86487f887892a3e5b0933699f6a188620c0b4e",
+        "sql": "9e08336ca5e210d89353a58f7ff3b4d79a06b1813fa2e90ff702b82b90bf9d52",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "9e0d5111d2270c8be29a31163a605834e6d88c53fbb73591d1639e58ff320570",
+        "sql": "a92a4289cae6b5c03e9ffed5e76b8d0185f6e9b774ba58f79cc2eb9ffd6c9828",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -784,7 +784,7 @@
         "pending": []
       },
       {
-        "sql": "8ebca9a19ac210779d93553dfedcde3719f1142fb66a715f8dfafb3414dc3040",
+        "sql": "7e3abc299eedd006ed325b303ed2ea048ec283f79df0d8b6b7a0e512db504c7c",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -793,12 +793,12 @@
         "pending": []
       },
       {
-        "sql": "dd8ac06a5248d1d63e057d1fcbc35017ce3c65a5122f9d8ebab2fe3bae0591dc",
+        "sql": "bbde9931d31440049fecab8d80a0a4500cf106c2d9cd7147399fe02621d97942",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "rollback-copy"],
         "pending": []
       },
       {
-        "sql": "b8f3dc920fbdd08b4094485f8270735436fd63787f629ff2851af8a4c78ff278",
+        "sql": "e17433d927b5923e7ed54502161eae5daf41b447fc0073d48674e2ea9cee53eb",
         "values": [
           "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
           "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
@@ -810,22 +810,22 @@
         "pending": []
       },
       {
-        "sql": "a0d8f09557c9e3b14ac8daa2eb65721fd1ff1c273f70a5042c8e374c02e3e53f",
+        "sql": "39a4b464c889f92e3da8c7dc4f4de6d569710d444c096af5a697f2b238af7a15",
         "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "9f2406e7bbf8815533c7d048ce65b5e0bf7262ef241b935329637c601dde041b",
+        "sql": "b5eb1bf804d382b3457b5a230a29ec6f47130bf9fa5671679f821c3dd6766808",
         "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "80f41f1e61dd847fab6fc3ec4137e5f9055f64075285867e43a3bde170faad02",
+        "sql": "1993232162fc3e59f5634a2e2d4597423aa18e0f708a2da68f08562b2ff8fda8",
         "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "2cd9fbef4351621eb1fe1380824f9431577bdd7c689ee04c37ee0aae28c376f2",
+        "sql": "b99d99d6fda0d44a3a7b3cb4b85dc88a413d179abdf43929621eb9b75a956d79",
         "values": [
           "FIXED",
           "2111-01-01 00:02:00",
@@ -834,32 +834,32 @@
         "pending": []
       },
       {
-        "sql": "495b00502ba9e4b797f1b68d3ab7711c5ba08e277ecff9827841cd79da216982",
+        "sql": "7536dce139e87d4a7f54c9ac9e7253bc3199e94a07ffa693a092bf14d52dbe65",
         "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "4babccb2b6cafcaa757a680eb48c8cee5b2db7d199bb749816a0caac7f0dce68",
+        "sql": "382e5ba2d2561a72b8341a8c5d2798958e66d5cff0efb4e93547f08baa8b8fbd",
         "values": [null, "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a"],
         "pending": []
       },
       {
-        "sql": "de91adbb996a7ee158226ec910275b22e80c3a4de97452d91d520332e914d4bf",
+        "sql": "67e957c54867c589d63495082ed3d54b0d519a1a50dabe2fbc73c26ed142014f",
         "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "23f64c41eff22d3ce8d4bbcfa4cda92b5a5aac1549bf134ad4a6348b3a24d4f9",
+        "sql": "676bf10f25ab3ad9b19b32c7457c7d613e548bd3a4127e7b3f76e36b65042d97",
         "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"],
         "pending": []
       },
       {
-        "sql": "0833316d61e1156d60d43739121ef1d416c89efda74e10933cc6a771854c8f9f",
+        "sql": "832e1f1ca669d46477bdf8d6d36c56cff39d32f678e0d8dda35092da6c50ab00",
         "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"],
         "pending": []
       },
       {
-        "sql": "5da41ae51a3f5ee1e05d0c7f7390c26d6bbea223da596a326852481e1311bb2a",
+        "sql": "f85ff860454d8a3f4eb6b04d8d654b3c8513b5f8c9ede8dbe29f675515b2aed7",
         "values": [
           "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -868,7 +868,7 @@
         "pending": []
       },
       {
-        "sql": "6803acfd5f0eb8f6ddcd9eea2f48a12f3ef763543e2c320cdc400a63a2054e32",
+        "sql": "2c05339db33a21fcaa3743decf89ba3cf264029d998b9cc5efd5e8161a76f8df",
         "values": [
           "040bfbaf-48c0-7152-a8a8-ae2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -886,7 +886,7 @@
         "pending": []
       },
       {
-        "sql": "74283af7936fbfb12ddd6cbd92b6caefe8e0bfeeb4bd87b82aba1edcd62e076e",
+        "sql": "55f65a2c6725341879cee24b1def0407031d0654be22eaab41c103cba32d6826",
         "values": [
           "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -895,12 +895,12 @@
         "pending": []
       },
       {
-        "sql": "495b00502ba9e4b797f1b68d3ab7711c5ba08e277ecff9827841cd79da216982",
+        "sql": "7536dce139e87d4a7f54c9ac9e7253bc3199e94a07ffa693a092bf14d52dbe65",
         "values": ["040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "f0a9e9357e80500daf6abe73885696bca599304bfa1978a48fc56f0b1a1f253b",
+        "sql": "386928f677d293ba4389a7ebe5a9a613679738f26ea13d9cded1176f5c15d469",
         "values": [
           "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -909,22 +909,22 @@
         "pending": []
       },
       {
-        "sql": "de91adbb996a7ee158226ec910275b22e80c3a4de97452d91d520332e914d4bf",
+        "sql": "67e957c54867c589d63495082ed3d54b0d519a1a50dabe2fbc73c26ed142014f",
         "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "94e886a825988111bb46a593824bdfc41a5870be2e2adade82473c28e6604b91",
+        "sql": "a65092ee78bd4892d924a85d0093910cc26218422e8156ad200aee79fe458524",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"],
         "pending": []
       },
       {
-        "sql": "6e0dbffad9dfe341bc970eeb7f0d8430c4fa0c748c9576a65a521c4078bb0bbc",
+        "sql": "b5b6857fb51e2080908925562d339cde243ae24cecc2b130805ab0db715d5a5d",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"],
         "pending": []
       },
       {
-        "sql": "149d1f1c4384eae5d281375b361017cb340e90ea457f4b03e5dbc3e1e37a4289",
+        "sql": "cd7b7a7354515a42e1294841c53282e3fed6bb6b3256b74f1ec410be62b6e09b",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
@@ -960,12 +960,12 @@
         "pending": []
       },
       {
-        "sql": "b48bd5573d1d09dac24f0ffc55b704e1e8641bf80894715522626c10b57ab999",
+        "sql": "bf8885dd3d93da5d046bb2341b1fa00a9d397713f048c753cb9882217564440d",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "b77a437b9e9f2ccd0fb6f8f5c6365be25683f070bf952ed22f316266c6dffe83",
+        "sql": "93a0a383419bdb6c7bb4fd1cdcb24841b44f66598d7a5a9b3c5ecfabf551a29f",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
@@ -974,12 +974,12 @@
         "pending": []
       },
       {
-        "sql": "bbc924b8dff1a2dd3a35d02f3ac5d9f56e19e409fb5484a1d4fb1fc47bb0e22b",
+        "sql": "5ef170a81944a427dfec7895fb918c1090e73972c58135b54e8428f820143e8a",
         "values": ["z-sync", "a-sync", "0"],
         "pending": []
       },
       {
-        "sql": "83884983ea910542edea37ad7612c430a2807635595aaddb336a757747cdadcc",
+        "sql": "40b15803d0d1522eb39c805767b71f4c750564cdd3c0085b3b0dca133b42a67d",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
@@ -989,7 +989,7 @@
         "pending": []
       },
       {
-        "sql": "9b3f45cb23eacbfe5ee51071493a6be6d44e17879e4115720796aea21662851f",
+        "sql": "e8727f58d7b52a7955e1ad9f0caa05d73cb96abedf2fce6980fbb940acf12fed",
         "values": [
           "040bfbaf-48c0-7152-a8a8-b62a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -1009,7 +1009,7 @@
         "pending": []
       },
       {
-        "sql": "e5ee271572f3e5f29673930c9b4713e0b807faca3d3400eb32e1033adcfa27ae",
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
         "values": [
           "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -1028,7 +1028,7 @@
         "pending": []
       },
       {
-        "sql": "5ab670abdb20bff683baa7fe2c4f03c126911b4041e60d42ef4e70acf9b18d41",
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
         "values": [
           "040bfbaf-48c0-7152-a8a8-c22a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -1048,7 +1048,7 @@
         "pending": []
       },
       {
-        "sql": "e5ee271572f3e5f29673930c9b4713e0b807faca3d3400eb32e1033adcfa27ae",
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
         "values": [
           "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -1067,7 +1067,7 @@
         "pending": []
       },
       {
-        "sql": "5ab670abdb20bff683baa7fe2c4f03c126911b4041e60d42ef4e70acf9b18d41",
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
         "values": [
           "040bfbaf-48c0-7152-a8a8-ce2a2a2a2a2a",
           "2111-01-01 00:02:00",
@@ -1087,7 +1087,7 @@
         "pending": []
       },
       {
-        "sql": "6ebfb1e154e9222db02b966c6f8378f1c6661f7ae1f0bd8571aa0c6c35243bc0",
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -1105,7 +1105,7 @@
         "sql": "f33e94ce170b9b08a6804e19420889b25d6a5ff434f0fa25b45708f6c3bc33f2",
         "values": [
           "040bfbaf-48c0-7152-a8a8-d62a2a2a2a2a",
-          "agents-sync-metadata:dynamic-pricing-v1",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1",
           "2026-11-01 00:00:02",
           "registry-2",
           "2111-01-01 00:02:00",
@@ -1113,7 +1113,7 @@
           "registry-2",
           "2026-11-01 00:00:02",
           "2111-01-01 00:02:00",
-          "agents-sync-metadata:dynamic-pricing-v1"
+          "preprod:agents-sync-metadata:dynamic-pricing-v1"
         ],
         "pending": []
       }
@@ -1462,10 +1462,16 @@
         }
       ],
       "payments": [
-        { "id": "payment", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "actions": [
-        { "id": "action", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "ratings": [
         {
@@ -1525,11 +1531,15 @@
           "metadata": "{invalid",
           "network": "mainnet"
         },
-        { "id": "notification-5", "metadata": null, "network": "preprod" }
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
       ],
       "cursor": {
         "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
-        "key": "agents-sync-metadata:dynamic-pricing-v1",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
         "lastSyncedAt": "2026-11-01T00:00:02.000Z",
         "cursorId": "registry-2",
         "updatedAt": "2111-01-01T00:02:00.000Z",
@@ -1543,17 +1553,17 @@
     "transactions": [],
     "queries": [
       {
-        "sql": "8e55096e656216883c3857d05209c902a44e6b347980355a95595a95fd3927b4",
+        "sql": "6e2006f5149b5a09a1355418b27ee34816bced00236bedd3ee55a1d5064b8506",
         "values": ["ONLINE", true, "20", "0"],
         "pending": []
       },
       {
-        "sql": "4130e74b56d5c94bee6d841fb374e079566811adfb944e4d6a015c9515036673",
+        "sql": "cfdec98868f4fb4188f4351e54b79a5df5cb8f80d5ee64dbae0c2d4ed965a634",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "decline", "0"],
         "pending": []
       },
       {
-        "sql": "7a58b40eebc0dcf85165c3e02d35b36fa3d9b8ac473b46aee51684f4584c2dbe",
+        "sql": "5a4c59769b1d52ecc4472c03578324911bd10be401660477548e6c3c6af2b670",
         "values": [
           "Generated summary",
           "2111-01-01 00:03:00",
@@ -1562,7 +1572,7 @@
         "pending": []
       },
       {
-        "sql": "1ffd3b8d78e0dee8fd2b61cb865d110c994d096a5dd855f181527c896b0e8814",
+        "sql": "0f6bceb384afa6a01ee99cee49371d219780dafc26bdaf2e4f84a281e5011408",
         "values": ["2111-01-01 00:03:00", "2111-01-01 00:01:00", "decline"],
         "pending": []
       }
@@ -1911,10 +1921,16 @@
         }
       ],
       "payments": [
-        { "id": "payment", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "actions": [
-        { "id": "action", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "ratings": [
         {
@@ -1974,11 +1990,15 @@
           "metadata": "{invalid",
           "network": "mainnet"
         },
-        { "id": "notification-5", "metadata": null, "network": "preprod" }
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
       ],
       "cursor": {
         "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
-        "key": "agents-sync-metadata:dynamic-pricing-v1",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
         "lastSyncedAt": "2026-11-01T00:00:02.000Z",
         "cursorId": "registry-2",
         "updatedAt": "2111-01-01T00:02:00.000Z",
@@ -2004,16 +2024,16 @@
     "queries": [
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
         "pending": []
       },
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["cardano-v2-rail-readiness", "1", "0"],
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
         "pending": []
       },
       {
-        "sql": "95050eaf404de17444eedfa4f77046c768710aaf7e3a4acc61d0b94048a5db83",
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
         "values": ["0"],
         "pending": []
       },
@@ -2023,17 +2043,17 @@
         "pending": []
       },
       {
-        "sql": "c865e992072edcf0c655c9c91225d885fc73473e6e5a6e9be1b35d69f964e18f",
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
         "values": ["z-sync", "0"],
         "pending": []
       },
       {
-        "sql": "bf492be158b29ecbde86fa30f36846f1c8a91eebd3aecc1314c63d2bcfbb6d24",
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
         "values": ["z-sync", "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "facd6936b66b36565aae65437f7b2cebc8568dae12632fd0ac6bffbcb979e474",
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
         "values": ["040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -2048,17 +2068,17 @@
         "pending": []
       },
       {
-        "sql": "c865e992072edcf0c655c9c91225d885fc73473e6e5a6e9be1b35d69f964e18f",
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
         "values": ["a-sync", "0"],
         "pending": []
       },
       {
-        "sql": "bf492be158b29ecbde86fa30f36846f1c8a91eebd3aecc1314c63d2bcfbb6d24",
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
         "values": ["a-sync", "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "facd6936b66b36565aae65437f7b2cebc8568dae12632fd0ac6bffbcb979e474",
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
         "values": ["040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -2068,7 +2088,7 @@
         "pending": []
       },
       {
-        "sql": "a40dfd8eb5c8e3cf5a0d8ee7c5474c5085aaaced6eb3293e334c966f7b42bdfe",
+        "sql": "c0b66884032fab2eb6dcbc9f5d843b32f79976b7a44a14c71097fc92a4f64031",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
           "1",
@@ -2082,27 +2102,27 @@
         "pending": []
       },
       {
-        "sql": "a0d8f09557c9e3b14ac8daa2eb65721fd1ff1c273f70a5042c8e374c02e3e53f",
+        "sql": "39a4b464c889f92e3da8c7dc4f4de6d569710d444c096af5a697f2b238af7a15",
         "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
         "pending": []
       },
       {
-        "sql": "9f2406e7bbf8815533c7d048ce65b5e0bf7262ef241b935329637c601dde041b",
+        "sql": "b5eb1bf804d382b3457b5a230a29ec6f47130bf9fa5671679f821c3dd6766808",
         "values": ["040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "80f41f1e61dd847fab6fc3ec4137e5f9055f64075285867e43a3bde170faad02",
+        "sql": "1993232162fc3e59f5634a2e2d4597423aa18e0f708a2da68f08562b2ff8fda8",
         "values": ["040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "94e886a825988111bb46a593824bdfc41a5870be2e2adade82473c28e6604b91",
+        "sql": "a65092ee78bd4892d924a85d0093910cc26218422e8156ad200aee79fe458524",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"],
         "pending": []
       },
       {
-        "sql": "ae3d5f30b7f82fc4fe32c47960d1f89a615b6f4c5de3ebc6b297c76edcd48040",
+        "sql": "1f5c5a0dea93d8a3e25d52ff7eb1e4c7306390ff39fed0327f3a30baa1bbce8a",
         "values": [
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
           "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
@@ -2136,12 +2156,12 @@
         "pending": []
       },
       {
-        "sql": "b48bd5573d1d09dac24f0ffc55b704e1e8641bf80894715522626c10b57ab999",
+        "sql": "bf8885dd3d93da5d046bb2341b1fa00a9d397713f048c753cb9882217564440d",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "0"],
         "pending": []
       },
       {
-        "sql": "b77a437b9e9f2ccd0fb6f8f5c6365be25683f070bf952ed22f316266c6dffe83",
+        "sql": "93a0a383419bdb6c7bb4fd1cdcb24841b44f66598d7a5a9b3c5ecfabf551a29f",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
@@ -2150,12 +2170,12 @@
         "pending": []
       },
       {
-        "sql": "bbc924b8dff1a2dd3a35d02f3ac5d9f56e19e409fb5484a1d4fb1fc47bb0e22b",
+        "sql": "5ef170a81944a427dfec7895fb918c1090e73972c58135b54e8428f820143e8a",
         "values": ["z-sync", "a-sync", "0"],
         "pending": []
       },
       {
-        "sql": "83884983ea910542edea37ad7612c430a2807635595aaddb336a757747cdadcc",
+        "sql": "40b15803d0d1522eb39c805767b71f4c750564cdd3c0085b3b0dca133b42a67d",
         "values": [
           "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
           "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
@@ -2165,7 +2185,7 @@
         "pending": []
       },
       {
-        "sql": "e5ee271572f3e5f29673930c9b4713e0b807faca3d3400eb32e1033adcfa27ae",
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
         "values": [
           "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
           "2111-01-01 00:04:00",
@@ -2184,7 +2204,7 @@
         "pending": []
       },
       {
-        "sql": "5ab670abdb20bff683baa7fe2c4f03c126911b4041e60d42ef4e70acf9b18d41",
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
         "values": [
           "040bfbb1-1d80-7152-a8a8-ae2a2a2a2a2a",
           "2111-01-01 00:04:00",
@@ -2204,7 +2224,7 @@
         "pending": []
       },
       {
-        "sql": "e5ee271572f3e5f29673930c9b4713e0b807faca3d3400eb32e1033adcfa27ae",
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
         "values": [
           "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
           "2111-01-01 00:04:00",
@@ -2223,7 +2243,7 @@
         "pending": []
       },
       {
-        "sql": "5ab670abdb20bff683baa7fe2c4f03c126911b4041e60d42ef4e70acf9b18d41",
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
         "values": [
           "040bfbb1-1d80-7152-a8a8-ba2a2a2a2a2a",
           "2111-01-01 00:04:00",
@@ -2243,7 +2263,7 @@
         "pending": []
       },
       {
-        "sql": "6ebfb1e154e9222db02b966c6f8378f1c6661f7ae1f0bd8571aa0c6c35243bc0",
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
         "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
         "pending": []
       },
@@ -2256,7 +2276,7 @@
         "sql": "f33e94ce170b9b08a6804e19420889b25d6a5ff434f0fa25b45708f6c3bc33f2",
         "values": [
           "040bfbb1-1d80-7152-a8a8-c22a2a2a2a2a",
-          "agents-sync-metadata:dynamic-pricing-v1",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1",
           "2026-11-01 00:00:02",
           "registry-2",
           "2111-01-01 00:04:00",
@@ -2264,7 +2284,7 @@
           "registry-2",
           "2026-11-01 00:00:02",
           "2111-01-01 00:04:00",
-          "agents-sync-metadata:dynamic-pricing-v1"
+          "preprod:agents-sync-metadata:dynamic-pricing-v1"
         ],
         "pending": []
       }
@@ -2613,10 +2633,16 @@
         }
       ],
       "payments": [
-        { "id": "payment", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "actions": [
-        { "id": "action", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "ratings": [
         {
@@ -2676,11 +2702,15 @@
           "metadata": "{invalid",
           "network": "mainnet"
         },
-        { "id": "notification-5", "metadata": null, "network": "preprod" }
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
       ],
       "cursor": {
         "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
-        "key": "agents-sync-metadata:dynamic-pricing-v1",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
         "lastSyncedAt": "2026-11-01T00:00:02.000Z",
         "cursorId": "registry-2",
         "updatedAt": "2111-01-01T00:04:00.000Z",
@@ -2702,16 +2732,16 @@
     "queries": [
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
         "pending": []
       },
       {
         "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
-        "values": ["cardano-v2-rail-readiness", "1", "0"],
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
         "pending": []
       },
       {
-        "sql": "95050eaf404de17444eedfa4f77046c768710aaf7e3a4acc61d0b94048a5db83",
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
         "values": ["0"],
         "pending": []
       }
@@ -3060,10 +3090,16 @@
         }
       ],
       "payments": [
-        { "id": "payment", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "actions": [
-        { "id": "action", "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a" }
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
       ],
       "ratings": [
         {
@@ -3123,11 +3159,15 @@
           "metadata": "{invalid",
           "network": "mainnet"
         },
-        { "id": "notification-5", "metadata": null, "network": "preprod" }
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
       ],
       "cursor": {
         "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
-        "key": "agents-sync-metadata:dynamic-pricing-v1",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
         "lastSyncedAt": "2026-11-01T00:00:02.000Z",
         "cursorId": "registry-2",
         "updatedAt": "2111-01-01T00:04:00.000Z",

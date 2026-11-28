@@ -84,6 +84,12 @@ export function canUsePreprodInWorkspace(
   return (workspace.organization ?? user).preprodEnabled === true;
 }
 
+/** Keep interpreting scoped keys and headers while a configuration failure keeps Preprod offline. */
+export function isNetworkRoutingEnabled(): boolean {
+  const env = getEnv();
+  return env.NETWORK_PREPROD_ENABLED || env.preprodDisabledByMasumi === true;
+}
+
 export function networksThatAreOn(): readonly Network[] {
   return isPreprodOn() ? NETWORKS : ["mainnet"];
 }

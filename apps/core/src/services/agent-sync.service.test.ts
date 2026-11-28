@@ -156,7 +156,7 @@ async function getAgentSyncService() {
     syncRegistryAgents: module.agentSyncService.syncRegistryAgents.bind(
       null,
       scope,
-      { getAgentsDiff: getAgentsDiffMock },
+      { network: scope.network, getAgentsDiff: getAgentsDiffMock },
     ),
     syncAgentSummaries: module.agentSyncService.syncAgentSummaries.bind(
       null,
@@ -282,7 +282,7 @@ function createCardanoV2PaymentSource(
   return {
     sourceIndex: 0,
     chain: "Cardano",
-    network: "Preprod",
+    network: "Mainnet",
     paymentSourceType: "Web3CardanoV2",
     address: "addr_test1_contract",
     payTo: "addr_test1_seller",
@@ -1304,7 +1304,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         {
           sourceIndex: 0,
           chain: "Cardano",
-          network: "Preprod",
+          network: "Mainnet",
           paymentSourceType: "Web3CardanoV2",
           address: "addr_test1_contract",
           payTo: "addr_test1_seller",
@@ -2121,7 +2121,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         paymentType: "Web3CardanoV2",
         AgentPricing: null,
         SupportedPaymentSources: [
-          createCardanoV2PaymentSource({ network: "Mainnet" }),
+          createCardanoV2PaymentSource({ network: "Preprod" }),
         ],
       }),
     ];
@@ -2143,7 +2143,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     // The mismatched source is still mirrored for later reconciliation.
     expect(createCall.data.paymentSources.create).toHaveLength(1);
     expect(createCall.data.paymentSources.create[0]).toMatchObject({
-      network: "Mainnet",
+      network: "Preprod",
       pricingType: PricingType.FIXED,
     });
   });
@@ -2501,7 +2501,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
           {
             sourceIndex: 0,
             chain: "Cardano",
-            network: "Preprod",
+            network: "Mainnet",
             paymentSourceType: "Web3CardanoV1",
             address: "addr_test1_v1_contract",
             payTo: null,
@@ -2587,7 +2587,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
         {
           sourceIndex: 0,
           chain: "Cardano",
-          network: "Preprod",
+          network: "Mainnet",
           paymentSourceType: "Web3CardanoV1",
           address: "addr_test1_v1_contract",
           payTo: null,
@@ -3386,6 +3386,7 @@ describe("agentSyncService.syncAgentSummaries", () => {
 
 let scope: ReturnType<typeof testNetworkScope>;
 const node = {
+  network: "mainnet" as const,
   getCardanoV2RailReadiness: getCardanoV2RailReadinessMock,
 };
 

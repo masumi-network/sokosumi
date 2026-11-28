@@ -2,10 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { JobType, jobInclude, NextJobAction } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { jobPurchaseRepository } from "@sokosumi/database/repositories";
-
-import { paymentClient } from "@/clients/masumi-payment.client.js";
+import { masumiClients } from "@/clients/masumi.js";
 import { requireJobCollaboration } from "@/helpers/access-control.js";
 import { notFound, unprocessableEntity } from "@/helpers/error";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -111,6 +111,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
+    requireMainnetMasumiPayment(c.var.networkScope);
     const { blockchainIdentifier, externalId } = await prisma.$transaction(
       async (tx) => {
         // Refunding belongs to the job's Owner (ADR 0057).
@@ -153,7 +154,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     const refundResult =
-      await paymentClient().requestRefund(blockchainIdentifier);
+      await masumiClients("mainnet").payment.requestRefund(
+        blockchainIdentifier,
+      );
     if (refundResult.isErr()) {
       throw unprocessableEntity(
         "Failed to request refund from payment service",

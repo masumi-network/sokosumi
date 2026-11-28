@@ -4,6 +4,7 @@ import { sharedTable } from "@sokosumi/database/sql-tables";
 import { createAgentClient } from "@sokosumi/masumi";
 import { sokoBotProvideJobInputSchema as provideJobInputSchema } from "@sokosumi/soko-bot";
 import { createAgentJobForUser } from "@/helpers/job";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { networkStamp } from "@/helpers/preprod-control";
 import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
@@ -111,6 +112,8 @@ export async function applyDecision(
     }
 
     const proposal = decision.proposal as Record<string, unknown>;
+    if (decision.toolName === "hire_agent")
+      requireMainnetMasumiPayment(actionContext.provenance);
     if (ownerConfirmed && decision.intentId) {
       await prisma.sokoBotIntent.update({
         where: { id: decision.intentId },

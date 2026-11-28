@@ -6,6 +6,13 @@ import {
   mainnetNetwork,
 } from "@/services/__tests__/fixtures/agent-sync.x402-readiness.fixtures";
 
+const credentials = new Map([
+  ["test-payment-key", "mainnet payment"],
+  ["test-registry-key", "mainnet registry"],
+  ["test-preprod-payment-key", "preprod payment"],
+  ["test-preprod-registry-key", "preprod registry"],
+]);
+
 /** Both real Masumi SDK clients use fetch. No request leaves the test process. */
 export function stubMasumiSyncHttp(beforeRegistryReply?: () => Promise<void>) {
   const networks = [mainnetNetwork(), availableNetwork()];
@@ -18,8 +25,15 @@ export function stubMasumiSyncHttp(beforeRegistryReply?: () => Promise<void>) {
       smartContractAddress: "addr_" + letter,
       isPurchaseReady: true,
     })),
+    requests: [] as {
+      url: string;
+      method: string;
+      credential: string;
+      body: string;
+    }[],
     networks,
     offline: false,
+    x402Reply: undefined as unknown,
     registryEntries: [] as RegistryEntry[],
     registryRequests: [] as { cursorId?: string; statusUpdatedAfter: string }[],
   };
@@ -29,7 +43,49 @@ export function stubMasumiSyncHttp(beforeRegistryReply?: () => Promise<void>) {
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init);
       const url = new URL(request.url);
-      if (url.origin === "https://example.com") {
+      const token = request.headers.get("token");
+      const entry = {
+        url: request.url,
+        method: request.method,
+        credential: credentials.get(token ?? "") ?? "unknown",
+        body: "",
+      };
+      state.requests.push(entry);
+      entry.body = await request.clone().text();
+      if (
+        url.origin === "https://example.com" ||
+        url.origin === "https://preprod.example.com"
+      ) {
+        if (
+          request.method === "POST" &&
+          ["/payment/purchase", "/payment/purchase/request-refund"].includes(
+            url.pathname,
+          )
+        ) {
+          const input = await request.json();
+          return success({
+            id: "fixture-purchase",
+            blockchainIdentifier: input.blockchainIdentifier,
+            onChainState: null,
+            NextAction: {
+              requestedAction: "FundsLockingRequested",
+              errorType: null,
+            },
+            createdAt: "2026-11-27T12:00:00Z",
+            updatedAt: "2026-11-27T12:00:00Z",
+          });
+        }
+        if (
+          request.method === "POST" &&
+          url.pathname === "/payment/x402/pay" &&
+          state.x402Reply
+        )
+          return success(state.x402Reply);
+        if (
+          url.pathname === "/registry/registry-entry/" &&
+          request.method === "POST"
+        )
+          return success({ entries: state.registryEntries });
         if (
           url.pathname === "/registry/registry-diff/" &&
           request.method === "POST"

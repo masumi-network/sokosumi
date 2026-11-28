@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { registryClient } from "@/clients/masumi-registry.client";
+import { masumiClients } from "@/clients/masumi";
 import { badGateway } from "@/helpers/error";
 import {
   jsonErrorResponse,
@@ -108,7 +108,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { cursor, limit, status } = c.req.valid("query");
 
-    const result = await registryClient.listEntries(
+    const result = await masumiClients(
+      c.var.networkScope.network,
+    ).registry.listEntries(
       {
         cursorId: cursor,
         limit: limit + REGISTRY_EXTRA_ROWS,

@@ -5,7 +5,7 @@ import type {
   InputSchemaType,
   StartPaidJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { masumiClients } from "@/clients/masumi";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -83,7 +83,7 @@ export async function registerJobPurchase(
     attempt += 1
   ) {
     attemptsMade = attempt;
-    const result = await paymentClient().createPurchase(
+    const result = await masumiClients("mainnet").payment.createPurchase(
       params.agentBlockchainIdentifier,
       params.startJobResponse,
       params.inputData,
@@ -138,7 +138,7 @@ export async function registerJobPurchase(
   // `failure.message` is built with `extractNodeErrorMessage`, which dumps
   // whatever the far side sent: a gateway answering for the payment node can
   // echo the request, whose metadata holds the job's input and whose headers
-  // carry PAYMENT_API_KEY. The log keeps the failure's kind and status only.
+  // carry MAINNET_PAYMENT_API_KEY. The log keeps the failure's kind and status only.
   recordCoreWarning(
     {
       operation: "job_purchase_registration",

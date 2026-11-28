@@ -38,8 +38,6 @@ const STRING_DUMMIES = {
   RESEND_API_KEY: "dummy-resend-api-key",
   BLOB_READ_WRITE_TOKEN: "dummy-blob-read-write-token",
   MASUMI_DESIGN_MD_API_KEY: "dummy-masumi-design-md-api-key",
-  PAYMENT_API_KEY: "dummy-payment-api-key",
-  REGISTRY_API_KEY: "dummy-registry-api-key",
   CRON_SECRET: "dummy-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_dummy",
   STRIPE_WEBHOOK_SECRET: "whsec_dummy",

@@ -688,7 +688,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
         mainnet: named(await scenario(app, token, "mainnet", labels), labels),
       });
       const path = new URL(
-        `./admin-catalog-${network.toLowerCase()}.base.json`,
+        "./admin-catalog-mainnet.base.json",
         import.meta.url,
       );
       if (recording) {
