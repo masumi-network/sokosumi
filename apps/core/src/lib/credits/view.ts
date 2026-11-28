@@ -1,5 +1,5 @@
 import { streamTransactionCsv } from "@/helpers/transaction-history-csv";
-import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { buildCreditsPayload } from "./funding";
 import {
   type BuildTransactionHistoryParams,
@@ -13,26 +13,14 @@ import { chargesCredits } from "./policy";
 type HistoryFilter = Omit<BuildTransactionHistoryParams, "billingScope">;
 
 /**
- * The request's Network: its scope when it works, else Mainnet's, the view a
- * refused scope kept before (a header for a Network the caller may not use).
- */
-function viewedScope(requestScope: NetworkScope): NetworkScope {
-  try {
-    // A refusing scope throws on this read; it reads nothing.
-    void requestScope.network;
-  } catch {
-    return createNetworkScope("mainnet");
-  }
-  return requestScope;
-}
-
-/**
  * The credit views of a request's Network. `network` and `charged` say what
  * every figure is: one Network's, and charged (Mainnet) or only recorded at
  * its price (Preprod). A total of one Network never includes the other's.
  */
 export function creditViewForRequest(requestScope: NetworkScope) {
-  const billingScope = viewedScope(requestScope);
+  const billingScope = requestScope;
+  // A scope that refuses its Network answers here, with its own 403, before
+  // any credit, plan or ledger read: a refused request sees no wallet.
   const { network } = billingScope;
   return {
     billingScope,

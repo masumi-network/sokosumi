@@ -21,6 +21,23 @@ export function chargesCredits(network: Network): boolean {
 }
 
 /**
+ * Whether the shared rows that name no Network are this Network's: a
+ * receipt written before `taskEvent.network` existed, and every receipt of a
+ * Mainnet-only feature (images, SEO chat, contact search), which has no
+ * Network column. All of them are Mainnet's. Another Network's ledger reads a
+ * shared receipt only when it names that Network, so equal ids on two
+ * Networks never cross.
+ */
+const OWNS_UNTAGGED_SHARED_ROWS = {
+  mainnet: true,
+  preprod: false,
+} as const satisfies Record<Network, boolean>;
+
+export function ownsUntaggedSharedRows(network: Network): boolean {
+  return OWNS_UNTAGGED_SHARED_ROWS[network];
+}
+
+/**
  * The payers that can run on a Network that charges no credits: their
  * payment there is recorded with its price. Every other payer is a
  * Mainnet-only feature or always charges Mainnet (Soko Bot turns, ticket 30).

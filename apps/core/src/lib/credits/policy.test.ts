@@ -13,7 +13,7 @@ import {
   sumOrganizationEnterprisePoolBalances,
   sumOrganizationOwnedCreditBalances,
 } from "./balance";
-import { buildCreditsPayload } from "./funding";
+import { buildCreditsPayload, getCurrentSubscriptionCredits } from "./funding";
 import { expireEnterpriseGrants, grant } from "./grant";
 import { refund } from "./refund";
 import { creditViewForRequest } from "./view";
@@ -170,6 +170,20 @@ describe("Preprod has no balance", () => {
     );
   });
 
+  it("refuses a plan's credits read directly, not only through the payload", async () => {
+    await expect(
+      getCurrentSubscriptionCredits({
+        scope,
+        subscription: {
+          periodStart: new Date("2026-11-01T00:00:00Z"),
+          periodEnd: new Date("2026-12-01T00:00:00Z"),
+        },
+        userId: "user-1",
+        organizationId: null,
+      }),
+    ).rejects.toThrow("A plan's credits is Mainnet's only");
+  });
+
   it("answers no funding to a low-balance check, so nothing warns", async () => {
     expect(
       await lowBalanceFunding(scope, {
@@ -227,16 +241,14 @@ describe("the credit view of a request", () => {
     expect(view.charged).toBe(true);
   });
 
-  it("keeps Mainnet's view for a refused scope, as before", () => {
+  it("passes a refused scope's own error, before any read: no Mainnet view", () => {
+    const refusal = forbidden("You have no Preprod access in this workspace");
     const refusing = {
       get network(): never {
-        throw forbidden("You have no Preprod access in this workspace");
+        throw refusal;
       },
     } as unknown as NetworkScope;
 
-    const view = creditViewForRequest(refusing);
-
-    expect(view.network).toBe("mainnet");
-    expect(view.charged).toBe(true);
+    expect(() => creditViewForRequest(refusing)).toThrow(refusal);
   });
 });

@@ -10,6 +10,7 @@ import "@hono/zod-openapi";
 
 import { randomUUID } from "node:crypto";
 import { convertCentsToCredits } from "@sokosumi/utils";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { NetworkScope } from "@/lib/db/network-scope";
@@ -59,10 +60,10 @@ vi.mock("@/services/webhook.service", async (importOriginal) => {
   };
 });
 
-const enabled =
+const onPostgres =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
-  Boolean(process.env.DATABASE_URL?.startsWith("postgres")) &&
-  onSplitLayout;
+  Boolean(process.env.DATABASE_URL?.startsWith("postgres"));
+const enabled = onPostgres && onSplitLayout;
 
 /** Module loads and sign-ins, past Vitest's 10 s hook limit on CI's runner. */
 const SETUP_TIMEOUT = 120_000;
@@ -440,7 +441,7 @@ describe.runIf(enabled)(
       );
 
       it(
-        "grants Mainnet credits from the admin route under a Preprod header",
+        "hands the admin grant the Mainnet scope under a Preprod header (the write itself waits for ticket 27's grant conversion on this layout)",
         async () => {
           const target = await person();
           const granted: string[] = [];
@@ -480,5 +481,316 @@ describe.runIf(enabled)(
         CASE_TIMEOUT,
       );
     });
+
+    describe("Core's HTTP routes, one id on both Networks", () => {
+      let cookie: string;
+      let taskId: string;
+      const sharedId = randomUUID();
+      const comment = `Mainnet-only comment ${randomUUID()}`;
+
+      beforeAll(async () => {
+        const owner = await fixture.createPasswordUser(
+          "Equal ids admin",
+          "admin",
+        );
+        userIds.push(owner.id);
+        const workspace = await createPersonalWorkspace(owner.id);
+        cookie = await fixture.signIn(app, owner.email);
+        ({ id: taskId } = await prisma.task.create({
+          data: {
+            ownerId: owner.id,
+            creatorUserId: owner.id,
+            workspaceId: workspace.id,
+            name: "Mainnet's Task",
+            status: "RUNNING",
+          },
+          select: { id: true },
+        }));
+        // The same transaction id on both Networks, with different amounts;
+        // the Task event that charged it is Mainnet's.
+        await mainnet().networkDb.transaction.create({
+          data: { id: sharedId, amount: -3n * CREDIT, userId: owner.id },
+        });
+        await preprod().networkDb.transaction.create({
+          data: { id: sharedId, amount: -4n * CREDIT, userId: owner.id },
+        });
+        await prisma.taskEvent.create({
+          data: {
+            taskId,
+            transactionId: sharedId,
+            network: "mainnet",
+            cents: 3n * CREDIT,
+            comment,
+          },
+        });
+      }, SETUP_TIMEOUT);
+
+      async function data(path: string, onPreprod: boolean) {
+        const response = await app.request(`${fixture.ORIGIN}/v1${path}`, {
+          headers: {
+            cookie,
+            origin: fixture.ORIGIN,
+            ...(onPreprod && { [HEADER]: "preprod" }),
+          },
+        });
+        expect(response.status).toBe(200);
+        return path.startsWith("/transactions/export")
+          ? response.text()
+          : ((await response.json()) as { data: unknown }).data;
+      }
+
+      const daySum = (series: unknown) =>
+        (series as { credits: number }[]).reduce(
+          (sum, { credits }) => sum + credits,
+          0,
+        );
+
+      it(
+        "never lends Preprod's row the Mainnet Task, its comment or its filter",
+        async () => {
+          const byTask = `taskId=${taskId}`;
+          const byComment = `q=${encodeURIComponent(comment)}`;
+
+          expect(await data("/transactions", true)).toEqual([
+            expect.objectContaining({
+              id: sharedId,
+              kind: "unattributed",
+              credits: 4,
+            }),
+          ]);
+          for (const filter of [byTask, byComment]) {
+            expect(await data(`/transactions?${filter}`, true)).toEqual([]);
+            expect(await data(`/transactions/total?${filter}`, true)).toEqual({
+              credits: 0,
+              count: 0,
+            });
+            expect(
+              daySum(await data(`/transactions/daily?${filter}`, true)),
+            ).toBe(0);
+            const csv = (await data(
+              `/transactions/export?${filter}`,
+              true,
+            )) as string;
+            expect(csv.trimEnd().split("\r\n")).toEqual([
+              "date,source,label,credits",
+              ",total,Spent,0",
+              ",total,Top ups,0",
+              ",total,Net,0",
+            ]);
+          }
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "keeps Mainnet's row its own: the Task, the comment and Mainnet's amount",
+        async () => {
+          for (const filter of [
+            `taskId=${taskId}`,
+            `q=${encodeURIComponent(comment)}`,
+          ]) {
+            expect(await data(`/transactions?${filter}`, false)).toEqual([
+              expect.objectContaining({
+                id: sharedId,
+                kind: "task",
+                taskId,
+                credits: 3,
+              }),
+            ]);
+            expect(await data(`/transactions/total?${filter}`, false)).toEqual({
+              credits: 3,
+              count: 1,
+            });
+            expect(
+              daySum(await data(`/transactions/daily?${filter}`, false)),
+            ).toBe(3);
+          }
+        },
+        CASE_TIMEOUT,
+      );
+    });
+
+    describe("a Preprod request that is refused", () => {
+      let cookie: string;
+
+      beforeAll(async () => {
+        // No Preprod access: neither admin nor flagged.
+        const user = await fixture.createPasswordUser("Refused person");
+        userIds.push(user.id);
+        await createPersonalWorkspace(user.id);
+        await fund(user.id, 9n * CREDIT);
+        cookie = await fixture.signIn(app, user.email);
+      }, SETUP_TIMEOUT);
+
+      const request = async (path: string, onPreprod: boolean) =>
+        await app.request(`${fixture.ORIGIN}/v1${path}`, {
+          headers: {
+            cookie,
+            origin: fixture.ORIGIN,
+            ...(onPreprod && { [HEADER]: "preprod" }),
+          },
+        });
+
+      /**
+       * Runs `work` while another connection holds Mainnet's credit tables
+       * and the plans locked against any read: PostgreSQL decides whether
+       * the work reads them, because a read would wait for the lock.
+       */
+      async function whileCreditsLocked<T>(work: () => Promise<T>) {
+        const locker = new Client({
+          connectionString: process.env.DATABASE_URL,
+        });
+        await locker.connect();
+        try {
+          await locker.query("BEGIN");
+          await locker.query(
+            'LOCK TABLE mainnet."Transaction", mainnet."credit_bucket", mainnet."credit_consumption", shared."subscription" IN ACCESS EXCLUSIVE MODE',
+          );
+          return await work();
+        } finally {
+          await locker.query("ROLLBACK");
+          await locker.end();
+        }
+      }
+
+      const within = <T>(work: Promise<T>, ms: number) =>
+        Promise.race([
+          work,
+          new Promise<"waited">((settle) =>
+            setTimeout(() => settle("waited"), ms),
+          ),
+        ]);
+
+      it(
+        "answers its 403 without reading Mainnet's wallet, and with no Mainnet figure",
+        async () => {
+          const paths = [
+            "/users/me/credits",
+            "/transactions",
+            "/transactions/total",
+            "/transactions/daily",
+            "/transactions/export",
+          ];
+          const answers = await whileCreditsLocked(async () => {
+            const sent = [];
+            for (const path of paths) {
+              const answer = await within(request(path, true), 10_000);
+              sent.push(
+                answer === "waited"
+                  ? { path, waited: true }
+                  : {
+                      path,
+                      status: answer.status,
+                      body: await answer.json(),
+                    },
+              );
+            }
+            // The control: the same wallet on Mainnet does wait for the lock.
+            const mainnetRead = request("/users/me/credits", false);
+            sent.push({
+              path: "Mainnet control",
+              waited: (await within(mainnetRead, 1_000)) === "waited",
+            });
+            return { sent, mainnetRead };
+          });
+
+          for (const path of paths) {
+            expect(answers.sent).toContainEqual({
+              path,
+              status: 403,
+              body: expect.objectContaining({
+                kind: "preprod_access_required",
+              }),
+            });
+          }
+          for (const answer of answers.sent.slice(0, paths.length)) {
+            expect(JSON.stringify(answer)).not.toMatch(/spendable|credits"?:/);
+          }
+          expect(answers.sent.at(-1)).toEqual({
+            path: "Mainnet control",
+            waited: true,
+          });
+          // Released, the Mainnet read answers with the wallet.
+          const released = await answers.mainnetRead;
+          expect(released.status).toBe(200);
+          expect(
+            ((await released.json()) as { data: { spendable: number } }).data
+              .spendable,
+          ).toBe(9);
+        },
+        CASE_TIMEOUT,
+      );
+    });
+  },
+);
+
+/**
+ * Today's layout, Preprod off: the admin route's real write. A Preprod
+ * header changes nothing: the grant is Mainnet's, and the target has it.
+ */
+describe.runIf(onPostgres && !onSplitLayout)(
+  "the admin grant under a Preprod header (PostgreSQL, today's layout)",
+  () => {
+    it(
+      "grants the target Mainnet's credits",
+      async () => {
+        const fixture = await import("@/test-fixtures/core-session");
+        const { default: prisma } = await import("@/lib/db/prisma");
+        const { createNetworkScope } = await import("@/lib/db/network-scope");
+        const app = fixture.createCoreApp();
+        const admin = await fixture.createPasswordUser(
+          "Admin grant fixture",
+          "admin",
+        );
+        const targetId = randomUUID();
+        await prisma.user.create({
+          data: {
+            id: targetId,
+            name: "Admin grant target",
+            email: `${targetId}@example.test`,
+            emailVerified: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        const cookie = await fixture.signIn(app, admin.email);
+
+        const response = await app.request(
+          `${fixture.ORIGIN}/v1/admin/credits`,
+          {
+            method: "POST",
+            headers: {
+              cookie,
+              origin: fixture.ORIGIN,
+              "content-type": "application/json",
+              [HEADER]: "preprod",
+            },
+            body: JSON.stringify({
+              targetType: "user",
+              targetId,
+              credits: 5,
+              ttlDays: 30,
+              referenceNote: "Preprod header fixture",
+            }),
+          },
+        );
+
+        expect(response.status).toBe(200);
+        const db = createNetworkScope("mainnet").networkDb;
+        expect(
+          await db.creditBucket.findMany({
+            where: { userId: targetId },
+            select: { amount: true, referenceType: true },
+          }),
+        ).toEqual([{ amount: 5n * CREDIT, referenceType: "FREE" }]);
+        expect(
+          await db.transaction.findMany({
+            where: { userId: targetId },
+            select: { amount: true },
+          }),
+        ).toEqual([{ amount: 5n * CREDIT }]);
+      },
+      CASE_TIMEOUT,
+    );
   },
 );

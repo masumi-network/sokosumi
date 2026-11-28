@@ -11,6 +11,8 @@ import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import type { TransactionHistoryKind } from "@/schemas/transaction-history.schema";
 
+import { ownsUntaggedSharedRows } from "./policy";
+
 /**
  * A `Transaction` row — a spend or a top up — already resolved against every
  * relation that can explain it. Shaped by {@link buildLedgerSql}.
@@ -166,11 +168,40 @@ function buildFilterSql(
 }
 
 /**
+ * How the ledger joins a shared receipt to a transaction of its Network. Ids
+ * are unique within one Network only: the same id can name a Mainnet and a
+ * Preprod transaction. Mainnet's ledger keeps its joins as they were (its
+ * receipts include every untagged row); another Network's joins a Task
+ * event only when the event names that Network, and no Mainnet-only
+ * feature's receipt at all.
+ */
+function sharedReceiptJoins(scope: NetworkScope) {
+  const { network } = scope;
+  if (ownsUntaggedSharedRows(network)) {
+    return {
+      taskEvent: PrismaRaw.sql`e."transactionId" = t."id"`,
+      image: PrismaRaw.sql`pij."transactionId" = t."id"`,
+      seoChat: PrismaRaw.sql`sch."transactionId" = t."id"`,
+      contacts: PrismaRaw.sql`cps."transactionId" = t."id"`,
+      imageRefund: PrismaRaw.sql`rpij."refundTransactionId" = t."id"`,
+    };
+  }
+  return {
+    taskEvent: PrismaRaw.sql`e."transactionId" = t."id" AND e."network" = ${network}`,
+    image: PrismaRaw.sql`FALSE`,
+    seoChat: PrismaRaw.sql`FALSE`,
+    contacts: PrismaRaw.sql`FALSE`,
+    imageRefund: PrismaRaw.sql`FALSE`,
+  };
+}
+
+/**
  * The ledger projection: one row per transaction, labelled by whatever links to
  * it. Selected as a subquery so the computed `kind`, `projectId` and
  * `searchText` are filterable without repeating their expressions.
  */
 function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
+  const shared = sharedReceiptJoins(params.billingScope);
   return PrismaRaw.sql`
     SELECT
       t."id",
@@ -256,27 +287,27 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     FROM ${params.billingScope.networkTable("Transaction")} AS t
     LEFT JOIN ${params.billingScope.networkTable("Job")} AS j ON j."transactionId" = t."id"
     LEFT JOIN ${params.billingScope.networkTable("Agent")} AS a ON a."id" = j."agentId"
-    LEFT JOIN ${sharedTable("project_image_job")} AS pij ON pij."transactionId" = t."id"
+    LEFT JOIN ${sharedTable("project_image_job")} AS pij ON ${shared.image}
     -- TaskEvent is one-to-many on the schema even though mainnet has exactly
     -- one per charging transaction, so pick a stable single row.
     LEFT JOIN LATERAL (
       SELECT e."id", e."taskId", e."comment"
       FROM ${sharedTable("taskEvent")} AS e
-      WHERE e."transactionId" = t."id"
+      WHERE ${shared.taskEvent}
       ORDER BY e."createdAt" ASC, e."id" ASC
       LIMIT 1
     ) AS te ON TRUE
     LEFT JOIN ${sharedTable("task")} AS tk ON tk."id" = te."taskId"
     LEFT JOIN ${params.billingScope.networkTable("coworker_usage")} AS cu ON cu."transactionId" = t."id"
     LEFT JOIN ${sharedTable("coworker")} AS cw ON cw."id" = cu."coworkerId"
-    LEFT JOIN ${sharedTable("seo_audit_chat_turn")} AS sch ON sch."transactionId" = t."id"
+    LEFT JOIN ${sharedTable("seo_audit_chat_turn")} AS sch ON ${shared.seoChat}
     LEFT JOIN ${params.billingScope.networkTable("soko_bot_usage")} AS sbu ON sbu."transactionId" = t."id"
     LEFT JOIN ${sharedTable("soko_bot")} AS sb ON sb."id" = sbu."sokoBotId"
     -- A usage row's reference is the turn it billed.
     LEFT JOIN ${sharedTable("soko_bot_turn")} AS sbt ON sbt."id"::TEXT = sbu."referenceId"
     LEFT JOIN ${sharedTable("soko_bot_schedule_run")} AS sbr ON sbr."turnId" = sbt."id"
     LEFT JOIN ${sharedTable("soko_bot_schedule")} AS sbs ON sbs."id" = sbr."scheduleId"
-    LEFT JOIN ${sharedTable("contact_people_search")} AS cps ON cps."transactionId" = t."id"
+    LEFT JOIN ${sharedTable("contact_people_search")} AS cps ON ${shared.contacts}
     LEFT JOIN ${sharedTable("contact_list")} AS cl ON cl."id" = cps."listId"
     LEFT JOIN ${sharedTable("contact")} AS ct ON ct."id" = cps."contactId"
     -- A spend can draw from several buckets. One is enough to name a source.
@@ -311,7 +342,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN ${sharedTable("taskEvent")} AS rpce ON rpce."id" = rpc."taskEventId"
     LEFT JOIN ${params.billingScope.networkTable("task_x402_payment")} AS rx ON rx."refundTransactionId" = COALESCE(linkedrefund."sourceTransactionId", t."id")
     LEFT JOIN ${sharedTable("task")} AS rtk ON rtk."id" = COALESCE(rpce."taskId", rx."taskId")
-    LEFT JOIN ${sharedTable("project_image_job")} AS rpij ON rpij."refundTransactionId" = t."id"
+    LEFT JOIN ${sharedTable("project_image_job")} AS rpij ON ${shared.imageRefund}
     WHERE ${buildScopeSql(params)}
   `;
 }

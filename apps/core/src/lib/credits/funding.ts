@@ -11,7 +11,7 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary";
 import { getCredits } from "@/lib/credits/balance";
 import type { NetworkScope } from "@/lib/db/network-scope";
-import { chargesCredits } from "./policy";
+import { chargesCredits, requireChargingNetwork } from "./policy";
 
 interface SubscriptionPeriodRecord {
   periodStart: Date | null;
@@ -87,6 +87,8 @@ export async function getCurrentSubscriptionCredits(params: {
   scope: NetworkScope;
   now?: Date;
 }): Promise<SubscriptionCredits | null> {
+  // A plan's credits are Mainnet's only: no other Network has a balance.
+  requireChargingNetwork(params.scope.network, "A plan's credits");
   const now = params.now ?? new Date();
   const period = getCurrentSubscriptionPeriod(params.subscription, now);
   if (!period) {
