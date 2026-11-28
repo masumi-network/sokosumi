@@ -437,7 +437,12 @@ export function RoomComposer({
   );
 
   // Re-run when focusOnMount flips true (e.g. progressive history ready).
-  useFocusWhen(editorRef, focusOnMount, { deferToFrame: true });
+  // At the end, so a restored draft is continued rather than typed before.
+  useFocusWhen(
+    () => editorRef.current && { focus: () => editorRef.current?.focusAtEnd() },
+    focusOnMount,
+    { deferToFrame: true },
+  );
 
   const handleActiveFormatsChange = useCallback(
     (formats: ComposerActiveFormats) => {

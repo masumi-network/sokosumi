@@ -14,6 +14,7 @@ import {
 } from "@/app/chat/components/room-composer";
 
 const editorFocus = vi.hoisted(() => vi.fn());
+const editorFocusAtEnd = vi.hoisted(() => vi.fn());
 const editorAppend = vi.hoisted(() => vi.fn());
 
 async function flushAnimationFrame() {
@@ -67,6 +68,9 @@ vi.mock("@/components/chat/composer-wysiwyg-editor", () => ({
     useImperativeHandle(ref, () => ({
       focus: () => {
         editorFocus();
+      },
+      focusAtEnd: () => {
+        editorFocusAtEnd();
       },
       insertText: () => undefined,
       appendText: editorAppend,
@@ -189,27 +193,27 @@ describe("RoomComposerEditHandle.focus", () => {
 });
 
 describe("RoomComposer focusOnMount", () => {
-  it("focuses the editor once after mount via rAF when focusOnMount", async () => {
-    editorFocus.mockClear();
+  it("focuses the editor once after mount via rAF when focusOnMount, after any restored draft", async () => {
+    editorFocusAtEnd.mockClear();
     render(<FocusHarness focusOnMount />);
 
-    expect(editorFocus).not.toHaveBeenCalled();
+    expect(editorFocusAtEnd).not.toHaveBeenCalled();
     await flushAnimationFrame();
     await waitFor(() => {
-      expect(editorFocus).toHaveBeenCalledTimes(1);
+      expect(editorFocusAtEnd).toHaveBeenCalledTimes(1);
     });
   });
 
   it("does not autofocus when focusOnMount is omitted", async () => {
-    editorFocus.mockClear();
+    editorFocusAtEnd.mockClear();
     render(<FocusHarness />);
 
     await flushAnimationFrame();
-    expect(editorFocus).not.toHaveBeenCalled();
+    expect(editorFocusAtEnd).not.toHaveBeenCalled();
   });
 
   it("focuses when focusOnMount flips false → true (progressive history ready)", async () => {
-    editorFocus.mockClear();
+    editorFocusAtEnd.mockClear();
 
     function FlipHarness() {
       const [focusOnMount, setFocusOnMount] = useState(false);
@@ -239,14 +243,14 @@ describe("RoomComposer focusOnMount", () => {
 
     const { getByRole } = render(<FlipHarness />);
     await flushAnimationFrame();
-    expect(editorFocus).not.toHaveBeenCalled();
+    expect(editorFocusAtEnd).not.toHaveBeenCalled();
 
     await act(async () => {
       getByRole("button", { name: "enable-focus" }).click();
     });
     await flushAnimationFrame();
     await waitFor(() => {
-      expect(editorFocus).toHaveBeenCalledTimes(1);
+      expect(editorFocusAtEnd).toHaveBeenCalledTimes(1);
     });
   });
 });
