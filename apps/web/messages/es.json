@@ -8962,15 +8962,17 @@
       "AuthorizedClients": {
         "title": "Aplicaciones autorizadas",
         "description": "Aplicaciones con acceso a tu cuenta",
-        "loading": "Cargando...",
-        "error": "Error: {error}",
+        "loadErrorTitle": "No se pudieron cargar las apps conectadas",
+        "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "loadingStatus": "Cargando apps conectadas…",
+        "loadedStatus": "Apps conectadas cargadas",
         "noApplications": "No se ha autorizado ninguna aplicación.",
         "authorized": "Autorizado: {date}",
         "revokeAccess": "Revocar acceso",
         "confirmRevoke": "¿Seguro que quieres revocar el acceso a esta aplicación?",
         "revokeSuccess": "Acceso revocado correctamente",
-        "revokeError": "No se pudo revocar el acceso",
-        "fetchError": "No se pudieron cargar los clientes autorizados"
+        "revokeError": "No se pudo revocar el acceso"
       },
       "OAuthConsent": {
         "invalidRequest": {

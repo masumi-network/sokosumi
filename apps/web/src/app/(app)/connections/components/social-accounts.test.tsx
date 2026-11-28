@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
+import { PageListSearchContext } from "@/components/page-list-search";
 import { SocialAccounts } from "./social-accounts";
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -45,5 +46,19 @@ describe("SocialAccounts", () => {
     expect(disconnect).toHaveTextContent("Disconnect");
     const connect = screen.getByRole("button", { name: "Connect Microsoft" });
     expect(connect).toHaveTextContent("Connect");
+  });
+
+  it("drops the empty list box when the page filter matches no provider", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <PageListSearchContext.Provider
+          value={{ query: "nothing-matches", register: () => () => {} }}
+        >
+          <SocialAccounts accounts={[googleAccount]} />
+        </PageListSearchContext.Provider>
+      </NextIntlClientProvider>,
+    );
+
+    expect(container).toBeEmptyDOMElement();
   });
 });
