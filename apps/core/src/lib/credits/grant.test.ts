@@ -10,7 +10,8 @@ const database = vi.hoisted(() => ({
   grantSignupBonusCredits: vi.fn(),
   wake: vi.fn(),
 }));
-vi.mock("@sokosumi/database/helpers", () => ({
+vi.mock("@sokosumi/database/helpers", async (original) => ({
+  ...(await original<typeof import("@sokosumi/database/helpers")>()),
   createEnterprisePeriodCreditBucket:
     database.createEnterprisePeriodCreditBucket,
   createEnterpriseTopUpCreditBucket: database.createEnterpriseTopUpCreditBucket,
@@ -157,6 +158,53 @@ describe("grant", () => {
     ).rejects.toBe(refusal);
     expect(database.grantSignupBonusCredits).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    "Stripe grant with an existing reference = %s",
+    async (existing) => {
+      const findUnique = vi
+        .fn()
+        .mockResolvedValue(existing ? { id: "bucket-1" } : null);
+      const create = vi.fn().mockResolvedValue({});
+      const tx = {
+        creditBucket: { findUnique },
+        transaction: { create },
+      } as unknown as Prisma.TransactionClient;
+      const receipt = await grant({
+        scope,
+        tx,
+        kind: "stripe_invoice",
+        owner: { organizationId: "org-1" },
+        invoiceId: "in_1",
+        entry: "topup",
+        referenceType: "STRIPE_TOPUP",
+        expiresAt: null,
+        get cents() {
+          if (existing) throw new Error("Recomputed credits on replay");
+          return 123n;
+        },
+        wakeTasks: true,
+      });
+      expect(receipt).toEqual({
+        outcome: existing ? "already_granted" : "granted",
+        bucketId: null,
+      });
+      if (existing) {
+        expect(create).not.toHaveBeenCalled();
+        expect(database.wake).not.toHaveBeenCalled();
+      } else {
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(database.wake).toHaveBeenCalledExactlyOnceWith({
+          organizationId: "org-1",
+          userId: null,
+          tx,
+        });
+        expect(create.mock.invocationCallOrder[0]).toBeLessThan(
+          database.wake.mock.invocationCallOrder[0],
+        );
+      }
+    },
+  );
 
   describe("a Polar grant", () => {
     const expiresAt = new Date("2026-12-28T00:00:00.000Z");
@@ -358,6 +406,5 @@ export function _laterGrantsFitTheContract(
   void ({ ...polar, credits: 1 } satisfies PolarGrant);
   // @ts-expect-error Polar's writer is handed cents
   void ({ ...polar, cents: 1 } satisfies PolarGrant);
-  // @ts-expect-error `grant` takes the later kind with the pull request that moves its writer
   void grant(stripe);
 }

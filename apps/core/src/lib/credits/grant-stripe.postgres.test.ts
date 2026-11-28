@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { Client, type Pool } from "pg";
 import type Stripe from "stripe";
@@ -38,6 +40,9 @@ vi.mock("@vercel/functions", async (original) => {
 });
 vi.mock("@/clients/stripe.client", () => ({
   stripeClient: {
+    retrieveCustomerBillingDetails: async () => ({
+      address: { country: "DE" },
+    }),
     getInvoice: async () => state.invoice,
     getAccountId: async () => "acct_fixture",
     payInvoiceOutOfBand: async () => ({ ...state.invoice, status: "paid" }),
@@ -48,16 +53,24 @@ vi.mock("@/clients/stripe.client", () => ({
     createAdminInvoice: async () => state.invoice,
   },
 }));
-vi.mock("@/services/stripe-customer-billing.service", () => ({
-  stripeCustomerBillingService: {
-    getUserBillingDetails: async () => ({ address: { country: "DE" } }),
-  },
-}));
-vi.mock("@/helpers/billing-notifications", () => ({
-  notifyInvoicePaid: async (...args: unknown[]) => {
-    state.receipts.push(args);
-  },
-}));
+// Once the first delivery commits, PostgreSQL may schedule its notification
+// and the loser's rollback in either order. Hold only the first notification
+// until that rollback answers so the race has one observable schedule.
+const receiptGate = new AsyncLocalStorage<{ after?: Promise<unknown> }>();
+vi.mock("@/helpers/billing-notifications", async (original) => {
+  const actual =
+    await original<typeof import("@/helpers/billing-notifications")>();
+  return {
+    ...actual,
+    notifyInvoicePaid: async (
+      ...args: Parameters<typeof actual.notifyInvoicePaid>
+    ) => {
+      await receiptGate.getStore()?.after;
+      state.receipts.push(args);
+      await actual.notifyInvoicePaid(...args);
+    },
+  };
+});
 vi.mock("@/services/subscription-catalog.service", () => ({
   getSubscriptionCatalog: async () =>
     Object.fromEntries(
@@ -173,8 +186,18 @@ async function fixture(name: string, org: boolean, emptyId = false) {
       messageParams: "{}",
     },
   });
+  // Billing receipts still write their row, with no delivery work queued.
+  await core.db.notificationPreference.createMany({
+    data: ["IN_APP", "OS_BANNER"].map((channel) => ({
+      userId,
+      channel,
+      category: "BILLING_UPDATE",
+      enabled: false,
+    })),
+  });
   return {
     customer,
+    workspaceId: workspace.id,
     taskId: task.id,
     projectId: project.id,
     userId,
@@ -229,8 +252,8 @@ function invoice(f: Fixture, kind: Scenario) {
   return data as unknown as Stripe.Invoice;
 }
 async function rows(f: Fixture) {
-  const [transactions, buckets, task, events, notification] = await Promise.all(
-    [
+  const [transactions, buckets, task, events, notification, billing] =
+    await Promise.all([
       core.ledger.transaction.findMany({ orderBy: { id: "asc" } }),
       core.ledger.creditBucket.findMany({ orderBy: { referenceId: "asc" } }),
       core.db.task.findUniqueOrThrow({
@@ -245,9 +268,12 @@ async function rows(f: Fixture) {
         where: { referenceId: f.taskId },
         select: { isRead: true, readAt: true },
       }),
-    ],
-  );
-  return { transactions, buckets, task, events, notification };
+      core.db.notification.findMany({
+        where: { userId: f.userId, kind: "BILLING" },
+        orderBy: { eventId: "asc" },
+      }),
+    ]);
+  return { transactions, buckets, task, events, notification, billing };
 }
 function lastLine(error: unknown) {
   return error instanceof Error
@@ -263,13 +289,17 @@ async function settle(run: () => Promise<unknown>) {
 }
 async function race(run: () => Promise<unknown>) {
   const gate = holdCommit("first");
-  const first = inFlow("first", () => settle(run));
+  const fence: { after?: Promise<unknown> } = {};
+  const first = inFlow("first", () =>
+    receiptGate.run(fence, () => settle(run)),
+  );
   const held = await Promise.race([
     gate.reached.then(() => true),
     first.then(() => false),
   ]);
   gate.cancel();
   const second = inFlow("second", () => settle(run));
+  if (held) fence.after = second;
   let waiting = false;
   try {
     if (held) {
@@ -295,7 +325,6 @@ async function race(run: () => Promise<unknown>) {
     gate.release();
   }
   const answers = await Promise.all([first, second]);
-  expect(waiting).toBe(!onSplitLayout);
   return { held, waiting, answers };
 }
 
@@ -310,6 +339,13 @@ async function record(
   const start = await nextMillisecond();
   const { log, outcome } = await observing(() => settle(run));
   const end = Date.now();
+  if (key.endsWith("-race")) {
+    // A harness failure must fail the test even while recording the baseline.
+    expect(outcome).toMatchObject({
+      held: !onSplitLayout,
+      waiting: !onSplitLayout,
+    });
+  }
   expect(log.length > 0).toBe(sql);
   const after = await rows(f);
   const buckets = after.buckets.filter(
@@ -333,21 +369,24 @@ async function record(
   );
   const fresh = [...transactions, ...buckets];
   const labels = new Map([
+    [f.workspaceId, "<fixture Workspace>"],
     [f.projectId, "<fixture Project>"],
     [f.taskId, "<fixture Task>"],
   ]);
-  // Fixed provider-supplied times must also match when the attempted insert rolls back.
-  for (const time of [
-    1_735_689_600 + 3 * 86400,
-    1_800_000_000,
-    1_801_000_000,
-  ]) {
-    const iso = new Date(time * 1000).toISOString();
-    labels.set(iso, `<provider unix ${time}>`);
-    labels.set(
-      iso.replace("T", " ").replace("Z", " UTC"),
-      `<provider unix ${time} UTC>`,
-    );
+  // Keep the actual instant of every non-clock binding, even for a rolled-back
+  // insert. Only database/application clock values inside this call can vary.
+  for (const { values } of log) {
+    for (const value of values) {
+      const text = value instanceof Date ? value.toISOString() : value;
+      if (typeof text !== "string" || !/^\d{4}-\d{2}-\d{2}[T ]/.test(text))
+        continue;
+      const time = Date.parse(text);
+      expect(Number.isFinite(time), text).toBe(true);
+      labels.set(
+        text,
+        time >= start && time <= end ? "<call time>" : `<ms ${time}>`,
+      );
+    }
   }
   const flows = [...new Set(log.map((row) => row.flow))].map((flow) => {
     const entries = log.filter((row) => row.flow === flow);
@@ -364,7 +403,22 @@ async function record(
     flows,
     order: sendOrder(log),
     raw: {
-      expires: buckets.map((b) => b.expiresAt?.toISOString() ?? null),
+      statementDigests: log.map(({ text }) =>
+        createHash("sha256").update(text).digest("hex"),
+      ),
+      expires: buckets.map((b) => b.expiresAt?.getTime() ?? null),
+      bucketMatchesTransaction: buckets.map((bucket) => {
+        const transaction = transactions.find(
+          (row) => row.id === bucket.sourceTransactionId,
+        );
+        return (
+          transaction &&
+          bucket.amount === transaction.amount &&
+          bucket.userId === transaction.userId &&
+          bucket.organizationId === transaction.organizationId &&
+          bucket.createdAt.getTime() === transaction.createdAt.getTime()
+        );
+      }),
       clock: fresh.map((row) => [
         row.id[14],
         row.createdAt.getTime() >= start && row.updatedAt.getTime() <= end,
@@ -384,10 +438,16 @@ async function record(
     task: after.task,
     events: after.events,
     notification: after.notification,
+    billing: after.billing,
   };
   base.expectAsOnBase(
     `${onSplitLayout ? "split" : "public"} ${key}`,
-    plain(observed, labels),
+    // PostgreSQL omits the fraction for exact seconds. Replace a longer
+    // timestamp first so a shared prefix never leaves a millisecond suffix.
+    plain(
+      observed,
+      new Map([...labels].sort(([a], [b]) => b.length - a.length)),
+    ),
   );
 }
 
@@ -399,6 +459,7 @@ describe.runIf(enabled)(
         process.env.POSTGRES_TEST_TEMPLATE_URL ?? process.env.DATABASE_URL;
       if (!url) throw new Error("Missing PostgreSQL test template");
       copy = await copyPostgresTestDatabase(url, "credit_grant_test");
+      vi.stubEnv("TZ", "UTC");
       vi.stubEnv("DATABASE_URL", copy.url);
       vi.stubEnv("DATABASE_URL_UNPOOLED", copy.url);
       core = await loadCore();
@@ -476,6 +537,26 @@ describe.runIf(enabled)(
       const f = await fixture("admin-missing-grant", false);
       state.invoice = invoice(f, "nothing");
       await record(f, f.name, () => core.admin.markInvoicePaid(`in_${f.name}`));
+    });
+    it("mixed invoice with one reference already granted", async () => {
+      const f = await fixture("mixed-replay", false);
+      await record(f, "mixed first top-up", () =>
+        core.deliver(invoice(f, "one-time")),
+      );
+      await record(f, "mixed missing period", () =>
+        core.deliver(invoice(f, "mixed")),
+      );
+    });
+    it("admin finds the free invoice top-up", async () => {
+      const f = await fixture("admin-free", true);
+      state.invoice = {
+        ...invoice(f, "one-time"),
+        amount_paid: 0,
+        amount_due: 0,
+      };
+      await record(f, "admin free", () =>
+        core.admin.markInvoicePaid(`in_${f.name}`),
+      );
     });
     it("admin-issued paid invoice", async () => {
       const f = await fixture("admin-issue", false);

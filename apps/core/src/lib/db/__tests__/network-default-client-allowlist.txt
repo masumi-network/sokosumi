@@ -7,6 +7,7 @@ apps/core/src/helpers/job.ts
 apps/core/src/helpers/project-needs-attention.ts
 apps/core/src/helpers/project-stats.ts
 apps/core/src/lib/agent-catalog/availability.ts
+apps/core/src/lib/credits/grant.ts
 apps/core/src/lib/credits/write-off.ts
 apps/core/src/lib/soko-bot/action-response.ts
 apps/core/src/lib/soko-bot/classification-context.ts
@@ -33,7 +34,6 @@ apps/core/src/routes/v1/tasks/[id]/workspace/put.ts
 apps/core/src/services/chat-result-preview.service.ts
 apps/core/src/services/cmo-billing.service.ts
 apps/core/src/services/cmo-chat-work.service.ts
-apps/core/src/services/invoice-admin.service.ts
 apps/core/src/services/job-purchase-diff.service.ts
 apps/core/src/services/job-refund.ts
 apps/core/src/services/job-sync-state.service.ts
@@ -48,7 +48,6 @@ apps/core/src/services/soko-bot-runtime/decision-claim.ts
 apps/core/src/services/soko-bot-runtime/dispatch-tasks.ts
 apps/core/src/services/soko-bot-schedule.service.ts
 apps/core/src/services/source-import-sync.service.ts
-apps/core/src/services/stripe-invoice-credit.service.ts
 apps/core/src/services/task-payment-claim.service.ts
 apps/core/src/services/task-x402-payment.finalize.ts
 apps/core/src/services/task-x402-payment.refund.ts
