@@ -127,6 +127,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         },
       });
       const authorized: AuthorizedSokoBotRuntime = {
+        provenance: { network: "mainnet" },
         scope: testNetworkScope(),
         toolCallLimit: 64,
         turn: { ...turn, actingUserId: userId },

@@ -1,5 +1,5 @@
 import { applyDecision } from "./decision-apply";
-import { prepareDecision } from "./decision-claim";
+import { type ConfirmationTurn, prepareDecision } from "./decision-claim";
 import { type RuntimeOperations } from "./operations";
 
 export async function resolveDecision(
@@ -9,7 +9,7 @@ export async function resolveDecision(
   decisionId: string,
   accepted: boolean,
   ownerConfirmed = true,
-  confirmationTurnId?: string,
+  confirmation?: ConfirmationTurn,
 ) {
   const prepared = await prepareDecision(
     runtime,
@@ -17,7 +17,7 @@ export async function resolveDecision(
     decisionId,
     accepted,
     ownerConfirmed,
-    confirmationTurnId,
+    confirmation,
   );
   if (prepared.done) return prepared.result;
   return applyDecision(runtime, prepared);

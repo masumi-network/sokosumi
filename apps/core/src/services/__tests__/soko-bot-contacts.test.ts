@@ -55,6 +55,7 @@ const contactId = randomUUID();
 const listId = randomUUID();
 const actor = { workspaceId, userId, sokoBotId };
 const authorized: AuthorizedSokoBotRuntime = {
+  provenance: { network: "mainnet" },
   scope: testNetworkScope(),
   toolCallLimit: 64,
   turn: {

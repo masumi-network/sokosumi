@@ -93,6 +93,7 @@ const CURRENT: Newsletter = {
   welcomeBody: "Thanks for joining",
 };
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
+  provenance: { network: "mainnet" },
   turn: {
     id: "turn",
     sokoBotId: BOT_ID,

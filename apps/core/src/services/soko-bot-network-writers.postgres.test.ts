@@ -17,7 +17,11 @@ import { escapeLiteral } from "pg";
 import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { createAgentJobForUser } from "@/helpers/job";
-import { PREPROD_PAUSE_KEY } from "@/helpers/preprod-control";
+import { createPersonalWorkspace } from "@/helpers/personal-workspace";
+import {
+  PREPROD_GENERATION_KEY,
+  PREPROD_PAUSE_KEY,
+} from "@/helpers/preprod-control";
 import * as networkScopes from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import * as transactions from "@/lib/db/transaction";
@@ -25,6 +29,7 @@ import type { EnvVariables } from "@/lib/hono";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
 import mountConsoleSchedule from "@/routes/v1/soko-bots/me/schedules/post";
+import { recordStatements } from "@/test/record-statements";
 import {
   onSplitLayout,
   testSchemaNames,
@@ -69,6 +74,44 @@ const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
   process.env.DATABASE_URL?.startsWith("postgres");
 
+// Counts measured at the pool against origin/main on each layout.
+const mainnetStatements = {
+  "hire approval": [32, 32],
+  "input refusal": [32, 32],
+  "attach null": [31, 31],
+  "attach mainnet": [31, 31],
+  "attach preprod": [31, 31],
+  "recover null": [9, 9],
+  "recover mainnet": [9, 9],
+  create_task: [55, 58],
+  adopt: [6, 6],
+  archive_task: [53, 56],
+  update_task: [56, 59],
+  assign_task: [57, 60],
+  update_assigned_task: [55, 58],
+  reply_to_task: [54, 57],
+  create_schedule: [57, 57],
+} as const;
+
+async function countMainnetStatements<T>(
+  label: keyof typeof mainnetStatements,
+  run: () => Promise<T>,
+) {
+  const recorder = recordStatements();
+  try {
+    return await run();
+  } finally {
+    recorder.restore();
+    expect(recorder.statements.flat(Infinity)).not.toContain(PREPROD_PAUSE_KEY);
+    expect(recorder.statements.flat(Infinity)).not.toContain(
+      PREPROD_GENERATION_KEY,
+    );
+    expect(recorder.statements).toHaveLength(
+      mainnetStatements[label][onSplitLayout ? 1 : 0],
+    );
+  }
+}
+
 async function seedBot() {
   const userId = randomUUID();
   await prisma.user.create({
@@ -84,12 +127,11 @@ async function seedBot() {
   onTestFinished(() =>
     withFixtureSchemas(async (tx) => {
       await tx.task.deleteMany({ where: { ownerId: userId } });
+      await tx.subscription.deleteMany({ where: { referenceId: userId } });
       await tx.user.delete({ where: { id: userId } });
     }),
   );
-  const { id: workspaceId } = await prisma.workspace.create({
-    data: { userId },
-  });
+  const { id: workspaceId } = await createPersonalWorkspace(userId);
   const bot = await prisma.sokoBot.create({ data: { userId, workspaceId } });
   return { userId, workspaceId, bot };
 }
@@ -376,13 +418,36 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       return job;
     });
 
+    const debits = () =>
+      networkDb.transaction.count({
+        where: { userId, amount: { lt: 0n } },
+      });
+    const initialDebits = await debits();
     await expect(
-      sokoBotRuntimeService.resolveDecision(userId, decision.id, true),
+      countMainnetStatements("hire approval", () =>
+        sokoBotRuntimeService.resolveDecision(userId, decision.id, true),
+      ),
     ).resolves.toMatchObject({ status: "ACCEPTED", resultingEntityId: jobId });
     expect(await reservation()).toMatchObject({
       network: "mainnet",
       jobId,
       outcome: "accepted",
+    });
+
+    await expect(
+      prisma.sokoBotToolCall.findUnique({
+        where: {
+          turnId_toolCallId: {
+            turnId: turn.id,
+            toolCallId: `decision:${decision.id}`,
+          },
+        },
+      }),
+    ).resolves.toMatchObject({
+      status: "COMPLETED",
+      disposition: "APPLIED",
+      verification: "PROVIDER_ACK",
+      targetId: jobId,
     });
 
     if (onSplitLayout) {
@@ -419,7 +484,9 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       },
     });
     await expect(
-      sokoBotRuntimeService.resolveDecision(userId, provide.id, true),
+      countMainnetStatements("input refusal", () =>
+        sokoBotRuntimeService.resolveDecision(userId, provide.id, true),
+      ),
     ).rejects.toThrow("Seller fixture refused input");
     await expect(
       prisma.sokoBotDelegation.findFirstOrThrow({
@@ -430,6 +497,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       jobId,
       outcome: "failed",
     });
+    await expect(debits()).resolves.toBe(initialDebits);
   });
 
   describe.each(["attach", "recover"] as const)("hire %s", (mode) => {
@@ -488,8 +556,22 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
               "soko_bot_turn: 0\nsoko_bot_delegation: 1\nsoko_bot_schedule: 0\n",
           });
         }
+        const label = `${mode} ${network}` as const;
+        if (label === "recover preprod") {
+          await expect(
+            sokoBotRuntimeService.resolveDecision(userId, decision.id, true),
+          ).rejects.toMatchObject({ kind: "soko_bot_network_stale" });
+          await expect(reservation()).resolves.toMatchObject({
+            jobId,
+            network,
+            outcome: "processing",
+          });
+          return;
+        }
         await expect(
-          sokoBotRuntimeService.resolveDecision(userId, decision.id, true),
+          countMainnetStatements(label, () =>
+            sokoBotRuntimeService.resolveDecision(userId, decision.id, true),
+          ),
         ).resolves.toMatchObject({
           status: "ACCEPTED",
           resultingEntityId: jobId,
@@ -515,17 +597,22 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
     const { bot, userId, workspaceId } = fixture;
     const turn = await seedLiveTurn(fixture, ["create_task"]);
     allowLegacyTaskHistoryTrigger();
-    const creation = tool(turn.id, "create_task", {
-      name: "Parent Task",
-      status: "READY",
-    });
-    await expect(creation.result).resolves.toMatchObject({
-      name: "Parent Task",
+    const creation = await countMainnetStatements("create_task", async () => {
+      const call = tool(turn.id, "create_task", {
+        name: "Parent Task",
+        status: "READY",
+      });
+      await expect(call.result).resolves.toMatchObject({ name: "Parent Task" });
+      return call;
     });
     const parent = await prisma.sokoBotDelegation.findFirstOrThrow({
       where: { turnId: turn.id, toolCallId: creation.toolCallId },
     });
     expect(parent).toMatchObject({ network: "mainnet", kind: "TASK" });
+    await prisma.sokoBotDelegation.update({
+      where: { id: parent.id },
+      data: { network: null },
+    });
     if (!parent.taskId) throw new Error("Expected the tool to create a Task");
     const vendor = await prisma.vendor.create({
       data: { slug: randomUUID(), name: "Fixture" },
@@ -559,7 +646,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       });
     });
 
-    await adoptCoworkerSpawnedTasks();
+    await countMainnetStatements("adopt", () => adoptCoworkerSpawnedTasks());
     await expect(
       prisma.sokoBotDelegation.findFirstOrThrow({
         where: { turn: { sokoBotId: bot.id }, taskId: spawned.id },
@@ -594,14 +681,17 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       }),
     );
     allowLegacyTaskHistoryTrigger();
-    const call = tool(turn.id, capability, {
-      taskId: task.id,
-      ...input,
-      ...(capability === "archive_task"
-        ? { expectedUpdatedAt: task.updatedAt.toISOString() }
-        : {}),
+    const call = await countMainnetStatements(capability, async () => {
+      const call = tool(turn.id, capability, {
+        taskId: task.id,
+        ...input,
+        ...(capability === "archive_task"
+          ? { expectedUpdatedAt: task.updatedAt.toISOString() }
+          : {}),
+      });
+      await call.result;
+      return call;
     });
-    await call.result;
     await expect(
       prisma.sokoBotDelegation.findFirstOrThrow({
         where: { turnId: turn.id, toolCallId: call.toolCallId },
@@ -666,12 +756,17 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       true,
     );
 
-    const create = tool(turn.id, "create_schedule", {
-      ...scheduleInput,
-      name: "Watched schedule",
-      taskId: task.id,
-    });
-    const created = await create.result;
+    const { toolCallId, created } = await countMainnetStatements(
+      "create_schedule",
+      async () => {
+        const call = tool(turn.id, "create_schedule", {
+          ...scheduleInput,
+          name: "Watched schedule",
+          taskId: task.id,
+        });
+        return { toolCallId: call.toolCallId, created: await call.result };
+      },
+    );
     const watched = await prisma.sokoBotSchedule.findFirstOrThrow({
       where: { sokoBotId: bot.id, taskId: task.id },
     });
@@ -690,7 +785,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
       expect(receipt.result).toStrictEqual(persistedToolResult(legacyRow));
     }
 
-    await expectLegacyShape(created, create.toolCallId);
+    await expectLegacyShape(created, toolCallId);
     const edit = tool(turn.id, "update_schedule", {
       scheduleId: watched.id,
       name: "Renamed",

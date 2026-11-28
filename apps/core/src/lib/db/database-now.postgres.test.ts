@@ -69,6 +69,7 @@ describe.runIf(enabled)("databaseNow on PostgreSQL", () => {
           { requireWriteScope: async () => undefined },
           tx,
           {
+            provenance: { network: "mainnet" },
             turn: { ...turn, actingUserId: userId },
             classificationConfidence: 1,
           },

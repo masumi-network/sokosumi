@@ -43,6 +43,7 @@ const actionRoute = createRoute({
     404: jsonErrorResponse("Not Found"),
     409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
+    503: jsonErrorResponse("Preprod retry cannot resume now"),
   },
 });
 
