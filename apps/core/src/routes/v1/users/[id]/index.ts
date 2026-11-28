@@ -46,7 +46,13 @@ import mountPostUserWorkspaces from "./workspaces/post.js";
 import mountGetUserPreferredWorkspace from "./workspaces/preferred/get.js";
 import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
 
-const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
+const app = new OpenAPIHonoWithAuth<UserRouteVariables>({
+  mainnetOnly: [
+    { path: "/billing-details", methods: ["GET"] },
+    { path: "/stripe-customer", methods: ["GET", "POST"] },
+    { path: "/subscription", methods: ["GET"] },
+  ],
+});
 
 applyUserRouteMiddleware(app);
 

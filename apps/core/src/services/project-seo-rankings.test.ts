@@ -112,6 +112,7 @@ function observation(
     payload,
     observedAt: new Date(payload.observedAt),
     createdAt: new Date(payload.observedAt),
+    needsAuditRecheck: false,
   };
 }
 

@@ -187,6 +187,12 @@ export type AdminSeoImpactVerdicts = {
         suggestionTitle: string | null;
         changeSource: 'cuso_done' | 'audit_recheck';
         changedAt: Date;
+        closingEvidence: Array<{
+            rowId: string;
+            device: 'mobile' | 'desktop';
+            baselineObservedAt: Date;
+            checkedObservedAt: Date;
+        }> | null;
         crawledAt: Date | null;
         windowStart: string | null;
         windowEnd: string | null;

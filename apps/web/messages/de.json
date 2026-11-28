@@ -8014,6 +8014,7 @@
         "notYet": "Noch nicht",
         "windowRange": "{start} bis {end}",
         "readyOn": "Daten endgültig am {date}",
+        "closingEvidence": "{row} · {device}: Ausgangswert {baseline}, nachgeprüft {checked}",
         "sources": {
           "cuso_done": "Als erledigt markiert",
           "audit_recheck": "Audit-Nachprüfung"

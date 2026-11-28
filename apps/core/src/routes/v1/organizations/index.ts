@@ -36,7 +36,18 @@ import mountGetOrganizationVendorGrants from "./[id]/vendor-grants/get.js";
 import mountPostOrganizationVendorGrants from "./[id]/vendor-grants/post.js";
 import mountGetOrganizationBySlug from "./slug/[slug]/get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({
+  mainnetOnly: [
+    { path: "/:id/billing-details", methods: ["GET"] },
+    { path: "/:id/billing-plan", methods: ["GET"] },
+    { path: "/:id/enterprise-contract-summary", methods: ["GET"] },
+    { path: "/:id/stripe-customer", methods: ["GET", "POST"] },
+    "/:id/subscription",
+    "/:id/subscription/*",
+    { path: "/:id/seat-summary", methods: ["GET"] },
+    { path: "/:id/credit-spend", methods: ["GET"] },
+  ],
+});
 
 // Mounted before the `/{id}` routes so the static `/slug` segment cannot be
 // shadowed by the `{id}` path parameter.

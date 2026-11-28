@@ -78,9 +78,10 @@ export async function SeoImpactTable({
   periods: AdminSeoImpactPeriod[];
   sources: AdminSeoImpactSource[];
 }) {
-  const [t, format] = await Promise.all([
+  const [t, format, deviceLabel] = await Promise.all([
     getTranslations("App.Admin.SeoImpact"),
     getFormatter(),
+    getTranslations("App.Seo.breakdown.devices"),
   ]);
   const when = (at: Date) => format.dateTime(at, "dateTimeMedium");
   // Search Console dates are Pacific calendar days: UTC keeps the day as written.
@@ -184,6 +185,20 @@ export async function SeoImpactTable({
                 </TableCell>
                 <TableCell className="max-w-xs text-xs break-all whitespace-normal">
                   {row.pageUrl}
+                  {row.closingEvidence?.length ? (
+                    <ul className="mt-1 space-y-0.5 text-muted-foreground break-normal">
+                      {row.closingEvidence.map((evidence) => (
+                        <li key={JSON.stringify(evidence)}>
+                          {t("closingEvidence", {
+                            row: evidence.rowId,
+                            device: deviceLabel(evidence.device),
+                            baseline: when(evidence.baselineObservedAt),
+                            checked: when(evidence.checkedObservedAt),
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </TableCell>
                 <TableCell className="max-w-xs text-xs whitespace-normal">
                   {row.suggestionTitle ?? t("none")}

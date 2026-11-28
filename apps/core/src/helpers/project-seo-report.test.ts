@@ -553,6 +553,63 @@ describe("public SEO report trust boundary", () => {
     expect(report.keywords[0]).not.toHaveProperty("fit");
   });
 
+  it("imports a focused row with an unreadable rule key, and keeps no closing fields from it", () => {
+    const fixture = focusedReport();
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      checks: fixture.checks.map((check) => ({
+        ...check,
+        ruleKey: "not a rule key",
+        pageOnly: "yes",
+        finalUrl: 7,
+      })),
+    });
+    expect(report.checks.length).toBeGreaterThan(0);
+    for (const check of report.checks) {
+      expect(check).not.toHaveProperty("ruleKey");
+      expect(check).not.toHaveProperty("pageOnly");
+      expect(check).not.toHaveProperty("finalUrl");
+    }
+  });
+
+  it("marks site checklist rows that are outside the site's market", () => {
+    const raw = legacyReport();
+    const page = (url: string, country: string) => ({
+      ...raw,
+      request: { url },
+      header: {
+        ...raw.header,
+        market: { country, language: "en" },
+        finalUrl: { desktop: url },
+      },
+      checklist: raw.checklist.map((check) => ({
+        ...check,
+        result: "pass",
+        ruleKey: "0123456789abcdef",
+        pageOnly: true,
+      })),
+    });
+    const { checks } = parsePublicSeoArtifact({
+      kind: "site",
+      rulebookVersion: raw.rulebookVersion,
+      pages: [page(SEO_TEST_PAGE, "US"), page(SEO_TEST_SECOND_PAGE, "DE")],
+    });
+
+    expect(
+      checks.find((check) => check.pageUrl === SEO_TEST_PAGE),
+    ).toMatchObject({
+      pageOnly: true,
+      result: "pass",
+    });
+    const otherMarket = checks.find(
+      (check) => check.pageUrl === SEO_TEST_SECOND_PAGE,
+    );
+    expect(otherMarket).toMatchObject({
+      result: "pass",
+      outsideSiteMarket: true,
+    });
+  });
+
   it("refuses private Google evidence before projecting public fields, including nested site pages", () => {
     expect(() =>
       parsePublicSeoArtifact({

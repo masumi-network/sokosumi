@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { OpenAPIHono } from "@hono/zod-openapi";
+import type { Pool } from "pg";
 import {
   afterAll,
   beforeAll,
@@ -24,17 +25,22 @@ const {
   downloadMediaMock,
   putMock,
   accessMock,
+  pools,
 } = vi.hoisted(() => ({
   fetchQueueStatusMock: vi.fn(),
   fetchQueueResultMock: vi.fn(),
   downloadMediaMock: vi.fn(),
   putMock: vi.fn(),
   accessMock: vi.fn(),
+  pools: [] as Pool[],
 }));
 
+const source =
+  process.env.POSTGRES_TEST_TEMPLATE_URL ?? process.env.DATABASE_URL;
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
-  process.env.DATABASE_URL?.startsWith("postgres");
+  source !== undefined &&
+  source.startsWith("postgres");
 
 vi.mock("@/config/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/config/env")>();
@@ -44,6 +50,7 @@ vi.mock("@/config/env", async (importOriginal) => {
     // `getEnv().DATABASE_URL` — and add only what the studio needs.
     getEnv: () => ({
       ...actual.getEnv(),
+      ...(database && { DATABASE_URL: database.url }),
       FAL_KEY: "k",
       BLOB_READ_WRITE_TOKEN: "shared-public-store-token",
       IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
@@ -55,6 +62,12 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   publishStudioAssetToFiles: vi.fn(),
 }));
 vi.mock("@vercel/blob", () => ({ put: putMock }));
+vi.mock("@vercel/functions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/functions")>()),
+  attachDatabasePool(pool: Pool) {
+    pools.push(pool);
+  },
+}));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: accessMock,
   requireProjectAccessForUser: accessMock,
@@ -74,29 +87,39 @@ vi.mock("@/services/image-studio-assets.service", async (importOriginal) => ({
   readAssetBytes: vi.fn(),
 }));
 
-import { createNetworkScope } from "@/lib/db/network-scope";
-import prisma from "@/lib/db/prisma";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import type { EnvVariables } from "@/lib/hono";
-import mountBatchAssets from "@/routes/v1/projects/[id]/image-studio/batch-assets-get";
-import mountStudioGet from "@/routes/v1/projects/[id]/image-studio/get";
-import mountTalkingVideos from "@/routes/v1/projects/[id]/image-studio/talking-videos-get";
-import {
-  reconcileJob,
-  reconcileProjectJobs,
-  reconcileStaleJobs,
-  settleWithMedia,
-} from "@/services/image-studio-jobs.service";
 import { pngBytes } from "@/test/image-bytes";
+import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 
+type Recovery = typeof import("@/services/image-studio-jobs.service");
+
+let database: Awaited<ReturnType<typeof copyPostgresTestDatabase>> | undefined;
+let prisma: typeof import("@/lib/db/prisma").default;
 /** The charge's Network, created by name as the entry points do. */
-const scope = createNetworkScope("mainnet");
-
+let scope: MainnetScope;
+let reconcileJob: Recovery["reconcileJob"];
+let reconcileProjectJobs: Recovery["reconcileProjectJobs"];
+let reconcileStaleJobs: Recovery["reconcileStaleJobs"];
+let settleWithMedia: Recovery["settleWithMedia"];
 let userId: string;
 let workspaceId: string;
 let projectId: string;
 
 beforeAll(async () => {
   if (!enabled) return;
+  // The cron scans every Project. Other files can leave jobs on the worker DB.
+  database = await copyPostgresTestDatabase(source, "cron_test");
+  ({ default: prisma } = await import("@/lib/db/prisma"));
+  const { createNetworkScope } = await import("@/lib/db/network-scope");
+  scope = createNetworkScope("mainnet");
+  ({ reconcileJob, reconcileProjectJobs, reconcileStaleJobs, settleWithMedia } =
+    await import("@/services/image-studio-jobs.service"));
+  const [connection] = await prisma.$queryRaw<{ name: string }[]>`
+    SELECT current_database() AS name
+  `;
+  expect(connection?.name).toBe(database.name);
+
   userId = randomUUID();
   workspaceId = randomUUID();
   await prisma.user.create({
@@ -117,9 +140,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (!enabled) return;
-  await prisma.projectImageAsset.deleteMany({ where: { projectId } });
-  await prisma.projectImageJob.deleteMany({ where: { projectId } });
+  try {
+    await Promise.all(pools.map((pool) => pool.end()));
+  } finally {
+    await database?.drop();
+  }
 });
 
 async function makeJob(overrides: Record<string, unknown> = {}) {
@@ -202,6 +227,9 @@ describe.skipIf(!enabled)("Talking video history", () => {
         });
         await next();
       });
+      const { default: mountTalkingVideos } = await import(
+        "@/routes/v1/projects/[id]/image-studio/talking-videos-get"
+      );
       mountTalkingVideos(app);
       const path = `/${project.id}/image-studio/talking-videos`;
       const first = await app.request(path);
@@ -307,6 +335,9 @@ describe.skipIf(!enabled)("Studio ad batches", () => {
         });
         await next();
       });
+      const { default: mountBatchAssets } = await import(
+        "@/routes/v1/projects/[id]/image-studio/batch-assets-get"
+      );
       mountBatchAssets(app);
       const response = await app.request(
         `/${campaign.id}/image-studio/batches/${batchId}/assets`,
@@ -602,7 +633,9 @@ describe.skipIf(!enabled)("bounded recovery sweeps make progress", () => {
     });
     fetchQueueStatusMock.mockResolvedValue({ kind: "completed" });
 
-    await reconcileStaleJobs({ scope, olderThanMs: 60_000, limit: 3 });
+    expect(
+      await reconcileStaleJobs({ scope, olderThanMs: 60_000, limit: 3 }),
+    ).toMatchObject({ reconciled: 1, recovered: 0 });
 
     const row = await prisma.projectImageJob.findUniqueOrThrow({
       where: { id: recoverable.id },
@@ -679,6 +712,9 @@ describe.skipIf(!enabled)(
           });
           await next();
         });
+        const { default: mountStudioGet } = await import(
+          "@/routes/v1/projects/[id]/image-studio/get"
+        );
         mountStudioGet(app);
         const response = await app.request(`/${projectId}/image-studio`);
         expect(response.status).toBe(200);

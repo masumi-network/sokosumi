@@ -162,6 +162,13 @@ describe("requireMainnetOnlyFeatureMiddleware", () => {
     });
     expect(getRes.status).toBe(200);
 
+    const headRes = await app.request("/check", {
+      method: "HEAD",
+      headers: { [NETWORK_HEADER]: "preprod" },
+    });
+    expect(headRes.status).toBe(200);
+    expect(await headRes.text()).toBe("");
+
     const postRes = await app.request("/check", {
       method: "POST",
       headers: { [NETWORK_HEADER]: "preprod" },
@@ -170,5 +177,35 @@ describe("requireMainnetOnlyFeatureMiddleware", () => {
     expect(await postRes.json()).toMatchObject({
       kind: CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
     });
+  });
+
+  it("refuses implicit HEAD on GET rules under preprod without running the handler and preserves HEAD on Mainnet", async () => {
+    let handlerCalls = 0;
+    const app = new Hono();
+    app.onError(errorHandler);
+    app.use("*", requireMainnetOnlyFeatureForMethods(["GET"]));
+    app.get("/check", (c) => {
+      handlerCalls += 1;
+      return c.json({ ok: true });
+    });
+
+    const preprodHead = await app.request("/check", {
+      method: "HEAD",
+      headers: { [NETWORK_HEADER]: "preprod" },
+    });
+    expect(preprodHead.status).toBe(422);
+    expect(await preprodHead.text()).toBe("");
+    expect(preprodHead.headers.get("content-type")).toContain(
+      "application/json",
+    );
+    expect(handlerCalls).toBe(0);
+
+    const mainnetHead = await app.request("/check", { method: "HEAD" });
+    expect(mainnetHead.status).toBe(200);
+    expect(await mainnetHead.text()).toBe("");
+    expect(mainnetHead.headers.get("content-type")).toContain(
+      "application/json",
+    );
+    expect(handlerCalls).toBe(1);
   });
 });

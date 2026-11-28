@@ -8014,6 +8014,7 @@
         "notYet": "Todavía no",
         "windowRange": "Del {start} al {end}",
         "readyOn": "Datos definitivos el {date}",
+        "closingEvidence": "{row} · {device}: referencia {baseline}, revisado {checked}",
         "sources": {
           "cuso_done": "Marcado como hecho",
           "audit_recheck": "Nueva revisión de auditoría"

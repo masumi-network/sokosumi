@@ -2604,6 +2604,85 @@ describe.skipIf(!enabled)(
       ).toBe(true);
     });
 
+    it("rechecks imported checklist rows and repairs the status on replay", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Audit recheck replay" },
+      });
+      const owner: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      const base = legacyReport();
+      async function report(result: "fired" | "pass", capturedAt: string) {
+        const task = await prisma.task.create({
+          data: {
+            name: "Completed audit",
+            ownerId: userId,
+            workspaceId,
+            projectId: project.id,
+            status: "COMPLETED",
+            assigneeId: coworkerId,
+          },
+        });
+        const body = JSON.stringify({
+          ...base,
+          header: {
+            ...base.header,
+            capturedAt,
+            finalUrl: { desktop: SEO_TEST_PAGE },
+          },
+          checklist: base.checklist.map((row) => ({
+            ...row,
+            result,
+            ruleKey: "0123456789abcdef",
+            pageOnly: true,
+          })),
+          findings: result === "fired" ? base.findings : [],
+          actions: result === "fired" ? base.actions : [],
+        });
+        const file = await prisma.taskFile.create({
+          data: {
+            taskId: task.id,
+            name: `seo-report-${task.id}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(body)),
+            uploadedByCoworkerId: coworkerId,
+          },
+        });
+        return () =>
+          importProjectSeoAudit(
+            owner,
+            { taskId: task.id, fileId: file.id },
+            { fetchImpl: async () => new Response(body) },
+          );
+      }
+      const earlier = await (
+        await report("fired", "2026-11-01T12:00:00.000Z")
+      )();
+      const importPassingAudit = await report(
+        "pass",
+        "2026-11-09T12:00:00.000Z",
+      );
+      const later = await importPassingAudit();
+      const where = { observationId: earlier.id };
+      const closingStatus = { status: "done", checkedObservationId: later.id };
+      expect(
+        await prisma.projectSeoAuditActionStatus.findMany({ where }),
+      ).toMatchObject([closingStatus]);
+
+      // Simulate the first import committing without its separate recheck write.
+      await prisma.projectSeoAuditActionStatus.deleteMany({ where });
+      await prisma.projectSeoObservation.update({
+        where: { id: later.id },
+        data: { needsAuditRecheck: true },
+      });
+      expect((await importPassingAudit()).id).toBe(later.id);
+      expect(
+        await prisma.projectSeoAuditActionStatus.findMany({ where }),
+      ).toMatchObject([closingStatus]);
+    });
+
     it("recovers page speed once from the exact saved report without changing earlier conclusions", async () => {
       const project = await prisma.project.create({
         data: { workspaceId, name: "Page speed recovery" },
