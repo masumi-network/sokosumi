@@ -32,7 +32,6 @@ src/helpers/soko-bot-owner-scope-backfill.postgres.test.ts 18  # replayed migrat
 src/helpers/task-visibility.postgres.test.ts 17  # SQL outside a trigger names bare task
 src/lib/files/evidence-scope.postgres.test.ts 17  # SQL outside a trigger names bare task
 src/routes/v1/chats/rooms/retire-org-directs.postgres.test.ts 18  # replayed migration: SQL outside a trigger names bare chat_room
-src/routes/v1/coworkers/me/usage/post.postgres.test.ts 29  # the shared client reaches the Network table Transaction
 src/routes/v1/drive/labels/[id]/patch.postgres.test.ts 25  # the shared client reaches the Network table Job
 src/routes/v1/projects/get.postgres.test.ts 25  # the shared client reaches the Network table AgentPricing (from the server log; the test reports a failed hook)
 src/routes/v1/tasks/[id]/get.seo-audit.postgres.test.ts 25  # the shared client reaches the Network table Job

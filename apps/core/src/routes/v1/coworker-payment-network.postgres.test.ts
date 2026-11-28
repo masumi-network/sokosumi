@@ -188,19 +188,47 @@ function expectAsOnBase(
  * is compared in `coworkers/me/usage/post-spend.postgres.test.ts`.
  */
 const PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED = 2;
+/**
+ * Since ticket 29 the usage row is one raw insert on the Network's table,
+ * where Prisma's nested create sent six statements (a read of the debit, of
+ * a usage that holds it, of the user and of the Coworker, the insert, a read
+ * back). Compared statement by statement in the same file.
+ */
+const USAGE_ROW_STATEMENTS_SAVED = 5;
+/**
+ * Since ticket 29 a usage that names Preprod while Preprod is off is refused
+ * before the route reads anything, a replay of a Mainnet key included, which
+ * `origin/main` answered with the Mainnet row: the Coworker's capability read
+ * and the lookup's transaction (begin, isolation, lookup, commit) are not sent.
+ */
+const PREPROD_OFF_REPLAY_STATEMENTS_SAVED = 5;
 function withUsageDebitAsWrittenNow(base: unknown): unknown {
   return Object.fromEntries(
     Object.entries(
       base as Record<string, { status: number; statements: number }>,
     ).map(([step, answer]) => [
       step,
-      answer.status === 201
+      step === "the second key again, preprod"
         ? {
             ...answer,
-            statements:
-              answer.statements - PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED,
+            status: 403,
+            body: {
+              error: "Forbidden",
+              message: "Preprod is switched off",
+              kind: "preprod_off",
+              meta: { path: "/v1/coworkers/me/usage", method: "POST" },
+            },
+            statements: answer.statements - PREPROD_OFF_REPLAY_STATEMENTS_SAVED,
           }
-        : answer,
+        : answer.status === 201
+          ? {
+              ...answer,
+              statements:
+                answer.statements -
+                PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED -
+                USAGE_ROW_STATEMENTS_SAVED,
+            }
+          : answer,
     ]),
   );
 }
@@ -1216,11 +1244,13 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
   },
 );
 
-// Preprod is on only on the split layout. There usage, the x402 payment and a
+// Preprod is on only on the split layout. There the x402 payment and a
 // Masumi payment's price still read Network tables on the default client
 // (tickets 22 and 29) and answer 500 before or after the resolver, so their
-// Network is proven with the database mocked (`coworkers/me/usage/post.test.ts`,
-// `tasks/[id]/x402-payments/post.test.ts`) and by the refusals below.
+// Network is proven with the database mocked
+// (`tasks/[id]/x402-payments/post.test.ts`) and by the refusals below. Usage
+// runs on its Network there since ticket 29's first slice:
+// `coworkers/me/usage/post-network.postgres.test.ts`.
 describe.runIf(enabled && onSplitLayout)(
   "A Coworker's payments with Preprod on, on the split layout",
   () => {
