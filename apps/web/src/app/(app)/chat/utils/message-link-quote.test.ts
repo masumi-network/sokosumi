@@ -1,7 +1,10 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveMessageLinkQuote } from "./message-link-quote";
+import {
+  authorCanReadSource,
+  resolveMessageLinkQuote,
+} from "./message-link-quote";
 
 type QuoteRoom = Parameters<typeof resolveMessageLinkQuote>[0]["targetRoom"];
 
@@ -171,5 +174,24 @@ describe("resolveMessageLinkQuote", () => {
     });
 
     expect(quote).toBeNull();
+  });
+});
+
+describe("authorCanReadSource", () => {
+  it("lets a private Channel's member be quoted to", () => {
+    expect(authorCanReadSource(room("ch", ["me", "ada"]), "ada")).toBe(true);
+  });
+
+  it("refuses a former member of a private Channel", () => {
+    expect(authorCanReadSource(room("ch", ["me"]), "ada")).toBe(false);
+  });
+
+  it("lets anyone in the organization be quoted to from a public Channel", () => {
+    expect(
+      authorCanReadSource(
+        room("ch", ["me"], { discoverability: "public" }),
+        "ada",
+      ),
+    ).toBe(true);
   });
 });

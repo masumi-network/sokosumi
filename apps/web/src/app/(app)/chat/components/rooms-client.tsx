@@ -102,7 +102,10 @@ import {
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
-import { resolveMessageLinkQuote } from "@/app/chat/utils/message-link-quote";
+import {
+  authorCanReadSource,
+  resolveMessageLinkQuote,
+} from "@/app/chat/utils/message-link-quote";
 import {
   confirmOutboundMessage,
   createPendingRoomMessage,
@@ -125,7 +128,11 @@ import {
   type PendingReactionKey,
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
-import { handOffPrivateReply } from "@/app/chat/utils/private-reply-handoff";
+import {
+  CHAT_PRIVATE_REPLY_PARAM,
+  handOffPrivateReply,
+  takePrivateReply,
+} from "@/app/chat/utils/private-reply-handoff";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
@@ -170,7 +177,6 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useChatRefreshScheduler } from "@/hooks/effects/use-chat-refresh-scheduler";
 import { useChatRoomRealtime } from "@/hooks/effects/use-chat-room-realtime";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
-import { usePrivateReplyHandoff } from "@/hooks/effects/use-private-reply-handoff";
 import { useQuietHoverWhileScrolling } from "@/hooks/effects/use-quiet-hover-while-scrolling";
 import { useMarkRoomCacheDirtyOnExit } from "@/hooks/effects/use-room-cache-dirty";
 import { useRoomReadAttention } from "@/hooks/effects/use-room-read-attention";
@@ -1112,30 +1118,50 @@ function RoomView({
 
   async function handleOpenDirectMessage(
     profile: ChatParticipantHoverProfile,
-  ): Promise<string | null> {
-    if (openingDirectKey) return null;
+  ): Promise<void> {
+    if (openingDirectKey) return;
     setOpeningDirectKey(participantDirectKey(profile));
     try {
-      const opened = await openDirectWithParticipant({
+      await openDirectWithParticipant({
         profile,
         selectedRoomId,
         router,
         onError: toast.error,
       });
-      return opened.ok ? opened.roomId : null;
     } finally {
       setOpeningDirectKey(null);
     }
   }
 
+  function canReplyPrivatelyTo(message: ChatRoomMessage): boolean {
+    return (
+      !isDirectRoom &&
+      selectedRoom != null &&
+      message.sender.type === "user" &&
+      authorCanReadSource(selectedRoom, message.sender.user.id)
+    );
+  }
+
   async function handleReplyPrivately(message: ChatRoomMessage) {
-    if (message.sender.type !== "user") return;
-    const directRoomId = await handleOpenDirectMessage({
+    if (message.sender.type !== "user" || openingDirectKey) return;
+    const profile: ChatParticipantHoverProfile = {
       kind: "human",
       ...message.sender.user,
-    });
-    // Before the Direct's view renders: navigation paints in a later task.
-    if (directRoomId) handOffPrivateReply(directRoomId, message);
+    };
+    setOpeningDirectKey(participantDirectKey(profile));
+    try {
+      await openDirectWithParticipant({
+        profile,
+        selectedRoomId,
+        // The quote travels with this one navigation and no other.
+        router: {
+          push: (href) => router.push(handOffPrivateReply(href, message)),
+        },
+        onError: toast.error,
+      });
+    } finally {
+      setOpeningDirectKey(null);
+    }
   }
 
   function isStillSelectedRoom(roomId: string): boolean {
@@ -2233,6 +2259,16 @@ function RoomView({
   // The sidebar states the unread Threads its cap left out in an overflow
   // row, which asks for this list on the room's own URL (ADR-0037).
   useRoomUrlAsk({
+    param: CHAT_PRIVATE_REPLY_PARAM,
+    roomId: selectedRoom?.id ?? null,
+    ready: true,
+    pathname,
+    searchParams,
+    replace: router.replace,
+    open: applyPrivateReplyFromUrl,
+  });
+
+  useRoomUrlAsk({
     param: CHAT_THREAD_LIST_PARAM,
     roomId: selectedRoom?.id ?? null,
     ready: true,
@@ -2549,12 +2585,14 @@ function RoomView({
     });
   }
 
-  usePrivateReplyHandoff(selectedRoomId ?? null, (quote) => {
+  function applyPrivateReplyFromUrl() {
+    const quote = takePrivateReply(searchParams.get(CHAT_PRIVATE_REPLY_PARAM));
+    if (!quote) return;
     setPendingQuote(quote);
     requestAnimationFrame(() => {
       roomComposerRef.current?.focusAtEnd();
     });
-  });
+  }
 
   function handleQuoteThreadMessage(message: ChatRoomMessage) {
     setPendingThreadQuote(pendingQuoteFromMessage(message));
@@ -3193,9 +3231,9 @@ function RoomView({
                   : stableMessageHandlers.onSendToSelf
               }
               onReplyPrivately={
-                isDirectRoom
-                  ? undefined
-                  : stableMessageHandlers.onReplyPrivately
+                canReplyPrivatelyTo(message)
+                  ? stableMessageHandlers.onReplyPrivately
+                  : undefined
               }
               showOutboundSentTick={outboundSentTickIds.has(message.id)}
               isEditing={roomEditSession?.messageId === message.id}
@@ -3489,11 +3527,8 @@ function RoomView({
                     ? undefined
                     : stableMessageHandlers.onSendToSelf
                 }
-                onReplyPrivately={
-                  isDirectRoom
-                    ? undefined
-                    : stableMessageHandlers.onReplyPrivately
-                }
+                onReplyPrivately={stableMessageHandlers.onReplyPrivately}
+                canReplyPrivately={canReplyPrivatelyTo}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadAndRestoreFocus}

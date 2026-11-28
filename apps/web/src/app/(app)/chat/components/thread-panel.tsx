@@ -120,6 +120,7 @@ export function ThreadPanel({
   onJumpToQuotedMessage,
   onSendToSelf,
   onReplyPrivately,
+  canReplyPrivately,
   isSelfDirect = false,
   outboundSentTickIds,
   editSession = null,
@@ -182,6 +183,8 @@ export function ThreadPanel({
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
   onReplyPrivately?: (message: ChatRoomMessage) => void;
+  /** Whether a message's author can still be quoted in a Direct. */
+  canReplyPrivately?: (message: ChatRoomMessage) => boolean;
   isSelfDirect?: boolean;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
@@ -314,7 +317,9 @@ export function ThreadPanel({
             onRemoveOutbound={isParent ? undefined : onRemoveOutbound}
             onJumpToQuotedMessage={onJumpToQuotedMessage}
             onSendToSelf={onSendToSelf}
-            onReplyPrivately={onReplyPrivately}
+            onReplyPrivately={
+              canReplyPrivately?.(message) ? onReplyPrivately : undefined
+            }
             isSelfDirect={isSelfDirect}
             showOutboundSentTick={
               isParent ? undefined : outboundSentTickIds?.has(message.id)

@@ -92,3 +92,21 @@ function sourceReaderUserIds(
       .map((member) => member.id),
   ];
 }
+
+/**
+ * Whether a Direct with the message's author may quote it from `sourceRoom`.
+ * Core accepts the quote only while every Direct member can still read the
+ * source: the author is on its roster, or it is a Channel anyone in the
+ * organization can join.
+ */
+export function authorCanReadSource(
+  sourceRoom: QuoteRoom,
+  authorId: string,
+): boolean {
+  return (
+    sourceRoom.userMembers.some((member) => member.id === authorId) ||
+    (sourceRoom.kind === "channel" &&
+      sourceRoom.organizationId != null &&
+      isSelfJoinableChannelDiscoverability(sourceRoom.discoverability))
+  );
+}
