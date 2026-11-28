@@ -139,7 +139,13 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         "Gone quiet is a tab",
       );
       await page.getByRole("button", { name: "1 gone quiet" }).click();
-      await page.getByRole("heading", { name: "Gone quiet" }).waitFor();
+      const heading = page.getByRole("heading", { name: "Gone quiet" });
+      await heading.waitFor();
+      assert.equal(
+        await heading.evaluate((element) => element === document.activeElement),
+        true,
+        "focus did not land on the Gone quiet heading",
+      );
       await page.getByText(/Last talked 3 months ago/).waitFor();
       assert.equal(
         await page.getByText(RECENT).count(),
@@ -148,8 +154,9 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       );
       await shot(page, size, "1-quiet");
 
+      // Its name is its visible words (short on phones), then who.
       const followUp = page.getByRole("button", {
-        name: `Follow up with ${QUIET} next week`,
+        name: new RegExp(`^(Follow up next week|Next week) for ${QUIET}$`),
       });
       await followUp.click();
       await page.getByText(/^Follow-up /).waitFor();
