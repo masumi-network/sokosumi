@@ -78,11 +78,12 @@ for (const { name, ...viewport } of PROJECTS) {
         .getByRole("textbox", { name: "Code from the email" })
         .pressSequentially(await mailbox.nextCode());
       await page.getByRole("button", { name: "Register" }).click();
-      await expectStep(page, /\/setup$/, "How do you want to work?");
+      // Register sometimes lands via /chat on /setup?next=%2Fchat.
+      await expectStep(page, /\/setup(\?|$)/, "How do you want to work?");
       await page.getByRole("button", { name: "Continue" }).click();
 
       // Spaces pass the browser's `required` check, so the step says why.
-      await expectStep(page, /\/setup\/assistant$/, "Name your Soko Bot");
+      await expectStep(page, /\/setup\/assistant(\?|$)/, "Name your Soko Bot");
       const nameField = page.getByRole("textbox", { name: "Name" });
       await nameField.fill("   ");
       await page.getByRole("button", { name: "Continue" }).click();
@@ -93,7 +94,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await nameField.fill(BOT);
       await page.getByRole("button", { name: "Continue" }).click();
       await page.getByRole("button", { name: `Create ${BOT}` }).click();
-      await page.waitForURL(/\/setup\/assistant\/connect$/);
+      await page.waitForURL(/\/setup\/assistant\/connect(\?|$)/);
       await page.getByRole("link", { name: "Skip" }).click();
       await page.waitForURL(/\/chat\/rooms\//);
       // Wait for the bot's hello. Loaded before it lands, the next page's
