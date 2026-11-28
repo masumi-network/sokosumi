@@ -159,6 +159,7 @@ async function createPaidJob(
     // shortcut: the hire charges Mainnet, as it did; ticket 25 passes the Job's Network.
     scope: createNetworkScope("mainnet"),
     tx,
+    kind: "job_hire",
     payer: {
       // An empty id is no payer: the debit was connected only to a present
       // owner and Organization, so an empty one is null, for the read and

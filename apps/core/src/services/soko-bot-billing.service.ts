@@ -509,6 +509,7 @@ async function chargeSokoBotUsage(
     // A turn's model usage always bills Mainnet, a Preprod turn's too.
     scope: createNetworkScope("mainnet"),
     tx,
+    kind: "soko_bot_turn",
     payer: {
       userId: input.userId,
       organizationId,

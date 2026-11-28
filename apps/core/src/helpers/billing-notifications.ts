@@ -200,7 +200,10 @@ export async function notifyLowBalanceAfterCharge(
 ): Promise<void> {
   try {
     const threshold = convertCreditsToCents(getEnv().LOW_CREDITS_THRESHOLD);
-    const { newestBucket, balance } = await lowBalanceFunding(scope, wallet);
+    const funding = await lowBalanceFunding(scope, wallet);
+    // A Network that charges no credits took nothing: no warning.
+    if (!funding) return;
+    const { newestBucket, balance } = funding;
 
     if (balance >= threshold) {
       return;

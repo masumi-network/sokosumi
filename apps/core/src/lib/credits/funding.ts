@@ -11,6 +11,7 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary";
 import { getCredits } from "@/lib/credits/balance";
 import type { NetworkScope } from "@/lib/db/network-scope";
+import { chargesCredits, requireChargingNetwork } from "./policy";
 
 interface SubscriptionPeriodRecord {
   periodStart: Date | null;
@@ -86,6 +87,8 @@ export async function getCurrentSubscriptionCredits(params: {
   scope: NetworkScope;
   now?: Date;
 }): Promise<SubscriptionCredits | null> {
+  // A plan's credits are Mainnet's only: no other Network has a balance.
+  requireChargingNetwork(params.scope.network, "A plan's credits");
   const now = params.now ?? new Date();
   const period = getCurrentSubscriptionPeriod(params.subscription, now);
   if (!period) {
@@ -317,6 +320,10 @@ export async function buildCreditsPayload(params: {
   projectId?: string | null;
   scope: NetworkScope;
 }): Promise<CreditsApiPayload> {
+  // A Network that charges no credits has no balance and no plan: nothing is read.
+  if (!chargesCredits(params.scope.network)) {
+    return withoutCredits(params.organizationId);
+  }
   const projectScope = { projectId: params.projectId };
   const totalCredits = await getCredits(
     params.scope,
@@ -459,6 +466,19 @@ export async function buildCreditsPayload(params: {
       scope: params.scope,
     }),
     credits,
+  };
+}
+
+/** The payload of a Network that charges no credits: no balance, plan or enterprise data. */
+function withoutCredits(organizationId: string | null): CreditsApiPayload {
+  const none = { total: 0, remaining: 0, used: 0 };
+  return {
+    scope: organizationId ? "organization" : "personal",
+    spendable: 0,
+    subscription: null,
+    extra: { credits: none, buckets: [], enterprise: null },
+    enterprise: null,
+    credits: { subscription: null, buffer: 0, total: 0 },
   };
 }
 

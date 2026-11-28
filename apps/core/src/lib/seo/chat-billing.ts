@@ -68,6 +68,7 @@ export async function chargeSeoChatReply(
     // A Mainnet-only feature names its Network.
     scope: createNetworkScope("mainnet"),
     tx,
+    kind: "seo_chat",
     payer,
     quotedCents: sokoBotUsageCents(BigInt(micros), true),
     mode: "in_full",

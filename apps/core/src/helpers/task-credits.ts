@@ -56,6 +56,7 @@ export async function createTaskEventTransaction(
     spent = await spend({
       scope: input.scope,
       tx: input.tx,
+      kind: "task_credits",
       payer: {
         // An empty id is no id, for the bucket choice and the debit alike;
         // production has none (measured 2026-11-27).

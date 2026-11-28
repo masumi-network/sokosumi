@@ -240,7 +240,7 @@ describe("POST /me/usage", () => {
       expect(recordSpendMock).not.toHaveBeenCalled();
     });
 
-    it("spends Preprod's credits when the billed Organization has access, whatever its member's flag", async () => {
+    it("records the usage on Preprod at its price, taking no credits, when the billed Organization has access, whatever its member's flag", async () => {
       preprod.on = true;
       const tx = usageTransaction({ organization: flag(true) });
 
@@ -252,9 +252,13 @@ describe("POST /me/usage", () => {
         select: { preprodEnabled: true },
       });
       expect(tx.user.findUnique).not.toHaveBeenCalled();
-      expect(prepareConsumptionMock.mock.calls.map((call) => call[0])).toEqual([
+      // Preprod costs no credits: no bucket is chosen, the price is recorded.
+      expect(prepareConsumptionMock).not.toHaveBeenCalled();
+      expect(recordSpendMock).toHaveBeenCalledExactlyOnceWith(
         "preprod",
-      ]);
+        expect.objectContaining({ consumptions: [] }),
+        tx,
+      );
     });
   });
 

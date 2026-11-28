@@ -590,6 +590,7 @@ export function chargeProjectCompetitorCheck(
       const spent = await spend({
         scope,
         tx,
+        kind: "competitor_check",
         payer: { userId, organizationId, projectId },
         quotedCents: expectedCents,
         mode: "in_full",

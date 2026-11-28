@@ -1139,6 +1139,11 @@ describe.runIf(enabled && onSplitLayout)(
       status: 422,
       body: { kind: "insufficient_balance" },
     };
+    // Preprod costs no credits: the charge is recorded at its price on
+    // Preprod's Transaction, and the event's write refuses it, because
+    // `taskEvent.transactionId` has a foreign key to Mainnet's Transaction
+    // (ticket 29). The request rolls back: nothing stays on either Network.
+    const crossingKey = { status: 500 };
 
     function expectNothingWritten(answer: Sent) {
       expect(spent(answer, "mainnet")).toEqual([]);
@@ -1150,10 +1155,10 @@ describe.runIf(enabled && onSplitLayout)(
       expect(answer.rows.events).toEqual([]);
     }
 
-    // A Preprod charge cannot commit here yet: the event's `transactionId`
-    // has a foreign key to Mainnet's Transaction (ticket 29). So the proof is
-    // whose credits the charge looks for: a Network without credits pauses
-    // the Task as out of credits while the other Network's stay untouched.
+    // A Preprod charge cannot commit here yet (`crossingKey`). So the proof is
+    // which Network the charge goes to: Preprod's rolls back and leaves
+    // Mainnet's credits untouched, and a Mainnet charge without Mainnet
+    // credits pauses the Task as out of credits.
     it(
       "charges a Task event's credits on the Network the request names, and only there",
       {
@@ -1184,8 +1189,8 @@ describe.runIf(enabled && onSplitLayout)(
             );
 
           const namedPreprod = await charge(onMainnet, preprod);
-          expect(namedPreprod).toMatchObject(outOfCredits);
-          expect(spent(namedPreprod, "mainnet")).toEqual([]);
+          expect(namedPreprod).toMatchObject(crossingKey);
+          expectNothingWritten(namedPreprod);
 
           for (const headers of [undefined, mainnet]) {
             const answer = await charge(onPreprod, headers);
@@ -1241,8 +1246,8 @@ describe.runIf(enabled && onSplitLayout)(
           expect(inClosed).toMatchObject(refused);
           expectNothingWritten(inClosed);
 
-          // The Organization's flag is on; its member needs none. With no
-          // Preprod credits the charge passes the access check and pauses.
+          // The Organization's flag is on; its member needs none. The charge
+          // passes the access check and reaches the event (`crossingKey`).
           const open = await world.organization(
             plain.id,
             { mainnet: 10 },
@@ -1255,9 +1260,8 @@ describe.runIf(enabled && onSplitLayout)(
             { credits: 1 },
             preprod,
           );
-          expect(inOpen).toMatchObject(outOfCredits);
-          expect(spent(inOpen, "mainnet")).toEqual([]);
-          expect(spent(inOpen, "preprod")).toEqual([]);
+          expect(inOpen).toMatchObject(crossingKey);
+          expectNothingWritten(inOpen);
         }),
     );
 

@@ -10,6 +10,7 @@ import { retriedTransactionOn } from "@/lib/db/transaction";
 
 import {
   type SpendCharged,
+  type SpendInput,
   type SpendNotCharged,
   type SpendResult,
   spend,
@@ -43,6 +44,7 @@ describe("spend in full", () => {
     const spent = await spend({
       scope,
       tx,
+      kind: "competitor_check",
       payer,
       quotedCents: 100n,
       mode: "in_full",
@@ -92,6 +94,7 @@ describe("spend in full", () => {
     const spent = await spend({
       scope,
       tx,
+      kind: "competitor_check",
       payer,
       quotedCents: 100n,
       mode: "in_full",
@@ -116,6 +119,7 @@ describe("spend in full", () => {
     const thrown = await spend({
       scope,
       tx,
+      kind: "competitor_check",
       payer,
       quotedCents: 0n,
       mode: "in_full",
@@ -136,6 +140,7 @@ describe("spend in full or zero", () => {
     const spent = await spend({
       scope,
       tx,
+      kind: "competitor_check",
       payer,
       quotedCents: 0n,
       mode: "in_full_or_zero",
@@ -169,6 +174,7 @@ describe("spend in full or zero", () => {
     const input = {
       scope,
       tx,
+      kind: "competitor_check",
       payer,
       quotedCents: 100n,
       mode: "in_full_or_zero",
@@ -185,6 +191,7 @@ describe("spend up to the balance", () => {
   const input = {
     scope,
     tx,
+    kind: "competitor_check",
     payer,
     quotedCents: 120n,
     mode: "up_to_balance",
@@ -271,6 +278,7 @@ describe("a spend that fails", () => {
   const input = {
     scope,
     tx,
+    kind: "competitor_check",
     payer,
     quotedCents: 120n,
     mode: "up_to_balance",
@@ -358,6 +366,137 @@ describe("a spend that fails", () => {
   });
 });
 
+/** A Preprod scope, which charges no credits (the user, 2026-11-26). */
+const preprod = { network: "preprod" } as NetworkScope;
+/** `spend` for a mode or kind chosen at run time, as `it.each` hands them. */
+const spendAny = spend as (input: SpendInput) => Promise<SpendResult>;
+
+describe("a spend on Preprod", () => {
+  const recorded = ["job_hire", "task_credits", "coworker_usage"] as const;
+  const modes = ["in_full", "in_full_or_zero", "up_to_balance"] as const;
+
+  it.each(recorded.flatMap((kind) => modes.map((mode) => ({ kind, mode }))))(
+    "records $kind's price in $mode mode, and takes no credits",
+    async ({ kind, mode }) => {
+      const { balance, prepare, record } = repository();
+
+      const spent = await spendAny({
+        scope: preprod,
+        tx,
+        kind,
+        payer,
+        quotedCents: 100n,
+        mode,
+      });
+
+      expect(spent).toEqual({
+        outcome: "recorded_not_charged",
+        transactionId: "debit-1",
+        createdAt: expect.any(Date),
+        quotedCents: 100n,
+        chargedCents: 0n,
+        shortfall: false,
+      });
+      // The price, on Preprod's own tables, with no consumption.
+      expect(record).toHaveBeenCalledExactlyOnceWith(
+        "preprod",
+        {
+          userId: null,
+          organizationId: "org-1",
+          cents: 100n,
+          consumptions: [],
+          createdAt: expect.any(Date),
+        },
+        tx,
+      );
+      expect(spent.createdAt).toBe(record.mock.calls[0]?.[1].createdAt);
+      // No balance and no bucket choice, whose reads include the Seat and plan.
+      expect(balance).not.toHaveBeenCalled();
+      expect(prepare).not.toHaveBeenCalled();
+    },
+  );
+
+  it("records a price of zero as a debit of zero where the mode allows it", async () => {
+    const { prepare, record } = repository();
+
+    const spent = await spend({
+      scope: preprod,
+      tx,
+      kind: "coworker_usage",
+      payer,
+      quotedCents: 0n,
+      mode: "in_full_or_zero",
+    });
+
+    expect(spent).toMatchObject({ outcome: "recorded_zero", chargedCents: 0n });
+    expect(record.mock.calls[0]?.[0]).toBe("preprod");
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it.each(["in_full", "up_to_balance"] as const)(
+    "refuses a price of zero in %s mode, as Mainnet does, before anything is written",
+    async (mode) => {
+      const { record } = repository();
+
+      const thrown = await spendAny({
+        scope: preprod,
+        tx,
+        kind: "job_hire",
+        payer,
+        quotedCents: 0n,
+        mode,
+      }).catch((error) => error);
+
+      expect(thrown).toMatchObject({
+        message: "Cents to consume must be positive",
+      });
+      expect(spendFailedInPreparation(thrown)).toBe(true);
+      expect(record).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["seo_chat", "competitor_check", "soko_bot_turn"] as const)(
+    "refuses %s, which spends Mainnet credits only, before anything is read or written",
+    async (kind) => {
+      const { balance, prepare, record } = repository();
+
+      const thrown = await spend({
+        scope: preprod,
+        tx,
+        kind,
+        payer,
+        quotedCents: 100n,
+        mode: "in_full",
+      }).catch((error) => error);
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect(thrown).toMatchObject({
+        message: `${kind} spends Mainnet credits only, and was given the preprod scope, which charges no credits`,
+      });
+      expect(spendFailedInPreparation(thrown)).toBe(true);
+      expect(balance).not.toHaveBeenCalled();
+      expect(prepare).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+    },
+  );
+
+  it("charges the same kinds on Mainnet as before", async () => {
+    const { prepare } = repository();
+
+    const spent = await spend({
+      scope,
+      tx,
+      kind: "job_hire",
+      payer,
+      quotedCents: 100n,
+      mode: "in_full",
+    });
+
+    expect(spent).toMatchObject({ outcome: "charged", chargedCents: 100n });
+    expect(prepare.mock.calls[0]?.[0]).toBe("mainnet");
+  });
+});
+
 const CONFLICT_TEXT =
   "Transaction failed due to a write conflict or a deadlock. Please retry your transaction";
 /** Prisma's own conflict, as a model read reports it: known by its code. */
@@ -393,6 +532,7 @@ describe("a transaction conflict during a spend", () => {
   const input = {
     scope,
     tx,
+    kind: "competitor_check",
     payer,
     quotedCents: 100n,
     mode: "in_full",
@@ -468,6 +608,7 @@ describe("a conflict in the plan read", () => {
       spend({
         scope,
         tx: planTx,
+        kind: "coworker_usage",
         payer: { userId: "user-1", organizationId: "org-1", projectId: null },
         quotedCents: 100n,
         mode: "in_full_or_zero",
@@ -500,7 +641,13 @@ export async function _wrongSpendsDoNotCompile(
   networkTx: NetworkDb,
   sharedTx: SharedDb,
 ): Promise<void> {
-  const base = { scope, payer, quotedCents: 1n, tx: sharedTx };
+  const base = {
+    scope,
+    kind: "competitor_check",
+    payer,
+    quotedCents: 1n,
+    tx: sharedTx,
+  } as const;
   const inFull: SpendCharged | SpendNotCharged = await spend({
     ...base,
     mode: "in_full",
@@ -525,4 +672,12 @@ export async function _wrongSpendsDoNotCompile(
   if (inFull.outcome === "recorded_zero") void inFull;
   // @ts-expect-error nothing written has no id to use
   if (inFull.outcome === "not_charged") inFull.transactionId.toUpperCase();
+  // @ts-expect-error a Mainnet-only kind is never only recorded
+  if (inFull.outcome === "recorded_not_charged") void inFull;
+  // @ts-expect-error a spend says what it pays for
+  void spend({ scope, payer, quotedCents: 1n, tx: sharedTx, mode: "in_full" });
+
+  // A kind that runs on Preprod may be only recorded, with the id of its debit.
+  const hire = await spend({ ...base, kind: "job_hire", mode: "in_full" });
+  if (hire.outcome === "recorded_not_charged") hire.transactionId.toUpperCase();
 }

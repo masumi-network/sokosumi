@@ -3,6 +3,7 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import { netTable } from "@sokosumi/database/sql-tables";
 
 import type { MainnetScope } from "@/lib/db/network-scope";
+import { requireChargingNetwork } from "./policy";
 
 /**
  * Writes off what is left of credits that end before they are used: a
@@ -29,8 +30,9 @@ export async function writeOff(input: {
   of: { projectId: string } | { bucketIds: string[] };
 }): Promise<void> {
   const { of, tx } = input;
-  // A scope that refuses its Network throws here, before anything is written.
-  input.scope.network;
+  // A scope that refuses its Network throws here, before anything is written;
+  // so does a fabricated Preprod one, which has no credits to write off.
+  requireChargingNetwork(input.scope.network, "A credit write-off");
   if ("projectId" in of) {
     await writeOffCreditBuckets(
       PrismaRaw.sql`cb."projectId" = ${of.projectId}::uuid`,
