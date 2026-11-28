@@ -234,6 +234,7 @@ async function loadCore() {
   return {
     prisma: prisma.default,
     mainnet: () => scope.createNetworkScope("mainnet").networkDb,
+    scope: () => scope.createNetworkScope("mainnet"),
     /** One Polar delivery, as its route answers it. */
     deliver: async (event: unknown) => {
       state.event = event;
@@ -1641,6 +1642,7 @@ describe.skipIf(!enabled)(
           "the Polar grant, an empty Project id",
           await observe(fixture, () =>
             core.grantPolarCredits({
+              scope: core.scope(),
               amount: 5_000n * CREDIT,
               expiresAt: new Date(Date.now() + 300 * DAY),
               organizationId: fixture.organizationId,

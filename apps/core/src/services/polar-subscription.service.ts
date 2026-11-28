@@ -14,8 +14,9 @@ import {
   type PolarWebhookEvent,
   revokePolarSubscription,
 } from "@/clients/polar.client";
-import { writeOffCreditBucketsById } from "@/helpers/cuso-project-credits";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { writeOff } from "@/lib/credits/write-off";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
@@ -439,6 +440,7 @@ export async function handlePolarOrderPaid(
   );
   const granted = await grantPolarCredits(
     {
+      scope: createNetworkScope("mainnet"),
       amount,
       // One month after the grant month starts; a monthly plan's month is
       // the period Polar billed.
@@ -566,6 +568,7 @@ export async function handlePolarPlanChangePaid(
   );
   if (credits <= 0) return;
   const granted = await grantPolarCredits({
+    scope: createNetworkScope("mainnet"),
     amount: convertCreditsToCents(credits),
     expiresAt: month.expiresAt,
     organizationId: row.organizationId,
@@ -612,10 +615,11 @@ export async function handlePolarOrderRefunded(
       },
       select: { id: true },
     });
-    await writeOffCreditBucketsById(
-      buckets.map((bucket) => bucket.id),
+    await writeOff({
+      scope: createNetworkScope("mainnet"),
       tx,
-    );
+      of: { bucketIds: buckets.map((bucket) => bucket.id) },
+    });
     // A refund does not cancel at Polar (an operator who refunds cancels
     // there if wanted), so the yearly grant job must stop granting the order.
     await tx.polarSubscription.updateMany({

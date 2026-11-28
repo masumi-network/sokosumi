@@ -18,9 +18,9 @@ import {
   sqlTableLayoutFromEnv,
 } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { writeOff } from "@/lib/credits/write-off";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { testSchemaNames } from "@/test/split-layout";
-
-import { writeOffProjectCredits } from "./cuso-project-credits";
 
 const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
 
@@ -87,7 +87,7 @@ async function remaining(bucketId: string): Promise<bigint> {
   );
 }
 
-describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
+describe.skipIf(!db)("a Project's write-off against PostgreSQL", () => {
   beforeAll(async () => {
     if (!db) return;
     await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Write-off Org', ${ORGANIZATION}, NOW())`;
@@ -148,7 +148,11 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
     const writeOffs = await db.$transaction(async (tx) => {
       // The old query emits bucket ID order with a sorted aggregate.
       await tx.$executeRaw`SET LOCAL enable_hashagg = off`;
-      await writeOffProjectCredits(PROJECT, tx);
+      await writeOff({
+        scope: createNetworkScope("mainnet"),
+        tx,
+        of: { projectId: PROJECT },
+      });
       return tx.creditConsumption.findMany({
         where: { transaction: { organizationId: ORGANIZATION } },
         orderBy: [
