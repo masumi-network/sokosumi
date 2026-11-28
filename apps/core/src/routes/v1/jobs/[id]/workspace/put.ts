@@ -7,10 +7,12 @@ import {
   requireOwnerForPersonalWorkspace,
 } from "@/helpers/access-control";
 import { conflict, notFound } from "@/helpers/error";
+import { readJobDetailsOnSplitTx } from "@/helpers/job-detail";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
+import { sharedTxAsNetworkDb } from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
@@ -65,6 +67,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
+    const { networkScope } = c.var;
+    // Refuse a disallowed Network before opening a transaction or reading shared rows.
+    void networkScope.network;
 
     const job = await serializableTransaction(async (tx) => {
       // Moving belongs to the job's Owner (ADR 0057). A
@@ -72,8 +77,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const accessibleJob = await requireJobCollaboration(
         c.var.authContext,
         id,
-        tx,
-        { right: "manage" },
+        networkScope,
+        { right: "manage", sharedTx: tx },
       );
 
       if (accessibleJob.taskId !== null) {
@@ -83,12 +88,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const workspaceChanged =
         targetOrganizationId !==
         (await readWorkspaceOrganizationId(accessibleJob.workspaceId, tx));
+      const txNetworkDb = sharedTxAsNetworkDb(networkScope, tx);
 
       if (!workspaceChanged) {
-        const existingJob = await tx.job.findUnique({
-          where: { id },
-          include: jobInclude,
-        });
+        const existingJob = txNetworkDb
+          ? await txNetworkDb.job.findUnique({
+              where: { id },
+              include: jobInclude,
+            })
+          : await readJobDetailsOnSplitTx(tx, networkScope, id);
 
         if (!existingJob) {
           throw notFound("Job not found");
@@ -121,20 +129,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      await tx.job.update({
-        where: {
-          id,
-        },
-        data: {
-          workspaceId: workspace.id,
-          projectId: null,
-        },
-      });
+      if (txNetworkDb) {
+        await txNetworkDb.job.update({
+          where: {
+            id,
+          },
+          data: {
+            workspaceId: workspace.id,
+            projectId: null,
+          },
+        });
+      } else {
+        const updatedAt = new Date();
+        await tx.$executeRaw`
+          UPDATE ${networkScope.networkTable("Job")}
+          SET "workspaceId" = ${workspace.id}::uuid,
+              "projectId" = NULL,
+              "updatedAt" = ${updatedAt}
+          WHERE "id" = ${id}
+        `;
+      }
 
-      const updatedJob = await tx.job.findUnique({
-        where: { id },
-        include: jobInclude,
-      });
+      const updatedJob = txNetworkDb
+        ? await txNetworkDb.job.findUnique({
+            where: { id },
+            include: jobInclude,
+          })
+        : await readJobDetailsOnSplitTx(tx, networkScope, id);
 
       if (!updatedJob) {
         throw notFound("Job not found");

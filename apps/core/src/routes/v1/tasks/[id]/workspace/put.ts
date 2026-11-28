@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskVisibility } from "@sokosumi/database";
+import { type SharedDb, TaskVisibility } from "@sokosumi/database";
+import { netTable } from "@sokosumi/database/sql-tables";
 import {
   requireOwnerForPersonalWorkspace,
   requireTaskAssignableCoworker,
@@ -16,8 +17,13 @@ import { requireSeoTaskExecutionUnchanged } from "@/helpers/seo-task-execution";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
 import { mapTask } from "@/helpers/task";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
+import {
+  createNetworkScope,
+  sharedTxAsNetworkDb,
+} from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { networksThatAreOn } from "@/lib/network";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
 import { buildTaskIncludeForViewer } from "@/types/task";
@@ -58,6 +64,41 @@ const route = createRoute({
     409: jsonErrorResponse("Conflict"),
   },
 });
+
+/**
+ * Moves every Job attached to a Task across every enabled Network inside the
+ * caller's shared transaction, keeping the Task and all its Jobs atomic.
+ */
+export async function moveTaskJobs(
+  tx: SharedDb,
+  taskId: string,
+  targetWorkspaceId: string,
+): Promise<void> {
+  const networks = networksThatAreOn();
+  if (networks.length === 1 && networks[0] === "mainnet") {
+    const mainnetTx = sharedTxAsNetworkDb(createNetworkScope("mainnet"), tx);
+    if (mainnetTx) {
+      await mainnetTx.job.updateMany({
+        where: { taskId },
+        data: {
+          workspaceId: targetWorkspaceId,
+          projectId: null,
+        },
+      });
+      return;
+    }
+  }
+  const updatedAt = new Date();
+  for (const network of networks) {
+    await tx.$executeRaw`
+      UPDATE ${netTable(network, "Job")}
+      SET "workspaceId" = ${targetWorkspaceId}::uuid,
+          "projectId" = NULL,
+          "updatedAt" = ${updatedAt}
+      WHERE "taskId" = ${taskId}
+    `;
+  }
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -202,13 +243,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      await tx.job.updateMany({
-        where: { taskId: id },
-        data: {
-          workspaceId: targetWorkspace.id,
-          projectId: null,
-        },
-      });
+      await moveTaskJobs(tx, id, targetWorkspace.id);
 
       return {
         deliveryWorkspaceIds: [movedTask.workspaceId, targetWorkspace.id],
