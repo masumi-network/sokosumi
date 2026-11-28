@@ -10357,6 +10357,9 @@
         "sendToSelfError": "No se pudo enviar a ti",
         "sendToSelfOpen": "Abrir"
       },
+      "ReplyPrivately": {
+        "action": "Responder en privado"
+      },
       "Edit": {
         "action": "Editar",
         "cancel": "Cancelar",

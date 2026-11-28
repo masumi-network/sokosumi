@@ -253,6 +253,7 @@ function renderRow({
   onRemoveOutbound,
   onJumpToQuotedMessage,
   onSendToSelf,
+  onReplyPrivately,
   isSelfDirect,
   showOutboundSentTick = false,
   isEditing = false,
@@ -284,6 +285,7 @@ function renderRow({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
   onSendToSelf?: (message: ChatRoomMessage) => void;
+  onReplyPrivately?: (message: ChatRoomMessage) => void;
   isSelfDirect?: boolean;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -315,6 +317,7 @@ function renderRow({
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
       onSendToSelf={onSendToSelf}
+      onReplyPrivately={onReplyPrivately}
       isSelfDirect={isSelfDirect}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
@@ -841,6 +844,62 @@ describe("ChatMessageRow", () => {
     });
     expect(toastMock.success).not.toHaveBeenCalled();
   });
+
+  it("replies privately to another member's message from the hover overflow", async () => {
+    const user = userEvent.setup();
+    const onReplyPrivately = vi.fn();
+    const message = userMessage({ content: "Can we talk?" });
+    renderRow({ message, currentUserId: "user-2", onReplyPrivately });
+    await user.hover(screen.getByRole("article"));
+
+    await user.click(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "ReplyPrivately.action" }),
+    );
+
+    expect(onReplyPrivately).toHaveBeenCalledExactlyOnceWith(message);
+  });
+
+  it("replies privately from the sheet", async () => {
+    const user = userEvent.setup();
+    const onReplyPrivately = vi.fn();
+    const message = userMessage({ content: "Can we talk?" });
+    renderRow({ message, currentUserId: "user-2", onReplyPrivately });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "ReplyPrivately.action",
+      }),
+    );
+
+    expect(onReplyPrivately).toHaveBeenCalledExactlyOnceWith(message);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["your own message", userMessage(), "user-1"],
+    ["a Coworker's message", coworkerMessage(), "user-2"],
+    ["a Soko Bot's message", sokoBotMessage(), "user-2"],
+  ])(
+    "offers no private reply to %s",
+    async (_label, message, currentUserId) => {
+      const user = userEvent.setup();
+      renderRow({ message, currentUserId, onReplyPrivately: vi.fn() });
+
+      await user.click(screen.getByRole("button", { name: "Actions.more" }));
+
+      expect(
+        within(screen.getByRole("dialog")).queryByRole("button", {
+          name: "ReplyPrivately.action",
+        }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   it("sends a message to yourself from the hover overflow", async () => {
     const user = userEvent.setup();

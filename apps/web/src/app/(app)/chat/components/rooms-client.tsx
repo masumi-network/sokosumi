@@ -102,7 +102,10 @@ import {
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
-import { resolveMessageLinkQuote } from "@/app/chat/utils/message-link-quote";
+import {
+  authorCanReadSource,
+  resolveMessageLinkQuote,
+} from "@/app/chat/utils/message-link-quote";
 import {
   confirmOutboundMessage,
   createPendingRoomMessage,
@@ -125,6 +128,11 @@ import {
   type PendingReactionKey,
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
+import {
+  CHAT_PRIVATE_REPLY_PARAM,
+  handOffPrivateReply,
+  takePrivateReply,
+} from "@/app/chat/utils/private-reply-handoff";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
@@ -1118,6 +1126,49 @@ function RoomView({
         profile,
         selectedRoomId,
         router,
+        onError: toast.error,
+      });
+    } finally {
+      setOpeningDirectKey(null);
+    }
+  }
+
+  // Members of the room's organization, when that is the workspace whose
+  // members are loaded here; a visit from another workspace proves nothing.
+  const sourceOrganizationMemberIds =
+    selectedRoom?.organizationId != null &&
+    selectedRoom.organizationId === activeOrganization?.id
+      ? new Set(organizationMembers.map((member) => member.user.id))
+      : null;
+
+  function canReplyPrivatelyTo(message: ChatRoomMessage): boolean {
+    return (
+      !isDirectRoom &&
+      selectedRoom != null &&
+      message.sender.type === "user" &&
+      authorCanReadSource(
+        selectedRoom,
+        message.sender.user.id,
+        sourceOrganizationMemberIds,
+      )
+    );
+  }
+
+  async function handleReplyPrivately(message: ChatRoomMessage) {
+    if (message.sender.type !== "user" || openingDirectKey) return;
+    const profile: ChatParticipantHoverProfile = {
+      kind: "human",
+      ...message.sender.user,
+    };
+    setOpeningDirectKey(participantDirectKey(profile));
+    try {
+      await openDirectWithParticipant({
+        profile,
+        selectedRoomId,
+        // The quote travels with this one navigation and no other.
+        router: {
+          push: (href) => router.push(handOffPrivateReply(href, message)),
+        },
         onError: toast.error,
       });
     } finally {
@@ -2220,6 +2271,19 @@ function RoomView({
   // The sidebar states the unread Threads its cap left out in an overflow
   // row, which asks for this list on the room's own URL (ADR-0037).
   useRoomUrlAsk({
+    param: CHAT_PRIVATE_REPLY_PARAM,
+    roomId: selectedRoom?.id ?? null,
+    ready: true,
+    pathname,
+    searchParams,
+    // A router replace re-renders the arriving room and drops the quote it
+    // just staged; the native replace only takes the nonce off the URL.
+    replace: (href) =>
+      window.history.replaceState(window.history.state, "", href),
+    open: applyPrivateReplyFromUrl,
+  });
+
+  useRoomUrlAsk({
     param: CHAT_THREAD_LIST_PARAM,
     roomId: selectedRoom?.id ?? null,
     ready: true,
@@ -2536,6 +2600,15 @@ function RoomView({
     });
   }
 
+  function applyPrivateReplyFromUrl() {
+    const quote = takePrivateReply(searchParams.get(CHAT_PRIVATE_REPLY_PARAM));
+    if (!quote) return;
+    setPendingQuote(quote);
+    requestAnimationFrame(() => {
+      roomComposerRef.current?.focusAtEnd();
+    });
+  }
+
   function handleQuoteThreadMessage(message: ChatRoomMessage) {
     setPendingThreadQuote(pendingQuoteFromMessage(message));
   }
@@ -2738,6 +2811,7 @@ function RoomView({
     handleQuoteMessage,
     handlePinMessage,
     handleSendMessageToSelf,
+    handleReplyPrivately,
     handleStartEdit,
     handleDeleteMessage,
     handleRemoveUnfurl,
@@ -2764,6 +2838,8 @@ function RoomView({
         latestMessageHandlersRef.current.handlePinMessage(message),
       onSendToSelf: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleSendMessageToSelf(message),
+      onReplyPrivately: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleReplyPrivately(message),
       onStartEdit: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleStartEdit(message, false),
       onStartThreadEdit: (message: ChatRoomMessage) =>
@@ -3169,6 +3245,11 @@ function RoomView({
                   ? undefined
                   : stableMessageHandlers.onSendToSelf
               }
+              onReplyPrivately={
+                canReplyPrivatelyTo(message)
+                  ? stableMessageHandlers.onReplyPrivately
+                  : undefined
+              }
               showOutboundSentTick={outboundSentTickIds.has(message.id)}
               isEditing={roomEditSession?.messageId === message.id}
               editDraft={
@@ -3461,6 +3542,8 @@ function RoomView({
                     ? undefined
                     : stableMessageHandlers.onSendToSelf
                 }
+                onReplyPrivately={stableMessageHandlers.onReplyPrivately}
+                canReplyPrivately={canReplyPrivatelyTo}
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadAndRestoreFocus}
