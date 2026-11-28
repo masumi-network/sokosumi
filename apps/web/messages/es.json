@@ -8965,6 +8965,8 @@
         "loadErrorTitle": "No se pudieron cargar las apps conectadas",
         "loadError": "Comprueba tu conexión e inténtalo de nuevo.",
         "retry": "Reintentar",
+        "loadingStatus": "Cargando apps conectadas…",
+        "loadedStatus": "Apps conectadas cargadas",
         "noApplications": "No se ha autorizado ninguna aplicación.",
         "authorized": "Autorizado: {date}",
         "revokeAccess": "Revocar acceso",

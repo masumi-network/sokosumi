@@ -8965,6 +8965,8 @@
         "loadErrorTitle": "Verbundene Apps konnten nicht geladen werden",
         "loadError": "Prüfe deine Verbindung und versuche es erneut.",
         "retry": "Erneut versuchen",
+        "loadingStatus": "Verbundene Apps werden geladen…",
+        "loadedStatus": "Verbundene Apps geladen",
         "noApplications": "Keine Anwendungen wurden autorisiert.",
         "authorized": "Autorisiert: {date}",
         "revokeAccess": "Zugriff widerrufen",

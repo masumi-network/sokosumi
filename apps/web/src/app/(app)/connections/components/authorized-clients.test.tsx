@@ -86,13 +86,29 @@ describe("OAuthAuthorizedClients", () => {
     mockGetConsents.mockReturnValue(new Promise(() => {}));
     render(<OAuthAuthorizedClients />);
 
-    expect(screen.getByTestId("authorized-clients-loading")).toBeVisible();
+    const rows = screen.getByTestId("authorized-clients-loading");
+    expect(rows).toBeVisible();
+    expect(rows).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("loadingStatus");
     expect(screen.getByText("description")).toBeVisible();
   });
 
+  it("lets the loading rows shrink to a phone-width card", () => {
+    mockGetConsents.mockReturnValue(new Promise(() => {}));
+    render(<OAuthAuthorizedClients />);
+
+    for (const placeholder of screen
+      .getByTestId("authorized-clients-loading")
+      .querySelectorAll('[data-slot="skeleton"]:not(.shrink-0)')) {
+      expect(placeholder).toHaveClass("max-w-full");
+      expect(placeholder.parentElement).toHaveClass("min-w-0");
+    }
+  });
+
   it("keeps the last list when the tab is shown again", async () => {
+    // The app's client keeps reads fresh for a minute (get-query-client.ts).
     const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: { queries: { retry: false, staleTime: 60 * 1000 } },
     });
     const ui = (
       <QueryClientProvider client={client}>
@@ -111,12 +127,36 @@ describe("OAuthAuthorizedClients", () => {
     expect(
       screen.queryByTestId("authorized-clients-loading"),
     ).not.toBeInTheDocument();
+    // The cached list still refreshes in the background.
+    await waitFor(() => expect(mockGetConsents).toHaveBeenCalledTimes(2));
   });
 
   it("offers Retry instead of the raw error when the list fails to load", async () => {
+    let finishRetry: (value: unknown) => void = () => {};
     mockGetConsents
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce({
+      .mockImplementationOnce(
+        () => new Promise((resolve) => (finishRetry = resolve)),
+      );
+    render(<OAuthAuthorizedClients />);
+
+    expect(await screen.findByText("loadError")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("loadErrorTitle");
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
+
+    const retry = screen.getByRole("button", { name: "retry" });
+    retry.focus();
+    fireEvent.click(retry);
+
+    // While the retry runs, the same button stays focused and shows it is busy.
+    await waitFor(() => expect(retry).toHaveAttribute("aria-busy", "true"));
+    expect(retry).toBeInTheDocument();
+    expect(retry).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent("loadingStatus");
+
+    await act(async () => {
+      finishRetry({
         data: [
           {
             id: "consent-1",
@@ -126,16 +166,10 @@ describe("OAuthAuthorizedClients", () => {
         ],
         error: null,
       });
-    render(<OAuthAuthorizedClients />);
-
-    expect(await screen.findByText("loadErrorTitle")).toBeVisible();
-    expect(screen.getByText("loadError")).toBeVisible();
-    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
-    expect(toast.error).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+    });
 
     expect(await screen.findByText("Claude")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("loadedStatus");
   });
 
   it("drops the empty list when the page filter matches no app", async () => {

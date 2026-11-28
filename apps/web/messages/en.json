@@ -9001,6 +9001,8 @@
         "loadErrorTitle": "Could not load connected apps",
         "loadError": "Check your connection and try again.",
         "retry": "Retry",
+        "loadingStatus": "Loading connected apps…",
+        "loadedStatus": "Connected apps loaded",
         "noApplications": "No applications have been authorized.",
         "authorized": "Authorized: {date}",
         "revokeAccess": "Revoke access",
