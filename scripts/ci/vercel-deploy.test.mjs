@@ -266,20 +266,12 @@ describe("deployTargets", () => {
       VERCEL_PROJECTS.mainnet["cmo-website"].id,
     );
 
-    const both = deployTargets(["mainnet", "preprod"]);
+    // The frozen Preprod has no project: naming it deploys nothing.
+    assert.deepEqual(deployTargets(["preprod"]), []);
     assert.deepEqual(
-      both.map((target) => `${target.network}:${target.app}`),
-      [
-        "mainnet:web",
-        "mainnet:core",
-        "mainnet:cmo",
-        "mainnet:cmo-website",
-        "preprod:web",
-        "preprod:core",
-      ],
+      deployTargets(["mainnet", "preprod"]).map((target) => target.network),
+      mainnet.map((target) => target.network),
     );
-    assert.equal(both[4].projectId, VERCEL_PROJECTS.preprod.web.id);
-    assert.equal(both[5].projectId, VERCEL_PROJECTS.preprod.core.id);
   });
 
   it("limits targets to the named apps", () => {
@@ -287,7 +279,7 @@ describe("deployTargets", () => {
       deployTargets(["mainnet", "preprod"], ["core"]).map(
         (target) => `${target.network}:${target.app}`,
       ),
-      ["mainnet:core", "preprod:core"],
+      ["mainnet:core"],
     );
   });
 });
@@ -302,9 +294,7 @@ describe("project ids", () => {
     );
 
     assert.ok(web.relatedProjects.includes(VERCEL_PROJECTS.mainnet.core.id));
-    assert.ok(web.relatedProjects.includes(VERCEL_PROJECTS.preprod.core.id));
     assert.ok(core.relatedProjects.includes(VERCEL_PROJECTS.mainnet.web.id));
-    assert.ok(core.relatedProjects.includes(VERCEL_PROJECTS.preprod.web.id));
     assert.match(VERCEL_TEAM_ID, /^team_/);
   });
 
@@ -2158,8 +2148,5 @@ describe("the preview workflow", () => {
       "utf8",
     );
     assert.doesNotMatch(workflow, /NEON_PREVIEW_PROJECT_ID_PREPROD/);
-    for (const project of Object.values(VERCEL_PROJECTS.preprod)) {
-      assert.ok(!workflow.includes(project.id), project.name);
-    }
   });
 });

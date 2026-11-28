@@ -283,31 +283,6 @@ async function provisionPreviewResources(
   }
 }
 
-/** Networks whose Vercel projects are frozen; their cleanup is best effort. */
-const LEGACY_NETWORKS = ["preprod"];
-
-/**
- * Run a Vercel step on a target. A failure on a frozen network's project is
- * reported as a warning and returns undefined, so it cannot block the Mainnet
- * work. Its ownership marker (the Core env var) stays, so the daily inventory
- * finds the PR again and retries; that, not a red job, is how a retry starts.
- */
-export async function bestEffortOnLegacy<T>(
-  target: { network: string; app?: string },
-  step: string,
-  work: () => Promise<T>,
-): Promise<T | undefined> {
-  try {
-    return await work();
-  } catch (error) {
-    if (!LEGACY_NETWORKS.includes(target.network)) throw error;
-    console.warn(
-      `::warning::Frozen ${target.network} ${target.app ?? ""} ${step} failed, Mainnet is unaffected: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    return undefined;
-  }
-}
-
 export async function cleanupPreviewResources(
   options: PreviewOptions,
   targets: Target[],
@@ -315,49 +290,36 @@ export async function cleanupPreviewResources(
   const name = previewBranchName(options);
   const metadata = previewMetadata(options);
   // Inventory first: no deletion while pagination or ownership checks can fail.
-  const deployments: { id: string; target: Target }[] = [];
-  // Frozen networks that failed: their ownership marker stays for a retry.
-  const incomplete = new Set<string>();
+  const deployments: string[] = [];
   for (const target of targets) {
-    const found = await bestEffortOnLegacy(
-      target,
-      "deployment listing",
-      async () => {
-        const ids: string[] = [];
-        let until: number | undefined;
-        do {
-          const query = new URLSearchParams({
-            projectId: target.projectId,
-            target: "preview",
-            limit: "100",
-          });
-          if (until !== undefined) query.set("until", String(until));
-          const page = await vercelRequest(options, `/v7/deployments?${query}`);
-          if (!Array.isArray(page?.deployments))
-            throw new Error("Vercel deployment list is missing");
-          for (const deployment of page.deployments) {
-            if (deployment.target === "production") continue;
-            if (
-              deployment.meta?.sokosumiPreviewRepo ===
-                metadata.sokosumiPreviewRepo &&
-              deployment.meta?.sokosumiPreviewPr === metadata.sokosumiPreviewPr
-            ) {
-              ids.push(deployment.uid);
-            }
-          }
-          const next = page.pagination?.next;
-          if (next != null && until !== undefined && next >= until)
-            throw new Error("Vercel pagination did not advance");
-          until = next ?? undefined;
-        } while (until !== undefined);
-        return ids;
-      },
-    );
-    if (!found) incomplete.add(target.network);
-    for (const id of found ?? []) deployments.push({ id, target });
+    let until: number | undefined;
+    do {
+      const query = new URLSearchParams({
+        projectId: target.projectId,
+        target: "preview",
+        limit: "100",
+      });
+      if (until !== undefined) query.set("until", String(until));
+      const page = await vercelRequest(options, `/v7/deployments?${query}`);
+      if (!Array.isArray(page?.deployments))
+        throw new Error("Vercel deployment list is missing");
+      for (const deployment of page.deployments) {
+        if (deployment.target === "production") continue;
+        if (
+          deployment.meta?.sokosumiPreviewRepo ===
+            metadata.sokosumiPreviewRepo &&
+          deployment.meta?.sokosumiPreviewPr === metadata.sokosumiPreviewPr
+        ) {
+          deployments.push(deployment.uid);
+        }
+      }
+      const next = page.pagination?.next;
+      if (next != null && until !== undefined && next >= until)
+        throw new Error("Vercel pagination did not advance");
+      until = next ?? undefined;
+    } while (until !== undefined);
   }
   const branches = [];
-  // The frozen Preprod's Neon branches expire on their own (PREVIEW_TTL_MS).
   for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     const branch = await findBranchByName(config, name);
     if (branch) {
@@ -366,35 +328,29 @@ export async function cleanupPreviewResources(
     }
   }
   // Removing deployments first prevents remaining previews from using a deleted DB.
-  for (const { id, target } of deployments) {
+  for (const id of deployments) {
     if (!id) throw new Error("Vercel deployment id is missing");
-    const done = await bestEffortOnLegacy(target, "deployment delete", () =>
-      vercelRequest(options, `/v13/deployments/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      }).then(() => true),
-    );
-    if (!done) incomplete.add(target.network);
+    await vercelRequest(options, `/v13/deployments/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
   }
   for (const target of targets.filter((target) => target.app === "core")) {
-    if (incomplete.has(target.network)) continue;
-    await bestEffortOnLegacy(target, "env cleanup", async () => {
-      for (const env of await projectEnvs(options, target.projectId)) {
-        // Comment is the ownership mark. gitBranch is not: a rename leaves the old name.
-        if (
-          env.comment === envComment(options) &&
-          env.target?.length === 1 &&
-          env.target[0] === "preview" &&
-          !env.configurationId &&
-          ["DATABASE_URL", "DATABASE_URL_UNPOOLED"].includes(env.key)
-        ) {
-          await vercelRequest(
-            options,
-            `/v9/projects/${target.projectId}/env/${encodeURIComponent(env.id)}`,
-            { method: "DELETE" },
-          );
-        }
+    for (const env of await projectEnvs(options, target.projectId)) {
+      // Comment is the ownership mark. gitBranch is not: a rename leaves the old name.
+      if (
+        env.comment === envComment(options) &&
+        env.target?.length === 1 &&
+        env.target[0] === "preview" &&
+        !env.configurationId &&
+        ["DATABASE_URL", "DATABASE_URL_UNPOOLED"].includes(env.key)
+      ) {
+        await vercelRequest(
+          options,
+          `/v9/projects/${target.projectId}/env/${encodeURIComponent(env.id)}`,
+          { method: "DELETE" },
+        );
       }
-    });
+    }
   }
   for (const { config, branch } of branches) {
     try {

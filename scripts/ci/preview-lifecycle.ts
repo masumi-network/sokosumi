@@ -7,7 +7,6 @@ import {
   refreshBranchExpiration,
 } from "../agent-db/neon-api.mjs";
 import {
-  bestEffortOnLegacy,
   cleanupPreviewResources,
   PREVIEW_TTL_MS,
   type PreviewOptions,
@@ -145,7 +144,7 @@ export async function cleanupClosedPreview(options: LifecycleOptions) {
   }
   return cleanupPreviewResources(
     { ...options, ref },
-    deployTargets(["mainnet", "preprod"]),
+    deployTargets(["mainnet"]),
   );
 }
 
@@ -166,7 +165,6 @@ export async function renewOpenPreview(options: LifecycleOptions) {
   const name = previewBranchName(options);
   const expiresAt = new Date(Date.now() + PREVIEW_TTL_MS).toISOString();
   let renewed = 0;
-  // The frozen Preprod gets no renewal: its Neon branches expire (PREVIEW_TTL_MS).
   for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     const branch = await findBranchByName(config, name);
     // Commit activity extends an existing preview; it never creates one or deploys.
@@ -219,21 +217,19 @@ export async function previewCleanupInventory(
   }
   // Native Neon expiry can remove a branch before the close event reaches us.
   // Its Vercel env marker keeps that PR discoverable for daily reconciliation.
-  for (const target of deployTargets(["mainnet", "preprod"], ["core"])) {
-    await bestEffortOnLegacy(target, "env listing", async () => {
-      const result = await vercelRequest(
-        options,
-        `/v10/projects/${target.projectId}/env`,
-      );
-      if (!Array.isArray(result?.envs))
-        throw new Error("Vercel environment list is missing");
-      for (const env of result.envs) {
-        const match = String(env.comment ?? "")
-          .replace(/^GitHub-managed /, "")
-          .match(pattern);
-        if (match) numbers.add(Number(match[1]));
-      }
-    });
+  for (const target of deployTargets(["mainnet"], ["core"])) {
+    const result = await vercelRequest(
+      options,
+      `/v10/projects/${target.projectId}/env`,
+    );
+    if (!Array.isArray(result?.envs))
+      throw new Error("Vercel environment list is missing");
+    for (const env of result.envs) {
+      const match = String(env.comment ?? "")
+        .replace(/^GitHub-managed /, "")
+        .match(pattern);
+      if (match) numbers.add(Number(match[1]));
+    }
   }
   const closed: number[] = [];
   for (const pullNumber of [...numbers].sort((a, b) => a - b)) {

@@ -36,7 +36,7 @@ export const VERCEL_PROJECTS = {
       id: "prj_GrqmJbIxWe0I6aYiZHZC2hiJYLiH",
       name: "sokosumi-core-mainnet",
     },
-    // CMO has no preprod project; it signs in against mainnet Core only.
+    // CMO signs in against mainnet Core only.
     cmo: {
       id: "prj_xtwf8SX1HCG9xfjBiNZ3JmOTlqsN",
       name: "cmo-app",
@@ -46,16 +46,6 @@ export const VERCEL_PROJECTS = {
     "cmo-website": {
       id: "prj_EC4gIS0vwLaFoOKZwP6y4ew6nACW",
       name: "cmo-website",
-    },
-  },
-  preprod: {
-    web: {
-      id: "prj_DsK6SqWjSU47g7O3unja5h4jtxMk",
-      name: "sokosumi-app-preprod",
-    },
-    core: {
-      id: "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
-      name: "sokosumi-core-preprod",
     },
   },
 };
@@ -153,7 +143,8 @@ export function preprodFrozenMessage(mainnetContinues) {
 export function deployTargets(networks, apps = APPS) {
   const targets = [];
   for (const network of NETWORKS) {
-    if (!networks.includes(network)) {
+    // The frozen Preprod has no project here: it is never deployed or cleaned up.
+    if (!networks.includes(network) || !VERCEL_PROJECTS[network]) {
       continue;
     }
     for (const app of apps) {

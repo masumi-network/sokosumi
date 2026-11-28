@@ -175,11 +175,13 @@ vercel env add AI_GATEWAY_API_KEY preview "$BRANCH" --cwd apps/web --force --yes
   < /path/to/gateway-key
 ```
 
-Core's origin for that branch follows the branch alias:
+Core's origin for that branch is the Core preview URL: copy the
+`sokosumi-core-mainnet` URL from the `/deploy mainnet` result (Vercel's comment,
+or the Deploy comment's alias list) rather than building it by hand, because a
+branch name with a slash or a long name is normalized or truncated by Vercel:
 
 ```sh
-printf 'https://sokosumi-core-mainnet-git-%s.preview.sokosumi.com' \
-  "$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/-$//')" \
+printf '%s' "https://<the sokosumi-core-mainnet preview host from the deploy>" \
   | vercel env add CORE_APP_BASE_URL preview "$BRANCH" --cwd apps/web --force --yes
 ```
 
@@ -196,9 +198,10 @@ For production, the same keys go on the Preview-wide or Production scope of
 `sokosumi-app-mainnet` and `sokosumi-core-mainnet`, with a secret generated for
 that network and not reused from the branch preview. Two things there are
 unchecked and must be read before anyone plans that rollout: whether the
-mainnet projects have `oidcTokenConfig.enabled`, and that `sokosumi-app-preprod` has no
-`IMAGE_STUDIO_AGENT_SECRET` on **any** target, Production included — so
-production Web is missing it too, not only this preview.
+mainnet projects have `oidcTokenConfig.enabled`, and whether
+`sokosumi-app-mainnet` has `IMAGE_STUDIO_AGENT_SECRET` on its Production target
+(check it with `vercel env ls` on that project). The Preprod project had none on
+**any** target, so Mainnet Production Web may be missing it too.
 
 ## Verifying
 

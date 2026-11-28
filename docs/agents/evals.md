@@ -170,7 +170,7 @@ It prints each journey side by side, marks every journey that passed on the base
 pnpm evals:local --plan --ownerbench --json-out local.json
 # The old Preprod is frozen. PREVIEW_CORE_ORIGIN is the PR's Mainnet Core preview origin
 # (after `/deploy mainnet`): https://sokosumi-core-mainnet-git-<branch>.preview.sokosumi.com
-sokosumi --api-url "$PREVIEW_CORE_ORIGIN" evals run --cases owner-codepat-daily-post,owner-cuso-launch --wait
+sokosumi --api-url "$PREVIEW_CORE_ORIGIN" evals run --cases owner-codepat-daily-post,owner-cuso-launch --wait --tick
 sokosumi --api-url "$PREVIEW_CORE_ORIGIN" evals show RUN_ID --json > deployed.json
 pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-parity.mts local.json deployed.json
 ```
