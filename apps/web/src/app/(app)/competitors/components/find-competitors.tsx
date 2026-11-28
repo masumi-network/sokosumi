@@ -35,12 +35,15 @@ export function FindCompetitors({
   projectName,
   room,
   variant,
+  size = "sm",
 }: {
   projectId: string;
   projectName: string;
   /** How many more competitors the Project can watch. */
   room: number;
   variant?: "primary";
+  /** The start hero's actions are full height; toolbars keep `sm`. */
+  size?: "default" | "sm";
 }) {
   const t = useTranslations("App.Competitors.find");
   const [open, setOpen] = useState(false);
@@ -82,7 +85,7 @@ export function FindCompetitors({
 
   return (
     <>
-      <Button onClick={search} size="sm" variant={variant}>
+      <Button onClick={search} size={size} variant={variant}>
         {t("open")}
       </Button>
       <Dialog onOpenChange={setOpen} open={open}>
