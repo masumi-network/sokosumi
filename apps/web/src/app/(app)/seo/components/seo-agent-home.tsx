@@ -152,7 +152,7 @@ function SeoAgentPanel({
   const statisticsStep = brief.steps.find(
     (step) => step.kind === "connect" && step.provider === "search_console",
   );
-  // Google Analytics has its own line at the top of the tab, with the statistics settings.
+  // Google Analytics has its own line with the statistics settings below the plan.
   const analyticsStep = brief.steps.find(
     (step): step is Extract<SeoAgentStep, { kind: "connect" }> =>
       step.kind === "connect" && step.provider === "ga4",

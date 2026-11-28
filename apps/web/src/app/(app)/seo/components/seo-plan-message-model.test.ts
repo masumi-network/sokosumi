@@ -60,6 +60,12 @@ it("keeps both prices together in a short lead and preserves an unsplittable exp
   expect(seoPlanExcerpt(explanation)).toEqual({ lead: "", rest: explanation });
 });
 
+it("uses the fallback when a saved plan has a summary but no steps", () => {
+  expect(
+    seoPlanMessage({ actions: [] }, report({ steps: [] }), none),
+  ).toBeNull();
+});
+
 it("shows no written plan for a report without one, or without its summary", () => {
   expect(seoPlanMessage({ actions: [] }, undefined, none)).toBeNull();
   expect(

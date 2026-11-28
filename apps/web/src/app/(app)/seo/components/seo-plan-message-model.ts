@@ -25,7 +25,7 @@ export function seoPlanMessage(
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null,
 ) {
   const plan = report?.auditPlan;
-  if (!report || !plan?.summary) return null;
+  if (!report || !plan?.summary || !plan.steps?.length) return null;
   const linked = new Set<ProjectSeoAction>();
   const steps = plan.steps.map((step) => {
     // A later check can replace an action. Its step then stays as text.
