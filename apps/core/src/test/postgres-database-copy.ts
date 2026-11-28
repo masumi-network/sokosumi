@@ -18,6 +18,7 @@ export async function copyPostgresTestDatabase(
   source: string,
   prefix:
     | "catalog_test"
+    | "cron_test"
     | "credit_grant_test"
     | "credit_refund_test"
     | "files_import_test",
