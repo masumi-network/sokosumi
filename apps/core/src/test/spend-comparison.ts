@@ -27,11 +27,19 @@ interface SentStatement {
   connection: number;
   text: string;
   values: unknown[];
+  /** When it was sent, on one clock shared with `answered`. */
+  sent: number;
+  /** When PostgreSQL answered it, or its error arrived; null until then. */
+  answered: number | null;
 }
+/** What `statements` reads of a statement sent. */
+type StatementSent = Pick<SentStatement, "connection" | "text" | "values">;
 /** What Core's pool sent while a call was observed, per connection. */
 const sent = {
   observing: false,
   connections: 0,
+  /** A counter, not a time: two events never share a tick. */
+  ticks: 0,
   log: [] as SentStatement[],
 };
 
@@ -48,11 +56,27 @@ export function observePool(pool: Pool): void {
           typeof first === "string"
             ? { text: first, values: second }
             : (first as { text: string; values?: unknown });
-        sent.log.push({
+        const entry: SentStatement = {
           connection,
           text: config.text,
           values: Array.isArray(config.values) ? config.values : [],
-        });
+          sent: ++sent.ticks,
+          answered: null,
+        };
+        sent.log.push(entry);
+        const result = query(...args);
+        if (result instanceof Promise) {
+          // A derived promise: the caller still gets the original and its error.
+          result.then(
+            () => {
+              entry.answered = ++sent.ticks;
+            },
+            () => {
+              entry.answered = ++sent.ticks;
+            },
+          );
+        }
+        return result;
       }
       return query(...args);
     };
@@ -104,6 +128,63 @@ export interface Statement {
   values: unknown[];
 }
 
+/** Each statement's transaction, numbered as `statements` orders them. */
+function inTransactions(log: readonly SentStatement[]) {
+  const open = new Map<number, number>();
+  let count = 0;
+  return log.map((entry) => {
+    let transaction = open.get(entry.connection) ?? null;
+    if (/^\s*BEGIN\b/i.test(entry.text)) {
+      transaction = count++;
+      open.set(entry.connection, transaction);
+    } else if (/^\s*(COMMIT|ROLLBACK)\b/i.test(entry.text)) {
+      open.delete(entry.connection);
+    }
+    return { entry, transaction };
+  });
+}
+
+/**
+ * For each transaction, as `statements` orders them, the places where a
+ * statement was sent before the one before it was answered: `[]` when every
+ * statement waited for the answer to the one before, as reads awaited one
+ * after another do. A statement never answered counts as not answered.
+ */
+export function sentBeforeAnswered(log: readonly SentStatement[]): number[][] {
+  const transactions: SentStatement[][] = [];
+  for (const { entry, transaction } of inTransactions(log)) {
+    if (transaction === null) continue;
+    transactions[transaction] ??= [];
+    transactions[transaction].push(entry);
+  }
+  return transactions.map((transaction) =>
+    transaction.flatMap((entry, at) => {
+      const before = transaction[at - 1];
+      return before &&
+        (before.answered === null || before.answered > entry.sent)
+        ? [at]
+        : [];
+    }),
+  );
+}
+
+/**
+ * The order every statement was sent in, across transactions and outside
+ * them: runs of `"<n> in transaction <t>"` or `"<n> outside"`, with `t`
+ * numbered as `statements` orders the transactions.
+ */
+export function sendOrder(log: readonly SentStatement[]): string[] {
+  const runs: { where: string; count: number }[] = [];
+  for (const { transaction } of inTransactions(log)) {
+    const where =
+      transaction === null ? "outside" : `in transaction ${transaction}`;
+    const last = runs.at(-1);
+    if (last?.where === where) last.count += 1;
+    else runs.push({ where, count: 1 });
+  }
+  return runs.map(({ where, count }) => `${count} ${where}`);
+}
+
 /**
  * The statements as PostgreSQL received them. A transaction is the statements
  * of one connection from its BEGIN to its COMMIT or ROLLBACK, in the order
@@ -116,15 +197,15 @@ export interface Statement {
  * plain and sorts them.
  */
 export function statements(
-  log: readonly SentStatement[],
+  log: readonly StatementSent[],
   options?: { asSent?: false },
 ): { transactions: Statement[][]; outsideTransactions: Record<string, number> };
 export function statements(
-  log: readonly SentStatement[],
+  log: readonly StatementSent[],
   options: { asSent: true },
 ): { transactions: Statement[][]; outsideTransactions: Statement[] };
 export function statements(
-  log: readonly SentStatement[],
+  log: readonly StatementSent[],
   { asSent = false }: { asSent?: boolean } = {},
 ) {
   const open = new Map<number, Statement[]>();
