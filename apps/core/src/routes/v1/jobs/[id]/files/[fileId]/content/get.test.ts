@@ -20,7 +20,8 @@ vi.mock("@/helpers/access-control", () => ({
   requireJobReadForRouteVars: mocks.access,
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { blob: { findFirst: mocks.blob } },
+  default: {},
+  networkPrisma: () => ({ blob: { findFirst: mocks.blob } }),
 }));
 vi.mock("@/services/file-content.service", async (original) => ({
   ...(await original<typeof import("@/services/file-content.service")>()),

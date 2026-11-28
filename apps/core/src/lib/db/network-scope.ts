@@ -6,6 +6,7 @@ import {
   netTable,
 } from "@sokosumi/database/sql-tables";
 
+import { getEnv } from "@/config/env";
 import { type Network, requireNetworkOn } from "@/lib/network";
 
 import prisma, { networkPrisma } from "./prisma";
@@ -31,6 +32,12 @@ export type NetworkDb = NetworkSide & { readonly [networkSide]: true };
  * database package owns the definition, because its repositories take it.
  */
 export type { SharedDb };
+
+/** Whether Prisma can read both sides of a relation in today's public schema. */
+export function networkUsesSharedSchema(): boolean {
+  const { DATABASE_SCHEMA_SHARED, DATABASE_SCHEMA_MAINNET } = getEnv();
+  return DATABASE_SCHEMA_SHARED === DATABASE_SCHEMA_MAINNET;
+}
 
 /**
  * What Core's database module hands out for work on one Network. An entry

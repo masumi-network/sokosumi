@@ -154,6 +154,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
     const { jobs, count, hasMore } = await getUserJobs(
+      c.var.networkScope,
       {
         userContext,
         workspaceContext,

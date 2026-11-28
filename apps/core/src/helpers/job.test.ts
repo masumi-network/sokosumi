@@ -6,6 +6,7 @@ import {
 import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { NetworkScope } from "@/lib/db/network-scope";
 import type { UserAuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 
@@ -18,6 +19,13 @@ function createTransactionClient() {
       count: vi.fn().mockResolvedValue(0),
     },
   } as unknown as Prisma.TransactionClient;
+}
+
+function jobListScope(tx: Prisma.TransactionClient) {
+  return {
+    networkDb: { job: tx.job },
+    sharedDb: { coworker: tx.coworker },
+  } as NetworkScope;
 }
 
 const orgAuthContext: UserAuthenticationContext = {
@@ -65,9 +73,8 @@ describe("getUserJobs", () => {
   it("filters jobs by active workspace and owner by default", async () => {
     const tx = createTransactionClient();
 
-    await getUserJobs(orgJobContext, {
+    await getUserJobs(jobListScope(tx), orgJobContext, {
       take: 20,
-      tx,
     });
 
     const query = vi.mocked(tx.job.findMany).mock.lastCall?.[0];
@@ -92,10 +99,9 @@ describe("getUserJobs", () => {
   it("omits the authenticated user when scope=workspace", async () => {
     const tx = createTransactionClient();
 
-    await getUserJobs(orgJobContext, {
+    await getUserJobs(jobListScope(tx), orgJobContext, {
       take: 20,
       scope: "workspace",
-      tx,
     });
 
     expect(tx.job.findMany).toHaveBeenCalledWith(
@@ -127,13 +133,13 @@ describe("getUserJobs", () => {
     };
 
     await getUserJobs(
+      jobListScope(tx),
       {
         userContext: { source: "session", ...personalContext },
         workspaceContext: personalWorkspaceContext,
       },
       {
         take: 20,
-        tx,
       },
     );
 
@@ -155,9 +161,8 @@ describe("getUserJobs", () => {
   it("accepts any agent job status query without throwing", async () => {
     const tx = createTransactionClient();
 
-    await getUserJobs(orgJobContext, {
+    await getUserJobs(jobListScope(tx), orgJobContext, {
       take: 20,
-      tx,
       status: AgentJobStatus.COMPLETED,
     });
 
@@ -185,9 +190,8 @@ describe("getUserJobs", () => {
     const tx = createTransactionClient();
     const projectId = "33333333-3333-4333-8333-333333333333";
 
-    await getUserJobs(orgJobContext, {
+    await getUserJobs(jobListScope(tx), orgJobContext, {
       take: 20,
-      tx,
       projectId,
     });
 
@@ -210,9 +214,8 @@ describe("getUserJobs", () => {
   it("filters jobs unassigned to a project", async () => {
     const tx = createTransactionClient();
 
-    await getUserJobs(orgJobContext, {
+    await getUserJobs(jobListScope(tx), orgJobContext, {
       take: 20,
-      tx,
       projectId: null,
     });
 
@@ -247,9 +250,8 @@ describe("getUserJobs", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await getUserJobs(orgJobContext, {
+    await getUserJobs(jobListScope(tx), orgJobContext, {
       take: 20,
-      tx,
       coworkerId: "cow_123",
       coworkerVendorId: "vendor_123",
     });
@@ -301,9 +303,8 @@ describe("getUserJobs", () => {
     } as unknown as Prisma.TransactionClient;
 
     await expect(
-      getUserJobs(orgJobContext, {
+      getUserJobs(jobListScope(tx), orgJobContext, {
         take: 20,
-        tx,
         coworkerId: "cow_123",
       }),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
