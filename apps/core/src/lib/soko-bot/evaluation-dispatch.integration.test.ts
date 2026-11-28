@@ -323,15 +323,21 @@ describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
         projects: [{ name: "private" }],
       });
       expect(JSON.stringify(result)).not.toContain("private");
-      expect(
-        fence.evaluationClassifierContext({
-          taskIds: [task, "other"],
-          projectIds: ["private"],
-          agentIds: [],
-          coworkerIds: [],
-          jobIds: [],
-        }),
-      ).toMatchObject({ taskIds: [task], projectIds: [] });
+      const filtered = fence.evaluationClassifierContext({
+        previousReply: "Which draft should I update?",
+        classifierPolicy: "v4",
+        taskIds: [task, "other"],
+        projectIds: ["private"],
+        agentIds: [],
+        coworkerIds: [],
+        jobIds: [],
+      });
+      expect(filtered).toMatchObject({
+        classifierPolicy: "v4",
+        taskIds: [task],
+        projectIds: [],
+      });
+      expect(filtered.previousReply).toBeUndefined();
     });
     it("allows only synthetic archive/read/approval targets", () => {
       expect(() =>

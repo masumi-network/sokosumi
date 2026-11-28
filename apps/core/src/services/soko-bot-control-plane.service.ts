@@ -2678,6 +2678,9 @@ export class SokoBotControlPlane {
           () =>
             this.classifier.classify(input.chat?.classifyMessage ?? message, {
               ...classifierContext,
+              ...(version.classifierPolicy
+                ? { classifierPolicy: version.classifierPolicy }
+                : {}),
               previousReply:
                 previousTurn?.status === "COMPLETED"
                   ? previousTurn.finalAnswer
