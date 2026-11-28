@@ -317,6 +317,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: null,
             cents: null,
             transactionId: "txn_settled_123",
+            network: null,
             user: null,
             coworker: {
               name: "Ops Agent",
@@ -336,6 +337,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: "Customer added context",
             cents: null,
             transactionId: null,
+            network: null,
             user: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
@@ -353,6 +355,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: null,
             cents: null,
             transactionId: null,
+            network: null,
             user: null,
             coworker: null,
             sokoBot: null,
@@ -367,6 +370,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: null,
             cents: 2100000000000n,
             transactionId: null,
+            network: null,
             user: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
@@ -384,6 +388,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: "   ",
             cents: null,
             transactionId: null,
+            network: null,
             user: null,
             coworker: null,
             sokoBot: null,
@@ -398,6 +403,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: null,
             cents: 1250000000000n,
             transactionId: null,
+            network: null,
             user: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
@@ -416,6 +422,7 @@ describe("getPublicSharedResourceByToken", () => {
             // Prefer cents over spend amount (auth mapTaskEvent parity).
             cents: 50000000000n,
             transactionId: "txn_partial_mismatch",
+            network: null,
             user: {
               name: "Ada Lovelace",
               image: "https://example.com/user.png",
@@ -435,6 +442,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: "Done by Hermes",
             cents: null,
             transactionId: null,
+            network: null,
             user: null,
             coworker: null,
             sokoBot: {
@@ -632,6 +640,7 @@ describe("getPublicSharedResourceByToken", () => {
             comment: null,
             cents: 50000000000n,
             transactionId: "txn_settled_credit_only",
+            network: null,
             user: null,
             coworker: {
               name: "Ops Agent",
@@ -683,6 +692,7 @@ describe("getPublicSharedResourceByToken", () => {
       comment: null,
       cents: null,
       transactionId: null,
+      network: null,
       user: { name: "Ada Lovelace", image: null },
       coworker: null,
       sokoBot: null,

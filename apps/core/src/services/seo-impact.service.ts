@@ -63,6 +63,8 @@ interface WaitingRow {
   projectId: string;
   pageUrl: string;
   changedAt: Date;
+  /** An audit recheck: the change went live by then, so only a later crawl reads it. */
+  changeLatest: Date | null;
   createdAt: Date;
 }
 
@@ -235,7 +237,7 @@ async function inspectRow(
     );
     const crawledAt = page.lastCrawlTime ? new Date(page.lastCrawlTime) : null;
     // Google reports only its last crawl: one before the change says nothing about it.
-    return crawledAt && crawledAt > row.changedAt
+    return crawledAt && crawledAt > (row.changeLatest ?? row.changedAt)
       ? {
           crawledAt,
           property,
@@ -349,11 +351,9 @@ export async function syncSeoImpact(
   // pages leave the query, so they cannot fill a page and starve the others.
   const deferredProjects = new Set<string>();
   while (result.inspected < INSPECTIONS_PER_TICK) {
-    // PR 1b's audit rechecks wait by their own rule.
     const waiting = await prisma.projectSeoImpactVerdict.findMany({
       where: {
         state: "waiting_crawl",
-        changeSource: "cuso_done",
         projectId: { notIn: [...deferredProjects] },
         OR: [
           { lastInspectedAt: null },
@@ -369,6 +369,7 @@ export async function syncSeoImpact(
         projectId: true,
         pageUrl: true,
         changedAt: true,
+        changeLatest: true,
         createdAt: true,
       },
       orderBy: [

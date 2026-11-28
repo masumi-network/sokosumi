@@ -316,7 +316,7 @@ async function closePools(): Promise<void> {
   delete (globalThis as { coreDatabase?: unknown }).coreDatabase;
 }
 
-/** Matches every route in Core's live v1 route table that belongs to slice 28-1. */
+/** Matches every route in Core's live v1 route table that belongs to ticket 28 (slices 28-1 and 28-2). */
 function classifyGatedV1Route(
   method: string,
   path: string,
@@ -362,6 +362,45 @@ function classifyGatedV1Route(
   }
   if (method === "GET" && path === "/admin/soko-bots/cmo-spend") {
     return { family: "CMO", mount: "GET /v1/admin/soko-bots/cmo-spend" };
+  }
+  // Slice 28-2: billing routes
+  if (path === "/checkout" || path.startsWith("/checkout/")) {
+    return { family: "Billing", mount: "/v1/checkout" };
+  }
+  if (path === "/products" || path.startsWith("/products/")) {
+    return { family: "Billing", mount: "/v1/products" };
+  }
+  if (path === "/coupons" || path.startsWith("/coupons/")) {
+    return { family: "Billing", mount: "/v1/coupons" };
+  }
+  if (path === "/enterprise" || path.startsWith("/enterprise/")) {
+    return { family: "Billing", mount: "/v1/enterprise" };
+  }
+  if (path === "/admin/invoices" || path.startsWith("/admin/invoices/")) {
+    return { family: "Billing", mount: "/v1/admin/invoices" };
+  }
+  if (
+    (method === "GET" &&
+      (path === "/organizations/:id/billing-details" ||
+        path === "/organizations/:id/billing-plan" ||
+        path === "/organizations/:id/enterprise-contract-summary" ||
+        path === "/organizations/:id/stripe-customer" ||
+        path === "/organizations/:id/seat-summary" ||
+        path === "/organizations/:id/credit-spend")) ||
+    (method === "POST" && path === "/organizations/:id/stripe-customer") ||
+    path === "/organizations/:id/subscription" ||
+    path.startsWith("/organizations/:id/subscription/")
+  ) {
+    return { family: "Billing", mount: "/v1/organizations/:id/<billing>" };
+  }
+  if (
+    (method === "GET" &&
+      (path === "/users/:id/billing-details" ||
+        path === "/users/:id/stripe-customer" ||
+        path === "/users/:id/subscription")) ||
+    (method === "POST" && path === "/users/:id/stripe-customer")
+  ) {
+    return { family: "Billing", mount: "/v1/users/:id/<billing>" };
   }
   return null;
 }
@@ -662,7 +701,7 @@ async function seedFixtures(loaded: Loaded) {
         clientId: CMO_CLIENT_ID,
         userId: uid,
         scopes,
-        expiresAt: new Date("2027-01-01T00:00:00.000Z"),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         token: loaded.hashStoredOAuthToken(
           token,
           loaded.OAUTH_ACCESS_TOKEN_PREFIX,
@@ -1476,6 +1515,18 @@ describe.skipIf(!enabled)(
       expect(countsByMount.get("POST /v1/contacts/:id/enrich")).toBe(1);
       expect(countsByMount.get("/v1/cmo")).toBeGreaterThanOrEqual(50);
       expect(countsByMount.get("GET /v1/admin/soko-bots/cmo-spend")).toBe(1);
+      // Slice 28-2 billing mount floors
+      expect(countsByMount.get("/v1/checkout")).toBeGreaterThanOrEqual(2);
+      expect(countsByMount.get("/v1/products")).toBeGreaterThanOrEqual(3);
+      expect(countsByMount.get("/v1/coupons")).toBeGreaterThanOrEqual(2);
+      expect(countsByMount.get("/v1/enterprise")).toBeGreaterThanOrEqual(7);
+      expect(countsByMount.get("/v1/admin/invoices")).toBeGreaterThanOrEqual(5);
+      expect(
+        countsByMount.get("/v1/organizations/:id/<billing>"),
+      ).toBeGreaterThanOrEqual(11);
+      expect(
+        countsByMount.get("/v1/users/:id/<billing>"),
+      ).toBeGreaterThanOrEqual(4);
 
       // Measure exact auth-only statement count for OAuth bearer (no workspace/scope/handler queries).
       recorded.statements.length = 0;
@@ -1502,8 +1553,23 @@ describe.skipIf(!enabled)(
 
       const digestBefore = await featureTablesDigest(loaded);
 
-      // Sweep every single gated route as a caller WITH Preprod access (admin),
-      // and sweep representative routes per mount as a caller WITHOUT Preprod access.
+      // Derive an implicit HEAD case for every gated GET route in Core's live
+      // route tables (covers slice 28-1's GET /v1/admin/soko-bots/cmo-spend as
+      // well as every gated GET across SEO, Image Studio, Competitor checks,
+      // CMO, and slice 28-2 billing).
+      const derivedHeadRoutes = gatedRoutes
+        .filter((route) => route.method === "GET")
+        .map((route) => ({ ...route, method: "HEAD" }));
+      expect(
+        derivedHeadRoutes.some(
+          (route) => route.fullPath === "/v1/admin/soko-bots/cmo-spend",
+        ),
+      ).toBe(true);
+      const allGatedChecks = [...gatedRoutes, ...derivedHeadRoutes];
+
+      // Sweep every single gated route (plus every derived HEAD case) as a
+      // caller WITH Preprod access (admin), and sweep representative routes per
+      // mount (including HEAD) as a caller WITHOUT Preprod access.
       const callers: {
         label: string;
         oauthToken: string;
@@ -1523,16 +1589,21 @@ describe.skipIf(!enabled)(
 
       for (const caller of callers) {
         const seenMount = new Set<string>();
-        for (const route of gatedRoutes) {
+        for (const route of allGatedChecks) {
           if (!caller.fullSweep) {
             if (route.authKind !== "oauth") continue;
-            if (seenMount.has(route.mount)) continue;
-            seenMount.add(route.mount);
+            const mountKey = `${route.method === "HEAD" ? "HEAD:" : ""}${route.mount}`;
+            if (seenMount.has(mountKey)) continue;
+            seenMount.add(mountKey);
           }
 
           recorded.statements.length = 0;
           recorded.providers.length = 0;
 
+          const hasBody =
+            route.method !== "GET" &&
+            route.method !== "HEAD" &&
+            route.method !== "DELETE";
           const response = await loaded.app.request(
             `${ORIGIN}${route.fullPath}`,
             {
@@ -1545,36 +1616,52 @@ describe.skipIf(!enabled)(
                     : caller.oauthToken
                 }`,
                 [HEADER]: "preprod",
-                ...(route.method !== "GET" && route.method !== "DELETE"
-                  ? { "content-type": "application/json" }
-                  : {}),
+                ...(hasBody ? { "content-type": "application/json" } : {}),
               },
-              ...(route.method !== "GET" && route.method !== "DELETE"
-                ? { body: "{}" }
-                : {}),
+              ...(hasBody ? { body: "{}" } : {}),
             },
           );
           await drainBackground();
 
-          const body = (await response.json()) as {
-            kind?: string;
-            message?: string;
-          };
-          expect([
-            caller.label,
-            route.method,
-            route.fullPath,
-            response.status,
-            body.kind,
-            body.message,
-          ]).toEqual([
-            caller.label,
-            route.method,
-            route.fullPath,
-            422,
-            CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
-            EXPECTED_MESSAGE,
-          ]);
+          if (route.method === "HEAD") {
+            expect([
+              caller.label,
+              route.method,
+              route.fullPath,
+              response.status,
+              await response.text(),
+              response.headers
+                .get("content-type")
+                ?.includes("application/json"),
+            ]).toEqual([
+              caller.label,
+              route.method,
+              route.fullPath,
+              422,
+              "",
+              true,
+            ]);
+          } else {
+            const body = (await response.json()) as {
+              kind?: string;
+              message?: string;
+            };
+            expect([
+              caller.label,
+              route.method,
+              route.fullPath,
+              response.status,
+              body.kind,
+              body.message,
+            ]).toEqual([
+              caller.label,
+              route.method,
+              route.fullPath,
+              422,
+              CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
+              EXPECTED_MESSAGE,
+            ]);
+          }
           expect([route.method, route.fullPath, recorded.providers]).toEqual([
             route.method,
             route.fullPath,
@@ -1597,6 +1684,40 @@ describe.skipIf(!enabled)(
           ]);
         }
       }
+
+      // HEAD without a preprod header on slice 28-1's method-gated GET route
+      // preserves Mainnet status, headers, and empty body; OPTIONS stays 204.
+      const mainnetCmoSpendHead = await loaded.app.request(
+        `${ORIGIN}/v1/admin/soko-bots/cmo-spend`,
+        {
+          method: "HEAD",
+          headers: {
+            origin: ORIGIN,
+            authorization: `Bearer ${ADMIN_OAUTH_TOKEN}`,
+          },
+        },
+      );
+      expect(mainnetCmoSpendHead.status).toBe(200);
+      expect(await mainnetCmoSpendHead.text()).toBe("");
+      expect(mainnetCmoSpendHead.headers.get("content-type")).toContain(
+        "application/json",
+      );
+
+      recorded.statements.length = 0;
+      const optionsCmoSpend = await loaded.app.request(
+        `${ORIGIN}/v1/admin/soko-bots/cmo-spend`,
+        {
+          method: "OPTIONS",
+          headers: {
+            origin: ORIGIN,
+            "access-control-request-method": "GET",
+            [HEADER]: "preprod",
+          },
+        },
+      );
+      expect(optionsCmoSpend.status).toBe(204);
+      expect(await optionsCmoSpend.text()).toBe("");
+      expect(recorded.statements).toEqual([]);
 
       const digestAfter = await featureTablesDigest(loaded);
       expect(digestAfter).toEqual(digestBefore);
@@ -2259,13 +2380,23 @@ describe.skipIf(!enabled)(
         });
       }
 
-      // Guard against a filter bug silently dropping ungated routes.
+      // Guard against a filter bug silently dropping ungated routes, and
+      // explicitly verify Seat entitlement/assignment and generic org routes
+      // stay open on Preprod.
       expect(ungatedRoutes.length).toBeGreaterThanOrEqual(700);
-      expect(
-        ungatedRoutes.some(
-          (r) => r.method === "GET" && r.path === "/contacts/:id",
-        ),
-      ).toBe(true);
+      for (const [method, path] of [
+        ["GET", "/contacts/:id"],
+        ["GET", "/organizations/:id"],
+        ["GET", "/organizations/:id/members/me/seat"],
+        ["PUT", "/organizations/:id/members/:memberId/seat"],
+        ["DELETE", "/organizations/:id/members/:memberId/seat"],
+        ["PUT", "/admin/organizations/:slug/members/:memberId/seat"],
+        ["DELETE", "/admin/organizations/:slug/members/:memberId/seat"],
+      ] as const) {
+        expect(
+          ungatedRoutes.some((r) => r.method === method && r.path === path),
+        ).toBe(true);
+      }
 
       // Sending an unknown X-Organization-Slug stops non-gated OpenAPIHonoWithAuth
       // routes at organizationContextMiddleware (after auth and AFTER any

@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth-oauth-provider.js";
 import { OAUTH_REFRESH_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes.js";
 import prisma from "@/lib/db/prisma";
+import { requireMainnetOnlyFeatureForMethods } from "@/middleware/mainnet-only-feature";
 import {
   NETWORK_HEADER,
   requestNetworkMiddleware,
@@ -78,6 +79,13 @@ app.post("/oauth2/token", (c) =>
           }),
       ),
   ),
+);
+
+// Better Auth authenticates inside its handler, so subscription billing routes
+// refuse Preprod before Better Auth runs (signed in or not, zero session reads).
+app.use(
+  "/subscription/*",
+  requireMainnetOnlyFeatureForMethods(["GET", "POST"]),
 );
 
 app.on(["POST", "GET"], "*", (c) => auth.handler(c.req.raw));

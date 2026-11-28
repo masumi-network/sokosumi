@@ -7998,7 +7998,9 @@
           "365": "365 días",
           "all": "Todo"
         },
+        "all": "Todos",
         "empty": "No se siguió ningún cambio de página en este periodo.",
+        "emptyFiltered": "Ningún cambio de página seguido coincide con estos filtros.",
         "customer": "Cliente",
         "page": "Página",
         "suggestion": "Sugerencia",
@@ -8012,6 +8014,7 @@
         "notYet": "Todavía no",
         "windowRange": "Del {start} al {end}",
         "readyOn": "Datos definitivos el {date}",
+        "closingEvidence": "{row} · {device}: referencia {baseline}, revisado {checked}",
         "sources": {
           "cuso_done": "Marcado como hecho",
           "audit_recheck": "Nueva revisión de auditoría"
@@ -14272,6 +14275,7 @@
         "graphLabel": "Actividad SEO, lo más reciente primero",
         "auditRun": "Resultados de la auditoría",
         "checkRun": "Resultados de la comprobación",
+        "crawlRun": "Resultados del rastreo",
         "recheckRun": "Resultados de la nueva comprobación",
         "analysisRequested": "Comprobación solicitada",
         "metricsSynced": "Estadísticas sincronizadas",
@@ -14279,6 +14283,7 @@
         "scopeChanged": "Selección de páginas cambiada",
         "pageChanged": "Cambio de página registrado",
         "checkSummary": "{checked, plural, one {# prueba} other {# pruebas}}",
+        "crawlSummary": "{read, plural, one {# página leída} other {# páginas leídas}}",
         "sourceDetails": "Detalles",
         "resultsSaved": "Resultados guardados",
         "incomplete": "No se pudo completar parte del trabajo solicitado.",
@@ -14329,6 +14334,7 @@
         "links": "Resumen de enlaces entrantes",
         "audit_lite": "Comprobación personalizada",
         "audit_full": "Auditoría completa",
+        "crawl_next": "Siguientes 500 páginas",
         "keywords": "Palabras clave, una por línea",
         "competitors": "URL de competidores, una por línea",
         "country": "País de búsqueda",
@@ -15885,6 +15891,22 @@
           "duplicateTitles": "Duplicate titles",
           "orphans": "Orphan pages",
           "javascript": "Page groups that need JavaScript"
+        },
+        "next": {
+          "button": "Crawl the next 500 pages",
+          "busy": "Another check runs now. Wait until it finishes.",
+          "title": "Crawl the next 500 pages?",
+          "body": "The crawl goes on from where the last crawl stopped. It reads up to 500 pages that no crawl read yet and checks them. Then it audits up to 15 problem pages in full.",
+          "price": "Price: the provider cost plus 50%, at least 100 credits. Sokosumi charges it when the crawl finishes.",
+          "confirm": "Start the crawl",
+          "cancel": "Cancel",
+          "started": "The crawl of the next pages started.",
+          "heading": "Next pages",
+          "audited": "Pages audited in full",
+          "pickedFor": "Picked for: {reasons}",
+          "findings": "{count, plural, =0 {No issues} one {# issue} other {# issues}}",
+          "moreFindings": "{count, plural, one {# more issue} other {# more issues}}",
+          "skipped": "Picked but not audited"
         }
       }
     },

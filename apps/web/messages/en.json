@@ -8034,7 +8034,9 @@
           "365": "365 days",
           "all": "All"
         },
+        "all": "All",
         "empty": "No page change was tracked in this period.",
+        "emptyFiltered": "No tracked page change matches these filters.",
         "customer": "Customer",
         "page": "Page",
         "suggestion": "Suggestion",
@@ -8048,6 +8050,7 @@
         "notYet": "Not yet",
         "windowRange": "{start} to {end}",
         "readyOn": "Data final on {date}",
+        "closingEvidence": "{row} · {device}: baseline {baseline}, rechecked {checked}",
         "sources": {
           "cuso_done": "Marked done",
           "audit_recheck": "Audit recheck"
@@ -14272,6 +14275,7 @@
         "graphLabel": "SEO activity, newest first",
         "auditRun": "Audit results",
         "checkRun": "Check results",
+        "crawlRun": "Crawl results",
         "recheckRun": "Recheck results",
         "analysisRequested": "Check requested",
         "metricsSynced": "Statistics synced",
@@ -14279,6 +14283,7 @@
         "scopeChanged": "Page selection changed",
         "pageChanged": "Page change recorded",
         "checkSummary": "{checked, plural, one {# test} other {# tests}}",
+        "crawlSummary": "{read, plural, one {# page read} other {# pages read}}",
         "sourceDetails": "Details",
         "resultsSaved": "Results saved",
         "incomplete": "Some requested work could not be completed.",
@@ -14329,6 +14334,7 @@
         "links": "Backlink overview",
         "audit_lite": "Custom check",
         "audit_full": "Full audit",
+        "crawl_next": "Next 500 pages",
         "keywords": "Keywords, one per line",
         "competitors": "Competitor URLs, one per line",
         "country": "Search country",
@@ -15885,6 +15891,22 @@
           "duplicateTitles": "Duplicate titles",
           "orphans": "Orphan pages",
           "javascript": "Page groups that need JavaScript"
+        },
+        "next": {
+          "button": "Crawl the next 500 pages",
+          "busy": "Another check runs now. Wait until it finishes.",
+          "title": "Crawl the next 500 pages?",
+          "body": "The crawl goes on from where the last crawl stopped. It reads up to 500 pages that no crawl read yet and checks them. Then it audits up to 15 problem pages in full.",
+          "price": "Price: the provider cost plus 50%, at least 100 credits. Sokosumi charges it when the crawl finishes.",
+          "confirm": "Start the crawl",
+          "cancel": "Cancel",
+          "started": "The crawl of the next pages started.",
+          "heading": "Next pages",
+          "audited": "Pages audited in full",
+          "pickedFor": "Picked for: {reasons}",
+          "findings": "{count, plural, =0 {No issues} one {# issue} other {# issues}}",
+          "moreFindings": "{count, plural, one {# more issue} other {# more issues}}",
+          "skipped": "Picked but not audited"
         }
       }
     },

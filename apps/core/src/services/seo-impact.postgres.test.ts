@@ -262,19 +262,20 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     properties.splice(0, Infinity, "sc-domain:battery-sensei.app");
     beforeAnswer.mockReset();
     vi.mocked(propertyChoices).mockClear();
-    await prisma.projectSeoSuggestion.deleteMany({
-      where: {
-        projectId: {
-          in: [
-            projectId,
-            copyProjectId,
-            evalProjectId,
-            evalCusoProjectId,
-            failingProjectId,
-          ],
-        },
+    const where = {
+      projectId: {
+        in: [
+          projectId,
+          copyProjectId,
+          evalProjectId,
+          evalCusoProjectId,
+          failingProjectId,
+        ],
       },
-    });
+    };
+    await prisma.projectSeoSuggestion.deleteMany({ where });
+    // An audit recheck has no suggestion to take it along.
+    await prisma.projectSeoImpactVerdict.deleteMany({ where });
   });
 
   afterAll(async () => {
@@ -843,22 +844,31 @@ describe.skipIf(!enabled)("SEO impact tracking against PostgreSQL", () => {
     expect(propertyChoices).toHaveBeenCalledOnce();
   });
 
-  it("leaves audit recheck rows to their own rule", async () => {
-    const { id } = await doneChange("https://battery-sensei.app/pricing", {
-      status: "open",
-    });
-    await prisma.projectSeoImpactVerdict.create({
+  it("reads an audit recheck only by a crawl after its latest bound", async () => {
+    const pageUrl = "https://battery-sensei.app/pricing";
+    const { id } = await prisma.projectSeoImpactVerdict.create({
       data: {
         projectId,
         changeSource: "audit_recheck",
-        suggestionId: id,
         changedAt: CHANGED_AT,
-        pageUrl: "https://battery-sensei.app/pricing",
+        changeEarliest: CHANGED_AT,
+        changeLatest: new Date("2026-11-23T00:00:00Z"),
+        pageUrl,
       },
     });
+    const row = () =>
+      prisma.projectSeoImpactVerdict.findUniqueOrThrow({ where: { id } });
+    // After the earliest bound, before the latest: the change may not have been live yet.
+    lastCrawl.set(pageUrl, "2026-11-22T08:00:00Z");
+    expect(await syncSeoImpact()).toMatchObject({ inspected: 1, crawled: 0 });
+    expect(await row()).toMatchObject({ state: "waiting_crawl" });
 
-    expect(await syncSeoImpact()).toMatchObject({ inspected: 0 });
-    expect(await rowsOf(id)).toMatchObject([{ lastInspectedAt: null }]);
+    lastCrawl.set(pageUrl, "2026-11-24T08:00:00Z");
+    await syncSeoImpact(undefined, new Date(Date.now() + DAY_MS));
+    expect(await row()).toMatchObject({
+      state: "waiting_window",
+      crawledAt: new Date("2026-11-24T08:00:00Z"),
+    });
   });
 
   it("reads only changes it has not recorded yet", async () => {

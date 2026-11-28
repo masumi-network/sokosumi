@@ -698,6 +698,10 @@
       "cli": "seo project-set-brand-terms",
       "mcp": "seo_project_set_brand_terms"
     },
+    "POST /projects/{id}/seo/crawl-continuations": {
+      "cli": "seo project-continue-crawl",
+      "mcp": "seo_project_continue_crawl"
+    },
     "GET /projects/{id}/seo/brief": {
       "cli": "seo project-brief",
       "mcp": "seo_project_brief"

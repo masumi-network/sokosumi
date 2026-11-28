@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
+import { seoSeveritySchema } from "./seo-analysis-enums.schema";
 
 const count = z.number().int().nonnegative();
+/** A URL as the crawl view stores it. */
 export const seoCrawlUrlSchema = z.string().min(1).max(4096);
 const crawlUrl = seoCrawlUrlSchema;
 const crawlText = z.string().max(2000);
@@ -24,6 +26,32 @@ export const seoCrawlStopSchema = z.enum([
   "fetch failed",
 ]);
 
+/** An SEO bot Snapshot id. */
+export const seoSnapshotIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
+/** The most pages a crawl continuation audits in full (the SEO bot's CRAWL_NEXT_MAX_PAGES). */
+export const SEO_CRAWL_NEXT_MAX_AUDITS = 15;
+const MAX_AUDIT_FINDINGS = 50;
+
+/** The problem pages a crawl continuation audited in full, and those it picked but could not audit. */
+const deepAudit = z.object({
+  pages: z
+    .array(
+      z.object({
+        url: crawlUrl,
+        /** The crawl checks that made the page a problem page, in the SEO bot's words. */
+        pickedFor: z.array(crawlText).max(10),
+        findings: z
+          .array(z.object({ title: crawlText, severity: seoSeveritySchema }))
+          .max(MAX_AUDIT_FINDINGS),
+        findingsTotal: count,
+      }),
+    )
+    .max(SEO_CRAWL_NEXT_MAX_AUDITS),
+  skipped: z
+    .array(z.object({ url: crawlUrl, reason: crawlText }))
+    .max(SEO_CRAWL_NEXT_MAX_AUDITS),
+});
+
 export const seoBadCanonicalKindSchema = z.enum([
   "target not 2xx",
   "other host",
@@ -35,6 +63,12 @@ export const seoBadCanonicalKindSchema = z.enum([
 
 const crawled = z.object({
   state: z.literal("crawled"),
+  /** The crawl's Snapshot, which a continuation goes on from. Absent in a report from before continuations. */
+  snapshotId: seoSnapshotIdSchema.optional(),
+  /** The URL the crawl started from. Absent in a report from before continuations. */
+  startUrl: crawlUrl.optional(),
+  /** The crawl Snapshot this crawl went on from. Absent on a site audit's own crawl. */
+  continues: seoSnapshotIdSchema.optional(),
   /** URLs the crawl fetched. */
   fetched: count,
   /** HTML pages on the site whose links the crawl read. */
@@ -164,6 +198,8 @@ const crawled = z.object({
     }),
     z.null(),
   ]),
+  /** A crawl continuation's full audits of its problem pages. Absent on a site audit's own crawl. */
+  deepAudit: deepAudit.optional(),
   /** What the crawl could not see, in the SEO bot's words. */
   gaps: z.array(z.object({ item: crawlText, reason: crawlText })).max(50),
 });
@@ -176,3 +212,4 @@ export const seoSiteCrawlSchema = z
   ])
   .openapi("ProjectSeoSiteCrawl");
 export type SeoSiteCrawl = z.infer<typeof seoSiteCrawlSchema>;
+export type SeoCrawlDeepAudit = z.infer<typeof deepAudit>;

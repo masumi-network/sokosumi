@@ -11,6 +11,7 @@ import messages from "../../../../../messages/en.json";
 import { SeoSiteCrawl } from "./seo-site-crawl";
 import { type SeoCrawlT, seoCrawlInstructions } from "./seo-site-crawl-copy";
 import { seoSiteCrawlView } from "./seo-site-crawl-model";
+import { SeoCrawlNextButton } from "./seo-site-crawl-next";
 import { SEO_TEST_PAGE, seoTestWorkspace } from "./seo-test-fixture";
 
 type Crawled = Extract<ProjectSeoSiteCrawl, { state: "crawled" }>;
@@ -139,6 +140,111 @@ describe("site crawl view", () => {
     expect(pages.map((page) => page.firstChild?.textContent)).toEqual(["/"]);
     await userEvent.click(pages[0]!);
     expect(openPage).toHaveBeenCalledWith(SEO_TEST_PAGE);
+  });
+});
+
+describe("crawl of the next pages", () => {
+  const AUDIT = "a".repeat(64),
+    NEXT = "b".repeat(64);
+  const next = copy.next;
+
+  it("lists the continuation with its deep audit, and starts the next one from the tip Core offers", async () => {
+    const continuation: Crawled = {
+      ...crawl(),
+      stop: "page cap",
+      snapshotId: NEXT,
+      continues: AUDIT,
+      startUrl: `${SITE}/`,
+      deepAudit: {
+        pages: [
+          {
+            url: `${SITE}/shop`,
+            pickedFor: ["broken links"],
+            findings: [
+              { title: "No meta description", severity: "major" },
+              { title: "Check the image sizes", severity: "test" },
+            ],
+            findingsTotal: 2,
+          },
+        ],
+        skipped: [{ url: `${SITE}/cart`, reason: "the page answered 500" }],
+      },
+    };
+    const base = seoTestWorkspace();
+    const workspace = {
+      ...base,
+      availableActions: { ...base.availableActions, continueCrawlFrom: NEXT },
+      observations: [
+        {
+          id: "next",
+          kind: "crawl_next",
+          observedAt: new Date("2026-11-21T12:00:00Z"),
+          siteCrawl: continuation,
+        },
+        {
+          id: "audit",
+          kind: "audit_full",
+          observedAt: new Date("2026-11-20T12:00:00Z"),
+          siteCrawl: { ...crawl(), stop: "page cap", snapshotId: AUDIT },
+        },
+      ],
+    } as unknown as ProjectSeoWorkspace;
+    const execute = vi.fn();
+    const ui = (data: ProjectSeoWorkspace) => (
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        formats={createFormats()}
+        messages={messages}
+      >
+        <SeoSiteCrawl
+          workspace={data}
+          openPage={vi.fn()}
+          action={
+            <SeoCrawlNextButton
+              model={
+                { data, pending: false, execute } as unknown as Parameters<
+                  typeof SeoCrawlNextButton
+                >[0]["model"]
+              }
+            />
+          }
+        />
+      </NextIntlClientProvider>
+    );
+    const { rerender } = render(ui(workspace));
+    const fold = screen.getByText(next.heading).closest("details")!;
+    await userEvent.click(screen.getByText(next.heading));
+    expect(fold).toHaveAttribute("open");
+    within(fold).getByText(`${SITE}/shop`);
+    within(fold).getByText("Picked for: broken links · 2 issues");
+    within(fold).getByText("The page answered 500.");
+    // A test has no level: only the ranked finding shows one.
+    expect(within(fold).getAllByText("High impact")).toHaveLength(1);
+    expect(within(fold).queryByText("Low impact")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: next.button }));
+    await userEvent.click(screen.getByRole("button", { name: next.confirm }));
+    expect(execute).toHaveBeenCalledExactlyOnceWith(
+      {
+        kind: "continue_crawl",
+        continues: NEXT,
+        idempotencyKey: expect.any(String),
+      },
+      next.started,
+    );
+
+    // Core offers a crawl this view does not end at, as a newer audit's: no button here buys it.
+    rerender(
+      ui({
+        ...workspace,
+        availableActions: {
+          ...workspace.availableActions,
+          continueCrawlFrom: "c".repeat(64),
+        },
+      }),
+    );
+    expect(screen.queryByRole("button", { name: next.button })).toBeNull();
   });
 });
 

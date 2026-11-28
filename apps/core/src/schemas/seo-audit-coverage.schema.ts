@@ -14,6 +14,8 @@ import {
 import { seoSiteCrawlSchema } from "./seo-site-crawl.schema";
 
 export const seoDeviceSchema = z.enum(["mobile", "desktop"]);
+/** The worker's hash of a row's rule: equal keys mean the same rule and check across rulebook versions. */
+export const seoRuleKeySchema = z.string().regex(/^[0-9a-f]{16}$/);
 
 export const storedSeoChecklist = z
   .array(
@@ -23,6 +25,12 @@ export const storedSeoChecklist = z
       pageUrl: seoUrlSchema,
       device: seoDeviceSchema,
       result: z.enum(["pass", "fired", "blocked", "not_checked"]),
+      ruleKey: seoRuleKeySchema.optional(),
+      // The result rests only on the page's own raw read, so a later pass can be the owner's fix.
+      pageOnly: z.literal(true).optional(),
+      // The address the row's device read in the end.
+      finalUrl: seoUrlSchema.optional(),
+      outsideSiteMarket: z.literal(true).optional(),
     }),
   )
   .max(10000);

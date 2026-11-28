@@ -52,6 +52,8 @@ import {
   requireSeoOwner,
   requireSeoPages,
   resolveSeoScope,
+  SEO_EVIDENCE_ORDER,
+  SEO_WORKSPACE_EVIDENCE_LIMIT,
   type SeoMutationHooks,
   seoLinkedTaskWhere,
   seoOwnerData,
@@ -62,6 +64,7 @@ import {
 import { pendingSeoActionReviews } from "./seo-action-review-store";
 import { readAuditPerformanceSummaries } from "./seo-audit-performance-summary";
 import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
+import { seoDispatchInputs } from "./seo-crawl-next.service";
 import { projectLegacyIndexingProvenance } from "./seo-indexing-provenance";
 import { loadPrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
 import { privateTopicQueries } from "./seo-private-topic-queries";
@@ -418,8 +421,6 @@ export async function recordNativeSeoMetrics(
       );
 }
 
-/** Audit evidence and page changes: the newest rows the workspace shows. */
-const SEO_WORKSPACE_EVIDENCE_LIMIT = 100;
 /** Native metric snapshots: the newest syncs the workspace shows. */
 const SEO_WORKSPACE_METRICS_LIMIT = 100;
 
@@ -439,8 +440,7 @@ async function loadSeoWorkspaceObservations(
   const [evidence, metrics] = await Promise.all([
     prisma.projectSeoObservation.findMany({
       where: { ...where, ownerId: null },
-      // A page and a site artifact may share a capture time. Resolve the tie consistently.
-      orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      orderBy: SEO_EVIDENCE_ORDER,
       take: SEO_WORKSPACE_EVIDENCE_LIMIT,
     }),
     privateMetricsAllowed
@@ -681,9 +681,7 @@ export async function getProjectSeoWorkspace(
         .map((task) => task.id),
     ),
     privateMetricsAllowed,
-    analysisDispatchEnabled: executor !== null,
-    canUsePaidSearchData: executor?.canUsePaidSearchData === true,
-    canSchedule: executor?.canSchedule === true,
+    ...(await seoDispatchInputs(actor, executor, { query, scope, pages })),
     monitors,
   });
   const reviewedActions = await pendingSeoActionReviews(

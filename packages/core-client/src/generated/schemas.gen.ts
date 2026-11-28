@@ -834,6 +834,33 @@ export const AdminSeoImpactVerdictsSchema = {
             type: 'integer',
             minimum: 0
         },
+        counts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'waiting_crawl',
+                            'waiting_window',
+                            'ready',
+                            'waiting_retry',
+                            'measured',
+                            'not_measurable'
+                        ]
+                    },
+                    count: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'state',
+                    'count'
+                ]
+            }
+        },
         rows: {
             type: 'array',
             items: {
@@ -875,6 +902,41 @@ export const AdminSeoImpactVerdictsSchema = {
                     changedAt: {
                         type: 'string',
                         format: 'date-time'
+                    },
+                    closingEvidence: {
+                        type: [
+                            'array',
+                            'null'
+                        ],
+                        items: {
+                            type: 'object',
+                            properties: {
+                                rowId: {
+                                    type: 'string'
+                                },
+                                device: {
+                                    type: 'string',
+                                    enum: [
+                                        'mobile',
+                                        'desktop'
+                                    ]
+                                },
+                                baselineObservedAt: {
+                                    type: 'string',
+                                    format: 'date-time'
+                                },
+                                checkedObservedAt: {
+                                    type: 'string',
+                                    format: 'date-time'
+                                }
+                            },
+                            required: [
+                                'rowId',
+                                'device',
+                                'baselineObservedAt',
+                                'checkedObservedAt'
+                            ]
+                        }
                     },
                     crawledAt: {
                         type: [
@@ -943,6 +1005,7 @@ export const AdminSeoImpactVerdictsSchema = {
                     'suggestionTitle',
                     'changeSource',
                     'changedAt',
+                    'closingEvidence',
                     'crawledAt',
                     'windowStart',
                     'windowEnd',
@@ -955,6 +1018,7 @@ export const AdminSeoImpactVerdictsSchema = {
     },
     required: [
         'total',
+        'counts',
         'rows'
     ]
 } as const;
@@ -50296,6 +50360,13 @@ export const ProjectSeoWorkspaceSchema = {
                 canCreateMonitor: {
                     type: 'boolean'
                 },
+                continueCrawlFrom: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    pattern: '^[0-9a-f]{64}$'
+                },
                 canSyncMetrics: {
                     type: 'boolean'
                 }
@@ -51543,6 +51614,19 @@ export const ProjectSeoSiteCrawlSchema = {
                         'crawled'
                     ]
                 },
+                snapshotId: {
+                    type: 'string',
+                    pattern: '^[0-9a-f]{64}$'
+                },
+                startUrl: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 4096
+                },
+                continues: {
+                    type: 'string',
+                    pattern: '^[0-9a-f]{64}$'
+                },
                 fetched: {
                     type: 'integer',
                     minimum: 0
@@ -52074,6 +52158,97 @@ export const ProjectSeoSiteCrawlSchema = {
                         {
                             type: 'null'
                         }
+                    ]
+                },
+                deepAudit: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    url: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4096
+                                    },
+                                    pickedFor: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 2000
+                                        },
+                                        maxItems: 10
+                                    },
+                                    findings: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                title: {
+                                                    type: 'string',
+                                                    maxLength: 2000
+                                                },
+                                                severity: {
+                                                    type: 'string',
+                                                    enum: [
+                                                        'critical',
+                                                        'major',
+                                                        'minor',
+                                                        'note',
+                                                        'test',
+                                                        'measure'
+                                                    ]
+                                                }
+                                            },
+                                            required: [
+                                                'title',
+                                                'severity'
+                                            ]
+                                        },
+                                        maxItems: 50
+                                    },
+                                    findingsTotal: {
+                                        type: 'integer',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'url',
+                                    'pickedFor',
+                                    'findings',
+                                    'findingsTotal'
+                                ]
+                            },
+                            maxItems: 15
+                        },
+                        skipped: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    url: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4096
+                                    },
+                                    reason: {
+                                        type: 'string',
+                                        maxLength: 2000
+                                    }
+                                },
+                                required: [
+                                    'url',
+                                    'reason'
+                                ]
+                            },
+                            maxItems: 15
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'skipped'
                     ]
                 },
                 gaps: {
@@ -56107,7 +56282,8 @@ export const ProjectSeoAnalysisSchema = {
                 'rankings',
                 'links',
                 'audit_lite',
-                'audit_full'
+                'audit_full',
+                'crawl_next'
             ]
         },
         status: {
@@ -58371,6 +58547,63 @@ export const SeoBriefSuggestionSchema = {
     additionalProperties: false
 } as const;
 
+export const RequestSeoCrawlNextSchema = {
+    type: 'object',
+    properties: {
+        continues: {
+            type: 'string',
+            pattern: '^[0-9a-f]{64}$'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'cost_plus'
+                    ]
+                },
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                minimumCredits: {
+                    type: 'number',
+                    enum: [
+                        100
+                    ]
+                },
+                markupPercent: {
+                    type: 'number',
+                    enum: [
+                        50
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'version',
+                'minimumCredits',
+                'markupPercent'
+            ],
+            additionalProperties: false
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 128
+        }
+    },
+    required: [
+        'continues',
+        'price',
+        'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -58501,7 +58734,8 @@ export const SeoAuditLastCheckSchema = {
                 'rankings',
                 'links',
                 'audit_lite',
-                'audit_full'
+                'audit_full',
+                'crawl_next'
             ]
         },
         status: {

@@ -1,4 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   isOwnedTaskFileUrl,
   isVercelBlobPublicHost,
@@ -28,10 +29,14 @@ import {
   parsePublicSeoArtifact,
 } from "@/helpers/project-seo-report";
 import { readAuditPlan } from "@/helpers/seo-audit-plan";
+import { assertCrawlNextMatchesRequest } from "@/helpers/seo-crawl-next-report";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
+import { recheckSeoAuditSafely } from "./project-seo-audit-recheck-run";
+import { PAGE_RULE_KINDS } from "./project-seo-fix-results";
 import { notifySeoMonitorClicksDropSafely } from "./project-seo-monitor-clicks";
 import { notifySeoMonitorWorseSafely } from "./project-seo-monitor-notify";
 import { seoRankPoints } from "./project-seo-rank-points";
@@ -42,11 +47,15 @@ import {
   requireSeoOwner,
   SEO_ARTIFACT_MAX_BYTES,
   SEO_ARTIFACT_TIMEOUT_MS,
+  SEO_CRAWL_NEXT_MAX_BYTES,
   type SeoMutationHooks,
   seoOwnerData,
   seoOwnerUnique,
+  seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
+
+const omitRecheckState = { needsAuditRecheck: true } as const;
 
 async function requireSourceFile(
   actor: SeoActor,
@@ -97,6 +106,11 @@ async function requireSourceFile(
     },
   });
   const file = task?.files[0];
+  // A paid continuation's Report is larger than a page audit's: the cap must not refuse what was charged.
+  const maxBytes =
+    analysis?.kind === "crawl_next"
+      ? SEO_CRAWL_NEXT_MAX_BYTES
+      : SEO_ARTIFACT_MAX_BYTES;
   if (
     !task?.assigneeId ||
     !file ||
@@ -111,18 +125,15 @@ async function requireSourceFile(
     throw notFound(
       "A completed public SEO report from this Task's Coworker is required",
     );
-  if (
-    file.size === null ||
-    file.size <= 0n ||
-    file.size > BigInt(SEO_ARTIFACT_MAX_BYTES)
-  )
+  if (file.size === null || file.size <= 0n || file.size > BigInt(maxBytes))
     throw badRequest("The SEO report has an invalid size");
-  return { task, file, fileUrl: file.fileUrl, analysis };
+  return { task, file, fileUrl: file.fileUrl, analysis, maxBytes };
 }
 
 async function readSeoArtifact(
   url: string,
   fetchImpl: typeof fetch,
+  maxBytes: number,
 ): Promise<string> {
   const response = await fetchImpl(url, {
     redirect: "error",
@@ -132,7 +143,7 @@ async function readSeoArtifact(
   if (!response.ok || !response.body)
     throw unprocessableEntity("The SEO report file is not available yet");
   const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > SEO_ARTIFACT_MAX_BYTES)
+  if (Number.isFinite(declared) && declared > maxBytes)
     throw badRequest("The SEO report exceeds the import limit");
   const reader = response.body.getReader(),
     chunks: Uint8Array[] = [];
@@ -142,7 +153,7 @@ async function readSeoArtifact(
       const next = await reader.read();
       if (next.done) break;
       length += next.value.byteLength;
-      if (length > SEO_ARTIFACT_MAX_BYTES)
+      if (length > maxBytes)
         throw badRequest("The SEO report exceeds the import limit");
       chunks.push(next.value);
     }
@@ -196,13 +207,14 @@ export async function importProjectSeoAudit(
   },
   options: SeoMutationHooks & { fetchImpl?: typeof fetch } = {},
 ) {
-  const { task, file, fileUrl, analysis } = await requireSourceFile(
+  const { task, file, fileUrl, analysis, maxBytes } = await requireSourceFile(
     actor,
     input,
   );
   const sourceKey = `task-file:${file.id}`;
   const existing = await prisma.projectSeoObservation.findUnique({
     where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
+    omit: omitRecheckState,
   });
   const recover = input.recoverMarkets || input.recoverPageSpeed;
   if (recover && !existing)
@@ -222,14 +234,22 @@ export async function importProjectSeoAudit(
       (input.recoverMarkets && !recoveryStrategy(existing, input).missing) ||
       (input.recoverPageSpeed &&
         reportObject(existing.payload)?.pageSpeed !== undefined))
-  )
-    return serializableTransaction(async (tx) => {
+  ) {
+    const replay = await serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor, !analysis);
       await requireSourceFile(actor, input, tx);
       await options.authorize?.(tx);
       return commitSeoMutation(tx, existing, options);
     }, "The report import changed. Please retry.");
-  const body = await readSeoArtifact(fileUrl, options.fetchImpl ?? fetch);
+    // A replay runs the recheck again: the first one can have failed after the import committed.
+    await recheckSeoAuditSafely(existing.id);
+    return replay;
+  }
+  const body = await readSeoArtifact(
+    fileUrl,
+    options.fetchImpl ?? fetch,
+    maxBytes,
+  );
   const artifactHash = sha256(body);
   if (recover && existing?.artifactHash !== artifactHash)
     throw conflict("The source report changed after it was imported");
@@ -261,7 +281,10 @@ export async function importProjectSeoAudit(
     payload.strategy.marketNote = "unavailable";
   if (payload.requestId && (!analysis || payload.requestId !== analysis.id))
     throw badRequest("The SEO result does not match its requested analysis");
-  if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
+  // A crawl continuation is never imported without its request: only the request names the crawl it goes on from.
+  if (payload.kind === "crawl_next" || analysis?.kind === "crawl_next")
+    assertCrawlNextMatchesRequest(payload, analysis);
+  else if (analysis) assertSeoArtifactMatchesRequest(raw, payload, analysis);
   let createdId: string | null = null;
   const result = await serializableTransaction(async (tx) => {
     createdId = null;
@@ -276,6 +299,7 @@ export async function importProjectSeoAudit(
       throw conflict("The source report changed during import");
     const prior = await tx.projectSeoObservation.findUnique({
       where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
+      omit: omitRecheckState,
     });
     if (prior) {
       if (prior.artifactHash !== artifactHash)
@@ -287,6 +311,7 @@ export async function importProjectSeoAudit(
         if (stored.pageSpeed === undefined) {
           const updated = await tx.projectSeoObservation.update({
             where: { id: prior.id },
+            omit: omitRecheckState,
             data: {
               payload: jsonInput({
                 ...stored,
@@ -307,6 +332,7 @@ export async function importProjectSeoAudit(
             : { marketNote: payload.strategy?.marketNote ?? "unavailable" };
           const updated = await tx.projectSeoObservation.update({
             where: { id: prior.id },
+            omit: omitRecheckState,
             data: {
               payload: jsonInput({
                 ...stored,
@@ -320,6 +346,18 @@ export async function importProjectSeoAudit(
       return commitSeoMutation(tx, prior, options);
     }
     if (recover) throw conflict("The imported observation changed");
+    // One paid continuation is one crawl: a second Report file of its Task keeps the first accepted one.
+    if (payload.kind === "crawl_next") {
+      const first = await tx.projectSeoObservation.findFirst({
+        omit: omitRecheckState,
+        where: {
+          ...seoOwnerWhere(actor),
+          kind: "crawl_next",
+          sourceTaskId: task.id,
+        },
+      });
+      if (first) return commitSeoMutation(tx, first, options);
+    }
     const pageIds: string[] = [];
     for (const value of payload.pageUrls) {
       const url = normalizeSeoUrl(value);
@@ -346,9 +384,32 @@ export async function importProjectSeoAudit(
             sourceFailures: failedSeoSources(raw),
           }
         : payload;
+    const observedAt = new Date(payload.observedAt);
+    const owner = seoOwnerData(actor);
+    const canRecheck = PAGE_RULE_KINDS.has(payload.kind);
+    if (canRecheck) {
+      const ownerTable = sharedTable(
+        actor.owner.kind === "project" ? "project" : "seo_audit",
+      );
+      // Version the locked row so an import with an older serializable snapshot retries.
+      // Leave the owner's visible updatedAt unchanged.
+      await tx.$executeRaw`UPDATE ${ownerTable} SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid`;
+    }
+    // Decide with the owner locked. A later commit must not disqualify a pending recheck.
+    const needsAuditRecheck =
+      canRecheck &&
+      !(await tx.projectSeoObservation.findFirst({
+        where: {
+          ...owner,
+          kind: { in: [...PAGE_RULE_KINDS] },
+          observedAt: { gt: observedAt },
+        },
+        select: { id: true },
+      }));
     const observation = await tx.projectSeoObservation.create({
+      omit: omitRecheckState,
       data: {
-        ...seoOwnerData(actor),
+        ...owner,
         kind: payload.kind,
         source: "seo_coworker",
         sourceKey,
@@ -358,7 +419,9 @@ export async function importProjectSeoAudit(
         scopeVersion: analysis?.scopeVersion ?? 0,
         artifactHash,
         payload: jsonInput(reportPayload),
-        observedAt: new Date(payload.observedAt),
+        observedAt,
+        ...(canRecheck && { createdAt: await databaseNow(tx) }),
+        needsAuditRecheck,
       },
     });
     const rankPoints = seoRankPoints(observation.id, payload);
@@ -375,6 +438,7 @@ export async function importProjectSeoAudit(
   if (createdId) {
     await notifySeoMonitorWorseSafely(task.id, createdId);
     await notifySeoMonitorClicksDropSafely(task.id, createdId);
+    await recheckSeoAuditSafely(createdId);
   }
   return result;
 }

@@ -95,7 +95,9 @@ model ProjectSeoObservation {
   payload      Json
   observedAt   DateTime
   createdAt    DateTime  @default(now())
+  needsAuditRecheck Boolean @default(false)
   rankPoints   ProjectSeoRankPoint[]
+  actionStatuses ProjectSeoAuditActionStatus[]
 
   @@unique([projectId, sourceKey])
   @@unique([auditId, sourceKey])
@@ -302,12 +304,37 @@ model ProjectSeoImpactVerdict {
   verdict         Json?
   verdictAt       DateTime?
   closingEvidence Json?
+  /// An audit recheck: the newer audit whose checks closed the page's actions.
+  recheckAuditId  String?               @db.Uuid
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
   @@unique([suggestionId, changedAt])
+  @@unique([pageUrl, recheckAuditId])
   @@index([state])
   @@map("project_seo_impact_verdict")
+}
+
+/// What a newer audit's checks say about one action of an earlier audit. A done action stays done.
+model ProjectSeoAuditActionStatus {
+  id                   String                @id @default(uuid(7)) @db.Uuid
+  /// The earlier audit that holds the action.
+  observationId        String                @db.Uuid
+  observation          ProjectSeoObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  actionId             String
+  /// done | partial | open | not_compared
+  status               String
+  /// The newer audit that set this status.
+  checkedObservationId String                @db.Uuid
+  /// Each page rule the action names, with its outcome and baseline audit.
+  pairs                Json
+  /// The newer audit's time when the status became done.
+  closedAt             DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@unique([observationId, actionId])
+  @@map("project_seo_audit_action_status")
 }
 
 /// The latest read of one research source for a Project: keyword ideas for a topic, or its Search Console property.
