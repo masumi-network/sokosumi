@@ -15,10 +15,11 @@
  *   concurrent second move, and concurrent Job delete all match origin/main
  *   (200 with the transaction's own snapshot).
  * - Preprod off (today's layout): 403 `preprod_off` with zero Network table
- *   locks (`EXPLAIN` + `pg_locks`) and zero seller calls on all 5 Job writes;
- *   422 `mainnet_only_feature` on PUT & DELETE `/v1/jobs/:id/share`.
+ *   locks (`EXPLAIN` + `pg_locks`) and zero seller calls on all 4 moved Job
+ *   writes (rename stays on Mainnet until slice 25-3b); 422
+ *   `mainnet_only_feature` on PUT & DELETE `/v1/jobs/:id/share`.
  * - Preprod on (split layout): equal-id isolation across `mainnet` and
- *   `preprod`, whole-row before/after assertions on all writes and
+ *   `preprod`, whole-row before/after assertions on all 4 moved Job writes and
  *   `moveTaskJobs`, per-Network seller dispatch, parked-Task & work-right
  *   checks, full split-tx Job detail readback (events, inputs, blobs, links,
  *   purchase, transactions, override, share), and 422 share refusal.
@@ -1000,7 +1001,6 @@ async function expectPreprodWriteRefusals(
   kind: "preprod_off" | "preprod_access_required",
 ) {
   const writes: [string, string, unknown?][] = [
-    ["PATCH", `/v1/jobs/${JOB_STANDALONE}`, { name: "Refused" }],
     [
       "POST",
       `/v1/jobs/${JOB_STANDALONE}/inputs`,
@@ -1965,7 +1965,7 @@ describe.runIf(enabled && !onSplitLayout)(
       }
     });
 
-    it("refuses Preprod on all 5 Job writes with zero Network table locks and refuses Preprod Job shares with 422", {
+    it("refuses Preprod on all 4 moved Job writes with zero Network table locks and refuses Preprod Job shares with 422", {
       timeout: 60_000,
     }, async () => {
       const world = await buildWorld({ preprodOn: false });
@@ -3074,7 +3074,7 @@ describe.runIf(enabled && onSplitLayout)(
       if (world) await world.drop();
     }, 30_000);
 
-    it("isolates all 5 Job writes across equal-id mainnet and preprod Jobs, routes seller by Network, enforces parked-Task & work-right checks, and preserves condition (i) readback", {
+    it("isolates all 4 moved Job writes across equal-id mainnet and preprod Jobs, routes seller by Network, enforces parked-Task & work-right checks, and preserves condition (i) readback", {
       timeout: 60_000,
     }, async () => {
       const names = testSchemaNames();
@@ -3096,63 +3096,54 @@ describe.runIf(enabled && onSplitLayout)(
         preprodJobs = after;
       };
 
-      // 1. PATCH /v1/jobs/:id on Preprod (owner is MEMBER_ID on Preprod, OWNER_ID on Mainnet)
+      // 1. Access checks on Preprod (owner is MEMBER_ID on Preprod, OWNER_ID on Mainnet)
       const wrongOwnerPreprod = await runCase(
         world,
-        "PATCH",
-        `/v1/jobs/${JOB_STANDALONE}`,
+        "POST",
+        `/v1/jobs/${JOB_STANDALONE}/inputs`,
         PP_OWNER_ORG_A,
-        { name: "Mainnet Owner Rejected" },
+        {
+          eventId: `evt-await-${JOB_STANDALONE}`,
+          inputData: { answer: "wrong-owner" },
+        },
         "preprod",
       );
       expect(wrongOwnerPreprod.status).toBe(403);
-      await assertPreprodJobDiff({}, "preprod patch wrong owner");
-
-      const patchPreprod = await runCase(
-        world,
-        "PATCH",
-        `/v1/jobs/${JOB_STANDALONE}`,
-        PP_MEMBER_ORG_A,
-        { name: "Preprod Renamed" },
-        "preprod",
-      );
-      expect(patchPreprod.status, patchPreprod.body).toBe(200);
-      expect(JSON.parse(patchPreprod.body).data).toMatchObject({
-        id: JOB_STANDALONE,
-        name: "Preprod Renamed",
-        share: null,
-      });
-      await assertPreprodJobDiff(
-        {
-          [JOB_STANDALONE]: { name: "Preprod Renamed", updatedAt: WRITE_CLOCK },
-        },
-        "preprod patch ok",
-      );
+      expect(wrongOwnerPreprod.sellerCalls).toHaveLength(0);
+      await assertPreprodJobDiff({}, "preprod input wrong owner");
 
       // Parked-Task check on Preprod (kills mutation 2)
       const parkedPreprod = await runCase(
         world,
-        "PATCH",
-        `/v1/jobs/${JOB_PARKED_TASK}`,
+        "POST",
+        `/v1/jobs/${JOB_PARKED_TASK}/inputs`,
         PP_MEMBER_ORG_A,
-        { name: "Blocked By Parked Task" },
+        {
+          eventId: `evt-await-${JOB_PARKED_TASK}`,
+          inputData: { answer: "parked" },
+        },
         "preprod",
       );
       expect(parkedPreprod.status).toBe(403);
       expect(JSON.parse(parkedPreprod.body)).toMatchObject({
         kind: "task_parked",
       });
+      expect(parkedPreprod.sellerCalls).toHaveLength(0);
 
       // Work-right check on Preprod: unseated member cannot edit unowned Job; plain member cannot manage unowned Job (kills mutation 3)
       const unseatedEdit = await runCase(
         world,
-        "PATCH",
-        `/v1/jobs/${JOB_NO_OWNER}`,
+        "POST",
+        `/v1/jobs/${JOB_NO_OWNER}/inputs`,
         preprodAuth(UNSEATED_ID),
-        { name: "Unseated Blocked" },
+        {
+          eventId: `evt-await-${JOB_NO_OWNER}`,
+          inputData: { answer: "unseated" },
+        },
         "preprod",
       );
       expect(unseatedEdit.status).toBe(403);
+      expect(unseatedEdit.sellerCalls).toHaveLength(0);
 
       const memberManage = await runCase(
         world,
@@ -3414,7 +3405,7 @@ describe.runIf(enabled && onSplitLayout)(
       );
     });
 
-    it("refuses a caller without Preprod access on all 5 Job writes with zero Network table locks", {
+    it("refuses a caller without Preprod access on all 4 moved Job writes with zero Network table locks", {
       timeout: 30_000,
     }, async () => {
       await world.shared.organization.update({
@@ -3692,115 +3683,6 @@ describe.runIf(enabled && onSplitLayout)(
         queryGate.active = null;
         await sideDb.end();
         await splitWorld.drop();
-      }
-    });
-
-    it("keeps PATCH /v1/jobs/:id response read inside its transaction on split layout when the creator is deleted (Mainnet and Preprod)", {
-      timeout: 60_000,
-    }, async () => {
-      const names = testSchemaNames();
-      for (const network of ["mainnet", "preprod"] as const) {
-        const splitWorld = await buildWorld({ preprodOn: true });
-        try {
-          let creatorId = MEMBER_ID;
-          let headers = OWNER_ORG_A;
-          if (network === "preprod") {
-            creatorId = "jw-split-pp-creator";
-            headers = PP_MEMBER_ORG_A;
-            await splitWorld.shared.user.create({
-              data: {
-                id: creatorId,
-                name: creatorId,
-                email: `${creatorId}@example.test`,
-                emailVerified: true,
-                termsAccepted: true,
-                createdAt: CLOCK,
-                updatedAt: CLOCK,
-              },
-            });
-            await splitWorld
-              .createNetworkScope("preprod")
-              .networkDb.job.update({
-                where: { id: JOB_STANDALONE },
-                data: { creatorUserId: creatorId },
-              });
-          }
-
-          let gateHit = false;
-          queryGate.active = {
-            when: "after",
-            match: (text) => /^\s*COMMIT\b/i.test(text),
-            run: async () => {
-              gateHit = true;
-              await splitWorld.prepareTasksForUserDeletion(
-                creatorId,
-                splitWorld.shared,
-              );
-            },
-          };
-
-          const patchRes = await runCase(
-            splitWorld,
-            "PATCH",
-            `/v1/jobs/${JOB_STANDALONE}`,
-            headers,
-            { name: "Renamed While Creator Removed" },
-            network,
-          );
-          expect(gateHit, `${network} commit gate hit`).toBe(true);
-          expect(patchRes.status, `${network}: ${patchRes.body}`).toBe(200);
-          const patchBody = (
-            JSON.parse(patchRes.body) as {
-              data: {
-                name: string;
-                creator: { type: string; id: string } | null;
-              };
-            }
-          ).data;
-          expect(patchBody.name).toBe("Renamed While Creator Removed");
-          expect(patchBody.creator).toMatchObject({
-            type: "user",
-            id: creatorId,
-          });
-
-          const schema =
-            network === "mainnet"
-              ? names.DATABASE_SCHEMA_MAINNET
-              : names.DATABASE_SCHEMA_PREPROD;
-          const updateIdx = patchRes.statements.findIndex((s) =>
-            s.text.includes(`UPDATE "${schema}"."Job"`),
-          );
-          const beginIdx = patchRes.statements
-            .slice(0, updateIdx)
-            .findLastIndex((s) => /^\s*BEGIN\b/i.test(s.text));
-          const commitIdx = patchRes.statements.findIndex(
-            (s, idx) => idx > updateIdx && /^\s*COMMIT\b/i.test(s.text),
-          );
-          expect(beginIdx, `${network} BEGIN before UPDATE`).toBeGreaterThan(
-            -1,
-          );
-          expect(commitIdx, `${network} COMMIT after UPDATE`).toBeGreaterThan(
-            updateIdx,
-          );
-          const txStmts = patchRes.statements.slice(beginIdx, commitIdx + 1);
-          const txConns = new Set(txStmts.map((s) => s.connection));
-          expect(txConns.size, `${network} single tx connection`).toBe(1);
-          expect(
-            txStmts.some((s) => s.text.includes('FROM "shared"."user"')),
-            `${network} creator user read inside tx`,
-          ).toBe(true);
-
-          const stored = await splitWorld
-            .createNetworkScope(network)
-            .networkDb.job.findUniqueOrThrow({
-              where: { id: JOB_STANDALONE },
-            });
-          expect(stored.name).toBe("Renamed While Creator Removed");
-          expect(stored.creatorUserId).toBeNull();
-        } finally {
-          queryGate.active = null;
-          await splitWorld.drop();
-        }
       }
     });
 

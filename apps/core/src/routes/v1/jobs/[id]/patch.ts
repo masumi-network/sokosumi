@@ -3,11 +3,14 @@ import { jobInclude } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
-import { notFound } from "@/helpers/error";
-import { readJobDetailsOnSplitTx } from "@/helpers/job-detail";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { networkUsesSharedSchema } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  type NetworkDb,
+  type NetworkScope,
+} from "@/lib/db/network-scope";
+import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -54,38 +57,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const { name } = c.req.valid("json");
-    const { networkScope } = c.var;
-    const { networkDb } = networkScope;
 
-    await requireJobCollaboration(c.var.authContext, id, networkScope);
+    // shortcut: Job rename stays on Mainnet's legacy client until slice 25-3b moves PATCH /v1/jobs/:id to the Job's Network.
+    const legacyMainnetScope = Object.defineProperties(
+      Object.create(createNetworkScope("mainnet")),
+      {
+        networkDb: { value: prisma as unknown as NetworkDb },
+        sharedDb: { value: prisma },
+      },
+    ) as NetworkScope;
+    await requireJobCollaboration(c.var.authContext, id, legacyMainnetScope);
 
-    const job = networkUsesSharedSchema()
-      ? await networkDb.job.update({
-          where: { id },
-          data: { name },
-          include: jobInclude,
-        })
-      : await networkScope.sharedTransactionOnce(async (tx) => {
-          const updatedAt = new Date();
-          const updated = await tx.$executeRaw`
-            UPDATE ${networkScope.networkTable("Job")}
-            SET "name" = ${name},
-                "updatedAt" = ${updatedAt}
-            WHERE "id" = ${id}
-          `;
-          if (updated === 0) {
-            throw notFound("Job not found");
-          }
-          const updatedJob = await readJobDetailsOnSplitTx(
-            tx,
-            networkScope,
-            id,
-          );
-          if (!updatedJob) {
-            throw notFound("Job not found");
-          }
-          return updatedJob;
-        });
+    const job = await prisma.job.update({
+      where: { id },
+      data: { name },
+      include: jobInclude,
+    });
 
     return ok(c, jobSchema.parse(serializeJobDetails(mapJobWithStatus(job))));
   });
