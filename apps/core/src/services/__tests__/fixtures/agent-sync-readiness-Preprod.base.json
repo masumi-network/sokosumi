@@ -1,0 +1,231 @@
+{
+  "sql": [
+    "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "INSERT INTO \"public\".\"sync_metadata\" (\"id\",\"key\",\"lastSyncedAt\",\"cursorId\",\"updatedAt\",\"createdAt\") VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (\"key\") DO UPDATE SET \"cursorId\" = $7, \"lastSyncedAt\" = $8, \"updatedAt\" = $9 WHERE (\"public\".\"sync_metadata\".\"key\" = $10 AND 1=1) RETURNING \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\", \"public\".\"sync_metadata\".\"lastSyncedAt\", \"public\".\"sync_metadata\".\"cursorId\", \"public\".\"sync_metadata\".\"updatedAt\", \"public\".\"sync_metadata\".\"createdAt\"",
+    "DELETE FROM \"public\".\"sync_metadata\" WHERE \"public\".\"sync_metadata\".\"key\" = $1",
+    "SELECT \"public\".\"sync_metadata\".\"id\", \"public\".\"sync_metadata\".\"key\" FROM \"public\".\"sync_metadata\" WHERE (\"public\".\"sync_metadata\".\"key\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+    "INSERT INTO \"public\".\"sync_metadata\" (\"id\",\"key\",\"lastSyncedAt\",\"cursorId\",\"updatedAt\",\"createdAt\") VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING",
+    "UPDATE \"public\".\"sync_metadata\" SET \"cursorId\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"sync_metadata\".\"key\" = $3 AND \"public\".\"sync_metadata\".\"cursorId\" = $4 AND \"public\".\"sync_metadata\".\"lastSyncedAt\" < $5)"
+  ],
+  "ticks": [
+    {
+      "phase": "ready",
+      "outcome": [true, true],
+      "sequence": [0, 1, 2, 0, 1, 2],
+      "rows": [
+        {
+          "key": "cardano-v2-rail-readiness",
+          "cursorId": "[{\"policyId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"smartContractAddress\":\"addr_a\"},{\"policyId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"smartContractAddress\":\"addr_b\"}]",
+          "lastSyncedAt": "2026-11-27T12:00:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness",
+          "cursorId": "[{\"caip2Network\":\"eip155:84532\",\"asset\":\"0x036cbd53842c5426634e7929541ec2318f3dcf7e\",\"evmWalletId\":\"x402net_1-wallet\",\"evmWalletAddress\":\"0x24f8aa31184ee239b47bfac3565bcffed1ff50f6\",\"decimals\":6}]",
+          "lastSyncedAt": "2026-11-27T12:00:00.000Z"
+        }
+      ],
+      "cardano": [
+        {
+          "policyId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "smartContractAddress": "addr_a"
+        },
+        {
+          "policyId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "smartContractAddress": "addr_b"
+        }
+      ],
+      "x402": [
+        {
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "evmWalletId": "x402net_1-wallet",
+          "evmWalletAddress": "0x24f8aa31184ee239b47bfac3565bcffed1ff50f6",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "phase": "unchanged",
+      "outcome": [false, false],
+      "sequence": [0, 1, 2, 0, 1, 2],
+      "rows": [
+        {
+          "key": "cardano-v2-rail-readiness",
+          "cursorId": "[{\"policyId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"smartContractAddress\":\"addr_a\"},{\"policyId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"smartContractAddress\":\"addr_b\"}]",
+          "lastSyncedAt": "2026-11-27T12:31:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness",
+          "cursorId": "[{\"caip2Network\":\"eip155:84532\",\"asset\":\"0x036cbd53842c5426634e7929541ec2318f3dcf7e\",\"evmWalletId\":\"x402net_1-wallet\",\"evmWalletAddress\":\"0x24f8aa31184ee239b47bfac3565bcffed1ff50f6\",\"decimals\":6}]",
+          "lastSyncedAt": "2026-11-27T12:31:00.000Z"
+        }
+      ],
+      "cardano": [
+        {
+          "policyId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "smartContractAddress": "addr_a"
+        },
+        {
+          "policyId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "smartContractAddress": "addr_b"
+        }
+      ],
+      "x402": [
+        {
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "evmWalletId": "x402net_1-wallet",
+          "evmWalletAddress": "0x24f8aa31184ee239b47bfac3565bcffed1ff50f6",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "phase": "offline",
+      "outcome": [false, false],
+      "sequence": [0, 3, 4, 3, 4],
+      "rows": [
+        {
+          "key": "cardano-v2-rail-readiness",
+          "cursorId": "[{\"policyId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"smartContractAddress\":\"addr_a\"},{\"policyId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"smartContractAddress\":\"addr_b\"}]",
+          "lastSyncedAt": "2026-11-27T12:31:00.000Z"
+        },
+        {
+          "key": "cardano-v2-rail-readiness-failure",
+          "cursorId": "failed",
+          "lastSyncedAt": "2026-11-27T13:02:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness",
+          "cursorId": "[{\"caip2Network\":\"eip155:84532\",\"asset\":\"0x036cbd53842c5426634e7929541ec2318f3dcf7e\",\"evmWalletId\":\"x402net_1-wallet\",\"evmWalletAddress\":\"0x24f8aa31184ee239b47bfac3565bcffed1ff50f6\",\"decimals\":6}]",
+          "lastSyncedAt": "2026-11-27T12:31:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness-failure",
+          "cursorId": "failed",
+          "lastSyncedAt": "2026-11-27T13:02:00.000Z"
+        }
+      ],
+      "cardano": [
+        {
+          "policyId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "smartContractAddress": "addr_a"
+        },
+        {
+          "policyId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "smartContractAddress": "addr_b"
+        }
+      ],
+      "x402": [
+        {
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "evmWalletId": "x402net_1-wallet",
+          "evmWalletAddress": "0x24f8aa31184ee239b47bfac3565bcffed1ff50f6",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "phase": "sustained",
+      "outcome": [false, false],
+      "sequence": [0, 3, 4, 5, 3, 4],
+      "rows": [
+        {
+          "key": "cardano-v2-rail-readiness",
+          "cursorId": "[{\"policyId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"smartContractAddress\":\"addr_a\"},{\"policyId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"smartContractAddress\":\"addr_b\"}]",
+          "lastSyncedAt": "2026-11-27T12:31:00.000Z"
+        },
+        {
+          "key": "cardano-v2-rail-readiness-failure",
+          "cursorId": "escalated",
+          "lastSyncedAt": "2026-11-27T13:02:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness",
+          "cursorId": "[{\"caip2Network\":\"eip155:84532\",\"asset\":\"0x036cbd53842c5426634e7929541ec2318f3dcf7e\",\"evmWalletId\":\"x402net_1-wallet\",\"evmWalletAddress\":\"0x24f8aa31184ee239b47bfac3565bcffed1ff50f6\",\"decimals\":6}]",
+          "lastSyncedAt": "2026-11-27T12:31:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness-failure",
+          "cursorId": "failed",
+          "lastSyncedAt": "2026-11-27T13:02:00.000Z"
+        }
+      ],
+      "cardano": [
+        {
+          "policyId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "smartContractAddress": "addr_a"
+        },
+        {
+          "policyId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "smartContractAddress": "addr_b"
+        }
+      ],
+      "x402": [
+        {
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "evmWalletId": "x402net_1-wallet",
+          "evmWalletAddress": "0x24f8aa31184ee239b47bfac3565bcffed1ff50f6",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "phase": "recovery",
+      "outcome": [false, false],
+      "sequence": [0, 1, 2, 0, 1, 2],
+      "rows": [
+        {
+          "key": "cardano-v2-rail-readiness",
+          "cursorId": "[{\"policyId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"smartContractAddress\":\"addr_a\"},{\"policyId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"smartContractAddress\":\"addr_b\"}]",
+          "lastSyncedAt": "2026-11-27T14:04:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness",
+          "cursorId": "[{\"caip2Network\":\"eip155:84532\",\"asset\":\"0x036cbd53842c5426634e7929541ec2318f3dcf7e\",\"evmWalletId\":\"x402net_1-wallet\",\"evmWalletAddress\":\"0x24f8aa31184ee239b47bfac3565bcffed1ff50f6\",\"decimals\":6}]",
+          "lastSyncedAt": "2026-11-27T14:04:00.000Z"
+        }
+      ],
+      "cardano": [
+        {
+          "policyId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "smartContractAddress": "addr_a"
+        },
+        {
+          "policyId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "smartContractAddress": "addr_b"
+        }
+      ],
+      "x402": [
+        {
+          "caip2Network": "eip155:84532",
+          "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+          "evmWalletId": "x402net_1-wallet",
+          "evmWalletAddress": "0x24f8aa31184ee239b47bfac3565bcffed1ff50f6",
+          "decimals": 6
+        }
+      ]
+    },
+    {
+      "phase": "empty",
+      "outcome": [true, true],
+      "sequence": [0, 1, 2, 0, 1, 2],
+      "rows": [
+        {
+          "key": "cardano-v2-rail-readiness",
+          "cursorId": "[]",
+          "lastSyncedAt": "2026-11-27T14:35:00.000Z"
+        },
+        {
+          "key": "x402-buy-side-readiness",
+          "cursorId": "[]",
+          "lastSyncedAt": "2026-11-27T14:35:00.000Z"
+        }
+      ],
+      "cardano": [],
+      "x402": []
+    }
+  ]
+}

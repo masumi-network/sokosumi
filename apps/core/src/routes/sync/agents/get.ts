@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import type { Hono } from "hono";
+import { paymentClient } from "@/clients/masumi-payment.client";
 import { logCoreWarning } from "@/lib/evlog";
 import { agentSyncService } from "@/services/agent-sync.service";
 // Imported from the module directly, not through agentSyncService: the
@@ -60,9 +61,13 @@ export default function mount(app: Hono) {
         // needs no ceiling from here: the sync owns one that already covers its
         // retries, so a hung payment node cannot pin the lock either way.
         const readinessChanged =
-          await agentSyncService.syncCardanoV2RailReadiness({
-            signal: context.abortSignal,
-          });
+          await agentSyncService.syncCardanoV2RailReadiness(
+            context.scope,
+            paymentClient(),
+            {
+              signal: context.abortSignal,
+            },
+          );
         // x402 buy-side readiness rides the same cron under its own ceiling
         // above. Its change signal deliberately does NOT reset the registry
         // cursor: the x402 listing reads getX402ReadySources at request time,
@@ -77,7 +82,7 @@ export default function mount(app: Hono) {
         // misconfiguration — and must not abort the registry sync: swallow it,
         // last-known readiness stays served, and the next cron retries.
         try {
-          await syncX402BuySideReadiness({
+          await syncX402BuySideReadiness(context.scope, paymentClient(), {
             signal: AbortSignal.any([
               context.abortSignal,
               AbortSignal.timeout(X402_READINESS_SYNC_TIMEOUT_MS),
@@ -105,7 +110,7 @@ export default function mount(app: Hono) {
           ...(readinessChanged || replayRequested ? { resetCursor: true } : {}),
         });
       },
-      { errorDetail: "safe-fields" },
+      { network: "mainnet", errorDetail: "safe-fields" },
     );
   });
 }

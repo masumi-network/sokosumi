@@ -4,6 +4,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { LIMITS } from "@/config/constants";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
+import { getAllowedX402Caip2Networks } from "@/helpers/x402-readiness";
 import { expectCoreLog } from "@/test/core-log";
 import {
   availableNetwork,
@@ -64,7 +65,7 @@ function composeX402ReadySources(
   return composeReadySourcesUnchecked(
     networks,
     options.caps === undefined ? keySpendCaps() : options.caps,
-    environment,
+    getAllowedX402Caip2Networks(environment),
     options.walletStates ?? generatedWalletStates,
   );
 }

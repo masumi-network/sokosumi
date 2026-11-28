@@ -681,12 +681,7 @@ async function race(name: string, holder: 0 | 1) {
     { name: "only bucket", cents: PRICE, expiresInDays: 20 },
   ]);
   // There both stop before their sellers, at the same read.
-  if (onSplitLayout)
-    return observe(payer, async () =>
-      (
-        await Promise.allSettled([hire(payer, "paid"), hire(payer, "paid")])
-      ).map(settled),
-    );
+  if (onSplitLayout) return splitRace(payer, holder);
   const sellerEntered = [gate(), gate()];
   const sellerAnswers = [gate(), gate()];
   let sellerCalls = 0;
@@ -712,7 +707,7 @@ async function race(name: string, holder: 0 | 1) {
     await sellerAnswers[call]?.opened;
   };
   try {
-    return await observe(payer, async () => {
+    const observed = await observe(payer, async () => {
       const hires = [0, 1].map(async (index) => {
         // The second hire starts after the first has reached its seller.
         if (index === 1) await sellerEntered[0]?.opened;
@@ -733,8 +728,64 @@ async function race(name: string, holder: 0 | 1) {
       holdOpen.open();
       return (await Promise.allSettled(hires)).map(settled);
     });
+    // Every gate was reached: both sellers, the holder's bucket choice, then
+    // the other's.
+    expect({ sellerCalls, prepared: prepared >= 2 }).toEqual({
+      sellerCalls: 2,
+      prepared: true,
+    });
+    return observed;
   } finally {
     spy.mockRestore();
+    outside.seller.during = undefined;
+  }
+}
+
+/**
+ * The race on the split layout, in one schedule. Each hire there ends at a
+ * read the layout lacks: before its seller on `origin/main` (the credit cost
+ * read), after it once the Agent lookup reads through the catalog (the Job
+ * write). Gated at the seller as above, the second hire starts after the
+ * first reached its seller or ended, and no seller answers before both
+ * hires got there or ended: both preflights come before either Job
+ * transaction. Then the `holder`'s seller answers first and its hire ends
+ * before the other's seller answers.
+ */
+async function splitRace(payer: Payer, holder: 0 | 1) {
+  const entered = [gate(), gate()];
+  const answers = [gate(), gate()];
+  let sellerCalls = 0;
+  outside.seller.during = async () => {
+    const call = sellerCalls;
+    sellerCalls += 1;
+    entered[call]?.open();
+    await answers[call]?.opened;
+  };
+  const hires: Promise<unknown>[] = [];
+  try {
+    const observed = await observe(payer, async () => {
+      hires.push(hire(payer, "paid"));
+      await Promise.race([
+        entered[0]?.opened,
+        hires[0]?.catch(() => undefined),
+      ]);
+      hires.push(hire(payer, "paid"));
+      await Promise.race([
+        entered[1]?.opened,
+        hires[1]?.catch(() => undefined),
+      ]);
+      // Hire `n` reached the `n`th seller call: the first one in started first.
+      answers[holder]?.open();
+      await hires[holder]?.catch(() => undefined);
+      answers[1 - holder]?.open();
+      return (await Promise.allSettled(hires)).map(settled);
+    });
+    // Both stopped before their sellers, or both reached them: never one.
+    expect([0, 2]).toContain(sellerCalls);
+    return observed;
+  } finally {
+    for (const opened of [...entered, ...answers]) opened.open();
+    await Promise.allSettled(hires);
     outside.seller.during = undefined;
   }
 }
