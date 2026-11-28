@@ -147,8 +147,10 @@ describe.runIf(ON_POSTGRES)("the failed CMO hire's clean-up", () => {
 
     async function attempt(tx: Tx, mode: Mode, projectId: string) {
       const result = await removeProject(mode, tx, projectId);
-      // A refused statement aborts the transaction; the error is the result.
-      if (result !== "deleted")
+      // A database error aborts the transaction, which changed nothing then.
+      // Core's own refusal does not: what the statement wrote stays to be
+      // compared, so a refusal that deleted first shows.
+      if (result === "foreign key" || result === "deadlock")
         await tx.$executeRaw`ROLLBACK TO SAVEPOINT before_cleanup`;
       return result;
     }
