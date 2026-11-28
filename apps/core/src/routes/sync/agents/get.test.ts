@@ -40,6 +40,7 @@ vi.mock("../handler.js", () => ({
     c: { json: (body: unknown) => Response },
     _lockKey: string,
     operation: (context: {
+      scope: import("@/lib/db/network-scope").NetworkScope;
       abortSignal: AbortSignal;
       deadlineMs: number;
       msRemaining: () => number;
@@ -50,7 +51,9 @@ vi.mock("../handler.js", () => ({
     // The run's event, as the real handler sends it when the run ends.
     const { createCoreLogger } = await import("@/lib/evlog");
     const log = createCoreLogger({ operation: "cron_sync" });
+    const { testNetworkScope } = await import("@/test-fixtures/network-scope");
     await operation({
+      scope: testNetworkScope(),
       abortSignal: new AbortController().signal,
       deadlineMs: Date.now() + 60_000,
       msRemaining: () => 60_000,
@@ -118,6 +121,8 @@ describe("GET /sync/agents", () => {
     await app.request("http://localhost/agents");
 
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       expect.any(String),
       expect.objectContaining({ resetCursor: true }),
     );
@@ -129,6 +134,8 @@ describe("GET /sync/agents", () => {
     await app.request("http://localhost/agents?replay=true");
 
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       expect.any(String),
       expect.objectContaining({ resetCursor: true }),
     );
@@ -140,6 +147,8 @@ describe("GET /sync/agents", () => {
     await app.request("http://localhost/agents?replay=false");
 
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       expect.any(String),
       expect.not.objectContaining({ resetCursor: true }),
     );

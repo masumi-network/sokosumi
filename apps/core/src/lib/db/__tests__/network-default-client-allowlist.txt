@@ -30,8 +30,6 @@ apps/core/src/routes/v1/projects/[id]/jobs/[jobId]/delete.ts
 apps/core/src/routes/v1/projects/[id]/jobs/post.ts
 apps/core/src/routes/v1/tasks/[id]/jobs/get.ts
 apps/core/src/routes/v1/tasks/[id]/workspace/put.ts
-apps/core/src/services/agent-sync.consolidation.ts
-apps/core/src/services/agent-sync.service.ts
 apps/core/src/services/chat-result-preview.service.ts
 apps/core/src/services/cmo-billing.service.ts
 apps/core/src/services/cmo-chat-work.service.ts
