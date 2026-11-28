@@ -65,7 +65,7 @@ const {
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 /** Whether this test's deployment has Preprod on. */
-const preprod = vi.hoisted(() => ({ on: false }));
+const preprod = vi.hoisted(() => ({ on: false, disabledByMasumi: false }));
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
@@ -83,6 +83,7 @@ vi.mock("@/config/env", async (importOriginal) => {
       ...actual.getEnv(),
       NETWORK: "Preprod" as const,
       NETWORK_PREPROD_ENABLED: preprod.on,
+      preprodDisabledByMasumi: preprod.disabledByMasumi,
     }),
   };
 });
@@ -571,6 +572,7 @@ describe("POST /{id}/x402-payments", () => {
     vi.clearAllMocks();
     waitUntilCapturedPromises.length = 0;
     preprod.on = false;
+    preprod.disabledByMasumi = false;
 
     tx = createTxMock();
     prismaTransactionMock.mockImplementation(
@@ -2057,6 +2059,53 @@ describe("POST /{id}/x402-payments", () => {
         expect(tx.taskX402Payment.create).not.toHaveBeenCalled();
         expect(payX402Mock).not.toHaveBeenCalled();
       }
+
+      it("refuses a Preprod payment before reading the billed party when Masumi configuration disabled Preprod", async () => {
+        preprod.on = false;
+        preprod.disabledByMasumi = true;
+
+        const response = await pay(COWORKER_AGENT_CONTEXT);
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.PREPROD_OFF,
+        });
+        expect(billedUser).not.toHaveBeenCalled();
+        expectNothingCharged();
+      });
+
+      it("refuses a mixed offer replay whose stored chain is Preprod", async () => {
+        const mainnet = create402().accepts[0];
+        const preprodEntry = {
+          ...mainnet,
+          network: BASE_SEPOLIA,
+          asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+        };
+        const mixed = create402({ accepts: [preprodEntry, mainnet] });
+        preflightPaymentFindUniqueMock.mockResolvedValue(
+          createPaymentRecord({
+            status: "VERIFIED",
+            attemptId: "attempt_stored",
+            caip2Network: BASE_SEPOLIA,
+            asset: preprodEntry.asset,
+            demandFingerprint: paymentDemandFingerprint(mixed),
+            xPaymentHeader: normalizedPaymentHeader(),
+            validBefore: new Date(VALID_BEFORE_SECONDS * 1000),
+          }),
+        );
+
+        const response = await postPayment(
+          createApp(COWORKER_AGENT_CONTEXT),
+          validBody({ paymentRequired: mixed }),
+        );
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH,
+        });
+        expect(billedUser).toHaveBeenCalledTimes(1);
+        expectNothingCharged();
+      });
 
       it("refuses a header that names the other Network, before the charge", async () => {
         const response = await pay(COWORKER_AGENT_CONTEXT, {

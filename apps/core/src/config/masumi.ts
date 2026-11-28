@@ -22,8 +22,8 @@ export function masumiConfiguration(
   const paymentKeyName = `${prefix}_PAYMENT_API_KEY` as const;
   const registryUrlName = `${prefix}_REGISTRY_API_URL` as const;
   const registryKeyName = `${prefix}_REGISTRY_API_KEY` as const;
-  const paymentUrl = z.httpUrl().safeParse(env[paymentUrlName]);
-  const registryUrl = z.httpUrl().safeParse(env[registryUrlName]);
+  const paymentUrl = z.url().safeParse(env[paymentUrlName]);
+  const registryUrl = z.url().safeParse(env[registryUrlName]);
   const paymentKey = env[paymentKeyName];
   const registryKey = env[registryKeyName];
   if (

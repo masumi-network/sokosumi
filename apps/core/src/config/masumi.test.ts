@@ -151,7 +151,7 @@ it.each(Array.from({ length: 15 }, (_, i) => i))(
 );
 
 it.each([
-  ["MAINNET_PAYMENT_API_URL", "ftp://fixture.invalid"],
+  ["MAINNET_PAYMENT_API_URL", "   "],
   ["MAINNET_REGISTRY_API_URL", "bad-url"],
   ["MAINNET_PAYMENT_API_KEY", "  "],
   ["MAINNET_REGISTRY_API_KEY", ""],
@@ -164,5 +164,32 @@ it.each([
     const { masumiClients } = await import("@/clients/masumi");
     expect(() => masumiClients("mainnet")).toThrow(field);
     expect(node.requests).toHaveLength(0);
+  },
+);
+
+it.each([
+  "http://10.0.0.5:3001/api/v1",
+  "http://localhost:3001/api/v1",
+  "http://payment:3001/api/v1",
+  "ftp://fixture.invalid/api/v1",
+])(
+  "accepts the existing URL format %s for both services on both Networks",
+  async (url) => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NETWORK_PREPROD_ENABLED", "true");
+    for (const prefix of ["MAINNET", "PREPROD"]) {
+      vi.stubEnv(`${prefix}_PAYMENT_API_URL`, url);
+      vi.stubEnv(`${prefix}_REGISTRY_API_URL`, url);
+    }
+    const { getEnv } = await import("./env");
+    const { masumiConfiguration } = await import("./masumi");
+    const env = getEnv();
+    expect(env.NETWORK_PREPROD_ENABLED).toBe(true);
+    for (const network of ["mainnet", "preprod"] as const) {
+      expect(masumiConfiguration(env, network)).toMatchObject({
+        paymentUrl: url,
+        registryUrl: url,
+      });
+    }
   },
 );

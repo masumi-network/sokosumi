@@ -879,6 +879,44 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
     }
 
     it.skipIf(deploymentNetwork !== "Mainnet")(
+      "serves Mainnet registry entries when the header names Preprod and routing is off",
+      () =>
+        withWorld(async (world) => {
+          const owner = await world.person("registry reader", {});
+          const key = await loaded.fixture.createApiKey(owner.id);
+          const { stubMasumiSyncHttp } = await import(
+            "@/test/masumi-sync-http"
+          );
+          const node = stubMasumiSyncHttp();
+          outside.useNode = true;
+          try {
+            const response = await loaded.app.request(
+              ORIGIN + "/v1/registry/agents",
+              {
+                headers: {
+                  authorization: "Bearer " + key,
+                  [HEADER]: "preprod",
+                },
+              },
+            );
+            expect(response.status).toBe(200);
+            expect(node.requests).toMatchObject([
+              {
+                url: "https://example.com/registry/registry-entry/",
+                credential: "mainnet registry",
+                method: "POST",
+              },
+            ]);
+            expect(JSON.parse(node.requests[0].body).network).toBe("Mainnet");
+          } finally {
+            outside.useNode = false;
+            vi.unstubAllGlobals();
+          }
+        }),
+      MANY_REQUESTS,
+    );
+
+    it.skipIf(deploymentNetwork !== "Mainnet")(
       "sends the same Mainnet Task claim and x402 requests",
       async () =>
         withWorld(async (world) => {
@@ -1634,16 +1672,21 @@ it.runIf(enabled && onSplitLayout)(
     try {
       const owner = await world.person("missing configuration", {}, true);
       const key = await loaded.fixture.createApiKey(owner.id, "soko_preprod_");
-      const response = await loaded.app.request(
-        ORIGIN + "/v1/registry/agents",
-        {
+      const task = await world.task(owner);
+      for (const path of [
+        "/v1/registry/agents",
+        "/v1/agents",
+        `/v1/tasks/${task}/receipt`,
+      ]) {
+        const response = await loaded.app.request(ORIGIN + path, {
           headers: { authorization: "Bearer " + key },
-        },
-      );
-      expect([response.status, (await response.json()).kind]).toEqual([
-        403,
-        "preprod_off",
-      ]);
+        });
+        expect([path, response.status, (await response.json()).kind]).toEqual([
+          path,
+          403,
+          "preprod_off",
+        ]);
+      }
       expect(node.requests).toHaveLength(0);
     } finally {
       outside.useNode = false;

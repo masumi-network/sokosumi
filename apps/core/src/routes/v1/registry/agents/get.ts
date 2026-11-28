@@ -16,6 +16,7 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { isNetworkRoutingEnabled } from "@/lib/network";
 import {
   type CursorPaginationMeta,
   cursorPaginationMetaSchema,
@@ -108,9 +109,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { cursor, limit, status } = c.req.valid("query");
 
-    const result = await masumiClients(
-      c.var.networkScope.network,
-    ).registry.listEntries(
+    const network = isNetworkRoutingEnabled()
+      ? c.var.networkScope.network
+      : "mainnet";
+    const result = await masumiClients(network).registry.listEntries(
       {
         cursorId: cursor,
         limit: limit + REGISTRY_EXTRA_ROWS,
