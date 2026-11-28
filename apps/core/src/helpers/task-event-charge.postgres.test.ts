@@ -560,10 +560,10 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
       ]);
     });
 
-    it("spends only on its own Network, with the same ids on both", async () => {
+    it("records a Preprod charge at its price without pausing the Task, and charges Mainnet under the same ids", async () => {
       const { createNetworkScope, chargeTaskCreditsOrMarkOutOfCredits } =
         await start();
-      // Preprod's pool is the smaller: 8 credits against Mainnet's 13.
+      // Preprod buckets that hold 8 credits: Preprod costs none, so they stay.
       const pool = await seedOrganizationPool({ mainnet: 10n, preprod: 5n });
       const preprod = createNetworkScope("preprod");
       const mainnet = createNetworkScope("mainnet");
@@ -576,30 +576,29 @@ describe.skipIf(!enabled)("chargeTaskCreditsOrMarkOutOfCredits", () => {
           }),
         );
 
-      // More than Preprod holds, though Mainnet could pay it.
-      expect((await chargeOn(preprod, 9n)).eventStatus).toBe(
-        TaskStatus.OUT_OF_CREDITS,
-      );
-      await chargeOn(preprod, 8n);
+      // More than Preprod's buckets hold: recorded, never out of credits, so
+      // no Task waits for a Preprod payment and no grant can wake one.
+      const recorded = await chargeOn(preprod, 9n);
 
+      expect(recorded.eventStatus).toBeNull();
       expect(await spends("mainnet", pool)).toEqual([]);
-      expect(await spends("preprod", pool)).toMatchObject([
-        {
-          amount: -8n * CREDIT,
-          creditConsumptions: [
-            { bucketId: pool.smallBucketId, amount: 3n * CREDIT },
-            { bucketId: pool.largeBucketId, amount: 5n * CREDIT },
-          ],
-        },
+      expect(await spends("preprod", pool)).toEqual([
+        expect.objectContaining({
+          id: recorded.transactionId,
+          amount: -9n * CREDIT,
+          creditConsumptions: [],
+        }),
       ]);
 
-      // Preprod's pool is empty now; Mainnet's, under the same ids, is whole.
-      expect((await chargeOn(preprod, 1n)).eventStatus).toBe(
-        TaskStatus.OUT_OF_CREDITS,
-      );
       await chargeOn(mainnet, 13n);
       expect(await spends("mainnet", pool)).toMatchObject([
-        { amount: -13n * CREDIT },
+        {
+          amount: -13n * CREDIT,
+          creditConsumptions: [
+            { bucketId: pool.smallBucketId, amount: 3n * CREDIT },
+            { bucketId: pool.largeBucketId, amount: 10n * CREDIT },
+          ],
+        },
       ]);
       expect(await spends("preprod", pool)).toHaveLength(1);
     });
