@@ -178,7 +178,7 @@
     "description": null,
     "bucketSource": null,
     "network": "mainnet",
-    "charged": true
+    "affectsBalance": true
   },
   "cursorIndices": [23, 16, 9, 2],
   "total": {

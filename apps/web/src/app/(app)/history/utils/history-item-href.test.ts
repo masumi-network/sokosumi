@@ -13,7 +13,7 @@ function stripComments(source: string): string {
 
 const base = {
   network: "mainnet",
-  charged: true,
+  affectsBalance: true,
   consumedAt: new Date("2026-05-27T10:00:00.000Z"),
   credits: 3,
   description: null,

@@ -15,7 +15,7 @@ import { chargesCredits } from "./policy";
 type HistoryFilter = Omit<BuildTransactionHistoryParams, "billingScope">;
 
 /**
- * The credit views of a request's Network. `network` and `charged` say what
+ * The credit views of a request's Network. `network` and `affectsBalance` say what
  * every figure is: one Network's, and charged (Mainnet) or only recorded at
  * its price (Preprod). A total of one Network never includes the other's.
  */
@@ -24,17 +24,17 @@ export function creditViewForRequest(requestScope: NetworkScope) {
   // A scope that refuses its Network answers here, with its own 403, before
   // any credit, plan or ledger read: a refused request sees no wallet.
   const { network } = billingScope;
-  const charged = chargesCredits(network);
+  const affectsBalance = chargesCredits(network);
   return {
     billingScope,
     network,
-    charged,
+    affectsBalance,
     item: (
       ...args: Parameters<typeof mapTransactionHistoryRow>
     ): TransactionHistoryItem => ({
       ...mapTransactionHistoryRow(...args),
       network,
-      charged,
+      affectsBalance,
     }),
     funding: async (
       params: Omit<Parameters<typeof buildCreditsPayload>[0], "scope">,

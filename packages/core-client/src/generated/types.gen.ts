@@ -18631,9 +18631,9 @@ export type TransactionHistoryJobItem = {
     agentIcon: string | null;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryOwner = {
@@ -18691,9 +18691,9 @@ export type TransactionHistoryImageItem = {
     modelLabel: string;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryTaskItem = {
@@ -18740,9 +18740,9 @@ export type TransactionHistoryTaskItem = {
     taskArchived: boolean;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryCoworkerItem = {
@@ -18781,9 +18781,9 @@ export type TransactionHistoryCoworkerItem = {
     coworkerId: string;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistorySokoBotItem = {
@@ -18822,9 +18822,9 @@ export type TransactionHistorySokoBotItem = {
     sokoBotId: string;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistorySeoChatItem = {
@@ -18859,9 +18859,9 @@ export type TransactionHistorySeoChatItem = {
     kind: 'seoChat';
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryContactsItem = {
@@ -18900,9 +18900,9 @@ export type TransactionHistoryContactsItem = {
     contactListId: string | null;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryTopUpItem = {
@@ -18953,9 +18953,9 @@ export type TransactionHistoryTopUpItem = {
     refundedTaskId: string | null;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryUnattributedItem = {
@@ -18994,9 +18994,9 @@ export type TransactionHistoryUnattributedItem = {
     bucketSource: string | null;
     network: 'mainnet' | 'preprod';
     /**
-     * True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
      */
-    charged: boolean;
+    affectsBalance: boolean;
 };
 
 export type TransactionDailySpendList = Array<{

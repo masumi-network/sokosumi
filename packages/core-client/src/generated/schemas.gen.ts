@@ -75687,9 +75687,9 @@ export const TransactionHistoryJobItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -75706,7 +75706,7 @@ export const TransactionHistoryJobItemSchema = {
         'agentName',
         'agentIcon',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -75816,9 +75816,9 @@ export const TransactionHistoryImageItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -75833,7 +75833,7 @@ export const TransactionHistoryImageItemSchema = {
         'imageJobId',
         'modelLabel',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -75918,9 +75918,9 @@ export const TransactionHistoryTaskItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -75936,7 +75936,7 @@ export const TransactionHistoryTaskItemSchema = {
         'taskEventId',
         'taskArchived',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -76011,9 +76011,9 @@ export const TransactionHistoryCoworkerItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76027,7 +76027,7 @@ export const TransactionHistoryCoworkerItemSchema = {
         'kind',
         'coworkerId',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -76103,9 +76103,9 @@ export const TransactionHistorySokoBotItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76119,7 +76119,7 @@ export const TransactionHistorySokoBotItemSchema = {
         'kind',
         'sokoBotId',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -76189,9 +76189,9 @@ export const TransactionHistorySeoChatItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76204,7 +76204,7 @@ export const TransactionHistorySeoChatItemSchema = {
         'owner',
         'kind',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -76283,9 +76283,9 @@ export const TransactionHistoryContactsItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76299,7 +76299,7 @@ export const TransactionHistoryContactsItemSchema = {
         'kind',
         'contactListId',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -76401,9 +76401,9 @@ export const TransactionHistoryTopUpItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76420,7 +76420,7 @@ export const TransactionHistoryTopUpItemSchema = {
         'refundedAgentId',
         'refundedTaskId',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 
@@ -76498,9 +76498,9 @@ export const TransactionHistoryUnattributedItemSchema = {
                 'preprod'
             ]
         },
-        charged: {
+        affectsBalance: {
             type: 'boolean',
-            description: 'True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.'
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76514,7 +76514,7 @@ export const TransactionHistoryUnattributedItemSchema = {
         'kind',
         'bucketSource',
         'network',
-        'charged'
+        'affectsBalance'
     ]
 } as const;
 

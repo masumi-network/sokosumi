@@ -81,9 +81,9 @@ const transactionHistoryBaseItemSchema = z.object({
 
 const ledgerFields = {
   network: z.enum(NETWORKS),
-  charged: z.boolean().openapi({
+  affectsBalance: z.boolean().openapi({
     description:
-      "True for Mainnet ledger rows. False for Preprod entries recorded at their price without charging credits.",
+      "true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged",
   }),
 };
 
@@ -273,7 +273,7 @@ export const transactionHistoryListResponseExample = {
         image: null,
       },
       network: "mainnet",
-      charged: true,
+      affectsBalance: true,
     },
     {
       kind: "topUp",
@@ -293,7 +293,7 @@ export const transactionHistoryListResponseExample = {
         image: null,
       },
       network: "mainnet",
-      charged: true,
+      affectsBalance: true,
     },
     {
       kind: "unattributed",
@@ -310,7 +310,7 @@ export const transactionHistoryListResponseExample = {
         image: null,
       },
       network: "mainnet",
-      charged: true,
+      affectsBalance: true,
     },
   ],
   meta: {

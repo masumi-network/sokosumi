@@ -401,7 +401,7 @@ describe.runIf(enabled)(
               kind: "topUp",
               credits: 10,
               network: "mainnet",
-              charged: true,
+              affectsBalance: true,
             }),
           ]);
           const preprodPage = await get("/transactions?limit=1", true);
@@ -412,7 +412,7 @@ describe.runIf(enabled)(
                 id: preprodSpend,
                 credits: 7,
                 network: "preprod",
-                charged: false,
+                affectsBalance: false,
               },
             ],
             meta: { pagination: { total: 1, nextCursor: null } },
@@ -442,7 +442,7 @@ describe.runIf(enabled)(
           expect(preprodPage).toEqual([
             expect.objectContaining({
               network: "preprod",
-              charged: false,
+              affectsBalance: false,
               id: preprodSpend,
               credits: convertCentsToCredits(7n * CREDIT),
             }),
@@ -456,13 +456,13 @@ describe.runIf(enabled)(
             expect.objectContaining({
               id: mainnetSpend,
               network: "mainnet",
-              charged: true,
+              affectsBalance: true,
               credits: 2,
             }),
             expect.objectContaining({
               kind: "topUp",
               network: "mainnet",
-              charged: true,
+              affectsBalance: true,
               credits: 10,
             }),
           ]);
@@ -820,7 +820,7 @@ describe.runIf(enabled)(
           const network = onPreprod ? "preprod" : "mainnet";
           const row = {
             network,
-            charged: !onPreprod,
+            affectsBalance: !onPreprod,
             id: sharedId,
             kind: "task",
             taskId,

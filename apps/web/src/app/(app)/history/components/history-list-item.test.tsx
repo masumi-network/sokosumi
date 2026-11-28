@@ -50,7 +50,7 @@ const labels: HistoryListItemLabels = {
 
 const base = {
   network: "mainnet",
-  charged: true,
+  affectsBalance: true,
   consumedAt: new Date("2025-08-19T10:00:00.000Z"),
   credits: 2,
   description: null,

@@ -34,7 +34,7 @@ function item(id: string, consumedAt: string): TransactionHistoryItem {
   return {
     id,
     network: "mainnet",
-    charged: true,
+    affectsBalance: true,
     kind: "unattributed",
     title: id,
     description: null,

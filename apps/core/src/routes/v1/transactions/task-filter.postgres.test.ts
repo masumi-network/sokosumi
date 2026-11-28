@@ -208,7 +208,7 @@ describe.skipIf(!enabled)(
           id: transactionIds[0],
           credits: 2,
           network: "mainnet",
-          charged: true,
+          affectsBalance: true,
         }),
       ]);
     });
