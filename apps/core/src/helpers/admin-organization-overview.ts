@@ -4,14 +4,14 @@ import {
   resolveOrganizationBillingPlan,
 } from "@sokosumi/database/helpers";
 import {
-  creditBucketRepository,
   memberRepository,
   organizationRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
-
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary.js";
+import { sumOrganizationOwnedCreditBalances } from "@/lib/credits/balance";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 type AdminOrganizationMemberRecord = Awaited<
   ReturnType<typeof memberRepository.getMembersWithUserAndLastSeen>
@@ -88,11 +88,11 @@ async function resolveSelfServePoolRemainingCredits(
   organizationId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number> {
-  const { remainingCents } =
-    await creditBucketRepository.sumOrganizationOwnedCreditBalances(
-      organizationId,
-      tx,
-    );
+  const { remainingCents } = await sumOrganizationOwnedCreditBalances(
+    createNetworkScope("mainnet"),
+    organizationId,
+    tx,
+  );
   return convertCentsToCredits(remainingCents);
 }
 
@@ -214,6 +214,7 @@ export async function buildAdminOrganizationOverviewDetail(
   const enterpriseContract =
     billingPlan.mode === "enterprise_contract"
       ? await getEnterpriseContractBillingSummary(
+          createNetworkScope("mainnet"),
           billingPlan,
           organization.id,
           tx,

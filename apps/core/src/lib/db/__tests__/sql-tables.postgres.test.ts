@@ -167,15 +167,26 @@ describe.runIf(onSplitLayout)("raw SQL tables on the split layout", () => {
     const userId = `${key}-nobody`;
     // Unconfigured, the package names `public`, where the split layout has no tables.
     await expect(
-      creditBucketRepository.getBalance(userId, null, models.shared),
+      creditBucketRepository.getNetworkBalance(
+        "mainnet",
+        userId,
+        null,
+        models.shared,
+      ),
     ).rejects.toThrow(/credit_bucket/);
 
     onTestFinished(configureSqlTables(layout));
     expect(
-      await creditBucketRepository.getBalance(userId, null, models.shared),
+      await creditBucketRepository.getNetworkBalance(
+        "mainnet",
+        userId,
+        null,
+        models.shared,
+      ),
     ).toBe(0n);
     expect(
       await creditBucketRepository.listAvailableBucketsWithBalances(
+        "mainnet",
         userId,
         null,
         models.shared,

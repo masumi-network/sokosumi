@@ -1,7 +1,12 @@
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
-import { netTable, sharedTable } from "@sokosumi/database/sql-tables";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
+import {
+  projectImageCharges,
+  turnChargesSince,
+} from "@/lib/credits/commercial-funding";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
 import { labTurnIdsWhere } from "@/lib/soko-bot/lab-turns";
@@ -151,6 +156,7 @@ export async function cmoSpend(
             AND t."createdAt" >= ${since}::timestamp - interval '1 day'`,
         );
 
+  const scope = createNetworkScope("mainnet");
   const [owners, turns, sources, tools, images, charged, saves] =
     await Promise.all([
       prisma.user.findMany({
@@ -216,20 +222,8 @@ export async function cmoSpend(
       WHERE t."sokoBotId" = ANY(${bots}::uuid[]) AND c."createdAt" >= ${since}
         AND NOT (t.id = ANY(${lab}::uuid[]))
       GROUP BY t."sokoBotId", c.capability`,
-      // A quote only counts once it was charged, in the period it was charged.
-      prisma.$queryRaw<{ projectId: string; cents: bigint | null }[]>`
-      SELECT j."projectId", SUM(COALESCE(j."chargedCents", 0)) AS cents
-      FROM ${sharedTable("project_image_job")} j
-      JOIN ${netTable("mainnet", "Transaction")} t ON t.id = j."transactionId"
-      WHERE j."projectId" = ANY(${projects}::uuid[]) AND t."createdAt" >= ${since}
-      GROUP BY j."projectId"`,
-      prisma.$queryRaw<{ sokoBotId: string; cents: bigint | null }[]>`
-      SELECT "sokoBotId", SUM(cents) AS cents
-      FROM ${netTable("mainnet", "soko_bot_usage")}
-      WHERE "sokoBotId" = ANY(${bots}::uuid[]) AND "createdAt" >= ${since}
-        -- A lab turn's charge names the turn; other charges name no turn.
-        AND NOT (COALESCE("referenceId", '') = ANY(${lab}::text[]))
-      GROUP BY "sokoBotId"`,
+      projectImageCharges(scope, projects, since),
+      turnChargesSince(scope, bots, lab, since),
       // Newest first, so the first save with problems is the latest.
       prisma.sokoBotToolCall.findMany({
         where: {

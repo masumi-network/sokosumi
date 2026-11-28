@@ -1,0 +1,39 @@
+[
+  {
+    "phase": "cardano-change",
+    "row": null,
+    "request": {
+      "network": "Preprod",
+      "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
+      "limit": 50
+    }
+  },
+  {
+    "phase": "unchanged",
+    "row": {
+      "key": "agents-sync-metadata:dynamic-pricing-v1",
+      "cursorId": "registry-page",
+      "lastSyncedAt": "2026-11-27T11:59:00.000Z"
+    },
+    "request": {
+      "network": "Preprod",
+      "statusUpdatedAfter": "2026-11-27T11:59:00.000Z",
+      "cursorId": "registry-page",
+      "limit": 50
+    }
+  },
+  {
+    "phase": "x402-only",
+    "row": {
+      "key": "agents-sync-metadata:dynamic-pricing-v1",
+      "cursorId": "registry-page",
+      "lastSyncedAt": "2026-11-27T11:59:00.000Z"
+    },
+    "request": {
+      "network": "Preprod",
+      "statusUpdatedAfter": "2026-11-27T11:59:00.000Z",
+      "cursorId": "registry-page",
+      "limit": 50
+    }
+  }
+]

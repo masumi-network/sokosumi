@@ -163,8 +163,6 @@ export function getJobDetailsAgentOverrideFields(agent: {
 export {
   AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
-  CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-  CARDANO_V2_RAIL_READINESS_KEY,
   type CardanoV2ReadySource,
   isCardanoV2SourceReady,
 } from "@/lib/agent-catalog/availability";

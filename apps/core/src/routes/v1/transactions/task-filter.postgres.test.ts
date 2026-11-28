@@ -10,8 +10,8 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -42,6 +42,8 @@ const otherOrganizationTaskId = randomUUID();
 const userIds = [memberA, memberB, outsider];
 const taskIds = [publicTaskId, privateTaskId, otherOrganizationTaskId];
 const transactionIds = taskIds.map(() => randomUUID());
+const eventIds = taskIds.map(() => randomUUID());
+const billingScope = createNetworkScope("mainnet");
 
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
@@ -83,6 +85,9 @@ describe.skipIf(!enabled)(
   "Transactions Task filter against PostgreSQL with mounted middleware",
   () => {
     beforeAll(async () => {
+      expect(await prisma.user.count({ where: { id: { in: userIds } } })).toBe(
+        0,
+      );
       for (const id of userIds) {
         await prisma.user.create({
           data: {
@@ -156,22 +161,29 @@ describe.skipIf(!enabled)(
       });
       for (const [index, taskId] of taskIds.entries()) {
         const isOther = taskId === otherOrganizationTaskId;
-        await prisma.transaction.create({
+        await billingScope.networkDb.transaction.create({
           data: {
             id: transactionIds[index],
             amount: -2n * CREDIT,
             userId: isOther ? outsider : memberA,
             organizationId: isOther ? otherOrganizationId : organizationId,
-            taskEvents: { create: { taskId, comment: "Agent run" } },
+          },
+        });
+        await prisma.taskEvent.create({
+          data: {
+            id: eventIds[index],
+            taskId,
+            transactionId: transactionIds[index],
+            comment: "Agent run",
           },
         });
       }
-    });
+    }, 60000);
 
     afterAll(async () => {
       if (!enabled) return;
-      await prisma.taskEvent.deleteMany({ where: { taskId: { in: taskIds } } });
-      await prisma.transaction.deleteMany({
+      await prisma.taskEvent.deleteMany({ where: { id: { in: eventIds } } });
+      await billingScope.networkDb.transaction.deleteMany({
         where: { id: { in: transactionIds } },
       });
       await prisma.task.deleteMany({ where: { id: { in: taskIds } } });
@@ -182,7 +194,7 @@ describe.skipIf(!enabled)(
         where: { id: { in: [organizationId, otherOrganizationId] } },
       });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
-    });
+    }, 60000);
 
     it("totals a public Task for any member and a private one for its owner", async () => {
       const publicTotal = await appFor(memberB, organizationId).request(

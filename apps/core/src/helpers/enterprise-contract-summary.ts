@@ -1,7 +1,7 @@
-import type { Prisma } from "@sokosumi/database";
 import type { OrganizationBillingPlan } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
+import { sumOrganizationEnterprisePoolBalances } from "@/lib/credits/balance";
+import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
 export interface EnterpriseContractBillingSummary {
   activatedAt: Date;
@@ -84,12 +84,13 @@ export function resolveEnterprisePeriodEndForDisplay(
 }
 
 export async function getEnterpriseContractBillingSummary(
+  scope: NetworkScope,
   billingPlan: Extract<
     OrganizationBillingPlan,
     { mode: "enterprise_contract" }
   >,
   organizationId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   now: Date = new Date(),
 ): Promise<EnterpriseContractBillingSummary> {
   const [contract, poolBalances] = await Promise.all([
@@ -101,11 +102,7 @@ export async function getEnterpriseContractBillingSummary(
         },
       },
     }),
-    creditBucketRepository.sumOrganizationEnterprisePoolBalances(
-      organizationId,
-      tx,
-      now,
-    ),
+    sumOrganizationEnterprisePoolBalances(scope, organizationId, tx, now),
   ]);
 
   if (!contract || contract.organizationId !== organizationId) {

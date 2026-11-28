@@ -17,6 +17,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { jsonInput } from "@/helpers/prisma-json";
 import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import {
@@ -745,7 +746,12 @@ async function paysForLevel(
   tx: Prisma.TransactionClient,
 ): Promise<boolean> {
   if (await isEvalCusoProject(projectId)) return true;
-  const paid = await cmoPaidFor(projectId, now, tx);
+  const paid = await cmoPaidFor(
+    projectId,
+    now,
+    createNetworkScope("mainnet"),
+    tx,
+  );
   if (!paid.subscribed && !paid.testerCreditsLeft) return false;
   return (
     cmoVolumeLevelForTier(paid.testerCreditsLeft ? null : paid.tier) === level

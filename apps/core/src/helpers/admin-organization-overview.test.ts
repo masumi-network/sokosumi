@@ -147,6 +147,7 @@ describe("buildAdminOrganizationOverviewDetail", () => {
 
     expect(detail?.totalCredits).toBe(90_246);
     expect(sumOrganizationOwnedCreditBalancesMock).toHaveBeenCalledWith(
+      "mainnet",
       "org_1",
       expect.anything(),
     );
@@ -169,6 +170,7 @@ describe("buildAdminOrganizationOverviewDetail", () => {
 
     expect(detail?.totalCredits).toBe(90_246);
     expect(sumOrganizationOwnedCreditBalancesMock).toHaveBeenCalledWith(
+      "mainnet",
       "org_1",
       expect.anything(),
     );
@@ -198,6 +200,7 @@ describe("buildAdminOrganizationOverviewDetail", () => {
 
     expect(detail?.totalCredits).toBe(91_446);
     expect(sumOrganizationOwnedCreditBalancesMock).toHaveBeenCalledWith(
+      "mainnet",
       "org_1",
       expect.anything(),
     );

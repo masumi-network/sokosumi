@@ -19,9 +19,11 @@
  *     };
  *   });
  */
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { Pool, PoolClient } from "pg";
 import { expect } from "vitest";
+import { onSplitLayout } from "./split-layout";
 
 interface SentStatement {
   connection: number;
@@ -83,6 +85,20 @@ export function thrown(error: unknown) {
   };
 }
 
+/**
+ * `Date.now()` once the clock has left the current millisecond. An observed
+ * call's start taken this way lies after every row written before it, also
+ * in the milliseconds a time column keeps, so "within the call" never takes
+ * in a write that ended in the same millisecond the call started.
+ */
+export async function nextMillisecond(): Promise<number> {
+  const before = Date.now();
+  while (Date.now() <= before) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  return Date.now();
+}
+
 /** Runs `call` and returns its outcome with what the pool sent meanwhile. */
 export async function observing<T>(
   call: () => Promise<T>,
@@ -97,6 +113,16 @@ export async function observing<T>(
   } finally {
     sent.observing = false;
   }
+}
+
+/** Compare the exact driver statement, allowing only the two layouts’ schema qualifiers. */
+export function statementDigest(sql: string): string {
+  const text = onSplitLayout
+    ? sql
+        .replaceAll('"mainnet".', '"public".')
+        .replaceAll('"shared".', '"public".')
+    : sql;
+  return createHash("sha256").update(text).digest("hex");
 }
 
 export interface Statement {

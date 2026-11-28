@@ -1,11 +1,7 @@
 import type { CompetitorPageKind, Prisma } from "@sokosumi/database";
-import {
-  creditBucketRepository,
-  InsufficientBalanceError,
-} from "@sokosumi/database/repositories";
+import { InsufficientBalanceError } from "@sokosumi/database/repositories";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { z } from "zod";
-
 import {
   type MetaAd,
   metaAdLibraryConfigured,
@@ -35,6 +31,7 @@ import {
 } from "@/lib/competitors/page-read";
 import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { bareHost } from "@/lib/competitors/text";
+import { getBalance } from "@/lib/credits/balance";
 import { spend } from "@/lib/credits/spend";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
@@ -586,12 +583,9 @@ export function chargeProjectCompetitorCheck(
         return { chargedCents: check.chargedCents, shortfall: false };
       if (!check || !project) return { chargedCents: 0n, shortfall: true };
       const { userId, organizationId } = project.workspace;
-      const balance = await creditBucketRepository.getBalance(
-        userId,
-        organizationId,
-        tx,
-        { projectId },
-      );
+      const balance = await getBalance(scope, userId, organizationId, tx, {
+        projectId,
+      });
       if (balance < expectedCents) return { chargedCents: 0n, shortfall: true };
       const spent = await spend({
         scope,

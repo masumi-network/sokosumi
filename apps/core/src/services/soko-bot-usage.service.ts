@@ -2,8 +2,9 @@ import { PrismaRaw as Prisma } from "@sokosumi/database/client";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
-
 import { REFUND_PART_SEPARATOR } from "@/helpers/compensating-refund";
+import { refundParts, turnCharges } from "@/lib/credits/commercial-funding";
+import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { labTurnTree } from "@/lib/soko-bot/lab-turns";
 import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
@@ -45,7 +46,10 @@ export interface SokoBotUsageTotals {
 /** Delegation actions that hand work to someone who charges for it. */
 const SPENDING_TASK_ACTIONS = ["create_task", "assign_task"];
 
-async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
+async function delegatedCreditsSpent(
+  scope: NetworkScope,
+  sokoBotId: string,
+): Promise<number> {
   const delegations = await prisma.sokoBotDelegation.findMany({
     where: {
       turn: { sokoBotId },
@@ -78,15 +82,7 @@ async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
   );
   const otherRefundParts = new Map<string, bigint>();
   if (refundedJobIds.length > 0) {
-    const parts = await prisma.creditBucket.findMany({
-      where: {
-        referenceType: "REFUND",
-        OR: refundedJobIds.map((id) => ({
-          referenceId: { startsWith: `${id}${REFUND_PART_SEPARATOR}` },
-        })),
-      },
-      select: { referenceId: true, amount: true },
-    });
+    const parts = await refundParts(scope, refundedJobIds);
     for (const { referenceId, amount } of parts) {
       const jobId = referenceId?.split(REFUND_PART_SEPARATOR)[0] ?? "";
       otherRefundParts.set(jobId, (otherRefundParts.get(jobId) ?? 0n) + amount);
@@ -140,13 +136,11 @@ export async function sokoBotUsageTotals(
     WHERE "sokoBotId" = ${sokoBotId}::uuid
   `;
 
-  const charged = await prisma.sokoBotUsage.aggregate({
-    where: { sokoBotId: sokoBotId },
-    _sum: { cents: true },
-  });
+  const scope = createNetworkScope("mainnet");
+  const charged = await turnCharges(scope, sokoBotId);
 
   const ownCredits = convertCentsToCredits(charged._sum.cents ?? 0n);
-  const delegatedCredits = await delegatedCreditsSpent(sokoBotId);
+  const delegatedCredits = await delegatedCreditsSpent(scope, sokoBotId);
 
   const inputTokens = asNumber(row?.inputTokens ?? null);
   const outputTokens = asNumber(row?.outputTokens ?? null);

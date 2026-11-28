@@ -92,6 +92,7 @@ import {
 import { SokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   baseFile,
+  nextMillisecond,
   observing,
   plain,
   type Statement,
@@ -414,11 +415,22 @@ async function rows(payer: Payer) {
  * One observed call: its answer, the statements it sent, and the rows it
  * left. What the call left to run after it, the notices of a settlement,
  * ends before the rows are read.
+ *
+ * That work ends inside the observation: it runs beside the call (the
+ * low-balance notice's publish), so a window closed when the call returns
+ * would cut its statements wherever the scheduler stood. Work an earlier
+ * step left ends before the window opens.
  */
 async function observe(payer: Payer, call: () => Promise<unknown>) {
-  const started = Date.now();
-  const { outcome, log } = await observing(call);
-  while (background.length > 0) await Promise.allSettled(background.splice(0));
+  await drainBackground();
+  const started = await nextMillisecond();
+  const { outcome, log } = await observing(async () => {
+    try {
+      return await call();
+    } finally {
+      await drainBackground();
+    }
+  });
   const ended = Date.now();
   const left = await rows(payer);
   // Before `plain` turns every time into `<time>`: a debit is one instant, its
@@ -507,6 +519,10 @@ function bucketsAsBound(
       return rows.filter((row) => row[4] === debitId).map((row) => row[3]);
   }
   return null;
+}
+
+async function drainBackground() {
+  while (background.length > 0) await Promise.allSettled(background.splice(0));
 }
 
 function settled(result: PromiseSettledResult<unknown>) {

@@ -1,0 +1,202 @@
+{
+  "public": {
+    "period": {
+      "outcome": {
+        "total": 12,
+        "used": 2,
+        "remaining": 10
+      },
+      "statements": [
+        {
+          "sql": "41b0853e607be339ff13779e4d28cba0985b0af1632a6b74d7b417fed31ca614",
+          "bindings": ["$periodBucket", "0"]
+        },
+        {
+          "sql": "6e089a5b19a1e4b18536dc0e07578f1aa3ce768e4dd53434ceaf69b74b0b6d93",
+          "bindings": [
+            "$periodBucket",
+            "2026-10-01 00:00:00",
+            "2026-10-10 12:00:00",
+            "0"
+          ]
+        },
+        {
+          "sql": "f16a63512d2f70f0ac893873d4048e5103d7e695d4e4291c50c62ebdde1eb203",
+          "bindings": [
+            "2026-10-10 12:00:00",
+            "STRIPE_SUBSCRIPTION_PERIOD",
+            "$user",
+            "2026-10-01 00:00:00",
+            "2026-11-01 00:00:00",
+            "2026-10-10 12:00:00",
+            "2026-10-10 12:00:00",
+            "0"
+          ]
+        }
+      ]
+    },
+    "tester": {
+      "outcome": {
+        "subscribed": false,
+        "tier": null,
+        "testerCreditsLeft": true
+      },
+      "statements": [
+        {
+          "sql": "5537d0df2c3a37cb88d17718b5e3be43f4779102624b47f783678874373184f7",
+          "bindings": ["$testerBucket", "0"]
+        },
+        {
+          "sql": "a34e73e2c8e6a9f635bcbf3544c0fa03bca2f65aada2ea41911350aecd1ff3bb",
+          "bindings": [
+            "$project",
+            "active",
+            false,
+            "2026-10-10 12:00:00",
+            "1",
+            "0"
+          ]
+        },
+        {
+          "sql": "aba2ae8d70b8176a73611d130fe17a2326451f3e0a7f34f581248296e1c0c814",
+          "bindings": [
+            "CMO_TESTER_CREDITS",
+            "$project",
+            "2026-10-10 12:00:00",
+            "0"
+          ]
+        }
+      ]
+    },
+    "billing": {
+      "outcome": {
+        "tier": null,
+        "interval": null,
+        "status": null,
+        "periodEnd": null,
+        "cancelAtPeriodEnd": false,
+        "pendingTier": null,
+        "hasTesterCredits": true
+      },
+      "statements": [
+        {
+          "sql": "1c66511ce7b4195d2abf6686aa14e3efafc8d5145612f3ca4cadcb9f5245388a",
+          "bindings": ["$project", "1", "0"]
+        },
+        {
+          "sql": "f8e7934e47473e622fe8a6504c0347cde77a7126250de37b8d614664f382e85c",
+          "bindings": ["CMO_TESTER_CREDITS", "$project", "1", "0"]
+        }
+      ]
+    },
+    "cusoFunding": {
+      "outcome": [
+        {
+          "id": "$testerBucket",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "expiresAt": null,
+          "amount": "30000000000",
+          "consumptions": []
+        }
+      ],
+      "statements": [
+        {
+          "sql": "19895807a3c857e8235c77844cff1573da1abf068c8bb027037a43288f1da652",
+          "bindings": ["$project", "2026-10-10 12:00:00", "0"]
+        },
+        {
+          "sql": "5537d0df2c3a37cb88d17718b5e3be43f4779102624b47f783678874373184f7",
+          "bindings": ["$testerBucket", "0"]
+        }
+      ]
+    },
+    "spent": {
+      "outcome": [],
+      "statements": [
+        {
+          "sql": "7c0627f51532586ea0e3e65a27ae7bce9b144ad89acd8edb4cf2f3db1365596a",
+          "bindings": ["$project", "0", "2026-10-01 00:00:00", "0"]
+        }
+      ]
+    },
+    "previousSpent": {
+      "outcome": [],
+      "statements": [
+        {
+          "sql": "78d3e8790d1369e50f9aa1f85bfb32562a22cd79195368312e2454a082845922",
+          "bindings": [
+            "$project",
+            "0",
+            "2026-09-01 00:00:00",
+            "2026-10-01 00:00:00",
+            "0"
+          ]
+        }
+      ]
+    },
+    "turnCharge": {
+      "outcome": {
+        "_sum": {
+          "cents": null
+        }
+      },
+      "statements": [
+        {
+          "sql": "1c3b68705b536e2e6c472a413f2540fb1035d4e5f7d50dd09f86c8de2f043f44",
+          "bindings": ["$project", "0"]
+        }
+      ]
+    },
+    "refund": {
+      "outcome": [],
+      "statements": [
+        {
+          "sql": "438d2e2c242dabf58321f791551c9a1d32b7054800ffe70755945a2bb83b3d6b",
+          "bindings": ["REFUND", "$project#", "0"]
+        }
+      ]
+    }
+  },
+  "originalSplitFailures": {
+    "period": {
+      "source": "helpers/subscription.ts:130",
+      "error": "The table `shared.credit_bucket` does not exist in the current database.",
+      "sql": "SELECT \"shared\".\"credit_bucket\".\"id\", \"shared\".\"credit_bucket\".\"amount\" FROM \"shared\".\"credit_bucket\" WHERE ((\"shared\".\"credit_bucket\".\"activatesAt\" IS NULL OR \"shared\".\"credit_bucket\".\"activatesAt\" <= $1) AND \"shared\".\"credit_bucket\".\"referenceType\" = CAST($2::text AS \"shared\".\"CreditBucketReferenceType\") AND \"shared\".\"credit_bucket\".\"userId\" = $3 AND \"shared\".\"credit_bucket\".\"organizationId\" IS NULL AND \"shared\".\"credit_bucket\".\"expiresAt\" > $4 AND \"shared\".\"credit_bucket\".\"expiresAt\" <= $5 AND \"shared\".\"credit_bucket\".\"createdAt\" < $6 AND \"shared\".\"credit_bucket\".\"expiresAt\" > $7) OFFSET $8"
+    },
+    "tester": {
+      "source": "services/cmo-billing.service.ts:139",
+      "error": "The table `shared.credit_bucket` does not exist in the current database.",
+      "sql": "SELECT \"shared\".\"credit_bucket\".\"id\", \"shared\".\"credit_bucket\".\"amount\" FROM \"shared\".\"credit_bucket\" WHERE (\"shared\".\"credit_bucket\".\"referenceType\" = CAST($1::text AS \"shared\".\"CreditBucketReferenceType\") AND \"shared\".\"credit_bucket\".\"projectId\" = $2 AND (\"shared\".\"credit_bucket\".\"expiresAt\" IS NULL OR \"shared\".\"credit_bucket\".\"expiresAt\" > $3)) OFFSET $4"
+    },
+    "billing": {
+      "source": "services/cmo-billing.service.ts:348",
+      "error": "The table `shared.credit_bucket` does not exist in the current database.",
+      "sql": "SELECT \"shared\".\"credit_bucket\".\"id\" FROM \"shared\".\"credit_bucket\" WHERE (\"shared\".\"credit_bucket\".\"referenceType\" = CAST($1::text AS \"shared\".\"CreditBucketReferenceType\") AND \"shared\".\"credit_bucket\".\"projectId\" = $2) LIMIT $3 OFFSET $4"
+    },
+    "cusoFunding": {
+      "source": "helpers/cuso-low-credit-notification.ts:77",
+      "error": "The table `shared.credit_bucket` does not exist in the current database.",
+      "sql": "SELECT \"shared\".\"credit_bucket\".\"id\", \"shared\".\"credit_bucket\".\"createdAt\", \"shared\".\"credit_bucket\".\"expiresAt\", \"shared\".\"credit_bucket\".\"amount\" FROM \"shared\".\"credit_bucket\" WHERE (\"shared\".\"credit_bucket\".\"projectId\" = $1 AND (\"shared\".\"credit_bucket\".\"activatesAt\" IS NULL OR \"shared\".\"credit_bucket\".\"activatesAt\" <= $2)) OFFSET $3"
+    },
+    "spent": {
+      "source": "routes/v1/organizations/[id]/credit-spend/get.ts:75",
+      "error": "The table `shared.Transaction` does not exist in the current database.",
+      "sql": "SELECT SUM(\"shared\".\"Transaction\".\"amount\") AS \"_sum$amount\", \"shared\".\"Transaction\".\"userId\" FROM \"shared\".\"Transaction\" WHERE (\"shared\".\"Transaction\".\"organizationId\" = $1 AND \"shared\".\"Transaction\".\"amount\" < $2 AND \"shared\".\"Transaction\".\"createdAt\" >= $3) GROUP BY \"shared\".\"Transaction\".\"userId\" OFFSET $4"
+    },
+    "previousSpent": {
+      "source": "routes/v1/organizations/[id]/credit-spend/get.ts:80",
+      "error": "The table `shared.Transaction` does not exist in the current database.",
+      "sql": "SELECT SUM(\"shared\".\"Transaction\".\"amount\") AS \"_sum$amount\", \"shared\".\"Transaction\".\"userId\" FROM \"shared\".\"Transaction\" WHERE (\"shared\".\"Transaction\".\"organizationId\" = $1 AND \"shared\".\"Transaction\".\"amount\" < $2 AND \"shared\".\"Transaction\".\"createdAt\" >= $3 AND \"shared\".\"Transaction\".\"createdAt\" < $4) GROUP BY \"shared\".\"Transaction\".\"userId\" OFFSET $5"
+    },
+    "turnCharge": {
+      "source": "services/soko-bot-usage.service.ts:143",
+      "error": "The table `shared.soko_bot_usage` does not exist in the current database.",
+      "sql": "SELECT SUM(\"cents\") AS \"_sum$cents\" FROM (SELECT \"shared\".\"soko_bot_usage\".\"cents\" FROM \"shared\".\"soko_bot_usage\" WHERE \"shared\".\"soko_bot_usage\".\"sokoBotId\" = $1 OFFSET $2) AS \"sub\""
+    },
+    "refund": {
+      "source": "services/soko-bot-usage.service.ts:81",
+      "error": "The table `shared.credit_bucket` does not exist in the current database.",
+      "sql": "SELECT \"shared\".\"credit_bucket\".\"id\", \"shared\".\"credit_bucket\".\"referenceId\", \"shared\".\"credit_bucket\".\"amount\" FROM \"shared\".\"credit_bucket\" WHERE (\"shared\".\"credit_bucket\".\"referenceType\" = CAST($1::text AS \"shared\".\"CreditBucketReferenceType\") AND \"shared\".\"credit_bucket\".\"referenceId\"::text LIKE ($2 || '%')) OFFSET $3"
+    }
+  }
+}
