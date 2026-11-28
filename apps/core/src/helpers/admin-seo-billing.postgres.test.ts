@@ -1,10 +1,10 @@
 /**
  * Admin SEO billing evidence never matches a Task event tagged Preprod (slice
- * 29-2b): both debit-evidence lookups in `seoBillingCtes()` accept only events
- * that count on Mainnet (`network IS NULL OR network = 'mainnet'` via
- * `taskEventCountsOn`). Runs on real PostgreSQL on both layouts; equal-id
- * Preprod transactions run on the split layout only. Every row is this file's
- * own.
+ * 29-2b): both debit-evidence lookups and the attempted-credits lookup in
+ * `seoBillingCtes()` accept only events that count on Mainnet
+ * (`network IS NULL OR network = 'mainnet'` via `taskEventCountsOnSql`). Runs
+ * on real PostgreSQL on both layouts; equal-id Preprod transactions run on the
+ * split layout only. Every row is this file's own.
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
  *     pnpm --filter core test src/helpers/admin-seo-billing.postgres.test.ts
@@ -64,6 +64,9 @@ describe.runIf(onPostgres)(
     const txIds: string[] = [];
     const preprodOnlyTxId = `seo-bill-preprod-only-${tag}`;
     let workspaceId = "";
+    const fixtureNow = new Date();
+    const at = (offsetSeconds: number) =>
+      new Date(fixtureNow.getTime() + offsetSeconds * 1000);
 
     const ids = {
       untagged: `seo-bill-untagged-${tag}`,
@@ -85,11 +88,68 @@ describe.runIf(onPostgres)(
       codex16: `seo-bill-tx-codex16-${tag}`,
     };
 
+    async function listAllOwnBilling(ownTasks: ReadonlySet<string>) {
+      const billing: Record<
+        string,
+        {
+          status: string;
+          chargedCredits: number | null;
+          attemptedCredits: number | null;
+          cost: unknown;
+        }
+      > = {};
+      for (let page = 1; ; page++) {
+        const res = await listAdminSeoAlerts({
+          period: "all",
+          page,
+          view: "billing",
+        });
+        for (const row of res.billing) {
+          if (row.taskId !== null && ownTasks.has(row.taskId)) {
+            billing[row.taskId] = {
+              status: row.status,
+              chargedCredits: row.chargedCredits,
+              attemptedCredits: row.attemptedCredits,
+              cost: row.cost,
+            };
+          }
+        }
+        if (
+          Object.keys(billing).length >= ownTasks.size ||
+          page * res.pageSize >= res.billingTotal ||
+          res.billing.length === 0
+        ) {
+          break;
+        }
+      }
+      return billing;
+    }
+
+    async function listAllOwnAlerts(ownTasks: ReadonlySet<string>) {
+      const alerts: Record<string, { severity: string; reasons: string[] }> =
+        {};
+      for (let page = 1; ; page++) {
+        const res = await listAdminSeoAlerts({ period: "all", page });
+        for (const row of res.items) {
+          if (row.taskId !== null && ownTasks.has(row.taskId)) {
+            alerts[row.taskId] = {
+              severity: row.severity,
+              reasons: row.reasons,
+            };
+          }
+        }
+        if (page * res.pageSize >= res.total || res.items.length === 0) {
+          break;
+        }
+      }
+      return alerts;
+    }
+
     async function snapshot() {
       const ownTasks = new Set(Object.values(ids));
-      const [billingRes, alertsRes, directRows] = await Promise.all([
-        listAdminSeoAlerts({ period: "all", page: 1, view: "billing" }),
-        listAdminSeoAlerts({ period: "all", page: 1 }),
+      const [billing, alerts, directRows] = await Promise.all([
+        listAllOwnBilling(ownTasks),
+        listAllOwnAlerts(ownTasks),
         prisma.$queryRaw<
           Array<{
             run: string;
@@ -112,28 +172,6 @@ describe.runIf(onPostgres)(
         ORDER BY run ASC
       `),
       ]);
-
-      const billing = Object.fromEntries(
-        billingRes.billing
-          .filter((row) => row.taskId !== null && ownTasks.has(row.taskId))
-          .map((row) => [
-            row.taskId,
-            {
-              status: row.status,
-              chargedCredits: row.chargedCredits,
-              attemptedCredits: row.attemptedCredits,
-              cost: row.cost,
-            },
-          ]),
-      );
-      const alerts = Object.fromEntries(
-        alertsRes.items
-          .filter((row) => row.taskId !== null && ownTasks.has(row.taskId))
-          .map((row) => [
-            row.taskId,
-            { severity: row.severity, reasons: row.reasons },
-          ]),
-      );
       return { billing, alerts, directRows };
     }
 
@@ -148,9 +186,7 @@ describe.runIf(onPostgres)(
         "@/helpers/admin-seo-billing"
       ));
 
-      const now = new Date();
-      const at = (offsetSeconds: number) =>
-        new Date(now.getTime() + offsetSeconds * 1000);
+      const now = fixtureNow;
       await prisma.user.create({
         data: {
           id: userId,
@@ -406,17 +442,7 @@ describe.runIf(onPostgres)(
             network: "mainnet",
             createdAt: at(-40),
           },
-          // Prior attempt and an eligible mainnet event that does not match `matched` criteria.
-          {
-            id: `ev-unmatched-attempt-${tag}`,
-            taskId: ids.unmatched,
-            status: "OUT_OF_CREDITS",
-            coworkerId,
-            transactionId: null,
-            cents: 900n * CREDIT,
-            network: "mainnet",
-            createdAt: at(-38),
-          },
+          // Eligible mainnet event that does not match `matched` or `attempt` criteria (no COMPLETED/OUT_OF_CREDITS attempt).
           {
             id: `ev-unmatched-m-${tag}`,
             taskId: ids.unmatched,
@@ -427,11 +453,11 @@ describe.runIf(onPostgres)(
             network: "mainnet",
             createdAt: at(-30),
           },
-          // Codex collision fixture: 8 (mainnet) + 4 (untagged) = 12 credits.
+          // Codex collision fixture: 8 (mainnet, NULL status) + 4 (untagged, NULL status) = 12 credits.
           {
             id: `ev-codex-8-${tag}`,
             taskId: ids.codex,
-            status: "RUNNING",
+            status: null,
             coworkerId,
             transactionId: tx.codex8,
             cents: 8n * CREDIT,
@@ -441,7 +467,7 @@ describe.runIf(onPostgres)(
           {
             id: `ev-codex-4-${tag}`,
             taskId: ids.codex,
-            status: "RUNNING",
+            status: null,
             coworkerId,
             transactionId: tx.codex4,
             cents: 4n * CREDIT,
@@ -519,7 +545,7 @@ describe.runIf(onPostgres)(
           [ids.unmatched]: {
             status: "unverified",
             chargedCredits: 900,
-            attemptedCredits: 900,
+            attemptedCredits: null,
             cost: null,
           },
           [ids.codex]: {
@@ -549,7 +575,7 @@ describe.runIf(onPostgres)(
           {
             run: "unmatched",
             charged_credits: "900.0000000000000000",
-            attempted_credits: "900.0000000000000000",
+            attempted_credits: null,
             billing_status: "unverified",
           },
           {
@@ -562,15 +588,14 @@ describe.runIf(onPostgres)(
 
         // Add Preprod collisions (Preprod events older than Mainnet/untagged events):
         // 1) Outer lookup: Preprod receipt on unattached 16-credit Mainnet debit (would raise 12 -> 28).
-        // 2) Outer lookup: Preprod receipt on 4-credit Mainnet debit alongside untagged receipt.
-        // 3) Inner `matched` lookup: Preprod COMPLETED receipt matching exact cents and approved worker
-        //    on `unmatched` (would flip `unverified` -> `settled` if inner lookup omitted the predicate).
+        // 2) Outer & attempt lookups: Preprod COMPLETED receipt on 4-credit Mainnet debit alongside untagged receipt (would raise attemptedCredits NULL -> 4).
+        // 3) Inner `matched` & attempt lookups: Preprod COMPLETED receipt matching exact cents and approved worker
+        //    on `unmatched` (would flip `unverified` -> `settled` and attemptedCredits NULL -> 900).
         const preprodEventIds = [
           `ev-preprod-codex16-${tag}`,
           `ev-preprod-codex4-${tag}`,
           `ev-preprod-unmatched-${tag}`,
         ];
-        const preprodBase = Date.now();
         await prisma.taskEvent.createMany({
           data: [
             {
@@ -581,17 +606,17 @@ describe.runIf(onPostgres)(
               transactionId: tx.codex16,
               cents: 16n * CREDIT,
               network: "preprod",
-              createdAt: new Date(preprodBase - 26_000),
+              createdAt: at(-26),
             },
             {
               id: preprodEventIds[1],
               taskId: ids.codex,
-              status: "RUNNING",
+              status: "COMPLETED",
               coworkerId,
               transactionId: tx.codex4,
               cents: 4n * CREDIT,
               network: "preprod",
-              createdAt: new Date(preprodBase - 22_000),
+              createdAt: at(-22),
             },
             {
               id: preprodEventIds[2],
@@ -601,7 +626,7 @@ describe.runIf(onPostgres)(
               transactionId: tx.unmatched900,
               cents: 900n * CREDIT,
               network: "preprod",
-              createdAt: new Date(preprodBase - 35_000),
+              createdAt: at(-35),
             },
           ],
         });
@@ -613,11 +638,11 @@ describe.runIf(onPostgres)(
           // Reverse order: Preprod events newer than Mainnet/untagged events.
           await prisma.taskEvent.update({
             where: { id: preprodEventIds[1] },
-            data: { createdAt: new Date(preprodBase - 15_000) },
+            data: { createdAt: at(-15) },
           });
           await prisma.taskEvent.update({
             where: { id: preprodEventIds[2] },
-            data: { createdAt: new Date(preprodBase - 25_000) },
+            data: { createdAt: at(-25) },
           });
 
           const preprodNewer = await snapshot();

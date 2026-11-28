@@ -15,7 +15,7 @@ import {
 } from "./balance";
 import { buildCreditsPayload, getCurrentSubscriptionCredits } from "./funding";
 import { expireEnterpriseGrants, grant } from "./grant";
-import { taskEventCountsOn } from "./policy";
+import { taskEventCountsOn, taskEventCountsOnSql } from "./policy";
 import { refund } from "./refund";
 import { creditViewForRequest } from "./view";
 import { writeOff } from "./write-off";
@@ -270,5 +270,55 @@ describe("which Task events count on a Network", () => {
     // A missing select must fail credit assertions instead of counting Preprod receipts as Mainnet.
     // @ts-expect-error Simulate a reader that omitted network from its select.
     expect(taskEventCountsOn(undefined, "mainnet")).toBe(false);
+  });
+
+  function evaluateEventNetworkSql(
+    alias: string,
+    fragment: ReturnType<typeof taskEventCountsOnSql>,
+    eventNetwork: string | null,
+  ): boolean {
+    if (
+      fragment.text ===
+      `(${alias}."network" IS NULL OR ${alias}."network" = $1)`
+    ) {
+      expect(fragment.values).toHaveLength(1);
+      return eventNetwork === null || eventNetwork === fragment.values[0];
+    }
+    if (fragment.text === `${alias}."network" = $1`) {
+      expect(fragment.values).toHaveLength(1);
+      return eventNetwork === fragment.values[0];
+    }
+    throw new Error(`Unexpected SQL fragment: ${fragment.text}`);
+  }
+
+  it.each([
+    [null, "mainnet"],
+    ["mainnet", "mainnet"],
+    ["preprod", "mainnet"],
+    [null, "preprod"],
+    ["mainnet", "preprod"],
+    ["preprod", "preprod"],
+  ] as const)(
+    "agrees with taskEventCountsOnSql for event tag %s on %s",
+    (tag, network) => {
+      const fragment = taskEventCountsOnSql("e", network);
+      expect(evaluateEventNetworkSql("e", fragment, tag)).toBe(
+        taskEventCountsOn(tag, network),
+      );
+    },
+  );
+
+  it("renders the exact parameterized SQL fragment for any valid alias and rejects unsafe ones", () => {
+    const mainnet = taskEventCountsOnSql("ev", "mainnet");
+    expect(mainnet.text).toBe('(ev."network" IS NULL OR ev."network" = $1)');
+    expect(mainnet.values).toEqual(["mainnet"]);
+
+    const preprod = taskEventCountsOnSql("ev", "preprod");
+    expect(preprod.text).toBe('ev."network" = $1');
+    expect(preprod.values).toEqual(["preprod"]);
+
+    expect(() => taskEventCountsOnSql('e" OR 1=1--', "mainnet")).toThrow(
+      "Invalid taskEvent SQL alias",
+    );
   });
 });
