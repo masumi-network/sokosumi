@@ -135,6 +135,7 @@ import {
   evaluationEvidence,
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { reserveEventOccurrence } from "@/lib/soko-bot/event-inbox";
 import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { recordModelCall, withModelCallTurn } from "@/lib/soko-bot/model-calls";
@@ -3139,16 +3140,13 @@ export class SokoBotControlPlane {
           },
         });
         for (const occurrence of input.eventBatch ?? []) {
-          await tx.sokoBotEventInbox.create({
-            data: {
-              botId: bot.id,
-              turnId: created.id,
-              eventId: occurrence.eventId,
-              entityId: occurrence.entityId,
-              purpose: occurrence.purpose,
-              designatedHandlerBotId: occurrence.designatedHandlerBotId,
-            },
-          });
+          await reserveEventOccurrence(
+            tx,
+            bot.id,
+            created.id,
+            stamp.network,
+            occurrence,
+          );
           await invalidateSokoBotIntentOutcomes(tx, {
             sokoBotId: bot.id,
             workspaceId: input.workspaceId,

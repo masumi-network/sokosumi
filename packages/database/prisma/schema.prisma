@@ -5244,7 +5244,11 @@ model SokoBotEventInbox {
   turnId                 String      @db.Uuid
   designatedHandlerBotId String?     @db.Uuid
 
-  @@unique([botId, eventId, purpose])
+  /// SQL-only CHECK soko_bot_event_inbox_network_check allows a Network only on Job events.
+  /// The unique expression index soko_bot_event_inbox_botId_eventId_purpose_key
+  /// indexes (botId, eventId, purpose, COALESCE(network, 'mainnet')) for legacy inserts.
+  network String?
+
   @@index([turnId, entityId])
   @@map("soko_bot_event_inbox")
 }
