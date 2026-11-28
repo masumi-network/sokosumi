@@ -26,6 +26,26 @@ import { onSplitLayout } from "@/test/split-layout";
 import { loadClassificationContext } from "./classification-context";
 import { describeDecision } from "./decision-proposal";
 
+// Prisma's unordered pricing read can yield different bind order even after
+// another suite deletes its fixtures. Copy the migrated template before any
+// Core module opens a pool or writes setup rows.
+const privateDatabase = await vi.hoisted(async () => {
+  const source =
+    process.env.POSTGRES_TEST_TEMPLATE_URL ?? process.env.DATABASE_URL;
+  if (
+    process.env.RUN_DATABASE_INTEGRATION_TESTS !== "true" ||
+    !source?.startsWith("postgres")
+  )
+    return undefined;
+  const { copyPostgresTestDatabase } = await import(
+    "@/test/postgres-database-copy"
+  );
+  const copy = await copyPostgresTestDatabase(source, "catalog_test");
+  vi.stubEnv("DATABASE_URL", copy.url);
+  vi.stubEnv("DATABASE_URL_UNPOOLED", copy.url);
+  return copy;
+});
+
 const state = vi.hoisted(() => ({
   rail: "Mainnet" as "Mainnet" | "Preprod",
   preprodEnabled: false,
@@ -71,7 +91,12 @@ vi.mock("@/lib/evals/eval-guard", async (load) => ({
 }));
 
 afterAll(async () => {
-  await Promise.all(state.pools.map((pool) => pool.end()));
+  try {
+    await Promise.all(state.pools.map((pool) => pool.end()));
+  } finally {
+    vi.unstubAllEnvs();
+    await privateDatabase?.drop();
+  }
 });
 
 const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
