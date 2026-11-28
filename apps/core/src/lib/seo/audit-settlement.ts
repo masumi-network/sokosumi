@@ -4,6 +4,7 @@ import { z } from "zod";
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import {
   seoCostPlusPriceSchema,
+  seoCrawlNextPriceSchema,
   seoFullAuditCostDetailSchema,
   seoFullAuditCostSchema,
 } from "@/schemas/seo-audit-price.schema";
@@ -14,7 +15,23 @@ const CREDITS_PER_USD = 100n;
 const PERCENT = 100n;
 
 type Receipt = z.infer<typeof seoFullAuditCostSchema>;
-type Price = z.infer<typeof seoCostPlusPriceSchema>;
+type Price = {
+  minimumCredits: number;
+  markupPercent: number;
+  maxCredits?: number;
+};
+
+/**
+ * The analysis kinds that charge their costs plus a markup at completion, each with its own terms: a crawl
+ * continuation cannot settle on a full audit's terms, nor the reverse.
+ */
+const COST_PLUS_TERMS: Partial<Record<string, z.ZodType<Price>>> = {
+  audit_full: seoCostPlusPriceSchema,
+  crawl_next: seoCrawlNextPriceSchema,
+};
+
+export const isCostPlusSeoKind = (kind: string | undefined) =>
+  kind !== undefined && COST_PLUS_TERMS[kind] !== undefined;
 
 /** Round once after adding all receipt categories and applying the markup. */
 export function fullAuditCharge(cost: Receipt, terms: Price): number {
@@ -117,15 +134,17 @@ export async function prepareAuditSettlement(
     onApprovedCompletion?.();
   const packet = asPacket(request);
   const price = packet?.price;
+  const termsSchema = analysis ? COST_PLUS_TERMS[analysis.kind] : undefined;
   if (
     analysis &&
-    analysis.kind !== "audit_full" &&
+    !termsSchema &&
     (body.credits || body.masumiPayment) &&
     hasNoProviderBudget(packet)
   )
     throw unprocessableEntity("A check with no provider budget cannot charge");
   if (
-    analysis?.kind !== "audit_full" ||
+    !analysis ||
+    !termsSchema ||
     !price ||
     typeof price !== "object" ||
     Array.isArray(price) ||
@@ -157,7 +176,7 @@ export async function prepareAuditSettlement(
     throw conflict(
       "The Task no longer has its approved billing owner, workspace, project or coworker",
     );
-  const terms = seoCostPlusPriceSchema.safeParse(price);
+  const terms = termsSchema.safeParse(price);
   if (
     !terms.success ||
     !boundWorker ||
@@ -224,7 +243,7 @@ export async function requireSeparateAuditPurchaseAllowed(
   const packet = asPacket(analysis.request);
   const price = packet?.price;
   if (
-    analysis.kind === "audit_full" &&
+    isCostPlusSeoKind(analysis.kind) &&
     price &&
     typeof price === "object" &&
     !Array.isArray(price) &&
@@ -233,7 +252,7 @@ export async function requireSeparateAuditPurchaseAllowed(
     throw unprocessableEntity(
       "A full audit charges once at completion and cannot make a separate Task purchase",
     );
-  if (analysis.kind !== "audit_full" && hasNoProviderBudget(packet))
+  if (!isCostPlusSeoKind(analysis.kind) && hasNoProviderBudget(packet))
     throw unprocessableEntity(
       "A check with no provider budget cannot make a Task purchase",
     );

@@ -13020,6 +13020,7 @@ export type ProjectSeoWorkspace = {
         canRequestAnalysis: boolean;
         canUsePaidSearchData?: boolean;
         canCreateMonitor?: boolean;
+        continueCrawlFrom?: string | null;
         canSyncMetrics: boolean;
     };
 };
@@ -13232,6 +13233,9 @@ export type SeoAuditPlan = {
 
 export type ProjectSeoSiteCrawl = {
     state: 'crawled';
+    snapshotId?: string;
+    startUrl?: string;
+    continues?: string;
     fetched: number;
     read: number;
     stop: 'complete' | 'page cap' | 'depth cap' | 'template cap' | 'link cap' | 'time' | 'rate limited' | 'robots.txt' | 'fetch failed';
@@ -13316,6 +13320,21 @@ export type ProjectSeoSiteCrawl = {
             notDetermined: number;
         };
     } | null;
+    deepAudit?: {
+        pages: Array<{
+            url: string;
+            pickedFor: Array<string>;
+            findings: Array<{
+                title: string;
+                severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
+            }>;
+            findingsTotal: number;
+        }>;
+        skipped: Array<{
+            url: string;
+            reason: string;
+        }>;
+    };
     gaps: Array<{
         item: string;
         reason: string;
@@ -14014,7 +14033,7 @@ export type ProjectSeoRunDiff = {
 
 export type ProjectSeoAnalysis = {
     id: string;
-    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full' | 'crawl_next';
     status: 'requested' | 'running' | 'completed' | 'failed';
     taskId: string | null;
     pageIds: Array<string>;
@@ -14425,6 +14444,17 @@ export type SeoBriefSuggestion = {
     action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
 };
 
+export type RequestSeoCrawlNext = {
+    continues: string;
+    price: {
+        kind: 'cost_plus';
+        version: 1;
+        minimumCredits: 100;
+        markupPercent: 50;
+    };
+    idempotencyKey: string;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -14458,7 +14488,7 @@ export type SeoAuditSummary = {
 };
 
 export type SeoAuditLastCheck = {
-    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
+    kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full' | 'crawl_next';
     status: 'requested' | 'running' | 'completed' | 'failed';
     createdAt: Date;
     updatedAt: Date;
@@ -86172,6 +86202,132 @@ export type GetProjectSeoBriefSuggestionResponses = {
 
 export type GetProjectSeoBriefSuggestionResponse = GetProjectSeoBriefSuggestionResponses[keyof GetProjectSeoBriefSuggestionResponses];
 
+export type RequestProjectSeoCrawlContinuationData = {
+    body: RequestSeoCrawlNext;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/seo/crawl-continuations';
+};
+
+export type RequestProjectSeoCrawlContinuationErrors = {
+    /**
+     * Invalid crawl continuation
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The crawl cannot go on from this crawl
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Insufficient credits
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestProjectSeoCrawlContinuationError = RequestProjectSeoCrawlContinuationErrors[keyof RequestProjectSeoCrawlContinuationErrors];
+
+export type RequestProjectSeoCrawlContinuationResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestProjectSeoCrawlContinuationResponse = RequestProjectSeoCrawlContinuationResponses[keyof RequestProjectSeoCrawlContinuationResponses];
+
 export type ListSeoAuditsData = {
     body?: never;
     headers?: {
@@ -89387,6 +89543,132 @@ export type GetSeoAuditBriefSuggestionResponses = {
 };
 
 export type GetSeoAuditBriefSuggestionResponse = GetSeoAuditBriefSuggestionResponses[keyof GetSeoAuditBriefSuggestionResponses];
+
+export type RequestSeoAuditCrawlContinuationData = {
+    body: RequestSeoCrawlNext;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}/crawl-continuations';
+};
+
+export type RequestSeoAuditCrawlContinuationErrors = {
+    /**
+     * Invalid crawl continuation
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The crawl cannot go on from this crawl
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Insufficient credits
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestSeoAuditCrawlContinuationError = RequestSeoAuditCrawlContinuationErrors[keyof RequestSeoAuditCrawlContinuationErrors];
+
+export type RequestSeoAuditCrawlContinuationResponses = {
+    /**
+     * Project SEO workspace
+     */
+    200: {
+        data: ProjectSeoWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestSeoAuditCrawlContinuationResponse = RequestSeoAuditCrawlContinuationResponses[keyof RequestSeoAuditCrawlContinuationResponses];
 
 export type DisconnectSeoConnectionData = {
     body?: never;

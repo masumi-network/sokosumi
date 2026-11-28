@@ -457,6 +457,7 @@ describe("GET /history", () => {
                 },
                 {
                   // A hit only in a full audit's hidden `seo_audit` line is no hit.
+                  // The same rule applies to the continuation's `seo_crawl_next` line.
                   OR: [
                     {
                       description: {
@@ -465,10 +466,20 @@ describe("GET /history", () => {
                         not: null,
                       },
                       NOT: {
-                        description: {
-                          contains: "seo\\_audit",
-                          mode: "insensitive",
-                        },
+                        OR: [
+                          {
+                            description: {
+                              contains: "seo\\_audit",
+                              mode: "insensitive",
+                            },
+                          },
+                          {
+                            description: {
+                              contains: "seo\\_crawl\\_next",
+                              mode: "insensitive",
+                            },
+                          },
+                        ],
                       },
                     },
                   ],

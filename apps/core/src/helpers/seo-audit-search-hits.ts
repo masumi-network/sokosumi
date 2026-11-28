@@ -1,13 +1,18 @@
 import type { Prisma as PrismaTypes } from "@sokosumi/database";
 import { PrismaRaw as Prisma } from "@sokosumi/database/client";
 import { sharedTable } from "@sokosumi/database/sql-tables";
-import { SEO_LINE_SPACE, seoRequestLinePrefix } from "@sokosumi/utils";
+import {
+  SEO_LINE_SPACE,
+  SEO_PRIVATE_MARKERS,
+  seoRequestLinePrefix,
+} from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 
 /**
- * A full audit Task's description ends in a `seo_audit: {json}` line that
- * holds the owner's price terms. `hideSeoAuditRequest` hides it from every
+ * A full audit Task's description ends in a `seo_audit: {json}` line, and a
+ * crawl continuation's in a `seo_crawl_next: {json}` line, that holds the
+ * owner's price terms. `hideSeoAuditRequest` hides it from every
  * reader but the assigned SEO Coworker, so a text search must not find a Task
  * by what only that line holds: a reader could read the terms back one
  * search at a time.
@@ -17,11 +22,15 @@ import prisma from "@/lib/db/prisma";
  * the rows whose visible text holds the term. A row written after that list
  * was read is missed until the next search; it never matches by its line.
  */
-const SEO_AUDIT_MARKER = {
-  contains: String.raw`seo\_audit`,
-  mode: "insensitive",
-} as const;
-const LINE_PREFIX = seoRequestLinePrefix("seo_audit");
+const PRIVATE_MARKER = {
+  OR: SEO_PRIVATE_MARKERS.map((marker) => ({
+    description: {
+      contains: marker.replaceAll("_", String.raw`\_`),
+      mode: "insensitive" as const,
+    },
+  })),
+};
+const LINE_PREFIX = seoRequestLinePrefix(SEO_PRIVATE_MARKERS);
 const OUTER_SPACE = `^${SEO_LINE_SPACE}+|${SEO_LINE_SPACE}+$`;
 
 /**
@@ -35,7 +44,7 @@ const MAX_JSON_OPENERS = 1000;
 
 /**
  * SQL twin of `hideSeoAuditRequest`: the description without its `seo_audit`
- * lines (the marker, then JSON that is an object or an array), the same text
+ * and `seo_crawl_next` lines (the marker, then JSON that is an object or an array), the same text
  * the JS rule returns. A parity test runs the same cases through both.
  * `json`, not `jsonb`: `jsonb` refuses `\u0000` and lone surrogates, which
  * JSON.parse accepts.
@@ -119,7 +128,7 @@ export async function taskDescriptionMatches(
           where: {
             AND: [
               scope,
-              { description: SEO_AUDIT_MARKER },
+              PRIVATE_MARKER,
               {
                 OR: likeTerms.map((term) => ({ description: contains(term) })),
               },
@@ -139,7 +148,7 @@ export async function taskDescriptionMatches(
       // description: in SQL, NOT of a match on NULL is NULL and drops the row.
       {
         description: { ...contains(term), not: null },
-        NOT: { description: SEO_AUDIT_MARKER },
+        NOT: PRIVATE_MARKER,
       },
       ...(rawReaderCoworkerId
         ? [
@@ -162,11 +171,7 @@ export async function historyDescriptionMatch(
 ): Promise<PrismaTypes.HistoryWhereInput> {
   const candidates = await client.history.findMany({
     where: {
-      AND: [
-        scope,
-        { description: SEO_AUDIT_MARKER },
-        { description: contains(likeTerm) },
-      ],
+      AND: [scope, PRIVATE_MARKER, { description: contains(likeTerm) }],
     },
     select: { id: true },
   });
@@ -180,7 +185,7 @@ export async function historyDescriptionMatch(
     OR: [
       {
         description: { ...contains(likeTerm), not: null },
-        NOT: { description: SEO_AUDIT_MARKER },
+        NOT: PRIVATE_MARKER,
       },
       ...(hits.length > 0 ? [{ id: { in: hits } }] : []),
     ],

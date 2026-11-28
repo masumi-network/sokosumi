@@ -8,6 +8,7 @@ import {
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MARKUP_PERCENT,
   SEO_PAGE_CEILING_CENTS,
+  type SeoTaskMarker,
   seoCreditsForCents,
   seoMaxCredits,
   seoTaskRequestPacket,
@@ -17,7 +18,10 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { getBalance } from "@/lib/credits/balance";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import type { RequestSeoAnalysis } from "@/schemas/project-seo.schema";
-import { storedSeoFullAuditPriceSchema } from "@/schemas/seo-audit-price.schema";
+import {
+  seoCrawlNextPriceSchema,
+  storedSeoFullAuditPriceSchema,
+} from "@/schemas/seo-audit-price.schema";
 import { getSeoAnalysisExecution } from "./analysis-executor-config";
 import { originalSeoAuditPacket } from "./related-page-selection";
 
@@ -122,6 +126,18 @@ const storedSeoPriceSchema = z.object({
     .optional(),
   limits: z.object({ usd: z.number().nonnegative() }).optional(),
 });
+/** A crawl continuation reads no page list: its ceiling is its minimum, as for an uncapped full audit. */
+const storedCrawlNextPriceSchema = z.object({ price: seoCrawlNextPriceSchema });
+
+/** The request line each analysis kind writes into its Task. */
+const SEO_TASK_MARKER = {
+  audit_full: "seo_audit",
+  crawl_next: "seo_crawl_next",
+} as const satisfies Record<string, SeoTaskMarker>;
+const taskMarker = (kind: string): SeoTaskMarker =>
+  kind in SEO_TASK_MARKER
+    ? SEO_TASK_MARKER[kind as keyof typeof SEO_TASK_MARKER]
+    : "seo_job";
 
 export function readSeoTaskStartAnalysis(
   tx: Prisma.TransactionClient,
@@ -185,7 +201,7 @@ export async function requireSeoTaskStartBalance(
   try {
     currentPacket = seoTaskRequestPacket(
       task.description ?? "",
-      analysis.kind === "audit_full" ? "seo_audit" : "seo_job",
+      taskMarker(analysis.kind),
     );
   } catch {
     throw unprocessableEntity(
@@ -199,6 +215,22 @@ export async function requireSeoTaskStartBalance(
     throw unprocessableEntity(
       "The SEO Task request changed. Start a new check from the audit",
     );
+  if (analysis.kind === "crawl_next") {
+    const terms = storedCrawlNextPriceSchema.safeParse(analysis.request);
+    if (!terms.success || !task.ownerId)
+      throw unprocessableEntity(
+        "The SEO check has no approved scope, price or billing owner",
+      );
+    return requireSeoAnalysisBalance(
+      tx,
+      {
+        userId: task.ownerId,
+        organizationId: task.organizationId,
+        projectId: task.projectId,
+      },
+      terms.data.price.minimumCredits,
+    );
+  }
   const parsed = storedSeoPriceSchema.safeParse(analysis.request);
   if (
     !parsed.success ||

@@ -4,6 +4,10 @@ import {
   parsePublicSeoArtifact,
   publicSeoPayloadSchema,
 } from "./project-seo-report";
+import {
+  assertCrawlNextMatchesRequest,
+  crawlContinuationTip,
+} from "./seo-crawl-next-report";
 
 const SITE = "https://example.test";
 const list = (urls: string[], total = urls.length) => ({
@@ -554,5 +558,413 @@ describe("imported site crawl", () => {
     );
     row.siteCrawl.stop = "a stop Sokosumi does not know";
     expect(publicSeoPayloadSchema.parse(row).siteCrawl).toBeUndefined();
+  });
+});
+
+const PARENT = "b".repeat(64);
+const CHILD = "c".repeat(64);
+
+/** A crawl_next Report as the SEO bot writes it: the crawl of the next pages, then full audits of problem pages. */
+const crawlNextReport = (more: Record<string, unknown> = {}) => {
+  const page = legacyReport();
+  page.findings.push({ ...page.findings[0]!, devices: ["mobile"] });
+  return {
+    kind: "crawl_next",
+    request: { url: SITE, mode: "crawl_next", continues: PARENT },
+    snapshotId: "d".repeat(64),
+    crawl: {
+      ...botCrawl(),
+      kind: "crawl",
+      request: { url: SITE, mode: "crawl", crawlLimits: {} },
+      snapshotId: CHILD,
+      couldNotSee: [
+        { item: "Orphan pages", reason: "earlier crawls' links decide" },
+      ],
+    },
+    head: {
+      parent: PARENT,
+      crawl: CHILD,
+      candidates: 3,
+      pick: "agent",
+      pages: [
+        {
+          url: page.request.url,
+          pickedFor: ["missing title"],
+          snapshotId: page.snapshotId,
+        },
+        {
+          url: `${SITE}/broken`,
+          pickedFor: ["broken link"],
+          snapshotId: "f".repeat(64),
+        },
+      ],
+      skipped: [{ url: `${SITE}/slow`, reason: "the page Run timed out" }],
+    },
+    pages: [
+      {
+        url: page.request.url,
+        pickedFor: ["missing title"],
+        snapshotId: page.snapshotId,
+        report: page,
+      },
+      {
+        url: `${SITE}/broken`,
+        pickedFor: ["broken link"],
+        snapshotId: "f".repeat(64),
+        report: { kind: "not a page report" },
+      },
+    ],
+    ...more,
+  };
+};
+
+describe("imported crawl continuation", () => {
+  it("stores the next pages' crawl, the parent it goes on from, and the audits of its problem pages", () => {
+    const payload = publicSeoPayloadSchema.parse(
+      JSON.parse(JSON.stringify(parsePublicSeoArtifact(crawlNextReport()))),
+    );
+    expect(payload).toMatchObject({
+      kind: "crawl_next",
+      pageUrls: [SITE],
+      observedAt: "2026-11-01T12:00:00.000Z",
+      // The page audits' Market is no Market the owner chose for the next check.
+      countryCode: "",
+      languageCode: "",
+      findings: [],
+      actions: [],
+    });
+    const crawl = payload.siteCrawl;
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl).toMatchObject({
+      snapshotId: CHILD,
+      startUrl: SITE,
+      continues: PARENT,
+      fetched: 412,
+    });
+    // A crawl Report's own gaps carry no "Site crawl: " prefix.
+    expect(crawl.gaps).toContainEqual({
+      item: "Orphan pages",
+      reason: "earlier crawls' links decide",
+    });
+    // A link to an earlier crawl's page has no status here: the link checks stay undecided.
+    expect(crawl.gaps).toContainEqual({
+      item: "Broken internal links",
+      reason: expect.stringContaining("earlier crawl read was not judged"),
+    });
+    expect(crawl.deepAudit).toEqual({
+      pages: [
+        {
+          url: legacyReport().request.url,
+          pickedFor: ["missing title"],
+          // One rule found on two devices is one finding.
+          findings: [{ title: "Missing title", severity: "major" }],
+          findingsTotal: 1,
+        },
+      ],
+      skipped: [
+        { url: `${SITE}/slow`, reason: "the page Run timed out" },
+        {
+          url: `${SITE}/broken`,
+          reason: "Sokosumi could not read the page's audit report",
+        },
+      ],
+    });
+  });
+
+  it("refuses a continuation whose parts name different crawls", () => {
+    const report = crawlNextReport();
+    const other = "9".repeat(64);
+    for (const head of [
+      { ...report.head, parent: other },
+      { ...report.head, crawl: other },
+    ])
+      expect(() => parsePublicSeoArtifact(crawlNextReport({ head }))).toThrow(
+        "names two different crawls",
+      );
+  });
+
+  it("refuses a continuation whose request names another start page than its crawl", () => {
+    for (const url of ["https://other.example/", "not a url"])
+      expect(() =>
+        parsePublicSeoArtifact(
+          crawlNextReport({
+            request: { url, mode: "crawl_next", continues: PARENT },
+          }),
+        ),
+      ).toThrow("names two different crawls");
+  });
+
+  it("skips a page audit that is not the one this run made, and keeps the crawl", () => {
+    const report = crawlNextReport();
+    const audit = report.pages[0]!;
+    const other = "9".repeat(64);
+    for (const page of [
+      // An older audit of the same page, from another run.
+      { ...audit, report: { ...audit.report, snapshotId: other } },
+      // An envelope that names another Snapshot than the run's head.
+      {
+        ...audit,
+        snapshotId: other,
+        report: { ...audit.report, snapshotId: other },
+      },
+    ]) {
+      const crawl = parsePublicSeoArtifact({
+        ...report,
+        pages: [page],
+      }).siteCrawl;
+      if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+      expect(crawl.deepAudit?.pages).toEqual([]);
+      expect(crawl.deepAudit?.skipped).toContainEqual({
+        url: audit.url,
+        reason: "The page's audit report is not the one this run made",
+      });
+    }
+  });
+
+  it("refuses a continuation whose crawl it cannot read, as it holds nothing else", () => {
+    expect(() =>
+      parsePublicSeoArtifact(
+        crawlNextReport({ crawl: { kind: "crawl", couldNotSee: [] } }),
+      ),
+    ).toThrow("no readable crawl");
+    expect(() =>
+      parsePublicSeoArtifact(
+        crawlNextReport({ request: { url: SITE, continues: "short" } }),
+      ),
+    ).toThrow("supported format");
+  });
+
+  it("refuses a continuation that would never join the chain: no own Snapshot, or its parent's", () => {
+    for (const snapshotId of [undefined, "not hex", PARENT])
+      expect(() =>
+        parsePublicSeoArtifact(
+          crawlNextReport({
+            crawl: { ...crawlNextReport().crawl, snapshotId },
+          }),
+        ),
+      ).toThrow("no readable crawl");
+  });
+
+  it("skips a page whose audit is of another page, or whose report is no object", () => {
+    const report = crawlNextReport();
+    const audit = report.pages[0]!;
+    report.pages = [
+      { ...audit, url: `${SITE}/other` },
+      { ...audit, url: `${SITE}/text`, report: "the page Run failed" as never },
+      { ...audit, url: `${SITE}/list`, report: [] as never },
+    ];
+    const crawl = parsePublicSeoArtifact(report).siteCrawl;
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.deepAudit?.pages).toEqual([]);
+    expect(crawl.deepAudit?.skipped.map((row) => row.url)).toEqual([
+      `${SITE}/slow`,
+      `${SITE}/other`,
+      `${SITE}/text`,
+      `${SITE}/list`,
+    ]);
+    // Private evidence in a page's report still refuses the whole Report.
+    report.pages = [
+      { ...audit, report: { ...audit.report, searchConsole: {} } as never },
+    ];
+    expect(() => parsePublicSeoArtifact(report)).toThrow(
+      "Only public SEO evidence",
+    );
+  });
+
+  it("says a page with no finding is not audited when not every check of it passed", () => {
+    const report = crawlNextReport();
+    const audit = report.pages[0]!;
+    const page = audit.report as ReturnType<typeof legacyReport>;
+    const withChecklist = (...results: string[]) => {
+      report.pages = [
+        {
+          ...audit,
+          report: {
+            ...page,
+            findings: [],
+            checklist: results.map((result, i) => ({
+              row: `row-${i}`,
+              device: "desktop",
+              result,
+            })),
+          },
+        },
+      ];
+      const crawl = parsePublicSeoArtifact(report).siteCrawl;
+      if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+      return crawl.deepAudit!;
+    };
+    // A blocked or not checked check next to a pass, a check that fired with no finding, or no check at all.
+    for (const results of [
+      ["pass", "blocked"],
+      ["pass", "not checked"],
+      ["fired"],
+      [],
+    ]) {
+      const deepAudit = withChecklist(...results);
+      expect(deepAudit.pages).toEqual([]);
+      expect(deepAudit.skipped).toContainEqual({
+        url: audit.url,
+        reason: expect.stringContaining("not every check of the page passed"),
+      });
+    }
+    // Every check read the page: no finding is "No issues".
+    expect(withChecklist("pass").pages).toEqual([
+      expect.objectContaining({ url: audit.url, findingsTotal: 0 }),
+    ]);
+  });
+
+  it("keeps the crawl when a deep-audit entry has a URL Sokosumi cannot store", () => {
+    const report = crawlNextReport();
+    report.head.skipped.push(
+      { url: "", reason: "audit failed" },
+      // Storage drops the NUL, which leaves no URL.
+      { url: "\u0000", reason: "audit failed" },
+    );
+    report.pages.push(
+      { ...report.pages[1]!, url: "" },
+      // The audit still matches its page, as the page key drops the fragment.
+      {
+        ...report.pages[0]!,
+        url: `${report.pages[0]!.url}#${"x".repeat(4096)}`,
+      },
+    );
+    const payload = publicSeoPayloadSchema.parse(
+      JSON.parse(JSON.stringify(parsePublicSeoArtifact(report))),
+    );
+    const crawl = payload.siteCrawl;
+    if (crawl?.state !== "crawled") throw new Error("expected a crawl");
+    expect(crawl.deepAudit?.pages.map((row) => row.url)).toEqual([
+      legacyReport().request.url,
+    ]);
+    expect(crawl.deepAudit?.skipped.map((row) => row.url)).toEqual([
+      `${SITE}/slow`,
+      `${SITE}/broken`,
+    ]);
+  });
+
+  it("keeps the site audit crawl's Snapshot and start URL, so a continuation can go on from it", () => {
+    const crawl = stored(
+      siteReport({ request: { url: SITE }, crawl: botCrawl() }),
+    );
+    expect(crawl).toMatchObject({ snapshotId: "a".repeat(64), startUrl: SITE });
+    // An id Sokosumi cannot read stops only the continuation.
+    const bad = stored(
+      siteReport({ crawl: { ...botCrawl(), snapshotId: "not hex" } }),
+    );
+    expect(bad?.state).toBe("crawled");
+    expect(bad && "snapshotId" in bad).toBe(false);
+  });
+
+  it("imports a continuation only for its own request", () => {
+    const payload = parsePublicSeoArtifact(crawlNextReport());
+    const request = { url: `${SITE}/`, continues: PARENT };
+    expect(() =>
+      assertCrawlNextMatchesRequest(payload, { kind: "crawl_next", request }),
+    ).not.toThrow();
+    for (const expected of [
+      null,
+      { kind: "audit_full", request },
+      { kind: "crawl_next", request: { ...request, continues: CHILD } },
+      {
+        kind: "crawl_next",
+        request: { ...request, url: "https://other.test" },
+      },
+    ])
+      expect(() => assertCrawlNextMatchesRequest(payload, expected)).toThrow(
+        "does not match its requested crawl",
+      );
+    // An audit Report sent for a continuation's request.
+    expect(() =>
+      assertCrawlNextMatchesRequest(
+        parsePublicSeoArtifact(siteReport({ crawl: botCrawl() })),
+        { kind: "crawl_next", request },
+      ),
+    ).toThrow("does not match its requested crawl");
+  });
+});
+
+describe("crawl continuation tip", () => {
+  const crawl = (snapshotId: string, more: Record<string, unknown> = {}) => {
+    const row = stored(
+      siteReport({
+        request: { url: SITE },
+        crawl: { ...botCrawl(), snapshotId },
+      }),
+    );
+    return { ...row, ...more } as NonNullable<typeof row>;
+  };
+  const audit = (siteCrawl = crawl(PARENT), pageUrls = [`${SITE}/`]) => ({
+    kind: "audit_full",
+    siteCrawl,
+    pageUrls,
+  });
+  const next = (snapshotId: string, continues: string, stop = "page cap") => ({
+    kind: "crawl_next",
+    siteCrawl: crawl(snapshotId, { continues, stop }),
+    pageUrls: [SITE],
+  });
+
+  it("goes on from the newest full audit's crawl, or from the end of its chain", () => {
+    expect(crawlContinuationTip([audit()])).toEqual({
+      snapshotId: PARENT,
+      startUrl: SITE,
+    });
+    expect(crawlContinuationTip([next(CHILD, PARENT), audit()])).toEqual({
+      snapshotId: CHILD,
+      startUrl: SITE,
+    });
+    // A late Report of a second continuation of the same crawl: the oldest stays the chain's, as in Web.
+    expect(
+      crawlContinuationTip([
+        next("7".repeat(64), PARENT),
+        next(CHILD, PARENT),
+        audit(),
+      ]),
+    ).toEqual({ snapshotId: CHILD, startUrl: SITE });
+  });
+
+  it("has no tip when the chain's last crawl stopped for good", () => {
+    expect(
+      crawlContinuationTip([next(CHILD, PARENT, "complete"), audit()]),
+    ).toBeNull();
+    expect(
+      crawlContinuationTip([next(CHILD, PARENT, "time"), audit()]),
+    ).toEqual({ snapshotId: CHILD, startUrl: SITE });
+  });
+
+  it("has no tip when the newest full audit has no crawl, even if an older one has", () => {
+    expect(
+      crawlContinuationTip([
+        { kind: "audit_full", siteCrawl: undefined, pageUrls: [SITE] },
+        audit(),
+      ]),
+    ).toBeNull();
+  });
+
+  it("ignores a continuation of another audit's crawl", () => {
+    const other = "9".repeat(64);
+    expect(crawlContinuationTip([next(CHILD, other), audit()])).toEqual({
+      snapshotId: PARENT,
+      startUrl: SITE,
+    });
+  });
+
+  it("has no tip when the audit's crawl starts at a page the audit was not approved for", () => {
+    expect(
+      crawlContinuationTip([audit(crawl(PARENT), ["https://other.test/"])]),
+    ).toBeNull();
+  });
+
+  it("has no tip, and does not throw, when a stored crawl names a start that is no URL", () => {
+    expect(
+      crawlContinuationTip([audit(crawl(PARENT, { startUrl: "/home" }))]),
+    ).toBeNull();
+  });
+
+  it("has no tip when a continuation reports an earlier crawl's Snapshot as its own", () => {
+    expect(
+      crawlContinuationTip([next(PARENT, CHILD), next(CHILD, PARENT), audit()]),
+    ).toBeNull();
   });
 });

@@ -1,9 +1,22 @@
 /**
  * An SEO Task's description: a readable summary for people, then one machine
- * line (`seo_audit: {json}` or `seo_job: {json}`) that the SEO worker parses.
- * The worker reads exactly one such line and ignores the prose around it.
+ * line (`seo_audit: {json}`, `seo_job: {json}` or `seo_crawl_next: {json}`)
+ * that the SEO worker parses. The worker reads exactly one such line and
+ * ignores the prose around it.
  */
-export type SeoTaskMarker = "seo_audit" | "seo_job";
+export type SeoTaskMarker = "seo_audit" | "seo_job" | "seo_crawl_next";
+
+const ALL_MARKERS: readonly SeoTaskMarker[] = [
+  "seo_audit",
+  "seo_job",
+  "seo_crawl_next",
+];
+
+/** The markers whose line holds the owner's price terms, which only the SEO worker reads. */
+export const SEO_PRIVATE_MARKERS: readonly SeoTaskMarker[] = [
+  "seo_audit",
+  "seo_crawl_next",
+];
 
 /**
  * JavaScript's `\s` (also the set `trim` removes), written out: Core's Task
@@ -11,19 +24,21 @@ export type SeoTaskMarker = "seo_audit" | "seo_job";
  */
 export const SEO_LINE_SPACE = String.raw`[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]`;
 
-/** The start of a request line (case-insensitive), as regex source for JS and Postgres. */
-export function seoRequestLinePrefix(marker: SeoTaskMarker): string {
-  return `^${SEO_LINE_SPACE}*${marker}${SEO_LINE_SPACE}*:`;
+/** The start of a request line of any of `markers` (case-insensitive), as regex source for JS and Postgres. */
+export function seoRequestLinePrefix(
+  markers: SeoTaskMarker | readonly SeoTaskMarker[],
+): string {
+  const names = typeof markers === "string" ? markers : markers.join("|");
+  return `^${SEO_LINE_SPACE}*(?:${names})${SEO_LINE_SPACE}*:`;
 }
 
-const REQUEST_LINE = new RegExp(
-  `^${SEO_LINE_SPACE}*seo_(?:audit|job)${SEO_LINE_SPACE}*:`,
-  "i",
-);
-const PREFIX = {
-  seo_audit: new RegExp(seoRequestLinePrefix("seo_audit"), "i"),
-  seo_job: new RegExp(seoRequestLinePrefix("seo_job"), "i"),
-};
+const REQUEST_LINE = new RegExp(seoRequestLinePrefix(ALL_MARKERS), "i");
+const PREFIX = Object.fromEntries(
+  ALL_MARKERS.map((marker) => [
+    marker,
+    new RegExp(seoRequestLinePrefix(marker), "i"),
+  ]),
+) as Record<SeoTaskMarker, RegExp>;
 const LINE_BREAK = /\r?\n/;
 
 export function seoTaskDescription(
@@ -77,7 +92,7 @@ const isRequestLine = (line: string, markers: readonly SeoTaskMarker[]) => {
  */
 export function removeSeoTaskRequest(
   markdown: string,
-  markers: readonly SeoTaskMarker[] = ["seo_audit", "seo_job"],
+  markers: readonly SeoTaskMarker[] = ALL_MARKERS,
 ): string {
   const lines = markdown.split(LINE_BREAK);
   const kept = lines.filter((line) => !isRequestLine(line, markers));
@@ -96,18 +111,19 @@ export function hasSeoTaskRequest(
 }
 
 /**
- * Text for a person: a full audit's request line holds the owner's price
- * terms, which only the SEO worker reads. A focused check's line stays.
+ * Text for a person: a full audit's and a crawl continuation's request line
+ * hold the owner's price terms, which only the SEO worker reads. A focused
+ * check's line stays.
  */
 export function hideSeoAuditRequest(
   text: string | null | undefined,
 ): string | null {
-  return text ? removeSeoTaskRequest(text, ["seo_audit"]) || null : null;
+  return text ? removeSeoTaskRequest(text, SEO_PRIVATE_MARKERS) || null : null;
 }
 
 /**
- * A description split into its prose and its request lines (`seo_audit:` /
- * `seo_job:`), so a prose edit never reaches inside the JSON the worker
+ * A description split into its prose and its request lines (`seo_audit:`,
+ * `seo_job:` or `seo_crawl_next:`), so a prose edit never reaches inside the JSON the worker
  * parses. Text without a request line is all prose, unchanged. `join` puts
  * edited prose back in front of the request lines, byte for byte.
  */
@@ -116,8 +132,7 @@ export function splitSeoTaskRequest(markdown: string): {
   join: (prose: string) => string;
 } {
   const lines = markdown.split(LINE_BREAK);
-  const markers: readonly SeoTaskMarker[] = ["seo_audit", "seo_job"];
-  const requests = lines.filter((line) => isRequestLine(line, markers));
+  const requests = lines.filter((line) => isRequestLine(line, ALL_MARKERS));
   if (requests.length === 0) return { prose: markdown, join: (prose) => prose };
   return {
     prose: lines.filter((line) => !requests.includes(line)).join("\n"),

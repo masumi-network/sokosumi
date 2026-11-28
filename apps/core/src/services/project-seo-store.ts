@@ -12,7 +12,17 @@ import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import { requireScopedProject } from "@/services/project-social-connections.service";
 
 export const SEO_RESULT_LIMIT = 100;
+/** Audit evidence and page changes: the newest rows the workspace shows. */
+export const SEO_WORKSPACE_EVIDENCE_LIMIT = 100;
+/** The workspace's evidence order. A page and a site artifact may share a capture time: resolve the tie consistently. */
+export const SEO_EVIDENCE_ORDER = [
+  { observedAt: "desc" },
+  { createdAt: "desc" },
+  { id: "desc" },
+] satisfies Prisma.ProjectSeoObservationOrderByWithRelationInput[];
 export const SEO_ARTIFACT_MAX_BYTES = 2 * 1024 * 1024;
+/** A crawl continuation's Report holds its crawl's examples and up to 15 full page audits: a worst case at the bot's caps is about 2.4 MB. */
+export const SEO_CRAWL_NEXT_MAX_BYTES = 8 * 1024 * 1024;
 export const SEO_ARTIFACT_TIMEOUT_MS = 20_000;
 export const sha256 = (value: string): string =>
   createHash("sha256").update(value).digest("hex");
