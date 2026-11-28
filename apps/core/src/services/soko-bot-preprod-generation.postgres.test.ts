@@ -665,6 +665,83 @@ describe.skipIf(!enabled)(
       },
     );
 
+    it.runIf(onSplitLayout)(
+      "refuses a Preprod request to approve a fresh Mainnet hire before claiming the decision",
+      async () => {
+        await writeControl("open", "3");
+        const fixture = await seed();
+        const { turn, decision } = await seedHireApproval(fixture);
+        await prisma.sokoBotTurn.update({
+          where: { id: turn.id },
+          data: { network: "mainnet", preprodGeneration: null },
+        });
+        const pending = await prisma.sokoBotPendingDecision.update({
+          where: { id: decision.id },
+          data: {
+            status: "PENDING",
+            proposal: {
+              agentId: "scoped-approval-fixture",
+              inputSchema: {
+                input_data: [{ id: "prompt", type: "string", name: "Prompt" }],
+              },
+              inputData: { prompt: "Prepare a report" },
+              maxCredits: 10,
+            },
+          },
+        });
+        const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+        const { default: mount } = await import(
+          "@/routes/v1/soko-bots/me/decisions/[decisionId]/post"
+        );
+        const { errorHandler } = await import("@/helpers/error-handler");
+        const app = new OpenAPIHonoWithAuth();
+        app.onError(errorHandler);
+        mount(app);
+        const { stubMasumiSyncHttp } = await import("@/test/masumi-sync-http");
+        const node = stubMasumiSyncHttp();
+        try {
+          const response = await app.request("/me/decisions/" + decision.id, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "X-Sokosumi-Network": "preprod",
+            },
+            body: JSON.stringify({ resolution: "ACCEPT" }),
+          });
+          expect([response.status, (await response.json()).kind]).toEqual([
+            403,
+            "network_mismatch",
+          ]);
+          expect(
+            await prisma.sokoBotPendingDecision.findUnique({
+              where: { id: decision.id },
+            }),
+          ).toEqual(pending);
+          expect(
+            await prisma.sokoBotToolCall.count({ where: { turnId: turn.id } }),
+          ).toBe(0);
+          const { createNetworkScope } = await import("@/lib/db/network-scope");
+          for (const network of ["mainnet", "preprod"] as const) {
+            const { networkDb } = createNetworkScope(network);
+            expect(
+              await networkDb.job.count({
+                where: { workspaceId: fixture.workspaceId },
+              }),
+            ).toBe(0);
+            expect(
+              await networkDb.transaction.count({
+                where: { userId: fixture.userId, amount: { lt: 0n } },
+              }),
+            ).toBe(0);
+          }
+          expect(node.requests).toEqual([]);
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      },
+      COLD_IMPORT_TIMEOUT_MS,
+    );
+
     it("expires an approval whose legacy turn has no Network", async () => {
       const fixture = await seed();
       const { turn, decision } = await seedHireApproval(fixture);

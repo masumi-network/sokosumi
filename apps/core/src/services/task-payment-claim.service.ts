@@ -5,7 +5,7 @@ import type { MasumiTaskPurchaseInput } from "@sokosumi/masumi/clients";
 import { createError } from "evlog";
 import { v4 as uuidv4 } from "uuid";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { masumiClients } from "@/clients/masumi";
 import { getEnv } from "@/config/env";
 import {
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
@@ -448,7 +448,7 @@ async function runAcquiredTaskPaymentClaim(
     return await finalizeAmbiguousFailure(claim, processingToken, reason, true);
   }
 
-  const client = paymentClient();
+  const client = masumiClients("mainnet").payment;
 
   if (claim.attemptCount > 1) {
     const resolved = await client.resolveMasumiTaskPaymentPurchase(payload, {
@@ -647,10 +647,11 @@ export async function resolveReviewedTaskPaymentClaim(
     );
   }
 
-  const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
-    payload,
-    { signal: getRequestSignal() },
-  );
+  const resolved = await masumiClients(
+    "mainnet",
+  ).payment.resolveMasumiTaskPaymentPurchase(payload, {
+    signal: getRequestSignal(),
+  });
   if (resolved.isOk()) {
     await markTaskPaymentClaimPurchased(
       claim.id,

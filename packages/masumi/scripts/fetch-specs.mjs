@@ -131,7 +131,7 @@ const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
  * Default to the SAME deployments Core calls at runtime — the hosts behind
- * `PAYMENT_API_URL` and `REGISTRY_API_URL` (see apps/core/.env.example).
+ * `MAINNET_PAYMENT_API_URL` and `MAINNET_REGISTRY_API_URL` (see apps/core/.env.example).
  *
  * The generated client is only ever as correct as the server it was generated
  * from, so pinning a snapshot taken from a different deployment would freeze a

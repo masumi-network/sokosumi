@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://example.com/payment/purchase",
+    "method": "POST",
+    "credential": "mainnet payment",
+    "body": "{\"agentIdentifier\":\"hire-v1\",\"inputHash\":\"input-hash\",\"blockchainIdentifier\":\"purchase-chain\",\"network\":\"Mainnet\",\"sellerVkey\":\"seller-vkey\",\"identifierFromPurchaser\":\"bb00000000004000a000\",\"paymentSourceType\":\"Web3CardanoV1\",\"payByTime\":\"1775737949000\",\"externalDisputeUnlockTime\":\"1775784749000\",\"submitResultTime\":\"1775755949000\",\"unlockTime\":\"1775773949000\",\"Amounts\":[{\"unit\":\"\",\"amount\":\"3000000\"}],\"metadata\":\"{\\\"inputData\\\":{\\\"prompt\\\":\\\"hello\\\"},\\\"jobId\\\":\\\"seller-job\\\"}\"}"
+  },
+  {
+    "url": "https://example.com/payment/purchase/request-refund",
+    "method": "POST",
+    "credential": "mainnet payment",
+    "body": "{\"blockchainIdentifier\":\"purchase-chain\",\"network\":\"Mainnet\"}"
+  }
+]

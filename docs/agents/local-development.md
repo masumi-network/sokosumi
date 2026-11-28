@@ -61,3 +61,7 @@ Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A f
 - **Open dev servers on `localhost`, not `127.0.0.1`.** Next dev blocks its resources for other origins (Web allows only `localhost` and `*.localhost`), so on `127.0.0.1` the CMO sign-in form posts twice and the OAuth hand-back fails with `state_mismatch`.
 - **Next dev reloads in a loop with `conflicting effects for the same key`** after route renames, rebases or big merges: stop the dev server, delete that app's `.next/dev` (or `.next`), and start it again. The cache is stale, not the code.
 - Lint (`pnpm check`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.
+
+### Masumi services
+
+Set all four variables for each Network whose Masumi services you use. Mainnet uses `MAINNET_PAYMENT_API_URL`, `MAINNET_PAYMENT_API_KEY`, `MAINNET_REGISTRY_API_URL`, and `MAINNET_REGISTRY_API_KEY`. Preprod uses `PREPROD_PAYMENT_API_URL`, `PREPROD_PAYMENT_API_KEY`, `PREPROD_REGISTRY_API_URL`, and `PREPROD_REGISTRY_API_KEY`. Local setup leaves these choices to the developer. A missing or incomplete set prevents calls to that Network.

@@ -23,9 +23,11 @@ vi.mock("@sentry/node", () => ({
   captureException: sentryCaptureExceptionMock,
 }));
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({
-    createPurchase: createPurchaseMock,
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({
+    payment: {
+      createPurchase: createPurchaseMock,
+    },
   }),
 }));
 

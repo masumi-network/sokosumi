@@ -113,9 +113,11 @@ vi.mock("@/clients/openrouter.client", () => ({
   },
 }));
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({
-    createPurchase: createPurchaseMock,
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({
+    payment: {
+      createPurchase: createPurchaseMock,
+    },
   }),
 }));
 
@@ -902,7 +904,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           paymentSources: {
             where: {
               chain: "Cardano",
-              network: "Preprod",
+              network: "Mainnet",
               paymentSourceType: "Web3CardanoV2",
             },
             include: {

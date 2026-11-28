@@ -13,6 +13,7 @@ export async function listCategoriesInUse(scope: NetworkScope) {
     scope.network,
   );
   const agentWhere = buildAvailableAgentWhereClause(
+    scope,
     creditCosts,
     cardanoV2ReadySources,
   );

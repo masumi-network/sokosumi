@@ -23,7 +23,11 @@ export async function getAvailableAgent(scope: NetworkScope, id: string) {
       db.agent.findFirst({
         where: {
           id,
-          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+          ...buildAvailableAgentWhereClause(
+            scope,
+            creditCosts,
+            cardanoV2ReadySources,
+          ),
         },
         include: agentDetailInclude,
       }),

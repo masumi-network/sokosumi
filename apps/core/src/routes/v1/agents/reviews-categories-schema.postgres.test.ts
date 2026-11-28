@@ -462,7 +462,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
               create: {
                 sourceIndex: 0,
                 chain: "Cardano",
-                network,
+                network: "Mainnet",
                 paymentSourceType: "Web3CardanoV2",
                 address: v2Address,
                 pricingType: "FIXED",
@@ -1040,7 +1040,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       expect(state.sellerCalls.length).toBe(callsBeforeErrors);
 
       const path = new URL(
-        `./reviews-categories-schema-${network.toLowerCase()}.base.json`,
+        "./reviews-categories-schema-mainnet.base.json",
         import.meta.url,
       );
       const result = {

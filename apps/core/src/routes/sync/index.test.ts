@@ -73,13 +73,18 @@ const LOCK_TIMEOUT_BUFFER_MS = 1000;
  */
 const SYNC_DEADLINE_MS = LOCK_TIMEOUT_MS - LOCK_TIMEOUT_BUFFER_MS;
 
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    CRON_SECRET: "test-cron-secret",
-    LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
-    LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
-  }),
-}));
+vi.mock("@/config/env", async (load) => {
+  const actual = await load<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      CRON_SECRET: "test-cron-secret",
+      LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
+      LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
+    }),
+  };
+});
 
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishDueSocialPosts: vi.fn().mockResolvedValue({

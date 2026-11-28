@@ -1,11 +1,11 @@
 import type { RegistryEntry } from "@sokosumi/masumi";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler.js";
 import { OpenAPIHonoWithAuth } from "@/lib/hono.js";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { expectCoreLogWhys } from "@/test/core-log";
+import { testNetworkScope } from "@/test-fixtures/network-scope";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -17,8 +17,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const { listEntriesMock } = vi.hoisted(() => ({ listEntriesMock: vi.fn() }));
 
-vi.mock("@/clients/masumi-registry.client", () => ({
-  registryClient: { listEntries: listEntriesMock },
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({ registry: { listEntries: listEntriesMock } }),
 }));
 
 const { incrementMock } = vi.hoisted(() => ({ incrementMock: vi.fn() }));
@@ -41,6 +41,7 @@ const USER_API_KEY: AuthenticationContext = {
 function createApp(authContext: AuthenticationContext = USER_API_KEY) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
+    c.set("networkScope", testNetworkScope());
     c.set("requestId", "req_registry_test");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);

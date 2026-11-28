@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/node";
 
-import type { paymentClient } from "@/clients/masumi-payment.client";
+import { type masumiClients, requireSameMasumiNetwork } from "@/clients/masumi";
 import { cardanoV2ReadySources } from "@/lib/agent-catalog/availability";
 import {
   clearReadinessFailure,
@@ -116,8 +116,8 @@ export interface SyncCardanoV2RailReadinessOptions {
 }
 
 type CardanoReadinessClient = Pick<
-  ReturnType<typeof paymentClient>,
-  "getCardanoV2RailReadiness"
+  ReturnType<typeof masumiClients>["payment"],
+  "network" | "getCardanoV2RailReadiness"
 >;
 
 /**
@@ -381,6 +381,7 @@ export async function syncCardanoV2RailReadiness(
   node: CardanoReadinessClient,
   options: SyncCardanoV2RailReadinessOptions = {},
 ): Promise<boolean> {
+  requireSameMasumiNetwork(scope, node);
   const log = createCoreLogger({ operation: "agent_cardano_v2_readiness" });
   try {
     const changed = await refreshCardanoV2RailReadiness(

@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const resolveMasumiTaskPaymentPurchase = vi.fn();
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({ resolveMasumiTaskPaymentPurchase }),
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({ payment: { resolveMasumiTaskPaymentPurchase } }),
 }));
 
 import { resolveTaskSellerReceipt } from "@/helpers/coworker-task-receipt";

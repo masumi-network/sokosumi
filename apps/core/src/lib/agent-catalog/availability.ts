@@ -12,7 +12,6 @@ import {
   EVM_ADDRESS_PATTERN,
   listV2RegistryPolicyIds,
 } from "@sokosumi/masumi";
-import { getEnv } from "@/config/env";
 import { listCardanoBillableUnitSpellings } from "@/helpers/agent-cost";
 import { internalServerError, notFound } from "@/helpers/error";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
@@ -29,27 +28,26 @@ import {
   type X402ReadySource,
 } from "./x402";
 
-// The old Preprod deployment also uses the Mainnet scope until ticket 22.
-function deploymentRail() {
-  return getEnv().NETWORK;
+// Before ticket 22 the old Preprod deployment used the Mainnet scope with a deployment-wide catalog rail.
+function scopeRail(
+  scope: Pick<NetworkScope, "network">,
+): "Mainnet" | "Preprod" {
+  return scope.network === "mainnet" ? "Mainnet" : "Preprod";
 }
 
 /** The hire's Cardano V2 payment sources: those on the rail. */
-export const cardanoV2PaymentSourcesOnRail = () => ({
+export const cardanoV2PaymentSourcesOnRail = (scope: NetworkScope) => ({
   chain: "Cardano",
-  network: deploymentRail(),
+  network: scopeRail(scope),
   paymentSourceType: "Web3CardanoV2",
 });
 
-export function registrySourceOnDeployment(
-  _scope: NetworkScope,
-  network: string,
-) {
-  return network === deploymentRail();
+export function registrySourceOnNetwork(scope: NetworkScope, network: string) {
+  return network === scopeRail(scope);
 }
 
-export function allowedX402ReadinessNetworks(_scope: NetworkScope) {
-  return getAllowedX402Caip2Networks(deploymentRail());
+export function allowedX402ReadinessNetworks(scope: NetworkScope) {
+  return getAllowedX402Caip2Networks(scopeRail(scope));
 }
 
 /** Every rate of a Network, empty included: the one read of the rate table. */
@@ -202,7 +200,11 @@ export async function requireAvailableAgent(
   const agent = await db.agent.findFirst({
     where: {
       id,
-      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+      ...buildAvailableAgentWhereClause(
+        scope,
+        creditCosts,
+        cardanoV2ReadySources,
+      ),
     },
     select: { id: true },
   });
@@ -228,6 +230,7 @@ export async function requireAvailableAgent(
  * @returns Prisma where clause for agent queries
  */
 export const buildAvailableAgentWhereClause = (
+  scope: Pick<NetworkScope, "network">,
   creditCosts: CreditCost[],
   cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
@@ -322,7 +325,7 @@ export const buildAvailableAgentWhereClause = (
                 paymentSources: {
                   some: {
                     chain: "Cardano",
-                    network: deploymentRail(),
+                    network: scopeRail(scope),
                     paymentSourceType: "Web3CardanoV2",
                     // Exact match on purpose. Prisma's `mode: "insensitive"`
                     // compiles to ILIKE with the value as an unescaped
@@ -377,7 +380,7 @@ export const x402ReadySources = async (
     return [];
   }
 
-  const environment = deploymentRail();
+  const environment = scopeRail(scope);
   try {
     const payload: unknown = JSON.parse(readiness.cursorId);
     if (!Array.isArray(payload)) {
@@ -501,11 +504,11 @@ export function cardanoV2ReadySources(
  * the Agent table until ticket 29 can select it by scope.
  */
 export async function findListedX402Agent(
-  _scope: NetworkScope,
+  scope: NetworkScope,
   agentId: string,
   tx: CatalogChargeTransaction,
 ) {
-  const network = deploymentRail();
+  const network = scopeRail(scope);
   const agent = await tx.agent.findFirst({
     where: {
       id: agentId,
@@ -550,7 +553,7 @@ export async function readListingInputs(
     includeX402 ? x402ReadySources(scope) : Promise.resolve([]),
   ]);
   // Masumi configuration per Network is ticket 22.
-  const network = deploymentRail();
+  const network = scopeRail(scope);
 
   return { creditCosts, cardanoV2ReadySources, readySources, network };
 }

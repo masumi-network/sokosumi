@@ -18,6 +18,7 @@ import {
   internalServerError,
   unprocessableEntity,
 } from "@/helpers/error";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
@@ -269,6 +270,7 @@ function mountTaskEventRoute(
           billed: { userId: task.ownerId, organizationId: task.organizationId },
           db: tx,
         });
+        if (masumiPayment) requireMainnetMasumiPayment(scope);
         const settled = await settleTaskEventCharge({
           task,
           credits,

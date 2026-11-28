@@ -1,7 +1,6 @@
 import * as Sentry from "@sentry/node";
 import type { Hono } from "hono";
-import { paymentClient } from "@/clients/masumi-payment.client";
-import { registryClient } from "@/clients/masumi-registry.client";
+import { masumiClients } from "@/clients/masumi";
 import { logCoreWarning } from "@/lib/evlog";
 import { networkKey } from "@/lib/network";
 import { agentSyncService } from "@/services/agent-sync.service";
@@ -63,10 +62,11 @@ export default function mount(app: Hono) {
         // not be starved by a long registry replay eating the time budget. It
         // needs no ceiling from here: the sync owns one that already covers its
         // retries, so a hung payment node cannot pin the lock either way.
+        const { payment, registry } = masumiClients(context.scope.network);
         const readinessChanged =
           await agentSyncService.syncCardanoV2RailReadiness(
             context.scope,
-            paymentClient(),
+            payment,
             {
               signal: context.abortSignal,
             },
@@ -81,11 +81,11 @@ export default function mount(app: Hono) {
         // this route's primary job. syncX402BuySideReadiness handles its own
         // failures internally (aborts and node errors land in its check-error
         // path and return false), so a throw reaching here is genuinely
-        // exceptional — e.g. paymentClient() or getEnv() failing on
+        // exceptional — e.g. initializing the payment readiness check or getEnv() failing on
         // misconfiguration — and must not abort the registry sync: swallow it,
         // last-known readiness stays served, and the next cron retries.
         try {
-          await syncX402BuySideReadiness(context.scope, paymentClient(), {
+          await syncX402BuySideReadiness(context.scope, payment, {
             signal: AbortSignal.any([
               context.abortSignal,
               AbortSignal.timeout(X402_READINESS_SYNC_TIMEOUT_MS),
@@ -109,7 +109,7 @@ export default function mount(app: Hono) {
         }
         await agentSyncService.syncRegistryAgents(
           context.scope,
-          registryClient,
+          registry,
           AGENTS_SYNC_METADATA_KEY,
           {
             abortSignal: context.abortSignal,

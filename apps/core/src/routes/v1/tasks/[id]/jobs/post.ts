@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { forbidden } from "@/helpers/error";
 import { createAgentJobForUser } from "@/helpers/job";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -65,6 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { agentId, inputData, inputSchema, maxCredits, name } =
       c.req.valid("json");
 
+    requireMainnetMasumiPayment(c.var.networkScope);
     const job = await createAgentJobForUser({
       owner: {
         ownerId: task.ownerId,

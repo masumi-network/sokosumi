@@ -1,3 +1,5 @@
+// Enable the Preprod scope used to verify the stored Base Sepolia demand.
+import "@/test-fixtures/preprod-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { captureMessageMock } = vi.hoisted(() => ({
@@ -6,17 +8,8 @@ const { captureMessageMock } = vi.hoisted(() => ({
 
 vi.mock("@sentry/node", () => ({ captureMessage: captureMessageMock }));
 
-// Pin the environment split; the verify path reads getEnv().NETWORK.
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NETWORK: "Preprod" as const }),
-  };
-});
-
 import { findListedX402Agent } from "@/lib/agent-catalog/availability";
-import { testNetworkScope } from "@/test-fixtures/network-scope";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import {
   AGENT_ID,
   agentRow,
@@ -34,7 +27,7 @@ import { assertReplayMatchesStoredDemand } from "./task-x402-payment.replay-dema
 describe("findListedX402Agent", () => {
   it("mirrors the listing's correlated entry-type and discovery-URL gates", async () => {
     const tx = createTx();
-    await findListedX402Agent(testNetworkScope(), AGENT_ID, tx);
+    await findListedX402Agent(createNetworkScope("preprod"), AGENT_ID, tx);
     expect(tx.agent.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
@@ -79,7 +72,7 @@ describe("findListedX402Agent", () => {
       const tx = createTx(agentRow(overrides));
 
       await expect(
-        findListedX402Agent(testNetworkScope(), AGENT_ID, tx),
+        findListedX402Agent(createNetworkScope("preprod"), AGENT_ID, tx),
       ).resolves.toBeNull();
     },
   );
@@ -91,7 +84,7 @@ describe("findListedX402Agent", () => {
     // agree on row identity or a listed price and a paid price can come from
     // different rows of the same source.
     const tx = createTx();
-    await findListedX402Agent(testNetworkScope(), AGENT_ID, tx);
+    await findListedX402Agent(createNetworkScope("preprod"), AGENT_ID, tx);
     expect(tx.agent.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         include: {
@@ -114,7 +107,7 @@ describe("assertReplayMatchesStoredDemand", () => {
   it("returns the normalized 402 when it re-verifies to the stored tuple", async () => {
     const tx = createTx();
     const normalized = await assertReplayMatchesStoredDemand(
-      testNetworkScope(),
+      createNetworkScope("preprod"),
       storedRecord(),
       verificationInput(),
       tx,
@@ -139,7 +132,7 @@ describe("assertReplayMatchesStoredDemand", () => {
     );
 
     const normalized = await assertReplayMatchesStoredDemand(
-      testNetworkScope(),
+      createNetworkScope("preprod"),
       storedRecord(),
       verificationInput(),
       tx,
@@ -164,7 +157,7 @@ describe("assertReplayMatchesStoredDemand", () => {
 
     await expect(
       assertReplayMatchesStoredDemand(
-        testNetworkScope(),
+        createNetworkScope("preprod"),
         storedRecord(),
         verificationInput(),
         tx,
@@ -195,7 +188,7 @@ describe("assertReplayMatchesStoredDemand", () => {
     const tx = createTx();
 
     const normalized = await assertReplayMatchesStoredDemand(
-      testNetworkScope(),
+      createNetworkScope("preprod"),
       storedRecord(),
       verificationInput([
         verified,
@@ -222,7 +215,7 @@ describe("assertReplayMatchesStoredDemand", () => {
     const tx = createTx();
     const err = await captureThrow(
       assertReplayMatchesStoredDemand(
-        testNetworkScope(),
+        createNetworkScope("preprod"),
         storedRecord(),
         verificationInput([
           {

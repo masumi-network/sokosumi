@@ -9,7 +9,7 @@ import {
   normalizeMasumiPaymentUnit,
 } from "@sokosumi/masumi";
 import { createError } from "evlog";
-import type { registryClient } from "@/clients/masumi-registry.client";
+import { type masumiClients, requireSameMasumiNetwork } from "@/clients/masumi";
 import type { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
 import { getAgentDescription } from "@/helpers/agent";
@@ -708,10 +708,14 @@ type CoreLogger = ReturnType<typeof createCoreLogger>;
  */
 async function syncRegistryAgents(
   scope: NetworkScope,
-  registry: Pick<typeof registryClient, "getAgentsDiff">,
+  registry: Pick<
+    ReturnType<typeof masumiClients>["registry"],
+    "network" | "getAgentsDiff"
+  >,
   metadataKey: string,
   options: SyncExecutionOptions & { resetCursor?: boolean },
 ): Promise<void> {
+  requireSameMasumiNetwork(scope, registry);
   const run: RegistrySyncRun = {
     metadataKey: networkKey(scope.network, metadataKey),
     cursorReset: false,
@@ -732,7 +736,10 @@ async function syncRegistryAgents(
 
 async function runRegistrySync(
   scope: NetworkScope,
-  registry: Pick<typeof registryClient, "getAgentsDiff">,
+  registry: Pick<
+    ReturnType<typeof masumiClients>["registry"],
+    "network" | "getAgentsDiff"
+  >,
   options: SyncExecutionOptions & { resetCursor?: boolean },
   run: RegistrySyncRun,
   log: CoreLogger,
@@ -802,14 +809,14 @@ async function runRegistrySync(
     if (entriesResult.isErr()) {
       // The registry client caps this string, but its content is still the
       // far side's, and a proxy that echoes request headers would put
-      // REGISTRY_API_KEY inside it. Sentry redacts in `beforeSend`; stdout
+      // MAINNET_REGISTRY_API_KEY inside it. Sentry redacts in `beforeSend`; stdout
       // has no such hook.
       log.error(
         createError({
           message: "Could not read the agent registry diff",
           why: "The registry did not return the agent diff",
           cause: new Error(redactSecrets(entriesResult.error, getEnvSecrets())),
-          fix: "The next agents sync retries from the same cursor. If it fails every run, check the registry service and REGISTRY_API_KEY.",
+          fix: "The next agents sync retries from the same cursor. If it fails every run, check the registry service and the registry key for this Network.",
         }),
       );
       return;

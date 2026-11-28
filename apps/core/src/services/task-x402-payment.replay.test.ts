@@ -1,3 +1,5 @@
+// Enable the Preprod scope used to verify the stored Base Sepolia demand.
+import "@/test-fixtures/preprod-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { captureMessageMock } = vi.hoisted(() => ({
@@ -5,15 +7,6 @@ const { captureMessageMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@sentry/node", () => ({ captureMessage: captureMessageMock }));
-
-// Pin the environment split; the verify path reads getEnv().NETWORK.
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NETWORK: "Preprod" as const }),
-  };
-});
 
 import {
   AGENT_ID,

@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { resolveTaskSellerReceipt } from "@/helpers/coworker-task-receipt";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -55,6 +55,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireTaskReadForRouteVars(c.var, id, prisma);
 
+    requireMainnetMasumiPayment(c.var.networkScope);
     const receipt = await resolveTaskSellerReceipt(id, prisma, {
       signal: c.req.raw.signal,
     });

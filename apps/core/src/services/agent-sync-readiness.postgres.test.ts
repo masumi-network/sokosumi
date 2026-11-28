@@ -1,6 +1,5 @@
 // Base: 9ed8ced1b. Record only from the public layout on the base implementation.
 import { readFileSync, writeFileSync } from "node:fs";
-import { createRegistryClient } from "@sokosumi/masumi/clients";
 import { Hono } from "hono";
 import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
@@ -13,6 +12,7 @@ import { onSplitLayout } from "@/test/split-layout";
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
   preprodEnabled: false,
+  testPreprodOperation: false,
   pools: [] as Pool[],
 }));
 vi.mock("@/config/env", async (load) => {
@@ -50,8 +50,11 @@ vi.mock("@/routes/sync/handler.js", () => ({
   ) {
     const { createNetworkScope } = await import("@/lib/db/network-scope");
     const { createCoreLogger } = await import("@/lib/evlog");
+    expect(options.network).toBe("mainnet");
     await work({
-      scope: options.network && createNetworkScope(options.network),
+      scope: createNetworkScope(
+        state.testPreprodOperation ? "preprod" : "mainnet",
+      ),
       abortSignal: new AbortController().signal,
       shouldContinue: () => true,
       log: createCoreLogger({ operation: "cron_sync" }),
@@ -80,6 +83,7 @@ if (enabled) {
   }, 60_000);
   afterEach(async () => {
     state.preprodEnabled = false;
+    state.testPreprodOperation = false;
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -95,13 +99,11 @@ if (enabled) {
   }, 60_000);
 }
 
-it
-  .skipIf(!enabled)
-  .each([
-    ["Mainnet", "mainnet"],
-    ["Preprod", "mainnet"],
-    ...(onSplitLayout ? [["Preprod", "preprod"] as const] : []),
-  ] as const)(
+it.skipIf(!enabled).each([
+  ["Mainnet", "mainnet"],
+
+  ...(onSplitLayout ? [["Preprod", "preprod"] as const] : []),
+] as const)(
   "preserves readiness writes and reads on deployment %s, scope %s",
   async (network, scopeNetwork) => {
     state.network = network;
@@ -110,7 +112,8 @@ it
     const { cardanoV2ReadySources, x402ReadySources } = await import(
       "@/lib/agent-catalog/availability"
     );
-    const { paymentClient } = await import("@/clients/masumi-payment.client");
+    const { masumiClients } = await import("@/clients/masumi");
+    const { payment } = masumiClients(scope.network);
     const { syncCardanoV2RailReadiness } = await import(
       "./agent-sync.readiness"
     );
@@ -144,10 +147,10 @@ it
         node.networks = [];
       }
       const { log, outcome } = await observing(async () => [
-        await syncCardanoV2RailReadiness(scope, paymentClient(), {
+        await syncCardanoV2RailReadiness(scope, payment, {
           sleep: async () => {},
         }),
-        await syncX402BuySideReadiness(scope, paymentClient()),
+        await syncX402BuySideReadiness(scope, payment),
       ]);
       expect(outcome).toHaveLength(2);
       expect(log.length).toBeGreaterThan(0);
@@ -213,23 +216,28 @@ it
 );
 
 // Before PR 8 the registry sync read Network rates on the default client and stopped early on split.
-it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
+it
+  .skipIf(!enabled)
+  .each(
+    onSplitLayout ? (["Mainnet", "Preprod"] as const) : (["Mainnet"] as const),
+  )(
   "resets the stored registry cursor only on a Cardano change on %s",
   async (network) => {
-    // The registry client captures its deployment rail at import. Give each
-    // deployment its own real SDK client while both run in one test process.
+    // The original comparison used a separate SDK instance for each deployment.
+    // Exercise the same cron operation with each scope while keeping the real registration on Mainnet.
     state.network = network;
-    const { default: mount, AGENTS_SYNC_METADATA_KEY: key } = await import(
+    state.testPreprodOperation = network === "Preprod";
+    state.preprodEnabled = state.testPreprodOperation;
+    const { default: mount, AGENTS_SYNC_METADATA_KEY } = await import(
       "@/routes/sync/agents/get"
     );
-    const { registryClient } = await import("@/clients/masumi-registry.client");
-    const { getEnv } = await import("@/config/env");
-    const env = getEnv();
-    vi.spyOn(registryClient, "getAgentsDiff").mockImplementation(
-      createRegistryClient(network, env.REGISTRY_API_URL, env.REGISTRY_API_KEY)
-        .getAgentsDiff,
+    const scope = await testScope(
+      state.testPreprodOperation ? "preprod" : "mainnet",
     );
-    const scope = await testScope();
+    const key =
+      scope.network === "mainnet"
+        ? AGENTS_SYNC_METADATA_KEY
+        : "preprod:" + AGENTS_SYNC_METADATA_KEY;
     const app = new Hono();
     mount(app);
     // After reading/resetting its cursor the registry sync now reaches the
@@ -265,6 +273,28 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       writeFileSync(file, JSON.stringify(calls));
     }
     const expected = JSON.parse(readFileSync(file, "utf8")) as typeof calls;
+    if (scope.network === "preprod") {
+      for (const call of expected) {
+        if (call.row) call.row.key = `preprod:${call.row.key}`;
+      }
+    }
+    for (const request of node.requests) {
+      expect(new URL(request.url).origin).toBe(
+        scope.network === "mainnet"
+          ? "https://example.com"
+          : "https://preprod.example.com",
+      );
+      expect(request.credential).toBe(
+        scope.network +
+          (request.url.includes("/payment/") ? " payment" : " registry"),
+      );
+    }
+    if (network === "Mainnet")
+      await expect(
+        JSON.stringify(node.requests, null, 2) + "\n",
+      ).toMatchFileSnapshot(
+        "./__tests__/fixtures/masumi-mainnet-cron.http.json",
+      );
     const actual = JSON.parse(JSON.stringify(calls)) as typeof calls;
     expect(actual.map(({ row }) => row)).toEqual(
       expected.map(({ row }) => row),

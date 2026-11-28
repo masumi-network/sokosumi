@@ -10,6 +10,11 @@ import { emitCoreWarning, recordCoreWarning } from "@/lib/evlog";
 import "@/lib/evlog-init";
 import { invalidVariables } from "@/config/invalid-variables";
 import {
+  masumiConfiguration,
+  masumiEnvShape,
+  PREPROD_MASUMI_WARNING,
+} from "@/config/masumi";
+import {
   checkNetworkLayout,
   networkLayoutShape,
 } from "@/config/network-layout";
@@ -229,13 +234,8 @@ const baseEnvSchema = z.object({
     .enum(["development", "staging", "production"])
     .optional(),
 
-  // Payment
-  PAYMENT_API_URL: z.url(),
-  PAYMENT_API_KEY: z.string().min(1),
-
-  // Registry
-  REGISTRY_API_URL: z.url(),
-  REGISTRY_API_KEY: z.string().min(1),
+  // Payment and Registry
+  ...masumiEnvShape,
 
   // OpenRouter
   OPENROUTER_DEFAULT_API_KEY: z.string().startsWith("sk-or-").optional(),
@@ -631,6 +631,16 @@ export function isProductionEnvironment(
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   checkNetworkLayout(value, context);
+  if (isProductionEnvironment(value)) {
+    for (const name of masumiConfiguration(value, "mainnet").missing ?? []) {
+      context.addIssue({
+        code: "custom",
+        path: [name],
+        message:
+          "Mainnet payment and registry configuration is required in production",
+      });
+    }
+  }
   if (!value.SOKO_BOT_ENABLED) return;
   // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
@@ -644,7 +654,9 @@ const envSchema = baseEnvSchema.superRefine((value, context) => {
   }
 });
 
-export type EnvConfig = z.infer<typeof envSchema>;
+export type EnvConfig = z.infer<typeof envSchema> & {
+  missingPreprodMasumiVariables?: string[];
+};
 
 let envConfig: EnvConfig | null = null;
 
@@ -728,6 +740,23 @@ export function validateEnv(): EnvConfig {
     );
   }
 
+  const config: EnvConfig = result.data;
+  if (config.NETWORK_PREPROD_ENABLED && isProductionEnvironment(config)) {
+    const { missing } = masumiConfiguration(result.data, "preprod");
+    if (missing) {
+      emitCoreWarning(
+        { operation: "masumi_configuration", missingVariables: missing },
+        {
+          message: PREPROD_MASUMI_WARNING,
+          why: "Preprod was enabled without valid payment and registry settings",
+          fix: "Set the listed Preprod variables and restart Core.",
+        },
+      );
+      config.missingPreprodMasumiVariables = missing;
+      config.NETWORK_PREPROD_ENABLED = false;
+    }
+  }
+
   if (!result.data.TURNSTILE_SECRET_KEY && isDeployedEnvironment(result.data)) {
     emitCoreWarning(
       { operation: "env_validation", envVariable: "TURNSTILE_SECRET_KEY" },
@@ -775,7 +804,7 @@ export function validateEnv(): EnvConfig {
     }
   }
 
-  return result.data;
+  return config;
 }
 
 /**

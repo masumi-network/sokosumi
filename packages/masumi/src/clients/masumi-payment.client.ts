@@ -118,7 +118,7 @@ export interface PurchaseFailure {
  * rail a `permanent` verdict is terminal — it refunds the claim, takes it out
  * of PENDING (so cron and all three admin levers skip it), and the
  * `@@unique([network, blockchainIdentifier])` index blocks resubmission. A
- * rotated PAYMENT_API_KEY answering 401 would otherwise convert every in-flight
+ * rotated MAINNET_PAYMENT_API_KEY answering 401 would otherwise convert every in-flight
  * task payment into a refund with the seller's work already delivered.
  */
 const RETRYABLE_INFRASTRUCTURE_STATUSES = new Set([401, 403, 404, 408, 429]);
@@ -531,6 +531,8 @@ export function createPaymentClient(
     },
 
     ...createX402PaymentMethods(client, network),
+    // The node's permissions and spend caps can change between cron ticks.
+    beginX402Readiness: () => createX402PaymentMethods(client, network),
 
     async requestRefund(jobBlockchainIdentifier: string) {
       try {
