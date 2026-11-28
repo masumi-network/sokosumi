@@ -8,9 +8,9 @@
  * PostgreSQL received, with each transaction's boundaries and isolation level.
  *
  * All of it is compared with `grant.base.json`, which this file wrote while
- * it ran on `origin/main`'s code (`9ed8ced1b`), before the grants moved into
+ * it ran on `origin/main`'s code (`81d0165d4`), before the grants moved into
  * the credits module, once per layout:
- * RECORD_GRANT_BASE=true TZ=UTC RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/lib/credits/grant.postgres.test.ts
+ * RECORD_GRANT_BASE=true RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/lib/credits/grant.postgres.test.ts
  * and the same with the split layout's three `DATABASE_SCHEMA_*` names.
  * Without `RECORD_GRANT_BASE` the same command compares.
  *
