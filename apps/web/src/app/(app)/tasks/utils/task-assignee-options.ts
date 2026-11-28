@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
+
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { listTaskAssigneeMemberOptions } from "./task-assignee-members";
@@ -16,7 +18,10 @@ export async function listTaskAssigneeOptions(
 ): Promise<CoworkerOption[]> {
   const [members, agentOptions] = await Promise.all([
     memberOptions ?? listTaskAssigneeMemberOptions(organizationId),
-    listTaskScheduleAssigneeOptions().catch(() => []),
+    listTaskScheduleAssigneeOptions().catch((error: unknown) => {
+      unstable_rethrow(error);
+      return [];
+    }),
   ]);
 
   return [

@@ -59,6 +59,15 @@ describe("listTaskAssigneeOptions", () => {
     expect(options[0]?.name).toBe("sokoBot");
   });
 
+  it("propagates a prerender interruption when schedule assignees load", async () => {
+    const interrupted = Object.assign(new Error("Prerender completed"), {
+      digest: "HANGING_PROMISE_REJECTION",
+    });
+    listTaskScheduleAssigneeOptionsMock.mockRejectedValue(interrupted);
+
+    await expect(listTaskAssigneeOptions("org-1")).rejects.toBe(interrupted);
+  });
+
   it("still lists members when coworkers and the Soko Bot fail to load", async () => {
     listTaskScheduleAssigneeOptionsMock.mockRejectedValue(
       new Error("core down"),

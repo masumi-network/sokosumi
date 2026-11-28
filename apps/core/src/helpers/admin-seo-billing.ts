@@ -5,6 +5,8 @@ import {
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MARKUP_PERCENT,
 } from "@sokosumi/utils";
+import { taskEventCountsOnSql } from "@/lib/credits/policy";
+import type { Network } from "@/lib/network";
 
 export const SEO_PRICE_PENDING_COMMENT =
   "The audit finished. Its final price is pending while we verify the cost receipts. No credits have been charged.";
@@ -12,9 +14,12 @@ export const SEO_PRICE_PENDING_COMMENT =
 const CREDITS_PER_USD = 100;
 const MICRO_USD_PER_USD = 1_000_000;
 const CREDIT_UNITS = convertCreditsToCents(1);
+const BILLING_NETWORK: Network = "mainnet";
 
 /** Compute payment status once so pagination, counts, alerts and the billing breakdown agree. */
 export function seoBillingCtes() {
+  // The SQL form of `taskEventCountsOn`: a Preprod receipt of an equal transaction id never counts as Mainnet debit evidence or attempted credits.
+  const eventCountsOnNetwork = taskEventCountsOnSql("e", BILLING_NETWORK);
   return PrismaRaw.sql`
   billing_evidence AS (
     SELECT r.run, r.task_status, r.needs_credits, r.retrying, r.price_pending,
@@ -27,13 +32,13 @@ export function seoBillingCtes() {
     LEFT JOIN LATERAL (
       SELECT sum(-d.amount::numeric) AS debit, count(*) AS charges,
         bool_and(EXISTS (SELECT 1 FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId"
-          AND e."transactionId"=d.id AND e.cents=-d.amount::numeric AND e.status='COMPLETED'
+          AND e."transactionId"=d.id AND ${eventCountsOnNetwork} AND e.cents=-d.amount::numeric AND e.status='COMPLETED'
           AND e."coworkerId"=r.approved_worker AND e."userId" IS NULL AND e."sokoBotId" IS NULL)) AS matched
       FROM ${netTable("mainnet", "Transaction")} d WHERE d.amount < 0 AND EXISTS (
-        SELECT 1 FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId" AND e."transactionId"=d.id)
+        SELECT 1 FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId" AND e."transactionId"=d.id AND ${eventCountsOnNetwork})
     ) paid ON true
     LEFT JOIN LATERAL (
-      SELECT e.cents FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId" AND e."coworkerId"=r.approved_worker
+      SELECT e.cents FROM ${sharedTable("taskEvent")} e WHERE e."taskId"=r."taskId" AND ${eventCountsOnNetwork} AND e."coworkerId"=r.approved_worker
         AND e."userId" IS NULL AND e."sokoBotId" IS NULL AND e.cents > 0
         AND e.status IN ('COMPLETED','OUT_OF_CREDITS')
       ORDER BY e."createdAt" DESC, e.id DESC LIMIT 1

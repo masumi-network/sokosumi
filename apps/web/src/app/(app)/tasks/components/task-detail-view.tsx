@@ -37,6 +37,7 @@ import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options
 import { taskLinkHref } from "@/app/tasks/utils/task-href";
 import {
   canCancelTaskForViewer,
+  isFinalizedTaskStatus,
   isReadOnlyForViewer,
 } from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
@@ -90,9 +91,12 @@ export async function TaskDetailView({
 }: TaskDetailViewProps) {
   const taskId = task.id;
   const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
-  const assigneeOptionsPromise = forceReadOnly
-    ? Promise.resolve([])
-    : listTaskAssigneeOptions(task.workspace.organizationId ?? null);
+  // The assignee field and the "Add sub-task" picker are the only readers,
+  // and a finished Task opens neither.
+  const assigneeOptionsPromise =
+    forceReadOnly || isFinalizedTaskStatus(task.status)
+      ? Promise.resolve([])
+      : listTaskAssigneeOptions(task.workspace.organizationId ?? null);
   // Started with the other reads so the Project picker adds no waterfall.
   const projectOptionsPromise =
     forceReadOnly || !isTaskEditableStatus(task.status)

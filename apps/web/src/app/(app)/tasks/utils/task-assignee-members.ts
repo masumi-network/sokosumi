@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
+
 import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services/user.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -19,6 +21,7 @@ export async function listTaskAssigneeMemberOptions(
     try {
       orgMembers = await userService.getOrganizationMembers(organizationId);
     } catch (error) {
+      unstable_rethrow(error);
       console.error("Failed to load organization members for assignee picker", {
         organizationId,
         error,
