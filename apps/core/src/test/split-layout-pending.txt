@@ -77,7 +77,7 @@ src/services/seo-chat.postgres.test.ts 27  # the shared client reaches the Netwo
 src/services/seo-credit-gate.postgres.test.ts 27  # the shared client reaches the Network table Transaction
 src/services/seo-shared-context.postgres.test.ts 27  # the shared client reaches the Network table Transaction (from the server log; the test reports a failed hook)
 src/services/seo-task-execution.postgres.test.ts 25  # the shared client reaches the Network table Job
-src/services/soko-bot-follow-ups.postgres.test.ts 30  # fresh admission and follow-ups still read shared.Job
+src/services/soko-bot-follow-ups.postgres.test.ts 30  # fresh admission still reads shared.Job (30-2); Task charges read shared.Transaction (30-1b)
 src/services/soko-bot-lease-clock.postgres.test.ts 30  # fresh admission still reads shared.Job in the classifier (slice 30-2)
 src/services/soko-bot-plan-loop.postgres.test.ts 17  # runtime authorize locks bare soko_bot
 src/services/soko-bot-schedule-run-changes.postgres.test.ts 30  # the shared client reaches the Network table Job
