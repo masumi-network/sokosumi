@@ -20,12 +20,11 @@ import { grant } from "./grant";
 
 const scope = { network: "mainnet" } as NetworkScope;
 const tx = {} as Prisma.TransactionClient;
-const person = { userId: "user-1", organizationId: null, projectId: null };
 const signupBonus = {
   scope,
   tx,
   kind: "signup_bonus" as const,
-  owner: person,
+  userId: "user-1",
   credits: 3000,
   expiresAt: null,
 };
@@ -55,7 +54,8 @@ describe("grant", () => {
       scope,
       tx,
       kind: "cmo_tester",
-      owner: { userId: null, organizationId: "org-1", projectId: "project-1" },
+      target: { targetType: "organization", organizationId: "org-1" },
+      projectId: "project-1",
       credits: 10,
       expiresAt: null,
       grantId: "grant-1",

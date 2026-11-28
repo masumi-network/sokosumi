@@ -72,6 +72,7 @@ vi.mock("@/services/task-topup.service", async (importOriginal) => {
   };
 });
 
+import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
@@ -86,6 +87,7 @@ import {
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import {
   baseFile,
+  inFlow,
   observing,
   plain,
   sendOrder,
@@ -106,6 +108,20 @@ const SETUP_TIMEOUT = 60_000;
 /** A case runs whole grants, sometimes two at once, and reads every row back. */
 const CASE_TIMEOUT = 90_000;
 const DAY = 86_400_000;
+const UUID_PATTERN =
+  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/**
+ * `Date.now()` once the clock has left the current millisecond: a call's
+ * start taken so lies after every row written before it.
+ */
+async function nextMillisecond(): Promise<number> {
+  const before = Date.now();
+  while (Date.now() <= before) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  return Date.now();
+}
 
 const BASE_FILE = fileURLToPath(new URL("./grant.base.json", import.meta.url));
 const { expectAsOnBase } = baseFile(
@@ -296,13 +312,21 @@ function inTaskOrder<T>(list: T[], taskOf: (row: T) => string) {
 
 /**
  * Every credit row of the owner, the Tasks given and what the wake wrote, in
- * an order the product defines: a grant's own kind, then its time.
+ * an order the product defines: a grant's own kind, then the order its
+ * bucket was first sent in (`sentAt`, from the observed statements; one that
+ * was there before comes first), then its time. Two grants of one kind can
+ * share a millisecond, and PostgreSQL returns them in any order.
  */
-async function rows(owner: Owner, taskIds: readonly string[]) {
+async function rows(
+  owner: Owner,
+  taskIds: readonly string[],
+  sentAt: (id: string) => number = () => -1,
+) {
   const db = mainnet();
   const buckets = await db.creditBucket.findMany({ where: owner });
   const order = (a: (typeof buckets)[number], b: (typeof buckets)[number]) =>
     `${a.referenceType}`.localeCompare(`${b.referenceType}`) ||
+    sentAt(a.id) - sentAt(b.id) ||
     a.createdAt.getTime() - b.createdAt.getTime();
   buckets.sort(order);
   const transactions = await db.transaction.findMany({
@@ -424,8 +448,50 @@ function rawRelations(
       within(row.createdAt),
       within(row.updatedAt),
     ]),
+    // Each new bucket's reference, as its kind composes it from the owner,
+    // checked on the raw value: `plain` hides the times in it.
+    references: fresh.map((bucket) => {
+      const owner = bucket.userId ?? bucket.organizationId;
+      const prefix = bucket.userId ? "user:" : "org:";
+      switch (bucket.referenceType) {
+        case "SIGNUP_BONUS":
+          return bucket.referenceId === `user:${bucket.userId}`;
+        case "STRIPE_SUBSCRIPTION_PERIOD":
+          return left.subscriptions.some(
+            (period) =>
+              bucket.referenceId ===
+              `${prefix}${owner}:local-free:${period.periodEnd?.toISOString()}:subscription`,
+          );
+        default:
+          return (
+            new RegExp(`^${prefix}${owner}:free:${UUID_PATTERN}$`).test(
+              bucket.referenceId ?? "",
+            ) &&
+            fresh.filter((other) => other.referenceId === bucket.referenceId)
+              .length === 1
+          );
+      }
+    }),
     expiries: fresh.map((bucket) => {
       if (bucket.expiresAt === null) return null;
+      if (bucket.referenceType === "STRIPE_SUBSCRIPTION_PERIOD") {
+        // A calendar month: the bucket ends with its period, and the period
+        // ends one month on from its start, on its anchor's day.
+        const period = left.subscriptions.find(
+          (candidate) =>
+            candidate.periodEnd?.getTime() === bucket.expiresAt?.getTime(),
+        );
+        return {
+          endsWithItsPeriod: period !== undefined,
+          periodIsOneMonthOn:
+            period?.periodStart != null &&
+            getNextMonthlyPeriodEnd(
+              period.periodStart,
+              period.createdAt,
+            ).getTime() === period.periodEnd?.getTime(),
+          activatesAt: bucket.activatesAt,
+        };
+      }
       // Whole days after the grant, and that the clock the expiry counts
       // from was read in the call.
       const days = Math.round(
@@ -461,7 +527,7 @@ async function observe(
   call: () => Promise<unknown>,
 ) {
   const before = await rows(owner, taskIds);
-  const started = Date.now();
+  const started = await nextMillisecond();
   const { outcome, log } = await observing(async () => {
     const result = await call();
     while (background.length > 0) await Promise.all(background.splice(0));
@@ -469,7 +535,14 @@ async function observe(
   });
   const ended = Date.now();
   expect(log.length).toBeGreaterThan(0);
-  const left = await rows(owner, taskIds);
+  const firstSent = new Map<string, number>();
+  log.forEach(({ values }, at) => {
+    for (const value of values) {
+      if (typeof value === "string" && !firstSent.has(value))
+        firstSent.set(value, at);
+    }
+  });
+  const left = await rows(owner, taskIds, (id) => firstSent.get(id) ?? -1);
   // An object: the case adds its own entries beside it.
   return plain(
     {
@@ -539,11 +612,14 @@ async function twoAtOnce<T>(
         threw: error instanceof Error ? cause(error.message) : String(error),
       }),
     );
-  const firstDone = settled(first());
+  const firstDone = settled(inFlow("first", first));
   const held = await Promise.race([atTheWake, firstDone.then(() => "ended")]);
   wake.hold = null;
+  // The gate is reached wherever the first grant is written: on the split
+  // layout `origin/main` cannot write it, and the first ends before it.
+  expect(held).toBe(onSplitLayout ? "ended" : "held");
   await options.between?.();
-  const secondDone = settled(second());
+  const secondDone = settled(inFlow("second", second));
   if (held === "held") {
     if (options.waits) await untilOneWaitsForALock();
     else await secondDone;
@@ -878,6 +954,54 @@ describe.skipIf(!enabled)(
         CASE_TIMEOUT,
       );
 
+      /*
+       * A Project id that is no Project's, or null, as callers inside Core
+       * can pass it (the HTTP route takes none): the database helper checks
+       * it as given and the bucket's insert writes it as given.
+       */
+      for (const projectId of ["", null] as const) {
+        const shown = projectId === null ? "null" : "an empty";
+        it(
+          `grants a person credits with ${shown} Project id as origin/main does`,
+          async () => {
+            const { userId, taskIds } = await person(
+              `admin's person with ${shown} Project id`,
+            );
+
+            expectAsOnBaseHere(
+              `admin, a person, ${shown} Project id`,
+              await observe({ userId }, taskIds, () =>
+                freeCreditAdminService.grantFreeCredits({
+                  ...toPerson(userId),
+                  projectId,
+                }),
+              ),
+            );
+          },
+          CASE_TIMEOUT,
+        );
+
+        it(
+          `grants an Organization credits with ${shown} Project id as origin/main does`,
+          async () => {
+            const { organizationId, taskIds } = await organization(
+              `admin's Organization with ${shown} Project id`,
+            );
+
+            expectAsOnBaseHere(
+              `admin, an Organization, ${shown} Project id`,
+              await observe({ organizationId }, taskIds, () =>
+                freeCreditAdminService.grantFreeCredits({
+                  ...toOrganization(organizationId),
+                  projectId,
+                }),
+              ),
+            );
+          },
+          CASE_TIMEOUT,
+        );
+      }
+
       it(
         "grants inside a transaction the caller opened, and rolls back with it",
         async () => {
@@ -983,6 +1107,23 @@ describe.skipIf(!enabled)(
             "Tester, two at once",
             await observe({ organizationId }, taskIds, () =>
               twoAtOnce(click, click, { waits: true }),
+            ),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "answers an empty Project id as origin/main does",
+        async () => {
+          const { organizationId, taskIds } = await cusoProject(
+            "Tester Organization with an empty Project id",
+          );
+
+          expectAsOnBaseHere(
+            "Tester, an empty Project id",
+            await observe({ organizationId }, taskIds, () =>
+              grantCmoTesterCredits({ projectId: "", organizationId }),
             ),
           );
         },

@@ -19,6 +19,7 @@
  *     };
  *   });
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { Pool, PoolClient } from "pg";
@@ -33,6 +34,20 @@ interface SentStatement {
   sent: number;
   /** When PostgreSQL answered it, or its error arrived; null until then. */
   answered: number | null;
+  /** The flow that sent it (`inFlow`): `"call"` unless one was named. */
+  flow: string;
+}
+
+/** The flow a statement is sent from, carried through its async calls. */
+const flows = new AsyncLocalStorage<string>();
+
+/**
+ * Runs `work` as a flow of its own: its statements are told apart from those
+ * of another flow running at the same time, as two requests at once are, so
+ * whether one flow awaited each answer is decided within that flow.
+ */
+export function inFlow<T>(name: string, work: () => Promise<T>): Promise<T> {
+  return flows.run(name, work);
 }
 /** What `statements` reads of a statement sent. */
 type StatementSent = Pick<SentStatement, "connection" | "text" | "values">;
@@ -64,19 +79,25 @@ export function observePool(pool: Pool): void {
           values: Array.isArray(config.values) ? config.values : [],
           sent: ++sent.ticks,
           answered: null,
+          flow: flows.getStore() ?? "call",
         };
         sent.log.push(entry);
+        const answered = () => {
+          entry.answered ??= ++sent.ticks;
+        };
+        // A query with a callback (the pool's own `query`) is answered when
+        // the callback runs; one without returns a promise.
+        const last = args.at(-1);
+        if (typeof last === "function") {
+          args[args.length - 1] = (...results: unknown[]) => {
+            answered();
+            return (last as (...r: unknown[]) => unknown)(...results);
+          };
+        }
         const result = query(...args);
         if (result instanceof Promise) {
           // A derived promise: the caller still gets the original and its error.
-          result.then(
-            () => {
-              entry.answered = ++sent.ticks;
-            },
-            () => {
-              entry.answered = ++sent.ticks;
-            },
-          );
+          result.then(answered, answered);
         }
         return result;
       }
@@ -157,39 +178,44 @@ function inTransactions(log: readonly SentStatement[]) {
 }
 
 /**
- * For each transaction, as `statements` orders them, the places where a
- * statement was sent before the one before it was answered: `[]` when every
- * statement waited for the answer to the one before, as reads awaited one
- * after another do. A statement never answered counts as not answered.
+ * Within each flow (`inFlow`), every statement sent before an earlier one of
+ * the same flow was answered, inside a transaction or outside, as
+ * `"<flow> <later> before <earlier>"` with each statement numbered in its
+ * flow's send order: `[]` when the flow awaited every answer before it sent
+ * again. A statement never answered counts as not answered.
  */
-export function sentBeforeAnswered(log: readonly SentStatement[]): number[][] {
-  const transactions: SentStatement[][] = [];
-  for (const { entry, transaction } of inTransactions(log)) {
-    if (transaction === null) continue;
-    transactions[transaction] ??= [];
-    transactions[transaction].push(entry);
+export function sentBeforeAnswered(log: readonly SentStatement[]): string[] {
+  const byFlow = new Map<string, SentStatement[]>();
+  for (const entry of log) {
+    const flow = byFlow.get(entry.flow) ?? [];
+    flow.push(entry);
+    byFlow.set(entry.flow, flow);
   }
-  return transactions.map((transaction) =>
-    transaction.flatMap((entry, at) => {
-      const before = transaction[at - 1];
-      return before &&
-        (before.answered === null || before.answered > entry.sent)
-        ? [at]
-        : [];
-    }),
+  return [...byFlow].flatMap(([name, flow]) =>
+    flow.flatMap((later, at) =>
+      flow
+        .slice(0, at)
+        .flatMap((earlier, before) =>
+          earlier.answered === null || earlier.answered > later.sent
+            ? [`${name} ${at} before ${before}`]
+            : [],
+        ),
+    ),
   );
 }
 
 /**
- * The order every statement was sent in, across transactions and outside
- * them: runs of `"<n> in transaction <t>"` or `"<n> outside"`, with `t`
- * numbered as `statements` orders the transactions.
+ * The order every statement was sent in, across flows and transactions and
+ * outside them: runs of `"<n> <flow> in transaction <t>"` or
+ * `"<n> <flow> outside"`, with `t` numbered as `statements` orders the
+ * transactions.
  */
 export function sendOrder(log: readonly SentStatement[]): string[] {
   const runs: { where: string; count: number }[] = [];
-  for (const { transaction } of inTransactions(log)) {
-    const where =
-      transaction === null ? "outside" : `in transaction ${transaction}`;
+  for (const { entry, transaction } of inTransactions(log)) {
+    const where = `${entry.flow} ${
+      transaction === null ? "outside" : `in transaction ${transaction}`
+    }`;
     const last = runs.at(-1);
     if (last?.where === where) last.count += 1;
     else runs.push({ where, count: 1 });

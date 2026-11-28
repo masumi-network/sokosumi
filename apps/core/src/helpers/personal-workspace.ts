@@ -84,7 +84,7 @@ async function grantPersonalWorkspaceCredits(
         scope: createNetworkScope("mainnet"),
         tx,
         kind: "signup_bonus",
-        owner: { userId, organizationId: null, projectId: null },
+        userId,
         credits: SIGNUP_BONUS_CREDITS,
         expiresAt,
         wakeTasks: false,

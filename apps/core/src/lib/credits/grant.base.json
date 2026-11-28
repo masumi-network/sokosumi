@@ -690,8 +690,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["9 in transaction 0", "21 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["9 call in transaction 0", "21 call in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -816,14 +816,16 @@
         true,
         true
       ],
+      "references": [true, true],
       "expiries": [
         {
           "days": 30,
           "countedFromTheCall": true
         },
         {
-          "days": 30,
-          "countedFromTheCall": true
+          "endsWithItsPeriod": true,
+          "periodIsOneMonthOn": true,
+          "activatesAt": null
         }
       ],
       "wakeTimesWithinTheCall": [true, true, true]
@@ -1386,8 +1388,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["9 in transaction 0", "5 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["9 call in transaction 0", "5 call in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -1513,6 +1515,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": [false]
     }
@@ -2763,14 +2766,14 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "9 in transaction 0",
-      "15 in transaction 1",
-      "8 in transaction 2",
-      "6 in transaction 1",
-      "1 in transaction 2",
-      "5 in transaction 3"
+      "9 first in transaction 0",
+      "15 first in transaction 1",
+      "8 second in transaction 2",
+      "6 first in transaction 1",
+      "1 second in transaction 2",
+      "5 second in transaction 3"
     ],
-    "sentBeforeAnswered": [[], [], [], []],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -2895,14 +2898,16 @@
         true,
         true
       ],
+      "references": [true, true],
       "expiries": [
         {
           "days": 30,
           "countedFromTheCall": true
         },
         {
-          "days": 30,
-          "countedFromTheCall": true
+          "endsWithItsPeriod": true,
+          "periodIsOneMonthOn": true,
+          "activatesAt": null
         }
       ],
       "wakeTimesWithinTheCall": [true, true, true]
@@ -3606,8 +3611,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["9 in transaction 0", "21 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["9 call in transaction 0", "21 call in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -3636,6 +3641,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -3745,8 +3751,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -3817,6 +3823,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
       "expiries": [
         {
           "days": 30,
@@ -3931,8 +3938,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -4003,6 +4010,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
       "expiries": [null],
       "wakeTimesWithinTheCall": [true, true, true]
     }
@@ -4113,8 +4121,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -4224,6 +4232,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
       "expiries": [
         {
           "days": 30,
@@ -4407,11 +4416,11 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "6 in transaction 0",
-      "12 in transaction 1",
-      "2 in transaction 0"
+      "6 first in transaction 0",
+      "12 second in transaction 1",
+      "2 first in transaction 0"
     ],
-    "sentBeforeAnswered": [[], []],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -4514,6 +4523,7 @@
         true,
         true
       ],
+      "references": [true, true],
       "expiries": [null, null],
       "wakeTimesWithinTheCall": [true, true, true]
     }
@@ -4620,8 +4630,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -4650,6 +4660,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -4680,8 +4691,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["3 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["3 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -4698,8 +4709,578 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, a person, an empty Project id (today's layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "Invalid input value: invalid input syntax for type uuid: \"\""
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"user\".\"id\", \"public\".\"user\".\"name\", \"public\".\"user\".\"firstName\", \"public\".\"user\".\"lastName\", \"public\".\"user\".\"email\", \"public\".\"user\".\"emailVerified\", \"public\".\"user\".\"image\", \"public\".\"user\".\"logo\", \"public\".\"user\".\"metadata\", \"public\".\"user\".\"role\", \"public\".\"user\".\"banned\", \"public\".\"user\".\"banReason\", \"public\".\"user\".\"banExpires\", \"public\".\"user\".\"createdAt\", \"public\".\"user\".\"updatedAt\", \"public\".\"user\".\"stripeCustomerId\", \"public\".\"user\".\"preferredOrganizationId\", \"public\".\"user\".\"marketingOptIn\", \"public\".\"user\".\"termsAccepted\", \"public\".\"user\".\"preprodEnabled\", \"public\".\"user\".\"notificationsOptIn\", \"public\".\"user\".\"pushOptIn\", \"public\".\"user\".\"hideRoomUnreadCount\", \"public\".\"user\".\"tagDirectMessages\", \"public\".\"user\".\"hideWeekFromStandup\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<admin's person with an empty Project id>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "5000000000000",
+              "<admin's person with an empty Project id>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"referenceNote\",\"sourceTransactionId\",\"userId\",\"organizationId\",\"projectId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10,$11,$12) RETURNING \"public\".\"credit_bucket\".\"id\"",
+            "values": [
+              "<id 2>",
+              "<time>",
+              "<time>",
+              "5000000000000",
+              "<time>",
+              "user:<admin's person with an empty Project id>:free:<id 3>",
+              "FREE",
+              "Billing issue",
+              "<id 1>",
+              "<admin's person with an empty Project id>",
+              null,
+              ""
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["5 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's person with an empty Project id's waiting Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<admin's person with an empty Project id's waiting Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, an Organization, an empty Project id (today's layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "Invalid input value: invalid input syntax for type uuid: \"\""
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"organization\".\"id\", \"public\".\"organization\".\"name\", \"public\".\"organization\".\"slug\", \"public\".\"organization\".\"logo\", \"public\".\"organization\".\"metadata\", \"public\".\"organization\".\"createdAt\", \"public\".\"organization\".\"stripeCustomerId\", \"public\".\"organization\".\"preprodEnabled\", COALESCE(\"aggr_selection_0_Member\".\"_aggr_count_members\", 0) AS \"_aggr_count_members\" FROM \"public\".\"organization\" LEFT JOIN (SELECT \"public\".\"member\".\"organizationId\", COUNT(*) AS \"_aggr_count_members\" FROM \"public\".\"member\" WHERE 1=1 GROUP BY \"public\".\"member\".\"organizationId\") AS \"aggr_selection_0_Member\" ON (\"public\".\"organization\".\"id\" = \"aggr_selection_0_Member\".\"organizationId\") WHERE (\"public\".\"organization\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": [
+              "<admin's Organization with an empty Project id>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "12000000000000",
+              null,
+              "<admin's Organization with an empty Project id>"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"referenceNote\",\"sourceTransactionId\",\"userId\",\"organizationId\",\"projectId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10,$11,$12) RETURNING \"public\".\"credit_bucket\".\"id\"",
+            "values": [
+              "<id 2>",
+              "<time>",
+              "<time>",
+              "12000000000000",
+              null,
+              "org:<admin's Organization with an empty Project id>:free:<id 3>",
+              "FREE",
+              null,
+              "<id 1>",
+              null,
+              "<admin's Organization with an empty Project id>",
+              ""
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["5 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's Organization with an empty Project id's waiting Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<admin's Organization with an empty Project id's waiting Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, a person, null Project id (today's layout)": {
+    "outcome": {
+      "bucketId": "<id 1>",
+      "targetType": "user",
+      "targetId": "<admin's person with null Project id>",
+      "targetName": "admin's person with null Project id",
+      "credits": 500,
+      "ttlDays": 30,
+      "referenceNote": "Billing issue"
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"user\".\"id\", \"public\".\"user\".\"name\", \"public\".\"user\".\"firstName\", \"public\".\"user\".\"lastName\", \"public\".\"user\".\"email\", \"public\".\"user\".\"emailVerified\", \"public\".\"user\".\"image\", \"public\".\"user\".\"logo\", \"public\".\"user\".\"metadata\", \"public\".\"user\".\"role\", \"public\".\"user\".\"banned\", \"public\".\"user\".\"banReason\", \"public\".\"user\".\"banExpires\", \"public\".\"user\".\"createdAt\", \"public\".\"user\".\"updatedAt\", \"public\".\"user\".\"stripeCustomerId\", \"public\".\"user\".\"preferredOrganizationId\", \"public\".\"user\".\"marketingOptIn\", \"public\".\"user\".\"termsAccepted\", \"public\".\"user\".\"preprodEnabled\", \"public\".\"user\".\"notificationsOptIn\", \"public\".\"user\".\"pushOptIn\", \"public\".\"user\".\"hideRoomUnreadCount\", \"public\".\"user\".\"tagDirectMessages\", \"public\".\"user\".\"hideWeekFromStandup\" FROM \"public\".\"user\" WHERE (\"public\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<admin's person with null Project id>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 2>",
+              "<time>",
+              "<time>",
+              "5000000000000",
+              "<admin's person with null Project id>",
+              null
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"referenceNote\",\"sourceTransactionId\",\"userId\",\"organizationId\",\"projectId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10,$11,$12) RETURNING \"public\".\"credit_bucket\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "5000000000000",
+              "<time>",
+              "user:<admin's person with null Project id>:free:<id 3>",
+              "FREE",
+              "Billing issue",
+              "<id 2>",
+              "<admin's person with null Project id>",
+              null,
+              null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 2>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": ["<id 2>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"ownerId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
+            "values": [
+              "<admin's person with null Project id>",
+              "OUT_OF_CREDITS",
+              "0"
+            ]
+          },
+          {
+            "sql": "UPDATE \"public\".\"task\" SET \"status\" = CAST($1::text AS \"public\".\"TaskStatus\"), \"updatedAt\" = $2 WHERE (\"public\".\"task\".\"id\" = $3 AND \"public\".\"task\".\"status\" = CAST($4::text AS \"public\".\"TaskStatus\")) RETURNING \"public\".\"task\".\"id\", \"public\".\"task\".\"createdAt\", \"public\".\"task\".\"updatedAt\", \"public\".\"task\".\"archivedAt\", \"public\".\"task\".\"ownerId\", \"public\".\"task\".\"organizationId\", \"public\".\"task\".\"name\", \"public\".\"task\".\"description\", \"public\".\"task\".\"automaticTags\", \"public\".\"task\".\"previousAutomaticTags\", \"public\".\"task\".\"manualTags\", \"public\".\"task\".\"rejectedTags\", \"public\".\"task\".\"tagContentRevision\", \"public\".\"task\".\"tagClassificationState\", \"public\".\"task\".\"tagClassificationAttempts\", \"public\".\"task\".\"tagClassificationLease\", \"public\".\"task\".\"tagClassificationAvailableAt\", \"public\".\"task\".\"tagVocabularyVersion\", \"public\".\"task\".\"status\"::text, \"public\".\"task\".\"visibility\"::text, \"public\".\"task\".\"priority\"::text, \"public\".\"task\".\"assigneeId\", \"public\".\"task\".\"assigneeSokoBotId\", \"public\".\"task\".\"assigneeUserId\", \"public\".\"task\".\"creatorUserId\", \"public\".\"task\".\"creatorCoworkerId\", \"public\".\"task\".\"creatorSokoBotId\", \"public\".\"task\".\"workspaceId\", \"public\".\"task\".\"pendingVendorGrantId\", \"public\".\"task\".\"grantResumeStatus\"::text, \"public\".\"task\".\"projectId\", \"public\".\"task\".\"number\", \"public\".\"task\".\"scheduleId\", \"public\".\"task\".\"runAt\", \"public\".\"task\".\"dueOn\", \"public\".\"task\".\"parentTaskId\", \"public\".\"task\".\"position\"",
+            "values": [
+              "CREDITS_TOPPED_UP",
+              "<time>",
+              "<admin's person with null Project id's waiting Task>",
+              "OUT_OF_CREDITS"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"taskEvent\" (\"id\",\"createdAt\",\"updatedAt\",\"taskId\",\"status\",\"channel\",\"userId\",\"coworkerId\") VALUES ($1,$2,$3,$4,CAST($5::text AS \"public\".\"TaskStatus\"),CAST($6::text AS \"public\".\"Channel\"),$7,$8) RETURNING \"public\".\"taskEvent\".\"id\"",
+            "values": [
+              "<id 4>",
+              "<time>",
+              "<time>",
+              "<admin's person with null Project id's waiting Task>",
+              "CREDITS_TOPPED_UP",
+              "SOKOSUMI",
+              "<admin's person with null Project id>",
+              null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"task\".\"id\", \"public\".\"task\".\"createdAt\", \"public\".\"task\".\"updatedAt\", \"public\".\"task\".\"archivedAt\", \"public\".\"task\".\"ownerId\", \"public\".\"task\".\"organizationId\", \"public\".\"task\".\"name\", \"public\".\"task\".\"description\", \"public\".\"task\".\"automaticTags\", \"public\".\"task\".\"previousAutomaticTags\", \"public\".\"task\".\"manualTags\", \"public\".\"task\".\"rejectedTags\", \"public\".\"task\".\"tagContentRevision\", \"public\".\"task\".\"tagClassificationState\", \"public\".\"task\".\"tagClassificationAttempts\", \"public\".\"task\".\"tagClassificationLease\", \"public\".\"task\".\"tagClassificationAvailableAt\", \"public\".\"task\".\"tagVocabularyVersion\", \"public\".\"task\".\"status\"::text, \"public\".\"task\".\"visibility\"::text, \"public\".\"task\".\"priority\"::text, \"public\".\"task\".\"assigneeId\", \"public\".\"task\".\"assigneeSokoBotId\", \"public\".\"task\".\"assigneeUserId\", \"public\".\"task\".\"creatorUserId\", \"public\".\"task\".\"creatorCoworkerId\", \"public\".\"task\".\"creatorSokoBotId\", \"public\".\"task\".\"workspaceId\", \"public\".\"task\".\"pendingVendorGrantId\", \"public\".\"task\".\"grantResumeStatus\"::text, \"public\".\"task\".\"projectId\", \"public\".\"task\".\"number\", \"public\".\"task\".\"scheduleId\", \"public\".\"task\".\"runAt\", \"public\".\"task\".\"dueOn\", \"public\".\"task\".\"parentTaskId\", \"public\".\"task\".\"position\" FROM \"public\".\"task\" WHERE \"public\".\"task\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<admin's person with null Project id's waiting Task>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "UPDATE \"public\".\"notification\" SET \"isRead\" = $1, \"readAt\" = $2 WHERE (\"public\".\"notification\".\"kind\" = CAST($3::text AS \"public\".\"NotificationKind\") AND \"public\".\"notification\".\"referenceId\" = $4 AND \"public\".\"notification\".\"messageKey\" = $5 AND \"public\".\"notification\".\"isRead\" = $6) RETURNING \"public\".\"notification\".\"id\", \"public\".\"notification\".\"emailId\", \"public\".\"notification\".\"emailScheduledAt\"",
+            "values": [
+              true,
+              "<time>",
+              "TASK",
+              "<admin's person with null Project id's waiting Task>",
+              "Notifications.Task.outOfCredits",
+              false
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [
+        {
+          "id": "<id 2>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "5000000000000",
+          "userId": "<admin's person with null Project id>",
+          "organizationId": null
+        }
+      ],
+      "transactionCount": 1,
+      "buckets": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "5000000000000",
+          "expiresAt": "<time>",
+          "activatesAt": null,
+          "referenceId": "user:<admin's person with null Project id>:free:<id 3>",
+          "referenceType": "FREE",
+          "referenceNote": "Billing issue",
+          "sourceTransactionId": "<id 2>",
+          "userId": "<admin's person with null Project id>",
+          "organizationId": null,
+          "projectId": null
+        }
+      ],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's person with null Project id's waiting Task>",
+          "status": "CREDITS_TOPPED_UP",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [
+        {
+          "id": "<id 4>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "taskId": "<admin's person with null Project id's waiting Task>",
+          "status": "CREDITS_TOPPED_UP",
+          "comment": null,
+          "cents": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "userId": "<admin's person with null Project id>",
+          "coworkerId": null,
+          "sokoBotId": null,
+          "transactionId": null,
+          "network": null
+        }
+      ],
+      "notifications": [
+        {
+          "referenceId": "<admin's person with null Project id's waiting Task>",
+          "isRead": true,
+          "readAt": "<time>"
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": ["7", "7", "7"],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
+      "expiries": [
+        {
+          "days": 30,
+          "countedFromTheCall": true
+        }
+      ],
+      "wakeTimesWithinTheCall": [true, true, true]
+    }
+  },
+  "admin, an Organization, null Project id (today's layout)": {
+    "outcome": {
+      "bucketId": "<id 1>",
+      "targetType": "organization",
+      "targetId": "<admin's Organization with null Project id>",
+      "targetName": "Grant fixture",
+      "credits": 1200,
+      "ttlDays": null,
+      "referenceNote": null
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"public\".\"organization\".\"id\", \"public\".\"organization\".\"name\", \"public\".\"organization\".\"slug\", \"public\".\"organization\".\"logo\", \"public\".\"organization\".\"metadata\", \"public\".\"organization\".\"createdAt\", \"public\".\"organization\".\"stripeCustomerId\", \"public\".\"organization\".\"preprodEnabled\", COALESCE(\"aggr_selection_0_Member\".\"_aggr_count_members\", 0) AS \"_aggr_count_members\" FROM \"public\".\"organization\" LEFT JOIN (SELECT \"public\".\"member\".\"organizationId\", COUNT(*) AS \"_aggr_count_members\" FROM \"public\".\"member\" WHERE 1=1 GROUP BY \"public\".\"member\".\"organizationId\") AS \"aggr_selection_0_Member\" ON (\"public\".\"organization\".\"id\" = \"aggr_selection_0_Member\".\"organizationId\") WHERE (\"public\".\"organization\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<admin's Organization with null Project id>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"public\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 2>",
+              "<time>",
+              "<time>",
+              "12000000000000",
+              null,
+              "<admin's Organization with null Project id>"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"credit_bucket\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"expiresAt\",\"referenceId\",\"referenceType\",\"referenceNote\",\"sourceTransactionId\",\"userId\",\"organizationId\",\"projectId\") VALUES ($1,$2,$3,$4,$5,$6,CAST($7::text AS \"public\".\"CreditBucketReferenceType\"),$8,$9,$10,$11,$12) RETURNING \"public\".\"credit_bucket\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "12000000000000",
+              null,
+              "org:<admin's Organization with null Project id>:free:<id 3>",
+              "FREE",
+              null,
+              "<id 2>",
+              null,
+              "<admin's Organization with null Project id>",
+              null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"Transaction\".\"id\" FROM \"public\".\"Transaction\" WHERE \"public\".\"Transaction\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": ["<id 2>", "1", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"credit_bucket\".\"id\", \"public\".\"credit_bucket\".\"sourceTransactionId\" FROM \"public\".\"credit_bucket\" WHERE \"public\".\"credit_bucket\".\"sourceTransactionId\" = $1 OFFSET $2",
+            "values": ["<id 2>", "0"]
+          },
+          {
+            "sql": "SELECT \"public\".\"task\".\"id\" FROM \"public\".\"task\" WHERE (\"public\".\"task\".\"organizationId\" = $1 AND \"public\".\"task\".\"status\" = CAST($2::text AS \"public\".\"TaskStatus\")) OFFSET $3",
+            "values": [
+              "<admin's Organization with null Project id>",
+              "OUT_OF_CREDITS",
+              "0"
+            ]
+          },
+          {
+            "sql": "UPDATE \"public\".\"task\" SET \"status\" = CAST($1::text AS \"public\".\"TaskStatus\"), \"updatedAt\" = $2 WHERE (\"public\".\"task\".\"id\" = $3 AND \"public\".\"task\".\"status\" = CAST($4::text AS \"public\".\"TaskStatus\")) RETURNING \"public\".\"task\".\"id\", \"public\".\"task\".\"createdAt\", \"public\".\"task\".\"updatedAt\", \"public\".\"task\".\"archivedAt\", \"public\".\"task\".\"ownerId\", \"public\".\"task\".\"organizationId\", \"public\".\"task\".\"name\", \"public\".\"task\".\"description\", \"public\".\"task\".\"automaticTags\", \"public\".\"task\".\"previousAutomaticTags\", \"public\".\"task\".\"manualTags\", \"public\".\"task\".\"rejectedTags\", \"public\".\"task\".\"tagContentRevision\", \"public\".\"task\".\"tagClassificationState\", \"public\".\"task\".\"tagClassificationAttempts\", \"public\".\"task\".\"tagClassificationLease\", \"public\".\"task\".\"tagClassificationAvailableAt\", \"public\".\"task\".\"tagVocabularyVersion\", \"public\".\"task\".\"status\"::text, \"public\".\"task\".\"visibility\"::text, \"public\".\"task\".\"priority\"::text, \"public\".\"task\".\"assigneeId\", \"public\".\"task\".\"assigneeSokoBotId\", \"public\".\"task\".\"assigneeUserId\", \"public\".\"task\".\"creatorUserId\", \"public\".\"task\".\"creatorCoworkerId\", \"public\".\"task\".\"creatorSokoBotId\", \"public\".\"task\".\"workspaceId\", \"public\".\"task\".\"pendingVendorGrantId\", \"public\".\"task\".\"grantResumeStatus\"::text, \"public\".\"task\".\"projectId\", \"public\".\"task\".\"number\", \"public\".\"task\".\"scheduleId\", \"public\".\"task\".\"runAt\", \"public\".\"task\".\"dueOn\", \"public\".\"task\".\"parentTaskId\", \"public\".\"task\".\"position\"",
+            "values": [
+              "CREDITS_TOPPED_UP",
+              "<time>",
+              "<admin's Organization with null Project id's waiting Task>",
+              "OUT_OF_CREDITS"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"public\".\"taskEvent\" (\"id\",\"createdAt\",\"updatedAt\",\"taskId\",\"status\",\"channel\",\"userId\",\"coworkerId\") VALUES ($1,$2,$3,$4,CAST($5::text AS \"public\".\"TaskStatus\"),CAST($6::text AS \"public\".\"Channel\"),$7,$8) RETURNING \"public\".\"taskEvent\".\"id\"",
+            "values": [
+              "<id 4>",
+              "<time>",
+              "<time>",
+              "<admin's Organization with null Project id's waiting Task>",
+              "CREDITS_TOPPED_UP",
+              "SOKOSUMI",
+              null,
+              null
+            ]
+          },
+          {
+            "sql": "SELECT \"public\".\"task\".\"id\", \"public\".\"task\".\"createdAt\", \"public\".\"task\".\"updatedAt\", \"public\".\"task\".\"archivedAt\", \"public\".\"task\".\"ownerId\", \"public\".\"task\".\"organizationId\", \"public\".\"task\".\"name\", \"public\".\"task\".\"description\", \"public\".\"task\".\"automaticTags\", \"public\".\"task\".\"previousAutomaticTags\", \"public\".\"task\".\"manualTags\", \"public\".\"task\".\"rejectedTags\", \"public\".\"task\".\"tagContentRevision\", \"public\".\"task\".\"tagClassificationState\", \"public\".\"task\".\"tagClassificationAttempts\", \"public\".\"task\".\"tagClassificationLease\", \"public\".\"task\".\"tagClassificationAvailableAt\", \"public\".\"task\".\"tagVocabularyVersion\", \"public\".\"task\".\"status\"::text, \"public\".\"task\".\"visibility\"::text, \"public\".\"task\".\"priority\"::text, \"public\".\"task\".\"assigneeId\", \"public\".\"task\".\"assigneeSokoBotId\", \"public\".\"task\".\"assigneeUserId\", \"public\".\"task\".\"creatorUserId\", \"public\".\"task\".\"creatorCoworkerId\", \"public\".\"task\".\"creatorSokoBotId\", \"public\".\"task\".\"workspaceId\", \"public\".\"task\".\"pendingVendorGrantId\", \"public\".\"task\".\"grantResumeStatus\"::text, \"public\".\"task\".\"projectId\", \"public\".\"task\".\"number\", \"public\".\"task\".\"scheduleId\", \"public\".\"task\".\"runAt\", \"public\".\"task\".\"dueOn\", \"public\".\"task\".\"parentTaskId\", \"public\".\"task\".\"position\" FROM \"public\".\"task\" WHERE \"public\".\"task\".\"id\" = $1 LIMIT $2 OFFSET $3",
+            "values": [
+              "<admin's Organization with null Project id's waiting Task>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "UPDATE \"public\".\"notification\" SET \"isRead\" = $1, \"readAt\" = $2 WHERE (\"public\".\"notification\".\"kind\" = CAST($3::text AS \"public\".\"NotificationKind\") AND \"public\".\"notification\".\"referenceId\" = $4 AND \"public\".\"notification\".\"messageKey\" = $5 AND \"public\".\"notification\".\"isRead\" = $6) RETURNING \"public\".\"notification\".\"id\", \"public\".\"notification\".\"emailId\", \"public\".\"notification\".\"emailScheduledAt\"",
+            "values": [
+              true,
+              "<time>",
+              "TASK",
+              "<admin's Organization with null Project id's waiting Task>",
+              "Notifications.Task.outOfCredits",
+              false
+            ]
+          },
+          {
+            "sql": "COMMIT",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [
+        {
+          "id": "<id 2>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "12000000000000",
+          "userId": null,
+          "organizationId": "<admin's Organization with null Project id>"
+        }
+      ],
+      "transactionCount": 1,
+      "buckets": [
+        {
+          "id": "<id 1>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "amount": "12000000000000",
+          "expiresAt": null,
+          "activatesAt": null,
+          "referenceId": "org:<admin's Organization with null Project id>:free:<id 3>",
+          "referenceType": "FREE",
+          "referenceNote": null,
+          "sourceTransactionId": "<id 2>",
+          "userId": null,
+          "organizationId": "<admin's Organization with null Project id>",
+          "projectId": null
+        }
+      ],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's Organization with null Project id's waiting Task>",
+          "status": "CREDITS_TOPPED_UP",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [
+        {
+          "id": "<id 4>",
+          "createdAt": "<time>",
+          "updatedAt": "<time>",
+          "taskId": "<admin's Organization with null Project id's waiting Task>",
+          "status": "CREDITS_TOPPED_UP",
+          "comment": null,
+          "cents": null,
+          "authenticationUrl": null,
+          "channel": "SOKOSUMI",
+          "userId": null,
+          "coworkerId": null,
+          "sokoBotId": null,
+          "transactionId": null,
+          "network": null
+        }
+      ],
+      "notifications": [
+        {
+          "referenceId": "<admin's Organization with null Project id's waiting Task>",
+          "isRead": true,
+          "readAt": "<time>"
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": ["7", "7", "7"],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
+      "expiries": [null],
+      "wakeTimesWithinTheCall": [true, true, true]
     }
   },
   "admin, in the caller's transaction, rolled back by the caller (today's layout)": {
@@ -4816,8 +5397,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -4846,6 +5427,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -5013,8 +5595,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["17 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["17 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -5095,6 +5677,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
       "expiries": [null],
       "wakeTimesWithinTheCall": [true, true, true]
     }
@@ -5177,8 +5760,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["7 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["7 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -5259,6 +5842,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": [false]
     }
@@ -5546,13 +6130,13 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "11 in transaction 0",
-      "3 in transaction 1",
-      "6 in transaction 0",
-      "1 in transaction 1",
-      "7 in transaction 2"
+      "11 first in transaction 0",
+      "3 second in transaction 1",
+      "6 first in transaction 0",
+      "1 second in transaction 1",
+      "7 second in transaction 2"
     ],
-    "sentBeforeAnswered": [[], [], []],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -5633,8 +6217,112 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
       "expiries": [null],
       "wakeTimesWithinTheCall": [true, true, true]
+    }
+  },
+  "Tester, an empty Project id (today's layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "Invalid input value: invalid input syntax for type uuid: \"\""
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "UPDATE \"public\".\"soko_bot\" SET \"updatedAt\" = $1 WHERE (\"public\".\"soko_bot\".\"versionId\" IN ($2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) AND \"public\".\"soko_bot\".\"userId\" IS NULL AND \"public\".\"soko_bot\".\"projectId\" = $27 AND \"public\".\"soko_bot\".\"deletedAt\" IS NULL AND \"public\".\"soko_bot\".\"archivedAt\" IS NULL)",
+            "values": [
+              "<time>",
+              "cmo-v1",
+              "cmo-v2",
+              "cmo-v3",
+              "cmo-v4",
+              "cmo-v5",
+              "cmo-v6",
+              "cmo-v7",
+              "cmo-v8",
+              "cmo-v9",
+              "cmo-v10",
+              "cmo-v11",
+              "cmo-v12",
+              "cmo-v13",
+              "cmo-v14",
+              "cmo-v15",
+              "cmo-v20",
+              "cmo-v21",
+              "cmo-v22",
+              "cmo-v23",
+              "cmo-v24",
+              "cmo-v25",
+              "cmo-v1-qwen37-flash",
+              "cmo-v1-gpt-oss-20b",
+              "cmo-v1-deepseek-v4-flash",
+              "cmo-v1-gemini-25-flash-lite",
+              ""
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<Tester Organization with an empty Project id's Project Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        },
+        {
+          "id": "<Tester Organization with an empty Project id's other Project's Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<Tester Organization with an empty Project id's Project Task>",
+          "isRead": false,
+          "readAt": null
+        },
+        {
+          "referenceId": "<Tester Organization with an empty Project id's other Project's Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
     }
   },
   "Tester, rolled back after the wake (today's layout)": {
@@ -5805,8 +6493,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["17 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["17 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -5845,6 +6533,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -6016,8 +6705,8 @@
         }
       ]
     },
-    "sendOrder": ["7 outside", "12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["7 call outside", "12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -6088,6 +6777,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [true, true, true, true],
+      "references": [true],
       "expiries": [
         {
           "days": 30,
@@ -6174,7 +6864,7 @@
         }
       ]
     },
-    "sendOrder": ["7 outside"],
+    "sendOrder": ["7 call outside"],
     "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
@@ -6246,6 +6936,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": [false]
     }
@@ -6542,13 +7233,13 @@
       ]
     },
     "sendOrder": [
-      "7 outside",
-      "6 in transaction 0",
-      "7 outside",
-      "12 in transaction 1",
-      "2 in transaction 0"
+      "7 first outside",
+      "6 first in transaction 0",
+      "7 second outside",
+      "12 second in transaction 1",
+      "2 first in transaction 0"
     ],
-    "sentBeforeAnswered": [[], []],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [
         {
@@ -6651,6 +7342,7 @@
         true,
         true
       ],
+      "references": [true, true],
       "expiries": [
         {
           "days": 30,
@@ -6837,8 +7529,8 @@
         }
       ]
     },
-    "sendOrder": ["7 outside", "12 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["7 call outside", "12 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -6867,6 +7559,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -7449,8 +8142,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["9 in transaction 0", "7 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["9 call in transaction 0", "7 call in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -7479,6 +8172,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -8074,8 +8768,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["9 in transaction 0", "7 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["9 call in transaction 0", "7 call in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -8114,6 +8808,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -9285,12 +9980,12 @@
       "outsideTransactions": []
     },
     "sendOrder": [
-      "9 in transaction 0",
-      "7 in transaction 1",
-      "9 in transaction 2",
-      "7 in transaction 3"
+      "9 first in transaction 0",
+      "7 first in transaction 1",
+      "9 second in transaction 2",
+      "7 second in transaction 3"
     ],
-    "sentBeforeAnswered": [[], [], [], []],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -9319,6 +10014,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -9908,8 +10604,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["9 in transaction 0", "7 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["9 call in transaction 0", "7 call in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -9938,6 +10634,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -9979,8 +10676,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10009,6 +10706,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10050,8 +10748,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10080,6 +10778,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10124,8 +10823,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10154,6 +10853,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10222,8 +10922,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["4 in transaction 0", "4 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["4 first in transaction 0", "4 second in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10252,6 +10952,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10293,8 +10994,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10323,6 +11024,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10353,8 +11055,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["3 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["3 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10371,6 +11073,299 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, a person, an empty Project id (split layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "The table `shared.Transaction` does not exist in the current database."
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"shared\".\"user\".\"id\", \"shared\".\"user\".\"name\", \"shared\".\"user\".\"firstName\", \"shared\".\"user\".\"lastName\", \"shared\".\"user\".\"email\", \"shared\".\"user\".\"emailVerified\", \"shared\".\"user\".\"image\", \"shared\".\"user\".\"logo\", \"shared\".\"user\".\"metadata\", \"shared\".\"user\".\"role\", \"shared\".\"user\".\"banned\", \"shared\".\"user\".\"banReason\", \"shared\".\"user\".\"banExpires\", \"shared\".\"user\".\"createdAt\", \"shared\".\"user\".\"updatedAt\", \"shared\".\"user\".\"stripeCustomerId\", \"shared\".\"user\".\"preferredOrganizationId\", \"shared\".\"user\".\"marketingOptIn\", \"shared\".\"user\".\"termsAccepted\", \"shared\".\"user\".\"preprodEnabled\", \"shared\".\"user\".\"notificationsOptIn\", \"shared\".\"user\".\"pushOptIn\", \"shared\".\"user\".\"hideRoomUnreadCount\", \"shared\".\"user\".\"tagDirectMessages\", \"shared\".\"user\".\"hideWeekFromStandup\" FROM \"shared\".\"user\" WHERE (\"shared\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<admin's person with an empty Project id>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"shared\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"shared\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "5000000000000",
+              "<admin's person with an empty Project id>",
+              null
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's person with an empty Project id's waiting Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<admin's person with an empty Project id's waiting Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, an Organization, an empty Project id (split layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "The table `shared.Transaction` does not exist in the current database."
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"shared\".\"organization\".\"id\", \"shared\".\"organization\".\"name\", \"shared\".\"organization\".\"slug\", \"shared\".\"organization\".\"logo\", \"shared\".\"organization\".\"metadata\", \"shared\".\"organization\".\"createdAt\", \"shared\".\"organization\".\"stripeCustomerId\", \"shared\".\"organization\".\"preprodEnabled\", COALESCE(\"aggr_selection_0_Member\".\"_aggr_count_members\", 0) AS \"_aggr_count_members\" FROM \"shared\".\"organization\" LEFT JOIN (SELECT \"shared\".\"member\".\"organizationId\", COUNT(*) AS \"_aggr_count_members\" FROM \"shared\".\"member\" WHERE 1=1 GROUP BY \"shared\".\"member\".\"organizationId\") AS \"aggr_selection_0_Member\" ON (\"shared\".\"organization\".\"id\" = \"aggr_selection_0_Member\".\"organizationId\") WHERE (\"shared\".\"organization\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": [
+              "<admin's Organization with an empty Project id>",
+              "1",
+              "0"
+            ]
+          },
+          {
+            "sql": "INSERT INTO \"shared\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"shared\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "12000000000000",
+              null,
+              "<admin's Organization with an empty Project id>"
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's Organization with an empty Project id's waiting Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<admin's Organization with an empty Project id's waiting Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, a person, null Project id (split layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "The table `shared.Transaction` does not exist in the current database."
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"shared\".\"user\".\"id\", \"shared\".\"user\".\"name\", \"shared\".\"user\".\"firstName\", \"shared\".\"user\".\"lastName\", \"shared\".\"user\".\"email\", \"shared\".\"user\".\"emailVerified\", \"shared\".\"user\".\"image\", \"shared\".\"user\".\"logo\", \"shared\".\"user\".\"metadata\", \"shared\".\"user\".\"role\", \"shared\".\"user\".\"banned\", \"shared\".\"user\".\"banReason\", \"shared\".\"user\".\"banExpires\", \"shared\".\"user\".\"createdAt\", \"shared\".\"user\".\"updatedAt\", \"shared\".\"user\".\"stripeCustomerId\", \"shared\".\"user\".\"preferredOrganizationId\", \"shared\".\"user\".\"marketingOptIn\", \"shared\".\"user\".\"termsAccepted\", \"shared\".\"user\".\"preprodEnabled\", \"shared\".\"user\".\"notificationsOptIn\", \"shared\".\"user\".\"pushOptIn\", \"shared\".\"user\".\"hideRoomUnreadCount\", \"shared\".\"user\".\"tagDirectMessages\", \"shared\".\"user\".\"hideWeekFromStandup\" FROM \"shared\".\"user\" WHERE (\"shared\".\"user\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<admin's person with null Project id>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"shared\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"shared\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "5000000000000",
+              "<admin's person with null Project id>",
+              null
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's person with null Project id's waiting Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<admin's person with null Project id's waiting Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "admin, an Organization, null Project id (split layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "The table `shared.Transaction` does not exist in the current database."
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SELECT \"shared\".\"organization\".\"id\", \"shared\".\"organization\".\"name\", \"shared\".\"organization\".\"slug\", \"shared\".\"organization\".\"logo\", \"shared\".\"organization\".\"metadata\", \"shared\".\"organization\".\"createdAt\", \"shared\".\"organization\".\"stripeCustomerId\", \"shared\".\"organization\".\"preprodEnabled\", COALESCE(\"aggr_selection_0_Member\".\"_aggr_count_members\", 0) AS \"_aggr_count_members\" FROM \"shared\".\"organization\" LEFT JOIN (SELECT \"shared\".\"member\".\"organizationId\", COUNT(*) AS \"_aggr_count_members\" FROM \"shared\".\"member\" WHERE 1=1 GROUP BY \"shared\".\"member\".\"organizationId\") AS \"aggr_selection_0_Member\" ON (\"shared\".\"organization\".\"id\" = \"aggr_selection_0_Member\".\"organizationId\") WHERE (\"shared\".\"organization\".\"id\" = $1 AND 1=1) LIMIT $2 OFFSET $3",
+            "values": ["<admin's Organization with null Project id>", "1", "0"]
+          },
+          {
+            "sql": "INSERT INTO \"shared\".\"Transaction\" (\"id\",\"createdAt\",\"updatedAt\",\"amount\",\"userId\",\"organizationId\") VALUES ($1,$2,$3,$4,$5,$6) RETURNING \"shared\".\"Transaction\".\"id\"",
+            "values": [
+              "<id 1>",
+              "<time>",
+              "<time>",
+              "12000000000000",
+              null,
+              "<admin's Organization with null Project id>"
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<admin's Organization with null Project id's waiting Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<admin's Organization with null Project id's waiting Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10416,8 +11411,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10446,6 +11441,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10528,8 +11524,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["6 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["6 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10568,6 +11564,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10653,8 +11650,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["6 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["6 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10693,6 +11690,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10843,8 +11841,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["6 in transaction 0", "6 in transaction 1"],
-    "sentBeforeAnswered": [[], []],
+    "sendOrder": ["6 first in transaction 0", "6 second in transaction 1"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -10883,6 +11881,110 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
+      "expiries": [],
+      "wakeTimesWithinTheCall": []
+    }
+  },
+  "Tester, an empty Project id (split layout)": {
+    "outcome": {
+      "threw": {
+        "name": "PrismaClientKnownRequestError",
+        "message": "Invalid input value: invalid input syntax for type uuid: \"\""
+      }
+    },
+    "statements": {
+      "transactions": [
+        [
+          {
+            "sql": "BEGIN",
+            "values": []
+          },
+          {
+            "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+            "values": []
+          },
+          {
+            "sql": "UPDATE \"shared\".\"soko_bot\" SET \"updatedAt\" = $1 WHERE (\"shared\".\"soko_bot\".\"versionId\" IN ($2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26) AND \"shared\".\"soko_bot\".\"userId\" IS NULL AND \"shared\".\"soko_bot\".\"projectId\" = $27 AND \"shared\".\"soko_bot\".\"deletedAt\" IS NULL AND \"shared\".\"soko_bot\".\"archivedAt\" IS NULL)",
+            "values": [
+              "<time>",
+              "cmo-v1",
+              "cmo-v2",
+              "cmo-v3",
+              "cmo-v4",
+              "cmo-v5",
+              "cmo-v6",
+              "cmo-v7",
+              "cmo-v8",
+              "cmo-v9",
+              "cmo-v10",
+              "cmo-v11",
+              "cmo-v12",
+              "cmo-v13",
+              "cmo-v14",
+              "cmo-v15",
+              "cmo-v20",
+              "cmo-v21",
+              "cmo-v22",
+              "cmo-v23",
+              "cmo-v24",
+              "cmo-v25",
+              "cmo-v1-qwen37-flash",
+              "cmo-v1-gpt-oss-20b",
+              "cmo-v1-deepseek-v4-flash",
+              "cmo-v1-gemini-25-flash-lite",
+              ""
+            ]
+          },
+          {
+            "sql": "ROLLBACK",
+            "values": []
+          }
+        ]
+      ],
+      "outsideTransactions": []
+    },
+    "sendOrder": ["4 call in transaction 0"],
+    "sentBeforeAnswered": [],
+    "rows": {
+      "transactions": [],
+      "transactionCount": 0,
+      "buckets": [],
+      "subscriptions": [],
+      "tasks": [
+        {
+          "id": "<Tester Organization with an empty Project id's Project Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        },
+        {
+          "id": "<Tester Organization with an empty Project id's other Project's Task>",
+          "status": "OUT_OF_CREDITS",
+          "updatedAt": "<time>"
+        }
+      ],
+      "taskEvents": [],
+      "notifications": [
+        {
+          "referenceId": "<Tester Organization with an empty Project id's Project Task>",
+          "isRead": false,
+          "readAt": null
+        },
+        {
+          "referenceId": "<Tester Organization with an empty Project id's other Project's Task>",
+          "isRead": false,
+          "readAt": null
+        }
+      ]
+    },
+    "raw": {
+      "uuidVersions": [],
+      "idsSortLikeTimes": {
+        "transactions": true,
+        "buckets": true
+      },
+      "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -10965,8 +12067,8 @@
       ],
       "outsideTransactions": []
     },
-    "sendOrder": ["6 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["6 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -11005,6 +12107,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -11117,8 +12220,8 @@
         }
       ]
     },
-    "sendOrder": ["7 outside", "4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["7 call outside", "4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -11147,6 +12250,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -11262,8 +12366,8 @@
         }
       ]
     },
-    "sendOrder": ["7 outside", "4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["7 call outside", "4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -11292,6 +12396,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -11502,12 +12607,12 @@
       ]
     },
     "sendOrder": [
-      "7 outside",
-      "4 in transaction 0",
-      "7 outside",
-      "4 in transaction 1"
+      "7 first outside",
+      "4 first in transaction 0",
+      "7 second outside",
+      "4 second in transaction 1"
     ],
-    "sentBeforeAnswered": [[], []],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -11536,6 +12641,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }
@@ -11648,8 +12754,8 @@
         }
       ]
     },
-    "sendOrder": ["7 outside", "4 in transaction 0"],
-    "sentBeforeAnswered": [[]],
+    "sendOrder": ["7 call outside", "4 call in transaction 0"],
+    "sentBeforeAnswered": [],
     "rows": {
       "transactions": [],
       "transactionCount": 0,
@@ -11678,6 +12784,7 @@
         "buckets": true
       },
       "grantTimesWithinTheCall": [],
+      "references": [],
       "expiries": [],
       "wakeTimesWithinTheCall": []
     }

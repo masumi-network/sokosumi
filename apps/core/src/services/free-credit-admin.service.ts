@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 import {
+  type CreditBucketProjectOption,
   GrantFreeCreditsError,
   getCreditExpiryDate,
 } from "@sokosumi/database/helpers";
@@ -10,7 +11,7 @@ import {
   userRepository,
 } from "@sokosumi/database/repositories";
 import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
-import { type CreditOwner, grant as grantCredits } from "@/lib/credits/grant";
+import { grant as grantCredits } from "@/lib/credits/grant";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 
@@ -67,45 +68,22 @@ async function resolveTarget(
   return { id: organization.id, name: organization.name };
 }
 
-/**
- * The owner of free credits. Personal credits have no Project, as the grant
- * has always refused.
- */
-function freeCreditOwner(
-  targetType: FreeCreditTargetType,
-  targetId: string,
-  projectId: string | undefined,
-): CreditOwner {
-  if (targetType === "organization") {
-    return {
-      userId: null,
-      organizationId: targetId,
-      projectId: projectId ?? null,
-    };
-  }
-  if (projectId) {
-    throw new GrantFreeCreditsError(
-      "User free credits cannot be scoped to a Project",
-    );
-  }
-  return { userId: targetId, organizationId: null, projectId: null };
-}
-
 export const freeCreditAdminService = {
   /**
    * A `projectId` makes them Project credits of the organization (ADR 0067).
    * A `tx` grants inside the caller's transaction instead of a new one.
    */
-  async grantFreeCredits(params: {
-    target: FreeCreditTarget;
-    projectId?: string;
-    credits: number;
-    ttlDays: number | null;
-    referenceNote: string | null;
-    /** FREE unless the grant has a type of its own (Tester credits). */
-    referenceType?: "FREE" | "CMO_TESTER_CREDITS";
-    tx?: Prisma.TransactionClient;
-  }): Promise<FreeCreditGrant> {
+  async grantFreeCredits(
+    params: CreditBucketProjectOption & {
+      target: FreeCreditTarget;
+      credits: number;
+      ttlDays: number | null;
+      referenceNote: string | null;
+      /** FREE unless the grant has a type of its own (Tester credits). */
+      referenceType?: "FREE" | "CMO_TESTER_CREDITS";
+      tx?: Prisma.TransactionClient;
+    },
+  ): Promise<FreeCreditGrant> {
     if (!isPositiveIntegerCredits(params.credits)) {
       throw new FreeCreditValidationError("Credits must be a positive integer");
     }
@@ -145,11 +123,11 @@ export const freeCreditAdminService = {
             params.referenceType === "CMO_TESTER_CREDITS"
               ? "cmo_tester"
               : "free",
-          owner: freeCreditOwner(
-            params.target.targetType,
-            target.id,
-            params.projectId,
-          ),
+          target:
+            params.target.targetType === "user"
+              ? { targetType: "user", userId: target.id }
+              : { targetType: "organization", organizationId: target.id },
+          projectId: params.projectId,
           credits: params.credits,
           expiresAt,
           grantId,
