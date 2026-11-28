@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `/reset-db <mainnet|preprod>` or `/reset-db all` on a pull request resets
+ * `/reset-db mainnet` or `/reset-db all` on a pull request resets
  * the PR's Neon preview branch (`preview/gh-<repo-id>-pr-<number>`) to its parent, then
  * redeploys Core so its Vercel build runs `prisma migrate deploy` on the
  * clean branch. Use it after renaming a migration that the preview database
@@ -73,11 +73,12 @@ export function stripResetDbFlag(body) {
 
 export function resetUsageMessage() {
   return [
-    "Usage: `/reset-db <mainnet|preprod> [mainnet|preprod]` or `/reset-db all`",
+    "Usage: `/reset-db mainnet` or `/reset-db all`",
     "",
     "`/reset-db mainnet`",
-    "`/reset-db preprod`",
-    "`/reset-db all`",
+    "`/reset-db all` (the same as `/reset-db mainnet`)",
+    "",
+    "The old Preprod is frozen: a command that names `preprod` resets nothing there.",
     "",
     `Resets this PR's Neon preview branch (\`preview/gh-<repo-id>-pr-<number>\`) to a copy of its parent, then redeploys Core for the named network(s). The build applies every migration the parent lacks, this PR's included. Data written only to that preview database is lost.`,
   ].join("\n");

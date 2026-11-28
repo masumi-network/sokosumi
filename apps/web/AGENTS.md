@@ -423,7 +423,7 @@ one of them (nav row, list row, back link).
 
 **Done when** a production build opens the page with its content, not its
 skeleton, after a hover, after a predicted approach, and on back. `next dev`
-does not prefetch, so check this on the preview (`/deploy all`), not locally.
+does not prefetch, so check this on the preview (`/deploy mainnet`), not locally.
 
 ### After a mutation: refresh only what changed
 

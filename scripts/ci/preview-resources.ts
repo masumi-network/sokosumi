@@ -320,10 +320,7 @@ export async function cleanupPreviewResources(
     } while (until !== undefined);
   }
   const branches = [];
-  for (const { config } of previewNeonConfigs(options, [
-    "mainnet",
-    "preprod",
-  ])) {
+  for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     const branch = await findBranchByName(config, name);
     if (branch) {
       assertPreviewBranchResettable(branch);
