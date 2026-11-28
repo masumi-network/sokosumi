@@ -3655,7 +3655,7 @@
           "finished": "Terminado el {date}",
           "openTask": "Abrir en Sokosumi",
           "documentTitle": "{name}: resultados",
-          "fileName": "{name} resultados",
+          "fileName": "{name} resultados {date}",
           "downloadPdf": "Descargar PDF",
           "downloadWord": "Descargar Word"
         },

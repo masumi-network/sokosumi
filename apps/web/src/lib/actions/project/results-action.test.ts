@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { listTasksMock, getTaskByIdMock } = vi.hoisted(() => ({
+const { listTasksMock, getReadableTaskMock } = vi.hoisted(() => ({
   listTasksMock: vi.fn(),
-  getTaskByIdMock: vi.fn(),
+  getReadableTaskMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -16,7 +16,10 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 vi.mock("@/lib/services/task.service", () => ({
-  taskService: { listTasks: listTasksMock, getTaskById: getTaskByIdMock },
+  taskService: {
+    listTasks: listTasksMock,
+    getReadableTask: getReadableTaskMock,
+  },
 }));
 
 import { loadProjectResults } from "./results-action";
@@ -33,6 +36,7 @@ function task(
       status: string | null;
       comment: string | null;
       createdAt: string;
+      actor?: unknown;
     }[];
   }> = {},
 ) {
@@ -47,9 +51,17 @@ function task(
         status: "COMPLETED",
         comment: `Result ${id}`,
         createdAt: "2026-11-03T09:00:00.000Z",
+        actor: { type: "coworker", coworker: { name: "Elena" } },
       },
     ],
     ...overrides,
+  };
+}
+
+function onePage(ids: string[]) {
+  return {
+    tasks: ids.map((id) => ({ id })),
+    pagination: { nextCursor: null },
   };
 }
 
@@ -58,9 +70,9 @@ describe("loadProjectResults", () => {
     vi.clearAllMocks();
   });
 
-  it("lists the Project's done Tasks the reader can see, with each result", async () => {
-    listTasksMock.mockResolvedValue({ tasks: [{ id: "1" }, { id: "2" }] });
-    getTaskByIdMock.mockImplementation(async (id: string) => task(id));
+  it("lists the Project's done Tasks and subtasks the reader can see, with each result and its author", async () => {
+    listTasksMock.mockResolvedValue(onePage(["1"]));
+    getReadableTaskMock.mockImplementation(async (id: string) => task(id));
 
     const result = await loadProjectResults({ projectId: PROJECT_ID });
 
@@ -68,8 +80,10 @@ describe("loadProjectResults", () => {
       projectId: PROJECT_ID,
       status: "COMPLETED",
       scope: "workspace",
-      sort: "updatedAt",
-      limit: 50,
+      includeSubtasks: true,
+      sort: "createdAt",
+      limit: 100,
+      cursor: null,
     });
     expect(result).toEqual({
       ok: true,
@@ -79,24 +93,33 @@ describe("loadProjectResults", () => {
           name: "Task 1",
           identifier: "SPR-1",
           finishedAt: "2026-11-03T09:00:00.000Z",
+          by: "Elena",
           result: "Result 1",
-        },
-        {
-          id: "2",
-          name: "Task 2",
-          identifier: "SPR-2",
-          finishedAt: "2026-11-03T09:00:00.000Z",
-          result: "Result 2",
         },
       ],
     });
   });
 
+  it("reads every page, so a result past the first page is not lost", async () => {
+    listTasksMock
+      .mockResolvedValueOnce({
+        tasks: [{ id: "1" }],
+        pagination: { nextCursor: "c2" },
+      })
+      .mockResolvedValueOnce(onePage(["2"]));
+    getReadableTaskMock.mockImplementation(async (id: string) => task(id));
+
+    const result = await loadProjectResults({ projectId: PROJECT_ID });
+
+    expect(listTasksMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cursor: "c2" }),
+    );
+    expect(result.ok && result.value.map(({ id }) => id)).toEqual(["1", "2"]);
+  });
+
   it("lists results in the order they finished, oldest first", async () => {
-    listTasksMock.mockResolvedValue({
-      tasks: [{ id: "late" }, { id: "early" }],
-    });
-    getTaskByIdMock.mockImplementation(async (id: string) =>
+    listTasksMock.mockResolvedValue(onePage(["late", "early"]));
+    getReadableTaskMock.mockImplementation(async (id: string) =>
       task(id, {
         events: [
           {
@@ -119,17 +142,11 @@ describe("loadProjectResults", () => {
     ]);
   });
 
-  it("leaves out a Task that has no result, moved to another Project, reopened or can no longer be read", async () => {
-    listTasksMock.mockResolvedValue({
-      tasks: [
-        { id: "keep" },
-        { id: "empty" },
-        { id: "moved" },
-        { id: "reopened" },
-        { id: "gone" },
-      ],
-    });
-    getTaskByIdMock.mockImplementation(async (id: string) => {
+  it("leaves out a Task that has no result, moved to another Project, reopened or is gone or hidden", async () => {
+    listTasksMock.mockResolvedValue(
+      onePage(["keep", "empty", "moved", "reopened", "gone"]),
+    );
+    getReadableTaskMock.mockImplementation(async (id: string) => {
       if (id === "gone") return null;
       if (id === "empty")
         return task(id, {
@@ -151,15 +168,12 @@ describe("loadProjectResults", () => {
     expect(result.ok && result.value.map(({ id }) => id)).toEqual(["keep"]);
   });
 
-  it("refuses a malformed Project id without asking Core", async () => {
-    const result = await loadProjectResults({ projectId: "../tasks" });
-
-    expect(result).toEqual({ ok: false, error: { code: "BAD_INPUT" } });
-    expect(listTasksMock).not.toHaveBeenCalled();
-  });
-
-  it("reports a failed list read", async () => {
-    listTasksMock.mockRejectedValue(new Error("Core down"));
+  it("fails rather than return a partial list when one Task cannot be read", async () => {
+    listTasksMock.mockResolvedValue(onePage(["1", "2"]));
+    getReadableTaskMock.mockImplementation(async (id: string) => {
+      if (id === "2") throw new Error("Core timed out");
+      return task(id);
+    });
     const logged = expectConsole("error", "Failed to load Project results");
 
     const result = await loadProjectResults({ projectId: PROJECT_ID });
@@ -168,6 +182,13 @@ describe("loadProjectResults", () => {
       ok: false,
       error: { code: "INTERNAL_SERVER_ERROR" },
     });
-    expect(logged[0]?.[1]).toEqual(new Error("Core down"));
+    expect(logged[0]?.[1]).toEqual(new Error("Core timed out"));
+  });
+
+  it("refuses a malformed Project id without asking Core", async () => {
+    const result = await loadProjectResults({ projectId: "../tasks" });
+
+    expect(result).toEqual({ ok: false, error: { code: "BAD_INPUT" } });
+    expect(listTasksMock).not.toHaveBeenCalled();
   });
 });

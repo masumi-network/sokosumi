@@ -16,15 +16,50 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-/** The most recently changed; one read per Task follows, so the list stays short. */
-const RESULTS_LIMIT = 50;
+const PAGE_SIZE = 100;
+/** Task reads in flight at once, so a large Project does not flood Core. */
+const READS_AT_ONCE = 10;
 
 export interface ProjectResult {
   id: string;
   name: string;
   identifier: string | null;
   finishedAt: string;
+  /** Who wrote the result: a Coworker, a person or a Soko Bot. */
+  by: string | null;
   result: string;
+}
+
+async function listCompletedTaskIds(projectId: string): Promise<string[]> {
+  const ids: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const { tasks, pagination } = await taskService.listTasks({
+      projectId,
+      status: "COMPLETED",
+      scope: "workspace",
+      includeSubtasks: true,
+      sort: "createdAt",
+      limit: PAGE_SIZE,
+      cursor,
+    });
+    ids.push(...tasks.map(({ id }) => id));
+    cursor = pagination?.nextCursor ?? null;
+  } while (cursor);
+  return ids;
+}
+
+async function readTasks(ids: string[]) {
+  const tasks = [];
+  for (let start = 0; start < ids.length; start += READS_AT_ONCE)
+    tasks.push(
+      ...(await Promise.all(
+        ids
+          .slice(start, start + READS_AT_ONCE)
+          .map((id) => taskService.getReadableTask(id)),
+      )),
+    );
+  return tasks;
 }
 
 interface LoadProjectResultsParameters extends AuthenticatedRequest {
@@ -35,7 +70,9 @@ interface LoadProjectResultsParameters extends AuthenticatedRequest {
  * The Project's done Tasks that have a result, each with its newest done
  * comment, oldest first so the document reads in the order the work
  * finished. Core lists only Tasks the reader may see, and each Task is read
- * again as the reader, so the document holds nothing the Task pages hide.
+ * again as the reader, so the document holds nothing the Task pages hide. A
+ * Task that is gone or hidden is left out; any other failed read fails the
+ * whole list, so the reader never gets a file with results silently missing.
  */
 export const loadProjectResults = withSession<
   LoadProjectResultsParameters,
@@ -46,16 +83,7 @@ export const loadProjectResults = withSession<
 
   let loaded: Result<ProjectResult[], ActionError>;
   try {
-    const { tasks } = await taskService.listTasks({
-      projectId,
-      status: "COMPLETED",
-      scope: "workspace",
-      sort: "updatedAt",
-      limit: RESULTS_LIMIT,
-    });
-    const details = await Promise.all(
-      tasks.map(({ id }) => taskService.getTaskById(id)),
-    );
+    const details = await readTasks(await listCompletedTaskIds(projectId));
     loaded = ok(
       details
         .flatMap((task) => {
@@ -73,6 +101,7 @@ export const loadProjectResults = withSession<
               name: task.name,
               identifier: task.identifier,
               finishedAt: result.createdAt,
+              by: result.by,
               result: result.comment,
             },
           ];

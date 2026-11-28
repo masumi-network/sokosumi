@@ -59,6 +59,12 @@ export function ProjectResultsDownload({
   );
 }
 
+/** Today as `YYYY-MM-DD` in the reader's time zone, for a file name that sorts. */
+function fileDate(now = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 function ResultsPicker({
   projectId,
   projectName,
@@ -68,6 +74,8 @@ function ResultsPicker({
 }) {
   const t = useTranslations("App.Projects.Detail.results");
   const format = useFormatter();
+  // Read afresh on every opening and kept nowhere after it closes, so a Task
+  // hidden or moved since the last opening never reaches a file.
   const query = useScopedQuery({
     scope: projectId,
     queryKey: ["project-results"],
@@ -76,8 +84,11 @@ function ResultsPicker({
       if (!result.ok) throw new Error(result.error.code);
       return result.value;
     },
+    staleTime: 0,
+    gcTime: 0,
   });
-  const results = query.data ?? [];
+  const ready = query.isSuccess && !query.isFetching;
+  const results = ready ? query.data : [];
   // Unticked rather than ticked, so every result starts in the document.
   const [left, setLeft] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
@@ -100,7 +111,9 @@ function ResultsPicker({
           heading: result.identifier
             ? `${result.identifier} ${result.name}`
             : result.name,
-          meta: finished(result),
+          meta: result.by
+            ? `${result.by} · ${finished(result)}`
+            : finished(result),
           link: {
             label: t("openTask"),
             url: new URL(`/tasks/${result.id}`, window.location.origin).href,
@@ -108,7 +121,7 @@ function ResultsPicker({
           body: result.result,
         })),
       }),
-    t("fileName", { name: projectName }),
+    t("fileName", { name: projectName, date: fileDate() }),
   );
 
   async function download(kind: "pdf" | "docx") {
@@ -116,15 +129,6 @@ function ResultsPicker({
     await exportAs(kind);
     setBusy(null);
   }
-
-  function toggle(id: string, checked: boolean) {
-    const next = new Set(left);
-    if (checked) next.delete(id);
-    else next.add(id);
-    setLeft(next);
-  }
-
-  const allChecked = chosen.length === results.length;
 
   return (
     <DialogContent
@@ -139,11 +143,7 @@ function ResultsPicker({
           <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
-        {query.isPending ? (
-          <p className="text-muted-foreground text-sm" role="status">
-            {t("loading")}
-          </p>
-        ) : query.isError ? (
+        {query.isError ? (
           <div className="flex flex-col items-start gap-2" role="alert">
             <p className="text-sm">{t("failed")}</p>
             <Button
@@ -155,74 +155,24 @@ function ResultsPicker({
               {t("retry")}
             </Button>
           </div>
+        ) : !ready ? (
+          <p className="text-muted-foreground text-sm" role="status">
+            {t("loading")}
+          </p>
         ) : results.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("empty")}</p>
         ) : (
-          <fieldset
-            className="flex min-w-0 flex-col gap-2"
+          <ResultsList
+            results={results}
+            left={left}
+            onLeftChange={setLeft}
             disabled={busy !== null}
-          >
-            <legend className="sr-only">{t("title")}</legend>
-            <div className="flex min-h-11 items-center justify-between gap-3 px-3">
-              <div className="flex items-center gap-3">
-                <Checkbox
-                  id="project-results-all"
-                  className="hit-area"
-                  checked={
-                    allChecked
-                      ? true
-                      : chosen.length > 0
-                        ? "indeterminate"
-                        : false
-                  }
-                  onCheckedChange={() =>
-                    setLeft(
-                      allChecked
-                        ? new Set(results.map(({ id }) => id))
-                        : new Set(),
-                    )
-                  }
-                />
-                <Label htmlFor="project-results-all">{t("selectAll")}</Label>
-              </div>
-              <span className="text-muted-foreground text-sm tabular-nums">
-                {t("selected", { count: chosen.length, total: results.length })}
-              </span>
-            </div>
-            <ul className="flex max-h-[45dvh] flex-col divide-y overflow-y-auto overscroll-contain rounded-lg border">
-              {results.map((result) => {
-                const id = `project-result-${result.id}`;
-                return (
-                  <li
-                    key={result.id}
-                    className="flex min-h-11 items-center gap-3 px-3 py-2"
-                  >
-                    <Checkbox
-                      id={id}
-                      className="hit-area"
-                      checked={!left.has(result.id)}
-                      onCheckedChange={(checked) =>
-                        toggle(result.id, checked === true)
-                      }
-                    />
-                    <Label
-                      htmlFor={id}
-                      className="flex min-w-0 flex-1 flex-col items-start gap-0.5 font-normal"
-                    >
-                      <span className="w-full truncate text-sm font-medium">
-                        {result.name}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {result.identifier
-                          ? `${result.identifier} · ${finished(result)}`
-                          : finished(result)}
-                      </span>
-                    </Label>
-                  </li>
-                );
-              })}
-            </ul>
-          </fieldset>
+            describe={(result) =>
+              result.identifier
+                ? `${result.identifier} · ${finished(result)}`
+                : finished(result)
+            }
+          />
         )}
 
         <DialogFooter>
@@ -247,5 +197,86 @@ function ResultsPicker({
         </DialogFooter>
       </div>
     </DialogContent>
+  );
+}
+
+function ResultsList({
+  results,
+  left,
+  onLeftChange,
+  disabled,
+  describe,
+}: {
+  results: ProjectResult[];
+  left: ReadonlySet<string>;
+  onLeftChange: (left: ReadonlySet<string>) => void;
+  disabled: boolean;
+  describe: (result: ProjectResult) => string;
+}) {
+  const t = useTranslations("App.Projects.Detail.results");
+  const count =
+    results.length - results.filter(({ id }) => left.has(id)).length;
+  const allChecked = count === results.length;
+
+  function toggle(id: string, checked: boolean) {
+    const next = new Set(left);
+    if (checked) next.delete(id);
+    else next.add(id);
+    onLeftChange(next);
+  }
+
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2" disabled={disabled}>
+      <legend className="sr-only">{t("title")}</legend>
+      <div className="flex min-h-11 items-center justify-between gap-3 px-3">
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id="project-results-all"
+            className="hit-area"
+            checked={allChecked ? true : count > 0 ? "indeterminate" : false}
+            onCheckedChange={() =>
+              onLeftChange(
+                allChecked ? new Set(results.map(({ id }) => id)) : new Set(),
+              )
+            }
+          />
+          <Label htmlFor="project-results-all">{t("selectAll")}</Label>
+        </div>
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {t("selected", { count, total: results.length })}
+        </span>
+      </div>
+      <ul className="flex max-h-[45dvh] flex-col divide-y overflow-y-auto overscroll-contain rounded-lg border">
+        {results.map((result) => {
+          const id = `project-result-${result.id}`;
+          return (
+            <li
+              key={result.id}
+              className="flex min-h-11 items-center gap-3 px-3 py-2"
+            >
+              <Checkbox
+                id={id}
+                className="hit-area"
+                checked={!left.has(result.id)}
+                onCheckedChange={(checked) =>
+                  toggle(result.id, checked === true)
+                }
+              />
+              <Label
+                htmlFor={id}
+                className="flex min-w-0 flex-1 flex-col items-start gap-0.5 font-normal"
+              >
+                <span className="w-full truncate text-sm font-medium">
+                  {result.name}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {describe(result)}
+                </span>
+              </Label>
+            </li>
+          );
+        })}
+      </ul>
+    </fieldset>
   );
 }

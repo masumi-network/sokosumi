@@ -1,23 +1,44 @@
 import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 
+type ResultActor =
+  | { type: "user"; user: { name: string } }
+  | { type: "coworker"; coworker: { name: string } }
+  | { type: "sokoBot"; sokoBot: { name: string | null } };
+
 interface ResultEvent {
   status?: string | null;
   comment?: string | null;
   createdAt: Date | string;
+  actor?: ResultActor | null;
 }
 
-/** A Task's result is its newest done comment, as the Task page shows it. */
+function actorName(actor: ResultActor | null | undefined): string | null {
+  if (!actor) return null;
+  if (actor.type === "user") return actor.user.name;
+  if (actor.type === "coworker") return actor.coworker.name;
+  return actor.sokoBot.name;
+}
+
+/** A Task's result is its newest done comment, as the Task page shows it, and who wrote it. */
 export function latestResult(
   events: readonly ResultEvent[],
-): { comment: string; createdAt: string } | null {
-  let latest: { comment: string; at: number } | null = null;
-  for (const { status, comment, createdAt } of events) {
-    if (status !== "COMPLETED" || !comment?.trim()) continue;
-    const at = new Date(createdAt).getTime();
-    if (!latest || at >= latest.at) latest = { comment, at };
+): { comment: string; createdAt: string; by: string | null } | null {
+  let latest: ResultEvent | null = null;
+  for (const event of events) {
+    if (event.status !== "COMPLETED" || !event.comment?.trim()) continue;
+    if (
+      !latest ||
+      new Date(event.createdAt).getTime() >=
+        new Date(latest.createdAt).getTime()
+    )
+      latest = event;
   }
-  return latest
-    ? { comment: latest.comment, createdAt: new Date(latest.at).toISOString() }
+  return latest?.comment
+    ? {
+        comment: latest.comment,
+        createdAt: new Date(latest.createdAt).toISOString(),
+        by: actorName(latest.actor),
+      }
     : null;
 }
 
@@ -28,7 +49,11 @@ export interface ProjectResultSection {
   body: string;
 }
 
-/** Each `#` heading two levels deeper, so a result's own titles sit under its Task. Fenced code stays as written. */
+/**
+ * Each `#` heading two levels deeper, so a result's own titles sit under its
+ * Task. Fenced code stays as written, and a block the result left open is
+ * closed, so it cannot swallow the next Task.
+ */
 function nestHeadings(markdown: string): string {
   let fence: string | null = null;
   return markdown
@@ -42,6 +67,7 @@ function nestHeadings(markdown: string): string {
       if (fence) return line;
       return line.replace(/^(#{1,4})(?=\s)/, "$1##");
     })
+    .concat(fence ? [fence] : [])
     .join("\n");
 }
 

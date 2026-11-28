@@ -1,3 +1,4 @@
+import { marked } from "marked";
 import { describe, expect, it } from "vitest";
 
 import { latestResult, projectResultsMarkdown } from "./project-results-model";
@@ -25,7 +26,31 @@ describe("latestResult", () => {
     ).toEqual({
       comment: "Final draft",
       createdAt: "2026-11-03T09:00:00.000Z",
+      by: null,
     });
+  });
+
+  it("names whoever wrote the result: a Coworker, a person or a Soko Bot", () => {
+    const done = {
+      status: "COMPLETED",
+      comment: "Done.",
+      createdAt: "2026-11-03T09:00:00.000Z",
+    };
+    expect(
+      latestResult([
+        { ...done, actor: { type: "coworker", coworker: { name: "Elena" } } },
+      ])?.by,
+    ).toBe("Elena");
+    expect(
+      latestResult([
+        { ...done, actor: { type: "user", user: { name: "Ada Tester" } } },
+      ])?.by,
+    ).toBe("Ada Tester");
+    expect(
+      latestResult([
+        { ...done, actor: { type: "sokoBot", sokoBot: { name: null } } },
+      ])?.by,
+    ).toBeNull();
   });
 
   it("is null when no done event carries a comment", () => {
@@ -107,6 +132,27 @@ describe("projectResultsMarkdown", () => {
     expect(markdown).toContain("\n### Summary\n");
     expect(markdown).toContain("\n# a shell comment\n");
     expect(markdown).toContain("\n#### Details\n");
+  });
+
+  it("closes a result's unfinished code block before the next Task starts", () => {
+    const section = (heading: string, body: string) => ({
+      heading,
+      meta: "m",
+      link: { label: "Open", url: "https://x/t" },
+      body,
+    });
+    const tokens = marked.lexer(
+      projectResultsMarkdown({
+        title: "T",
+        sections: [
+          section("First", "```js\nconst a = 1;"),
+          section("Second", "Plain text."),
+        ],
+      }),
+    );
+    expect(
+      tokens.flatMap((token) => (token.type === "heading" ? [token.text] : [])),
+    ).toEqual(["T", "First", "Second"]);
   });
 
   it("keeps a heading's text from opening Markdown of its own", () => {

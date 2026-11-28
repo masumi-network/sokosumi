@@ -160,7 +160,10 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
         page.waitForEvent("download", { timeout: 90_000 }),
         dialog.getByRole("button", { name: "Download PDF" }).click(),
       ]);
-      assert.equal(pdf.suggestedFilename(), `${PROJECT} results.pdf`);
+      assert.match(
+        pdf.suggestedFilename(),
+        new RegExp(`^${PROJECT} results \\d{4}-\\d{2}-\\d{2}\\.pdf$`),
+      );
       const bytes = readFileSync(await pdf.path());
       assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
 

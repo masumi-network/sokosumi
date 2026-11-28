@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -62,6 +62,7 @@ describe("ProjectResultsDownload", () => {
           name: "Write the press release",
           identifier: "LAU-1",
           finishedAt: "2026-11-03T09:00:00.000Z",
+          by: "Elena",
           result: "The release text.",
         },
         {
@@ -86,16 +87,55 @@ describe("ProjectResultsDownload", () => {
     await userEvent.click(screen.getByRole("button", { name: "Download PDF" }));
 
     expect(exportAs).toHaveBeenCalledWith("pdf");
-    expect(exportedWith.fileName).toBe("Launch results");
+    expect(exportedWith.fileName).toMatch(/^Launch results \d{4}-\d{2}-\d{2}$/);
     const markdown = await exportedWith.markdown?.();
     expect(markdown).toContain("# Launch: results");
     expect(markdown).toContain("## LAU\\-1 Write the press release");
-    expect(markdown).toContain("Finished Nov 3, 2026");
+    expect(markdown).toContain("Elena · Finished Nov 3, 2026");
     expect(markdown).toContain(
       `[Open in Sokosumi](${window.location.origin}/tasks/task-a)`,
     );
     expect(markdown).toContain("The release text.");
     expect(markdown).not.toContain("Tuesday.");
+  });
+
+  it("reads the results again on every opening, so a Task hidden since is left out", async () => {
+    const result = (id: string, name: string) => ({
+      id,
+      name,
+      identifier: null,
+      finishedAt: "2026-11-03T09:00:00.000Z",
+      by: null,
+      result: `${name} result`,
+    });
+    const second = Promise.withResolvers<unknown>();
+    loadProjectResults
+      .mockResolvedValueOnce({
+        ok: true,
+        value: [result("a", "Write the email"), result("b", "Pick a date")],
+      })
+      .mockReturnValueOnce(second.promise);
+
+    await renderDownload();
+    await screen.findByRole("checkbox", { name: /Pick a date/ });
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Download results" }),
+    );
+
+    // Until the new read lands, nothing from the old one is offered.
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Loading results",
+    );
+    expect(screen.queryByText("Pick a date")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled();
+
+    await act(async () => {
+      second.resolve({ ok: true, value: [result("a", "Write the email")] });
+    });
+    await screen.findByText("1 of 1 selected");
+    expect(screen.queryByText("Pick a date")).not.toBeInTheDocument();
+    expect(loadProjectResults).toHaveBeenCalledTimes(2);
   });
 
   it("offers no download when nothing is ticked", async () => {
@@ -107,6 +147,7 @@ describe("ProjectResultsDownload", () => {
           name: "Write the press release",
           identifier: null,
           finishedAt: "2026-11-03T09:00:00.000Z",
+          by: null,
           result: "The release text.",
         },
       ],
