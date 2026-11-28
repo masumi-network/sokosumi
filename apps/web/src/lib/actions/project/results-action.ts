@@ -16,7 +16,7 @@ import {
   withSession,
 } from "@/middleware/auth-middleware";
 
-/** Newest first; one read per Task follows, so the list stays short. */
+/** The most recently changed; one read per Task follows, so the list stays short. */
 const RESULTS_LIMIT = 50;
 
 export interface ProjectResult {
@@ -33,7 +33,8 @@ interface LoadProjectResultsParameters extends AuthenticatedRequest {
 
 /**
  * The Project's done Tasks that have a result, each with its newest done
- * comment. Core lists only Tasks the reader may see, and each Task is read
+ * comment, oldest first so the document reads in the order the work
+ * finished. Core lists only Tasks the reader may see, and each Task is read
  * again as the reader, so the document holds nothing the Task pages hide.
  */
 export const loadProjectResults = withSession<
@@ -56,25 +57,27 @@ export const loadProjectResults = withSession<
       tasks.map(({ id }) => taskService.getTaskById(id)),
     );
     loaded = ok(
-      details.flatMap((task) => {
-        if (
-          !task ||
-          task.projectId !== projectId ||
-          task.status !== "COMPLETED"
-        )
-          return [];
-        const result = latestResult(task.events);
-        if (!result) return [];
-        return [
-          {
-            id: task.id,
-            name: task.name,
-            identifier: task.identifier,
-            finishedAt: result.createdAt,
-            result: result.comment,
-          },
-        ];
-      }),
+      details
+        .flatMap((task) => {
+          if (
+            !task ||
+            task.projectId !== projectId ||
+            task.status !== "COMPLETED"
+          )
+            return [];
+          const result = latestResult(task.events);
+          if (!result) return [];
+          return [
+            {
+              id: task.id,
+              name: task.name,
+              identifier: task.identifier,
+              finishedAt: result.createdAt,
+              result: result.comment,
+            },
+          ];
+        })
+        .sort((a, b) => a.finishedAt.localeCompare(b.finishedAt)),
     );
   } catch (error) {
     console.error("Failed to load Project results", error);

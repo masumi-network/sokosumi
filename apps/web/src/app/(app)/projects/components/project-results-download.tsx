@@ -235,6 +235,7 @@ function ResultsPicker({
           </Button>
           <Button
             type="button"
+            variant="primary"
             loading={busy === "pdf"}
             disabled={busy === "docx" || chosen.length === 0}
             onClick={() => void download("pdf")}

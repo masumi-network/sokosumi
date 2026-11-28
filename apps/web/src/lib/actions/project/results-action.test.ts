@@ -92,6 +92,33 @@ describe("loadProjectResults", () => {
     });
   });
 
+  it("lists results in the order they finished, oldest first", async () => {
+    listTasksMock.mockResolvedValue({
+      tasks: [{ id: "late" }, { id: "early" }],
+    });
+    getTaskByIdMock.mockImplementation(async (id: string) =>
+      task(id, {
+        events: [
+          {
+            status: "COMPLETED",
+            comment: `Result ${id}`,
+            createdAt:
+              id === "early"
+                ? "2026-11-01T09:00:00.000Z"
+                : "2026-11-05T09:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    const result = await loadProjectResults({ projectId: PROJECT_ID });
+
+    expect(result.ok && result.value.map(({ id }) => id)).toEqual([
+      "early",
+      "late",
+    ]);
+  });
+
   it("leaves out a Task that has no result, moved to another Project, reopened or can no longer be read", async () => {
     listTasksMock.mockResolvedValue({
       tasks: [
