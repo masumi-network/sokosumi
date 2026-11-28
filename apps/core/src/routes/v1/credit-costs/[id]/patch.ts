@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { updateRate } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
@@ -49,16 +48,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const current = await prisma.creditCost.findUnique({ where: { id } });
-    if (!current) {
-      throw notFound("Credit cost not found");
-    }
-
-    const centsPerUnit = convertCreditsToCents(body.creditsPerUnit);
-    const updated = await prisma.creditCost.update({
-      where: { id },
-      data: { centsPerUnit },
-    });
+    const updated = await updateRate(
+      c.var.networkScope,
+      id,
+      convertCreditsToCents(body.creditsPerUnit),
+    );
 
     return ok(c, creditCostSchema.parse(mapCreditCostForApi(updated)));
   });

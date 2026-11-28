@@ -7,7 +7,6 @@ import {
   agentTagsInclude,
   type Prisma,
 } from "@sokosumi/database";
-import { netTable, netType } from "@sokosumi/database/sql-tables";
 
 import {
   getAgentApiBaseUrl,
@@ -210,87 +209,6 @@ export function buildAdminAgentListOrderBy(
   }
 }
 
-/**
- * Prisma cannot `ORDER BY COALESCE(override.name, agent.name)` via relation
- * orderBy. Use SQL so displayName sort matches `getAgentName` (override ?? registry).
- */
-function escapeIlikeLiteral(value: string): string {
-  return value
-    .replaceAll("\\", "\\\\")
-    .replaceAll("%", "\\%")
-    .replaceAll("_", "\\_");
-}
-
-export async function findAdminAgentIdsOrderedByDisplayName(
-  client: Pick<Prisma.TransactionClient, "$queryRawUnsafe">,
-  options: {
-    sortOrder: AdminAgentListSortOrder;
-    take: number;
-    cursor?: string;
-    q?: string;
-    status?: AgentStatus;
-  },
-): Promise<string[]> {
-  const direction = options.sortOrder === "asc" ? "ASC" : "DESC";
-  const trimmed = options.q?.trim();
-  const searchPattern = trimmed ? `%${escapeIlikeLiteral(trimmed)}%` : null;
-  const status = options.status ?? null;
-
-  if (options.cursor) {
-    const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
-      `
-      WITH ordered AS (
-        SELECT
-          a.id,
-          ROW_NUMBER() OVER (
-            ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
-          ) AS rn
-        FROM ${netTable("mainnet", "Agent").sql} a
-        LEFT JOIN ${netTable("mainnet", "AgentMetadataOverride").sql} o ON o."agentId" = a.id
-        WHERE (
-          $1::text IS NULL
-          OR a.name ILIKE $1 ESCAPE '\\'
-          OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
-          OR o.name ILIKE $1 ESCAPE '\\'
-        )
-        AND ($2::${netType("mainnet", "AgentStatus").sql} IS NULL OR a.status = $2::${netType("mainnet", "AgentStatus").sql})
-      )
-      SELECT id
-      FROM ordered
-      WHERE rn > (SELECT rn FROM ordered WHERE id = $3)
-      ORDER BY rn
-      LIMIT $4
-      `,
-      searchPattern,
-      status,
-      options.cursor,
-      options.take,
-    );
-    return rows.map((row) => row.id);
-  }
-
-  const rows = await client.$queryRawUnsafe<Array<{ id: string }>>(
-    `
-    SELECT a.id
-    FROM ${netTable("mainnet", "Agent").sql} a
-    LEFT JOIN ${netTable("mainnet", "AgentMetadataOverride").sql} o ON o."agentId" = a.id
-    WHERE (
-      $1::text IS NULL
-      OR a.name ILIKE $1 ESCAPE '\\'
-      OR a."blockchainIdentifier" ILIKE $1 ESCAPE '\\'
-      OR o.name ILIKE $1 ESCAPE '\\'
-    )
-    AND ($2::${netType("mainnet", "AgentStatus").sql} IS NULL OR a.status = $2::${netType("mainnet", "AgentStatus").sql})
-    ORDER BY COALESCE(o.name, a.name) ${direction}, a.id ${direction}
-    LIMIT $3
-    `,
-    searchPattern,
-    status,
-    options.take,
-  );
-  return rows.map((row) => row.id);
-}
-
 function buildAdminAgentSearchWhere(
   query?: string,
 ): Prisma.AgentWhereInput | undefined {
@@ -341,22 +259,6 @@ export function buildAdminAgentListWhere({
   }
 
   return { AND: filters };
-}
-
-export async function resolveTagsByNames(
-  tx: Prisma.TransactionClient,
-  tagNames: string[],
-) {
-  const tags = [];
-  for (const name of tagNames) {
-    const tag = await tx.tag.upsert({
-      where: { name },
-      create: { name },
-      update: {},
-    });
-    tags.push(tag);
-  }
-  return tags;
 }
 
 export function buildMetadataOverrideScalarUpdate(

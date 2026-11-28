@@ -1,12 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import {
-  adminAgentListInclude,
-  buildAdminAgentListOrderBy,
-  buildAdminAgentListWhere,
-  findAdminAgentIdsOrderedByDisplayName,
-  mapAdminAgentListItem,
-} from "@/helpers/admin-agent";
+import { mapAdminAgentListItem } from "@/helpers/admin-agent";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -16,7 +10,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { listAgents } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   adminAgentListQuerySchema,
@@ -47,72 +41,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
     const { cursor, take } = parseCursorPagination(queryParams);
-    const filters = {
+    const { agents, total, hasMore } = await listAgents(c.var.networkScope, {
       ...(queryParams.q !== undefined && { q: queryParams.q }),
       ...(queryParams.status !== undefined && { status: queryParams.status }),
-    };
-    const listWhere = buildAdminAgentListWhere(filters);
-    const whereArg = { ...(listWhere !== undefined && { where: listWhere }) };
-
-    if (queryParams.sortBy === "displayName") {
-      const [orderedIds, total] = await Promise.all([
-        findAdminAgentIdsOrderedByDisplayName(prisma, {
-          sortOrder: queryParams.sortOrder,
-          take: take + 1,
-          ...(cursor !== undefined && { cursor }),
-          ...filters,
-        }),
-        prisma.agent.count(whereArg),
-      ]);
-
-      const agents =
-        orderedIds.length === 0
-          ? []
-          : await prisma.agent.findMany({
-              where: { id: { in: orderedIds } },
-              include: adminAgentListInclude,
-            });
-      const byId = new Map(agents.map((agent) => [agent.id, agent]));
-      const orderedAgents = orderedIds.flatMap((id) => {
-        const agent = byId.get(id);
-        return agent ? [agent] : [];
-      });
-
-      const hasMore = orderedIds.length === take + 1;
-      const pageAgents = orderedAgents.slice(0, take);
-      const items = pageAgents.map(mapAdminAgentListItem);
-      const paginationMeta = createPaginationMeta(
-        pageAgents,
-        total,
-        take,
-        hasMore,
-        cursor,
-      );
-
-      return ok(c, adminAgentListSchema.parse(items), paginationMeta);
-    }
-
-    const orderBy = buildAdminAgentListOrderBy(
-      queryParams.sortBy,
-      queryParams.sortOrder,
-    );
-
-    const [agents, total] = await prisma.$transaction([
-      prisma.agent.findMany({
-        ...whereArg,
-        include: adminAgentListInclude,
-        take: take + 1,
-        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-        orderBy,
-      }),
-      prisma.agent.count(whereArg),
-    ]);
-
-    const hasMore = agents.length === take + 1;
-    const pageAgents = agents.slice(0, take);
-    const items = pageAgents.map(mapAdminAgentListItem);
+      sortBy: queryParams.sortBy,
+      sortOrder: queryParams.sortOrder,
+      ...(cursor !== undefined && { cursor }),
+      take,
+    });
+    const items = agents.map(mapAdminAgentListItem);
     const paginationMeta = createPaginationMeta(
-      pageAgents,
+      agents,
       total,
       take,
       hasMore,
