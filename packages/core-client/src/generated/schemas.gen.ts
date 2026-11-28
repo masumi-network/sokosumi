@@ -17011,6 +17011,9 @@ export const ContactListSchema = {
                         followUpDue: {
                             type: 'boolean'
                         },
+                        hasFollowUp: {
+                            type: 'boolean'
+                        },
                         hasChannel: {
                             type: 'string',
                             enum: [

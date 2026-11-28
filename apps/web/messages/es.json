@@ -12481,7 +12481,8 @@
         "mine": "Todavía nadie con quien hayas hablado. Aquí aparece cada persona a la que escribes o con quien te reúnes.",
         "recent": "No se añadió a nadie en las últimas dos semanas.",
         "list": "Esta lista está vacía. Selecciona personas en Todos los contactos y añádelas aquí.",
-        "archived": "No hay contactos archivados. Las personas que archives aparecerán aquí, listas para restaurar."
+        "archived": "No hay contactos archivados. Las personas que archives aparecerán aquí, listas para restaurar.",
+        "quiet": "Nadie ha dejado de tener contacto. Aquí aparecen las personas con las que no hablas desde hace 60 días."
       },
       "views": {
         "label": "Vistas de contactos",
@@ -13074,6 +13075,16 @@
         "import": "Importar",
         "cancel": "Cancelar",
         "done": "Hecho"
+      },
+      "quiet": {
+        "title": "Sin contacto reciente",
+        "hint": "Personas con las que hablaste antes, pero no en los últimos 60 días, sin seguimiento planificado.",
+        "open": "{count, plural, =1 {1 sin contacto reciente} other {# sin contacto reciente}}",
+        "followUp": "Seguimiento la próxima semana",
+        "followUpName": "Hacer seguimiento con {name} la próxima semana",
+        "followUpOn": "Seguimiento {date}",
+        "followUpSet": "Seguimiento con {name} planificado para la próxima semana",
+        "lastTalked": "Última conversación {when}"
       }
     },
     "Fundraising": {

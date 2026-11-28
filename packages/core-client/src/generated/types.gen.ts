@@ -4646,6 +4646,7 @@ export type ContactList = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: boolean;
+        hasFollowUp?: boolean;
         hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
         hasInteractions?: boolean;
         organization?: string;
@@ -38940,6 +38941,7 @@ export type PostContactListsData = {
             lastContactOlderThanDays?: number;
             createdWithinDays?: number;
             followUpDue?: boolean;
+            hasFollowUp?: boolean;
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
             organization?: string;
@@ -39227,6 +39229,7 @@ export type PatchContactListsByIdData = {
             lastContactOlderThanDays?: number;
             createdWithinDays?: number;
             followUpDue?: boolean;
+            hasFollowUp?: boolean;
             hasChannel?: 'EMAIL' | 'PHONE' | 'SLACK' | 'LINKEDIN' | 'X' | 'WEBSITE' | 'TELEGRAM' | 'WHATSAPP' | 'GITHUB' | 'OTHER';
             hasInteractions?: boolean;
             organization?: string;
@@ -40244,6 +40247,7 @@ export type GetContactsData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        hasFollowUp?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**
@@ -40565,6 +40569,7 @@ export type GetContactsExportCsvData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        hasFollowUp?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**
@@ -40726,6 +40731,7 @@ export type GetContactsMapData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        hasFollowUp?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**
@@ -42858,6 +42864,7 @@ export type GetContactsBreakdownData = {
         lastContactOlderThanDays?: number;
         createdWithinDays?: number;
         followUpDue?: 'true' | 'false';
+        hasFollowUp?: 'true' | 'false';
         hasChannel?: ContactChannelType;
         hasInteractions?: 'true' | 'false';
         /**

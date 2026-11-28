@@ -3,6 +3,7 @@ import {
   Archive,
   ArrowLeft,
   Building2,
+  Clock,
   Download,
   FileSpreadsheet,
   Globe,
@@ -59,6 +60,8 @@ export function ContactsWorkspaceHeader({
   const viewSlot = useRef<HTMLDivElement>(null);
   const archiveHeading = useRef<HTMLHeadingElement>(null);
   const enteringArchive = useRef(false);
+  const quiet = view === "quiet";
+  const RoomIcon = quiet ? Clock : Archive;
 
   async function handleExport() {
     setExporting(true);
@@ -87,9 +90,9 @@ export function ContactsWorkspaceHeader({
           <h2 className="flex h-10 items-center text-sm font-medium md:h-8">
             {t("views.companies")}
           </h2>
-        ) : archived ? (
-          // Archived is a side room, not a tab: name it while it is open
-          // and lead straight back to the live contacts.
+        ) : archived || quiet ? (
+          // Archived and Gone quiet are side rooms, not tabs: name them while
+          // open and lead straight back to the live contacts.
           <div className="flex min-w-0 items-center gap-1">
             <Button
               size="icon"
@@ -112,11 +115,13 @@ export function ContactsWorkspaceHeader({
               tabIndex={-1}
               className="flex h-10 min-w-0 items-center gap-2 text-sm font-medium outline-none md:h-8"
             >
-              <Archive
+              <RoomIcon
                 aria-hidden
                 className="text-muted-foreground size-4 shrink-0"
               />
-              <span className="truncate">{t("presets.archived")}</span>
+              <span className="truncate">
+                {quiet ? t("quiet.title") : t("presets.archived")}
+              </span>
             </h2>
           </div>
         ) : (
@@ -126,7 +131,7 @@ export function ContactsWorkspaceHeader({
       <PageSearchActions className={searchField ? undefined : "w-auto"}>
         {searchField}
         <div className="flex shrink-0 items-center gap-1">
-          {archived ? null : (
+          {archived || quiet ? null : (
             <ToggleGroup
               type="single"
               value={layout ?? "table"}

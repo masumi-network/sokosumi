@@ -10,7 +10,7 @@ import type {
   PostContactsStageUndoData,
 } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import { GitMerge, Users } from "lucide-react";
+import { Clock, GitMerge, Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
@@ -31,6 +31,7 @@ import {
   defaultDirection,
   isContactPreset,
   matchesContactSearch,
+  nextWeekFollowUp,
   replaceVisibleSelection,
   smartFilterOf,
 } from "@/app/contacts/contacts-view";
@@ -84,6 +85,7 @@ import { useContactUpdate, useImportanceUpdate } from "./use-contact-update";
 import {
   CONTACT_DUPLICATES_KEY,
   CONTACT_LISTS_KEY,
+  CONTACT_QUIET_KEY,
   DUPLICATE_GROUP_LIMIT,
   refreshContacts,
   useContactDuplicates,
@@ -91,6 +93,7 @@ import {
   useContactMap,
   useContactOrganizations,
   useContactRows,
+  useQuietCount,
   useTeammates,
 } from "./use-contacts-data";
 
@@ -171,7 +174,9 @@ export function ContactsWorkspace({
   // The archive is a plain list: the live layouts never show archived people,
   // and a link that names both opens the archive.
   const archived = view === "archived";
-  const layout = archived ? null : urlLayout;
+  // Gone quiet is a to-do list: one plain list, like the archive.
+  const quiet = view === "quiet";
+  const layout = archived || quiet ? null : urlLayout;
   const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
@@ -187,6 +192,7 @@ export function ContactsWorkspace({
   const duplicates = useContactDuplicates();
   const duplicateGroups = duplicates.data ?? [];
   const duplicatesCapped = duplicateGroups.length >= DUPLICATE_GROUP_LIMIT;
+  const quietCount = useQuietCount().data ?? 0;
   const organizations = useContactOrganizations(debouncedCompanySearch);
   const filters: ContactFilters = {
     stage,
@@ -349,6 +355,27 @@ export function ContactsWorkspace({
         : undefined,
     });
   }
+  /** Plans a follow-up next week; only offered to people without one. */
+  async function followUpNextWeek(contact: Contact) {
+    const followUpAt = nextWeekFollowUp(new Date());
+    if (!(await update(contact, { followUpAt }))) return;
+    void cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY });
+    toast.success(t("quiet.followUpSet", { name: contact.name }), {
+      action: {
+        label: t("bulk.undo"),
+        onClick: () =>
+          void contactsService
+            .get(contact.id)
+            .then((saved) => update(saved, { followUpAt: null }))
+            .then(() =>
+              cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY }),
+            )
+            .catch((error) =>
+              toast.error(coreErrorOf(error).message ?? t("errors.saveFailed")),
+            ),
+      },
+    });
+  }
   async function markNotSame(group: Contact[]) {
     try {
       await contactsService.notDuplicates(group.map((contact) => contact.id));
@@ -501,6 +528,17 @@ export function ContactsWorkspace({
                 {viewList?.name.trim().toLowerCase() === "investors" ? (
                   <FundraisingLink className="h-10 md:h-8" />
                 ) : null}
+                {quietCount > 0 && !quiet && !archived ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 md:h-8"
+                    onClick={() => changeView("quiet")}
+                  >
+                    <Clock aria-hidden className="size-4" />
+                    {t("quiet.open", { count: quietCount })}
+                  </Button>
+                ) : null}
                 {duplicateGroups.length ? (
                   <Button
                     size="sm"
@@ -519,6 +557,11 @@ export function ContactsWorkspace({
                 </span>
               </span>
             </div>
+            {quiet ? (
+              <p className="text-muted-foreground -mt-1 text-sm">
+                {t("quiet.hint")}
+              </p>
+            ) : null}
             {viewList?.description ? (
               <p className="text-muted-foreground -mt-1 truncate text-sm">
                 {viewList.description}
@@ -597,6 +640,16 @@ export function ContactsWorkspace({
                         </Button>
                       ) : undefined
                     }
+                  />
+                ) : quiet ? (
+                  <ContactsList
+                    contacts={contacts}
+                    onOpen={open}
+                    onFollowUp={(contact) => void followUpNextWeek(contact)}
+                    hasMore={!!hasNextPage}
+                    loadingMore={isFetchingNextPage}
+                    onLoadMore={loadMore}
+                    footer={t("showing", { shown: contacts.length, total })}
                   />
                 ) : archived ? (
                   // Archived people are read-only: no editable grid, no bulk

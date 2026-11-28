@@ -6,6 +6,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
+import { CONTACT_PRESETS } from "@/app/contacts/contacts-view";
 import { useSession } from "@/lib/auth/auth.client";
 import {
   type CompanyQuery,
@@ -22,6 +23,7 @@ export const CONTACT_BREAKDOWN_KEY = ["contact-breakdown"] as const;
 export const CONTACT_DUPLICATES_KEY = ["contact-duplicates"] as const;
 export const COMPANIES_KEY = ["contact-companies"] as const;
 export const COMPANY_LISTS_KEY = ["contact-company-lists"] as const;
+export const CONTACT_QUIET_KEY = ["contact-quiet"] as const;
 export const contactKey = (id: string) => ["contact", id] as const;
 
 const PAGE_SIZE = 50;
@@ -69,8 +71,25 @@ export function useContactRows(query: ContactQuery) {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (page) => page.nextCursor,
+    // Nor between Gone quiet and the rest: its rows offer a follow-up.
     placeholderData: (previous, last) =>
-      keepPrevious(previous, last, workspace, query.archived),
+      (last?.queryKey[2] as ContactQuery | undefined)?.hasFollowUp ===
+      query.hasFollowUp
+        ? keepPrevious(previous, last, workspace, query.archived)
+        : undefined,
+  });
+}
+
+/** How many people went quiet, for the count that opens Gone quiet. */
+export function useQuietCount() {
+  const workspace = useWorkspace();
+  return useQuery({
+    enabled: workspace !== null,
+    queryKey: [...CONTACT_QUIET_KEY, workspace],
+    queryFn: () =>
+      contactsService
+        .list({ ...CONTACT_PRESETS.quiet, limit: 1 })
+        .then((page) => page.total),
   });
 }
 
@@ -248,6 +267,7 @@ export async function refreshContacts(cache: QueryClient, contactId?: string) {
     cache.invalidateQueries({ queryKey: CONTACT_COMPANY_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_BREAKDOWN_KEY }),
     cache.invalidateQueries({ queryKey: CONTACT_DUPLICATES_KEY }),
+    cache.invalidateQueries({ queryKey: CONTACT_QUIET_KEY }),
     cache.invalidateQueries({ queryKey: COMPANIES_KEY }),
     cache.invalidateQueries({ queryKey: COMPANY_LISTS_KEY }),
     contactId

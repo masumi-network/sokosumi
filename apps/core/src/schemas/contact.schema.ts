@@ -326,6 +326,7 @@ export const contactListQuerySchema = cursorPaginationQuerySchema.extend({
   lastContactOlderThanDays: positiveDays,
   createdWithinDays: positiveDays,
   followUpDue: booleanQuery,
+  hasFollowUp: booleanQuery,
   hasChannel: contactChannelTypeSchema.optional(),
   hasInteractions: booleanQuery,
   organization: z.string().trim().min(1).max(200).optional().openapi({

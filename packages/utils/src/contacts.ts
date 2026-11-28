@@ -395,6 +395,8 @@ export const contactFilterSchema = z
     createdWithinDays: z.int().min(1).max(3650).optional(),
     /** Follow-up date today or earlier. */
     followUpDue: z.boolean().optional(),
+    /** Has a follow-up date at all, due or not. */
+    hasFollowUp: z.boolean().optional(),
     hasChannel: z.enum(CONTACT_CHANNEL_TYPES).optional(),
     hasInteractions: z.boolean().optional(),
     /** Organization or company email domain contains this, e.g. "acme". */

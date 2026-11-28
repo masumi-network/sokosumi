@@ -14,6 +14,7 @@ import {
   initials,
   isFollowUpDue,
   matchesContactSearch,
+  nextWeekFollowUp,
   primaryEmail,
   replaceVisibleSelection,
   STAGE_DOT,
@@ -66,6 +67,14 @@ describe("contactQuery", () => {
     expect(contactQuery(base)).toEqual({
       sort: "updatedAt",
       direction: "desc",
+    });
+  });
+
+  it("asks for people who went quiet: talked to, not in 60 days, no follow-up", () => {
+    expect(contactQuery({ ...base, view: "quiet" })).toMatchObject({
+      hasInteractions: "true",
+      lastContactOlderThanDays: 60,
+      hasFollowUp: "false",
     });
   });
 
@@ -219,6 +228,13 @@ describe("helpers", () => {
     expect(defaultDirection("lastContactAt")).toBe("desc");
   });
 
+  it("sets a follow-up on the Monday of next week", () => {
+    // Wednesday, Monday and Sunday, local time.
+    expect(nextWeekFollowUp(new Date(2026, 10, 25, 15))).toBe("2026-11-30");
+    expect(nextWeekFollowUp(new Date(2026, 10, 30, 9))).toBe("2026-12-07");
+    expect(nextWeekFollowUp(new Date(2026, 10, 29, 23))).toBe("2026-11-30");
+  });
+
   it("counts a follow-up as due on its day and before", () => {
     const today = new Date(2026, 9, 22, 12);
     expect(isFollowUpDue("2026-10-22", today)).toBe(true);
@@ -355,5 +371,9 @@ describe("smartFilterOf", () => {
     expect(
       smartFilterOf({ ...base, view: "archived", search: "ada" }),
     ).toBeNull();
+  });
+
+  it("offers no smart list from Gone quiet, a side room like the archive", () => {
+    expect(smartFilterOf({ ...base, view: "quiet", search: "ada" })).toBeNull();
   });
 });

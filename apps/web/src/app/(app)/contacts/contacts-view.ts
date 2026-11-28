@@ -18,11 +18,20 @@ export const CONTACT_PRESETS = {
   mine: { knownByMe: "true" },
   recent: { createdWithinDays: 14 },
   archived: { archived: "true" },
+  /** People talked to before, not in 60 days, with no follow-up planned. */
+  quiet: {
+    hasInteractions: "true",
+    lastContactOlderThanDays: 60,
+    hasFollowUp: "false",
+  },
 } satisfies Record<string, Partial<ContactQuery>>;
 
 export type ContactPreset = keyof typeof CONTACT_PRESETS;
 
-/** The presets shown as tabs. Archived opens from the More actions menu. */
+/**
+ * The presets shown as tabs. Archived opens from the More actions menu, Gone
+ * quiet from its count beside the rows.
+ */
 export const CONTACT_PRESET_IDS = [
   "all",
   "mine",
@@ -406,6 +415,15 @@ export function isFollowUpDue(followUpAt: string | null, today: Date): boolean {
   return followUpAt <= local;
 }
 
+/** `YYYY-MM-DD` of next week's Monday, in the reader's time zone. */
+export function nextWeekFollowUp(today: Date): string {
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + ((8 - today.getDay()) % 7 || 7));
+  const month = String(monday.getMonth() + 1).padStart(2, "0");
+  const day = String(monday.getDate()).padStart(2, "0");
+  return `${monday.getFullYear()}-${month}-${day}`;
+}
+
 /** A thrown Core error's stable kind and payload, from the client's parsed body. */
 export function coreErrorOf(error: unknown): {
   kind?: string;
@@ -505,9 +523,10 @@ export function smartFilterOf(
   /** The open list's kind, when a list is open. */
   listKind?: "manual" | "smart",
 ) {
-  // A smart list's own filter cannot be combined here, and a list never holds
-  // archived people; offer nothing.
-  if (listKind === "smart" || view.view === "archived") return null;
+  // A smart list's own filter cannot be combined here, a list never holds
+  // archived people, and Gone quiet is a side room like it; offer nothing.
+  if (listKind === "smart" || view.view === "archived" || view.view === "quiet")
+    return null;
   const listed = isUuidString(view.view) ? [view.view] : null;
   const filter = {
     ...(view.view === "mine" ? { knownByMe: true } : {}),

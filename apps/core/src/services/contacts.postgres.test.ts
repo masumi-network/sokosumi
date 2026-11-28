@@ -715,6 +715,7 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
     expect(await query({ stages: ["INVESTOR"] })).toEqual(["Filter Stale"]);
     expect(await query({ knownByMe: true })).toEqual(["Filter Stale"]);
     expect(await query({ followUpDue: true })).toEqual(["Filter Stale"]);
+    expect(await query({ hasFollowUp: false })).toEqual(["Filter Fresh"]);
     expect(await query({ lastContactOlderThanDays: 90 })).toEqual([
       "Filter Stale",
     ]);

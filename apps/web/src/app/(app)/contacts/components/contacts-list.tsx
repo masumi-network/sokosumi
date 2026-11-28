@@ -1,7 +1,7 @@
 "use client";
 import type { Contact } from "@sokosumi/core-client";
-import { ArchiveRestore } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { ArchiveRestore, CalendarPlus } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 import { primaryEmail } from "@/app/contacts/contacts-view";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ export function ContactsList({
   contacts,
   onOpen,
   onRestore,
+  onFollowUp,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -28,12 +29,15 @@ export function ContactsList({
   onOpen: (id: string) => void;
   /** Archived rows: a Restore button beside each person. */
   onRestore?: (contact: Contact) => void;
+  /** Gone quiet rows: when they last talked, and a follow-up next week. */
+  onFollowUp?: (contact: Contact) => void;
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
   footer: string;
 }) {
   const t = useTranslations("App.Contacts");
+  const format = useFormatter();
   const now = new Date();
   return (
     <div>
@@ -41,11 +45,18 @@ export function ContactsList({
         {contacts.map((contact) => {
           const email = primaryEmail(contact.channels);
           const detail =
-            email ??
-            ([contact.role, contact.organization, contact.location]
-              .filter(Boolean)
-              .join(" · ") ||
-              null);
+            onFollowUp && contact.lastContactAt
+              ? t("quiet.lastTalked", {
+                  when: format.relativeTime(
+                    new Date(contact.lastContactAt),
+                    now,
+                  ),
+                })
+              : (email ??
+                ([contact.role, contact.organization, contact.location]
+                  .filter(Boolean)
+                  .join(" · ") ||
+                  null));
           return (
             <li key={contact.id} className="flex items-center">
               <button
@@ -89,6 +100,27 @@ export function ContactsList({
                 >
                   <ArchiveRestore aria-hidden className="size-4" />
                   {t("panel.restore")}
+                </Button>
+              ) : null}
+              {onFollowUp && contact.followUpAt ? (
+                <span className="text-muted-foreground mx-3 shrink-0 text-xs tabular-nums">
+                  {t("quiet.followUpOn", {
+                    date: format.dateTime(
+                      new Date(`${contact.followUpAt}T00:00:00Z`),
+                      { day: "numeric", month: "short", timeZone: "UTC" },
+                    ),
+                  })}
+                </span>
+              ) : onFollowUp ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mx-3 h-10 shrink-0 md:h-8"
+                  aria-label={t("quiet.followUpName", { name: contact.name })}
+                  onClick={() => onFollowUp(contact)}
+                >
+                  <CalendarPlus aria-hidden className="size-4" />
+                  {t("quiet.followUp")}
                 </Button>
               ) : null}
             </li>
