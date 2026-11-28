@@ -12,6 +12,7 @@ import {
 } from "@sokosumi/soko-bot";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import {
   PREPROD_GENERATION_KEY,
   PREPROD_PAUSE_KEY,
@@ -30,14 +31,23 @@ import {
   type BuildContextPacketInput,
   ContextPacketBuilder,
 } from "@/lib/soko-bot/context-packet";
+import { SandboxSokoBotRuntime } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import { issueTurnToken } from "@/lib/soko-bot/sandbox/turn-token";
+import { announceTurn, RuntimeEventLog } from "@/lib/soko-bot/turn-loop";
 import { sokoBotWriteScopeRefusal } from "@/lib/soko-bot/write-scope";
 import runtimeRoutes from "@/routes/v1/soko-bot-runtime";
 import { inFlow, observing } from "@/test/spend-comparison";
 import { onSplitLayout } from "@/test/split-layout";
-import { resolveChatResultReference } from "./chat-result-preview.service";
+import {
+  readSplitBotJob,
+  resolveChatResultReference,
+} from "./chat-result-preview.service";
 import { SokoBotControlPlane } from "./soko-bot-control-plane.service";
 import baseline from "./soko-bot-network-reads.base.json";
+import {
+  requireMutationAuthority,
+  requireWriteScope,
+} from "./soko-bot-runtime/authorization";
 import { prepareDecision } from "./soko-bot-runtime/decision-claim";
 import type { RuntimeOperations } from "./soko-bot-runtime/operations";
 import {
@@ -45,6 +55,7 @@ import {
   resolveUiScheduleAuthority,
 } from "./soko-bot-runtime/schedule-scope";
 import { sokoBotRuntimeService } from "./soko-bot-runtime.service";
+import { completeSandboxTurn } from "./soko-bot-sandbox-turn.service";
 import { prepareTurnActionResultPreviews } from "./turn-action-result-previews.service";
 
 const privateDatabase = await vi.hoisted(async () => {
@@ -85,6 +96,10 @@ vi.mock("@vercel/functions", async (load) => {
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
+vi.mock("@vercel/sandbox", () => ({
+  Sandbox: { get: async () => ({ stop: async () => undefined }) },
+  Drive: {},
+}));
 vi.mock("@sokosumi/masumi", async (load) => ({
   ...(await load<typeof import("@sokosumi/masumi")>()),
   createAgentClient: () => ({
@@ -471,11 +486,31 @@ async function runningTurn(turnId: string, network: Network, botId = id(11)) {
         "get_job_status",
         "get_agent_input_schema",
         "preview_result",
+        "post_chat",
+        "find_agents",
         "create_task",
         "provide_job_input",
       ],
     },
   });
+}
+
+function waitingRuntime(name: string): SokoBotRuntime {
+  return {
+    createSession: async () => ({
+      sessionId: `session-${name}`,
+      runtimeVersion: "test",
+      acceptedAt: CLOCK.toISOString(),
+    }),
+    async *streamEvents() {},
+    cancelTurn: async () => undefined,
+    resetSession: async () => undefined,
+    inspectSession: async () => ({
+      healthy: true,
+      runtimeVersion: "test",
+      sessionStatus: "waiting",
+    }),
+  };
 }
 
 function packetInput(networkScope: NetworkScope): BuildContextPacketInput {
@@ -601,22 +636,11 @@ describe.runIf(Boolean(privateDatabase))(
           if (botId === id(11)) expectVisibleJobs(result.packet, "Mainnet");
           return result;
         };
-        const appRuntime: SokoBotRuntime = {
-          createSession: async () => ({
-            sessionId: `session-${name}`,
-            runtimeVersion: "test",
-            acceptedAt: CLOCK.toISOString(),
-          }),
-          async *streamEvents() {},
-          cancelTurn: async () => undefined,
-          resetSession: async () => undefined,
-          inspectSession: async () => ({
-            healthy: true,
-            runtimeVersion: "test",
-            sessionStatus: "waiting",
-          }),
-        };
-        const plane = new SokoBotControlPlane(appRuntime, context, classifier);
+        const plane = new SokoBotControlPlane(
+          waitingRuntime(name),
+          context,
+          classifier,
+        );
         const start = await observing(() =>
           plane.startTurn({
             network: "mainnet",
@@ -776,6 +800,14 @@ describe.runIf(Boolean(privateDatabase))(
     );
 
     describe.runIf(onSplitLayout)("equal ids in Mainnet and Preprod", () => {
+      let seededPreprod: Promise<void> | undefined;
+      function seedPreprod() {
+        return (seededPreprod ??= seedNetwork(
+          createNetworkScope("preprod"),
+          "Preprod",
+        ));
+      }
+
       it("scopes packet, classifier, write check and the running turn's HTTP tools", async () => {
         const mainnetStatus = (
           await tool(
@@ -805,7 +837,7 @@ describe.runIf(Boolean(privateDatabase))(
           "",
         );
         const preprod = createNetworkScope("preprod");
-        await seedNetwork(preprod, "Preprod");
+        await seedPreprod();
 
         expect(
           json(
@@ -1115,7 +1147,351 @@ describe.runIf(Boolean(privateDatabase))(
         await expect(check(preprod)).rejects.toThrow(
           "unless its owner authorized a stop rule",
         );
+        await prisma.sokoBotTurn.updateMany({
+          where: { id: { in: [id(30), turnId] } },
+          data: { status: "COMPLETED" },
+        });
       }, 90_000);
+
+      it.each([
+        ["mainnet", "Mainnet", id(35)],
+        ["preprod", "Preprod", id(36)],
+      ] as const)(
+        "starts a %s turn and returns that Network's classifier and packet rows",
+        async (network, label, turnId) => {
+          await seedPreprod();
+          const context = new ContextPacketBuilder();
+          const classifier: TurnClassifier = {
+            classify: async (message, input) => {
+              expect(input.candidates).toEqual(
+                expect.arrayContaining([
+                  { kind: "JOB", id: JOB, name: `${label} Job` },
+                  { kind: "AGENT", id: AGENT, name: `${label} Agent` },
+                ]),
+              );
+              return presetClassificationResult(message, {
+                route: "HIRE_AGENT",
+                reason: "Network read fixture",
+              });
+            },
+          };
+          const plane = new SokoBotControlPlane(
+            waitingRuntime(turnId),
+            context,
+            classifier,
+          );
+          // The first read lifts only 30-1's temporary admission refusal.
+          const networkAtStart = vi
+            .fn<() => Network>()
+            .mockReturnValueOnce("mainnet")
+            .mockReturnValue(network);
+          const started = await plane.startTurn({
+            get network() {
+              return networkAtStart();
+            },
+            expectedPreprodGeneration: 7,
+            userId: OWNER,
+            sokoBotId: id(11),
+            workspaceId,
+            clientTurnId: turnId,
+            message: "Check the visible Jobs",
+          });
+          const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+            where: { id: started.turnId },
+            include: { contextSnapshot: true },
+          });
+          expect(turn.network).toBe(network);
+          expect(turn.contextSnapshot?.packet).toMatchObject({
+            jobs: expect.arrayContaining([
+              expect.objectContaining({ id: JOB, name: `${label} Job` }),
+            ]),
+            agents: expect.arrayContaining([
+              expect.objectContaining({
+                id: AGENT,
+                name: `${label} Agent`,
+              }),
+            ]),
+          });
+          await prisma.sokoBotTurn.delete({ where: { id: turn.id } });
+        },
+        60_000,
+      );
+
+      it.each([
+        ["mainnet", "Mainnet", id(37)],
+        ["preprod", "Preprod", id(38)],
+      ] as const)(
+        "returns %s rows from Agent discovery and posted result references",
+        async (network, label, turnId) => {
+          await seedPreprod();
+          await runningTurn(turnId, network);
+          await expect(tool(turnId, "find_agents", {})).resolves.toMatchObject({
+            result: {
+              agents: expect.arrayContaining([
+                expect.objectContaining({
+                  id: AGENT,
+                  name: `${label} Agent`,
+                }),
+              ]),
+            },
+          });
+          const posted = await tool(turnId, "post_chat", {
+            roomId: id(41),
+            content: `Job update from ${label}`,
+            resultReferences: [previewRef],
+          });
+          expect(posted, json(posted)).toMatchObject({
+            messageId: expect.any(String),
+          });
+          const message = await prisma.chatRoomMessage.findUniqueOrThrow({
+            where: { id: posted.messageId },
+          });
+          expect(message.metadata).toMatchObject({
+            [RESULT_SNAPSHOTS_KEY]: [
+              expect.objectContaining({
+                reference: previewRef,
+                data: expect.objectContaining({ title: `${label} Job` }),
+              }),
+            ],
+          });
+        },
+      );
+
+      it.each([true, false])(
+        "checks Job write scope on the turn Network (approved=%s)",
+        async (approved) => {
+          await seedPreprod();
+          const runtime = {} as RuntimeOperations;
+          for (const [network, turnId] of [
+            ["mainnet", id(approved ? 50 : 51)],
+            ["preprod", id(approved ? 52 : 53)],
+          ] as const) {
+            await runningTurn(turnId, network, id(12));
+            const authorized = await sokoBotRuntimeService.authorize({
+              turnId,
+              sessionId: `session-${turnId}`,
+            });
+            const check = (jobId: string) =>
+              prisma.$transaction((tx) =>
+                requireMutationAuthority(
+                  {
+                    requireWriteScope: (...args) =>
+                      requireWriteScope(runtime, ...args),
+                  },
+                  tx,
+                  authorized,
+                  approved,
+                  undefined,
+                  { jobId },
+                ),
+              );
+            await expect(check(INPUT_JOB)).resolves.toBeDefined();
+            if (network === "preprod") {
+              await expect(check(SCOPE_JOB)).resolves.toBeDefined();
+            } else {
+              await expect(check(SCOPE_JOB)).rejects.toThrow("Job not found");
+            }
+          }
+        },
+      );
+
+      it.each([
+        ["mainnet", AGENT, INPUT_JOB, id(54)],
+        ["preprod", PREPROD_ACTION_AGENT, JOB, id(55)],
+      ] as const)(
+        "finishes and settles a %s turn using its hire and Job input receipts",
+        async (network, agentId, inputJobId, turnId) => {
+          await seedPreprod();
+          const turn = await runningTurn(turnId, network);
+          const sessionId = `session-${turnId}`;
+          await prisma.sokoBotTurn.update({
+            where: { id: turnId },
+            data: { leaseToken: turnId, route: "HIRE_AGENT" },
+          });
+          await prisma.sokoBotToolCall.createMany({
+            data: [
+              { capability: "hire_agent", targetId: ACTION_JOB },
+              { capability: "provide_job_input", targetId: "settled-input" },
+            ].map(({ capability, targetId }) => ({
+              turnId,
+              toolCallId: capability,
+              capability,
+              targetId,
+              inputHash: capability,
+              input: {},
+              status: "COMPLETED",
+              verification: "LOCAL_TRANSACTION",
+              disposition: "APPLIED",
+              committedAt: CLOCK,
+            })),
+          });
+          // The split preview reader resolves the receipt's input id first.
+          // Authorization for the resulting card is still pinned to Mainnet.
+          const db = createNetworkScope(network).networkDb;
+          await db.jobEvent.create({
+            data: {
+              id: "settled-input-event",
+              jobId: inputJobId,
+              status: "COMPLETED",
+              createdAt: new Date(CLOCK.getTime() - 1000),
+              input: { create: { id: "settled-input", input: "{}" } },
+            },
+          });
+          await announceTurn(
+            new RuntimeEventLog(turnId, sessionId),
+            turn.userMessage,
+          );
+          await completeSandboxTurn(
+            { turnId, sessionId, expiresAt: END.getTime() },
+            {
+              text: "",
+              finishReason: "stop",
+            },
+          );
+          const before = await prisma.sokoBotTurn.findUniqueOrThrow({
+            where: { id: turnId },
+          });
+          expect(before.responseContract).toMatchObject({
+            answerText: expect.stringContaining(agentId),
+          });
+          await new SokoBotControlPlane(
+            new SandboxSokoBotRuntime(),
+          ).reconcileTurn(turnId, undefined, turnId);
+          const after = await prisma.sokoBotTurn.findUniqueOrThrow({
+            where: { id: turnId },
+          });
+          expect(after.status).toBe("COMPLETED");
+          expect(after.finalAnswer).toContain(agentId);
+          const cards = await prisma.sokoBotToolCall.findMany({
+            where: { turnId, capability: "preview_result" },
+            select: { result: true },
+          });
+          expect(cards).toContainEqual({
+            result: expect.objectContaining({
+              reference: { kind: "job", id: inputJobId },
+            }),
+          });
+          expect(cards).not.toContainEqual({
+            result: expect.objectContaining({
+              reference: {
+                kind: "job",
+                id: network === "mainnet" ? JOB : INPUT_JOB,
+              },
+            }),
+          });
+        },
+        60_000,
+      );
+
+      it("hides another member's Job and private Tasks from the split status tool", async () => {
+        await seedPreprod();
+        const turnId = id(56);
+        await runningTurn(turnId, "preprod");
+        for (const jobId of [ACTION_JOB, HIDDEN]) {
+          await expect(
+            tool(turnId, "get_job_status", { jobId }, jobId),
+          ).resolves.toMatchObject({ result: null });
+        }
+      });
+
+      it("excludes other Projects and the owner's private Task from split readers", async () => {
+        await seedPreprod();
+        const preprod = createNetworkScope("preprod");
+        const ownerPrivateTask = await prisma.task.create({
+          data: {
+            ownerId: OWNER,
+            name: "Owner's private Task",
+            visibility: "PRIVATE",
+            workspaceId,
+            projectId,
+          },
+        });
+        const otherProjectTask = await prisma.task.create({
+          data: {
+            ownerId: OWNER,
+            name: "Other Project Task",
+            visibility: "PUBLIC",
+            workspaceId,
+            projectId: emptyProjectId,
+          },
+        });
+        const ownerPrivateJob = "owner-private-job";
+        const otherProjectJob = "other-project-job";
+        await preprod.networkDb.job.createMany({
+          data: [
+            { id: ownerPrivateJob, taskId: ownerPrivateTask.id, projectId },
+            {
+              id: otherProjectJob,
+              taskId: otherProjectTask.id,
+              projectId: emptyProjectId,
+            },
+          ].map((job) => ({
+            ...job,
+            agentJobId: job.id,
+            agentId: AGENT,
+            ownerId: OWNER,
+            workspaceId,
+            organizationId: ORG,
+            jobType: "FREE",
+            createdAt: CLOCK,
+            updatedAt: CLOCK,
+          })),
+        });
+        const sharedTurn = id(57);
+        await runningTurn(sharedTurn, "preprod", id(12));
+        await expect(
+          tool(
+            sharedTurn,
+            "get_job_status",
+            { jobId: INPUT_JOB },
+            "own-project",
+          ),
+        ).resolves.toMatchObject({ result: { name: "Approved input Job" } });
+        await expect(
+          tool(
+            sharedTurn,
+            "get_job_status",
+            { jobId: otherProjectJob },
+            "other-project",
+          ),
+        ).resolves.toMatchObject({ result: null });
+        const context = new ContextPacketBuilder();
+        const owner = await context.build(packetInput(preprod));
+        const teammate = await context.build({
+          ...packetInput(preprod),
+          audience: "TEAMMATE",
+        });
+        expect(owner.packet.jobs.map(({ id }) => id)).toContain(
+          ownerPrivateJob,
+        );
+        expect(teammate.packet.jobs.map(({ id }) => id)).toContain(
+          otherProjectJob,
+        );
+        expect(teammate.packet.jobs.map(({ id }) => id)).not.toContain(
+          ownerPrivateJob,
+        );
+      });
+
+      it("round-trips a split Job attachment size above JavaScript's safe integer range", async () => {
+        await seedPreprod();
+        const preprod = createNetworkScope("preprod");
+        const size = 9_007_199_254_740_995n;
+        await preprod.networkDb.blob.create({
+          data: {
+            eventId: "fixture-job-recent-event",
+            status: "READY",
+            sourceUrl: "https://attachment.example.test/output",
+            size,
+          },
+        });
+        const row = await readSplitBotJob(
+          preprod,
+          preprod.networkDb,
+          JOB,
+          workspaceId,
+        );
+        expect(row?.events[0]?.blobs[0]?.size).toBe(size);
+      });
     });
   },
 );

@@ -1,7 +1,10 @@
 import type { SokoBotToolCall } from "@sokosumi/database";
 import { ACTION_LABELS } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  createRefusedNetworkScope,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
@@ -13,6 +16,7 @@ import {
   parseActionNarrativeText,
   REPLY_CHECK_NOTES,
 } from "./action-response";
+import { DetachedNetworkRefusal } from "./detached-network-refusal";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
@@ -187,6 +191,27 @@ describe("action lines the owner reads", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it("refuses a hire Job read inside a public-layout transaction", async () => {
+    const refusal = new DetachedNetworkRefusal("preprod_paused");
+    const tx = { ...prisma };
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      receipt({ capability: "hire_agent", targetId: "job-one" }),
+    ]);
+    db.job.findMany.mockResolvedValue([
+      { id: "job-one", agentId: "agent-one" },
+    ]);
+
+    await expect(
+      buildScopedActionResponse(
+        createRefusedNetworkScope(refusal),
+        tx,
+        "turn-current",
+        "",
+      ),
+    ).rejects.toBe(refusal);
+    expect(db.job.findMany).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -12,6 +12,10 @@ import {
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import {
+  PREPROD_GENERATION_KEY,
+  PREPROD_PAUSE_KEY,
+} from "@/helpers/preprod-control";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import { recordCoreError } from "@/lib/evlog";
@@ -128,6 +132,7 @@ const {
       SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
       EXA_API_KEY?: string;
+      NETWORK_PREPROD_ENABLED?: boolean;
       SOKO_BOT_ANNOUNCEMENT_BOT_IDS: string[];
     }
   >(() => ({
@@ -421,6 +426,12 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    syncMetadata: {
+      findMany: vi.fn().mockResolvedValue([
+        { key: PREPROD_PAUSE_KEY, cursorId: "open" },
+        { key: PREPROD_GENERATION_KEY, cursorId: "7" },
+      ]),
+    },
     $executeRaw: vi.fn().mockResolvedValue(1),
     member: { findFirst: memberFindFirstMock },
     sokoBotIntent: {
@@ -1125,7 +1136,13 @@ describe("SokoBotControlPlane lifecycle", () => {
   );
 
   it("persists the assessed outcome before receipt lines and before delivery is enqueued", async () => {
+    getEnvMock.mockReturnValue({
+      ...getEnvMock(),
+      NETWORK_PREPROD_ENABLED: true,
+    });
     turnFindUniqueMock.mockResolvedValueOnce({
+      network: "preprod",
+      preprodGeneration: 7,
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
       eveSessionId: "session_1",
@@ -1169,8 +1186,11 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(prepareTurnActionResultPreviews).toHaveBeenCalledWith(
       "turn_1",
       expect.objectContaining({ requestedByUserId: "user_1" }),
-      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ network: "preprod" }),
       expect.anything(),
+    );
+    expect(vi.mocked(buildActionResponse).mock.lastCall?.[0]).toBe(
+      vi.mocked(prepareTurnActionResultPreviews).mock.lastCall?.[2],
     );
     expect(
       vi.mocked(prepareTurnActionResultPreviews).mock.invocationCallOrder[0],

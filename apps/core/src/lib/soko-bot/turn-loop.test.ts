@@ -214,10 +214,11 @@ describe("RuntimeEventLog", () => {
 });
 
 const log = { append: vi.fn(), turnId: "turn-1" };
+const preprodScope = { network: "preprod" } as NetworkScope;
 
 function finish(text: string, requiresActionProof: boolean) {
   return finishTurn({
-    scope: { network: "mainnet" } as NetworkScope,
+    scope: preprodScope,
     log: log as never,
     turnId: "turn-1",
     text,
@@ -248,6 +249,7 @@ describe("finishTurn", () => {
       '{"kind":"REPORT","message":"Team trials now lead.","question":null,"observationToolCallIds":[]}',
       false,
     );
+    expect(buildActionResponseMock.mock.calls[0][0]).toBe(preprodScope);
     expect(buildActionResponseMock.mock.calls[0][3]).toBe(
       "Team trials now lead.",
     );
