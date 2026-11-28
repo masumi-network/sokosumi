@@ -157,6 +157,100 @@ describe("grant", () => {
     ).rejects.toBe(refusal);
     expect(database.grantSignupBonusCredits).not.toHaveBeenCalled();
   });
+
+  describe("a Polar grant", () => {
+    const expiresAt = new Date("2026-12-28T00:00:00.000Z");
+    function polarTx() {
+      const create = vi.fn().mockResolvedValue({ id: "transaction-1" });
+      return {
+        create,
+        tx: { transaction: { create } } as unknown as Prisma.TransactionClient,
+      };
+    }
+    const polar = (polarTx: Prisma.TransactionClient) =>
+      ({
+        scope,
+        tx: polarTx,
+        kind: "polar",
+        organizationId: "org-1",
+        projectId: "project-1",
+        cents: 7n,
+        referenceId: "order-1:0",
+        referenceType: "POLAR_SUBSCRIPTION_MONTH",
+        note: "Growth",
+        expiresAt,
+      }) as const;
+
+    it("writes its cents as the Project's bucket with no member, on the caller's transaction", async () => {
+      const { create, tx: written } = polarTx();
+
+      await expect(
+        grant({ ...polar(written), wakeTasks: false }),
+      ).resolves.toEqual({ outcome: "granted", bucketId: null });
+      expect(create).toHaveBeenCalledExactlyOnceWith({
+        data: {
+          amount: 7n,
+          organizationId: "org-1",
+          userId: null,
+          sourceCreditBucket: {
+            create: {
+              amount: 7n,
+              expiresAt,
+              organizationId: "org-1",
+              projectId: "project-1",
+              referenceId: "order-1:0",
+              referenceNote: "Growth",
+              referenceType: "POLAR_SUBSCRIPTION_MONTH",
+              userId: null,
+            },
+          },
+        },
+      });
+      expect(database.wake).not.toHaveBeenCalled();
+    });
+
+    it("wakes the Project's Tasks after the write when asked", async () => {
+      const { create, tx: written } = polarTx();
+      database.wake.mockImplementationOnce(async () => {
+        expect(create).toHaveBeenCalledOnce();
+      });
+
+      await grant({ ...polar(written), wakeTasks: true });
+
+      expect(database.wake).toHaveBeenCalledExactlyOnceWith({
+        organizationId: "org-1",
+        projectId: "project-1",
+        tx: written,
+        userId: null,
+      });
+    });
+
+    it("throws the key's refusal and wakes nothing", async () => {
+      const { create, tx: written } = polarTx();
+      const refusal = new Error("Unique constraint failed");
+      create.mockRejectedValueOnce(refusal);
+
+      await expect(grant({ ...polar(written), wakeTasks: true })).rejects.toBe(
+        refusal,
+      );
+      expect(database.wake).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing for a scope that refuses its Network", async () => {
+      const { create, tx: written } = polarTx();
+      const refusal = new Error("Preprod is off");
+      const refused = {
+        get network(): never {
+          throw refusal;
+        },
+      } as unknown as NetworkScope;
+
+      await expect(
+        grant({ ...polar(written), scope: refused, wakeTasks: true }),
+      ).rejects.toBe(refusal);
+      expect(create).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("expireEnterpriseGrants", () => {
@@ -264,6 +358,6 @@ export function _laterGrantsFitTheContract(
   void ({ ...polar, credits: 1 } satisfies PolarGrant);
   // @ts-expect-error Polar's writer is handed cents
   void ({ ...polar, cents: 1 } satisfies PolarGrant);
-  // @ts-expect-error `grant` takes the later kinds with the pull requests that move their writers
-  void grant(polar);
+  // @ts-expect-error `grant` takes the later kind with the pull request that moves its writer
+  void grant(stripe);
 }

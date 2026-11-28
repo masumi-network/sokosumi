@@ -124,19 +124,15 @@ export type EnterpriseGrant = GrantCommon &
       }
   );
 
-/*
- * The kinds the later pull requests of the credits cut bring, as their
- * writers on `origin/main` take them. Their callers are not moved yet, so
- * `grant` does not take them: each is added to `BuiltGrant` by the pull
- * request that moves its writer, with its dispatch.
- */
-
 /**
- * A CMO payment's credits for a Cuso's Project (pull request 12), keyed by
- * `<orderId>:<monthIndex>`. A grant given before fails on that key, which
- * rolls back the caller's whole transaction: the caller answers it outside,
- * so no receipt here says "already granted". The caller fences before and
- * writes its own row after, then wakes (`wakeTasks: false`).
+ * A CMO payment's credits for a Cuso's Project (ADR 0068): a plan's month,
+ * a plan change's prorated rest or a top-up pack, keyed by
+ * `<orderId>:<monthIndex>` with the type. A grant given before fails on
+ * that key, which rolls back the caller's whole transaction: the caller
+ * answers it outside (`grantPolarCredits`), so no receipt here says "already
+ * granted". The caller fences before and writes its own row after, then
+ * wakes (`wakeTasks: false`). The bucket belongs to the Organization's pool
+ * and the Project, with no member.
  */
 export interface PolarGrant extends GrantCommon, InCents {
   kind: "polar";
@@ -147,6 +143,13 @@ export interface PolarGrant extends GrantCommon, InCents {
   note: string;
   expiresAt: Date;
 }
+
+/*
+ * The kind the last pull request of the credits cut brings, as its writer on
+ * `origin/main` takes it. Its caller is not moved yet, so `grant` does not
+ * take it: it is added to `BuiltGrant` by the pull request that moves its
+ * writer, with its dispatch.
+ */
 
 /**
  * One entry of a paid Stripe invoice (pull request 13): once per owner,
@@ -177,7 +180,8 @@ export type BuiltGrant =
   | SignupBonusGrant
   | FreeGrant
   | LocalFreePeriodGrant
-  | EnterpriseGrant;
+  | EnterpriseGrant
+  | PolarGrant;
 
 /** A new grant, with its bucket. */
 export interface Granted {
@@ -289,6 +293,40 @@ export async function grant(
       });
     }
     return { outcome: "granted", bucketId };
+  }
+
+  if (input.kind === "polar") {
+    const { cents, organizationId, projectId } = input;
+    // Prisma's nested create, as the Polar grant wrote it: the bucket's key
+    // refuses a second grant of the same reference.
+    await tx.transaction.create({
+      data: {
+        amount: cents,
+        organizationId,
+        userId: null,
+        sourceCreditBucket: {
+          create: {
+            amount: cents,
+            expiresAt: input.expiresAt,
+            organizationId,
+            projectId,
+            referenceId: input.referenceId,
+            referenceNote: input.note,
+            referenceType: input.referenceType,
+            userId: null,
+          },
+        },
+      },
+    });
+    if (input.wakeTasks) {
+      await markOutOfCreditsTasksAsToppedUp({
+        organizationId,
+        projectId,
+        tx,
+        userId: null,
+      });
+    }
+    return { outcome: "granted", bucketId: null };
   }
 
   if (input.kind === "signup_bonus") {
