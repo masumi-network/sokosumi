@@ -273,7 +273,11 @@ it
       writeFileSync(file, JSON.stringify(calls));
     }
     const expected = JSON.parse(readFileSync(file, "utf8")) as typeof calls;
-    for (const call of expected) if (call.row) call.row.key = key;
+    if (scope.network === "preprod") {
+      for (const call of expected) {
+        if (call.row) call.row.key = `preprod:${call.row.key}`;
+      }
+    }
     for (const request of node.requests) {
       expect(new URL(request.url).origin).toBe(
         scope.network === "mainnet"
