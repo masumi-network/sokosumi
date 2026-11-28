@@ -15,6 +15,7 @@ import {
 } from "./balance";
 import { buildCreditsPayload, getCurrentSubscriptionCredits } from "./funding";
 import { expireEnterpriseGrants, grant } from "./grant";
+import { taskEventCountsOn } from "./policy";
 import { refund } from "./refund";
 import { creditViewForRequest } from "./view";
 import { writeOff } from "./write-off";
@@ -250,5 +251,24 @@ describe("the credit view of a request", () => {
     } as unknown as NetworkScope;
 
     expect(() => creditViewForRequest(refusing)).toThrow(refusal);
+  });
+});
+
+describe("which Task events count on a Network", () => {
+  it.each([
+    [null, "mainnet", true],
+    ["mainnet", "mainnet", true],
+    ["preprod", "mainnet", false],
+    [null, "preprod", false],
+    ["mainnet", "preprod", false],
+    ["preprod", "preprod", true],
+  ] as const)("an event tagged %s counts on %s: %s", (tag, network, counts) => {
+    expect(taskEventCountsOn(tag, network)).toBe(counts);
+  });
+
+  it("excludes an event whose Network tag was not selected", () => {
+    // A missing select must fail credit assertions instead of counting Preprod receipts as Mainnet.
+    // @ts-expect-error Simulate a reader that omitted network from its select.
+    expect(taskEventCountsOn(undefined, "mainnet")).toBe(false);
   });
 });

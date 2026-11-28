@@ -38,6 +38,8 @@ const ENTRY_POINTS = [
   "routes/v1/users/[id]/organizations/[organizationId]/credits/get.ts",
   "routes/v1/admin/credits/post.ts",
   "services/free-credit-admin.service.ts",
+  "helpers/task.ts",
+  "helpers/public-share.ts",
 ];
 const NETWORK_NAMES: ReadonlySet<string> = new Set(NETWORKS);
 const EQUALITY = new Set([
