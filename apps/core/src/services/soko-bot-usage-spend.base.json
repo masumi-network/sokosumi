@@ -376,7 +376,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7", "7", "7"],
+      "uuidVersions": ["7", "7", "7", "7"],
       "timesWithinTheCall": [true, true, true, true],
       "bucketsInIdOrder": [
         [
@@ -888,7 +888,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7", "7", "7", "7"],
+      "uuidVersions": ["7", "7", "7", "7", "7"],
       "timesWithinTheCall": [true, true, true, true, true],
       "bucketsInIdOrder": [
         [
@@ -1293,7 +1293,7 @@
       ]
     },
     "debit": {
-      "uuidVersions": ["7", "7", "7"],
+      "uuidVersions": ["7", "7", "7", "7"],
       "timesWithinTheCall": [true, true, true, true],
       "bucketsInIdOrder": [
         [
@@ -2555,7 +2555,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7", "7"],
+      "uuidVersions": ["7", "7", "7"],
       "timesWithinTheCall": [true, true, true],
       "bucketsInIdOrder": [
         ["<bucket Project credits of checked Organization>"]
@@ -2713,7 +2713,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7", "7"],
+      "uuidVersions": ["7", "7", "7"],
       "timesWithinTheCall": [false, false, false],
       "bucketsInIdOrder": [["<bucket only bucket of replaying person>"]],
       "receiptsNotBeforeTheirDebit": [true]
@@ -3438,7 +3438,7 @@
       ]
     },
     "debit": {
-      "uuidVersions": ["7", "7", "7", "7"],
+      "uuidVersions": ["7", "7", "7", "7", "7", "7"],
       "timesWithinTheCall": [true, true, true, true, true, true],
       "bucketsInIdOrder": [
         ["<bucket only bucket of first holds>"],
@@ -4166,7 +4166,7 @@
       ]
     },
     "debit": {
-      "uuidVersions": ["7", "7", "7", "7"],
+      "uuidVersions": ["7", "7", "7", "7", "7", "7"],
       "timesWithinTheCall": [true, true, true, true, true, true],
       "bucketsInIdOrder": [
         ["<bucket only bucket of second holds>"],
@@ -4437,7 +4437,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7", "7"],
+      "uuidVersions": ["7", "7", "7"],
       "timesWithinTheCall": [false, false, false],
       "bucketsInIdOrder": [["<bucket only bucket of short replaying person>"]],
       "receiptsNotBeforeTheirDebit": [true]
@@ -5018,7 +5018,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7", "7", "7"],
+      "uuidVersions": ["7", "7", "7", "7"],
       "timesWithinTheCall": [true, true, true, true],
       "bucketsInIdOrder": [
         [
@@ -5360,7 +5360,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7"],
+      "uuidVersions": ["7", "7"],
       "timesWithinTheCall": [false, false],
       "bucketsInIdOrder": [[]],
       "receiptsNotBeforeTheirDebit": [true]
@@ -5539,7 +5539,7 @@
       "notifications": []
     },
     "debit": {
-      "uuidVersions": ["7"],
+      "uuidVersions": ["7", "7"],
       "timesWithinTheCall": [false, false],
       "bucketsInIdOrder": [[]],
       "receiptsNotBeforeTheirDebit": [true]

@@ -100,11 +100,6 @@ export async function isCusoInFreeHiring(
   return rows.length > 0;
 }
 
-type SubscriptionGateDb = Pick<
-  Prisma.TransactionClient,
-  "polarSubscription" | "project" | "creditBucket"
->;
-
 /**
  * The CMO subscription gate (ADR 0068): Cuso works while his Project has an
  * active CMO subscription (a scheduled cancel counts until the period
@@ -116,13 +111,11 @@ type SubscriptionGateDb = Pick<
 export async function isCmoSubscribed(
   cuso: Pick<Cuso, "projectId">,
   now: Date = new Date(),
-  db?: SubscriptionGateDb,
 ): Promise<boolean> {
   return cmoSubscriptionAllowsWork(
     createNetworkScope("mainnet"),
     cuso.projectId,
     now,
-    db,
   );
 }
 
@@ -130,7 +123,6 @@ export async function cmoSubscriptionAllowsWork(
   scope: MainnetScope,
   projectId: string,
   now: Date,
-  db?: SubscriptionGateDb,
 ): Promise<boolean> {
   if (await isEvalCusoProject(projectId)) return true;
   const project = sharedTable("project");
@@ -140,23 +132,12 @@ export async function cmoSubscriptionAllowsWork(
     PrismaRaw.raw('"t2"'),
   ]);
   const [paid, freeHiring] = await Promise.all([
-    cmoPaidFor(projectId, now, scope, db),
-    db
-      ? db.project
-          .findFirst({
-            where: {
-              id: projectId,
-              ...UNPAID_CUSO_PROJECT_WHERE,
-              marketingStrategies: { none: { approvedAt: { not: null } } },
-            },
-            select: { id: true },
-          })
-          .then((row) => row !== null)
-      : scope.sharedDb.$queryRaw<
-          { id: string }[]
-        >`SELECT ${project}."id" FROM ${project} WHERE (${project}."id" = ${projectId} AND ${unpaid}) LIMIT ${1n} OFFSET ${0n}`.then(
-          (rows) => rows.length > 0,
-        ),
+    cmoPaidFor(projectId, now, scope),
+    scope.sharedDb.$queryRaw<
+      { id: string }[]
+    >`SELECT ${project}."id" FROM ${project} WHERE (${project}."id" = ${projectId} AND ${unpaid}) LIMIT ${1n} OFFSET ${0n}`.then(
+      (rows) => rows.length > 0,
+    ),
   ]);
   return paid.subscribed || paid.testerCreditsLeft || freeHiring;
 }

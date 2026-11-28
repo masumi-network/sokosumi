@@ -1,9 +1,9 @@
-import { randomUUIDv7 } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
+import { v7 as uuidv7 } from "uuid";
 import { getEnv } from "@/config/env";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { getBalance, getOrganizationPoolBalance } from "@/lib/credits/balance";
@@ -550,6 +550,8 @@ async function chargeSokoBotUsage(
     };
   }
   const { chargedCents } = spent;
+  // Match Prisma's uuid(7): IDs increase within a millisecond and precede the row time.
+  const id = uuidv7();
   const now = new Date();
   const columns = [
     "id",
@@ -564,7 +566,7 @@ async function chargeSokoBotUsage(
     "transactionId",
   ].map((name) => PrismaRaw.raw(`"${name}"`));
   const values = [
-    randomUUIDv7(),
+    id,
     now,
     now,
     idempotencyKey,

@@ -475,7 +475,11 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
     return debitAt !== undefined && usage.createdAt.getTime() >= debitAt;
   });
   expect(receiptsNotBeforeTheirDebit).not.toContain(false);
-  const debitRows = [...left.transactions, ...left.consumptions];
+  const billedRows = [
+    ...left.transactions,
+    ...left.consumptions,
+    ...left.usage,
+  ];
   const debitTimes = [
     ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),
     ...left.consumptions.map((row) => row.createdAt),
@@ -489,7 +493,7 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
       // times are this call's, the order of a debit's consumption ids and
       // how a receipt's time relates to its debit's.
       debit: {
-        uuidVersions: debitRows.map((row) => row.id.charAt(14)),
+        uuidVersions: billedRows.map((row) => row.id.charAt(14)),
         timesWithinTheCall: debitTimes.map(
           (time) => time.getTime() >= started && time.getTime() <= ended,
         ),
@@ -689,6 +693,60 @@ describe.skipIf(!enabled)(
       });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }, CASE_TIMEOUT);
+
+    it.each(["real", "same millisecond", "tick at Date.now"] as const)(
+      "orders 1,000 settled usage IDs by creation and mints each by its row time (%s)",
+      async (clock) => {
+        const count = 1_000;
+        const payer = await person("receipt clock", [
+          { name: "personal", cents: PRICE * BigInt(count), expiresInDays: 30 },
+        ]);
+        const control = plane();
+        const turnIds: string[] = [];
+        if (clock !== "real") vi.useFakeTimers({ toFake: ["Date"] });
+        // Both Prisma's bundled UUID v7 and Core's UUID v7 read Date.now().
+        // Force a millisecond boundary even when the next new Date() is immediate.
+        const ticking =
+          clock === "tick at Date.now"
+            ? vi.spyOn(Date, "now").mockImplementation(() => {
+                const next = new Date().getTime() + 1;
+                vi.setSystemTime(next);
+                return next;
+              })
+            : undefined;
+        try {
+          for (let index = 0; index < count; index++) {
+            const id = await turn(payer, `receipt-${index}`);
+            expect(await control.expireTurn(id)).toBe(true);
+            turnIds.push(id);
+            await drainBackground();
+          }
+        } finally {
+          ticking?.mockRestore();
+          vi.useRealTimers();
+        }
+
+        const receipts = await mainnet().sokoBotUsage.findMany({
+          where: { sokoBotId: payer.botId },
+          orderBy: { id: "asc" },
+          select: { id: true, createdAt: true, referenceId: true },
+        });
+        expect(receipts.map((row) => row.referenceId)).toEqual(turnIds);
+        if (clock !== "real") {
+          const times = new Set(receipts.map((row) => row.createdAt.getTime()));
+          expect(times.size).toBe(clock === "same millisecond" ? 1 : count);
+        }
+        for (const row of receipts) {
+          // The first 48 bits of a UUID v7 are its Unix time in milliseconds.
+          const idTime = Number.parseInt(
+            row.id.replaceAll("-", "").slice(0, 12),
+            16,
+          );
+          expect(idTime).toBeLessThanOrEqual(row.createdAt.getTime());
+        }
+      },
+      10 * CASE_TIMEOUT,
+    );
 
     it(
       "uses a prior release's turn receipt for replay",
