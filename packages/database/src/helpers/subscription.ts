@@ -29,12 +29,28 @@ const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
 
 export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS = ":local-free:";
 
-interface LocalFreeSubscriptionGrant {
-  bucketUserId: string | null;
+/**
+ * A local free period's credits: a person's, or an Organization's pool with
+ * no member. Once per owner and period, by a reference of the owner and
+ * `periodEnd`; they expire at the period's end.
+ */
+export interface LocalFreePeriodCredits {
+  owner:
+    | { userId: string; organizationId?: never }
+    | { organizationId: string; userId?: never };
   credits: number;
-  referenceId: string;
-  userId: string | null;
+  periodEnd: Date;
+  /** Null is active now. */
+  activatesAt: Date | null;
 }
+
+/**
+ * Gives a period's credits on the caller's transaction: Core's credits
+ * module (`grant`), which writes them with `grantLocalFreePeriodCredits`.
+ */
+export type GrantLocalFreePeriodCredits = (
+  credits: LocalFreePeriodCredits,
+) => Promise<{ outcome: "granted" | "already_granted" }>;
 
 interface EnsureLocalFreeSubscriptionPeriodBaseParams {
   activatesAt?: Date | null;
@@ -43,6 +59,7 @@ interface EnsureLocalFreeSubscriptionPeriodBaseParams {
   periodStart: Date;
   referenceId: string;
   stripeCustomerId?: null | string;
+  grantCredits: GrantLocalFreePeriodCredits;
 }
 
 export interface EnsureLocalFreeUserSubscriptionPeriodParams
@@ -82,8 +99,14 @@ export interface TransitionToNextLocalFreeSubscriptionParams {
   };
 }
 
+export interface TransitionToNextLocalFreeSubscriptionPeriodParams
+  extends TransitionToNextLocalFreeSubscriptionParams {
+  grantCredits: GrantLocalFreePeriodCredits;
+}
+
 interface EnsureInitialLocalFreeSubscriptionPeriodBaseParams {
   createdAt: Date;
+  grantCredits: GrantLocalFreePeriodCredits;
   /**
    * Null when seeding happens before the Stripe customer exists (synchronous
    * seeding at organization creation). The customer.created webhook re-runs
@@ -188,41 +211,15 @@ export function buildLocalFreeOrganizationSubscriptionReferenceId(
 function normalizeLocalFreeSubscriptionPeriod(
   params: EnsureLocalFreeSubscriptionPeriodParams,
 ): {
-  grants: LocalFreeSubscriptionGrant[];
-  organizationId: null | string;
+  owner: LocalFreePeriodCredits["owner"];
   seats: null | number;
 } {
   if (!isOrganizationSubscriptionPeriodParams(params)) {
-    return {
-      grants: [
-        {
-          bucketUserId: params.userId,
-          credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
-          referenceId: buildLocalFreeUserSubscriptionReferenceId(
-            params.userId,
-            params.periodEnd,
-          ),
-          userId: params.userId,
-        },
-      ],
-      organizationId: null,
-      seats: 1,
-    };
+    return { owner: { userId: params.userId }, seats: 1 };
   }
 
   return {
-    grants: [
-      {
-        bucketUserId: null,
-        credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
-        referenceId: buildLocalFreeOrganizationSubscriptionReferenceId(
-          params.organizationId,
-          params.periodEnd,
-        ),
-        userId: null,
-      },
-    ],
-    organizationId: params.organizationId,
+    owner: { organizationId: params.organizationId },
     seats: resolvePurchasedSeats(params.purchasedSeats),
   };
 }
@@ -274,6 +271,7 @@ async function closeOutSourceSubscription(params: {
 export interface EnsureNextLocalFreeSubscriptionPeriodParams {
   activatesAt?: Date | null;
   subscription: TransitionToNextLocalFreeSubscriptionParams["subscription"];
+  grantCredits: GrantLocalFreePeriodCredits;
 }
 
 export async function ensureNextLocalFreeSubscriptionPeriod(
@@ -308,6 +306,7 @@ export async function ensureNextLocalFreeSubscriptionPeriod(
       {
         activatesAt,
         billingAnchorDate: subscription.createdAt,
+        grantCredits: params.grantCredits,
         organizationId: organization.id,
         periodEnd,
         periodStart,
@@ -337,6 +336,7 @@ export async function ensureNextLocalFreeSubscriptionPeriod(
     {
       activatesAt,
       billingAnchorDate: subscription.createdAt,
+      grantCredits: params.grantCredits,
       organizationId: null,
       periodEnd,
       periodStart,
@@ -368,7 +368,7 @@ export async function closeOverdueLocalFreeSubscription(
 }
 
 export async function transitionToNextLocalFreeSubscriptionPeriod(
-  params: TransitionToNextLocalFreeSubscriptionParams,
+  params: TransitionToNextLocalFreeSubscriptionPeriodParams,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
   const { subscription } = params;
@@ -388,6 +388,7 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
   const ensured = await ensureNextLocalFreeSubscriptionPeriod(
     {
       activatesAt: periodStart <= settledAt ? null : periodStart,
+      grantCredits: params.grantCredits,
       subscription,
     },
     tx,
@@ -412,8 +413,7 @@ export async function ensureLocalFreeSubscriptionPeriod(
   params: EnsureLocalFreeSubscriptionPeriodParams,
   tx: Prisma.TransactionClient,
 ): Promise<EnsureLocalFreeSubscriptionPeriodResult> {
-  const { grants, organizationId, seats } =
-    normalizeLocalFreeSubscriptionPeriod(params);
+  const { owner, seats } = normalizeLocalFreeSubscriptionPeriod(params);
   const existingSubscription = await tx.subscription.findFirst({
     where: {
       periodEnd: params.periodEnd,
@@ -449,52 +449,79 @@ export async function ensureLocalFreeSubscriptionPeriod(
     subscriptionCreated = true;
   }
 
-  let grantsCreated = 0;
-  for (const grant of grants) {
-    const existingBucket = await tx.creditBucket.findUnique({
-      where: {
-        referenceId_referenceType: {
-          referenceId: grant.referenceId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (existingBucket) {
-      continue;
-    }
-
-    const amount = convertCreditsToCents(grant.credits);
-    await tx.transaction.create({
-      data: {
-        amount,
-        organizationId,
-        userId: grant.userId,
-        sourceCreditBucket: {
-          create: {
-            activatesAt: params.activatesAt ?? null,
-            amount,
-            expiresAt: params.periodEnd,
-            organizationId,
-            referenceId: grant.referenceId,
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-            userId: grant.bucketUserId,
-          },
-        },
-      },
-    });
-
-    grantsCreated += 1;
-  }
+  const { outcome } = await params.grantCredits({
+    owner,
+    credits: FREE_SUBSCRIPTION_MONTHLY_CREDITS,
+    periodEnd: params.periodEnd,
+    activatesAt: params.activatesAt ?? null,
+  });
 
   return {
-    grantsCreated,
+    grantsCreated: outcome === "granted" ? 1 : 0,
     subscriptionCreated,
     subscriptionId,
   };
+}
+
+/**
+ * Writes a local free period's credits unless they were given: the positive
+ * transaction and its bucket, both of the owner's (an Organization's with no
+ * member). Only Core's credits module calls it; `created` is false when a
+ * bucket of the period's reference is there, and nothing is written then.
+ */
+export async function grantLocalFreePeriodCredits(
+  input: LocalFreePeriodCredits,
+  tx: Prisma.TransactionClient,
+): Promise<{ created: boolean }> {
+  const organizationId = input.owner.organizationId ?? null;
+  const userId = input.owner.userId ?? null;
+  const referenceId =
+    input.owner.userId === undefined
+      ? buildLocalFreeOrganizationSubscriptionReferenceId(
+          input.owner.organizationId,
+          input.periodEnd,
+        )
+      : buildLocalFreeUserSubscriptionReferenceId(
+          input.owner.userId,
+          input.periodEnd,
+        );
+  const existingBucket = await tx.creditBucket.findUnique({
+    where: {
+      referenceId_referenceType: {
+        referenceId,
+        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingBucket) {
+    return { created: false };
+  }
+
+  const amount = convertCreditsToCents(input.credits);
+  await tx.transaction.create({
+    data: {
+      amount,
+      organizationId,
+      userId,
+      sourceCreditBucket: {
+        create: {
+          activatesAt: input.activatesAt,
+          amount,
+          expiresAt: input.periodEnd,
+          organizationId,
+          referenceId,
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          userId,
+        },
+      },
+    },
+  });
+
+  return { created: true };
 }
 
 export async function ensureInitialLocalFreeSubscriptionPeriod(
@@ -508,6 +535,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
     return await ensureLocalFreeSubscriptionPeriod(
       {
         billingAnchorDate: params.createdAt,
+        grantCredits: params.grantCredits,
         organizationId: null,
         userId: params.userId,
         periodEnd,
@@ -522,6 +550,7 @@ export async function ensureInitialLocalFreeSubscriptionPeriod(
   return await ensureLocalFreeSubscriptionPeriod(
     {
       billingAnchorDate: params.createdAt,
+      grantCredits: params.grantCredits,
       organizationId: params.organizationId,
       periodEnd,
       periodStart,

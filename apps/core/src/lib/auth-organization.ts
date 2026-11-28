@@ -29,6 +29,8 @@ import {
 } from "@/helpers/design-md-metadata-auth";
 import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
+import { grantLocalFreePeriods } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import { revokeOrganizationCusoSubscriptions } from "@/services/polar-subscription-end.service";
@@ -78,6 +80,11 @@ async function ensureFreeSubscriptionForCreatedOrganization(organization: {
       await ensureInitialLocalFreeSubscriptionPeriod(
         {
           createdAt: organization.createdAt,
+          // The free plan's credits are Mainnet's.
+          grantCredits: grantLocalFreePeriods(
+            createNetworkScope("mainnet"),
+            tx,
+          ),
           kind: "organization",
           organizationId: organization.id,
           stripeCustomerId: null,

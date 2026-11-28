@@ -15,13 +15,66 @@ import { findPaidSubscriptionsBlockingEnterpriseActivation } from "./enterprise-
 import {
   createEnterprisePeriodCreditBucket,
   createEnterpriseTopUpCreditBucket,
+  type ExpireEnterpriseCredits,
   expireCreditBucketsNow,
+  type GrantEnterpriseCredits,
 } from "./enterprise-contract-grants.js";
 import {
   activateEnterpriseContract,
   cancelEnterpriseContract,
   completeEnterpriseContractsAfterLastPeriod,
 } from "./enterprise-contract-lifecycle.js";
+
+/**
+ * The grant port as Core's credits module fills it (`grant`): the bucket
+ * writers, on the same transaction.
+ */
+function writing(tx: PrismaType.TransactionClient): GrantEnterpriseCredits {
+  return async ({ cents, ...credits }) => {
+    const { bucketId, created } =
+      credits.kind === "enterprise_period"
+        ? await createEnterprisePeriodCreditBucket(
+            {
+              activatesAt: credits.activatesAt,
+              amount: cents,
+              expiresAt: credits.expiresAt,
+              organizationId: credits.organizationId,
+              periodId: credits.periodId,
+            },
+            tx,
+          )
+        : await createEnterpriseTopUpCreditBucket(
+            {
+              activatesAt: credits.activatesAt,
+              amount: cents,
+              contractId: credits.contractId,
+              expiresAt: credits.expiresAt,
+              organizationId: credits.organizationId,
+            },
+            tx,
+          );
+    return { outcome: created ? "granted" : "already_granted", bucketId };
+  };
+}
+
+/** The expiry port as Core's credits module fills it (`expireEnterpriseGrants`). */
+function expiring(tx: PrismaType.TransactionClient): ExpireEnterpriseCredits {
+  return ({ periodIds, topUpContractId, now }) =>
+    expireCreditBucketsNow(
+      {
+        now,
+        referenceIds:
+          topUpContractId === null
+            ? periodIds
+            : [...periodIds, topUpContractId],
+        referenceTypes: [
+          CreditBucketReferenceType.ENTERPRISE_PERIOD,
+          CreditBucketReferenceType.ENTERPRISE_TOP_UP,
+        ],
+      },
+      tx,
+    );
+}
 
 const CENTS_PER_MONTH = 600_000_000_000_000n;
 const ORG_ID = "org-1";
@@ -496,6 +549,7 @@ describe("activateEnterpriseContract", () => {
     const result = await activateEnterpriseContract(
       CONTRACT_ID,
       {
+        grantCredits: writing(client.tx),
         activatedAt,
         paymentReference: "wire-123",
       },
@@ -546,7 +600,10 @@ describe("activateEnterpriseContract", () => {
 
     await activateEnterpriseContract(
       CONTRACT_ID,
-      { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+      {
+        activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        grantCredits: writing(client.tx),
+      },
       client.tx,
     );
 
@@ -569,7 +626,10 @@ describe("activateEnterpriseContract", () => {
 
     const result = await activateEnterpriseContract(
       CONTRACT_ID,
-      { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+      {
+        activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        grantCredits: writing(client.tx),
+      },
       client.tx,
     );
 
@@ -598,7 +658,10 @@ describe("activateEnterpriseContract", () => {
       () =>
         activateEnterpriseContract(
           CONTRACT_ID,
-          { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+          {
+            activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+            grantCredits: writing(client.tx),
+          },
           client.tx,
         ),
       (error: unknown) => {
@@ -618,7 +681,10 @@ describe("activateEnterpriseContract", () => {
 
     const result = await activateEnterpriseContract(
       CONTRACT_ID,
-      { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+      {
+        activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        grantCredits: writing(client.tx),
+      },
       client.tx,
     );
 
@@ -633,7 +699,10 @@ describe("activateEnterpriseContract", () => {
 
     const result = await activateEnterpriseContract(
       CONTRACT_ID,
-      { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+      {
+        activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        grantCredits: writing(client.tx),
+      },
       client.tx,
     );
 
@@ -655,7 +724,7 @@ describe("activateEnterpriseContract", () => {
 
     const result = await activateEnterpriseContract(
       CONTRACT_ID,
-      { activatedAt },
+      { activatedAt, grantCredits: writing(client.tx) },
       client.tx,
     );
 
@@ -679,7 +748,10 @@ describe("activateEnterpriseContract", () => {
       () =>
         activateEnterpriseContract(
           CONTRACT_ID,
-          { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+          {
+            activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+            grantCredits: writing(client.tx),
+          },
           client.tx,
         ),
       (error: unknown) => {
@@ -699,7 +771,10 @@ describe("activateEnterpriseContract", () => {
 
     const result = await activateEnterpriseContract(
       CONTRACT_ID,
-      { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+      {
+        activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        grantCredits: writing(client.tx),
+      },
       client.tx,
     );
 
@@ -721,7 +796,10 @@ describe("activateEnterpriseContract", () => {
       () =>
         activateEnterpriseContract(
           CONTRACT_ID,
-          { activatedAt: new Date("2026-05-01T00:00:00.000Z") },
+          {
+            activatedAt: new Date("2026-05-01T00:00:00.000Z"),
+            grantCredits: writing(client.tx),
+          },
           client.tx,
         ),
       EnterpriseContractLifecycleError,
@@ -779,7 +857,10 @@ describe("cancelEnterpriseContract", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    await cancelEnterpriseContract(CONTRACT_ID, tx, now);
+    await cancelEnterpriseContract(CONTRACT_ID, tx, {
+      now,
+      expireCredits: expiring(tx),
+    });
 
     assert.equal(updateManyBucketsMock.mock.calls.length, 1);
     assert.equal(updateManyPeriodsMock.mock.calls.length, 1);
@@ -837,7 +918,10 @@ describe("cancelEnterpriseContract", () => {
       },
     } as unknown as PrismaType.TransactionClient;
 
-    await cancelEnterpriseContract(CONTRACT_ID, tx, now);
+    await cancelEnterpriseContract(CONTRACT_ID, tx, {
+      now,
+      expireCredits: expiring(tx),
+    });
 
     assert.equal(updateManyBucketsMock.mock.calls.length, 1);
     assert.deepEqual(
@@ -867,7 +951,11 @@ describe("cancelEnterpriseContract", () => {
     } as unknown as PrismaType.TransactionClient;
 
     await assert.rejects(
-      () => cancelEnterpriseContract(CONTRACT_ID, tx),
+      () =>
+        cancelEnterpriseContract(CONTRACT_ID, tx, {
+          now: new Date(),
+          expireCredits: expiring(tx),
+        }),
       EnterpriseContractLifecycleError,
     );
   });

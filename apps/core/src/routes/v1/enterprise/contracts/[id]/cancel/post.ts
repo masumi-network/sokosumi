@@ -9,6 +9,8 @@ import {
   jsonEnterpriseSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { expireEnterpriseGrants } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -44,7 +46,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     try {
       await prisma.$transaction(async (tx) =>
-        cancelEnterpriseContract(id, tx, now),
+        cancelEnterpriseContract(id, tx, {
+          now,
+          // Enterprise credits are Mainnet's, whatever the request names.
+          expireCredits: (contract) =>
+            expireEnterpriseGrants({
+              ...contract,
+              scope: createNetworkScope("mainnet"),
+              tx,
+            }),
+        }),
       );
     } catch (error) {
       handleEnterpriseContractLifecycleError(error);

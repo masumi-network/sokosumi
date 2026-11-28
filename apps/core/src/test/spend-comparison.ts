@@ -62,13 +62,71 @@ const sent = {
   log: [] as SentStatement[],
 };
 
+/** Flows whose `nth` COMMIT waits (`holdCommit`). */
+const commitHolds = new Map<
+  string,
+  { nth: number; reached: () => void; release: Promise<void> }
+>();
+
+/**
+ * Holds the flow's `nth` COMMIT from now until `release`: its transaction
+ * has written everything and still holds its locks, so another flow can run
+ * into them. `reached` settles when the COMMIT is held. No statement of its
+ * own.
+ */
+export function holdCommit(
+  flow: string,
+  nth = 1,
+): {
+  reached: Promise<void>;
+  release: () => void;
+  cancel: () => void;
+} {
+  let release = () => {};
+  let reached = () => {};
+  const isReached = new Promise<void>((resolve) => {
+    reached = resolve;
+  });
+  commitHolds.set(flow, {
+    nth,
+    reached: () => reached(),
+    release: new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  });
+  return {
+    reached: isReached,
+    release: () => release(),
+    cancel: () => {
+      commitHolds.delete(flow);
+    },
+  };
+}
+
 /** Records what each new connection of the pool sends while observing. */
 export function observePool(pool: Pool): void {
   pool.on("connect", (client: PoolClient) => {
     sent.connections += 1;
     const connection = sent.connections;
     const query = client.query.bind(client) as (...a: unknown[]) => unknown;
-    (client as { query: unknown }).query = (...args: unknown[]) => {
+    const observed = (...args: unknown[]): unknown => {
+      const flow = flows.getStore() ?? "call";
+      const held = commitHolds.get(flow);
+      const [text] = args;
+      if (
+        held &&
+        typeof args.at(-1) !== "function" &&
+        /^\s*COMMIT\b/i.test(
+          typeof text === "string" ? text : (text as { text: string }).text,
+        )
+      ) {
+        held.nth -= 1;
+        if (held.nth === 0) {
+          commitHolds.delete(flow);
+          held.reached();
+          return held.release.then(() => observed(...args));
+        }
+      }
       if (sent.observing) {
         const [first, second] = args;
         const config =
@@ -110,6 +168,7 @@ export function observePool(pool: Pool): void {
       }
       return query(...args);
     };
+    (client as { query: unknown }).query = observed;
   });
 }
 

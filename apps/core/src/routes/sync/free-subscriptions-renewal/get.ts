@@ -18,6 +18,7 @@ export default function mount(app: Hono) {
             deadlineMs: context.deadlineMs,
             msRemaining: context.msRemaining,
             shouldContinue: context.shouldContinue,
+            scope: context.scope,
           });
 
         context.log.set({
@@ -29,7 +30,8 @@ export default function mount(app: Hono) {
           },
         });
       },
-      { errorDetail: "cause" },
+      // The free plan's credits are Mainnet's.
+      { errorDetail: "cause", network: "mainnet" },
     );
   });
 }

@@ -6,16 +6,36 @@ import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 import {
   buildLocalFreeOrganizationSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
-  type EnsureLocalFreeSubscriptionPeriodParams,
+  type EnsureLocalFreeOrganizationSubscriptionPeriodParams,
+  type EnsureLocalFreeUserSubscriptionPeriodParams,
   ensureLocalFreeSubscriptionPeriod,
+  type GrantLocalFreePeriodCredits,
+  grantLocalFreePeriodCredits,
 } from "./subscription.js";
+
+/**
+ * The grant port as Core's credits module fills it (`grant`): the period's
+ * writer, on the same transaction.
+ */
+function writing(
+  tx: PrismaType.TransactionClient,
+): GrantLocalFreePeriodCredits {
+  return async (credits) => ({
+    outcome: (await grantLocalFreePeriodCredits(credits, tx)).created
+      ? "granted"
+      : "already_granted",
+  });
+}
 
 interface LocalFreePeriodGrantMatrixCase {
   expectedGrantCount: number;
   expectedGrantUserIds: Array<string | null>;
   expectedReferenceIds: string[];
   name: string;
-  params: EnsureLocalFreeSubscriptionPeriodParams;
+  /** Without the grant port: each test passes the writer on its client. */
+  params:
+    | Omit<EnsureLocalFreeUserSubscriptionPeriodParams, "grantCredits">
+    | Omit<EnsureLocalFreeOrganizationSubscriptionPeriodParams, "grantCredits">;
 }
 
 function createLocalFreePeriodClient() {
@@ -100,7 +120,10 @@ describe("organization subscription credit routing matrix", () => {
       it("creates the expected number of 250-credit buckets", async () => {
         const { createTransactionMock, tx } = createLocalFreePeriodClient();
 
-        const result = await ensureLocalFreeSubscriptionPeriod(params, tx);
+        const result = await ensureLocalFreeSubscriptionPeriod(
+          { ...params, grantCredits: writing(tx) },
+          tx,
+        );
 
         assert.equal(result.grantsCreated, expectedGrantCount);
         assert.equal(
