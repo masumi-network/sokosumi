@@ -167,6 +167,7 @@ function ResultsPicker({
               <div className="flex items-center gap-3">
                 <Checkbox
                   id="project-results-all"
+                  className="hit-area"
                   checked={
                     allChecked
                       ? true
@@ -198,6 +199,7 @@ function ResultsPicker({
                   >
                     <Checkbox
                       id={id}
+                      className="hit-area"
                       checked={!left.has(result.id)}
                       onCheckedChange={(checked) =>
                         toggle(result.id, checked === true)
