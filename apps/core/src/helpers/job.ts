@@ -1,12 +1,15 @@
 import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
+  type Job,
   JobType,
   PricingType,
   Prisma,
 } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import type { CreditBucketProjectOption } from "@sokosumi/database/helpers";
 import { InsufficientBalanceError } from "@sokosumi/database/repositories";
+import { netType, sharedTable } from "@sokosumi/database/sql-tables";
 import {
   type JobWithListSummaryRelations,
   jobListSummaryInclude,
@@ -40,7 +43,12 @@ import {
 } from "@/lib/agent-catalog/hire";
 import { getBalance } from "@/lib/credits/balance";
 import { spend } from "@/lib/credits/spend";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  type NetworkScope,
+  networkUsesSharedSchema,
+  type SharedDb,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
@@ -54,10 +62,17 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent-cost";
-import { badRequest, notFound, unprocessableEntity } from "./error";
 import {
+  badRequest,
+  internalServerError,
+  notFound,
+  unprocessableEntity,
+} from "./error";
+import {
+  buildCoworkerJobParentTaskSql,
   buildCoworkerJobParentTaskWhere,
-  buildHumanParentTaskVisibilityWhere,
+  buildHumanJobParentVisibilitySql,
+  buildHumanJobParentVisibilityWhere,
 } from "./task-visibility";
 
 export interface JobContext {
@@ -890,22 +905,207 @@ export function jobListActorFilter(authContext: AuthenticationContext) {
   return {};
 }
 
+const jobListNetworkInclude = {
+  events: jobListSummaryInclude.events,
+  transaction: jobListSummaryInclude.transaction,
+  purchase: jobListSummaryInclude.purchase,
+} satisfies Prisma.JobInclude;
+
+export async function loadJobSharedRelations<T extends Job>(
+  db: SharedDb,
+  jobs: T[],
+) {
+  if (jobs.length === 0) return [];
+
+  const ids = (values: (string | null)[]) => [
+    ...new Set(values.filter((id) => id !== null)),
+  ];
+  const [workspaces, organizations, users, coworkers, bots] = await Promise.all(
+    [
+      db.workspace.findMany({
+        where: { id: { in: ids(jobs.map((job) => job.workspaceId)) } },
+        ...jobListSummaryInclude.workspace,
+      }),
+      db.organization.findMany({
+        where: { id: { in: ids(jobs.map((job) => job.organizationId)) } },
+        ...jobListSummaryInclude.organization,
+      }),
+      db.user.findMany({
+        where: {
+          id: {
+            in: ids(jobs.flatMap((job) => [job.ownerId, job.creatorUserId])),
+          },
+        },
+        ...jobListSummaryInclude.owner,
+      }),
+      db.coworker.findMany({
+        where: { id: { in: ids(jobs.map((job) => job.creatorCoworkerId)) } },
+        ...jobListSummaryInclude.creatorCoworker,
+      }),
+      db.sokoBot.findMany({
+        where: { id: { in: ids(jobs.map((job) => job.creatorSokoBotId)) } },
+        ...jobListSummaryInclude.creatorSokoBot,
+      }),
+    ],
+  );
+  const byId = <Row extends { id: string }>(rows: Row[]) =>
+    new Map(rows.map((row) => [row.id, row]));
+  const workspaceById = byId(workspaces);
+  const organizationById = byId(organizations);
+  const userById = byId(users);
+  const coworkerById = byId(coworkers);
+  const botById = byId(bots);
+  return jobs.map((job) => {
+    const workspace = workspaceById.get(job.workspaceId);
+    if (!workspace) throw internalServerError(`Job ${job.id} has no workspace`);
+    return {
+      ...job,
+      workspace,
+      organization: organizationById.get(job.organizationId ?? "") ?? null,
+      owner: userById.get(job.ownerId ?? "") ?? null,
+      creatorUser: userById.get(job.creatorUserId ?? "") ?? null,
+      creatorCoworker: coworkerById.get(job.creatorCoworkerId ?? "") ?? null,
+      creatorSokoBot: botById.get(job.creatorSokoBotId ?? "") ?? null,
+    };
+  });
+}
+
+export async function readTaskJobs(
+  scope: NetworkScope,
+  taskId: string,
+): Promise<JobWithListSummaryRelations[]> {
+  const { networkDb, sharedDb } = scope;
+  const args = { where: { taskId }, orderBy: { createdAt: "asc" } } as const;
+  if (networkUsesSharedSchema()) {
+    return await networkDb.job.findMany({
+      ...args,
+      include: jobListSummaryInclude,
+    });
+  }
+  const jobs = await networkDb.job.findMany({
+    ...args,
+    include: jobListNetworkInclude,
+  });
+  return await loadJobSharedRelations(sharedDb, jobs);
+}
+
+interface JobListOptions {
+  agentId?: string;
+  projectId?: string | null;
+  status?: AgentJobStatus;
+  scope?: "workspace" | "owned";
+  coworkerId?: string;
+  coworkerVendorId?: string;
+  sokoBotId?: string;
+  cursor?: string;
+  take: number;
+  skip?: number;
+}
+
+async function readSplitJobPage(
+  networkScope: NetworkScope,
+  context: JobContext,
+  options: JobListOptions,
+) {
+  const { userContext, workspaceContext } = context;
+  const {
+    agentId,
+    projectId,
+    status,
+    coworkerId,
+    coworkerVendorId,
+    sokoBotId,
+    cursor,
+    take,
+    skip,
+  } = options;
+  const { networkDb, sharedDb, networkTable } = networkScope;
+  const { sql, empty } = PrismaRaw;
+  const jobTable = networkTable("Job");
+  const coworkerTask = coworkerId
+    ? buildCoworkerJobParentTaskSql(coworkerId, coworkerVendorId)
+    : undefined;
+  const projectFilter =
+    projectId === undefined
+      ? empty
+      : projectId === null
+        ? sql`AND j."projectId" IS NULL`
+        : sql`AND j."projectId" = ${projectId}::uuid`;
+  const matching = sql`
+    FROM ${jobTable} j
+    LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
+    ${coworkerTask?.join ?? empty}
+    WHERE j."workspaceId" = ${workspaceContext.workspaceId}::uuid
+    ${(options.scope ?? "owned") === "owned" ? sql`AND j."ownerId" = ${userContext.userId}` : empty}
+    ${coworkerTask?.predicate ?? buildHumanJobParentVisibilitySql(userContext.userId)}
+    ${agentId ? sql`AND j."agentId" = ${agentId}` : empty}
+    ${projectFilter}
+    ${sokoBotId ? sql`AND t."assigneeSokoBotId" = ${sokoBotId}::uuid` : empty}
+    ${
+      // Match Prisma's status binding so PostgreSQL can choose the same event index for counts.
+      status
+        ? sql`AND EXISTS (
+      SELECT 1 FROM ${networkTable("jobEvent")} e
+      WHERE e."jobId" = j.id
+        AND e.status = ${status}::text::${netType(networkScope.network, "AgentJobStatus")}
+    )`
+        : empty
+    }
+  `;
+  const page = sql`
+    SELECT j.id ${matching}
+    ${
+      cursor
+        ? sql`AND (j."createdAt", j.id) <= (
+      SELECT c."createdAt", c.id FROM ${jobTable} c WHERE c.id = ${cursor}
+    )`
+        : empty
+    }
+    ORDER BY j."createdAt" DESC, j.id DESC
+    LIMIT ${take + 1} OFFSET ${skip ?? 0}
+  `;
+  const [selected, [total]] = await Promise.all([
+    networkDb.$queryRaw<{ id: string }[]>(page),
+    networkDb.$queryRaw<
+      { count: bigint }[]
+    >`SELECT count(*) AS count ${matching}`,
+  ]);
+  const ids = selected.slice(0, take).map(({ id }) => id);
+  const jobs =
+    ids.length === 0
+      ? []
+      : await networkDb.job.findMany({
+          where: { id: { in: ids } },
+          include: jobListNetworkInclude,
+        });
+  const hydrated = await loadJobSharedRelations(sharedDb, jobs);
+  const byId = new Map(hydrated.map((job) => [job.id, job]));
+  return {
+    jobs: ids.flatMap((id) => {
+      const job = byId.get(id);
+      return job ? [flattenJob(job)] : [];
+    }),
+    count: Number(total.count),
+    hasMore: selected.length === take + 1,
+  };
+}
+
 /**
  * Retrieves paginated jobs for the authenticated user, optionally filtered by agent ID.
  * Includes all job relations (events, credit transactions, purchases) and returns both jobs and count.
  *
+ * @param networkScope - The request's Network
  * @param context - The authenticated user and workspace context
  * @param options - Query options
  * @param options.agentId - Optional agent ID to filter jobs by
  * @param options.cursor - Optional cursor for pagination
  * @param options.take - Number of items to take
  * @param options.skip - Number of items to skip (used for cursor pagination)
- * @param options.tx - Optional Prisma transaction client for transaction support
  * @returns Object containing flattened jobs array and total count
  *
  * @example
  * // Get paginated jobs for the user
- * const { jobs, count } = await getUserJobs({
+ * const { jobs, count } = await getUserJobs(networkScope, {
  *   userContext,
  *   workspaceContext,
  * }, {
@@ -914,7 +1114,7 @@ export function jobListActorFilter(authContext: AuthenticationContext) {
  *
  * @example
  * // Get paginated jobs for a specific agent with cursor
- * const { jobs, count } = await getUserJobs({
+ * const { jobs, count } = await getUserJobs(networkScope, {
  *   userContext,
  *   workspaceContext,
  * }, {
@@ -925,20 +1125,9 @@ export function jobListActorFilter(authContext: AuthenticationContext) {
  * });
  */
 export async function getUserJobs(
+  networkScope: NetworkScope,
   context: JobContext,
-  options: {
-    agentId?: string;
-    projectId?: string | null;
-    status?: AgentJobStatus;
-    scope?: "workspace" | "owned";
-    coworkerId?: string;
-    coworkerVendorId?: string;
-    sokoBotId?: string;
-    cursor?: string;
-    take: number;
-    skip?: number;
-    tx?: Prisma.TransactionClient;
-  },
+  options: JobListOptions,
 ): Promise<{
   jobs: ReturnType<typeof flattenJob>[];
   count: number;
@@ -955,29 +1144,22 @@ export async function getUserJobs(
     cursor,
     take,
     skip,
-    tx = prisma,
   } = options;
   const { userContext, workspaceContext } = context;
 
   // A delegated coworker may only list jobs whose task is assigned to it.
   if (coworkerId) {
-    await requireCoworkerCapability(coworkerId, "tasks", tx);
+    await requireCoworkerCapability(coworkerId, "tasks", networkScope.sharedDb);
   }
+
+  if (!networkUsesSharedSchema()) {
+    return await readSplitJobPage(networkScope, context, options);
+  }
+  const { networkDb } = networkScope;
 
   const humanParentTaskVisibility = coworkerId
     ? []
-    : [
-        {
-          OR: [
-            { taskId: null },
-            {
-              task: {
-                is: buildHumanParentTaskVisibilityWhere(userContext.userId),
-              },
-            },
-          ],
-        },
-      ];
+    : [buildHumanJobParentVisibilityWhere(userContext.userId)];
 
   const where: Prisma.JobWhereInput = {
     AND: [
@@ -1006,10 +1188,9 @@ export async function getUserJobs(
   };
 
   const takePlusOne = take + 1;
-  // Both callers read through `prisma`. On an interactive transaction these
-  // would have to run one after the other.
+  // List and total are independent reads, as on the split layout.
   const [jobs, count] = await Promise.all([
-    tx.job.findMany({
+    networkDb.job.findMany({
       where,
       take: takePlusOne,
       ...(skip !== undefined && { skip }),
@@ -1019,7 +1200,7 @@ export async function getUserJobs(
         ...jobListSummaryInclude,
       },
     }),
-    tx.job.count({ where }),
+    networkDb.job.count({ where }),
   ]);
   return {
     jobs: jobs.slice(0, take).map(flattenJob),

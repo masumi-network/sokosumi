@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
+import { readTaskJobs } from "@/helpers/job";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { jobSummariesSchema } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
@@ -35,13 +34,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    await requireTaskReadForRouteVars(c.var, id, prisma);
+    await requireTaskReadForRouteVars(c.var, id);
 
-    const jobsList = await prisma.job.findMany({
-      where: { taskId: id },
-      include: jobListSummaryInclude,
-      orderBy: { createdAt: "asc" },
-    });
+    const jobsList = await readTaskJobs(c.var.networkScope, id);
 
     const jobs = jobsList.map((job) => flattenJob(job));
 

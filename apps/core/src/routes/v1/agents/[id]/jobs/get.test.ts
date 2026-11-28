@@ -159,6 +159,7 @@ describe("GET /agents/{id}/jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       expect.objectContaining({
         userContext: {
           source: "session",
@@ -206,6 +207,7 @@ describe("GET /agents/{id}/jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       expect.any(Object),
       expect.objectContaining({
         agentId: "agent_123",
@@ -243,6 +245,7 @@ describe("GET /agents/{id}/jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       {
         userContext: {
           source: "context",

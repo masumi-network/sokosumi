@@ -2,7 +2,6 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { requireJobReadForRouteVars } from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -40,8 +39,9 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id, fileId } = c.req.valid("param");
-    await requireJobReadForRouteVars(c.var, id, prisma);
-    const blob = await prisma.blob.findFirst({
+    const { networkScope } = c.var;
+    await requireJobReadForRouteVars(c.var, id, networkScope);
+    const blob = await networkScope.networkDb.blob.findFirst({
       where: {
         id: fileId,
         event: { jobId: id },
