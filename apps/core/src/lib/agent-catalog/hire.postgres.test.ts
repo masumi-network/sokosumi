@@ -605,6 +605,15 @@ const RELATION_DEPENDENCIES = [
   ["AgentPaymentSource", "AgentPaymentSourceAmount"],
 ] as const;
 
+/** Rates, then readiness, then the Agent's row, then its relations. */
+const LOOKUP_SEQUENCE = [
+  ["CreditCost", "sync_metadata"],
+  ["sync_metadata", "Agent"],
+  ["Agent", "AgentPricing"],
+  ["Agent", "AgentMetadataOverride"],
+  ["Agent", "AgentPaymentSource"],
+] as const;
+
 function lookupDependencies(lastLookupSeq: number) {
   const events = state.trace.filter((event) => event.seq <= lastLookupSeq);
   const first = (table: string, phase: "sent" | "done") =>
@@ -613,6 +622,21 @@ function lookupDependencies(lastLookupSeq: number) {
         event.phase === phase &&
         /^SELECT "[^"]+"\."([^"]+)"\./.exec(event.text)?.[1] === table,
     );
+  // The lookup's own sequence, as on `origin/main`: each read is sent only
+  // after the one it follows answered. Checked whenever the later read ran.
+  for (const [parent, child] of LOOKUP_SEQUENCE) {
+    const childSent = first(child, "sent");
+    if (childSent === -1) continue;
+    const parentDone = first(parent, "done");
+    expect(
+      parentDone,
+      `${parent} must answer before ${child} is sent`,
+    ).not.toBe(-1);
+    expect(
+      parentDone,
+      `${parent} must answer before ${child} is sent`,
+    ).toBeLessThan(childSent);
+  }
   return RELATION_DEPENDENCIES.map(([parent, child]) => {
     const parentDone = first(parent, "done");
     const childSent = first(child, "sent");
