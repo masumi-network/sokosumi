@@ -1,13 +1,13 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   buildCreditsPayload,
   getCreditSummary,
   getCurrentSubscriptionCredits,
   mapSubscription,
-} from "./subscription";
+} from "@/lib/credits/funding";
+import type { NetworkScope } from "@/lib/db/network-scope";
 
 const getCreditsMock = vi.fn();
 
@@ -29,7 +29,7 @@ const {
   getEnterpriseContractBillingSummaryMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/user", () => ({
+vi.mock("@/lib/credits/balance", () => ({
   getCredits: (...args: unknown[]) => getCreditsMock(...args),
 }));
 
@@ -230,6 +230,14 @@ describe("getCreditSummary", () => {
   });
 });
 
+function billingScope(tx: Prisma.TransactionClient): NetworkScope {
+  return {
+    network: "mainnet",
+    sharedDb: tx,
+    networkDb: tx,
+  } as unknown as NetworkScope;
+}
+
 describe("getCurrentSubscriptionCredits", () => {
   it("returns null when subscription does not exist", async () => {
     const { findManyBuckets, groupByConsumptions, tx } =
@@ -243,7 +251,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: null,
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
       }),
     ).resolves.toBeNull();
 
@@ -263,7 +271,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: createSubscriptionRecord({ periodStart: null }),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
       }),
     ).resolves.toBeNull();
 
@@ -283,7 +291,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: createSubscriptionRecord({ periodEnd: null }),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
       }),
     ).resolves.toBeNull();
 
@@ -307,7 +315,7 @@ describe("getCurrentSubscriptionCredits", () => {
         }),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
         now,
       }),
     ).resolves.toBeNull();
@@ -320,7 +328,7 @@ describe("getCurrentSubscriptionCredits", () => {
         }),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
         now,
       }),
     ).resolves.toBeNull();
@@ -344,7 +352,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: createSubscriptionRecord({ periodStart, periodEnd }),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
         now,
       }),
     ).resolves.toEqual({
@@ -403,7 +411,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: createSubscriptionRecord({ periodStart, periodEnd }),
         userId: "user_1",
         organizationId: "org_1",
-        tx,
+        scope: billingScope(tx),
         now,
       }),
     ).resolves.toEqual({
@@ -460,7 +468,7 @@ describe("getCurrentSubscriptionCredits", () => {
           periodEnd: new Date("2026-10-14T11:10:33.000Z"),
           periodStart: new Date("2026-09-14T11:10:33.000Z"),
         }),
-        tx,
+        scope: billingScope(tx),
         userId: "user_1",
       }),
     ).resolves.toEqual({
@@ -493,7 +501,7 @@ describe("getCurrentSubscriptionCredits", () => {
         now: new Date("2025-01-15T12:00:00.000Z"),
         organizationId: "org_1",
         subscription: createSubscriptionRecord(),
-        tx,
+        scope: billingScope(tx),
         userId: "user_1",
       }),
     ).resolves.toEqual({
@@ -515,7 +523,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: createSubscriptionRecord(),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
         now,
       }),
     ).resolves.toEqual({
@@ -537,7 +545,7 @@ describe("getCurrentSubscriptionCredits", () => {
         subscription: createSubscriptionRecord(),
         userId: "user_1",
         organizationId: null,
-        tx,
+        scope: billingScope(tx),
         now,
       }),
     ).resolves.toEqual({
@@ -560,7 +568,7 @@ describe("getCurrentSubscriptionCredits", () => {
       subscription: createSubscriptionRecord({ periodStart, periodEnd }),
       userId: "user_1",
       organizationId: null,
-      tx,
+      scope: billingScope(tx),
       now,
     });
 
@@ -639,7 +647,7 @@ describe("buildCreditsPayload", () => {
           userId: "user_1",
           organizationId: null,
           referenceId: "user_1",
-          tx,
+          scope: billingScope(tx),
         }),
       ).resolves.toEqual({
         scope: "personal",
@@ -691,6 +699,7 @@ describe("buildCreditsPayload", () => {
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         null,
         tx,
@@ -745,7 +754,7 @@ describe("buildCreditsPayload", () => {
           userId: "user_1",
           organizationId: null,
           referenceId: "user_1",
-          tx,
+          scope: billingScope(tx),
         }),
       ).resolves.toEqual({
         scope: "personal",
@@ -797,6 +806,7 @@ describe("buildCreditsPayload", () => {
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         null,
         tx,
@@ -851,7 +861,7 @@ describe("buildCreditsPayload", () => {
           userId: "user_1",
           organizationId: "org_1",
           referenceId: "org_1",
-          tx,
+          scope: billingScope(tx),
         }),
       ).resolves.toEqual({
         scope: "organization",
@@ -878,6 +888,7 @@ describe("buildCreditsPayload", () => {
       });
 
       expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
+        "mainnet",
         "user_1",
         "org_1",
         tx,
@@ -900,12 +911,19 @@ describe("buildCreditsPayload", () => {
       organizationId: "org_1",
       referenceId: "org_1",
       projectId: "project_1",
-      tx,
+      scope: billingScope(tx),
     });
 
     const scope = { projectId: "project_1" };
-    expect(getCreditsMock).toHaveBeenCalledWith(null, "org_1", tx, scope);
+    expect(getCreditsMock).toHaveBeenCalledWith(
+      billingScope(tx),
+      null,
+      "org_1",
+      tx,
+      scope,
+    );
     expect(listAvailableBucketsWithBalancesMock).toHaveBeenCalledWith(
+      "mainnet",
       null,
       "org_1",
       tx,
@@ -941,10 +959,11 @@ describe("buildCreditsPayload", () => {
       userId: "user_1",
       organizationId: "org_1",
       referenceId: "org_1",
-      tx,
+      scope: billingScope(tx),
     });
 
     expect(listProjectBucketsWithBalancesMock).toHaveBeenCalledWith(
+      "mainnet",
       "user_1",
       "org_1",
       tx,
@@ -973,7 +992,7 @@ describe("buildCreditsPayload", () => {
       organizationId: "org_1",
       referenceId: "org_1",
       projectId: "project_1",
-      tx,
+      scope: billingScope(tx),
     });
 
     expect(listProjectBucketsWithBalancesMock).not.toHaveBeenCalled();
@@ -1018,7 +1037,7 @@ describe("buildCreditsPayload", () => {
         userId: "user_1",
         organizationId: "org_1",
         referenceId: "org_1",
-        tx,
+        scope: billingScope(tx),
       });
 
       expect(payload.scope).toBe("organization");
@@ -1081,7 +1100,7 @@ describe("buildCreditsPayload", () => {
     const payload = await buildCreditsPayload({
       organizationId: "org_1",
       referenceId: "org_1",
-      tx,
+      scope: billingScope(tx),
       userId: "user_1",
     });
 

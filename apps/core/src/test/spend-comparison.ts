@@ -19,9 +19,11 @@
  *     };
  *   });
  */
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { Pool, PoolClient } from "pg";
 import { expect } from "vitest";
+import { onSplitLayout } from "./split-layout";
 
 interface SentStatement {
   connection: number;
@@ -97,6 +99,16 @@ export async function observing<T>(
   } finally {
     sent.observing = false;
   }
+}
+
+/** Compare the exact driver statement, allowing only the two layouts’ schema qualifiers. */
+export function statementDigest(sql: string): string {
+  const text = onSplitLayout
+    ? sql
+        .replaceAll('"mainnet".', '"public".')
+        .replaceAll('"shared".', '"public".')
+    : sql;
+  return createHash("sha256").update(text).digest("hex");
 }
 
 export interface Statement {

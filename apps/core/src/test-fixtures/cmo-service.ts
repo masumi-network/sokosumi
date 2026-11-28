@@ -321,7 +321,7 @@ export const funding = {
 
 /** The module mocks, keyed by what they stand for. */
 export const cmoServiceMocks = {
-  prisma: { default: client },
+  prisma: { default: client, networkPrisma: () => client },
   env: (actual: typeof import("@/config/env")) => ({
     ...actual,
     getEnv: () => ({ ...actual.getEnv(), ...envOverrides }),

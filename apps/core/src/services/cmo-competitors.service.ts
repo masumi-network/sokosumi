@@ -3,16 +3,15 @@ import {
   type CompetitorFeedItem,
   cmoCompetitorWatchBrief,
 } from "@sokosumi/soko-bot";
-
 import {
   CMO_COMPETITOR_WEEK_KEY,
   type CmoCompetitorWeekMove,
   cmoCompetitorWeekText,
 } from "@sokosumi/utils";
-
 import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import type { CitableSignal } from "@/lib/competitors/feed-check";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -258,7 +257,10 @@ export async function runCusoCompetitorCheck(
         credits,
       });
       if (!competitorCheckUnfunded(charge) && charge.cusoProjectId)
-        await notifyCusoLowCreditsAfterCharge(charge.cusoProjectId);
+        await notifyCusoLowCreditsAfterCharge(
+          charge.cusoProjectId,
+          createNetworkScope("mainnet"),
+        );
       return charge;
     },
     now,

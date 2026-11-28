@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
-import type { TransactionHistoryRow } from "@/helpers/transaction-history";
+import type { TransactionHistoryRow } from "@/lib/credits/history";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -25,6 +25,10 @@ const { agentFindManyMock, prismaQueryRawMock, userFindManyMock } = vi.hoisted(
 );
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({
+    $queryRaw: prismaQueryRawMock,
+    agent: { findMany: agentFindManyMock },
+  }),
   default: {
     $queryRaw: prismaQueryRawMock,
     agent: { findMany: agentFindManyMock },

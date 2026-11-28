@@ -474,7 +474,7 @@ describe("resolveExistingPayment", () => {
     expect(outcome).toMatchObject({
       kind: "sign",
       paymentId: PAYMENT_ID,
-      chargedNow: false,
+      chargedScope: null,
       evmWalletId: "wallet-1",
       caip2Network: BASE_SEPOLIA,
       asset: USDC,

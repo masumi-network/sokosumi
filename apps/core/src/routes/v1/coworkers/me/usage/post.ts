@@ -160,7 +160,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        return { usage: existing, created: false };
+        return { usage: existing, created: false as const };
       }
 
       if (organizationId !== null) {
@@ -221,7 +221,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      return { usage, created: true };
+      return { usage, created: true as const, scope };
     }, "Usage recording conflicted with a concurrent request. Please retry.");
 
     const response = serializeUsage(result.usage);
@@ -229,10 +229,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (result.created) {
       waitUntil(
         runAsBackgroundWork(() =>
-          notifyLowBalanceAfterCharge({
-            userId,
-            organizationId: organizationId ?? null,
-          }),
+          notifyLowBalanceAfterCharge(
+            {
+              userId,
+              organizationId: organizationId ?? null,
+            },
+            result.scope,
+          ),
         ),
       );
       return created(c, coworkerUsageSchema.parse(response));

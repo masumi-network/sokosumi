@@ -3,7 +3,8 @@ import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { jsonInput } from "@/helpers/prisma-json";
-import { getCredits } from "@/helpers/user";
+import { getCredits } from "@/lib/credits/balance";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { driveDel } from "@/lib/drive-blob";
 import { forgetEvalWorkspaces } from "@/lib/evals/eval-guard";
@@ -386,7 +387,11 @@ export async function prepareEvalLane(
       completedAt: new Date(),
     },
   });
-  const balance = await getCredits(null, lane.organizationId);
+  const balance = await getCredits(
+    createNetworkScope("mainnet"),
+    null,
+    lane.organizationId,
+  );
   if (balance < LANE_CREDITS / 2) {
     await freeCreditAdminService.grantFreeCredits({
       target: { targetType: "organization", targetId: lane.organizationId },

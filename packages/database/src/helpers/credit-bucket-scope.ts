@@ -109,7 +109,7 @@ function isConsumableEnterprisePlan(
  */
 export async function buildOrganizationPoolScopeSql(
   organizationId: string,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
   now: Date = new Date(),
   { projectId }: CreditBucketProjectOption = {},
 ): Promise<Prisma.Sql> {

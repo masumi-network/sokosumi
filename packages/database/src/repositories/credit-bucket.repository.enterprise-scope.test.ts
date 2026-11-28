@@ -69,7 +69,8 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
       $queryRaw: async () => [{ balance: 0n }],
     } as unknown as Prisma.TransactionClient;
 
-    const balance = await creditBucketRepository.getBalance(
+    const balance = await creditBucketRepository.getNetworkBalance(
+      "mainnet",
       "user-unassigned",
       "org-1",
       tx,
@@ -103,7 +104,12 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await creditBucketRepository.getBalance("user-unassigned", "org-1", tx);
+    await creditBucketRepository.getNetworkBalance(
+      "mainnet",
+      "user-unassigned",
+      "org-1",
+      tx,
+    );
 
     const sqlText = JSON.stringify(queryArgs);
     assert.ok(sqlText.includes("FALSE"));
@@ -147,6 +153,7 @@ describe("creditBucketRepository.getOrganizationPoolBalance", () => {
     } as unknown as Prisma.TransactionClient;
 
     const balance = await creditBucketRepository.getOrganizationPoolBalance(
+      "mainnet",
       "org-1",
       tx,
     );

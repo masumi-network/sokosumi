@@ -109,7 +109,7 @@ import { InputType } from "@sokosumi/masumi/types";
 
 import { createAgentJobForUser } from "@/helpers/job";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
-import { sumTransactionHistory } from "@/helpers/transaction-history";
+import { sumTransactionHistory } from "@/lib/credits/history";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { persistedErrorDetail } from "@/services/soko-bot-runtime/seller-recovery";
@@ -875,6 +875,7 @@ function jobHistory(
   const organizationId = payer.owner.organizationId;
   return sumTransactionHistory(
     {
+      billingScope: createNetworkScope("mainnet"),
       scope: "workspace",
       userContext: {
         source: "context",
@@ -1059,7 +1060,7 @@ describe.skipIf(!enabled)(
         // A balance read that covers the price, as one counted otherwise
         // than the buckets would: only the bucket read is short.
         const spy = vi
-          .spyOn(creditBucketRepository, "getBalance")
+          .spyOn(creditBucketRepository, "getNetworkBalance")
           .mockResolvedValue(PRICE);
         try {
           expectCase(

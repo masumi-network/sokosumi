@@ -1,15 +1,15 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
-import { creditBucketActivatesAtOrBefore } from "@sokosumi/database/helpers";
 import {
   BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   convertCentsToCredits,
   convertCreditsToCents,
 } from "@sokosumi/utils";
-
 import { getEnv } from "@/config/env";
 import { sendCusoLowCreditsEmail } from "@/helpers/billing-notification-email";
 import { createNotification } from "@/helpers/notifications";
+import { cusoFunding } from "@/lib/credits/balance";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
@@ -51,6 +51,7 @@ interface CusoSubscription {
  */
 export async function notifyCusoLowCreditsAfterCharge(
   projectId: string,
+  scope: NetworkScope,
   now: Date = new Date(),
 ): Promise<void> {
   try {
@@ -72,20 +73,7 @@ export async function notifyCusoLowCreditsAfterCharge(
     if (!recipient) return;
 
     const [buckets, subscription] = await Promise.all([
-      // Expired buckets too: the newest funding keys the crossing, and an
-      // expiry is not new funding. Only unexpired ones count to the balance.
-      prisma.creditBucket.findMany({
-        where: {
-          AND: [{ projectId }, creditBucketActivatesAtOrBefore(now)],
-        },
-        select: {
-          id: true,
-          createdAt: true,
-          expiresAt: true,
-          amount: true,
-          consumptions: { select: { amount: true } },
-        },
-      }),
+      cusoFunding(scope, projectId, now),
       prisma.polarSubscription.findFirst({
         where: { projectId, endedAt: null },
         select: {

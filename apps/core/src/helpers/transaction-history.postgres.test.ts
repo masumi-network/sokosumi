@@ -1,3 +1,4 @@
+import { createNetworkScope } from "@/lib/db/network-scope";
 /**
  * Real-Postgres proof for the Transactions ledger query.
  *
@@ -19,16 +20,15 @@ import {
   sqlTableLayoutFromEnv,
 } from "@sokosumi/database/sql-tables";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { testSchemaNames } from "@/test/split-layout";
-
+import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
 import {
   type BuildTransactionHistoryParams,
   countTransactionHistory,
   findTransactionDailySpend,
   findTransactionHistoryPage,
-  mapTransactionHistoryRow,
   sumTransactionHistory,
-} from "./transaction-history";
+} from "@/lib/credits/history";
+import { testSchemaNames } from "@/test/split-layout";
 
 const restoreSqlTables = configureSqlTables(sqlTableLayoutFromEnv(process.env));
 
@@ -72,6 +72,7 @@ const REFUNDED_IMAGE_JOB_ID = "dddddddd-dddd-4ddd-8ddd-ddddddddddd7";
 const CREDIT = 10_000_000_000n;
 
 const personalScope = {
+  billingScope: createNetworkScope("mainnet"),
   scope: "owned",
   userContext: { source: "context", userId: USER_ID, organizationId: null },
   workspaceContext: {
@@ -959,6 +960,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
     await withSeededLedger(async (tx) => {
       const task = "txhist-task";
       const organizationParams = {
+        billingScope: createNetworkScope("mainnet"),
         scope: "workspace",
         taskId: task,
         userContext: {
@@ -1005,6 +1007,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
   it("scopes an organization workspace to the organization", async () => {
     await withSeededLedger(async (tx) => {
       const organizationParams = {
+        billingScope: createNetworkScope("mainnet"),
         scope: "workspace",
         userContext: {
           source: "context",
@@ -1066,6 +1069,7 @@ describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
 
       const { rows } = await findTransactionHistoryPage(
         {
+          billingScope: createNetworkScope("mainnet"),
           scope: "workspace",
           userContext: {
             source: "context",

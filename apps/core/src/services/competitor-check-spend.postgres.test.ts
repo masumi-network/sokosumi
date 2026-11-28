@@ -426,9 +426,10 @@ describe.skipIf(!enabled)(
         });
         // The two reads cannot disagree in one snapshot: only a bucket that
         // expires between their two clock readings does this.
-        vi.spyOn(creditBucketRepository, "getBalance").mockResolvedValueOnce(
-          PRICE,
-        );
+        vi.spyOn(
+          creditBucketRepository,
+          "getNetworkBalance",
+        ).mockResolvedValueOnce(PRICE);
 
         expectAsOnBase(
           "an Organization, credits gone after the balance read",
