@@ -28,6 +28,7 @@ import { onSplitLayout } from "./split-layout";
 
 interface SentStatement {
   connection: number;
+  pendingAtSend?: number[];
   text: string;
   values: unknown[];
   /** When it was sent, on one clock shared with `answered`. */
@@ -54,6 +55,7 @@ type StatementSent = Pick<SentStatement, "connection" | "text" | "values">;
 /** What Core's pool sent while a call was observed, per connection. */
 const sent = {
   observing: false,
+  pending: undefined as Set<number> | undefined,
   connections: 0,
   /** A counter, not a time: two events never share a tick. */
   ticks: 0,
@@ -131,7 +133,10 @@ export function observePool(pool: Pool): void {
           typeof first === "string"
             ? { text: first, values: second }
             : (first as { text: string; values?: unknown });
+        const pending = sent.pending;
+        const index = sent.log.length;
         const entry: SentStatement = {
+          ...(pending && { pendingAtSend: [...pending] }),
           connection,
           text: config.text,
           values: Array.isArray(config.values) ? config.values : [],
@@ -140,8 +145,10 @@ export function observePool(pool: Pool): void {
           flow: flows.getStore() ?? "call",
         };
         sent.log.push(entry);
+        pending?.add(index);
         const answered = () => {
           entry.answered ??= ++sent.ticks;
+          pending?.delete(index);
         };
         // A query with a callback (the pool's own `query`) is answered when
         // the callback runs; one without returns a promise.
@@ -206,8 +213,10 @@ export async function nextMillisecond(): Promise<number> {
 /** Runs `call` and returns its outcome with what the pool sent meanwhile. */
 export async function observing<T>(
   call: () => Promise<T>,
+  options?: { trackResponses: boolean },
 ): Promise<{ outcome: T | { threw: unknown }; log: SentStatement[] }> {
   sent.log = [];
+  sent.pending = options?.trackResponses ? new Set() : undefined;
   sent.observing = true;
   try {
     return { outcome: await call(), log: sent.log };

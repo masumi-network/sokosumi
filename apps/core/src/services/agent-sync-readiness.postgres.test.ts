@@ -212,7 +212,7 @@ it
   60_000,
 );
 
-// The registry sync still reads Network rates on the default client until PR 8.
+// Before PR 8 the registry sync read Network rates on the default client and stopped early on split.
 it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
   "resets the stored registry cursor only on a Cardano change on %s",
   async (network) => {
@@ -232,17 +232,8 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     const scope = await testScope();
     const app = new Hono();
     mount(app);
-    if (onSplitLayout) {
-      // The real registry sync has already read/reset its cursor when its
-      // default-client rate read reaches the future PR 8 boundary.
-      app.onError((error, c) => {
-        expect(error).toMatchObject({
-          code: "P2021",
-          meta: { modelName: "CreditCost" },
-        });
-        return c.body(null, 503);
-      });
-    }
+    // After reading/resetting its cursor the registry sync now reaches the
+    // registry on both layouts, including past the former default-client rate read.
     const node = stubMasumiSyncHttp();
     vi.useFakeTimers({ toFake: ["Date"], now: clock });
     const rows = scope.sharedDb.syncMetadata;
@@ -259,7 +250,7 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       });
       if (phase === "x402-only") node.networks = [];
       const response = await app.request("/agents");
-      expect(onSplitLayout ? [200, 503] : [200]).toContain(response.status);
+      expect(response.status).toBe(200);
       const row = await rows.findUnique({ where: { key }, select: columns });
       calls.push({ phase, row, request: node.registryRequests.at(-1) });
     }
@@ -278,10 +269,8 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
     expect(actual.map(({ row }) => row)).toEqual(
       expected.map(({ row }) => row),
     );
-    if (!onSplitLayout || node.registryRequests.length > 0) {
-      expect(node.registryRequests).toHaveLength(3);
-      expect(actual).toEqual(expected);
-    }
+    expect(node.registryRequests).toHaveLength(3);
+    expect(actual).toEqual(expected);
   },
   60_000,
 );

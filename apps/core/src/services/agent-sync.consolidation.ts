@@ -1,8 +1,7 @@
 import * as Sentry from "@sentry/node";
-import { type Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 
-import prisma from "@/lib/db/prisma";
+import type { NetworkDb, SharedDb } from "@/lib/db/network-scope";
 import { emitCoreWarning } from "@/lib/evlog";
 
 /**
@@ -28,7 +27,7 @@ export const PARKED_IDENTIFIER_PREFIX = "legacy-v2:";
  * repointed below.
  */
 export async function consolidateDuplicateAgentRelations(
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
   duplicateAgentId: string,
   canonicalAgentId: string,
 ): Promise<void> {
@@ -134,11 +133,12 @@ export async function consolidateDuplicateAgentRelations(
  * repair) pair — so the two files differ on purpose.
  */
 export async function retargetDuplicateAgentNotifications(
+  sharedDb: SharedDb,
   duplicateAgentId: string,
   canonicalAgentId: string,
 ): Promise<void> {
   try {
-    await prisma.$executeRaw`
+    await sharedDb.$executeRaw`
       UPDATE ${sharedTable("notification")}
       SET "metadata" = jsonb_set(
         "metadata"::jsonb,
