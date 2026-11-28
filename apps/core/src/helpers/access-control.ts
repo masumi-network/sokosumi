@@ -8,8 +8,14 @@ import {
   TaskVisibility,
   VendorGrantStatus,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
+import {
+  type NetworkScope,
+  networkUsesSharedSchema,
+  type SharedDb,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import {
@@ -31,7 +37,8 @@ import { badRequest, forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
 import { requireAssignedOrganizationSeat } from "./organization-assigned-seat";
 import {
-  buildHumanParentTaskVisibilityWhere,
+  buildHumanJobParentVisibilitySql,
+  buildHumanJobParentVisibilityWhere,
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
   isPrivateTaskVisibleToCoworker,
@@ -352,7 +359,7 @@ export function hasNonEmptyBaseUrl(
 async function findActiveCoworkerByCapability(
   coworkerId: string,
   capability: CoworkerCapability,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
   options?: {
     requireBaseUrl?: boolean;
   },
@@ -409,7 +416,7 @@ export async function findUsableCoworkerByCapabilityInWorkspace(
 export async function requireCoworkerCapability(
   coworkerId: string,
   capability: CoworkerCapability,
-  tx: Prisma.TransactionClient = prisma,
+  tx: SharedDb = prisma,
 ): Promise<void> {
   const coworker = await findActiveCoworkerByCapability(
     coworkerId,
@@ -1119,29 +1126,32 @@ export async function requireTaskWorkspaceMapping(
 export async function requireJobRead(
   workspaceContext: WorkspaceContext,
   jobId: string,
-  tx: Prisma.TransactionClient = prisma,
+  scope: NetworkScope,
   readerUserId?: string,
+  legacyTx?: Prisma.TransactionClient,
 ): Promise<Job> {
   const { workspaceId } = workspaceContext;
+  const networkDb = scope.networkDb;
 
-  const job = await tx.job.findFirst({
-    where: {
-      id: jobId,
-      workspaceId,
-      ...(readerUserId
-        ? {
-            OR: [
-              { taskId: null },
-              {
-                task: {
-                  is: buildHumanParentTaskVisibilityWhere(readerUserId),
-                },
-              },
-            ],
-          }
-        : {}),
-    },
-  });
+  const job =
+    readerUserId && !networkUsesSharedSchema()
+      ? (
+          await (legacyTx ?? networkDb).$queryRaw<Job[]>`
+            SELECT j.*
+            FROM ${scope.networkTable("Job")} j
+            LEFT JOIN ${sharedTable("task")} t ON t.id = j."taskId"
+            WHERE j.id = ${jobId} AND j."workspaceId" = ${workspaceId}::uuid
+            ${buildHumanJobParentVisibilitySql(readerUserId)}
+          `
+        )[0]
+      : await (legacyTx ?? networkDb).job.findFirst({
+          where: {
+            id: jobId,
+            workspaceId,
+            ...(readerUserId &&
+              buildHumanJobParentVisibilityWhere(readerUserId)),
+          },
+        });
 
   if (!job) {
     throw notFound("Job not found");
@@ -1222,6 +1232,7 @@ async function assertSokoBotCanAccessJob(
 export async function requireJobReadForRouteVars(
   vars: EnvVariables["Variables"],
   jobId: string,
+  scope: NetworkScope,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   const { authContext, workspaceContext } = vars;
@@ -1231,13 +1242,13 @@ export async function requireJobReadForRouteVars(
     return await requireJobRead(
       requireWorkspaceContext(workspaceContext),
       jobId,
-      tx,
+      scope,
       userContext.userId,
     );
   }
 
   if (isPersonalSokoBotAuthContext(authContext)) {
-    const job = await tx.job.findFirst({
+    const job = await scope.networkDb.job.findFirst({
       where: { id: jobId, workspaceId: authContext.workspaceId },
     });
     if (!job) {
@@ -1258,12 +1269,12 @@ export async function requireJobReadForRouteVars(
 
   if (coworker.context) {
     const workspace = requireWorkspaceContext(workspaceContext);
-    const job = await requireJobRead(workspace, jobId, tx);
+    const job = await requireJobRead(workspace, jobId, scope);
     await assertCoworkerCanReadJob(coworker, job, tx);
     return job;
   }
 
-  const job = await tx.job.findFirst({
+  const job = await scope.networkDb.job.findFirst({
     where: { id: jobId },
   });
   if (!job) {

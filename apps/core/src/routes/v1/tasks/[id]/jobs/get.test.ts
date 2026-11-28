@@ -23,11 +23,8 @@ vi.mock("@/helpers/access-control", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    job: {
-      findMany: jobFindManyMock,
-    },
-  },
+  default: {},
+  networkPrisma: () => ({ job: { findMany: jobFindManyMock } }),
 }));
 
 const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
@@ -86,7 +83,6 @@ describe("GET /tasks/{id}/jobs", () => {
         },
       }),
       "tsk_123",
-      expect.any(Object),
     );
     expect(jobFindManyMock).toHaveBeenCalledWith({
       where: { taskId: "tsk_123" },

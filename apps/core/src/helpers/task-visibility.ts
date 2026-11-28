@@ -400,3 +400,33 @@ export function buildHumanTaskVisibilitySql(userId: string): PrismaRaw.Sql {
     )
   `;
 }
+
+/** The list and detail Job predicates use a left join to the shared Task. */
+export function buildHumanJobParentVisibilitySql(
+  userId: string,
+): PrismaRaw.Sql {
+  return PrismaRaw.sql`
+    AND (
+      j."taskId" IS NULL
+      OR (t.id IS NOT NULL ${buildHumanTaskVisibilitySql(userId)})
+    )
+  `;
+}
+
+export function buildCoworkerJobParentTaskSql(
+  coworkerId: string,
+  vendorId?: string,
+): PrismaRaw.Sql {
+  const privateSibling = vendorId
+    ? PrismaRaw.sql`
+        OR (
+          t.visibility = ${TaskVisibility.PRIVATE}::${sharedType("TaskVisibility")}
+          AND EXISTS (
+            SELECT 1 FROM ${sharedTable("coworker")} c
+            WHERE c.id = t."assigneeId" AND c."vendorId" = ${vendorId}::uuid
+          )
+        )
+      `
+    : PrismaRaw.empty;
+  return PrismaRaw.sql`AND (t."assigneeId" = ${coworkerId} ${privateSibling})`;
+}

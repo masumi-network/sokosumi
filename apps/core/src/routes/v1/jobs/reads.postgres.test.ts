@@ -1,0 +1,789 @@
+import "@hono/zod-openapi";
+import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import type { AgentJobStatus, Prisma } from "@sokosumi/database";
+import { hashPassword } from "better-auth/crypto";
+import { Hono } from "hono";
+import { requestId } from "hono/request-id";
+import { Client, type Pool } from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
+import { observing } from "@/test/spend-comparison";
+import { onSplitLayout } from "@/test/split-layout";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor";
+import tableLayout from "../../../../../../packages/database/prisma/network-tables.json";
+
+const pools = vi.hoisted(() => [] as Pool[]);
+vi.unmock("@/lib/db/prisma");
+vi.mock("@vercel/functions", async (load) => {
+  const actual = await load<typeof import("@vercel/functions")>();
+  const { observePool } = await import("@/test/spend-comparison");
+  return {
+    ...actual,
+    attachDatabasePool: (pool: Pool) => {
+      pools.push(pool);
+      observePool(pool);
+    },
+  };
+});
+vi.mock("@/lib/drive-blob", async (load) => ({
+  ...(await load<typeof import("@/lib/drive-blob")>()),
+  driveRead: async (key: string) => ({
+    stream: new Response(key).body,
+    size: key.length,
+    contentType: "text/plain",
+  }),
+}));
+
+const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
+const recording = process.env.RECORD_JOB_READS_BASE === "true";
+const basePath = new URL("./reads.base.json", import.meta.url);
+const tracePath = process.env.JOB_READS_TRACE_PATH;
+
+function digest(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+const clock = new Date("2026-11-28T00:00:00.000Z");
+const ownerId = "job-reads-owner";
+const memberId = "job-reads-member";
+const unoptedId = "job-reads-unopted";
+const organizationId = "job-reads-org";
+const organizationWorkspace = "25000000-0000-4000-8000-000000000001";
+const personalWorkspace = "25000000-0000-4000-8000-000000000002";
+const plainWorkspace = "25000000-0000-4000-8000-000000000003";
+const family = "25000000-0000-4000-8000-000000000004";
+const otherFamily = "25000000-0000-4000-8000-000000000005";
+const botId = "25000000-0000-4000-8000-000000000006";
+const agentId = "job-reads-agent";
+const twin = "job-reads-twin";
+const base = `/v1/jobs/${twin}`;
+const routes = {
+  list: "/v1/jobs?scope=workspace&limit=2",
+  agent: `/v1/agents/${agentId}/jobs?scope=workspace&limit=2`,
+  task: "/v1/tasks/job-reads-public/jobs",
+  detail: base,
+  events: `${base}/events`,
+  request: `${base}/input-request`,
+  files: `${base}/files`,
+  content: `${base}/files/job-reads-ready/content`,
+  links: `${base}/links`,
+};
+const auth = (token: string): Record<string, string> => ({
+  authorization: `Bearer ${token}`,
+});
+const organization = { "X-Organization-Slug": organizationId };
+const owner = { ...auth(ownerId), ...organization };
+const member = { ...auth(memberId), ...organization };
+const coworker = (kind: string) => ({
+  ...auth(`coworker_job_reads_${kind}`),
+  "X-Context-User-Id": ownerId,
+  "X-Context-Organization-Id": organizationId,
+});
+const bot = auth("sokoBot_job_reads_personal");
+
+async function setup() {
+  const source =
+    process.env.POSTGRES_TEST_TEMPLATE_URL ?? process.env.DATABASE_URL;
+  if (!source) throw new Error("Job reads need PostgreSQL");
+  const database = await copyPostgresTestDatabase(source, "job_reads_test");
+  onRelease = database.drop;
+  vi.stubEnv("DATABASE_URL", database.url);
+  vi.stubEnv("DATABASE_URL_UNPOOLED", database.url);
+  vi.stubEnv("NETWORK", "Mainnet");
+  vi.stubEnv("NETWORK_PREPROD_ENABLED", onSplitLayout ? "true" : "false");
+  const { default: shared } = await import("@/lib/db/prisma");
+  const { createNetworkScope } = await import("@/lib/db/network-scope");
+  const { createCoreApp, signIn } = await import(
+    "@/test-fixtures/core-session"
+  );
+  const { hashApiKey } = await import("@/lib/coworker-api-key");
+  for (const [id, workspace] of [
+    [ownerId, personalWorkspace],
+    [memberId, null],
+    [unoptedId, plainWorkspace],
+  ] as const) {
+    await shared.user.create({
+      data: {
+        id,
+        name: id,
+        email: `${id}@example.test`,
+        emailVerified: true,
+        termsAccepted: true,
+        createdAt: clock,
+        updatedAt: clock,
+        ...(workspace && { workspace: { create: { id: workspace } } }),
+      },
+    });
+    await shared.apikey.create({
+      data: {
+        id,
+        referenceId: id,
+        key: createHash("sha256").update(id).digest("base64url"),
+        enabled: true,
+        rateLimitEnabled: false,
+        createdAt: clock,
+        updatedAt: clock,
+      },
+    });
+  }
+  await shared.organization.create({
+    data: {
+      id: organizationId,
+      name: "Job reads",
+      slug: organizationId,
+      preprodEnabled: true,
+      createdAt: clock,
+      workspace: { create: { id: organizationWorkspace } },
+      members: {
+        create: [
+          {
+            id: "job-reads-owner-membership",
+            userId: ownerId,
+            role: "owner",
+            seatAssignedAt: clock,
+          },
+          {
+            id: "job-reads-member-membership",
+            userId: memberId,
+            role: "member",
+            seatAssignedAt: clock,
+          },
+        ],
+      },
+    },
+  });
+  await shared.vendorGrant.createMany({
+    data: [organizationWorkspace, personalWorkspace, plainWorkspace].map(
+      (workspaceId) => ({
+        vendorId: TEST_VENDOR_ID,
+        workspaceId,
+        permission: "workspace",
+        status: "GRANTED",
+      }),
+    ),
+  });
+  await shared.vendor.createMany({
+    data: [
+      { id: family, name: "Family", slug: "job-reads-family" },
+      { id: otherFamily, name: "Other", slug: "job-reads-other" },
+    ],
+  });
+  for (const [kind, vendorId] of [
+    ["assigned", family],
+    ["sibling", family],
+    ["outsider", otherFamily],
+  ]) {
+    const id = `job-reads-${kind}`;
+    await shared.coworker.create({
+      data: { id, name: id, slug: id, vendorId, capabilities: ["tasks"] },
+    });
+    const token = `coworker_job_reads_${kind}`;
+    await shared.coworkerApiKey.create({
+      data: {
+        id,
+        coworkerId: id,
+        keyHash: await hashApiKey(token),
+        keyStart: token.slice(0, 12),
+        lastUsedAt: clock,
+      },
+    });
+  }
+  await shared.sokoBot.create({
+    data: { id: botId, userId: ownerId, workspaceId: personalWorkspace },
+  });
+  const botToken = "sokoBot_job_reads_personal";
+  await shared.coworkerApiKey.create({
+    data: {
+      id: "job-reads-bot",
+      sokoBotId: botId,
+      keyHash: await hashApiKey(botToken),
+      keyStart: botToken.slice(0, 12),
+      lastUsedAt: clock,
+    },
+  });
+  await shared.task.createMany({
+    data: [
+      {
+        id: "job-reads-public",
+        name: "Public",
+        assigneeId: "job-reads-assigned",
+      },
+      {
+        id: "job-reads-private",
+        name: "Private",
+        visibility: "PRIVATE",
+        assigneeId: "job-reads-assigned",
+      },
+      { id: "job-reads-archived", name: "Archived", archivedAt: clock },
+      {
+        id: "job-reads-bot-task",
+        name: "Personal",
+        assigneeSokoBotId: botId,
+        workspaceId: personalWorkspace,
+        organizationId: null,
+      },
+      {
+        id: "job-reads-plain-task",
+        name: "Plain",
+        ownerId: unoptedId,
+        workspaceId: plainWorkspace,
+        organizationId: null,
+      },
+    ].map((row) => ({
+      ownerId,
+      organizationId,
+      workspaceId: organizationWorkspace,
+      status: "READY",
+      createdAt: clock,
+      updatedAt: clock,
+      ...row,
+    })) as Prisma.TaskCreateManyInput[],
+  });
+
+  async function seed(network: "mainnet" | "preprod") {
+    const { networkDb } = createNetworkScope(network);
+    await networkDb.agent.create({
+      data: {
+        id: agentId,
+        name: network,
+        blockchainIdentifier: agentId,
+        isShown: true,
+        uptimeCount: 0,
+        uptimeCheckCount: 0,
+        lastUptimeCheck: clock,
+        pricing: { create: { id: agentId, pricingType: "FREE" } },
+      },
+    });
+    const preprod = network === "preprod";
+    const jobs = [
+      {
+        ...job(twin, preprod ? memberId : ownerId, "job-reads-public", 4),
+        ...(preprod
+          ? { creatorSokoBotId: botId }
+          : { creatorCoworkerId: "job-reads-assigned" }),
+      },
+      job(`job-reads-${network}-only`, ownerId, "job-reads-public", 3),
+      ...(preprod
+        ? []
+        : [
+            job("job-reads-third", ownerId, "job-reads-public", 3),
+            job("job-reads-private-job", ownerId, "job-reads-private", 2),
+            job("job-reads-archived-job", ownerId, "job-reads-archived", 1),
+            {
+              ...job("job-reads-bot-job", ownerId, "job-reads-bot-task", 0),
+              organizationId: null,
+              workspaceId: personalWorkspace,
+              creatorUserId: ownerId,
+            },
+          ]),
+    ];
+    await networkDb.job.createMany({ data: jobs });
+    for (const { id } of jobs) {
+      const status: AgentJobStatus =
+        id === twin && preprod ? "FAILED" : "COMPLETED";
+      await networkDb.jobEvent.create({
+        data: {
+          id: `${id}-${network}-result`,
+          jobId: id,
+          status,
+          createdAt: clock,
+          updatedAt: clock,
+          result: `${network} result for ${id}`,
+        },
+      });
+    }
+    const eventId = `${twin}-${network}-result`;
+    const awaitingJobId = `job-reads-${network}-only`;
+    await networkDb.jobEvent.createMany({
+      data: [twin, awaitingJobId].map((id) => ({
+        id: `${id}-${network}-awaiting`,
+        jobId: id,
+        status: "AWAITING_INPUT",
+        inputSchema: `${network} schema`,
+        result: `${network} question`,
+        createdAt: new Date(clock.getTime() - 1000),
+        updatedAt: clock,
+      })),
+    });
+    await networkDb.jobInput.create({
+      data: {
+        id: `${network}-input`,
+        eventId,
+        input: `${network} input`,
+        createdAt: clock,
+        updatedAt: clock,
+      },
+    });
+    await networkDb.blob.createMany({
+      data: [
+        {
+          id: "job-reads-ready",
+          eventId,
+          status: "READY",
+          fileUrl: `${network} bytes`,
+        },
+        { id: `${network}-pending`, eventId, status: "PENDING" },
+        {
+          id: `${network}-exclusive`,
+          eventId,
+          status: "READY",
+          fileUrl: `${network} exclusive`,
+        },
+        {
+          id: `${network}-foreign`,
+          eventId: `${awaitingJobId}-${network}-result`,
+          status: "READY",
+          fileUrl: `${network} foreign`,
+        },
+      ].map((blob) => ({
+        sourceUrl: `https://example.test/${blob.id}`,
+        name: `${blob.id}.txt`,
+        mimeType: "text/plain",
+        createdAt: clock,
+        updatedAt: clock,
+        ...blob,
+      })) as Prisma.BlobCreateManyInput[],
+    });
+    await networkDb.link.createMany({
+      data: [
+        {
+          id: `${network}-link`,
+          eventId,
+          url: `https://example.test/${network}`,
+          createdAt: clock,
+          updatedAt: clock,
+        },
+        {
+          id: `${network}-foreign-link`,
+          eventId: `${awaitingJobId}-${network}-result`,
+          url: "https://example.test/foreign",
+          createdAt: clock,
+          updatedAt: clock,
+        },
+      ],
+    });
+  }
+
+  function job(
+    id: string,
+    owner: string,
+    taskId: string,
+    rank: number,
+  ): Prisma.JobCreateManyInput & { id: string } {
+    return {
+      id,
+      ownerId: owner,
+      organizationId,
+      workspaceId: organizationWorkspace,
+      taskId,
+      agentId,
+      agentJobId: id,
+      jobType: "FREE",
+      name: id,
+      createdAt: new Date(clock.getTime() + rank * 1000),
+      updatedAt: clock,
+    };
+  }
+
+  await seed("mainnet");
+  await shared.publicShare.create({
+    data: {
+      id: "job-reads-share",
+      token: "job-reads-share-token",
+      jobId: twin,
+      createdAt: clock,
+      updatedAt: clock,
+    },
+  });
+  const core = createCoreApp();
+  let session: Record<string, string> = {};
+  if (onSplitLayout) {
+    // The throwaway copy still has this pre-cutover key in addition to the
+    // Network-qualified History key. Drop it only in this fixture.
+    await shared.$executeRaw`DROP INDEX IF EXISTS "shared"."history_kind_entityId_key"`;
+    await shared.account.create({
+      data: {
+        userId: ownerId,
+        accountId: ownerId,
+        providerId: "credential",
+        password: await hashPassword("fixture-password-long"),
+      },
+    });
+    session = {
+      ...organization,
+      cookie: await signIn(core, `${ownerId}@example.test`),
+    };
+  }
+  return {
+    app: new Hono().use(requestId()).route("/", core),
+    database,
+    seed,
+    session,
+    shared,
+    async submitMainnetInput() {
+      await createNetworkScope("mainnet").networkDb.jobInput.create({
+        data: {
+          eventId: `${twin}-mainnet-awaiting`,
+          input: "answered on Mainnet",
+        },
+      });
+    },
+  };
+}
+
+let system: Awaited<ReturnType<typeof setup>>;
+let onRelease: (() => Promise<void>) | undefined;
+async function call(
+  path: string,
+  headers: Record<string, string> = owner,
+  network?: "mainnet" | "preprod",
+) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(clock);
+  try {
+    const { outcome, log } = await observing(async () => {
+      const response = await system.app.request(`https://example.com${path}`, {
+        headers: {
+          origin: "https://example.com",
+          "X-Request-Id": "job-reads-test",
+          ...headers,
+          ...(network && { "X-Sokosumi-Network": network }),
+        },
+      });
+      return { status: response.status, body: await response.text() };
+    });
+    if ("threw" in outcome) throw new Error(JSON.stringify(outcome.threw));
+    return {
+      ...outcome,
+      statements: log.map(({ text, values }) => ({ text, values })),
+    };
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
+const cases: Record<string, [string, Record<string, string>, number]> = {
+  ...Object.fromEntries(
+    Object.entries(routes).map(
+      ([name, path]) => [name, [path, owner, 200]] as const,
+    ),
+  ),
+  "member workspace": [routes.list, member, 200],
+  "member private Job": ["/v1/jobs/job-reads-private-job", member, 404],
+  "member archived Job": ["/v1/jobs/job-reads-archived-job", member, 200],
+  "member archived Task": ["/v1/tasks/job-reads-archived/jobs", member, 404],
+  "assigned detail": [
+    "/v1/jobs/job-reads-private-job",
+    coworker("assigned"),
+    200,
+  ],
+  "sibling detail": [
+    "/v1/jobs/job-reads-private-job",
+    coworker("sibling"),
+    200,
+  ],
+  "outsider detail": [
+    "/v1/jobs/job-reads-private-job",
+    coworker("outsider"),
+    404,
+  ],
+  "assigned list": [routes.list, coworker("assigned"), 200],
+  "sibling list": [routes.list, coworker("sibling"), 200],
+  "outsider list": [routes.list, coworker("outsider"), 403],
+  "bot detail": ["/v1/jobs/job-reads-bot-job", bot, 200],
+  "bot list": [routes.list, bot, 200],
+  "next page": [`${routes.list}&cursor=job-reads-third`, owner, 200],
+  "event status filter": [`${routes.list}&status=AWAITING_INPUT`, owner, 200],
+  "not READY": [`${base}/files/mainnet-pending/content`, owner, 404],
+  "file belongs to another Job": [
+    `${base}/files/mainnet-foreign/content`,
+    owner,
+    404,
+  ],
+  "awaiting event belongs to another Job": [
+    "/v1/jobs/job-reads-third/input-request",
+    owner,
+    404,
+  ],
+};
+
+async function expectRefusals(
+  headers: Record<string, string>,
+  kind: "preprod_off" | "preprod_access_required",
+) {
+  const client = new Client({ connectionString: system.database.url });
+  await client.connect();
+  try {
+    const networkTables = [
+      ...Object.values(tableLayout.network),
+      ...tableLayout.networkJoinTables,
+    ];
+    for (const path of Object.values(routes)) {
+      const answer = await call(path, headers, "preprod");
+      expect(answer.status, `${path}: ${answer.body}`).toBe(403);
+      expect(JSON.parse(answer.body), path).toMatchObject({ kind });
+      await client.query("BEGIN");
+      try {
+        for (const statement of answer.statements) {
+          await client.query(`EXPLAIN ${statement.text}`, statement.values);
+        }
+        // PostgreSQL locks referenced tables even if the planner removes a
+        // scan. Read those locks before this transaction releases them.
+        const { rows } = await client.query(
+          `SELECT c.relname
+           FROM pg_locks l JOIN pg_class c ON c.oid = l.relation
+           WHERE l.pid = pg_backend_pid() AND c.relkind IN ('r', 'p', 'f')
+             AND c.relname = ANY($1::text[])`,
+          [networkTables],
+        );
+        expect(rows, path).toEqual([]);
+      } finally {
+        await client.query("ROLLBACK");
+      }
+    }
+  } finally {
+    await client.end();
+  }
+}
+
+describe.runIf(enabled)("Job reads over PostgreSQL", () => {
+  beforeAll(async () => {
+    system = await setup();
+  }, 60_000);
+  afterAll(async () => {
+    try {
+      await Promise.all(pools.map((pool) => pool.end()));
+    } finally {
+      vi.unstubAllEnvs();
+      await onRelease?.();
+    }
+  }, 30_000);
+
+  it.runIf(!onSplitLayout)(
+    "matches origin/main, including raw responses, bindings and send order",
+    async () => {
+      const observed: Record<string, Awaited<ReturnType<typeof call>>> = {};
+      for (const [name, [path, headers, status]] of Object.entries(cases)) {
+        for (const network of [undefined, "mainnet"] as const) {
+          const value = await call(path, headers, network);
+          expect(
+            value.status,
+            `${name} ${network ?? "implicit"}: ${value.body}`,
+          ).toBe(status);
+          observed[`${name} ${network ?? "implicit"}`] = value;
+        }
+      }
+      if (tracePath) {
+        writeFileSync(tracePath, `${JSON.stringify(observed, null, 2)}\n`);
+      }
+      const evidence = Object.fromEntries(
+        Object.entries(observed).map(([name, { status, body, statements }]) => [
+          name,
+          {
+            status,
+            body: digest(body),
+            count: statements.length,
+            ordered: digest(statements),
+            parallel: digest(
+              statements.map((statement) => JSON.stringify(statement)).sort(),
+            ),
+          },
+        ]),
+      );
+      if (recording) {
+        writeFileSync(basePath, `${JSON.stringify(evidence, null, 2)}\n`);
+        return;
+      }
+      const baseline = JSON.parse(
+        readFileSync(basePath, "utf8"),
+      ) as typeof evidence;
+      expect(Object.keys(evidence)).toEqual(Object.keys(baseline));
+      for (const [name, value] of Object.entries(evidence)) {
+        const expected = baseline[name];
+        if (value.ordered === expected.ordered) {
+          expect(value, name).toEqual(expected);
+        } else {
+          // Prisma sends independent relation queries in parallel. Their
+          // relative wire order varies even between two requests to the base.
+          expect({ ...value, ordered: undefined }, name).toEqual({
+            ...expected,
+            ordered: undefined,
+          });
+        }
+      }
+    },
+    30_000,
+  );
+
+  it.runIf(!onSplitLayout && !recording)(
+    "refuses Preprod on all nine routes before planning any Network read when off",
+    async () => await expectRefusals(owner, "preprod_off"),
+    30_000,
+  );
+
+  describe.runIf(onSplitLayout)("shared, Mainnet and Preprod schemas", () => {
+    it("keeps all nine reads isolated with equal Job IDs", async () => {
+      const before = new Map<string, string>();
+      const baseline = JSON.parse(readFileSync(basePath, "utf8")) as Record<
+        string,
+        { body: string }
+      >;
+      for (const [name, [path, headers, status]] of Object.entries(cases)) {
+        const answer = await call(path, headers, "mainnet");
+        expect(answer.status, `${name}: ${answer.body}`).toBe(status);
+        expect(digest(answer.body), name).toBe(
+          baseline[`${name} mainnet`].body,
+        );
+        before.set(name, answer.body);
+      }
+      await system.seed("preprod");
+
+      for (const [name, [path, headers, status]] of Object.entries(cases)) {
+        const answer = await call(path, headers, "mainnet");
+        expect(answer.status, name).toBe(status);
+        expect(answer.body, name).toBe(before.get(name));
+      }
+
+      for (const network of ["mainnet", "preprod"] as const) {
+        const preprod = network === "preprod";
+        const other = preprod ? "mainnet" : "preprod";
+        const responses = new Map<string, Awaited<ReturnType<typeof call>>>();
+        for (const [name, path] of Object.entries(routes)) {
+          const answer = await call(path, system.session, network);
+          expect(answer.status, `${path}: ${answer.body}`).toBe(200);
+          responses.set(name, answer);
+        }
+        const json = (name: string) =>
+          JSON.parse(responses.get(name)?.body ?? "");
+        for (const name of ["list", "agent"]) {
+          const result = json(name);
+          expect(result.data.map(({ id }: { id: string }) => id)).toEqual([
+            twin,
+            preprod ? "job-reads-preprod-only" : "job-reads-third",
+          ]);
+          expect(result.meta.pagination).toMatchObject({
+            total: preprod ? 2 : 5,
+            nextCursor: preprod ? null : "job-reads-third",
+          });
+        }
+        expect(
+          json("task")
+            .data.map(({ id }: { id: string }) => id)
+            .sort(),
+        ).toEqual(
+          [
+            twin,
+            `job-reads-${network}-only`,
+            ...(preprod ? [] : ["job-reads-third"]),
+          ].sort(),
+        );
+        expect(json("detail").data).toMatchObject({
+          id: twin,
+          ownerId: preprod ? memberId : ownerId,
+          status: preprod ? "failed" : "completed",
+          agent: { name: network },
+          share: preprod ? null : { token: "job-reads-share-token" },
+        });
+        expect(json("events").data.map(({ id }: { id: string }) => id)).toEqual(
+          [`${twin}-${network}-result`, `${twin}-${network}-awaiting`],
+        );
+        expect(json("events").data[0].input.input).toBe(`${network} input`);
+        expect(json("request").data).toMatchObject({
+          eventId: `${twin}-${network}-awaiting`,
+          inputSchema: `${network} schema`,
+        });
+        expect(
+          json("files")
+            .data.map(({ id }: { id: string }) => id)
+            .sort(),
+        ).toEqual(
+          [
+            "job-reads-ready",
+            `${network}-pending`,
+            `${network}-exclusive`,
+          ].sort(),
+        );
+        expect(json("links").data.map(({ id }: { id: string }) => id)).toEqual([
+          `${network}-link`,
+        ]);
+        expect(responses.get("content")?.body).toBe(`${network} bytes`);
+        const foreign = await call(
+          `${base}/files/${other}-exclusive/content`,
+          system.session,
+          network,
+        );
+        expect(foreign.status).toBe(404);
+
+        const one = await call(
+          routes.list.replace("limit=2", "limit=1"),
+          system.session,
+          network,
+        );
+        expect(one.status).toBe(200);
+        expect(one.statements).toHaveLength(
+          responses.get("list")?.statements.length ?? 0,
+        );
+      }
+      const preprodList = async (query: string) => {
+        const answer = await call(
+          `/v1/jobs?${query}`,
+          system.session,
+          "preprod",
+        );
+        expect(answer.status, answer.body).toBe(200);
+        const { data, meta } = JSON.parse(answer.body);
+        return {
+          ids: data.map(({ id }: { id: string }) => id),
+          total: meta.pagination.total,
+          nextCursor: meta.pagination.nextCursor,
+        };
+      };
+      expect(await preprodList("limit=2")).toEqual({
+        ids: ["job-reads-preprod-only"],
+        total: 1,
+        nextCursor: null,
+      });
+      expect(await preprodList("scope=workspace&status=FAILED")).toEqual({
+        ids: [twin],
+        total: 1,
+        nextCursor: null,
+      });
+      expect(
+        await preprodList(`scope=workspace&limit=1&cursor=${twin}`),
+      ).toEqual({
+        ids: ["job-reads-preprod-only"],
+        total: 2,
+        nextCursor: null,
+      });
+      expect(
+        await preprodList("scope=workspace&cursor=job-reads-mainnet-only"),
+      ).toEqual({
+        ids: [],
+        total: 2,
+        nextCursor: null,
+      });
+      await system.submitMainnetInput();
+      expect(
+        (await call(routes.request, system.session, "mainnet")).status,
+      ).toBe(404);
+      expect(
+        (await call(routes.request, system.session, "preprod")).status,
+      ).toBe(200);
+    }, 30_000);
+
+    it("refuses a workspace without Preprod access before any Network read", async () => {
+      await system.shared.organization.update({
+        where: { id: organizationId },
+        data: { preprodEnabled: false },
+      });
+      try {
+        await expectRefusals(system.session, "preprod_access_required");
+      } finally {
+        await system.shared.organization.update({
+          where: { id: organizationId },
+          data: { preprodEnabled: true },
+        });
+      }
+    }, 30_000);
+  });
+});
