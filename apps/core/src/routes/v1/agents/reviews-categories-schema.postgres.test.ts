@@ -18,6 +18,29 @@ import {
   createPasswordUser,
 } from "@/test-fixtures/core-session";
 
+/**
+ * The file's own copy of the migrated database, made before Core's modules
+ * load and open their pool: the comparison reads every Agent rate, so a rate
+ * another file left in the worker's database would be one more than
+ * recorded (the baseline below asserts there is none).
+ */
+const privateDatabase = await vi.hoisted(async () => {
+  const source =
+    process.env.POSTGRES_TEST_TEMPLATE_URL ?? process.env.DATABASE_URL;
+  if (
+    process.env.RUN_DATABASE_INTEGRATION_TESTS !== "true" ||
+    !source?.startsWith("postgres")
+  )
+    return undefined;
+  const { copyPostgresTestDatabase } = await import(
+    "@/test/postgres-database-copy"
+  );
+  const copy = await copyPostgresTestDatabase(source, "catalog_test");
+  vi.stubEnv("DATABASE_URL", copy.url);
+  vi.stubEnv("DATABASE_URL_UNPOOLED", copy.url);
+  return copy;
+});
+
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
   preprodEnabled: false,
@@ -83,7 +106,12 @@ vi.mock("@vercel/functions", async (load) => {
 });
 
 afterAll(async () => {
-  await Promise.all(state.pools.map((pool) => pool.end()));
+  try {
+    await Promise.all(state.pools.map((pool) => pool.end()));
+  } finally {
+    vi.unstubAllEnvs();
+    await privateDatabase?.drop();
+  }
 });
 
 const createClock = new Date("2026-11-27T12:00:00.000Z");
