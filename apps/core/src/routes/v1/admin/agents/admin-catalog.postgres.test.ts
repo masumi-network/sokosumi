@@ -11,13 +11,6 @@ import { copyPostgresTestDatabase } from "@/test/postgres-database-copy";
 import { observing, statements } from "@/test/spend-comparison";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
-// Core runs in UTC in production and in CI. The Agent detail's run-time
-// cutoff is "now" minus 90 days in the process's own zone, so a recording
-// made in a zone with summer time binds another hour. Before any Date exists.
-vi.hoisted(() => {
-  process.env.TZ = "UTC";
-});
-
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
   pools: [] as Pool[],
