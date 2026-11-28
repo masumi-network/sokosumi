@@ -83,6 +83,7 @@ export const CUSO_BOT_WHERE = {
 } satisfies Prisma.SokoBotWhereInput;
 
 /** A Cuso nobody deleted or archived: the one people work with. */
+// isCusoInFreeHiring in cmo-billing.service.ts mirrors this filter in raw SQL.
 export const LIVE_CUSO_WHERE = {
   ...CUSO_BOT_WHERE,
   deletedAt: null,

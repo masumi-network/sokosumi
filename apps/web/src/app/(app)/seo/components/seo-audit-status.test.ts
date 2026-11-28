@@ -16,13 +16,16 @@ const check = (status: SeoAuditLastCheck["status"]): SeoAuditLastCheck => ({
 const after = (minutes: number) => new Date(START.getTime() + minutes * 60_000);
 
 describe("seoAuditCheckState", () => {
-  it("says a requested or running check runs until the longest check would have ended", () => {
-    expect(seoAuditCheckState(check("requested"), after(1))).toBe("running");
+  it("says a requested check waits and a running one runs, until the longest check would have ended", () => {
+    expect(seoAuditCheckState(check("requested"), after(1))).toBe("queued");
     expect(seoAuditCheckState(check("running"), after(179))).toBe("running");
   });
 
   it("says an open check did not finish after three hours", () => {
     expect(seoAuditCheckState(check("running"), after(180))).toBe("unfinished");
+    expect(seoAuditCheckState(check("requested"), after(180))).toBe(
+      "unfinished",
+    );
   });
 
   it("keeps a saved result or a failure whatever its age", () => {

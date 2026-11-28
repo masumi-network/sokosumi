@@ -38,6 +38,12 @@ const opened = vi.hoisted(() => ({ tx: undefined as unknown }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({
+    sokoBotUsage: {
+      findMany: usageFindManyMock,
+      findUnique: usageFindUniqueMock,
+    },
+  }),
   default: {
     sokoBot: { findUnique: botFindUniqueMock },
     sokoBotUsage: {
@@ -58,7 +64,7 @@ vi.mock("@/lib/db/transaction", () => ({
 }));
 vi.mock("@/services/cmo-billing.service", () => ({
   isCusoInFreeHiring: freeHiringMock,
-  isCmoSubscribed: subscribedMock,
+  cmoSubscriptionAllowsWork: subscribedMock,
 }));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   postSokoBotOwnerNotice: postNoticeMock,
@@ -84,6 +90,7 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
 
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 import {
   notifySokoBotOutOfCredits,
@@ -107,10 +114,11 @@ function expectDebitOn(tx: unknown) {
 function transactionClient() {
   return {
     sokoBot: { findUnique: botFindUniqueMock },
-    sokoBotUsage: {
-      create: usageCreateMock,
-      findUnique: usageFindUniqueMock,
+    $queryRaw: async () => {
+      const existing = await usageFindUniqueMock();
+      return existing ? [existing] : [];
     },
+    $executeRaw: usageCreateMock,
   };
 }
 
@@ -222,6 +230,7 @@ describe("Soko Bot billing", () => {
         costUsdMicros: 1_000_000n,
       },
       tx as never,
+      createNetworkScope("mainnet"),
     );
 
     expect(result).toEqual({
@@ -241,15 +250,18 @@ describe("Soko Bot billing", () => {
       expect.anything(),
     );
     expectDebitOn(tx);
-    expect(usageCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          idempotencyKey: "soko-bot-turn:turn_1",
-          referenceId: "turn_1",
-          cents: expected,
-        }),
-      }),
-    );
+    expect(usageCreateMock.mock.calls[0]?.[3].values).toEqual([
+      expect.any(String),
+      expect.any(Date),
+      expect.any(Date),
+      "soko-bot-turn:turn_1",
+      "turn_1",
+      SOKO_BOT_ID,
+      "user_1",
+      null,
+      expected,
+      "transaction_1",
+    ]);
   });
 
   it("returns existing charge and reports a metering shortfall", async () => {
@@ -267,6 +279,7 @@ describe("Soko Bot billing", () => {
         costUsdMicros: 1_000_000n,
       },
       transactionClient() as never,
+      createNetworkScope("mainnet"),
     );
 
     expect(result).toEqual({
@@ -300,16 +313,18 @@ describe("Soko Bot billing", () => {
 
     expect(result.chargedCents).toBe(expected);
     expectDebitOn(opened.tx);
-    expect(usageCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: "user_1",
-          idempotencyKey: "cmo-pillars:v1:1",
-          referenceId: null,
-          cents: expected,
-        }),
-      }),
-    );
+    expect(usageCreateMock.mock.calls[0]?.[3].values).toEqual([
+      expect.any(String),
+      expect.any(Date),
+      expect.any(Date),
+      "cmo-pillars:v1:1",
+      null,
+      SOKO_BOT_ID,
+      "user_1",
+      null,
+      expected,
+      "transaction_1",
+    ]);
   });
 
   describe("in an organization workspace", () => {
@@ -337,6 +352,7 @@ describe("Soko Bot billing", () => {
           costUsdMicros: 1_000_000n,
         },
         tx as never,
+        createNetworkScope("mainnet"),
       );
 
       // The wallet it drew on, so the low-balance check reads the same one.
@@ -362,10 +378,8 @@ describe("Soko Bot billing", () => {
         expect.anything(),
       );
       expectDebitOn(tx);
-      expect(usageCreateMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ organizationId: "org_1" }),
-        }),
+      expect(usageCreateMock.mock.calls[0]?.[3].values).toEqual(
+        expect.arrayContaining(["org_1"]),
       );
     });
 
@@ -569,7 +583,11 @@ describe("Soko Bot billing", () => {
       };
 
       const tx = transactionClient();
-      await recordSokoBotTurnUsage(input, tx as never);
+      await recordSokoBotTurnUsage(
+        input,
+        tx as never,
+        createNetworkScope("mainnet"),
+      );
       expect(prepareConsumptionMock).toHaveBeenCalledWith(
         "mainnet",
         "user_2",
@@ -592,7 +610,11 @@ describe("Soko Bot billing", () => {
       usageFindUniqueMock.mockResolvedValue(null);
       balanceMock.mockResolvedValue(0n);
       await expect(
-        recordSokoBotTurnUsage(input, transactionClient() as never),
+        recordSokoBotTurnUsage(
+          input,
+          transactionClient() as never,
+          createNetworkScope("mainnet"),
+        ),
       ).resolves.toEqual({
         chargedCents: 0n,
         expectedCents: expected,
@@ -638,6 +660,7 @@ describe("Soko Bot billing", () => {
           costUsdMicros: 1_000_000n,
         },
         tx as never,
+        createNetworkScope("mainnet"),
       );
 
       expect(result).toMatchObject({ chargedCents: balance, shortfall: true });
@@ -785,6 +808,7 @@ describe("Soko Bot billing", () => {
           costUsdMicros: 1_000_000n,
         },
         transactionClient() as never,
+        createNetworkScope("mainnet"),
       );
 
       // No wallet drawn on: the low-balance check after a charge stays quiet.
@@ -807,7 +831,11 @@ describe("Soko Bot billing", () => {
       await expect(
         requireSokoBotTurnFunding("user_2", SOKO_BOT_ID),
       ).rejects.toMatchObject({ reason: "cmo_paused" });
-      expect(subscribedMock).toHaveBeenCalledWith({ projectId: PROJECT_ID });
+      expect(subscribedMock).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
+        PROJECT_ID,
+        expect.any(Date),
+      );
     });
 
     it("names his Project on a charge, so the pool's low-credit notice skips it", async () => {
@@ -822,6 +850,7 @@ describe("Soko Bot billing", () => {
           costUsdMicros: 1_000_000n,
         },
         transactionClient() as never,
+        createNetworkScope("mainnet"),
       );
 
       expect(result).toMatchObject({
@@ -848,6 +877,7 @@ describe("Soko Bot billing", () => {
           costUsdMicros: 1_000_000n,
         },
         transactionClient() as never,
+        createNetworkScope("mainnet"),
       );
 
       expect(result).toMatchObject({
@@ -872,6 +902,7 @@ describe("Soko Bot billing", () => {
             costUsdMicros: 1_000_000n,
           },
           transactionClient() as never,
+          createNetworkScope("mainnet"),
         ),
       ).toMatchObject({ chargedCents: 0n, shortfall: true });
     });

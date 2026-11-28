@@ -1,4 +1,6 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
+import { netType, sharedTable } from "@sokosumi/database/sql-tables";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
 import { type CmoVolumeLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
@@ -9,7 +11,11 @@ import {
   testerFunding,
   testerFundingQuery,
 } from "@/lib/credits/commercial-funding";
-import { createNetworkScope, type NetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  type MainnetScope,
+  type NetworkScope,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
@@ -54,10 +60,22 @@ export async function isCmoProjectUnpaid(
 }
 
 /** An unpaid Cuso's Project whose strategy is not approved yet (Launch). */
-const FREE_HIRING_PROJECT_WHERE = {
-  ...UNPAID_CUSO_PROJECT_WHERE,
-  marketingStrategies: { none: { approvedAt: { not: null } } },
-} satisfies Prisma.ProjectWhereInput;
+// Keep the public-layout query and its binds identical to the original relation filter.
+function freeHiringProject(
+  scope: MainnetScope,
+  project: PrismaRaw.Sql,
+  aliases: readonly [PrismaRaw.Sql, PrismaRaw.Sql, PrismaRaw.Sql],
+) {
+  const [subscription, bucket, strategy] = aliases;
+  return PrismaRaw.join(
+    [
+      PrismaRaw.sql`NOT EXISTS(SELECT ${subscription}."projectId" FROM ${sharedTable("polar_subscription")} AS ${subscription} WHERE (1=1 AND (${project}."id") = (${subscription}."projectId") AND ${subscription}."projectId" IS NOT NULL))`,
+      PrismaRaw.sql`NOT EXISTS(SELECT ${bucket}."projectId" FROM ${scope.networkTable("credit_bucket")} AS ${bucket} WHERE (${bucket}."referenceType" = CAST(${CreditBucketReferenceType.CMO_TESTER_CREDITS}::text AS ${netType(scope.network, "CreditBucketReferenceType")}) AND (${project}."id") = (${bucket}."projectId") AND ${bucket}."projectId" IS NOT NULL))`,
+      PrismaRaw.sql`NOT EXISTS(SELECT ${strategy}."projectId" FROM ${sharedTable("marketing_strategy")} AS ${strategy} WHERE (${strategy}."approvedAt" IS NOT NULL AND (${project}."id") = (${strategy}."projectId") AND ${strategy}."projectId" IS NOT NULL))`,
+    ],
+    " AND ",
+  );
+}
 
 /**
  * Free hiring (ADR 0068): an unpaid live Cuso whose strategy is not approved
@@ -65,18 +83,21 @@ const FREE_HIRING_PROJECT_WHERE = {
  * approval (Launch) he is paused until a plan is paid.
  */
 export async function isCusoInFreeHiring(
+  scope: MainnetScope,
   sokoBotId: string,
-  db: Pick<Prisma.TransactionClient, "sokoBot"> = prisma,
+  db: Pick<Prisma.TransactionClient, "$queryRaw">,
 ): Promise<boolean> {
-  const bot = await db.sokoBot.findFirst({
-    where: {
-      id: sokoBotId,
-      ...LIVE_CUSO_WHERE,
-      project: FREE_HIRING_PROJECT_WHERE,
-    },
-    select: { id: true },
-  });
-  return bot !== null;
+  const bot = sharedTable("soko_bot");
+  const project = PrismaRaw.raw('"j0"');
+  const unpaid = freeHiringProject(scope, project, [
+    PrismaRaw.raw('"t1"'),
+    PrismaRaw.raw('"t2"'),
+    PrismaRaw.raw('"t3"'),
+  ]);
+  const rows = await db.$queryRaw<
+    { id: string }[]
+  >`SELECT ${bot}."id" FROM ${bot} LEFT JOIN ${sharedTable("project")} AS ${project} ON (${project}."id") = (${bot}."projectId") WHERE (${bot}."id" = ${sokoBotId} AND ${bot}."versionId" IN (${PrismaRaw.join(LIVE_CUSO_WHERE.versionId.in)}) AND ${bot}."userId" IS NULL AND ${bot}."projectId" IS NOT NULL AND ${bot}."deletedAt" IS NULL AND ${bot}."archivedAt" IS NULL AND (${unpaid} AND (${project}."id" IS NOT NULL))) LIMIT ${1n} OFFSET ${0n}`;
+  return rows.length > 0;
 }
 
 /**
@@ -90,22 +111,35 @@ export async function isCusoInFreeHiring(
 export async function isCmoSubscribed(
   cuso: Pick<Cuso, "projectId">,
   now: Date = new Date(),
-  db?: Pick<
-    Prisma.TransactionClient,
-    "polarSubscription" | "project" | "creditBucket"
-  >,
 ): Promise<boolean> {
-  const { projectId } = cuso;
+  return cmoSubscriptionAllowsWork(
+    createNetworkScope("mainnet"),
+    cuso.projectId,
+    now,
+  );
+}
+
+export async function cmoSubscriptionAllowsWork(
+  scope: MainnetScope,
+  projectId: string,
+  now: Date,
+): Promise<boolean> {
   if (await isEvalCusoProject(projectId)) return true;
-  const scope = createNetworkScope("mainnet");
-  const [paid, freeHiring] = await Promise.all([
-    cmoPaidFor(projectId, now, scope, db),
-    (db ?? scope.sharedDb).project.findFirst({
-      where: { id: projectId, ...FREE_HIRING_PROJECT_WHERE },
-      select: { id: true },
-    }),
+  const project = sharedTable("project");
+  const unpaid = freeHiringProject(scope, project, [
+    PrismaRaw.raw('"t0"'),
+    PrismaRaw.raw('"t1"'),
+    PrismaRaw.raw('"t2"'),
   ]);
-  return paid.subscribed || paid.testerCreditsLeft || freeHiring !== null;
+  const [paid, freeHiring] = await Promise.all([
+    cmoPaidFor(projectId, now, scope),
+    scope.sharedDb.$queryRaw<
+      { id: string }[]
+    >`SELECT ${project}."id" FROM ${project} WHERE (${project}."id" = ${projectId} AND ${unpaid}) LIMIT ${1n} OFFSET ${0n}`.then(
+      (rows) => rows.length > 0,
+    ),
+  ]);
+  return paid.subscribed || paid.testerCreditsLeft || freeHiring;
 }
 
 /**

@@ -9572,3 +9572,83 @@ it("shows the worker's written plan in place of the plan block and the verdict, 
   expect(screen.queryByRole("list", { name: "The agent proposes" })).toBeNull();
   expect(screen.queryByText(messages.App.Seo.agent.nothingNext)).toBeNull();
 });
+
+describe("SEO site crawl page links", () => {
+  /** Opens the home page from the crawl's broken links; its read waits until `answer` lets it in. */
+  async function openCrawlPage() {
+    const user = userEvent.setup();
+    const workspace = seoTestCheckedAudit();
+    workspace.observations = [
+      {
+        ...seoTestObservation(workspace),
+        kind: "audit_full",
+        siteCrawl: {
+          state: "crawled",
+          fetched: 2,
+          read: 2,
+          stop: "complete",
+          links: {
+            broken: [
+              {
+                target: "https://example.com/old",
+                status: 404,
+                linkedFrom: 1,
+                sources: ["https://example.com/"],
+              },
+            ],
+            brokenTotal: 1,
+            chains: [],
+            chainsTotal: 0,
+            notJudged: 0,
+          },
+          javascript: { unseen: 0, groups: [] },
+          orphans: { state: "found", urls: [], total: 0, candidates: false },
+          pageChecks: null,
+          gaps: [],
+        },
+      } as ProjectSeoWorkspace["observations"][number],
+    ];
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        // The read of the picked page waits until the test lets it in: the Actions unmount under a skeleton.
+        String(url).includes("pageId=")
+          ? new Promise<Response>((resolve) => {
+              answer = resolve;
+            })
+          : Promise.resolve(Response.json(workspace)),
+      ),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      await screen.findByText(messages.App.Seo.siteCrawl.checks.brokenLinks),
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: (name) =>
+          name.startsWith("/") &&
+          name.endsWith(messages.App.Seo.siteCrawl.openPage),
+      }),
+    );
+    await screen.findByText(messages.App.Seo.loading);
+    return { user, answer: () => answer(Response.json(workspace)) };
+  }
+
+  it("moves the focus to the Actions of a page the site crawl names once the read of that page is in", async () => {
+    const { answer } = await openCrawlPage();
+    answer();
+    await waitFor(() =>
+      expect(screen.getByRole("tabpanel", { name: /Actions/ })).toHaveFocus(),
+    );
+  });
+
+  it("leaves the focus where the reader moved it while the page loaded", async () => {
+    const { user, answer } = await openCrawlPage();
+    const tab = screen.getByRole("tab", { name: /Actions/ });
+    await user.click(tab);
+    answer();
+    await screen.findByRole("tabpanel", { name: /Actions/ });
+    expect(tab).toHaveFocus();
+  });
+});
