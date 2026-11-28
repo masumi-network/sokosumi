@@ -2604,6 +2604,70 @@ describe.skipIf(!enabled)(
       ).toBe(true);
     });
 
+    it("recovers a failed full audit from its original report above 2 MiB", async () => {
+      const task = await prisma.task.create({
+        data: {
+          name: "Completed full audit",
+          ownerId: userId,
+          workspaceId,
+          projectId,
+          status: "COMPLETED",
+          assigneeId: coworkerId,
+        },
+      });
+      await prisma.projectSeoAnalysis.create({
+        data: {
+          projectId,
+          taskId: task.id,
+          idempotencyKey: randomUUID(),
+          requestHash: "large-full-audit",
+          kind: "audit_full",
+          status: "failed",
+          requestedBy: userId,
+          pageIds: [],
+          request: {
+            pageUrls: [SEO_TEST_PAGE],
+            countryCode: "US",
+            languageCode: "en",
+          },
+        },
+      });
+      const body = JSON.stringify(legacyReport()).padEnd(3 * 1024 * 1024);
+      const file = await prisma.taskFile.create({
+        data: {
+          taskId: task.id,
+          name: `seo-report-${task.id}.data.json`,
+          fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+          mimeType: "application/json",
+          size: BigInt(Buffer.byteLength(body)),
+          uploadedByCoworkerId: coworkerId,
+        },
+      });
+      const input = { taskId: task.id, fileId: file.id };
+      const options = { fetchImpl: async () => new Response(body) };
+      // Enforce the streaming limit even if the stored file size is too small.
+      await expect(
+        importProjectSeoAudit(actor, input, {
+          fetchImpl: async () => new Response(body.padEnd(8 * 1024 * 1024 + 1)),
+        }),
+      ).rejects.toMatchObject({
+        message: "The SEO report exceeds the import limit",
+      });
+      const imported = await importProjectSeoAudit(actor, input, options);
+      expect(imported).toMatchObject({
+        kind: "audit_full",
+        sourceTaskId: task.id,
+      });
+      expect((await importProjectSeoAudit(actor, input, options)).id).toBe(
+        imported.id,
+      );
+      expect(
+        await prisma.projectSeoAnalysis.findUniqueOrThrow({
+          where: { taskId: task.id },
+        }),
+      ).toMatchObject({ status: "completed" });
+    });
+
     it("rechecks imported checklist rows and repairs the status on replay", async () => {
       const project = await prisma.project.create({
         data: { workspaceId, name: "Audit recheck replay" },

@@ -11,7 +11,7 @@ import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import type { TransactionHistoryKind } from "@/schemas/transaction-history.schema";
 
-import { ownsUntaggedSharedRows, taskEventCountsOn } from "./policy";
+import { ownsUntaggedSharedRows, taskEventCountsOnSql } from "./policy";
 
 /**
  * A `Transaction` row — a spend or a top up — already resolved against every
@@ -178,9 +178,7 @@ function buildFilterSql(
 function sharedReceiptJoins(scope: NetworkScope) {
   const { network } = scope;
   // The SQL form of `taskEventCountsOn`, inside the lateral, before its oldest-event pick: a Preprod event of an equal transaction id never lends a Mainnet entry its Task.
-  const taskEvent = taskEventCountsOn(null, network)
-    ? PrismaRaw.sql`e."transactionId" = t."id" AND (e."network" IS NULL OR e."network" = ${network})`
-    : PrismaRaw.sql`e."transactionId" = t."id" AND e."network" = ${network}`;
+  const taskEvent = PrismaRaw.sql`e."transactionId" = t."id" AND ${taskEventCountsOnSql("e", network)}`;
   if (ownsUntaggedSharedRows(network)) {
     return {
       taskEvent,

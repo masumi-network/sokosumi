@@ -1,3 +1,4 @@
+import { PrismaRaw } from "@sokosumi/database/client";
 import type { Network } from "@/lib/network";
 
 /**
@@ -53,6 +54,26 @@ export function taskEventCountsOn(
   return eventNetwork === null
     ? ownsUntaggedSharedRows(network)
     : eventNetwork === network;
+}
+
+const SQL_EVENT_ALIAS = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * The SQL form of {@link taskEventCountsOn} for a `taskEvent` table alias:
+ * shared by the ledger (`history.ts`) and admin SEO billing
+ * (`admin-seo-billing.ts`) so both enforce the exact same eligibility rule.
+ */
+export function taskEventCountsOnSql(
+  alias: string,
+  network: Network,
+): PrismaRaw.Sql {
+  if (!SQL_EVENT_ALIAS.test(alias)) {
+    throw new Error(`Invalid taskEvent SQL alias: ${alias}`);
+  }
+  const event = PrismaRaw.raw(alias);
+  return ownsUntaggedSharedRows(network)
+    ? PrismaRaw.sql`(${event}."network" IS NULL OR ${event}."network" = ${network})`
+    : PrismaRaw.sql`${event}."network" = ${network}`;
 }
 
 /**
