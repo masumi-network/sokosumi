@@ -4,8 +4,10 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
+import type { TableNetwork } from "../sql-tables.js";
 import { buildFreeCreditReferenceId } from "./credit.js";
 import type { CreditBucketProjectOption } from "./credit-bucket-scope.js";
+import { insertCreditGrant } from "./credit-grant-sql.js";
 
 export class GrantFreeCreditsError extends Error {
   constructor(message: string) {
@@ -23,8 +25,11 @@ interface GrantFreeCreditsParams extends CreditBucketProjectOption {
     | typeof CreditBucketReferenceType.CMO_TESTER_CREDITS;
   expiresAt: Date | null;
   grantId: string;
+  mintId?: () => string;
+  network?: TableNetwork;
   organizationId: string | null;
   referenceNote: string | null;
+  splitSql?: boolean;
   targetId: string;
   targetType: "user" | "organization";
   transactionUserId: string | null;
@@ -86,6 +91,27 @@ export async function grantFreeCredits(
   });
   const amount = convertCreditsToCents(params.credits);
   const bucketUserId = params.targetType === "user" ? params.targetId : null;
+
+  if (params.splitSql) {
+    const { bucketId } = await insertCreditGrant(
+      {
+        mintId: params.mintId,
+        network: params.network ?? "mainnet",
+        amount,
+        expiresAt: params.expiresAt,
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        referenceId,
+        referenceNote: params.referenceNote,
+        referenceType: params.referenceType ?? CreditBucketReferenceType.FREE,
+        transactionUserId: params.transactionUserId,
+        userId: bucketUserId,
+      },
+      tx,
+    );
+
+    return { bucketId };
+  }
 
   const transaction = await tx.transaction.create({
     data: {

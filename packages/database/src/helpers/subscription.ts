@@ -6,10 +6,15 @@ import {
   CreditBucketReferenceType,
   type Prisma,
 } from "../generated/prisma/client.js";
+import type { TableNetwork } from "../sql-tables.js";
 import {
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
+import {
+  findCreditBucketByReference,
+  insertCreditGrant,
+} from "./credit-grant-sql.js";
 import { resolvePurchasedSeats } from "./organization-seats.js";
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = [
@@ -472,7 +477,14 @@ export async function ensureLocalFreeSubscriptionPeriod(
 export async function grantLocalFreePeriodCredits(
   input: LocalFreePeriodCredits,
   tx: Prisma.TransactionClient,
+  options?: {
+    mintId?: () => string;
+    network?: TableNetwork;
+    splitSql?: boolean;
+  },
 ): Promise<{ created: boolean }> {
+  const network = options?.network ?? "mainnet";
+  const splitSql = options?.splitSql === true;
   const organizationId = input.owner.organizationId ?? null;
   const userId = input.owner.userId ?? null;
   const referenceId =
@@ -485,41 +497,67 @@ export async function grantLocalFreePeriodCredits(
           input.owner.userId,
           input.periodEnd,
         );
-  const existingBucket = await tx.creditBucket.findUnique({
-    where: {
-      referenceId_referenceType: {
-        referenceId,
-        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
+  const existingBucket = splitSql
+    ? await findCreditBucketByReference(
+        {
+          network,
+          referenceId,
+          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        },
+        tx,
+      )
+    : await tx.creditBucket.findUnique({
+        where: {
+          referenceId_referenceType: {
+            referenceId,
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
 
   if (existingBucket) {
     return { created: false };
   }
 
   const amount = convertCreditsToCents(input.credits);
-  await tx.transaction.create({
-    data: {
-      amount,
-      organizationId,
-      userId,
-      sourceCreditBucket: {
-        create: {
-          activatesAt: input.activatesAt,
-          amount,
-          expiresAt: input.periodEnd,
-          organizationId,
-          referenceId,
-          referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-          userId,
+  if (splitSql) {
+    await insertCreditGrant(
+      {
+        mintId: options?.mintId,
+        network,
+        activatesAt: input.activatesAt,
+        amount,
+        expiresAt: input.periodEnd,
+        organizationId,
+        referenceId,
+        referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+        userId,
+      },
+      tx,
+    );
+  } else {
+    await tx.transaction.create({
+      data: {
+        amount,
+        organizationId,
+        userId,
+        sourceCreditBucket: {
+          create: {
+            activatesAt: input.activatesAt,
+            amount,
+            expiresAt: input.periodEnd,
+            organizationId,
+            referenceId,
+            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+            userId,
+          },
         },
       },
-    },
-  });
+    });
+  }
 
   return { created: true };
 }

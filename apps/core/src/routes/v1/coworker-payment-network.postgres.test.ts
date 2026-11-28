@@ -1559,6 +1559,12 @@ describe.runIf(enabled && onSplitLayout)(
             { preprod: 20 },
             true,
           );
+          await world.networkDb("mainnet").creditBucket.deleteMany({
+            where: { userId: onPreprod.id },
+          });
+          await world.networkDb("mainnet").transaction.deleteMany({
+            where: { userId: onPreprod.id },
+          });
           const charge = async (
             owner: { id: string; workspaceId: string },
             headers?: Record<string, string>,

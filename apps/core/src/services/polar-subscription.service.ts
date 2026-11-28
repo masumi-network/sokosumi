@@ -5,7 +5,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
-import { sharedTable } from "@sokosumi/database/sql-tables";
+import { netTable, netType, sharedTable } from "@sokosumi/database/sql-tables";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
@@ -16,7 +16,10 @@ import {
 } from "@/clients/polar.client";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { writeOff } from "@/lib/credits/write-off";
-import { createNetworkScope } from "@/lib/db/network-scope";
+import {
+  createNetworkScope,
+  sharedTxAsNetworkDb,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { cmoProductMetadataSchema } from "@/services/cmo-catalog.service";
@@ -603,20 +606,36 @@ export async function handlePolarOrderRefunded(
       VALUES (${order.id}, ${new Date(event.timestamp)})
       ON CONFLICT ("polarOrderId") DO UPDATE
       SET "refundedAt" = COALESCE("polar_order"."refundedAt", EXCLUDED."refundedAt")`;
-    const buckets = await tx.creditBucket.findMany({
-      where: {
-        referenceId: { startsWith: `${order.id}:` },
-        referenceType: {
-          in: [
+    const mainnetScope = createNetworkScope("mainnet");
+    const txNetworkDb = sharedTxAsNetworkDb(mainnetScope, tx);
+    const buckets = txNetworkDb
+      ? await txNetworkDb.creditBucket.findMany({
+          where: {
+            referenceId: { startsWith: `${order.id}:` },
+            referenceType: {
+              in: [
+                CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
+                CreditBucketReferenceType.PROJECT_TOP_UP,
+              ],
+            },
+          },
+          select: { id: true },
+        })
+      : await (async () => {
+          const referencePrefix = `${order.id}:`;
+          const refundableTypes: CreditBucketReferenceType[] = [
             CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
             CreditBucketReferenceType.PROJECT_TOP_UP,
-          ],
-        },
-      },
-      select: { id: true },
-    });
+          ];
+          return tx.$queryRaw<Array<{ id: string }>>`
+            SELECT id
+            FROM ${netTable("mainnet", "credit_bucket")}
+            WHERE starts_with("referenceId", ${referencePrefix})
+              AND "referenceType" = ANY(CAST(${refundableTypes}::text[] AS ${netType("mainnet", "CreditBucketReferenceType")}[]))
+          `;
+        })();
     await writeOff({
-      scope: createNetworkScope("mainnet"),
+      scope: mainnetScope,
       tx,
       of: { bucketIds: buckets.map((bucket) => bucket.id) },
     });

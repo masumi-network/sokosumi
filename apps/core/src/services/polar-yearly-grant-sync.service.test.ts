@@ -24,7 +24,10 @@ const m = vi.hoisted(() => ({
 vi.mock("@/clients/polar.client", () => ({
   listPolarProducts: m.listPolarProducts,
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: m.prisma }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: m.prisma,
+  networkPrisma: () => m.prisma,
+}));
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
   captureMessage: m.captureMessage,

@@ -4,9 +4,18 @@ import {
   type TaskStatus,
 } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
+import {
+  jobWithEvents,
+  jobWithPurchase,
+  jobWithTransaction,
+} from "@sokosumi/database/types/job";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { z } from "zod";
 import { digestJob, plainExcerpt } from "@/helpers/job-digest";
+import {
+  createNetworkScope,
+  networkUsesSharedSchema,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { publicDriveUrl } from "@/lib/drive-blob";
 import type { CmoSeoSuggestion } from "@/schemas/cmo-seo.schema";
@@ -283,15 +292,33 @@ function taskQuestion(task: HandedTask): string | null {
   return asked?.comment?.trim() || null;
 }
 
+const CHAT_WORK_JOB_INCLUDE = {
+  ...jobWithEvents,
+  ...jobWithTransaction,
+  ...jobWithPurchase,
+  agent: { select: { name: true } },
+} as const;
+
 async function loadJobs(workspaceId: string, jobIds: string[]) {
   if (jobIds.length === 0) return [];
-  const rows = await prisma.job.findMany({
+  const networkDb = createNetworkScope("mainnet").networkDb;
+  if (networkUsesSharedSchema()) {
+    const rows = await networkDb.job.findMany({
+      where: { id: { in: jobIds }, workspaceId },
+      include: jobInclude,
+    });
+    return rows.map((row) => {
+      const job = mapJobWithStatus(row);
+      return { id: job.id, name: job.name ?? job.agent.name, job };
+    });
+  }
+  const rows = await networkDb.job.findMany({
     where: { id: { in: jobIds }, workspaceId },
-    include: jobInclude,
+    include: CHAT_WORK_JOB_INCLUDE,
   });
   return rows.map((row) => {
     const job = mapJobWithStatus(row);
-    return { id: job.id, name: job.name ?? job.agent.name, job };
+    return { id: job.id, name: job.name ?? row.agent.name, job };
   });
 }
 

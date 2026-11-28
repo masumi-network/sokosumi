@@ -31,7 +31,7 @@ const {
   seoText: vi.fn(),
   recordTable: vi.fn(),
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: db }));
+vi.mock("@/lib/db/prisma", () => ({ default: db, networkPrisma: () => db }));
 vi.mock("@/lib/drive-blob", () => ({ publicDriveUrl: publicUrl }));
 vi.mock("@/services/cmo-cuso.service", () => ({
   requireCuso: cuso,

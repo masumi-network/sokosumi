@@ -96,10 +96,6 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
-    creditBucket: {
-      findUnique: (...args: unknown[]) =>
-        findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
-    },
     organization: {
       update: (...args: unknown[]) => organizationUpdateMock(...args),
     },
@@ -108,6 +104,12 @@ vi.mock("@/lib/db/prisma", () => ({
       update: (...args: unknown[]) => userUpdateMock(...args),
     },
   },
+  networkPrisma: () => ({
+    creditBucket: {
+      findUnique: (...args: unknown[]) =>
+        findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
+    },
+  }),
 }));
 
 vi.mock("@/services/subscription-catalog.service", () => ({

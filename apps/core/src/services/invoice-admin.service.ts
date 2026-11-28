@@ -8,6 +8,7 @@ import type Stripe from "stripe";
 import { stripeClient } from "@/clients/stripe.client";
 import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
 import { findStripeInvoiceGrant } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
@@ -422,14 +423,17 @@ async function grantCreditsForPaidInvoice(
   // paid but no credits issued. Verify the grant landed instead of
   // reporting false success; granting is idempotent, so a retry after
   // fixing the cause completes it.
-  const grantedBucket = await findStripeInvoiceGrant(prisma, {
-    invoiceId: paidInvoice.id,
-    entry: "topup",
-    owner:
-      target.targetType === "user"
-        ? { userId: target.id }
-        : { organizationId: target.id },
-  });
+  const grantedBucket = await findStripeInvoiceGrant(
+    createNetworkScope("mainnet"),
+    {
+      invoiceId: paidInvoice.id,
+      entry: "topup",
+      owner:
+        target.targetType === "user"
+          ? { userId: target.id }
+          : { organizationId: target.id },
+    },
+  );
   if (!grantedBucket) {
     throw new InvoiceValidationError(
       "Invoice was paid but credits were not granted. Resolve the issue and mark it paid again to retry.",

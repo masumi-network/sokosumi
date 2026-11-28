@@ -342,8 +342,8 @@ async function record(
   if (key.endsWith("-race")) {
     // A harness failure must fail the test even while recording the baseline.
     expect(outcome).toMatchObject({
-      held: !onSplitLayout,
-      waiting: !onSplitLayout,
+      held: true,
+      waiting: true,
     });
   }
   expect(log.length > 0).toBe(sql);

@@ -785,23 +785,14 @@ function declareExpectedLogs(): void {
  */
 async function prepared(
   step: () => Promise<unknown>,
-  onSplit: readonly string[] = [],
+  _onSplit: readonly string[] = [],
 ): Promise<void> {
   const loggedBefore = coreLogEntries().length;
-  try {
-    await step();
-  } catch (error) {
-    if (!onSplitLayout) throw error;
-  }
+  await step();
   const logged = coreLogEntries()
     .slice(loggedBefore)
     .map(({ level, message }) => ({ level, message }));
-  const expected = (onSplitLayout ? onSplit : []).map((message) => ({
-    level: "error" as const,
-    message,
-  }));
-  expect(logged).toEqual(expected);
-  expectedLogs.push(...expected);
+  expect(logged).toEqual([]);
 }
 
 /** The two crons' lock rows. */

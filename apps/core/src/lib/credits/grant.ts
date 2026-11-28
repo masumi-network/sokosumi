@@ -6,14 +6,23 @@ import {
   createEnterprisePeriodCreditBucket,
   createEnterpriseTopUpCreditBucket,
   expireCreditBucketsNow,
+  findCreditBucketByReference,
   type GrantEnterpriseCredits,
   type GrantLocalFreePeriodCredits,
   grantFreeCredits,
   grantLocalFreePeriodCredits,
   grantSignupBonusCredits,
+  insertCreditGrant,
 } from "@sokosumi/database/helpers";
 
-import type { NetworkScope } from "@/lib/db/network-scope";
+import { v7 as uuidv7 } from "uuid";
+
+import {
+  type NetworkDb,
+  type NetworkScope,
+  networkUsesSharedSchema,
+  sharedTxAsNetworkDb,
+} from "@/lib/db/network-scope";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { requireChargingNetwork } from "./policy";
 
@@ -210,20 +219,22 @@ export type GrantResult<
 type StripeEntry = Pick<StripeInvoiceGrant, "owner" | "invoiceId" | "entry">;
 
 /**
- * Reads the keyed entry on the supplied client. The paid invoice checks its
- * exact kind. Admin verifies its top-up after delivery by owner and reference
- * alone: both a paid top-up and free invoice credits satisfy that check.
+ * Reads the keyed entry on the scope's Network client. The paid invoice checks
+ * its exact kind. Admin verifies its top-up after delivery by owner and
+ * reference alone: both a paid top-up and free invoice credits satisfy that
+ * check.
  */
 export function findStripeInvoiceGrant(
-  db: Pick<Prisma.TransactionClient, "creditBucket">,
+  scope: NetworkScope,
   { owner, invoiceId, entry }: StripeEntry,
   referenceType?: CreditBucketReferenceType,
 ) {
+  requireChargingNetwork(scope.network, "A Stripe invoice credit lookup");
   const referenceId = stripeInvoiceReferenceId(owner, invoiceId, entry);
   if (referenceType !== undefined) {
-    return findKeyedStripeGrant(db, referenceId, referenceType);
+    return findKeyedStripeGrant(scope.networkDb, referenceId, referenceType);
   }
-  return db.creditBucket.findFirst({
+  return scope.networkDb.creditBucket.findFirst({
     where:
       owner.userId !== undefined
         ? { userId: owner.userId, organizationId: null, referenceId }
@@ -233,7 +244,7 @@ export function findStripeInvoiceGrant(
 }
 
 function findKeyedStripeGrant(
-  db: Pick<Prisma.TransactionClient, "creditBucket">,
+  db: NetworkDb,
   referenceId: string,
   referenceType: CreditBucketReferenceType,
 ) {
@@ -273,33 +284,57 @@ export async function grant(
   // A scope that refuses its Network throws here, before anything is written;
   // so does Preprod's, which charges no credits and has no grants.
   requireChargingNetwork(scope.network, "A credit grant");
+  const txNetworkDb = sharedTxAsNetworkDb(scope, tx);
+  const splitSql = txNetworkDb === null;
 
   if (input.kind === "stripe_invoice") {
     const { owner, invoiceId, entry, referenceType } = input;
     const referenceId = stripeInvoiceReferenceId(owner, invoiceId, entry);
-    if (await findKeyedStripeGrant(tx, referenceId, referenceType)) {
+    const existing = txNetworkDb
+      ? await findKeyedStripeGrant(txNetworkDb, referenceId, referenceType)
+      : await findCreditBucketByReference(
+          { network: scope.network, referenceId, referenceType },
+          tx,
+        );
+    if (existing) {
       return { outcome: "already_granted", bucketId: null };
     }
     const { cents } = input;
     const userId = owner.userId ?? null;
     const organizationId = owner.organizationId ?? null;
-    const bucket = {
-      amount: cents,
-      expiresAt: input.expiresAt,
-      referenceId,
-      referenceType,
-      userId,
-      organizationId,
-    };
-    await tx.transaction.create({
-      data: {
+    if (txNetworkDb) {
+      const bucket = {
         amount: cents,
-        ...(owner.userId !== undefined
-          ? { user: { connect: { id: owner.userId } } }
-          : { organizationId, userId: null }),
-        sourceCreditBucket: { create: bucket },
-      },
-    });
+        expiresAt: input.expiresAt,
+        referenceId,
+        referenceType,
+        userId,
+        organizationId,
+      };
+      await txNetworkDb.transaction.create({
+        data: {
+          amount: cents,
+          ...(owner.userId !== undefined
+            ? { user: { connect: { id: owner.userId } } }
+            : { organizationId, userId: null }),
+          sourceCreditBucket: { create: bucket },
+        },
+      });
+    } else {
+      await insertCreditGrant(
+        {
+          mintId: uuidv7,
+          network: scope.network,
+          amount: cents,
+          expiresAt: input.expiresAt,
+          organizationId,
+          referenceId,
+          referenceType,
+          userId,
+        },
+        tx,
+      );
+    }
     if (input.wakeTasks) {
       await markOutOfCreditsTasksAsToppedUp({ organizationId, userId, tx });
     }
@@ -316,6 +351,9 @@ export async function grant(
         activatesAt: input.activatesAt,
       },
       tx,
+      splitSql
+        ? { mintId: uuidv7, network: scope.network, splitSql: true }
+        : undefined,
     );
     if (!created) return { outcome: "already_granted", bucketId: null };
     if (input.wakeTasks) {
@@ -336,6 +374,9 @@ export async function grant(
       activatesAt: input.activatesAt,
       amount: input.cents,
       organizationId: input.organizationId,
+      ...(splitSql
+        ? { mintId: uuidv7, network: scope.network, splitSql: true }
+        : {}),
     };
     const { bucketId, created } =
       input.kind === "enterprise_period"
@@ -368,27 +409,46 @@ export async function grant(
 
   if (input.kind === "polar") {
     const { cents, organizationId, projectId } = input;
-    // Prisma's nested create, as the Polar grant wrote it: the bucket's key
-    // refuses a second grant of the same reference.
-    await tx.transaction.create({
-      data: {
-        amount: cents,
-        organizationId,
-        userId: null,
-        sourceCreditBucket: {
-          create: {
-            amount: cents,
-            expiresAt: input.expiresAt,
-            organizationId,
-            projectId,
-            referenceId: input.referenceId,
-            referenceNote: input.note,
-            referenceType: input.referenceType,
-            userId: null,
+    if (txNetworkDb) {
+      // Prisma's nested create, as the Polar grant wrote it: the bucket's key
+      // refuses a second grant of the same reference.
+      await txNetworkDb.transaction.create({
+        data: {
+          amount: cents,
+          organizationId,
+          userId: null,
+          sourceCreditBucket: {
+            create: {
+              amount: cents,
+              expiresAt: input.expiresAt,
+              organizationId,
+              projectId,
+              referenceId: input.referenceId,
+              referenceNote: input.note,
+              referenceType: input.referenceType,
+              userId: null,
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      // The bucket's unique key refuses a second grant of the same reference.
+      await insertCreditGrant(
+        {
+          mintId: uuidv7,
+          network: scope.network,
+          amount: cents,
+          expiresAt: input.expiresAt,
+          organizationId,
+          projectId,
+          referenceId: input.referenceId,
+          referenceNote: input.note,
+          referenceType: input.referenceType,
+          userId: null,
+        },
+        tx,
+      );
+    }
     if (input.wakeTasks) {
       await markOutOfCreditsTasksAsToppedUp({
         organizationId,
@@ -406,6 +466,9 @@ export async function grant(
         credits: input.credits,
         expiresAt: input.expiresAt,
         userId: input.userId,
+        ...(splitSql
+          ? { mintId: uuidv7, network: scope.network, splitSql: true }
+          : {}),
       },
       tx,
     );
@@ -438,6 +501,9 @@ export async function grant(
         target.targetType === "user" ? target.userId : target.organizationId,
       targetType: target.targetType,
       transactionUserId: userId,
+      ...(splitSql
+        ? { mintId: uuidv7, network: scope.network, splitSql: true }
+        : {}),
     },
     tx,
   );
@@ -509,6 +575,9 @@ export async function expireEnterpriseGrants(input: {
         CreditBucketReferenceType.ENTERPRISE_PERIOD,
         CreditBucketReferenceType.ENTERPRISE_TOP_UP,
       ],
+      ...(networkUsesSharedSchema()
+        ? {}
+        : { network: input.scope.network, splitSql: true }),
     },
     input.tx,
   );

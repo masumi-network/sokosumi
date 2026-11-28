@@ -1073,9 +1073,6 @@ interface LoggedPerLayout {
 }
 
 /** `origin/main` cannot write a grant on the split layout: Core says so. */
-const SCHEMA_MISMATCH = "Kept a database schema mismatch out of Sentry";
-const SYNC_FAILED = "A scheduled sync failed";
-
 /** The Task wake refuses an Organization whose id is empty: the cron logs the month. */
 const LOGGED_EMPTY_ORGANIZATION_CRON: LoggedPerLayout = {
   today: [
@@ -1085,19 +1082,19 @@ const LOGGED_EMPTY_ORGANIZATION_CRON: LoggedPerLayout = {
       1,
     ],
   ],
-  split: [["error", SYNC_FAILED, 1]],
+  split: [
+    [
+      "error",
+      "Could not grant a CMO yearly subscription its month of credits",
+      1,
+    ],
+  ],
 };
 /** A subscription without a Project is not due: nothing to log. */
 const LOGGED_NULL_PROJECT_CRON: LoggedPerLayout = {};
-const LOGGED_REFUND_TWO_AT_ONCE: LoggedPerLayout = {
-  split: [["error", SCHEMA_MISMATCH, 2]],
-};
-const LOGGED_PAYMENT_AFTER_REFUND: LoggedPerLayout = {
-  split: [["error", SCHEMA_MISMATCH, 2]],
-};
-const LOGGED_EMPTY_ORGANIZATION_RENEWAL: LoggedPerLayout = {
-  split: [["error", SCHEMA_MISMATCH, 2]],
-};
+const LOGGED_REFUND_TWO_AT_ONCE: LoggedPerLayout = {};
+const LOGGED_PAYMENT_AFTER_REFUND: LoggedPerLayout = {};
+const LOGGED_EMPTY_ORGANIZATION_RENEWAL: LoggedPerLayout = {};
 
 /**
  * Runs a case on rows only it owns, removed after it, and checks that Core
@@ -1269,82 +1266,69 @@ describe.skipIf(!enabled)(
             }),
           );
         },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
       );
 
-      inCase(
-        "grants nothing when the delivery comes again",
-        async () => {
-          const fixture = await createFixture("again subscriber");
-          const order = orderId("the order");
-          const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
-          label(paid.event.data.subscription.id, "the subscription");
-          await core.deliver(paid.event);
+      inCase("grants nothing when the delivery comes again", async () => {
+        const fixture = await createFixture("again subscriber");
+        const order = orderId("the order");
+        const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
+        label(paid.event.data.subscription.id, "the subscription");
+        await core.deliver(paid.event);
 
-          expectAsOnBaseHere(
-            "a plan's month, again",
-            await observe(fixture, () => core.deliver(paid.event), {
+        expectAsOnBaseHere(
+          "a plan's month, again",
+          await observe(fixture, () => core.deliver(paid.event), {
+            times: {
+              "the billed period's end": paid.periodEnd,
+              "the payment": paid.paidAt,
+            },
+          }),
+        );
+      });
+
+      inCase("grants once for two deliveries at once", async () => {
+        const fixture = await createFixture("doubled subscriber");
+        const order = orderId("the order");
+        const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
+        label(paid.event.data.subscription.id, "the subscription");
+
+        expectAsOnBaseHere(
+          "a plan's month, two at once",
+          await observe(
+            fixture,
+            () =>
+              twoAtOnce(
+                () => core.deliver(paid.event),
+                () => core.deliver(paid.event),
+              ),
+            {
+              perFlow: true,
               times: {
                 "the billed period's end": paid.periodEnd,
                 "the payment": paid.paidAt,
               },
-            }),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 2]] },
-      );
+            },
+          ),
+        );
+      });
 
-      inCase(
-        "grants once for two deliveries at once",
-        async () => {
-          const fixture = await createFixture("doubled subscriber");
-          const order = orderId("the order");
-          const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
-          label(paid.event.data.subscription.id, "the subscription");
+      inCase("rolls the grant and the Task wake back together", async () => {
+        const fixture = await createFixture("rolled back subscriber");
+        const order = orderId("the order");
+        const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
+        label(paid.event.data.subscription.id, "the subscription");
+        state.wakeFailsAfter = true;
 
-          expectAsOnBaseHere(
-            "a plan's month, two at once",
-            await observe(
-              fixture,
-              () =>
-                twoAtOnce(
-                  () => core.deliver(paid.event),
-                  () => core.deliver(paid.event),
-                ),
-              {
-                perFlow: true,
-                times: {
-                  "the billed period's end": paid.periodEnd,
-                  "the payment": paid.paidAt,
-                },
-              },
-            ),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 2]] },
-      );
-
-      inCase(
-        "rolls the grant and the Task wake back together",
-        async () => {
-          const fixture = await createFixture("rolled back subscriber");
-          const order = orderId("the order");
-          const paid = monthPaid(fixture, order, `sub-${randomUUID()}`);
-          label(paid.event.data.subscription.id, "the subscription");
-          state.wakeFailsAfter = true;
-
-          expectAsOnBaseHere(
-            "a plan's month, the wake fails",
-            await observe(fixture, () => core.deliver(paid.event), {
-              times: {
-                "the billed period's end": paid.periodEnd,
-                "the payment": paid.paidAt,
-              },
-            }),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
-      );
+        expectAsOnBaseHere(
+          "a plan's month, the wake fails",
+          await observe(fixture, () => core.deliver(paid.event), {
+            times: {
+              "the billed period's end": paid.periodEnd,
+              "the payment": paid.paidAt,
+            },
+          }),
+        );
+      });
 
       inCase(
         "answers a customer without an id as origin/main does",
@@ -1370,109 +1354,97 @@ describe.skipIf(!enabled)(
     });
 
     describe("a plan change's one-time payment (order.paid, subscription_update)", () => {
-      inCase(
-        "grants the prorated rest of the month",
-        async () => {
-          const fixture = await createFixture("upgrading subscriber");
-          const now = Date.now();
-          const periodStart = new Date(now - 10 * DAY);
-          const periodEnd = new Date(now + 20 * DAY);
-          const row = await subscriptionRow(fixture, {
-            interval: "month",
-            periodStart,
-            periodEnd,
-            lastPaidOrderId: null,
-          });
-          const order = orderId("the upgrade's order");
-          const event = {
-            type: "order.paid",
-            timestamp: new Date(now - 30_000).toISOString(),
-            data: {
-              id: order,
-              billing_reason: "subscription_update",
-              created_at: new Date(now - 60_000).toISOString(),
-              metadata: {},
-              items: [],
-              customer: { id: "cus_1", external_id: fixture.organizationId },
-              product: PRODUCTS[0],
-              subscription: {
-                id: row.polarSubscriptionId,
-                status: "active",
-                product_id: "prod_growth_month",
-                recurring_interval: "month",
-                current_period_start: periodStart.toISOString(),
-                current_period_end: periodEnd.toISOString(),
-                cancel_at_period_end: false,
-                ended_at: null,
-                metadata: { upgradeFromCredits: "10000" },
-              },
+      inCase("grants the prorated rest of the month", async () => {
+        const fixture = await createFixture("upgrading subscriber");
+        const now = Date.now();
+        const periodStart = new Date(now - 10 * DAY);
+        const periodEnd = new Date(now + 20 * DAY);
+        const row = await subscriptionRow(fixture, {
+          interval: "month",
+          periodStart,
+          periodEnd,
+          lastPaidOrderId: null,
+        });
+        const order = orderId("the upgrade's order");
+        const event = {
+          type: "order.paid",
+          timestamp: new Date(now - 30_000).toISOString(),
+          data: {
+            id: order,
+            billing_reason: "subscription_update",
+            created_at: new Date(now - 60_000).toISOString(),
+            metadata: {},
+            items: [],
+            customer: { id: "cus_1", external_id: fixture.organizationId },
+            product: PRODUCTS[0],
+            subscription: {
+              id: row.polarSubscriptionId,
+              status: "active",
+              product_id: "prod_growth_month",
+              recurring_interval: "month",
+              current_period_start: periodStart.toISOString(),
+              current_period_end: periodEnd.toISOString(),
+              cancel_at_period_end: false,
+              ended_at: null,
+              metadata: { upgradeFromCredits: "10000" },
             },
-          };
+          },
+        };
 
-          expectAsOnBaseHere(
-            "a plan change's payment",
-            await observe(fixture, () => core.deliver(event), {
-              times: { "the period's end": periodEnd },
-            }),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
-      );
+        expectAsOnBaseHere(
+          "a plan change's payment",
+          await observe(fixture, () => core.deliver(event), {
+            times: { "the period's end": periodEnd },
+          }),
+        );
+      });
     });
 
     describe("a Project top-up (order.paid, purchase)", () => {
-      inCase(
-        "grants the pack to the Project for a year",
-        async () => {
-          const fixture = await createFixture("topping up subscriber");
-          await subscriptionRow(fixture, {
-            interval: "month",
-            periodStart: new Date(Date.now() - DAY),
-            periodEnd: new Date(Date.now() + 29 * DAY),
-            lastPaidOrderId: null,
-          });
-          const paid = topUpPaid(fixture, orderId("the top-up's order"));
+      inCase("grants the pack to the Project for a year", async () => {
+        const fixture = await createFixture("topping up subscriber");
+        await subscriptionRow(fixture, {
+          interval: "month",
+          periodStart: new Date(Date.now() - DAY),
+          periodEnd: new Date(Date.now() + 29 * DAY),
+          lastPaidOrderId: null,
+        });
+        const paid = topUpPaid(fixture, orderId("the top-up's order"));
 
-          expectAsOnBaseHere(
-            "a top-up, first",
-            await observe(fixture, () => core.deliver(paid.event), {
+        expectAsOnBaseHere(
+          "a top-up, first",
+          await observe(fixture, () => core.deliver(paid.event), {
+            times: { "a year after the payment": paid.expiresAt },
+          }),
+        );
+      });
+
+      inCase("grants once for two deliveries at once", async () => {
+        const fixture = await createFixture("doubly topping up subscriber");
+        await subscriptionRow(fixture, {
+          interval: "month",
+          periodStart: new Date(Date.now() - DAY),
+          periodEnd: new Date(Date.now() + 29 * DAY),
+          lastPaidOrderId: null,
+        });
+        const paid = topUpPaid(fixture, orderId("the top-up's order"));
+
+        expectAsOnBaseHere(
+          "a top-up, two at once",
+          await observe(
+            fixture,
+            () =>
+              twoAtOnce(
+                () => core.deliver(paid.event),
+                () => core.deliver(paid.event),
+              ),
+            {
+              perFlow: true,
               times: { "a year after the payment": paid.expiresAt },
-            }),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
-      );
-
-      inCase(
-        "grants once for two deliveries at once",
-        async () => {
-          const fixture = await createFixture("doubly topping up subscriber");
-          await subscriptionRow(fixture, {
-            interval: "month",
-            periodStart: new Date(Date.now() - DAY),
-            periodEnd: new Date(Date.now() + 29 * DAY),
-            lastPaidOrderId: null,
-          });
-          const paid = topUpPaid(fixture, orderId("the top-up's order"));
-
-          expectAsOnBaseHere(
-            "a top-up, two at once",
-            await observe(
-              fixture,
-              () =>
-                twoAtOnce(
-                  () => core.deliver(paid.event),
-                  () => core.deliver(paid.event),
-                ),
-              {
-                perFlow: true,
-                times: { "a year after the payment": paid.expiresAt },
-              },
-            ),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 2]] },
-      );
+            },
+          ),
+        );
+      });
 
       inCase("grants nothing without a live subscription", async () => {
         const fixture = await createFixture("unsubscribed topper");
@@ -1546,20 +1518,15 @@ describe.skipIf(!enabled)(
         return { fixture, order, row, periodStart, times };
       }
 
-      inCase(
-        "grants the started month the year lacks",
-        async () => {
-          const { fixture, times } =
-            await yearlySubscriber("yearly subscriber");
-          await cronLock("warm");
+      inCase("grants the started month the year lacks", async () => {
+        const { fixture, times } = await yearlySubscriber("yearly subscriber");
+        await cronLock("warm");
 
-          expectAsOnBaseHere(
-            "the yearly cron, first",
-            await observe(fixture, core.cron, { times }),
-          );
-        },
-        { split: [["error", SYNC_FAILED, 1]] },
-      );
+        expectAsOnBaseHere(
+          "the yearly cron, first",
+          await observe(fixture, core.cron, { times }),
+        );
+      });
 
       inCase(
         "grants the months the year lacks on its first run ever",
@@ -1575,44 +1542,35 @@ describe.skipIf(!enabled)(
             await observe(fixture, core.cron, { times }),
           );
         },
-        { split: [["error", SYNC_FAILED, 1]] },
       );
 
-      inCase(
-        "grants nothing when it runs again",
-        async () => {
-          const { fixture, times } = await yearlySubscriber(
-            "renewed yearly subscriber",
-          );
-          await cronLock("warm");
-          await core.cron();
+      inCase("grants nothing when it runs again", async () => {
+        const { fixture, times } = await yearlySubscriber(
+          "renewed yearly subscriber",
+        );
+        await cronLock("warm");
+        await core.cron();
 
-          expectAsOnBaseHere(
-            "the yearly cron, again",
-            await observe(fixture, core.cron, { times }),
-          );
-        },
-        { split: [["error", SYNC_FAILED, 2]] },
-      );
+        expectAsOnBaseHere(
+          "the yearly cron, again",
+          await observe(fixture, core.cron, { times }),
+        );
+      });
 
-      inCase(
-        "grants a month once for two ticks at once",
-        async () => {
-          const { fixture, times } = await yearlySubscriber(
-            "doubly renewed subscriber",
-          );
-          await cronLock("warm");
+      inCase("grants a month once for two ticks at once", async () => {
+        const { fixture, times } = await yearlySubscriber(
+          "doubly renewed subscriber",
+        );
+        await cronLock("warm");
 
-          expectAsOnBaseHere(
-            "the yearly cron, two at once",
-            await observe(fixture, () => twoAtOnce(core.cron, core.cron), {
-              perFlow: true,
-              times,
-            }),
-          );
-        },
-        { split: [["error", SYNC_FAILED, 1]] },
-      );
+        expectAsOnBaseHere(
+          "the yearly cron, two at once",
+          await observe(fixture, () => twoAtOnce(core.cron, core.cron), {
+            perFlow: true,
+            times,
+          }),
+        );
+      });
 
       inCase(
         "grants a stored subscription of an empty Organization id as origin/main does",
@@ -1656,27 +1614,18 @@ describe.skipIf(!enabled)(
         LOGGED_NULL_PROJECT_CRON,
       );
 
-      inCase(
-        "grants nothing for a refunded order",
-        async () => {
-          const { fixture, order, times } = await yearlySubscriber(
-            "refunded yearly subscriber",
-          );
-          await cronLock("warm");
-          await core.deliver(refunded(order).event);
+      inCase("grants nothing for a refunded order", async () => {
+        const { fixture, order, times } = await yearlySubscriber(
+          "refunded yearly subscriber",
+        );
+        await cronLock("warm");
+        await core.deliver(refunded(order).event);
 
-          expectAsOnBaseHere(
-            "the yearly cron, a refunded order",
-            await observe(fixture, core.cron, { times }),
-          );
-        },
-        {
-          split: [
-            ["error", SCHEMA_MISMATCH, 1],
-            ["error", SYNC_FAILED, 1],
-          ],
-        },
-      );
+        expectAsOnBaseHere(
+          "the yearly cron, a refunded order",
+          await observe(fixture, core.cron, { times }),
+        );
+      });
     });
 
     describe("a yearly plan's upgrade (changePolarPlan)", () => {
@@ -1771,25 +1720,21 @@ describe.skipIf(!enabled)(
         },
       );
 
-      inCase(
-        "grants no month again when the cron gave them",
-        async () => {
-          const { fixture, times, upgrade } = await upgrading(
-            "upgrading renewed subscriber",
-          );
-          await cronLock("warm");
-          await core.cron();
+      inCase("grants no month again when the cron gave them", async () => {
+        const { fixture, times, upgrade } = await upgrading(
+          "upgrading renewed subscriber",
+        );
+        await cronLock("warm");
+        await core.cron();
 
-          expectAsOnBaseHere(
-            "a yearly upgrade, the months given",
-            await observe(fixture, upgrade, {
-              times,
-              sideBySide: CUSO_LOOKUP_RELATIONS,
-            }),
-          );
-        },
-        { split: [["error", SYNC_FAILED, 1]] },
-      );
+        expectAsOnBaseHere(
+          "a yearly upgrade, the months given",
+          await observe(fixture, upgrade, {
+            times,
+            sideBySide: CUSO_LOOKUP_RELATIONS,
+          }),
+        );
+      });
     });
 
     describe("a Polar refund's write-off (order.refunded)", () => {
@@ -1904,27 +1849,22 @@ describe.skipIf(!enabled)(
             }),
           );
         },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
       );
 
-      inCase(
-        "writes off nothing more when it comes again",
-        async () => {
-          const { fixture, order, times } = await refundable(
-            "again refunded subscriber",
-          );
-          const refund = refunded(order);
-          await core.deliver(refund.event);
+      inCase("writes off nothing more when it comes again", async () => {
+        const { fixture, order, times } = await refundable(
+          "again refunded subscriber",
+        );
+        const refund = refunded(order);
+        await core.deliver(refund.event);
 
-          expectAsOnBaseHere(
-            "a refund, again",
-            await observe(fixture, () => core.deliver(refund.event), {
-              times: { ...times, "the refund": refund.refundedAt },
-            }),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 2]] },
-      );
+        expectAsOnBaseHere(
+          "a refund, again",
+          await observe(fixture, () => core.deliver(refund.event), {
+            times: { ...times, "the refund": refund.refundedAt },
+          }),
+        );
+      });
 
       inCase(
         "writes the rest off once for two deliveries at once",
@@ -2042,22 +1982,18 @@ describe.skipIf(!enabled)(
         LOGGED_EMPTY_ORGANIZATION_RENEWAL,
       );
 
-      inCase(
-        "answers an empty order id as origin/main does",
-        async () => {
-          const fixture = await createFixture("refund with an empty order id");
-          made.orderIds.push("");
-          const refund = refunded("");
+      inCase("answers an empty order id as origin/main does", async () => {
+        const fixture = await createFixture("refund with an empty order id");
+        made.orderIds.push("");
+        const refund = refunded("");
 
-          expectAsOnBaseHere(
-            "a refund, an empty order id",
-            await observe(fixture, () => core.deliver(refund.event), {
-              times: { "the refund": refund.refundedAt },
-            }),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
-      );
+        expectAsOnBaseHere(
+          "a refund, an empty order id",
+          await observe(fixture, () => core.deliver(refund.event), {
+            times: { "the refund": refund.refundedAt },
+          }),
+        );
+      });
 
       inCase(
         "writes off buckets whose owners have empty ids to those owners",
@@ -2106,7 +2042,6 @@ describe.skipIf(!enabled)(
             }),
           );
         },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
       );
 
       inCase(
@@ -2158,7 +2093,6 @@ describe.skipIf(!enabled)(
             ),
           );
         },
-        { split: [["error", SCHEMA_MISMATCH, 3]] },
       );
     });
 
@@ -2228,30 +2162,26 @@ describe.skipIf(!enabled)(
         );
       });
 
-      inCase(
-        "a refund racing the close, the refund first",
-        async () => {
-          const { fixture, order, times } = await closable("racing close");
-          const refund = refunded(order);
+      inCase("a refund racing the close, the refund first", async () => {
+        const { fixture, order, times } = await closable("racing close");
+        const refund = refunded(order);
 
-          expectAsOnBaseHere(
-            "a refund racing a Project's close",
-            await observe(
-              fixture,
-              () =>
-                twoAtOnce(
-                  () => core.deliver(refund.event),
-                  () => close(fixture),
-                ),
-              {
-                perFlow: true,
-                times: { ...times, "the refund": refund.refundedAt },
-              },
-            ),
-          );
-        },
-        { split: [["error", SCHEMA_MISMATCH, 1]] },
-      );
+        expectAsOnBaseHere(
+          "a refund racing a Project's close",
+          await observe(
+            fixture,
+            () =>
+              twoAtOnce(
+                () => core.deliver(refund.event),
+                () => close(fixture),
+              ),
+            {
+              perFlow: true,
+              times: { ...times, "the refund": refund.refundedAt },
+            },
+          ),
+        );
+      });
 
       inCase(
         "a payment racing the close, the close first, grants nothing",

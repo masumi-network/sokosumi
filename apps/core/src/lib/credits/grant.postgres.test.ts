@@ -606,8 +606,9 @@ async function twoAtOnce<T>(
   const held = await Promise.race([atTheWake, firstDone.then(() => "ended")]);
   wake.hold = null;
   // The gate is reached wherever the first grant is written: on the split
-  // layout `origin/main` cannot write it, and the first ends before it.
-  expect(held).toBe(onSplitLayout ? "ended" : "held");
+  // layout `origin/main` cannot write it, and the first ends before it; now
+  // both layouts write through Mainnet by name and reach the gate.
+  expect(held).toBe("held");
   await options.between?.();
   const secondDone = settled(inFlow("second", second));
   if (held === "held") {
@@ -639,13 +640,8 @@ async function forgetPersonalWorkspace(userId: string): Promise<void> {
  * tables), so what it answered there is part of what the case compares.
  */
 async function firstGrant(call: () => Promise<unknown>) {
-  try {
-    await call();
-    return "granted";
-  } catch (error) {
-    if (!onSplitLayout) throw error;
-    return { threw: error instanceof Error ? error.name : String(error) };
-  }
+  await call();
+  return "granted";
 }
 
 /** A personal Workspace's answer, without what differs between two runs. */
@@ -787,7 +783,7 @@ describe.skipIf(!enabled)(
               workspaceAnswer(await createPersonalWorkspace(userId)),
             ),
           );
-          expect(wake.failAfter).toBe(onSplitLayout);
+          expect(wake.failAfter).toBe(false);
           wake.failAfter = false;
         },
         CASE_TIMEOUT,
@@ -908,7 +904,7 @@ describe.skipIf(!enabled)(
               ),
             ),
           );
-          expect(wake.failAfter).toBe(onSplitLayout);
+          expect(wake.failAfter).toBe(false);
           wake.failAfter = false;
         },
         CASE_TIMEOUT,

@@ -699,7 +699,7 @@ export async function handleInvoicePaidEvent(
   ) {
     const existingOrganizationInvoiceSubscriptionBucket =
       await findStripeInvoiceGrant(
-        prisma,
+        createNetworkScope("mainnet"),
         { owner: { organizationId }, invoiceId, entry: "subscription" },
         CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
       );
