@@ -2024,6 +2024,87 @@ describe("the frozen Preprod", () => {
     });
   }
 
+  for (const body of [
+    "/deploy all",
+    "/deploy mainnet preprod --force",
+    `/deploy all ${FORK_SHA}`,
+  ]) {
+    it(`still deploys Mainnet for \`${body}\` when the frozen notice fails with a 502`, async (t) => {
+      const warn = t.mock.method(console, "warn", () => {});
+      const created = [];
+      const reactions = [];
+      const result = await runPreviewDeployComment({
+        commentBody: body,
+        isPullRequest: true,
+        commentAuthor: "alice",
+        issueNumber: 12,
+        repoId: 1,
+        readPermission: async () => "write",
+        readPullRequest: async () => ({
+          state: "open",
+          number: 12,
+          head: { sha: FORK_SHA, ref: "feat/x", repo: { id: 1 } },
+          base: { repo: { id: 1 } },
+        }),
+        listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+        prepareResources: async () => {},
+        createDeployment: async (input) => {
+          created.push(input);
+          return { id: `dpl_${input.target.app}`, readyState: "READY" };
+        },
+        pollDeployment: async (deployment) => deployment,
+        postComment: async () => {
+          throw new Error("GitHub 502: {}");
+        },
+        addReaction: async (content) => {
+          reactions.push(content);
+        },
+      });
+      assert.equal(result.kind, "deploy");
+      assert.deepEqual(
+        created.map((input) => `${input.target.network}:${input.target.app}`),
+        ["mainnet:web", "mainnet:core", "mainnet:cmo"],
+      );
+      assert.deepEqual(reactions, ["eyes", "rocket"]);
+      assert.match(
+        String(warn.mock.calls[0].arguments[0]),
+        /Preprod frozen comment failed: GitHub 502/,
+      );
+    });
+  }
+
+  it("keeps the normal Mainnet guards when the frozen notice fails", async (t) => {
+    t.mock.method(console, "warn", () => {});
+    const created = [];
+    const posted = [];
+    const result = await runPreviewDeployComment({
+      commentBody: "/deploy all",
+      isPullRequest: true,
+      commentAuthor: "alice",
+      issueNumber: 12,
+      repoId: 1,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        state: "closed",
+        number: 12,
+        head: { sha: FORK_SHA, ref: "feat/x", repo: { id: 1 } },
+        base: { repo: { id: 1 } },
+      }),
+      createDeployment: async (input) => {
+        created.push(input);
+      },
+      postComment: async (body) => {
+        if (/frozen/.test(body)) throw new Error("GitHub 502: {}");
+        posted.push(body);
+      },
+    });
+    assert.equal(result.kind, "closed");
+    assert.deepEqual(posted, [
+      "Preview commands require an open pull request.",
+    ]);
+    assert.deepEqual(created, []);
+  });
+
   it("keeps a plain `/deploy mainnet` free of any Preprod message", async () => {
     const run = runComment("/deploy mainnet");
     assert.equal((await run.result).kind, "deploy");

@@ -546,6 +546,107 @@ test("close cleanup still removes an old Preprod preview from Vercel and never n
   assert.ok(queried.every((path) => !path.includes("neon-preprod")));
 });
 
+for (const status of [403, 404, 502]) {
+  for (const failing of ["deployment listing", "env listing"] as const) {
+    test(`a ${status} on the frozen Preprod's ${failing} does not block Mainnet cleanup or inventory`, async (t) => {
+      const warn = t.mock.method(console, "warn", () => {});
+      const { options, branches, deployments, envs, pull, calls } = setup();
+      await preparePreviewResources(options, deployTargets(["mainnet"]));
+      const meta = { sokosumiPreviewRepo: "99", sokosumiPreviewPr: "7" };
+      deployments.push({ uid: "dpl-ours", target: "preview", meta });
+      const legacyIds = Object.values(VERCEL_PROJECTS.preprod).map(
+        (project) => project.id,
+      );
+      const fetchImpl: typeof fetch = (input, init) => {
+        const url = new URL(String(input));
+        const legacy =
+          failing === "deployment listing"
+            ? url.pathname === "/v7/deployments" &&
+              legacyIds.includes(url.searchParams.get("projectId") ?? "")
+            : url.pathname ===
+              `/v10/projects/${VERCEL_PROJECTS.preprod.core.id}/env`;
+        return legacy
+          ? Promise.resolve(
+              Response.json(
+                { error: { code: "x", message: "no" } },
+                { status },
+              ),
+            )
+          : options.fetchImpl(input, init);
+      };
+      const withFailure = { ...options, fetchImpl };
+      pull.state = "closed";
+      if (failing === "env listing") {
+        assert.deepEqual(await previewCleanupInventory(withFailure), [7]);
+      }
+      assert.equal((await cleanupClosedPreview(withFailure)).kind, "cleanup");
+      const removed = calls
+        .filter((call) => call.method === "DELETE")
+        .map((call) => call.url.pathname);
+      assert.ok(removed.includes("/v13/deployments/dpl-ours"));
+      assert.ok(removed.some((path) => path.endsWith("/branches/br-preview")));
+      assert.deepEqual(
+        branches.map((branch) => branch.id),
+        ["br-production"],
+      );
+      // Mainnet's owned env vars are gone; the frozen project's marker is not touched.
+      assert.ok(
+        removed.some((path) =>
+          path.startsWith(
+            `/v9/projects/${VERCEL_PROJECTS.mainnet.core.id}/env/`,
+          ),
+        ),
+      );
+      assert.ok(
+        !removed.some((path) =>
+          path.startsWith(
+            `/v9/projects/${VERCEL_PROJECTS.preprod.core.id}/env/`,
+          ),
+        ),
+      );
+      assert.ok(warn.mock.callCount() >= 1);
+      assert.match(
+        String(warn.mock.calls[0].arguments[0]),
+        /::warning::Frozen preprod/,
+      );
+      void envs;
+    });
+  }
+}
+
+test("a failing frozen Preprod keeps its ownership marker so the daily inventory retries", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const { options, envs, pull, calls } = setup();
+  envs.push({
+    id: "env-legacy",
+    key: "DATABASE_URL",
+    target: ["preview"],
+    comment: "GitHub-managed preview/gh-99-pr-7",
+  });
+  const fetchImpl: typeof fetch = (input, init) => {
+    const url = new URL(String(input));
+    return url.pathname === "/v7/deployments" &&
+      url.searchParams.get("projectId") === VERCEL_PROJECTS.preprod.web.id
+      ? Promise.resolve(Response.json({}, { status: 502 }))
+      : options.fetchImpl(input, init);
+  };
+  pull.state = "closed";
+  await cleanupClosedPreview({ ...options, fetchImpl });
+  assert.ok(
+    !calls.some(
+      (call) =>
+        call.method === "DELETE" &&
+        call.url.pathname.startsWith(
+          `/v9/projects/${VERCEL_PROJECTS.preprod.core.id}/env/`,
+        ),
+    ),
+  );
+  assert.deepEqual(
+    await previewCleanupInventory({ ...options, fetchImpl }),
+    [7],
+  );
+});
+
 test("closed fork PRs are cleaned up and listed by the daily inventory", async () => {
   const { options, calls, branches, pull } = setup();
   await preparePreviewResources(

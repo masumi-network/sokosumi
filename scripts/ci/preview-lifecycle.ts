@@ -7,6 +7,7 @@ import {
   refreshBranchExpiration,
 } from "../agent-db/neon-api.mjs";
 import {
+  bestEffortOnLegacy,
   cleanupPreviewResources,
   PREVIEW_TTL_MS,
   type PreviewOptions,
@@ -219,18 +220,20 @@ export async function previewCleanupInventory(
   // Native Neon expiry can remove a branch before the close event reaches us.
   // Its Vercel env marker keeps that PR discoverable for daily reconciliation.
   for (const target of deployTargets(["mainnet", "preprod"], ["core"])) {
-    const result = await vercelRequest(
-      options,
-      `/v10/projects/${target.projectId}/env`,
-    );
-    if (!Array.isArray(result?.envs))
-      throw new Error("Vercel environment list is missing");
-    for (const env of result.envs) {
-      const match = String(env.comment ?? "")
-        .replace(/^GitHub-managed /, "")
-        .match(pattern);
-      if (match) numbers.add(Number(match[1]));
-    }
+    await bestEffortOnLegacy(target, "env listing", async () => {
+      const result = await vercelRequest(
+        options,
+        `/v10/projects/${target.projectId}/env`,
+      );
+      if (!Array.isArray(result?.envs))
+        throw new Error("Vercel environment list is missing");
+      for (const env of result.envs) {
+        const match = String(env.comment ?? "")
+          .replace(/^GitHub-managed /, "")
+          .match(pattern);
+        if (match) numbers.add(Number(match[1]));
+      }
+    });
   }
   const closed: number[] = [];
   for (const pullNumber of [...numbers].sort((a, b) => a - b)) {

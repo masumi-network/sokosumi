@@ -815,9 +815,17 @@ export async function runPullRequestCommand(options, command) {
     parsed.networks = parsed.networks.filter(
       (network) => network !== "preprod",
     );
-    await comment(preprodFrozenMessage(parsed.networks.length > 0));
     if (parsed.networks.length === 0) {
+      await comment(preprodFrozenMessage(false));
       return { kind: "preprod-frozen" };
+    }
+    // Only a notice: a failed comment must not stop the Mainnet part.
+    try {
+      await comment(preprodFrozenMessage(true));
+    } catch (error) {
+      console.warn(
+        `Preprod frozen comment failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

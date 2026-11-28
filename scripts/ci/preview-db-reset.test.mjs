@@ -686,6 +686,30 @@ describe("the frozen Preprod", () => {
     );
   });
 
+  for (const commentBody of [
+    "/reset-db all",
+    "/deploy all --reset-db",
+    "/deploy mainnet preprod --reset-db",
+  ]) {
+    it(`still resets Mainnet for \`${commentBody}\` when every comment fails with a 502`, async (t) => {
+      t.mock.method(console, "warn", () => {});
+      const { options, reactions, created, neonCalls } = setup({
+        commentBody,
+        postComment: async () => {
+          throw new Error("GitHub 502: {}");
+        },
+      });
+      const result = await runResetDbJobComment(options);
+      assert.equal(result.kind, "reset");
+      assert.equal(restoreCalls(neonCalls).length, 1);
+      assert.deepEqual(
+        [...new Set(created.map((input) => input.target.network))],
+        ["mainnet"],
+      );
+      assert.deepEqual(reactions, ["eyes", "rocket"]);
+    });
+  }
+
   it("names no Preprod in the /reset-db help", () => {
     assert.doesNotMatch(resetUsageMessage(), /`\/reset-db preprod`/);
     assert.match(resetUsageMessage(), /old Preprod is frozen/);
