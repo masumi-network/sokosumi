@@ -441,7 +441,8 @@ function rawRelations(
     // checked on the raw value: `plain` hides the times in it.
     references: fresh.map((bucket) => {
       const owner = bucket.userId ?? bucket.organizationId;
-      const prefix = bucket.userId ? "user:" : "org:";
+      // An empty user id is a person's: only null is no person.
+      const prefix = bucket.userId !== null ? "user:" : "org:";
       switch (bucket.referenceType) {
         case "SIGNUP_BONUS":
           return bucket.referenceId === `user:${bucket.userId}`;
@@ -784,6 +785,127 @@ describe.skipIf(!enabled)(
             "sign-up, rolled back after the wake",
             await observe({ userId }, taskIds, async () =>
               workspaceAnswer(await createPersonalWorkspace(userId)),
+            ),
+          );
+          expect(wake.failAfter).toBe(onSplitLayout);
+          wake.failAfter = false;
+        },
+        CASE_TIMEOUT,
+      );
+
+      /*
+       * A person from before the free plan started with the Workspace: the
+       * bonus is there, no free plan is active, and the Workspace is created
+       * at a known time, so its period's reference is known. The period
+       * alone decides the wake.
+       */
+      const PINNED = new Date("2026-11-20T10:00:00.000Z");
+      /** The call with the clock at `PINNED`, as the Workspace insert reads it. */
+      async function atPinnedTime<T>(call: () => Promise<T>): Promise<T> {
+        vi.useFakeTimers({ toFake: ["Date"], now: PINNED });
+        try {
+          return await call();
+        } finally {
+          vi.useRealTimers();
+        }
+      }
+      /** A grant of the person as the fixture's own, outside the code compared. */
+      async function given(
+        userId: string,
+        referenceType: "SIGNUP_BONUS" | "STRIPE_SUBSCRIPTION_PERIOD",
+        referenceId: string,
+        credits: bigint,
+        expiresAt: Date,
+      ) {
+        const cents = credits * 10_000_000_000n;
+        await mainnet().transaction.create({
+          data: {
+            amount: cents,
+            userId,
+            sourceCreditBucket: {
+              create: {
+                amount: cents,
+                userId,
+                expiresAt,
+                referenceId,
+                referenceType,
+              },
+            },
+          },
+        });
+      }
+      async function withTheBonusOnly(name: string) {
+        const { userId, taskIds } = await newcomer(name);
+        await given(
+          userId,
+          "SIGNUP_BONUS",
+          `user:${userId}`,
+          3000n,
+          new Date(PINNED.getTime() + 30 * DAY),
+        );
+        return { userId, taskIds };
+      }
+      const periodEnd = getNextMonthlyPeriodEnd(PINNED, PINNED);
+
+      it(
+        "wakes the person's Task when only the free period is new",
+        async () => {
+          const { userId, taskIds } = await withTheBonusOnly(
+            "newcomer with a bonus",
+          );
+
+          expectAsOnBaseHere(
+            "sign-up, only the free period new",
+            await observe({ userId }, taskIds, () =>
+              atPinnedTime(async () =>
+                workspaceAnswer(await createPersonalWorkspace(userId)),
+              ),
+            ),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "wakes nothing when the free period was given too",
+        async () => {
+          const { userId, taskIds } = await withTheBonusOnly(
+            "newcomer with a bonus and a period",
+          );
+          await given(
+            userId,
+            "STRIPE_SUBSCRIPTION_PERIOD",
+            `user:${userId}:local-free:${periodEnd.toISOString()}:subscription`,
+            250n,
+            periodEnd,
+          );
+
+          expectAsOnBaseHere(
+            "sign-up, the free period given",
+            await observe({ userId }, taskIds, () =>
+              atPinnedTime(async () =>
+                workspaceAnswer(await createPersonalWorkspace(userId)),
+              ),
+            ),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "rolls the new free period and the wake back together",
+        async () => {
+          const { userId, taskIds } = await withTheBonusOnly(
+            "unlucky newcomer with a bonus",
+          );
+          wake.failAfter = true;
+
+          expectAsOnBaseHere(
+            "sign-up, only the free period new, rolled back after the wake",
+            await observe({ userId }, taskIds, () =>
+              atPinnedTime(async () =>
+                workspaceAnswer(await createPersonalWorkspace(userId)),
+              ),
             ),
           );
           expect(wake.failAfter).toBe(onSplitLayout);
