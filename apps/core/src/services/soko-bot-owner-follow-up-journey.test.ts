@@ -265,6 +265,7 @@ function turn(id: string) {
       versionId: "v36",
       actingUserId: "owner",
     },
+    scope: { network: "mainnet" },
   } as unknown as Parameters<typeof checkImageRequest>[1];
 }
 

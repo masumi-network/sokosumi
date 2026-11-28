@@ -47,8 +47,53 @@ vi.mock("@/lib/soko-bot/task-charges", () => ({
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
 }));
+/**
+ * The fixtures give each delegation its Job as the old relation did; the scan
+ * now returns `jobId`, and the Job comes from its Network's client and its
+ * parent Task from the shared one. These derive both reads from the rows.
+ */
+const { scanRows, jobsById, parentTasks } = vi.hoisted(() => {
+  let rows: {
+    job?: { id: string; task?: Record<string, unknown> | null } | null;
+  }[] = [];
+  return {
+    scanRows: async (...args: unknown[]) => {
+      rows = (await delegationFindManyMock(...args)) as typeof rows;
+      return rows.map((row) => ({ jobId: row.job?.id ?? null, ...row }));
+    },
+    jobsById: (ids: string[]) =>
+      rows.flatMap((row) =>
+        row.job && ids.includes(row.job.id)
+          ? [
+              {
+                ...row.job,
+                taskId: row.job.task ? `parent_${row.job.id}` : null,
+              },
+            ]
+          : [],
+      ),
+    parentTasks: async (args: { where: { id: { in: string[] } } }) =>
+      rows.flatMap((row) =>
+        row.job?.task && args.where.id.in.includes(`parent_${row.job.id}`)
+          ? [{ id: `parent_${row.job.id}`, ...row.job.task }]
+          : [],
+      ),
+  };
+});
+vi.mock("@/lib/db/network-scope", () => ({
+  createNetworkScope: () => ({
+    networkDb: {
+      job: {
+        findMany: async (args: { where: { id: { in: string[] } } }) =>
+          jobsById(args.where.id.in),
+      },
+      jobEvent: { findMany: async () => [] },
+    },
+  }),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    task: { findMany: parentTasks },
     syncMetadata: { upsert: metadataUpsertMock, update: metadataUpdateMock },
     sokoBotEventInbox: { findMany: inboxFindManyMock },
     taskEvent: { findMany: taskEventFindManyMock },
@@ -58,7 +103,7 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { findMany: turnFindManyMock },
     sokoBotSchedule: { findMany: scheduleFindManyMock },
     sokoBotDelegation: {
-      findMany: delegationFindManyMock,
+      findMany: scanRows,
       update: delegationUpdateMock,
     },
   },
