@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { listRates } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
@@ -28,7 +29,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
 
-    const items = await c.var.networkScope.networkDb.creditCost.findMany();
+    const items = await listRates(c.var.networkScope);
 
     const mapped = items.map(mapCreditCostForApi);
     return ok(c, z.array(creditCostSchema).parse(mapped));

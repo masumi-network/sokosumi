@@ -6,9 +6,10 @@ import {
 
 import {
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
-  type CompensatingRefundInput,
-  createCompensatingRefund,
-} from "@/helpers/compensating-refund";
+  type RefundedCharge,
+  refund,
+} from "@/lib/credits/refund";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type {
   RefundAdminTaskX402PaymentBody,
@@ -77,12 +78,7 @@ const TASK_X402_SYSTEM_ACTOR_ID = "system:x402";
 
 interface RefundablePayment {
   id: string;
-  transaction: {
-    amount: bigint;
-    userId: string | null;
-    organizationId: string | null;
-    creditConsumptions: CompensatingRefundInput["consumptions"];
-  };
+  transaction: RefundedCharge;
 }
 
 function requireSpendUserId(userId: string | null, context: string): string {
@@ -225,15 +221,14 @@ async function attachCompensatingRefund(
     throw new Error(`Task x402 payment ${payment.id} has no debit to refund`);
   }
 
-  const refundId = await createCompensatingRefund(tx, {
-    amount: refundAmount,
-    actorUserId: requireSpendUserId(
-      payment.transaction.userId,
-      `Task x402 payment ${payment.id}`,
-    ),
-    organizationId: payment.transaction.organizationId,
+  const refundId = await refund({
+    // shortcut: the legacy transaction writes this deployment's own ledger;
+    // ticket 29 passes the payment's Network.
+    scope: createNetworkScope("mainnet"),
+    tx,
+    charge: payment.transaction,
     referenceId: `task-x402-payment:${payment.id}`,
-    consumptions: payment.transaction.creditConsumptions,
+    record: `Task x402 payment ${payment.id}`,
   });
   const updatedPayment = await tx.taskX402Payment.update({
     where: { id: payment.id },

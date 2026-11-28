@@ -1,13 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import {
-  adminAgentDetailInclude,
-  mapAdminAgentDetail,
-} from "@/helpers/admin-agent";
-import { notFound } from "@/helpers/error";
+import { mapAdminAgentDetail } from "@/helpers/admin-agent";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { deleteOverride } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   adminAgentDetailSchema,
@@ -39,27 +35,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const agent = await prisma.agent.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!agent) {
-      throw notFound("Agent not found");
-    }
-
-    await prisma.agentMetadataOverride.deleteMany({
-      where: { agentId: id },
-    });
-
-    const updatedAgent = await prisma.agent.findUnique({
-      where: { id },
-      include: adminAgentDetailInclude,
-    });
-
-    if (!updatedAgent) {
-      throw notFound("Agent not found");
-    }
+    const updatedAgent = await deleteOverride(c.var.networkScope, id);
 
     return ok(
       c,
