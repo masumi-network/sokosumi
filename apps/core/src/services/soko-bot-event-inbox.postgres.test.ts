@@ -1,16 +1,12 @@
 import { randomUUID } from "node:crypto";
+import type { SokoBotDelegation } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as env from "@/config/env";
-import {
-  PREPROD_GENERATION_KEY,
-  PREPROD_PAUSE_KEY,
-} from "@/helpers/preprod-control";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { Network } from "@/lib/network";
 import { reserveEventOccurrence } from "@/lib/soko-bot/event-inbox";
-import * as scheduleResume from "@/lib/soko-bot/schedule-resume";
 import { expectCoreLog } from "@/test/core-log";
 import { onSplitLayout } from "@/test/split-layout";
 import * as billing from "./soko-bot-billing.service";
@@ -104,139 +100,93 @@ afterEach(async () => {
   await prisma.user.deleteMany({ where: { id: ownerId } });
 });
 
-async function persistedJob(network: Network, id: string, eventId?: string) {
-  const db = createNetworkScope(network).networkDb;
-  const agent = await db.agent.create({
-    data: {
-      blockchainIdentifier: randomUUID(),
-      name: "Inbox Agent",
-      isShown: true,
-      lastUptimeCheck: new Date(),
-      uptimeCount: 1,
-      uptimeCheckCount: 1,
-      pricing: { create: { pricingType: "FREE" } },
-    },
-  });
-  cleanUpJobs.push(async () => {
-    await db.job.deleteMany({ where: { agentId: agent.id } });
-    await db.agent.delete({ where: { id: agent.id } });
-    await db.agentPricing.delete({ where: { id: agent.pricingId } });
-  });
-  return db.job.create({
-    data: {
-      id,
-      name: "work",
-      workspaceId,
-      ownerId,
-      agentId: agent.id,
-      agentJobId: randomUUID(),
-      jobType: "FREE",
-      ...(eventId
-        ? {
-            events: {
-              create: {
-                id: eventId,
-                status: "COMPLETED",
-                createdAt: new Date("2100-01-01"),
-              },
-            },
-          }
-        : {}),
-    },
-    include: { events: true },
-  });
-}
-
-/** A delegation of real work: the Job on its Network, or a shared Task. */
 async function source(
   kind: "JOB" | "TASK",
   network: Network,
   entityId: string,
   eventId?: string,
 ) {
-  if (kind === "JOB") {
-    // On today's layout Preprod's schema is Mainnet's.
-    const db = createNetworkScope(
-      onSplitLayout ? network : "mainnet",
-    ).networkDb;
-    if (!(await db.job.findUnique({ where: { id: entityId } })))
-      await persistedJob(network, entityId, eventId);
-    // On the split layout a delegation's Job key still references mainnet.Job.
-    const mainnet = createNetworkScope("mainnet").networkDb;
-    if (!(await mainnet.job.findUnique({ where: { id: entityId } })))
-      await persistedJob("mainnet", entityId);
-  } else if (!(await prisma.task.findUnique({ where: { id: entityId } }))) {
-    await prisma.task.create({
-      data: {
-        id: entityId,
-        name: "work",
-        workspaceId,
-        ownerId,
-        status: "INPUT_REQUIRED",
-        visibility: "PUBLIC",
-        ...(eventId
-          ? {
-              events: {
-                create: {
-                  id: eventId,
-                  status: "COMPLETED",
-                  createdAt: new Date("2100-01-01"),
-                },
-              },
-            }
-          : {}),
-      },
-    });
-    cleanUpJobs.push(async () => {
-      await prisma.task.deleteMany({ where: { id: entityId } });
-    });
-  }
-  return prisma.sokoBotDelegation.create({
+  const delegation = await prisma.sokoBotDelegation.create({
     data: {
       turnId: parentId,
       toolCallId: randomUUID(),
       kind,
       action: "delegate",
       network,
-      preprodGeneration: network === "preprod" ? 7 : null,
       lastSeenStatus: "RUNNING",
-      ...(kind === "JOB" ? { jobId: entityId } : { taskId: entityId }),
     },
+    include: { turn: { include: { sokoBot: true } } },
   });
+  const entity = {
+    id: entityId,
+    name: "work",
+    workspaceId,
+    ownerId,
+    taskId: null as string | null,
+    events: eventId
+      ? [
+          {
+            id: eventId,
+            status: "COMPLETED",
+            createdAt: new Date("2100-01-01"),
+          },
+        ]
+      : [],
+  };
+  return {
+    ...delegation,
+    jobId: kind === "JOB" ? entityId : null,
+    job: kind === "JOB" ? entity : null,
+    task:
+      kind === "TASK"
+        ? { ...entity, status: "INPUT_REQUIRED", visibility: "PUBLIC" }
+        : null,
+  };
 }
 
-function scan() {
-  return sokoBotEventsSyncService.syncDelegatedWork({
-    abortSignal: new AbortController().signal,
-    shouldContinue: () => true,
-    sokoBotId: botId,
-  });
-}
+type ScannedRow = SokoBotDelegation & {
+  job?: {
+    id: string;
+    name: string | null;
+    workspaceId: string;
+    ownerId: string | null;
+    taskId?: string | null;
+    events: { id: string; status: string; createdAt: Date }[];
+  } | null;
+};
 
-/** Preprod on and open at generation 7, with fresh Preprod turns let through at the pickup. */
-async function openPreprod() {
-  vi.spyOn(env, "getEnv").mockReturnValue({
-    ...env.getEnv(),
-    NETWORK_PREPROD_ENABLED: true,
-  });
-  vi.spyOn(scheduleResume, "freshPreprodTurnsDeferred").mockReturnValue(false);
-  const keys = [PREPROD_PAUSE_KEY, PREPROD_GENERATION_KEY];
-  const before = await prisma.syncMetadata.findMany({
-    where: { key: { in: keys } },
-  });
-  cleanUpJobs.push(async () => {
-    await prisma.syncMetadata.deleteMany({ where: { key: { in: keys } } });
-    await prisma.syncMetadata.createMany({ data: before });
-  });
-  for (const [key, cursorId] of [
-    [PREPROD_PAUSE_KEY, "open"],
-    [PREPROD_GENERATION_KEY, "7"],
-  ])
-    await prisma.syncMetadata.upsert({
-      where: { key },
-      create: { key, cursorId, lastSyncedAt: new Date() },
-      update: { cursorId },
+async function scan(rows: ScannedRow[]) {
+  // Ticket 30-3 owns the Preprod Job event wake. Deliver observations at the
+  // page-read boundary; grouping, consumed lookups, turns and inbox use PostgreSQL.
+  vi.spyOn(prisma.sokoBotDelegation, "findMany").mockResolvedValueOnce(
+    rows.map(({ job, ...rest }) => ({
+      ...rest,
+      jobId: job ? job.id : rest.jobId,
+    })),
+  );
+  const byId = new Map(
+    rows.flatMap((row) =>
+      row.job ? [[row.job.id, { taskId: null, ...row.job }] as const] : [],
+    ),
+  );
+  const jobSpy = vi
+    .spyOn(createNetworkScope("mainnet").networkDb.job, "findMany")
+    .mockImplementation((async (args?: {
+      where?: { id?: { in?: string[] } };
+    }) =>
+      (args?.where?.id?.in ?? []).flatMap((id) => {
+        const job = byId.get(id);
+        return job ? [job] : [];
+      })) as never);
+  try {
+    return await sokoBotEventsSyncService.syncDelegatedWork({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+      sokoBotId: botId,
     });
+  } finally {
+    jobSpy.mockRestore();
+  }
 }
 
 async function oldInsert(eventId: string, purpose: string) {
@@ -275,7 +225,7 @@ it("retries a status-only Mainnet Task each tick when taskboard already reserved
     2,
   );
   for (let tick = 0; tick < 2; tick++) {
-    expect(await scan()).toMatchObject({ woken: 0, failed: 1 });
+    expect(await scan([task])).toMatchObject({ woken: 0, failed: 1 });
     expect(
       await prisma.sokoBotDelegation.findUniqueOrThrow({
         where: { id: task.id },
@@ -285,13 +235,12 @@ it("retries a status-only Mainnet Task each tick when taskboard already reserved
   }
 });
 
-it.runIf(onSplitLayout).each(["job-A", "different-job"])(
+it.each(["job-A", "different-job"])(
   "wakes each Network once when Preprod entity is %s",
   async (preprodEntity) => {
-    await openPreprod();
-    await source("JOB", "mainnet", "job-A", "evt-2");
-    await source("JOB", "preprod", preprodEntity, "evt-2");
-    expect(await scan()).toMatchObject({ woken: 2, failed: 0 });
+    const main = await source("JOB", "mainnet", "job-A", "evt-2");
+    const pre = await source("JOB", "preprod", preprodEntity, "evt-2");
+    expect(await scan([main, pre])).toMatchObject({ woken: 2, failed: 0 });
     const rows = await prisma.sokoBotEventInbox.findMany({
       where: { botId },
       orderBy: { network: "asc" },
@@ -312,55 +261,51 @@ it.runIf(onSplitLayout).each(["job-A", "different-job"])(
     });
     expect(rows[1]).toMatchObject({ network: "preprod", eventId: "evt-2" });
     expect(rows[1].turn.clientTurnId).not.toEqual(rows[0].turn.clientTurnId);
-    expect(await scan()).toMatchObject({ woken: 0, failed: 0 });
+    expect(await scan([pre, main])).toMatchObject({ woken: 0, failed: 0 });
   },
 );
 
-it.runIf(onSplitLayout)(
-  "keeps a legacy Mainnet Job consumed while its Preprod namesake and a shared Task are new",
-  async () => {
-    await openPreprod();
-    await oldInsert("same", "JOB_EVENT");
-    await source("JOB", "mainnet", "job-A", "same");
-    await source("JOB", "preprod", "job-A", "same");
-    await source("TASK", "preprod", "task-B", "same");
-    expect(await scan()).toMatchObject({ woken: 2, failed: 0 });
-    expect(await scan()).toMatchObject({ woken: 0, failed: 0 });
-    const entries = await prisma.sokoBotEventInbox.findMany({
-      where: { botId },
-      select: { network: true, purpose: true, eventId: true },
-    });
-    expect(entries).toHaveLength(3);
-    expect(entries).toEqual(
-      expect.arrayContaining([
-        { network: null, purpose: "TASK_EVENT", eventId: "same" },
-        { network: null, purpose: "JOB_EVENT", eventId: "same" },
-        { network: "preprod", purpose: "JOB_EVENT", eventId: "same" },
-      ]),
-    );
-    const occurrence = {
-      eventId: "same",
-      entityId: "job-A",
-      purpose: "JOB_EVENT",
-      status: "COMPLETED",
-      designatedHandlerBotId: botId,
-    };
-    await expect(
-      reserveEventOccurrence(prisma, botId, parentId, "mainnet", occurrence),
-    ).rejects.toMatchObject({ code: "P2002" });
-    await expect(
-      reserveEventOccurrence(prisma, botId, parentId, "preprod", {
-        ...occurrence,
-        purpose: "TASK_EVENT",
-      }),
-    ).rejects.toMatchObject({ code: "P2002" });
-  },
-);
+it("keeps a legacy Mainnet Job consumed while its Preprod namesake and a shared Task are new", async () => {
+  await oldInsert("same", "JOB_EVENT");
+  const main = await source("JOB", "mainnet", "job-A", "same");
+  const pre = await source("JOB", "preprod", "job-A", "same");
+  const task = await source("TASK", "preprod", "task-B", "same");
+  expect(await scan([main, pre, task])).toMatchObject({ woken: 2, failed: 0 });
+  expect(await scan([main, pre, task])).toMatchObject({ woken: 0, failed: 0 });
+  const entries = await prisma.sokoBotEventInbox.findMany({
+    where: { botId },
+    select: { network: true, purpose: true, eventId: true },
+  });
+  expect(entries).toHaveLength(3);
+  expect(entries).toEqual(
+    expect.arrayContaining([
+      { network: null, purpose: "TASK_EVENT", eventId: "same" },
+      { network: null, purpose: "JOB_EVENT", eventId: "same" },
+      { network: "preprod", purpose: "JOB_EVENT", eventId: "same" },
+    ]),
+  );
+  const occurrence = {
+    eventId: "same",
+    entityId: "job-A",
+    purpose: "JOB_EVENT",
+    status: "COMPLETED",
+    designatedHandlerBotId: botId,
+  };
+  await expect(
+    reserveEventOccurrence(prisma, botId, parentId, "mainnet", occurrence),
+  ).rejects.toMatchObject({ code: "P2002" });
+  await expect(
+    reserveEventOccurrence(prisma, botId, parentId, "preprod", {
+      ...occurrence,
+      purpose: "TASK_EVENT",
+    }),
+  ).rejects.toMatchObject({ code: "P2002" });
+});
 
 it("keeps one mixed Mainnet wake and the deployed batch ID", async () => {
-  await source("JOB", "mainnet", "job-A", "evt-2");
-  await source("TASK", "mainnet", "task-B", "evt-1");
-  expect(await scan()).toMatchObject({ woken: 1, failed: 0 });
+  const job = await source("JOB", "mainnet", "job-A", "evt-2");
+  const task = await source("TASK", "mainnet", "task-B", "evt-1");
+  expect(await scan([task, job])).toMatchObject({ woken: 1, failed: 0 });
   const rows = await prisma.sokoBotEventInbox.findMany({
     where: { botId },
     select: { turn: { select: { clientTurnId: true } } },
@@ -371,10 +316,10 @@ it("keeps one mixed Mainnet wake and the deployed batch ID", async () => {
     deployedId,
     deployedId,
   ]);
-  expect(await scan()).toMatchObject({ woken: 0, failed: 0 });
+  expect(await scan([job, task])).toMatchObject({ woken: 0, failed: 0 });
 });
 
-it("keeps Preprod Job delegations out behind the 30-1 guard and consumes colliding physical Job events on the split layout", async () => {
+it("keeps the Mainnet-only scanner gated and consumes colliding physical Job events on the split layout", async () => {
   if (onSplitLayout)
     vi.spyOn(env, "getEnv").mockReturnValue({
       ...env.getEnv(),
@@ -382,33 +327,72 @@ it("keeps Preprod Job delegations out behind the 30-1 guard and consumes collidi
     });
   const jobId = randomUUID();
   const eventId = randomUUID();
-  await source("JOB", "mainnet", jobId, eventId);
-  if (onSplitLayout) await persistedJob("preprod", jobId, eventId);
-  await source("JOB", "preprod", jobId, eventId);
+  async function persistedJob(network: Network) {
+    const db = createNetworkScope(network).networkDb;
+    const agent = await db.agent.create({
+      data: {
+        blockchainIdentifier: randomUUID(),
+        name: "Inbox Agent",
+        isShown: true,
+        lastUptimeCheck: new Date(),
+        uptimeCount: 1,
+        uptimeCheckCount: 1,
+        pricing: { create: { pricingType: "FREE" } },
+      },
+    });
+    cleanUpJobs.push(async () => {
+      await db.job.deleteMany({ where: { agentId: agent.id } });
+      await db.agent.delete({ where: { id: agent.id } });
+      await db.agentPricing.delete({ where: { id: agent.pricingId } });
+    });
+    return db.job.create({
+      data: {
+        id: jobId,
+        name: "Agent Job",
+        workspaceId,
+        ownerId,
+        agentId: agent.id,
+        agentJobId: randomUUID(),
+        jobType: "FREE",
+        events: {
+          create: {
+            id: eventId,
+            status: "COMPLETED",
+            createdAt: new Date("2100-01-01"),
+          },
+        },
+      },
+      include: { events: true },
+    });
+  }
+  const mainJob = await persistedJob("mainnet");
+  const main = await source("JOB", "mainnet", jobId, eventId);
+  const pre = await source("JOB", "preprod", jobId, eventId);
+  await prisma.sokoBotDelegation.updateMany({
+    where: { id: { in: [main.id, pre.id] } },
+    data: { jobId },
+  });
   if (onSplitLayout) {
-    // Slice 30-1's guard still refuses a fresh Preprod turn, so the pickup
-    // leaves the Preprod delegation out of the scan.
-    expect(await scan()).toMatchObject({ scanned: 1, woken: 1, failed: 0 });
-    await openPreprod();
-    expect(await scan()).toMatchObject({ scanned: 2, woken: 1, failed: 0 });
-    expect(await scan()).toMatchObject({ scanned: 2, woken: 0, failed: 0 });
-    expect(
-      await prisma.sokoBotEventInbox.findMany({
-        where: { botId },
-        orderBy: { network: "asc" },
-        select: { network: true, eventId: true },
-      }),
-    ).toEqual([
-      { network: "mainnet", eventId },
-      { network: "preprod", eventId },
-    ]);
+    const preJob = await persistedJob("preprod");
+    const observations = [
+      { ...main, job: mainJob },
+      { ...pre, job: preJob },
+    ];
+    expect(await scan(observations)).toMatchObject({ woken: 2, failed: 0 });
+    expect(await scan(observations)).toMatchObject({ woken: 0, failed: 0 });
   } else {
     vi.mocked(sokoBotControlPlane.startTurn).mockRestore();
     vi.spyOn(billing, "requireSokoBotTurnFunding").mockResolvedValue();
     // The production source only delivers Mainnet even when a Preprod
     // delegation points at the same Job id in today's single schema.
-    expect(await scan()).toMatchObject({ scanned: 1, woken: 1, failed: 0 });
-    expect(await scan()).toMatchObject({ scanned: 1, woken: 0, failed: 0 });
+    const deliver = () =>
+      sokoBotEventsSyncService.syncDelegatedWork({
+        abortSignal: new AbortController().signal,
+        shouldContinue: () => true,
+        sokoBotId: botId,
+      });
+    expect(await deliver()).toMatchObject({ scanned: 1, woken: 1, failed: 0 });
+    expect(await deliver()).toMatchObject({ scanned: 1, woken: 0, failed: 0 });
     expect(
       await prisma.sokoBotEventInbox.findMany({
         where: { botId },

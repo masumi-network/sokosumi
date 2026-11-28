@@ -6,14 +6,12 @@ import {
 } from "@sokosumi/soko-bot";
 import { createError } from "evlog";
 import { getEnv } from "@/config/env";
-import { readPreprodControl } from "@/helpers/preprod-control";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import {
   DETACHED_SOKO_BOT_NETWORK,
-  isPreprodOn,
   type Network,
   networkKey,
   requireNetwork,
@@ -24,10 +22,6 @@ import {
   JOB_WAKE_STATUSES,
   TASK_WAKE_STATUSES,
 } from "@/lib/soko-bot/delegation-wake";
-import {
-  DetachedNetworkRefusal,
-  isTemporaryDetachedRefusal,
-} from "@/lib/soko-bot/detached-network";
 import { consumedEventOccurrences } from "@/lib/soko-bot/event-inbox";
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
 import {
@@ -249,8 +243,6 @@ function followUpLine(plan: FollowUpPlan): string {
 
 interface BotWork {
   network: Network;
-  /** The Preprod generation the delegations started under; Mainnet has none. */
-  preprodGeneration?: number | null;
   sokoBotId: string;
   /** Who the turn acts for; null when a shared bot acts on its own. */
   userId: string | null;
@@ -535,24 +527,6 @@ interface FailedFollowUpTurn {
   retried: ReadonlySet<string>;
 }
 
-/**
- * The generation whose Preprod Job delegations the scan reads, or null to
- * leave them out: Preprod is off, paused or unreadable, or its fresh turns
- * wait like the schedule pickup's. Left out, they take no place in a batch.
- */
-async function preprodJobGeneration(): Promise<number | null> {
-  if (!isPreprodOn() || freshPreprodTurnsDeferred()) return null;
-  const control = await readPreprodControl();
-  return control.state === "open" ? control.generation : null;
-}
-
-/** A Job delegation's Network: a NULL tag is legacy Mainnet work. */
-function jobNetwork(delegation: { network: string | null }): Network {
-  return delegation.network == null
-    ? DETACHED_SOKO_BOT_NETWORK
-    : requireNetwork(delegation.network);
-}
-
 const JOB_SELECT = {
   id: true,
   name: true,
@@ -567,35 +541,26 @@ const JOB_SELECT = {
 } as const satisfies Prisma.JobSelect;
 
 /**
- * Each delegation's Job from its own Network and the Job's parent Task from
- * the shared client, by id: one read per Network and one for the Tasks, for
- * the whole page. A Preprod Job is read only when the scan picked Preprod.
+ * Loads each scanned page's Jobs from the Mainnet client and each Job's parent
+ * Task from the shared client, in at most one Job statement per page.
  */
-async function withJobs<
-  T extends { jobId: string | null; network: string | null },
->(rows: T[], preprodPicked: boolean) {
-  const ids = new Map<Network, Set<string>>();
-  for (const row of rows) {
-    if (row.jobId == null) continue;
-    const network = jobNetwork(row);
-    if (network === "preprod" && !preprodPicked) continue;
-    ids.set(network, (ids.get(network) ?? new Set()).add(row.jobId));
-  }
-  type LoadedJob = Prisma.JobGetPayload<{ select: typeof JOB_SELECT }>;
-  const jobs = new Map<Network, Map<string, LoadedJob>>();
-  for (const [network, jobIds] of ids) {
-    const byId = new Map<string, LoadedJob>();
-    for (const job of await createNetworkScope(network).networkDb.job.findMany({
-      where: { id: { in: [...jobIds] } },
-      select: JOB_SELECT,
-    }))
-      byId.set(job.id, job);
-    jobs.set(network, byId);
-  }
+async function withMainnetJobs<T extends { jobId: string | null }>(rows: T[]) {
+  const jobIds = [
+    ...new Set(rows.flatMap((row) => (row.jobId != null ? [row.jobId] : []))),
+  ];
+  const jobs = new Map(
+    (jobIds.length
+      ? await createNetworkScope("mainnet").networkDb.job.findMany({
+          where: { id: { in: jobIds } },
+          select: JOB_SELECT,
+        })
+      : []
+    ).map((job) => [job.id, job]),
+  );
   const taskIds = [
     ...new Set(
-      [...jobs.values()].flatMap((byId) =>
-        [...byId.values()].flatMap((job) => job.taskId ?? []),
+      [...jobs.values()].flatMap((job) =>
+        job.taskId != null ? [job.taskId] : [],
       ),
     ),
   ];
@@ -614,8 +579,7 @@ async function withJobs<
     ).map(({ id, ...task }) => [id, task]),
   );
   return rows.map((row) => {
-    const job =
-      row.jobId != null ? jobs.get(jobNetwork(row))?.get(row.jobId) : undefined;
+    const job = row.jobId != null ? jobs.get(row.jobId) : undefined;
     return {
       ...row,
       job: job
@@ -664,25 +628,22 @@ export class SokoBotEventsSyncService {
       create: { key: SOKO_EVENTS_SYNC_KEY, lastSyncedAt: new Date() },
       update: {},
     });
-    const preprodGeneration = await preprodJobGeneration();
+    const excludePreprodJobs = freshPreprodTurnsDeferred();
     const readPage = async (cursor?: string | null) =>
-      withJobs(
+      withMainnetJobs(
         await prisma.sokoBotDelegation.findMany({
           where: {
             ...(cursor ? { id: { gt: cursor } } : {}),
-            // A Job is read afterwards from its delegation's Network. Preprod
-            // rows come only from the generation a fresh turn would start under.
+            // Slice 30-3 opens fresh Preprod turns and builds the Preprod Job
+            // event wake. Until then Preprod Job delegations stay out of the
+            // scan so they take no slot from Mainnet.
             OR: [
               { taskId: { not: null } },
               {
                 jobId: { not: null },
-                OR: [
-                  { network: "mainnet" },
-                  { network: null },
-                  ...(preprodGeneration === null
-                    ? []
-                    : [{ network: "preprod", preprodGeneration }]),
-                ],
+                ...(excludePreprodJobs
+                  ? { OR: [{ network: "mainnet" }, { network: null }] }
+                  : {}),
               },
             ],
             ...INVOLVING_DELEGATION,
@@ -706,7 +667,6 @@ export class SokoBotEventsSyncService {
             turnId: true,
             kind: true,
             network: true,
-            preprodGeneration: true,
             jobId: true,
             lastSeenStatus: true,
             lastSeenEventId: true,
@@ -764,7 +724,6 @@ export class SokoBotEventsSyncService {
             },
           },
         }),
-        preprodGeneration !== null,
       );
     const delegations = await readPage(input.sokoBotId ? null : scan.cursorId);
     // A scoped scan has no cursor to resume from: it reads every page.
@@ -869,19 +828,17 @@ export class SokoBotEventsSyncService {
         requestedByUserId: delegation.turn.requestedByUserId,
         sokoBot: { userId: delegation.turn.sokoBot?.userId ?? null },
       });
-      // A Task is Mainnet by name; a Job wakes on its delegation's Network.
-      const network = delegation.task
-        ? DETACHED_SOKO_BOT_NETWORK
-        : jobNetwork(delegation);
+      // A NULL Job tag from the Mainnet-only scan belongs to legacy Mainnet work.
+      const network =
+        delegation.task || delegation.network == null
+          ? DETACHED_SOKO_BOT_NETWORK
+          : requireNetwork(delegation.network);
       const workKey = networkKey(
         network,
         `${delegation.turn.sokoBotId}:${actingUserId ?? ""}`,
       );
       const work = byBot.get(workKey) ?? {
         network,
-        ...(network === "preprod"
-          ? { preprodGeneration: delegation.preprodGeneration }
-          : {}),
         sokoBotId: delegation.turn.sokoBotId,
         userId: actingUserId,
         workspaceId: delegation.turn.workspaceId,
@@ -991,7 +948,7 @@ export class SokoBotEventsSyncService {
               },
             })
           : (
-              await createNetworkScope(network).networkDb.jobEvent.findMany({
+              await createNetworkScope("mainnet").networkDb.jobEvent.findMany({
                 where: { jobId: current.id, ...cursor },
                 orderBy: [{ createdAt: "asc" }, { id: "asc" }],
                 take: MAX_CHANGES_PER_TURN,
@@ -1146,17 +1103,8 @@ export class SokoBotEventsSyncService {
           });
         }
       }
-      const remaining = work.changes.filter((change) => !isConsumed(change));
-      // Preprod cursor updates for a pending start wait for an admitted start
-      // so a retryable pause leaves the delegation row untouched.
-      const stagedConsumedPrefix =
-        work.network === "preprod" && remaining.length > 0
-          ? consumedPrefix
-          : [];
-      if (stagedConsumedPrefix.length === 0) {
-        await this.markSeen(consumedPrefix);
-      }
-      work.changes = remaining;
+      await this.markSeen(consumedPrefix);
+      work.changes = work.changes.filter((change) => !isConsumed(change));
       if (!work.changes.length) continue;
       // Collapse duplicate delegations, preserving distinct event occurrences.
       const unique = new Map<string, Change>();
@@ -1201,30 +1149,9 @@ export class SokoBotEventsSyncService {
           claimed.has(change.delegationId) ? (change.ownerGranted ?? []) : [],
         ),
       );
-      const eventBatch = changes.map((change) => ({
-        eventId: inboxEventId(change),
-        entityId: change.entityId,
-        purpose: `${change.kind}_EVENT`,
-        status: change.to,
-        designatedHandlerBotId:
-          change.designatedHandlerBotId === undefined
-            ? work.sokoBotId
-            : change.designatedHandlerBotId,
-        delegationEventAt: change.eventAt,
-        delegationIds: work.changes
-          .filter((item) => item.entityId === change.entityId)
-          .map((item) => item.delegationId),
-        followUpDelegationIds: claimsOf.get(change),
-        ...(change.retryOfTurnId && claimsOf.has(change)
-          ? { followUpRetryOfTurnId: change.retryOfTurnId }
-          : {}),
-      }));
       try {
         const started = await sokoBotControlPlane.startTurn({
           network: work.network,
-          ...(work.network === "preprod"
-            ? { expectedPreprodGeneration: work.preprodGeneration }
-            : {}),
           userId: work.userId,
           sokoBotId: work.sokoBotId,
           workspaceId: work.workspaceId,
@@ -1232,18 +1159,25 @@ export class SokoBotEventsSyncService {
           message: buildEventMessage(changes, plans),
           source: "EVENT",
           presetRoute,
-          eventBatch,
+          eventBatch: changes.map((change) => ({
+            eventId: inboxEventId(change),
+            entityId: change.entityId,
+            purpose: `${change.kind}_EVENT`,
+            status: change.to,
+            designatedHandlerBotId:
+              change.designatedHandlerBotId === undefined
+                ? work.sokoBotId
+                : change.designatedHandlerBotId,
+            delegationEventAt: change.eventAt,
+            delegationIds: work.changes
+              .filter((item) => item.entityId === change.entityId)
+              .map((item) => item.delegationId),
+            followUpDelegationIds: claimsOf.get(change),
+            ...(change.retryOfTurnId && claimsOf.has(change)
+              ? { followUpRetryOfTurnId: change.retryOfTurnId }
+              : {}),
+          })),
         });
-        if (stagedConsumedPrefix.length > 0) {
-          const admittedDelegations = new Set(
-            eventBatch.flatMap((occurrence) => occurrence.delegationIds),
-          );
-          await this.markSeen(
-            stagedConsumedPrefix.filter(
-              (item) => !admittedDelegations.has(item.delegationId),
-            ),
-          );
-        }
         result.woken += 1;
         // The start result grants this call the drain after its own fresh start
         // or won recovery claim, including when a CAS proves its acknowledgement
@@ -1284,41 +1218,6 @@ export class SokoBotEventsSyncService {
         if (error instanceof SokoBotBusyError) {
           // The bot is mid-turn; the drift stays unseen and retries next tick.
           result.deferred += 1;
-          continue;
-        }
-        // Preprod paused or unreadable: the changes stay unseen for a later tick.
-        if (isTemporaryDetachedRefusal(work.network, error)) {
-          result.deferred += 1;
-          continue;
-        }
-        // Another Network or an older generation: these changes never wake.
-        if (
-          work.network === "preprod" &&
-          error instanceof DetachedNetworkRefusal &&
-          error.final
-        ) {
-          const finalChanges = work.changes.flatMap((change) =>
-            change.retryOfTurnId
-              ? []
-              : [
-                  {
-                    delegationId: change.delegationId,
-                    status: change.to,
-                    eventId: change.eventId,
-                    eventAt: change.eventAt,
-                  },
-                ],
-          );
-          const finalDelegations = new Set(
-            finalChanges.map((item) => item.delegationId),
-          );
-          await this.markSeen([
-            ...stagedConsumedPrefix.filter(
-              (item) => !finalDelegations.has(item.delegationId),
-            ),
-            ...finalChanges,
-          ]);
-          result.failed += 1;
           continue;
         }
         result.failed += 1;

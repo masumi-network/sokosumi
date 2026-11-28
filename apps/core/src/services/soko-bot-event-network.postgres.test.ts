@@ -1,11 +1,9 @@
 /**
- * The Job event wake reads each Job through its delegation's Network (ticket
- * 24, slice 6), on a real PostgreSQL: the scan, the per-Network Job load, the
- * pickup rule that leaves Preprod Job delegations out while a fresh Preprod
- * turn is refused, the refusals of `startTurn`, and the failed-turn lookup of
- * a follow-up retry. `startTurn` is replaced at its boundary by a recorder
- * that reserves the inbox rows in a turn transaction, as the real one does;
- * where a case needs the 30-1 guard itself, Preprod inputs reach the real one.
+ * The Job event wake loads each scanned page's Jobs from the Mainnet client
+ * and parent Tasks from the shared client (ticket 24, slice 6), leaves Preprod
+ * Job delegations out of the scan while fresh Preprod turns are deferred
+ * (slice 30-3 builds the admitted Preprod wake), and scopes the failed-turn
+ * lookup of a follow-up retry by Network.
  */
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,7 +32,6 @@ import prisma from "@/lib/db/prisma";
 import type { Network } from "@/lib/network";
 import { reserveEventOccurrence } from "@/lib/soko-bot/event-inbox";
 import { FOLLOW_UP_RETRY_SUFFIX } from "@/lib/soko-bot/follow-up-retry";
-import * as scheduleResume from "@/lib/soko-bot/schedule-resume";
 import type { StartSokoBotTurnInput } from "@/lib/soko-bot/turn-start";
 import { expectCoreLog } from "@/test/core-log";
 import { recordStatements } from "@/test/record-statements";
@@ -146,6 +143,7 @@ async function createJob(
     name?: string;
     status?: "COMPLETED" | "FAILED" | "AWAITING_INPUT" | "RUNNING";
     eventId?: string;
+    eventAt?: Date;
     ownerId?: string;
     taskId?: string | null;
   } = {},
@@ -181,7 +179,7 @@ async function createJob(
         create: {
           id: eventId,
           status: options.status ?? "COMPLETED",
-          createdAt: LATER,
+          createdAt: options.eventAt ?? LATER,
         },
       },
     },
@@ -197,6 +195,7 @@ async function createTask(
     visibility?: "PUBLIC" | "PRIVATE";
     ownerId?: string;
     eventId?: string | null;
+    eventAt?: Date;
   } = {},
 ) {
   const task = await prisma.task.create({
@@ -217,7 +216,7 @@ async function createTask(
         taskId: task.id,
         status: task.status,
         comment: "A Coworker note",
-        createdAt: LATER,
+        createdAt: options.eventAt ?? LATER,
       },
     });
   return task.id;
@@ -226,14 +225,17 @@ async function createTask(
 function delegate(
   turnId: string,
   network: Network | null,
-  work: { jobId: string } | { taskId: string },
+  work:
+    | { jobId: string }
+    | { taskId: string }
+    | { taskId: string; jobId: string },
   generation: number | null = network === "preprod" ? GENERATION : null,
 ) {
   return prisma.sokoBotDelegation.create({
     data: {
       turnId,
       toolCallId: randomUUID(),
-      kind: "jobId" in work ? "JOB" : "TASK",
+      kind: "taskId" in work ? "TASK" : "JOB",
       action: "delegate",
       network,
       preprodGeneration: generation,
@@ -252,18 +254,15 @@ const tick = (sokoBotId?: string) =>
 
 /**
  * The recorder: each input as `startTurn` received it, and the turn with its
- * inbox rows in one transaction. `real` sends an input on to the real one.
+ * inbox rows in one transaction. `before` can inject a failure or side effect.
  */
 function recordStarts(
-  real: (input: StartSokoBotTurnInput) => boolean = () => false,
   before?: (input: StartSokoBotTurnInput) => Promise<unknown>,
 ) {
-  const realStart = sokoBotControlPlane.startTurn.bind(sokoBotControlPlane);
   vi.spyOn(sokoBotControlPlane, "startTurn").mockImplementation(
     async (input) => {
       starts.push(structuredClone(input));
       await before?.(input);
-      if (real(input)) return realStart(input);
       return prisma.$transaction(async (tx) => {
         const turn = await tx.sokoBotTurn.create({
           data: turnData(
@@ -327,9 +326,6 @@ async function setControl(pause: string, generation: string) {
       update: { cursorId },
     });
 }
-
-const liftGuard = () =>
-  vi.spyOn(scheduleResume, "freshPreprodTurnsDeferred").mockReturnValue(false);
 
 const row = (id: string) =>
   prisma.sokoBotDelegation.findUniqueOrThrow({ where: { id } });
@@ -451,6 +447,83 @@ describe("Mainnet, on each layout", () => {
     expect((await row(rows[3].id)).lastSeenStatus).toBe("RUNNING");
   });
 
+  it("enforces Mainnet Job ownership and parent visibility on dual-linked Task+Job rows", async () => {
+    const { botId, turnId } = await createBot(owner);
+    const stranger = await createUser();
+    const accessibleTask = await createTask({
+      id: "dual-shared-task",
+      name: "Shared dual Task",
+      eventId: "T-dual-shared-task",
+    });
+    const otherOwnersJob = await createJob("mainnet", {
+      id: "dual-other-owners-job",
+      name: "Other owner's Job",
+      ownerId: stranger,
+    });
+    const privateParent = await createTask({
+      name: "Private dual parent",
+      visibility: "PRIVATE",
+      ownerId: stranger,
+      eventId: null,
+    });
+    const hiddenParentJob = await createJob("mainnet", {
+      name: "Job behind hidden parent",
+      ownerId: owner,
+      taskId: privateParent,
+    });
+
+    const foreignDual = await delegate(
+      turnId,
+      "preprod",
+      { taskId: accessibleTask, jobId: otherOwnersJob.id },
+      null,
+    );
+    const hiddenDual = await delegate(
+      turnId,
+      "preprod",
+      { taskId: accessibleTask, jobId: hiddenParentJob.id },
+      null,
+    );
+    const beforeForeign = await row(foreignDual.id);
+    const beforeHidden = await row(hiddenDual.id);
+    recordStarts();
+
+    // Negative controls: both dual-linked rows are suppressed even with Preprod off.
+    expect(await tick(botId)).toMatchObject({ scanned: 2, woken: 0 });
+    expect(await tick(botId)).toMatchObject({ scanned: 2, woken: 0 });
+    expect(starts).toEqual([]);
+    expect(await row(foreignDual.id)).toEqual(beforeForeign);
+    expect(await row(hiddenDual.id)).toEqual(beforeHidden);
+
+    // Positive control: an owner-matching Job on a dual-linked row wakes once.
+    const ownJob = await createJob("mainnet", {
+      name: "Owner-matching dual Job",
+      ownerId: owner,
+    });
+    const ownDual = await delegate(
+      turnId,
+      "preprod",
+      { taskId: accessibleTask, jobId: ownJob.id },
+      null,
+    );
+    expect(await tick(botId)).toMatchObject({ scanned: 3, woken: 1 });
+    expect(starts).toHaveLength(1);
+    expect(starts[0]).toMatchObject({
+      network: "mainnet",
+      eventBatch: [
+        expect.objectContaining({
+          entityId: accessibleTask,
+          eventId: "T-dual-shared-task",
+          purpose: "TASK_EVENT",
+          delegationIds: [ownDual.id],
+        }),
+      ],
+    });
+    expect(await tick(botId)).toMatchObject({ scanned: 3, woken: 0 });
+    expect(await row(foreignDual.id)).toEqual(beforeForeign);
+    expect(await row(hiddenDual.id)).toEqual(beforeHidden);
+  });
+
   it("wakes each member of a shared bot for that member's own Jobs", async () => {
     const other = await createUser();
     const shared = await createBot(null, owner);
@@ -504,7 +577,135 @@ describe("Mainnet, on each layout", () => {
     expect(counts[1]).toBe(counts[0]);
   });
 
-  it("never reads a Preprod Job delegation while Preprod is off", async () => {
+  it("reads later Mainnet Job events and commits consumed prefixes before a failed start", async () => {
+    const { botId, turnId } = await createBot(owner);
+    const t1 = new Date("2090-01-01T00:00:01Z");
+    const t2 = new Date("2090-01-01T00:00:02Z");
+    const t3 = new Date("2090-01-01T00:00:03Z");
+    const mainnetDb = createNetworkScope("mainnet").networkDb;
+
+    const job = await createJob("mainnet", {
+      name: "Cursor Job",
+      status: "RUNNING",
+      eventId: "main-before",
+      eventAt: t1,
+    });
+    await mainnetDb.jobEvent.createMany({
+      data: [
+        {
+          id: "main-consumed",
+          jobId: job.id,
+          status: "AWAITING_INPUT",
+          createdAt: t2,
+        },
+        {
+          id: "main-pending",
+          jobId: job.id,
+          status: "FAILED",
+          createdAt: t3,
+        },
+      ],
+    });
+    const delegation = await delegate(turnId, "mainnet", { jobId: job.id });
+    await prisma.sokoBotDelegation.update({
+      where: { id: delegation.id },
+      data: { lastSeenEventId: "main-before", lastSeenEventAt: t1 },
+    });
+    await reserveEventOccurrence(prisma, botId, turnId, "mainnet", {
+      eventId: "main-consumed",
+      entityId: job.id,
+      purpose: "JOB_EVENT",
+      status: "AWAITING_INPUT",
+      designatedHandlerBotId: botId,
+    });
+
+    expectCoreLog(
+      "error",
+      "Could not wake a Soko Bot for changes in its delegated work",
+      1,
+    );
+    let failOnce = true;
+    recordStarts(async () => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error("Injected Mainnet start failure");
+      }
+    });
+
+    // Tick 1: Mainnet commits consumedPrefix before startTurn, even when startTurn throws.
+    expect(await tick(botId)).toMatchObject({
+      scanned: 1,
+      woken: 0,
+      failed: 1,
+    });
+    expect(await row(delegation.id)).toMatchObject({
+      lastSeenStatus: "AWAITING_INPUT",
+      lastSeenEventId: "main-consumed",
+      lastSeenEventAt: t2,
+    });
+
+    // Tick 2: pending event wakes once; tick 3 wakes none.
+    expect(await tick(botId)).toMatchObject({
+      scanned: 1,
+      woken: 1,
+      failed: 0,
+    });
+    expect(starts.at(-1)?.eventBatch).toEqual([
+      expect.objectContaining({
+        eventId: "main-pending",
+        entityId: job.id,
+        status: "FAILED",
+      }),
+    ]);
+    expect(await row(delegation.id)).toMatchObject({
+      lastSeenStatus: "FAILED",
+      lastSeenEventId: "main-pending",
+      lastSeenEventAt: t3,
+    });
+    expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 0 });
+  });
+
+  it("skips a Job deleted between the delegation page read and hydration", async () => {
+    const { botId, turnId } = await createBot(owner);
+    const doomed = await createJob("mainnet", { name: "Deleted mid-tick" });
+    const survivor = await createJob("mainnet", { name: "Surviving Job" });
+    await delegate(turnId, "mainnet", { jobId: doomed.id });
+    await delegate(turnId, "mainnet", { jobId: survivor.id });
+    recordStarts();
+
+    const realFindMany = prisma.sokoBotDelegation.findMany.bind(
+      prisma.sokoBotDelegation,
+    );
+    let deleted = false;
+    const scanSpy = vi
+      .spyOn(prisma.sokoBotDelegation, "findMany")
+      .mockImplementation((async (
+        args?: Parameters<typeof realFindMany>[0],
+      ) => {
+        const page = await realFindMany(args);
+        if (!deleted) {
+          deleted = true;
+          await createNetworkScope("mainnet").networkDb.job.delete({
+            where: { id: doomed.id },
+          });
+        }
+        return page;
+      }) as typeof prisma.sokoBotDelegation.findMany);
+
+    expect(await tick(botId)).toMatchObject({
+      scanned: 2,
+      woken: 1,
+      failed: 0,
+    });
+    scanSpy.mockRestore();
+    expect(starts).toHaveLength(1);
+    expect(starts[0].eventBatch?.map((item) => item.entityId)).toEqual([
+      survivor.id,
+    ]);
+    expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 0 });
+  });
+
+  it("never selects, loads, writes, or starts a Preprod Job delegation while Preprod is off", async () => {
     const { botId, turnId } = await createBot(owner);
     // Written while Preprod was on; read while it is off.
     flag.on = onSplitLayout;
@@ -519,9 +720,44 @@ describe("Mainnet, on each layout", () => {
     recordStarts();
 
     expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 1 });
+    expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 0 });
     expect(starts.map((start) => start.network)).toEqual(["mainnet"]);
     expect(starts[0].message).not.toContain("Preprod Job");
     expect(await row(preprod.id)).toEqual(before);
+  });
+
+  it("keeps a Mainnet 'preprod:'-prefixed Job ID separate without colliding with an excluded Preprod Job", async () => {
+    const { botId, turnId } = await createBot(owner);
+    await createJob("mainnet", {
+      id: "preprod:custom",
+      name: "mainnet preprod:custom",
+      status: "COMPLETED",
+      eventId: "main-evt",
+    });
+    flag.on = onSplitLayout;
+    await createJob(onSplitLayout ? "preprod" : "mainnet", {
+      id: "custom",
+      name: "preprod custom",
+      status: "FAILED",
+      eventId: "pre-evt",
+    });
+    flag.on = false;
+    await delegate(turnId, "mainnet", { jobId: "preprod:custom" });
+    const preprodRow = await delegate(turnId, "preprod", { jobId: "custom" });
+    const beforePreprod = await row(preprodRow.id);
+    recordStarts();
+
+    expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 1 });
+    expect(starts).toHaveLength(1);
+    expect(starts[0].network).toBe("mainnet");
+    expect(starts[0].eventBatch).toEqual([
+      expect.objectContaining({
+        entityId: "preprod:custom",
+        eventId: "main-evt",
+        status: "COMPLETED",
+      }),
+    ]);
+    expect(await row(preprodRow.id)).toEqual(beforePreprod);
   });
 
   it("hydrates distinct Jobs per page across several full pages of a bot-scoped scan", async () => {
@@ -725,403 +961,55 @@ describe("the failed-turn lookup of a follow-up retry", () => {
   });
 });
 
-describe.runIf(onSplitLayout)("Preprod on, three schemas", () => {
+describe.runIf(onSplitLayout)("Preprod exclusion on split layout", () => {
   beforeEach(() => {
     flag.on = true;
   });
 
-  it("with the 30-1 guard, leaves Preprod Job delegations out whether Preprod is open, paused or unreadable", async () => {
+  it("never selects, loads, writes, or starts Preprod Job delegations over several ticks, across pause and generation changes", async () => {
     const { botId, turnId } = await createBot(owner);
     const preprodJob = await createJob("preprod", { name: "Preprod Job" });
     const preprod = await delegate(turnId, "preprod", { jobId: preprodJob.id });
     const before = await row(preprod.id);
     recordStarts();
-    for (const [pause, generation] of [
-      ["open", String(GENERATION)],
-      ["paused", String(GENERATION)],
-      ["open", "not a count"],
-    ]) {
-      await setControl(pause, generation);
-      const mainnetJob = await createJob("mainnet");
+
+    const transitions: (() => Promise<unknown>)[] = [
+      () => setControl("open", String(GENERATION)),
+      () => setControl("paused", String(GENERATION)),
+      () => setControl("open", "not a count"),
+      async () => {
+        await setControl("open", String(GENERATION));
+        await raisePreprodGeneration();
+      },
+    ];
+    for (const [index, transition] of transitions.entries()) {
+      await transition();
+      const mainnetJob = await createJob("mainnet", {
+        name: `Mainnet Job ${index}`,
+      });
       await delegate(turnId, "mainnet", { jobId: mainnetJob.id });
       starts = [];
-      expect(await tick(botId)).toMatchObject({ woken: 1, failed: 0 });
+      const recorded = recordStatements();
+      expect(await tick(botId)).toMatchObject({
+        scanned: index + 1,
+        woken: 1,
+        failed: 0,
+      });
+      recorded.restore();
+      expect(
+        recorded.texts.some(
+          (sql) =>
+            sql.includes('"preprod"."Job"') ||
+            sql.includes('"preprod"."jobEvent"'),
+        ),
+      ).toBe(false);
       expect(starts.map((start) => start.network)).toEqual(["mainnet"]);
       expect(await row(preprod.id)).toEqual(before);
     }
   });
 
-  describe("with the guard lifted at the pickup", () => {
-    beforeEach(async () => {
-      liftGuard();
-      await setControl("open", String(GENERATION));
-    });
-
-    it("wakes one Job id and event id on both Networks twice, each with its own Job, Network and generation; a redelivery wakes none", async () => {
-      const { botId, turnId } = await createBot(owner);
-      const jobId = randomUUID();
-      const eventId = randomUUID();
-      await createJob("mainnet", {
-        id: jobId,
-        eventId,
-        name: "Mainnet namesake",
-        status: "COMPLETED",
-      });
-      await createJob("preprod", {
-        id: jobId,
-        eventId,
-        name: "Preprod namesake",
-        status: "FAILED",
-      });
-      await delegate(turnId, "mainnet", { jobId });
-      await delegate(turnId, "preprod", { jobId });
-      recordStarts();
-
-      expect(await tick(botId)).toMatchObject({ scanned: 2, woken: 2 });
-      const byNetwork = new Map(starts.map((start) => [start.network, start]));
-      const mainnet = byNetwork.get("mainnet");
-      const preprod = byNetwork.get("preprod");
-      expect(mainnet && "expectedPreprodGeneration" in mainnet).toBe(false);
-      expect(preprod?.expectedPreprodGeneration).toBe(GENERATION);
-      expect(mainnet?.message).toContain(
-        `Job "Mainnet namesake" (id ${jobId}) is now COMPLETED`,
-      );
-      expect(preprod?.message).toContain(
-        `Job "Preprod namesake" (id ${jobId}) is now FAILED`,
-      );
-      expect(mainnet?.clientTurnId).not.toBe(preprod?.clientTurnId);
-      expect(
-        await prisma.sokoBotEventInbox.findMany({
-          where: { botId },
-          orderBy: { network: "asc" },
-          select: { network: true, eventId: true },
-        }),
-      ).toEqual([
-        { network: "mainnet", eventId },
-        { network: "preprod", eventId },
-      ]);
-
-      starts = [];
-      expect(await tick(botId)).toMatchObject({ woken: 0 });
-      expect(starts).toEqual([]);
-    });
-
-    it("reads a Job's events after the last seen one from the Job's own Network", async () => {
-      const { botId, turnId } = await createBot(owner);
-      const jobId = randomUUID();
-      await createJob("mainnet", { id: jobId, status: "AWAITING_INPUT" });
-      await createJob("preprod", { id: jobId, status: "FAILED" });
-      for (const network of ["mainnet", "preprod"] as const) {
-        const delegation = await delegate(turnId, network, { jobId });
-        await prisma.sokoBotDelegation.update({
-          where: { id: delegation.id },
-          data: {
-            lastSeenEventId: randomUUID(),
-            lastSeenEventAt: new Date("2099-01-01T00:00:00Z"),
-          },
-        });
-      }
-      recordStarts();
-
-      expect(await tick(botId)).toMatchObject({ woken: 2 });
-      expect(
-        new Map(starts.map((start) => [start.network, start.message])),
-      ).toEqual(
-        new Map([
-          ["mainnet", expect.stringContaining("is now AWAITING_INPUT")],
-          ["preprod", expect.stringContaining("is now FAILED")],
-        ]),
-      );
-    });
-
-    it("leaves Preprod Job delegations out while Preprod is paused or unreadable, and of an older generation", async () => {
-      const { botId, turnId } = await createBot(owner);
-      const older = await delegate(
-        turnId,
-        "preprod",
-        { jobId: (await createJob("preprod")).id },
-        GENERATION - 1,
-      );
-      const current = await delegate(turnId, "preprod", {
-        jobId: (await createJob("preprod")).id,
-      });
-      const before = [await row(older.id), await row(current.id)];
-      recordStarts();
-      expectCoreLog("error", "Could not read the Preprod pause and generation");
-      for (const [pause, generation] of [
-        ["paused", String(GENERATION)],
-        ["open", "not a count"],
-      ]) {
-        await setControl(pause, generation);
-        expect(await tick(botId)).toMatchObject({ scanned: 0, woken: 0 });
-      }
-      expect(starts).toEqual([]);
-      expect([await row(older.id), await row(current.id)]).toEqual(before);
-
-      await setControl("open", String(GENERATION));
-      expect(await tick(botId)).toMatchObject({ scanned: 1, woken: 1 });
-      expect(starts.map((start) => start.expectedPreprodGeneration)).toEqual([
-        GENERATION,
-      ]);
-      expect(await row(older.id)).toEqual(before[0]);
-    });
-
-    it("finishes the row when the generation is raised before the start, and leaves it when Preprod pauses", async () => {
-      const { botId, turnId } = await createBot(owner);
-      const job = await createJob("preprod");
-      const delegation = await delegate(turnId, "preprod", { jobId: job.id });
-      const before = await row(delegation.id);
-
-      // Paused between the pickup and the start: retryable, the row stays.
-      recordStarts(
-        (input) => input.network === "preprod",
-        () => setControl("paused", String(GENERATION)),
-      );
-      expect(await tick(botId)).toMatchObject({ woken: 0, deferred: 1 });
-      expect(await row(delegation.id)).toEqual(before);
-      vi.mocked(sokoBotControlPlane.startTurn).mockRestore();
-
-      // The 30-1 guard itself, reached: retryable, the row stays.
-      await setControl("open", String(GENERATION));
-      recordStarts((input) => input.network === "preprod");
-      expect(await tick(botId)).toMatchObject({ woken: 0, deferred: 1 });
-      expect(await row(delegation.id)).toEqual(before);
-      vi.mocked(sokoBotControlPlane.startTurn).mockRestore();
-
-      // Raised between the pickup and the start: final, the change is spent.
-      recordStarts(
-        (input) => input.network === "preprod",
-        () => raisePreprodGeneration(),
-      );
-      expect(await tick(botId)).toMatchObject({ woken: 0, failed: 1 });
-      expect(await row(delegation.id)).toMatchObject({
-        lastSeenStatus: "COMPLETED",
-        lastSeenEventId: job.eventId,
-        lastSeenEventAt: LATER,
-      });
-      expect(
-        await prisma.sokoBotTurn.count({
-          where: { sokoBotId: botId, source: "EVENT", network: "preprod" },
-        }),
-      ).toBe(0);
-      // The raised generation leaves the row out from now on.
-      starts = [];
-      expect(await tick(botId)).toMatchObject({ scanned: 0 });
-      expect(starts).toEqual([]);
-    });
-
-    it("keeps a Mainnet 'preprod:'-prefixed Job ID separate from a Preprod Job ID on the same page", async () => {
-      const { botId, turnId } = await createBot(owner);
-      await createJob("mainnet", {
-        id: "preprod:custom",
-        name: "mainnet preprod:custom",
-        status: "COMPLETED",
-        eventId: "main-evt",
-      });
-      await createJob("preprod", {
-        id: "custom",
-        name: "preprod custom",
-        status: "FAILED",
-        eventId: "pre-evt",
-      });
-      await delegate(turnId, "mainnet", { jobId: "preprod:custom" });
-      await delegate(turnId, "preprod", { jobId: "custom" });
-      recordStarts();
-
-      expect(await tick(botId)).toMatchObject({ scanned: 2, woken: 2 });
-      const byNetwork = new Map(starts.map((start) => [start.network, start]));
-      const mainnet = byNetwork.get("mainnet");
-      const preprod = byNetwork.get("preprod");
-      expect(mainnet?.message).toContain(
-        'Job "mainnet preprod:custom" (id preprod:custom) is now COMPLETED',
-      );
-      expect(mainnet?.eventBatch).toEqual([
-        expect.objectContaining({
-          entityId: "preprod:custom",
-          eventId: "main-evt",
-          status: "COMPLETED",
-        }),
-      ]);
-      expect(preprod?.expectedPreprodGeneration).toBe(GENERATION);
-      expect(preprod?.message).toContain(
-        'Job "preprod custom" (id custom) is now FAILED',
-      );
-      expect(preprod?.eventBatch).toEqual([
-        expect.objectContaining({
-          entityId: "custom",
-          eventId: "pre-evt",
-          status: "FAILED",
-        }),
-      ]);
-      expect(
-        await prisma.sokoBotEventInbox.findMany({
-          where: { botId },
-          orderBy: { network: "asc" },
-          select: { network: true, entityId: true, eventId: true },
-        }),
-      ).toEqual([
-        { network: "mainnet", entityId: "preprod:custom", eventId: "main-evt" },
-        { network: "preprod", entityId: "custom", eventId: "pre-evt" },
-      ]);
-    });
-
-    it("stages Preprod consumed-prefix cursor updates until a pending start is admitted", async () => {
-      const { botId, turnId } = await createBot(owner);
-      const t1 = new Date("2090-01-01T00:00:01Z");
-      const t2 = new Date("2090-01-01T00:00:02Z");
-      const t3 = new Date("2090-01-01T00:00:03Z");
-      const preprodDb = createNetworkScope("preprod").networkDb;
-
-      const timeline = await createJob("preprod", {
-        id: "timeline",
-        name: "preprod timeline",
-        status: "RUNNING",
-        eventId: "pp-before",
-      });
-      await preprodDb.jobEvent.update({
-        where: { id: "pp-before" },
-        data: { createdAt: t1 },
-      });
-      await preprodDb.jobEvent.createMany({
-        data: [
-          {
-            id: "pp-consumed",
-            jobId: timeline.id,
-            status: "AWAITING_INPUT",
-            createdAt: t2,
-          },
-          {
-            id: "pp-pending",
-            jobId: timeline.id,
-            status: "AWAITING_INPUT",
-            createdAt: t3,
-          },
-        ],
-      });
-      const pendingDelegation = await delegate(turnId, "preprod", {
-        jobId: timeline.id,
-      });
-      await prisma.sokoBotDelegation.update({
-        where: { id: pendingDelegation.id },
-        data: { lastSeenEventId: "pp-before", lastSeenEventAt: t1 },
-      });
-      await reserveEventOccurrence(prisma, botId, turnId, "preprod", {
-        eventId: "pp-consumed",
-        entityId: timeline.id,
-        purpose: "JOB_EVENT",
-        status: "AWAITING_INPUT",
-        designatedHandlerBotId: botId,
-      });
-
-      const consumedOnly = await createJob("preprod", {
-        id: "consumed-only",
-        name: "preprod consumed-only",
-        status: "RUNNING",
-        eventId: "pp2-before",
-      });
-      await preprodDb.jobEvent.update({
-        where: { id: "pp2-before" },
-        data: { createdAt: t1 },
-      });
-      await preprodDb.jobEvent.create({
-        data: {
-          id: "pp2-consumed",
-          jobId: consumedOnly.id,
-          status: "COMPLETED",
-          createdAt: t2,
-        },
-      });
-      const consumedOnlyDelegation = await delegate(turnId, "preprod", {
-        jobId: consumedOnly.id,
-      });
-      await prisma.sokoBotDelegation.update({
-        where: { id: consumedOnlyDelegation.id },
-        data: { lastSeenEventId: "pp2-before", lastSeenEventAt: t1 },
-      });
-      await reserveEventOccurrence(prisma, botId, turnId, "preprod", {
-        eventId: "pp2-consumed",
-        entityId: consumedOnly.id,
-        purpose: "JOB_EVENT",
-        status: "COMPLETED",
-        designatedHandlerBotId: botId,
-      });
-
-      const beforePending = await row(pendingDelegation.id);
-      const beforeConsumedOnly = await row(consumedOnlyDelegation.id);
-
-      // Pause after the proactive gate, before the consumed lookup.
-      vi.spyOn(proactive, "proactiveGate").mockImplementationOnce(async () => {
-        await setControl("paused", String(GENERATION));
-        return { ok: true, usedToday: 0, limit: 20 };
-      });
-      recordStarts((input) => input.network === "preprod");
-      expect(await tick(botId)).toMatchObject({
-        scanned: 2,
-        woken: 0,
-        deferred: 1,
-        failed: 0,
-      });
-      expect(await row(pendingDelegation.id)).toEqual(beforePending);
-      expect(await row(consumedOnlyDelegation.id)).toEqual(beforeConsumedOnly);
-      vi.mocked(sokoBotControlPlane.startTurn).mockRestore();
-
-      // Pause right before startTurn refuses the pending event.
-      await setControl("open", String(GENERATION));
-      recordStarts(
-        (input) => input.network === "preprod",
-        () => setControl("paused", String(GENERATION)),
-      );
-      expect(await tick(botId)).toMatchObject({
-        scanned: 2,
-        woken: 0,
-        deferred: 1,
-        failed: 0,
-      });
-      expect(await row(pendingDelegation.id)).toEqual(beforePending);
-      expect(await row(consumedOnlyDelegation.id)).toEqual(beforeConsumedOnly);
-      vi.mocked(sokoBotControlPlane.startTurn).mockRestore();
-
-      // Reopen: the pending event wakes once with the original status and both
-      // rows advance to their final cursors without regressing the admitted row.
-      await setControl("open", String(GENERATION));
-      starts = [];
-      recordStarts();
-      expect(await tick(botId)).toMatchObject({
-        scanned: 2,
-        woken: 1,
-        deferred: 0,
-        failed: 0,
-      });
-      expect(starts).toHaveLength(1);
-      expect(starts[0].message).toContain(
-        'Job "preprod timeline" (id timeline) is now AWAITING_INPUT (was RUNNING).',
-      );
-      expect(starts[0].eventBatch).toEqual([
-        expect.objectContaining({
-          eventId: "pp-pending",
-          entityId: "timeline",
-          status: "AWAITING_INPUT",
-        }),
-      ]);
-      expect(await row(pendingDelegation.id)).toMatchObject({
-        lastSeenStatus: "AWAITING_INPUT",
-        lastSeenEventId: "pp-pending",
-        lastSeenEventAt: t3,
-      });
-      expect(await row(consumedOnlyDelegation.id)).toMatchObject({
-        lastSeenStatus: "COMPLETED",
-        lastSeenEventId: "pp2-consumed",
-        lastSeenEventAt: t2,
-      });
-
-      starts = [];
-      expect(await tick(botId)).toMatchObject({ woken: 0 });
-      expect(starts).toEqual([]);
-    });
-  });
-
-  it.each([0, 1, 20, 500])(
-    "starts every waiting Mainnet wake on the first tick behind %i older Preprod Job delegations",
+  it.each([0, 1, 200])(
+    "starts all 20 waiting Mainnet wakes on a saturated 500-row page behind %i older Preprod Job delegations",
     async (preprodCount) => {
       await setControl("open", String(GENERATION));
       const cursor = await prisma.syncMetadata.findUniqueOrThrow({
@@ -1137,14 +1025,14 @@ describe.runIf(onSplitLayout)("Preprod on, three schemas", () => {
           data: { cursorId: cursor.cursorId },
         }),
       );
-      // Older: created first, so their ids sort first in the scan.
-      // Each bot in its own user's workspace, as the real start requires.
+      // Older Preprod rows sort first by UUID when created with low prefix.
       workspaceId = randomUUID();
       const preprodUser = await createUser(workspaceId);
       const preprodBot = await createBot(preprodUser, preprodUser);
       const preprodJob = await createJob("preprod", { ownerId: preprodUser });
       await prisma.sokoBotDelegation.createMany({
-        data: Array.from({ length: preprodCount }, () => ({
+        data: Array.from({ length: preprodCount }, (_, index) => ({
+          id: `00000000-0000-4000-8000-0000000${String(index + 1).padStart(5, "0")}`,
           turnId: preprodBot.turnId,
           toolCallId: randomUUID(),
           kind: "JOB" as const,
@@ -1157,21 +1045,50 @@ describe.runIf(onSplitLayout)("Preprod on, three schemas", () => {
       });
       const preprodRows = () =>
         prisma.sokoBotDelegation.findMany({
-          where: { turnId: preprodBot.turnId },
+          where: { turnId: preprodBot.turnId, network: "preprod" },
           orderBy: { id: "asc" },
         });
       const before = await preprodRows();
+
+      // Fill the 500-row page with 480 already-seen Mainnet rows + 20 ready Mainnet bots.
+      const seenJob = await createJob("mainnet", {
+        ownerId: preprodUser,
+        status: "RUNNING",
+      });
+      await prisma.sokoBotDelegation.createMany({
+        data: Array.from({ length: 480 }, (_, index) => ({
+          id: `00000000-0000-4000-8000-0000010${String(index + 1).padStart(5, "0")}`,
+          turnId: preprodBot.turnId,
+          toolCallId: randomUUID(),
+          kind: "JOB" as const,
+          action: "delegate",
+          network: "mainnet",
+          lastSeenStatus: "RUNNING",
+          lastSeenEventId: seenJob.eventId,
+          jobId: seenJob.id,
+        })),
+      });
       const mainnetBots = new Set<string>();
       for (let index = 0; index < 20; index++) {
         workspaceId = randomUUID();
         const user = await createUser(workspaceId);
         const bot = await createBot(user, user);
         mainnetBots.add(bot.botId);
-        await delegate(bot.turnId, "mainnet", {
-          jobId: (await createJob("mainnet", { ownerId: user })).id,
+        const job = await createJob("mainnet", { ownerId: user });
+        await prisma.sokoBotDelegation.create({
+          data: {
+            id: `00000000-0000-4000-8000-0000020${String(index + 1).padStart(5, "0")}`,
+            turnId: bot.turnId,
+            toolCallId: randomUUID(),
+            kind: "JOB",
+            action: "delegate",
+            network: "mainnet",
+            lastSeenStatus: "RUNNING",
+            jobId: job.id,
+          },
         });
       }
-      recordStarts((input) => input.network === "preprod");
+      recordStarts();
 
       const perTick: number[] = [];
       for (let index = 0; index < 4; index++) {
