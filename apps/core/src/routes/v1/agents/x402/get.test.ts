@@ -1,3 +1,7 @@
+// Enable the Preprod request scope without discarding the rest of the config —
+// modules loaded through the route's import graph (Stripe client via
+// lib/auth) read other env keys at module load.
+import "@/test-fixtures/preprod-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
 import {
@@ -39,20 +43,6 @@ const {
   prismaTransactionMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
 }));
-
-// Pin the environment split without discarding the rest of the config —
-// modules loaded through the route's import graph (Stripe client via
-// lib/auth) read other env keys at module load.
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({
-      ...actual.getEnv(),
-      NETWORK: "Preprod" as const,
-    }),
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => {
   const network = {
@@ -998,7 +988,7 @@ describe("GET /agents?kind=x402", () => {
     const body = (await response.json()) as { data: { id: string }[] };
     expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
     // Assert WHICH gate dropped it, not merely that it is absent. Readiness
-    // re-filters the seeded mainnet pair away under NETWORK=Preprod, so
+    // re-filters the seeded mainnet pair away on the Preprod request scope, so
     // deleting the per-source network gate would still drop this agent — as
     // not_buy_side_ready. Only the reason tells the gate under test apart from
     // that independent second defence.
