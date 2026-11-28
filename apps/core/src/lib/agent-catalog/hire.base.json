@@ -135,6 +135,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v1-two-units-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -522,6 +539,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -900,6 +934,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v1-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -1232,6 +1283,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v1-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -1342,6 +1410,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
           "values": ["0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -1594,6 +1679,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
           "values": ["0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -1697,6 +1799,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
           "values": ["0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -1849,6 +1968,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -2199,6 +2335,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -2331,6 +2484,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -2440,6 +2610,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-unrated-fixed", "0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -2599,6 +2786,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v1-two-units-fixed", "0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -2987,6 +3191,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -3365,6 +3586,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v1-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -3697,6 +3935,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v1-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -3807,6 +4062,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
           "values": ["0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -4059,6 +4331,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
           "values": ["0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -4162,6 +4451,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN (NULL) OFFSET $1",
           "values": ["0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -4314,6 +4620,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },
@@ -4664,6 +4987,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -4796,6 +5136,23 @@
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-fixed", "0"]
         }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
+        }
       ]
     },
     "statements": {
@@ -4905,6 +5262,23 @@
         {
           "sql": "SELECT \"public\".\"UnitValue\".\"id\", \"public\".\"UnitValue\".\"createdAt\", \"public\".\"UnitValue\".\"updatedAt\", \"public\".\"UnitValue\".\"unit\", \"public\".\"UnitValue\".\"amount\", \"public\".\"UnitValue\".\"agentFixedPricingId\", \"public\".\"UnitValue\".\"paymentRequestId\", \"public\".\"UnitValue\".\"purchaseRequestId\" FROM \"public\".\"UnitValue\" WHERE \"public\".\"UnitValue\".\"agentFixedPricingId\" IN ($1) OFFSET $2",
           "values": ["hire-v2-unrated-fixed", "0"]
+        }
+      ],
+      "dependencies": [
+        {
+          "parent": "AgentPricing",
+          "child": "AgentFixedPricing",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentFixedPricing",
+          "child": "UnitValue",
+          "childSentAfterParentAnswered": true
+        },
+        {
+          "parent": "AgentPaymentSource",
+          "child": "AgentPaymentSourceAmount",
+          "childSentAfterParentAnswered": true
         }
       ]
     },

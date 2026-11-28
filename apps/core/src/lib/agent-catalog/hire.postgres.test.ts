@@ -41,6 +41,8 @@ const state = vi.hoisted(() => ({
   pools: [] as Pool[],
   /** Statements every pool sent, counted while a hire runs. */
   sent: 0,
+  /** Each statement's send and its answer, numbered by `sent`. */
+  trace: [] as Array<{ seq: number; text: string; phase: "sent" | "done" }>,
   /** `sent` when the hire priced the Agent it read: where the lookup ends. */
   priced: undefined as number | undefined,
   calls: [] as Array<{ call: string; with: unknown }>,
@@ -67,7 +69,29 @@ vi.mock("@vercel/functions", async (load) => {
         const query = client.query.bind(client) as (...a: unknown[]) => unknown;
         (client as { query: unknown }).query = (...args: unknown[]) => {
           state.sent += 1;
-          return query(...args);
+          const seq = state.sent;
+          const [first] = args;
+          const text =
+            typeof first === "string"
+              ? first
+              : (first as { text: string }).text;
+          state.trace.push({ seq, text, phase: "sent" });
+          const answered = () => state.trace.push({ seq, text, phase: "done" });
+          // The pool's own reads answer through a callback, a client's
+          // through the promise; either way the caller's code runs after
+          // `answered`.
+          const last = args.length - 1;
+          const callback = args[last];
+          if (typeof callback === "function") {
+            args[last] = (...answer: unknown[]) => {
+              answered();
+              return callback(...answer);
+            };
+            return query(...args);
+          }
+          const result = query(...args);
+          if (result instanceof Promise) result.then(answered, () => undefined);
+          return result;
         };
       });
       actual.attachDatabasePool(pool);
@@ -500,6 +524,7 @@ async function observeHire(hire: Hire) {
   const db = createNetworkScope("mainnet").networkDb;
   state.calls = [];
   state.sent = 0;
+  state.trace = [];
   state.priced = undefined;
   state.sellerSourceIndex = hire.sellerSourceIndex?.[state.network];
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -555,7 +580,10 @@ async function observeHire(hire: Hire) {
     {
       outcome,
       outside: state.calls,
-      lookup: lookupAsSent(lookup),
+      lookup: {
+        ...lookupAsSent(lookup),
+        dependencies: lookupDependencies(state.priced ?? state.sent),
+      },
       statements: statements(log),
       jobs,
       debits,
@@ -563,6 +591,38 @@ async function observeHire(hire: Hire) {
     },
     purchaser,
   );
+}
+
+/**
+ * Prisma loads a relation of a relation only after the parent's rows are
+ * back: the child read is sent after the parent read answered. Siblings may
+ * interleave. For each pair of the lookup, whether that held, as on
+ * `origin/main`. A read is named by the table its SELECT starts with.
+ */
+const RELATION_DEPENDENCIES = [
+  ["AgentPricing", "AgentFixedPricing"],
+  ["AgentFixedPricing", "UnitValue"],
+  ["AgentPaymentSource", "AgentPaymentSourceAmount"],
+] as const;
+
+function lookupDependencies(lastLookupSeq: number) {
+  const events = state.trace.filter((event) => event.seq <= lastLookupSeq);
+  const first = (table: string, phase: "sent" | "done") =>
+    events.findIndex(
+      (event) =>
+        event.phase === phase &&
+        /^SELECT "[^"]+"\."([^"]+)"\./.exec(event.text)?.[1] === table,
+    );
+  return RELATION_DEPENDENCIES.map(([parent, child]) => {
+    const parentDone = first(parent, "done");
+    const childSent = first(child, "sent");
+    return {
+      parent,
+      child,
+      childSentAfterParentAnswered:
+        parentDone === -1 || childSent === -1 ? null : parentDone < childSent,
+    };
+  });
 }
 
 /**
