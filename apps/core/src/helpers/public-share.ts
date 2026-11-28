@@ -14,6 +14,7 @@ import {
 import { convertCentsToCredits, removeSeoTaskRequest } from "@sokosumi/utils";
 
 import { getAgentName } from "@/helpers/agent";
+import { taskEventCountsOn } from "@/lib/credits/policy";
 import prisma from "@/lib/db/prisma";
 import { serializeJobDetails } from "@/types/job";
 
@@ -129,7 +130,7 @@ function mapPublicTaskMilestone(
     event.cents != null ? convertCentsToCredits(event.cents) : null;
   // A Preprod event's relation reads Mainnet's transaction of an equal id.
   const creditsFromSpend =
-    event.network !== "preprod" &&
+    taskEventCountsOn(event.network, "mainnet") &&
     event.transaction?.amount != null &&
     event.transaction.amount < 0n
       ? convertCentsToCredits(event.transaction.amount * -1n)

@@ -10,6 +10,7 @@ import {
 } from "@sokosumi/utils";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { mapTaskTags } from "@/helpers/task-tags";
+import { taskEventCountsOn } from "@/lib/credits/policy";
 import {
   type AuthenticationContext,
   isCoworkerAuthContext,
@@ -505,7 +506,7 @@ function mapTaskBase(
 ) {
   const credits = task.events.reduce((total, event) => {
     // A Preprod payment does not count towards a Task's amount: its relation reads Mainnet's transaction of an equal id.
-    if (event.network === "preprod") {
+    if (!taskEventCountsOn(event.network, "mainnet")) {
       return total;
     }
     const amount = event.transaction?.amount;

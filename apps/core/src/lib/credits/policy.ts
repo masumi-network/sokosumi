@@ -40,6 +40,22 @@ export function ownsUntaggedSharedRows(network: Network): boolean {
 }
 
 /**
+ * Whether a Task event's receipt counts on `network`: the event names that
+ * Network, or names none (`eventNetwork` null) and `network` owns the
+ * untagged rows. Mainnet's ledger joins only these events (`history.ts`), and
+ * a Task's credit total and its public milestones, which read Mainnet's
+ * transaction of the event's id, count only these.
+ */
+export function taskEventCountsOn(
+  eventNetwork: string | null,
+  network: Network,
+): boolean {
+  return eventNetwork === null
+    ? ownsUntaggedSharedRows(network)
+    : eventNetwork === network;
+}
+
+/**
  * The payers that can run on a Network that charges no credits: their
  * payment there is recorded with its price. Every other payer is a
  * Mainnet-only feature or always charges Mainnet (Soko Bot turns, ticket 30).

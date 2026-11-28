@@ -521,6 +521,7 @@ describe.runIf(onPostgres)("Mainnet's Task event pick (PostgreSQL)", () => {
       async () => {
         const all = (await entries(cookie, "types=task")).map((row) => row.id);
         const walked: string[] = [];
+        const cursors: (string | null)[] = [];
         let cursor: string | null = null;
         do {
           const response = await request(
@@ -535,10 +536,12 @@ describe.runIf(onPostgres)("Mainnet's Task event pick (PostgreSQL)", () => {
             };
           };
           walked.push(...body.data.map((row) => row.id));
-          cursor =
-            body.data.length === 5 ? (body.data.at(-1)?.id ?? null) : null;
+          cursor = body.meta.pagination?.nextCursor ?? null;
+          cursors.push(cursor);
         } while (cursor);
         expect(walked).toEqual(all);
+        // The server's first cursor is the fifth row: it cuts the tie.
+        expect(cursors[0]).toBe(all[4]);
         // The fifth and sixth rows are the two of one instant.
         expect(new Set(all.slice(4, 6))).toEqual(
           new Set([tx.preprodOlderThanMainnet, tx.mainnetOlderThanPreprod]),
