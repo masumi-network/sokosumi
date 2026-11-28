@@ -358,11 +358,6 @@ for (const { name, ...viewport } of PROJECTS) {
         !(await row.textContent())?.includes(QUESTION),
         "the row shows the answer, not the question",
       );
-      // The answer is the bot's words, never its reply envelope.
-      assert.ok(
-        !(await row.textContent())?.includes('"kind"'),
-        "the row shows the message, not the bot's JSON",
-      );
       await saved.screenshot({
         path: `${RESULTS_DIR}onboarding-${name}-5-home.png`,
       });

@@ -54,17 +54,13 @@ export const actionNarrativeSchema = z
     kind: z.enum(["REPORT", "CLARIFY", "SILENT"]),
     /** The bot's own words; action lines never come from here. */
     message: z.string().trim().max(8_000).nullable().optional(),
-    // A reply of only kind and message is still the narrative: requiring
-    // these would post the raw JSON instead of the message.
     question: z
       .enum(["TARGET", "SCOPE", "TIME", "APPROVAL", "DETAILS"])
-      .nullable()
-      .default(null),
+      .nullable(),
     // A weekly wrap reads a dozen Tasks; rejecting the extra ids would post
     // the raw JSON instead of the message.
     observationToolCallIds: z
       .array(z.string())
-      .default([])
       .transform((ids) => ids.slice(0, MAX_OBSERVATIONS)),
     /**
      * Set by Core, never the model: the claim check could not run, or cut
