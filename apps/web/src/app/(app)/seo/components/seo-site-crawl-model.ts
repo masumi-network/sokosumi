@@ -405,3 +405,53 @@ export function seoSiteCrawlView(
     ),
   };
 }
+
+type Observation = { siteCrawl?: ProjectSeoSiteCrawl };
+
+/**
+ * The continuations of an audit's crawl: the chain that goes on from `audit`'s snapshot, tip first. Only a
+ * continuation names the crawl it goes on from. A parent crawl's oldest continuation is the chain's, as in Core
+ * (crawlContinuationTip). A later continuation of the same parent, and every crawl that goes on from it, is a
+ * paid result too: they follow the chain, newest first. `rows` come newest first.
+ */
+export function seoCrawlContinuations<Row extends Observation>(
+  rows: readonly Row[],
+  audit: ProjectSeoSiteCrawl | undefined,
+): (Row & { siteCrawl: Crawled })[] {
+  const children = new Map<string, (Row & { siteCrawl: Crawled })[]>();
+  for (const row of rows) {
+    const crawl = row.siteCrawl;
+    if (crawl?.state !== "crawled" || !crawl.continues || !crawl.snapshotId)
+      continue;
+    const siblings = children.get(crawl.continues) ?? [];
+    siblings.push(row as Row & { siteCrawl: Crawled });
+    children.set(crawl.continues, siblings);
+  }
+  const root = audit?.state === "crawled" ? audit.snapshotId : undefined;
+  const chain: (Row & { siteCrawl: Crawled })[] = [];
+  let parent = root;
+  const seen = new Set<string>();
+  while (parent && !seen.has(parent)) {
+    seen.add(parent);
+    // Newest first: the last one is the oldest, the chain's.
+    const child = children.get(parent)?.at(-1);
+    if (!child) break;
+    chain.push(child);
+    parent = child.siteCrawl.snapshotId;
+  }
+  // Every crawl that goes on from the audit's crawl, also through a later continuation.
+  const reached = new Set<Row & { siteCrawl: Crawled }>();
+  const open = root ? [root] : [];
+  const visited = new Set<string>();
+  for (let next = open.pop(); next; next = open.pop()) {
+    if (visited.has(next)) continue;
+    visited.add(next);
+    for (const row of children.get(next) ?? []) {
+      reached.add(row);
+      if (row.siteCrawl.snapshotId) open.push(row.siteCrawl.snapshotId);
+    }
+  }
+  const others = [...reached].filter((row) => !chain.includes(row));
+  others.sort((a, b) => rows.indexOf(a) - rows.indexOf(b));
+  return [...chain.reverse(), ...others];
+}

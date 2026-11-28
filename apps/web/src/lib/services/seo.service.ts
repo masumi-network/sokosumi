@@ -44,12 +44,15 @@ import {
   listProjectSeoStatisticsProperties,
   listSeoAuditStatisticsProperties,
   listSeoAudits,
+  type RequestSeoCrawlNext,
   readAuditSiteTraffic,
   readProjectSiteTraffic,
   recordProjectSeoPageChange,
   recordSeoAuditPageChange,
   requestProjectSeoAnalysis,
+  requestProjectSeoCrawlContinuation,
   requestSeoAuditAnalysis,
+  requestSeoAuditCrawlContinuation,
   saveProjectSeoBrandTerms,
   saveProjectSeoCompetitor,
   saveProjectSeoKeyword,
@@ -231,6 +234,21 @@ export const seoServiceNoRedirect = {
           body,
         }),
       "Failed to request SEO analysis",
+    );
+    return response.data;
+  },
+  async continueCrawl(owner: SeoOwner, body: RequestSeoCrawlNext) {
+    const response = await executeCoreOperation(
+      createCoreGeneratedClient,
+      (client) =>
+        (owner.kind === "audit"
+          ? requestSeoAuditCrawlContinuation
+          : requestProjectSeoCrawlContinuation)({
+          client,
+          path: { id: owner.id },
+          body,
+        }),
+      "Failed to request the next site crawl",
     );
     return response.data;
   },

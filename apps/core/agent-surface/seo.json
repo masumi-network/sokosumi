@@ -89,6 +89,10 @@
       "cli": "seo audit-set-brand-terms",
       "mcp": "seo_audit_set_brand_terms"
     },
+    "POST /seo/audits/{id}/crawl-continuations": {
+      "cli": "seo audit-continue-crawl",
+      "mcp": "seo_audit_continue_crawl"
+    },
     "GET /seo/audits/{id}/brief": {
       "cli": "seo audit-brief",
       "mcp": "seo_audit_brief"

@@ -3,6 +3,7 @@ import {
   isTaskEditableStatus,
   removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
+  SEO_PRIVATE_MARKERS,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
@@ -589,12 +590,12 @@ async function TaskDetailActionsSlot({
               name: task.name,
               tags: task.tags,
               workspaceTags: task.workspaceTags,
-              // A full audit's request line holds its approved price terms, which no reader sees. A focused
-              // check's line carries no price and lets the repeated Task start, so it stays.
+              // A full audit's and a crawl continuation's request line hold approved price terms, which no
+              // reader sees. A focused check's line carries no price and lets the repeated Task start, so it stays.
               description: task.description
                 ? removeSeoTaskRequest(
                     removeTaskContextAttachmentLinks(task.description),
-                    ["seo_audit"],
+                    SEO_PRIVATE_MARKERS,
                   )
                 : null,
               projectId: task.projectId,

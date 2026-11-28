@@ -24,11 +24,13 @@ import {
   sentence,
   seoCrawlInstructions,
 } from "./seo-site-crawl-copy";
+import { SeoCrawlDeepAudit } from "./seo-site-crawl-deep-audit";
 import {
   type SeoCrawlItem,
   type SeoCrawlRow,
   type SeoCrawlStop,
   type SeoCrawlView,
+  seoCrawlContinuations,
   seoSiteCrawlView,
 } from "./seo-site-crawl-model";
 
@@ -49,10 +51,13 @@ type PageText = (url: string, text: string) => ReactNode;
 export function SeoSiteCrawl({
   workspace,
   openPage,
+  action,
 }: {
   workspace: ProjectSeoWorkspace;
   /** Shows the Audit's checks of one of its pages. */
   openPage: (pageId: string) => void;
+  /** The section's own action, beside its date. */
+  action?: ReactNode;
 }) {
   const t = useSeoResultTranslations("App.Seo.siteCrawl");
   const full = workspace.observations.find((row) => row.kind === "audit_full");
@@ -76,14 +81,29 @@ export function SeoSiteCrawl({
       </button>
     );
   };
+  const continuations = seoCrawlContinuations(
+    workspace.observations,
+    full.siteCrawl,
+  );
+  // The action goes on from the crawl Core offers: an older audit on screen must not buy a newer audit's pages.
+  const tip =
+    continuations[0]?.siteCrawl.snapshotId ??
+    (full.siteCrawl?.state === "crawled"
+      ? full.siteCrawl.snapshotId
+      : undefined);
+  const offered =
+    tip !== undefined && tip === workspace.availableActions.continueCrawlFrom;
   return (
     <SeoSection
       lang="en"
       title={t("title")}
       actions={
-        <span className="self-center text-xs text-muted-foreground">
-          <SeoDate report day value={full.observedAt} />
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            <SeoDate report day value={full.observedAt} />
+          </span>
+          {offered && action}
+        </div>
       }
     >
       {view.state === "not crawled" ? (
@@ -93,6 +113,30 @@ export function SeoSiteCrawl({
       ) : (
         <Crawled view={view} site={site} pageText={pageText} t={t} />
       )}
+      {continuations.map((row) => {
+        const next = seoSiteCrawlView(row.siteCrawl);
+        if (next?.state !== "crawled") return null;
+        return (
+          // A paid continuation may repeat an earlier Snapshot: its own observation keys its fold.
+          <details key={row.id} className="border-t">
+            <SeoFoldSummary className="min-h-11 gap-3 px-2 py-2.5 text-sm">
+              <span className="font-medium">{t("next.heading")}</span>
+              <span className="text-xs text-muted-foreground">
+                <SeoDate report day value={row.observedAt} />
+              </span>
+            </SeoFoldSummary>
+            <div className="content-rise space-y-2">
+              <Crawled view={next} site={site} pageText={pageText} t={t} />
+              {row.siteCrawl.deepAudit && (
+                <SeoCrawlDeepAudit
+                  audit={row.siteCrawl.deepAudit}
+                  page={(url) => pageText(url, url)}
+                />
+              )}
+            </div>
+          </details>
+        );
+      })}
     </SeoSection>
   );
 }

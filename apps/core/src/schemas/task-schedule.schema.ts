@@ -11,7 +11,7 @@ import {
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { seoAnalysisKindSchema } from "@/schemas/project-seo.schema";
+import { seoAnalysisKindSchema } from "@/schemas/seo-analysis-enums.schema";
 import {
   workCreatorField,
   workOwnerIdSchema,

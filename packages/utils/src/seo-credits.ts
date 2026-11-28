@@ -15,6 +15,20 @@ export function seoFullAuditPrice(maxCredits?: typeof SEO_FULL_AUDIT_CREDITS) {
     ...(maxCredits === undefined ? {} : { maxCredits }),
   } as const;
 }
+/**
+ * Minimum charge of a crawl continuation (owner decision 2026-11-26): the next 500 pages of a crawl, with up to 15
+ * page audits, at all costs plus the full audit's markup and no upper limit.
+ */
+export const SEO_CRAWL_NEXT_MIN_CREDITS = 100;
+
+export function seoCrawlNextPrice() {
+  return {
+    kind: "cost_plus" as const,
+    version: 1 as const,
+    minimumCredits: SEO_CRAWL_NEXT_MIN_CREDITS,
+    markupPercent: SEO_FULL_AUDIT_MARKUP_PERCENT,
+  } as const;
+}
 /** Provider spending bound for a newly priced full audit. */
 export const SEO_FULL_AUDIT_MAX_PROVIDER_USD = 5;
 /** The worker's reserve of paid data for one page. */
