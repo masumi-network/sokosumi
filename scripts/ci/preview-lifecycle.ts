@@ -165,10 +165,8 @@ export async function renewOpenPreview(options: LifecycleOptions) {
   const name = previewBranchName(options);
   const expiresAt = new Date(Date.now() + PREVIEW_TTL_MS).toISOString();
   let renewed = 0;
-  for (const { config } of previewNeonConfigs(options, [
-    "mainnet",
-    "preprod",
-  ])) {
+  // The frozen Preprod gets no renewal: its Neon branches expire (PREVIEW_TTL_MS).
+  for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     const branch = await findBranchByName(config, name);
     // Commit activity extends an existing preview; it never creates one or deploys.
     if (!branch) continue;
@@ -194,10 +192,7 @@ export async function previewCleanupInventory(
 ) {
   const numbers = new Set<number>();
   const pattern = new RegExp(`^preview/gh-${options.repoId}-pr-([1-9][0-9]*)$`);
-  for (const { config } of previewNeonConfigs(options, [
-    "mainnet",
-    "preprod",
-  ])) {
+  for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     for (const branch of await listBranches(
       config,
       `preview/gh-${options.repoId}-pr-`,

@@ -71,7 +71,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
-          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
         run: node scripts/ci/vercel-deploy.mjs preview
 
   reset-db:
@@ -126,7 +125,6 @@ jobs:
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
-          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -137,7 +135,7 @@ jobs:
     # workflow_run is default-branch YAML. Skip failed/cancelled signals and
     # fork heads: a fork's signal has no trusted PR number. The script
     # re-checks the PR is closed and targets this repo. A fork PR's preview
-    # (from an approved `/deploy <network> <sha>`) is removed by the daily
+    # (from an approved `/deploy mainnet <sha>`) is removed by the daily
     # `reconcile` job instead.
     # Match the signal by path: its run-name (the PR number) replaces
     # workflow_run.name, so a name check never matches.
@@ -178,7 +176,6 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
-          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
           PREVIEW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -229,7 +226,6 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
-          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
           PREVIEW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
           WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -264,7 +260,6 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
-          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
         run: node scripts/ci/preview-lifecycle.ts inventory
 
   reconcile:
@@ -305,6 +300,5 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
-          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
           PREVIEW_PR_NUMBER: ${{ matrix.pr }}
         run: node scripts/ci/preview-lifecycle.ts

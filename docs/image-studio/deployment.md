@@ -182,7 +182,7 @@ secret. The Web project already holds a `CORE_APP_BASE_URL`, but on the
 **Production** target only, so Preview has to be given its own.
 
 Preview variables are applied at build time, so **redeploy after setting them**
-(`/deploy preprod` on the pull request). Remove the branch-scoped variables
+(`/deploy mainnet` on the pull request). Remove the branch-scoped variables
 when the branch is done; they outlive the branch otherwise.
 
 For production, the same keys go on the Preview-wide or Production scope of

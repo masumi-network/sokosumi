@@ -120,21 +120,34 @@ export function isWritePermission(permission) {
 
 export function usageMessage() {
   return [
-    "Usage: `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
+    "Usage: `/deploy mainnet` or `/deploy all`",
     "",
     "`/deploy mainnet`",
-    "`/deploy preprod`",
-    "`/deploy mainnet preprod`",
-    "`/deploy all`",
+    "`/deploy all` (the same as `/deploy mainnet`)",
     "",
-    "Deploys web + core for the named network(s), plus CMO on mainnet (and the CMO.XYZ website when the PR changes it), at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "Deploys web + core on mainnet, plus CMO (and the CMO.XYZ website when the PR changes it), at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
     "",
-    "On a pull request from a fork, add the full 40-character head commit SHA you reviewed (for example `/deploy preprod <sha>`). The preview builds that commit with preview secrets, so review the whole diff at that commit first. Commits pushed later never deploy on their own.",
+    "The old Preprod is frozen and gets no previews. A command that names `preprod` deploys nothing on Preprod.",
     "",
-    "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
+    "On a pull request from a fork, add the full 40-character head commit SHA you reviewed (for example `/deploy mainnet <sha>`). The preview builds that commit with preview secrets, so review the whole diff at that commit first. Commits pushed later never deploy on their own.",
+    "",
+    "Add `--reset-db` on the first line (for example `/deploy mainnet --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
     "",
     "Add `--force` (for example `/deploy mainnet --force`) to deploy a PR that changes nothing under `apps/web/`, `apps/core/`, `apps/cmo/`, `apps/cmo-website/`, or `packages/`, such as an empty commit. It builds the same apps as a plain `/deploy`. Not available on fork PRs or with `--reset-db`, which needs an earlier `/deploy`.",
   ].join("\n");
+}
+
+/**
+ * The reply to a command that names Preprod. The old Preprod is frozen, so
+ * nothing runs there; with `mainnetContinues`, the Mainnet part still runs.
+ */
+export function preprodFrozenMessage(mainnetContinues) {
+  return [
+    "The old Preprod is frozen, so it has no previews anymore. Nothing was deployed or reset on Preprod.",
+    mainnetContinues
+      ? "The Mainnet part of this command continues."
+      : "Comment `/deploy mainnet` for a preview on Mainnet.",
+  ].join(" ");
 }
 
 export function deployTargets(networks, apps = APPS) {
@@ -794,6 +807,18 @@ export async function runPullRequestCommand(options, command) {
   if (parsed.kind === "usage") {
     await comment(command.usage);
     return parsed;
+  }
+
+  // The old Preprod is frozen: answer, deploy nothing there, and keep any
+  // Mainnet part of the command (`all`, `mainnet preprod`).
+  if (parsed.networks.includes("preprod")) {
+    parsed.networks = parsed.networks.filter(
+      (network) => network !== "preprod",
+    );
+    await comment(preprodFrozenMessage(parsed.networks.length > 0));
+    if (parsed.networks.length === 0) {
+      return { kind: "preprod-frozen" };
+    }
   }
 
   const pullRequest = await (readPullRequest

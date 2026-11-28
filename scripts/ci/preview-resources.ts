@@ -320,10 +320,8 @@ export async function cleanupPreviewResources(
     } while (until !== undefined);
   }
   const branches = [];
-  for (const { config } of previewNeonConfigs(options, [
-    "mainnet",
-    "preprod",
-  ])) {
+  // The frozen Preprod's Neon branches expire on their own (PREVIEW_TTL_MS).
+  for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     const branch = await findBranchByName(config, name);
     if (branch) {
       assertPreviewBranchResettable(branch);

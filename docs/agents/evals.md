@@ -31,13 +31,13 @@ Fixed Soko Bot and CMO (Cuso) cases with checks, run against what is deployed. E
 
 ## Where runs happen
 
-| Run              | Where                                                      | Started by                              |
-| ---------------- | ---------------------------------------------------------- | --------------------------------------- |
-| Weekly           | mainnet production (main), Monday 04:00 UTC                | `/sync/evals`, once a week              |
-| After a merge    | mainnet                                                    | Admin → Evals → Run evals, or the CLI   |
-| While developing | preprod, a PR preview (`/deploy preprod`), or a local Core | Admin → Evals, or the CLI with `--tick` |
+| Run              | Where                                             | Started by                              |
+| ---------------- | ------------------------------------------------- | --------------------------------------- |
+| Weekly           | mainnet production (main), Monday 04:00 UTC       | `/sync/evals`, once a week              |
+| After a merge    | mainnet                                           | Admin → Evals → Run evals, or the CLI   |
+| While developing | a PR preview (`/deploy mainnet`), or a local Core | Admin → Evals, or the CLI with `--tick` |
 
-The weekly run is the baseline every run is compared with. A run on a preview or a local Core is compared with the latest weekly run on that environment's database, so preprod and local runs need a first full run of their own before the comparison means anything.
+The weekly run is the baseline every run is compared with. A run on a preview or a local Core is compared with the latest weekly run on that environment's database, so preview and local runs need a first full run of their own before the comparison means anything. Preprod previews are gone: the old Preprod is frozen and `/deploy preprod` deploys nothing.
 
 ## Running them
 
@@ -168,7 +168,8 @@ It prints each journey side by side, marks every journey that passed on the base
 
 ```bash
 pnpm evals:local --plan --ownerbench --json-out local.json
-sokosumi --preprod evals run --cases owner-codepat-daily-post,owner-cuso-launch --wait   # or a PR preview
+# The old Preprod is frozen: point both commands at a PR preview (`/deploy mainnet`) with --api-url instead of --preprod.
+sokosumi --preprod evals run --cases owner-codepat-daily-post,owner-cuso-launch --wait
 sokosumi --preprod evals show RUN_ID --json > deployed.json
 pnpm --filter @sokosumi/core exec tsx scripts/ownerbench-parity.mts local.json deployed.json
 ```

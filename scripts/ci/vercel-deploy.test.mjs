@@ -237,18 +237,15 @@ describe("isWritePermission", () => {
 });
 
 describe("usageMessage", () => {
-  it("lists the four commands and does not deploy on its own", () => {
+  it("lists the Mainnet commands, says Preprod is frozen, and does not deploy on its own", () => {
     const message = usageMessage();
-    assert.match(
-      message,
-      /`\/deploy <mainnet\|preprod> \[mainnet\|preprod\]` or `\/deploy all`/,
-    );
-    assert.doesNotMatch(message, /<mainnet\|preprod\|all>/);
+    assert.match(message, /Usage: `\/deploy mainnet` or `\/deploy all`/);
     assert.match(message, /\/deploy mainnet/);
-    assert.match(message, /\/deploy preprod/);
-    assert.match(message, /\/deploy mainnet preprod/);
     assert.match(message, /\/deploy all/);
-    assert.match(message, /CMO on mainnet/);
+    assert.match(message, /old Preprod is frozen/);
+    assert.doesNotMatch(message, /\/deploy preprod/);
+    assert.doesNotMatch(message, /\/deploy mainnet preprod/);
+    assert.match(message, /CMO/);
     assert.match(message, /`\/deploy mainnet --force`/);
     assert.doesNotMatch(message, /@vercel/);
   });
@@ -467,7 +464,7 @@ describe("runPreviewDeployComment", () => {
     });
     assert.equal(result.kind, "usage");
     assert.equal(posted.length, 1);
-    assert.match(posted[0], /\/deploy mainnet preprod/);
+    assert.match(posted[0], /Usage: `\/deploy mainnet` or `\/deploy all`/);
   });
 
   it("refuses commenters without write access", async () => {
@@ -540,11 +537,11 @@ describe("runPreviewDeployComment", () => {
   }
 
   it("asks a fork pull request for the head SHA before touching anything", async () => {
-    const run = commentDeploy("/deploy preprod");
+    const run = commentDeploy("/deploy mainnet");
     assert.equal((await run.result).kind, "sha-required");
     assert.equal(run.posted.length, 1);
     assert.match(run.posted[0], /fork/i);
-    assert.ok(run.posted[0].includes("`/deploy preprod <sha>`"));
+    assert.ok(run.posted[0].includes("`/deploy mainnet <sha>`"));
     // Pasting the current head would approve commits nobody reviewed.
     assert.ok(!run.posted[0].includes(FORK_SHA));
     assert.deepEqual(run.reactions, []);
@@ -553,7 +550,7 @@ describe("runPreviewDeployComment", () => {
   });
 
   it("refuses a fork deploy whose SHA is not the current head", async () => {
-    const run = commentDeploy(`/deploy preprod ${STALE_SHA}`);
+    const run = commentDeploy(`/deploy mainnet ${STALE_SHA}`);
     assert.equal((await run.result).kind, "sha-mismatch");
     assert.ok(run.posted[0].includes(STALE_SHA));
     // Pasting the current head would approve commits nobody reviewed.
@@ -564,7 +561,7 @@ describe("runPreviewDeployComment", () => {
   });
 
   it("deploys exactly the approved fork commit from our fork preview branch", async () => {
-    const run = commentDeploy(`/deploy preprod ${FORK_SHA}`);
+    const run = commentDeploy(`/deploy mainnet ${FORK_SHA}`);
     assert.equal((await run.result).kind, "deploy");
     assert.deepEqual(run.posted, []);
     assert.deepEqual(run.reactions, ["eyes", "rocket"]);
@@ -573,7 +570,7 @@ describe("runPreviewDeployComment", () => {
       { branch: "preview-fork/pr-12", sha: FORK_SHA },
       "prepare",
     ]);
-    assert.equal(run.created.length, 2);
+    assert.equal(run.created.length, 3);
     for (const input of run.created) {
       assert.equal(input.repoId, 1);
       assert.equal(input.sha, FORK_SHA);
@@ -587,7 +584,7 @@ describe("runPreviewDeployComment", () => {
     assert.equal(run.upserts[0].sha, FORK_SHA);
     assert.deepEqual(
       run.upserts[0].deployments.map(({ id }) => id),
-      ["dpl_web", "dpl_core"],
+      ["dpl_web", "dpl_core", "dpl_cmo"],
     );
   });
 
@@ -598,7 +595,7 @@ describe("runPreviewDeployComment", () => {
         filename: `apps/web/file-${index}.ts`,
       })),
     ]) {
-      const run = commentDeploy(`/deploy preprod ${FORK_SHA}`, { files });
+      const run = commentDeploy(`/deploy mainnet ${FORK_SHA}`, { files });
       assert.equal((await run.result).kind, "fork-vercel-config");
       assert.match(run.posted[0], /vercel\.json/);
       assert.deepEqual(run.steps, []);
@@ -607,7 +604,7 @@ describe("runPreviewDeployComment", () => {
   });
 
   it("refuses a same-repo pull request from a reserved preview-fork branch", async () => {
-    const run = commentDeploy("/deploy preprod", {
+    const run = commentDeploy("/deploy mainnet", {
       headRepo: { id: 1 },
       headRef: "preview-fork/pr-3",
     });
@@ -617,7 +614,7 @@ describe("runPreviewDeployComment", () => {
   });
 
   it("never writes a branch for a same-repo pull request", async () => {
-    const run = commentDeploy("/deploy preprod", { headRepo: { id: 1 } });
+    const run = commentDeploy("/deploy mainnet", { headRepo: { id: 1 } });
     assert.equal((await run.result).kind, "deploy");
     assert.deepEqual(run.steps, ["prepare"]);
     assert.equal(run.created[0].ref, "main");
@@ -626,13 +623,13 @@ describe("runPreviewDeployComment", () => {
   });
 
   it("treats a pull request whose head repo was deleted as a fork", async () => {
-    const run = commentDeploy("/deploy preprod", { headRepo: null });
+    const run = commentDeploy("/deploy mainnet", { headRepo: null });
     assert.equal((await run.result).kind, "sha-required");
     assert.deepEqual(run.created, []);
   });
 
   it("refuses a same-repo deploy that names a stale SHA", async () => {
-    const run = commentDeploy(`/deploy preprod ${STALE_SHA}`, {
+    const run = commentDeploy(`/deploy mainnet ${STALE_SHA}`, {
       headRepo: { id: 1 },
     });
     assert.equal((await run.result).kind, "sha-mismatch");
@@ -974,7 +971,7 @@ describe("fork preview comment", () => {
 
   it("keeps a fork deploy successful when the comment fails", async () => {
     const run = runPreviewDeployComment({
-      commentBody: `/deploy preprod ${FORK_SHA}`,
+      commentBody: `/deploy mainnet ${FORK_SHA}`,
       isPullRequest: true,
       issueNumber: 12,
       repoId: 1,
@@ -1705,7 +1702,7 @@ describe("preview skip on /deploy", () => {
     const created = [];
     const result = await runPreviewDeployComment(
       baseComment({
-        commentBody: "/deploy preprod --force",
+        commentBody: "/deploy mainnet --force",
         listFiles: async () => [],
         prepareResources: async () => {},
         createDeployment: async (input) => {
@@ -1719,14 +1716,14 @@ describe("preview skip on /deploy", () => {
       }),
     );
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
   });
 
   it("posts nothing extra when --force was not needed", async () => {
     const posted = [];
     const result = await runPreviewDeployComment(
       baseComment({
-        commentBody: "/deploy preprod --force",
+        commentBody: "/deploy mainnet --force",
         listFiles: async () => [{ filename: "apps/core/src/index.ts" }],
         prepareResources: async () => {},
         createDeployment: async (input) => ({
@@ -1749,7 +1746,7 @@ describe("preview skip on /deploy", () => {
     const created = [];
     const result = await runPreviewDeployComment(
       baseComment({
-        commentBody: `/deploy preprod --force ${FORK_SHA}`,
+        commentBody: `/deploy mainnet --force ${FORK_SHA}`,
         readPullRequest: async () => ({
           state: "open",
           number: 12,
@@ -1918,5 +1915,170 @@ describe("git preview policy", () => {
       ),
       false,
     );
+  });
+});
+
+describe("the frozen Preprod", () => {
+  function runComment(commentBody, { permission = "write", files } = {}) {
+    const posted = [];
+    const reactions = [];
+    const created = [];
+    const prepared = [];
+    const pointed = [];
+    const result = runPreviewDeployComment({
+      commentBody,
+      isPullRequest: true,
+      commentAuthor: "alice",
+      issueNumber: 12,
+      repoId: 1,
+      readPermission: async () => permission,
+      readPullRequest: async () => ({
+        state: "open",
+        number: 12,
+        head: { sha: FORK_SHA, ref: "feat/x", repo: { id: 1 } },
+        base: { repo: { id: 1 } },
+      }),
+      listFiles: async () => files ?? [{ filename: "apps/web/app/page.tsx" }],
+      pointBranch: async (input) => {
+        pointed.push(input);
+      },
+      prepareResources: async (_options, targets) => {
+        prepared.push(targets);
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+        return { id: `dpl_${input.target.app}`, readyState: "READY" };
+      },
+      pollDeployment: async (deployment) => deployment,
+      postComment: async (body) => {
+        posted.push(body);
+      },
+      addReaction: async (content) => {
+        reactions.push(content);
+      },
+    });
+    return { result, posted, reactions, created, prepared, pointed };
+  }
+
+  const PREPROD_ONLY = [
+    "/deploy preprod",
+    "/Deploy PREPROD",
+    "/deploy preprod --force",
+    "/deploy --force preprod",
+    `/deploy preprod ${FORK_SHA}`,
+    `/deploy preprod --force ${FORK_SHA}`,
+    "/deploy preprod preprod",
+  ];
+
+  for (const body of PREPROD_ONLY) {
+    it(`answers \`${body}\` on the pull request and deploys nothing`, async () => {
+      const run = runComment(body);
+      assert.equal((await run.result).kind, "preprod-frozen");
+      assert.equal(run.posted.length, 1);
+      assert.match(run.posted[0], /old Preprod is frozen/);
+      assert.match(run.posted[0], /Nothing was deployed/);
+      assert.deepEqual(run.reactions, []);
+      assert.deepEqual(run.created, []);
+      assert.deepEqual(run.prepared, []);
+      assert.deepEqual(run.pointed, []);
+    });
+  }
+
+  it("answers before the changed-files check, so an empty PR still gets the Preprod message", async () => {
+    const run = runComment("/deploy preprod --force", { files: [] });
+    assert.equal((await run.result).kind, "preprod-frozen");
+    assert.equal(run.posted.length, 1);
+    assert.doesNotMatch(run.posted[0], /No preview deployment/);
+    assert.deepEqual(run.created, []);
+  });
+
+  it("still refuses a commenter without write access first", async () => {
+    const run = runComment("/deploy preprod", { permission: "read" });
+    assert.equal((await run.result).kind, "denied");
+    assert.match(run.posted[0], /write access/i);
+    assert.deepEqual(run.created, []);
+  });
+
+  for (const body of [
+    "/deploy all",
+    "/deploy mainnet preprod",
+    "/deploy ALL",
+  ]) {
+    it(`deploys Mainnet only for \`${body}\` and says Preprod was skipped`, async () => {
+      const run = runComment(body);
+      assert.equal((await run.result).kind, "deploy");
+      assert.equal(run.posted.length, 1);
+      assert.match(run.posted[0], /old Preprod is frozen/);
+      assert.match(run.posted[0], /Mainnet part of this command continues/);
+      assert.deepEqual(
+        run.created.map(
+          (input) => `${input.target.network}:${input.target.app}`,
+        ),
+        ["mainnet:web", "mainnet:core", "mainnet:cmo"],
+      );
+      assert.deepEqual(
+        run.prepared[0].map((target) => target.network),
+        ["mainnet", "mainnet", "mainnet"],
+      );
+      assert.deepEqual(run.reactions, ["eyes", "rocket"]);
+    });
+  }
+
+  it("keeps a plain `/deploy mainnet` free of any Preprod message", async () => {
+    const run = runComment("/deploy mainnet");
+    assert.equal((await run.result).kind, "deploy");
+    assert.deepEqual(run.posted, []);
+    assert.deepEqual(
+      run.created.map((input) => input.target.network),
+      ["mainnet", "mainnet", "mainnet"],
+    );
+  });
+
+  it("deploys nothing for a Preprod comment on a fork pull request", async () => {
+    const posted = [];
+    const created = [];
+    const result = await runPreviewDeployComment({
+      commentBody: `/deploy preprod ${FORK_SHA}`,
+      isPullRequest: true,
+      commentAuthor: "alice",
+      issueNumber: 12,
+      repoId: 1,
+      readPermission: async () => "write",
+      readPullRequest: async () => ({
+        state: "open",
+        number: 12,
+        head: { sha: FORK_SHA, ref: "main", repo: { id: 2, fork: true } },
+        base: { repo: { id: 1 } },
+      }),
+      listFiles: async () => [{ filename: "apps/web/app/page.tsx" }],
+      pointBranch: async () => {
+        throw new Error("must not point a branch");
+      },
+      prepareResources: async () => {
+        throw new Error("must not prepare");
+      },
+      createDeployment: async (input) => {
+        created.push(input);
+      },
+      postComment: async (body) => {
+        posted.push(body);
+      },
+    });
+    assert.equal(result.kind, "preprod-frozen");
+    assert.equal(posted.length, 1);
+    assert.deepEqual(created, []);
+  });
+});
+
+describe("the preview workflow", () => {
+  it("no longer reads the old Preprod Neon project", async () => {
+    const workflow = await readFile(
+      path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
+      "utf8",
+    );
+    assert.doesNotMatch(workflow, /NEON_PREVIEW_PROJECT_ID_PREPROD/);
+    for (const project of Object.values(VERCEL_PROJECTS.preprod)) {
+      assert.ok(!workflow.includes(project.id), project.name);
+    }
   });
 });
