@@ -1,10 +1,6 @@
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import {
-  X402_BUY_SIDE_READINESS_FAILURE_KEY,
-  X402_BUY_SIDE_READINESS_KEY,
-} from "@/helpers/x402-readiness";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const {
   captureExceptionMock,
@@ -22,7 +18,8 @@ const {
   captureExceptionMock: vi.fn(),
   captureMessageMock: vi.fn(),
   envState: {
-    NETWORK: "Preprod" as const,
+    NETWORK: "Mainnet" as const,
+    NETWORK_PREPROD_ENABLED: true,
     DATABASE_URL: "https://example.com/database",
     VERCEL_ENV: undefined as
       | "production"
@@ -49,15 +46,6 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ ...envState }),
-}));
-
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({
-    getX402AvailableNetworks: getX402AvailableNetworksMock,
-    getX402KeySpendCaps: getX402KeySpendCapsMock,
-    getX402PurchasingWallets: getX402PurchasingWalletsMock,
-    getX402WalletBalances: getX402WalletBalancesMock,
-  }),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -96,8 +84,20 @@ import {
 const X402_CHECK_WHY =
   "The payment node did not answer one or more x402 readiness reads";
 
+let scope: ReturnType<typeof createNetworkScope>;
+const node = {
+  network: "preprod" as const,
+  beginX402Readiness: () => ({
+    getX402AvailableNetworks: getX402AvailableNetworksMock,
+    getX402KeySpendCaps: getX402KeySpendCapsMock,
+    getX402PurchasingWallets: getX402PurchasingWalletsMock,
+    getX402WalletBalances: getX402WalletBalancesMock,
+  }),
+};
+
 describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
+    scope = createNetworkScope("preprod");
     vi.clearAllMocks();
     envState.VERCEL_ENV = undefined;
     envState.VERCEL_URL = undefined;
@@ -120,7 +120,7 @@ describe("syncX402BuySideReadiness", () => {
     expectCoreLog("warn", "An x402 pair has no");
     getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(0n)));
 
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -132,7 +132,7 @@ describe("syncX402BuySideReadiness", () => {
   it("caches the pair when the capped key still holds credits for it", async () => {
     getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(1_000_000n)));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -146,7 +146,7 @@ describe("syncX402BuySideReadiness", () => {
   it("caches an uncapped wallet as ready", async () => {
     getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -194,7 +194,7 @@ describe("syncX402BuySideReadiness", () => {
         ok(fundedWalletBalances(overrides)),
       );
 
-      await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+      await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
       expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -212,7 +212,7 @@ describe("syncX402BuySideReadiness", () => {
     getX402PurchasingWalletsMock.mockResolvedValue(ok([purchasingWallet()]));
     getX402WalletBalancesMock.mockResolvedValue(err("balance down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(syncMetadataCreateManyMock).toHaveBeenCalledTimes(1);
@@ -239,7 +239,7 @@ describe("syncX402BuySideReadiness", () => {
     // A flaky balance backend must be irrelevant: the sweep never asks.
     getX402WalletBalancesMock.mockResolvedValue(err("balance down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(getX402WalletBalancesMock).not.toHaveBeenCalled();
     // The check SUCCEEDS and records the delisting instead of failing and
@@ -252,13 +252,13 @@ describe("syncX402BuySideReadiness", () => {
   });
 
   it("caches composed ready pairs under the readiness key", async () => {
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
-      where: { key: X402_BUY_SIDE_READINESS_KEY },
+      where: { key: "preprod:x402-buy-side-readiness" },
       create: {
-        key: X402_BUY_SIDE_READINESS_KEY,
+        key: "preprod:x402-buy-side-readiness",
         cursorId: JSON.stringify([READY_SOURCE]),
         lastSyncedAt: expect.any(Date),
       },
@@ -268,7 +268,7 @@ describe("syncX402BuySideReadiness", () => {
       },
     });
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: X402_BUY_SIDE_READINESS_FAILURE_KEY },
+      where: { key: "preprod:x402-buy-side-readiness-failure" },
     });
   });
 
@@ -289,7 +289,7 @@ describe("syncX402BuySideReadiness", () => {
       ]),
     );
 
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -312,11 +312,11 @@ describe("syncX402BuySideReadiness", () => {
       ok(keySpendCaps({ usageLimited: true })),
     );
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { key: X402_BUY_SIDE_READINESS_KEY },
+        where: { key: "preprod:x402-buy-side-readiness" },
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
@@ -327,7 +327,7 @@ describe("syncX402BuySideReadiness", () => {
     // state and must stay silent.
     getX402KeySpendCapsMock.mockResolvedValue(ok(cappedWith(1_000_000n)));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(captureMessageMock).not.toHaveBeenCalled();
   });
@@ -338,7 +338,7 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
   });
 
   it("caches an empty list and pages on the transition to nothing ready", async () => {
@@ -354,11 +354,11 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { key: X402_BUY_SIDE_READINESS_KEY },
+        where: { key: "preprod:x402-buy-side-readiness" },
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
@@ -385,7 +385,7 @@ describe("syncX402BuySideReadiness", () => {
       cursorId: "[]",
       lastSyncedAt: new Date(),
     });
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
     expect(captureMessageMock).toHaveBeenCalledTimes(1);
   });
 
@@ -402,12 +402,12 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(captureMessageMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { key: X402_BUY_SIDE_READINESS_KEY },
+        where: { key: "preprod:x402-buy-side-readiness" },
         update: expect.objectContaining({ cursorId: "[]" }),
       }),
     );
@@ -428,7 +428,7 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(captureMessageMock).not.toHaveBeenCalled();
   });
@@ -445,7 +445,7 @@ describe("syncX402BuySideReadiness", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(captureMessageMock).toHaveBeenCalledTimes(1);
   });
@@ -468,13 +468,13 @@ describe("syncX402BuySideReadiness", () => {
       getX402KeySpendCapsMock.mockResolvedValue(caps);
       getX402PurchasingWalletsMock.mockResolvedValue(wallets);
 
-      await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+      await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
       expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
       expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
         data: [
           {
-            key: X402_BUY_SIDE_READINESS_FAILURE_KEY,
+            key: "preprod:x402-buy-side-readiness-failure",
             cursorId: "failed",
             lastSyncedAt: expect.any(Date),
           },
@@ -493,7 +493,7 @@ describe("syncX402BuySideReadiness", () => {
     expectCoreLog("warn", "The x402 buy-side readiness check failed");
     getX402PurchasingWalletsMock.mockResolvedValue(err("wallets down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(syncMetadataCreateManyMock).toHaveBeenCalledTimes(1);
@@ -511,13 +511,13 @@ describe("syncX402BuySideReadiness", () => {
 
     // Warm: readiness HAS been recorded — one page per streak.
     syncMetadataFindUniqueMock.mockResolvedValue({
-      key: X402_BUY_SIDE_READINESS_KEY,
+      key: "preprod:x402-buy-side-readiness",
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
     });
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
 
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -528,7 +528,7 @@ describe("syncX402BuySideReadiness", () => {
 
     // A different process loses the atomic insert race and dedupes.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
@@ -536,7 +536,7 @@ describe("syncX402BuySideReadiness", () => {
     expectCoreLog("warn", "The x402 buy-side readiness check failed");
 
     syncMetadataFindUniqueMock.mockResolvedValue({
-      key: X402_BUY_SIDE_READINESS_KEY,
+      key: "preprod:x402-buy-side-readiness",
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
     });
@@ -546,7 +546,7 @@ describe("syncX402BuySideReadiness", () => {
     getX402AvailableNetworksMock.mockResolvedValue(err("x".repeat(10_000)));
     getX402KeySpendCapsMock.mockResolvedValue(err("spend caps down"));
 
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
 
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     const [pagedError] = captureExceptionMock.mock.calls[0] as [Error];
@@ -572,9 +572,9 @@ describe("syncX402BuySideReadiness", () => {
   it("redacts an env secret the far side echoed back", () => {
     // The exposure this closes: extractNodeErrorMessage falls back to a JSON
     // dump of the whole response body, so a proxy in front of the node that
-    // answers with the request headers echoed hands our own PAYMENT_API_KEY
+    // answers with the request headers echoed hands our own MAINNET_PAYMENT_API_KEY
     // back to us. That string goes to stdout AND into a Sentry message.
-    const key = process.env.PAYMENT_API_KEY as string;
+    const key = process.env.MAINNET_PAYMENT_API_KEY as string;
 
     const bounded = boundCheckErrorForLogging([
       `api-key-status 502: {"headers":{"token":"${key}"}}`,
@@ -588,7 +588,7 @@ describe("syncX402BuySideReadiness", () => {
     // Order matters on its own. The per-item cap is 200 characters, so a key
     // starting at 195 is cut in half by the slice; five characters of key
     // material is still key material. Redacting first removes it whole.
-    const key = process.env.PAYMENT_API_KEY as string;
+    const key = process.env.MAINNET_PAYMENT_API_KEY as string;
 
     const bounded = boundCheckErrorForLogging([`${"x".repeat(195)}${key}`]);
 
@@ -616,7 +616,7 @@ describe("syncX402BuySideReadiness", () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     getX402KeySpendCapsMock.mockResolvedValue(err("node unavailable"));
 
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -630,13 +630,13 @@ describe("syncX402BuySideReadiness", () => {
     // The latch is now held, which would silence a warm failure. Cold pages
     // anyway.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not page Sentry for readiness check failures on Vercel preview", async () => {
     // Preview mainnet Core crons hit the same never-recorded path with a
-    // non-admin PAYMENT_API_KEY and were paging CORE-37 as a fake prod
+    // non-admin MAINNET_PAYMENT_API_KEY and were paging CORE-37 as a fake prod
     // outage. Gate only captureException — warn + failure marker +
     // fail-closed (no readiness row) stay.
     const warnings = expectCoreLog(
@@ -650,14 +650,14 @@ describe("syncX402BuySideReadiness", () => {
       err("api-key-status 401: Unauthorized"),
     );
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(syncMetadataCreateManyMock).toHaveBeenCalledWith({
       data: [
         {
-          key: X402_BUY_SIDE_READINESS_FAILURE_KEY,
+          key: "preprod:x402-buy-side-readiness-failure",
           cursorId: "failed",
           lastSyncedAt: expect.any(Date),
         },
@@ -681,13 +681,13 @@ describe("syncX402BuySideReadiness", () => {
     // takes the latched (stale) path — never the cold-start bypass. The
     // latch alone decides who pages, which is what this test proves.
     syncMetadataFindUniqueMock.mockResolvedValue({
-      key: X402_BUY_SIDE_READINESS_KEY,
+      key: "preprod:x402-buy-side-readiness",
       cursorId: JSON.stringify([READY_SOURCE]),
       lastSyncedAt: new Date(),
     });
 
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
     expect(captureExceptionMock).toHaveBeenLastCalledWith(
       expect.anything(),
@@ -696,21 +696,21 @@ describe("syncX402BuySideReadiness", () => {
 
     // While the marker row is held, further warm failures stay silent.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
 
     // A successful check deletes the marker …
     getX402AvailableNetworksMock.mockResolvedValue(ok([availableNetwork()]));
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: X402_BUY_SIDE_READINESS_FAILURE_KEY },
+      where: { key: "preprod:x402-buy-side-readiness-failure" },
     });
 
     // … so the next failure's createMany inserts a fresh marker (count 1)
     // and pages again: the re-armed latch, not the cold-start bypass.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
-    await syncX402BuySideReadiness();
+    await syncX402BuySideReadiness(scope, node);
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
     expect(captureExceptionMock).toHaveBeenLastCalledWith(
       expect.anything(),
@@ -727,7 +727,7 @@ describe("syncX402BuySideReadiness", () => {
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
     syncMetadataCreateManyMock.mockRejectedValue(new Error("database down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
     expect(captureExceptionMock).not.toHaveBeenCalled();
     expect(warnings[0]).toMatchObject({
@@ -742,7 +742,7 @@ describe("syncX402BuySideReadiness", () => {
     );
     syncMetadataFindUniqueMock.mockRejectedValue(new Error("database down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
     expect(warnings[0]).toMatchObject({
@@ -757,7 +757,7 @@ describe("syncX402BuySideReadiness", () => {
     );
     syncMetadataUpsertMock.mockRejectedValue(new Error("database down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(false);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(false);
 
     expect(syncMetadataDeleteManyMock).not.toHaveBeenCalled();
     expect(warnings[0]).toMatchObject({
@@ -772,7 +772,7 @@ describe("syncX402BuySideReadiness", () => {
     );
     syncMetadataDeleteManyMock.mockRejectedValue(new Error("database down"));
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
     expect(warnings[0]).toMatchObject({
@@ -788,7 +788,7 @@ describe("syncX402BuySideReadiness", () => {
     const cleanupError = new Error("database down");
     syncMetadataDeleteManyMock.mockRejectedValue(cleanupError);
 
-    await expect(syncX402BuySideReadiness()).resolves.toBe(true);
+    await expect(syncX402BuySideReadiness(scope, node)).resolves.toBe(true);
 
     expect(captureExceptionMock).toHaveBeenCalledWith(cleanupError, {
       tags: { x402_readiness: "marker_cleanup_failed" },
@@ -802,7 +802,7 @@ describe("syncX402BuySideReadiness", () => {
   it("forwards the abort signal to every node call", async () => {
     const signal = new AbortController().signal;
 
-    await syncX402BuySideReadiness({ signal });
+    await syncX402BuySideReadiness(scope, node, { signal });
 
     expect(getX402AvailableNetworksMock).toHaveBeenCalledWith(
       expect.objectContaining({ signal }),

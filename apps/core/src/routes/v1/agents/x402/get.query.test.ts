@@ -1,3 +1,7 @@
+// Enable the Preprod request scope without discarding the rest of the config —
+// modules loaded through the route's import graph (Stripe client via
+// lib/auth) read other env keys at module load.
+import "@/test-fixtures/preprod-env";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BASE_SEPOLIA,
@@ -21,29 +25,13 @@ const {
   creditCostFindManyMock,
   prismaTransactionMock,
   syncMetadataFindUniqueMock,
-  networkState,
 } = vi.hoisted(() => ({
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
-  networkState: { value: "Preprod" as "Preprod" | "Mainnet" },
 }));
-
-// Pin the environment split without discarding the rest of the config —
-// modules loaded through the route's import graph (Stripe client via
-// lib/auth) read other env keys at module load.
-vi.mock("@/config/env", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/env")>();
-  return {
-    ...actual,
-    getEnv: () => ({
-      ...actual.getEnv(),
-      NETWORK: networkState.value,
-    }),
-  };
-});
 
 vi.mock("@/lib/db/prisma", () => {
   const network = {
@@ -65,7 +53,6 @@ vi.mock("@/lib/db/prisma", () => {
 describe("GET /agents?kind=x402 catalog query", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    networkState.value = "Preprod";
 
     // Batch form: Prisma resolves the array of operations together, which is
     // what gives the page and its count one snapshot. The mock mirrors that
@@ -131,8 +118,7 @@ describe("GET /agents?kind=x402 catalog query", () => {
     // The query shape is the subject: an empty Mainnet page drops nothing.
     agentFindManyMock.mockResolvedValue([]);
     agentCountMock.mockResolvedValue(0);
-    networkState.value = "Mainnet";
-    const app = createApp();
+    const app = createApp({ network: "mainnet" });
 
     const response = await app.request("http://localhost/?kind=x402");
 

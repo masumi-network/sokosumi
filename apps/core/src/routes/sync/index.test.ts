@@ -73,13 +73,18 @@ const LOCK_TIMEOUT_BUFFER_MS = 1000;
  */
 const SYNC_DEADLINE_MS = LOCK_TIMEOUT_MS - LOCK_TIMEOUT_BUFFER_MS;
 
-vi.mock("@/config/env", () => ({
-  getEnv: () => ({
-    CRON_SECRET: "test-cron-secret",
-    LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
-    LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
-  }),
-}));
+vi.mock("@/config/env", async (load) => {
+  const actual = await load<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({
+      ...actual.getEnv(),
+      CRON_SECRET: "test-cron-secret",
+      LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
+      LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
+    }),
+  };
+});
 
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishDueSocialPosts: vi.fn().mockResolvedValue({
@@ -617,6 +622,10 @@ describe("sync routes", () => {
     // where it lives, in agent-sync.service.test.ts; this pins only that the
     // signal is handed over at all.
     expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({
+        getCardanoV2RailReadiness: expect.any(Function),
+      }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     // Strictly sequenced: the registry sync only starts once the readiness
@@ -645,6 +654,10 @@ describe("sync routes", () => {
     // Same treatment as the Cardano readiness: an abort signal so a hung
     // payment node cannot pin the sync lock past its hard timeout.
     expect(syncX402BuySideReadinessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({
+        getX402AvailableNetworks: expect.any(Function),
+      }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     // Runs after the Cardano readiness refresh, before the registry replay.
@@ -671,6 +684,8 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
@@ -717,6 +732,8 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       "agents-sync-metadata:dynamic-pricing-v1",
       expect.not.objectContaining({ resetCursor: true }),
     );
@@ -735,6 +752,8 @@ describe("sync routes", () => {
     expect(response.status).toBe(200);
     await flushMicrotasks();
     expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ getAgentsDiff: expect.any(Function) }),
       "agents-sync-metadata:dynamic-pricing-v1",
       expect.objectContaining({ resetCursor: true }),
     );
@@ -753,7 +772,11 @@ describe("sync routes", () => {
     expect(acquireLockMock).toHaveBeenCalledWith("agents-summary-sync");
 
     await flushMicrotasks();
-    expect(syncAgentSummariesMock).toHaveBeenCalledTimes(1);
+    expect(syncAgentSummariesMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ network: "mainnet" }),
+      expect.objectContaining({ generateAgentSummary: expect.any(Function) }),
+      expect.any(Object),
+    );
   });
 
   it("returns 200 and starts enterprise-contract renewal sync exactly once in background", async () => {
@@ -1260,7 +1283,7 @@ describe("sync routes", () => {
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
       networkClients.mainnet,
-      { abortSignal: expect.any(AbortSignal) },
+      { abortSignal: expect.any(AbortSignal), write: expect.any(Function) },
     );
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
@@ -1445,7 +1468,12 @@ describe("sync routes", () => {
 
     try {
       syncRegistryAgentsMock.mockImplementation(
-        (_metadataKey: string, options: { abortSignal: AbortSignal }) =>
+        (
+          _scope: unknown,
+          _client: unknown,
+          _metadataKey: string,
+          options: { abortSignal: AbortSignal },
+        ) =>
           new Promise<void>((resolve) => {
             options.abortSignal.addEventListener("abort", () => {
               resolve();

@@ -42,7 +42,8 @@ function refundPartReferenceId(
 
 /**
  * Creates the refund shared by job, claim, and x402 refunds, and returns the
- * id of the refund transaction the caller links to its record.
+ * id of the refund transaction the caller links to its record. Callers reach
+ * it through the credits module's `refund` (`@/lib/credits/refund`).
  *
  * Split by scope (ADR 0067): each Project's part goes back to that Project
  * and the rest to the pool, one refund transaction and bucket per scope,

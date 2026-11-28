@@ -60,6 +60,8 @@ export const driveQueryKeys = {
   dataRoomQuestions: (store: FileStore, roomId: string) =>
     driveKey(store, "data-room", roomId, "questions"),
   folders: (store: FileStore) => driveKey(store, "folders"),
+  folderReadme: (store: FileStore, folder: string) =>
+    driveKey(store, "folder-readme", folder),
   googleSheet: (store: FileStore, resourceId: string) =>
     driveKey(store, "google-sheet", resourceId),
   labels: (store: FileStore) => driveKey(store, "labels"),

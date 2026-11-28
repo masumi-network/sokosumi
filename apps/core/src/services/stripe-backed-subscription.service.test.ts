@@ -383,6 +383,7 @@ describe("handleSubscriptionDeletedEvent", () => {
       transitionToNextLocalFreeSubscriptionPeriodMock,
     ).toHaveBeenCalledWith(
       {
+        grantCredits: expect.any(Function),
         setCanceledAt: true,
         subscription: {
           canceledAt: new Date("2026-04-09T07:39:30.188Z"),

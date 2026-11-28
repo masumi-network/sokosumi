@@ -281,14 +281,14 @@ export function DriveRecentsPanel({
 
   return (
     <div
-      className={driveItemsPanelClass(viewMode)}
+      className={driveItemsPanelClass(viewMode, { fillsThePage: false })}
       data-testid={
         viewMode === "grid" ? "files-layout-grid" : "files-layout-list"
       }
     >
       <div className={cn(viewMode === "grid" ? "py-1" : "py-2")}>
         {dayGroups.map((group) => (
-          <section key={group.key} className="mb-4">
+          <section key={group.key} className="mb-4 last:mb-0">
             <div className="text-muted-foreground px-4 pb-2 text-xs font-medium capitalize">
               {group.key}
             </div>

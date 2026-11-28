@@ -9,7 +9,6 @@ const {
   getOpenAPI31DocumentMock,
   initSentryMock,
   serveMock,
-  validateEnvMock,
 } = vi.hoisted(() => ({
   createMarkdownFromOpenApiMock: vi.fn(),
   getBetterAuthPublicBaseUrlMock: vi.fn(),
@@ -17,7 +16,6 @@ const {
   getOpenAPI31DocumentMock: vi.fn(),
   initSentryMock: vi.fn(),
   serveMock: vi.fn(),
-  validateEnvMock: vi.fn(),
 }));
 
 vi.mock("@hono/node-server", () => ({
@@ -37,7 +35,6 @@ vi.mock("@scalar/openapi-to-markdown", () => ({
 vi.mock("@/config/env", () => ({
   getBetterAuthPublicBaseUrl: getBetterAuthPublicBaseUrlMock,
   getEnv: getEnvMock,
-  validateEnv: validateEnvMock,
 }));
 
 vi.mock("@/lib/sentry", () => ({
@@ -109,10 +106,6 @@ describe("core index", () => {
       PORT: 8787,
     });
     getBetterAuthPublicBaseUrlMock.mockReturnValue("http://localhost:8787");
-    validateEnvMock.mockReturnValue({
-      NODE_ENV: "development",
-      PORT: 8787,
-    });
     getOpenAPI31DocumentMock.mockReturnValue({
       openapi: "3.1.0",
       info: {
@@ -202,7 +195,8 @@ describe("core index", () => {
 
     const fetchHandler = await loadFetchHandler();
 
-    expect(validateEnvMock).toHaveBeenCalledTimes(1);
+    expect(getEnvMock).toHaveBeenCalledBefore(initSentryMock);
+    expect(initSentryMock).toHaveBeenCalledBefore(serveMock);
     expect(initSentryMock).toHaveBeenCalledTimes(1);
     expect(createMarkdownFromOpenApiMock).not.toHaveBeenCalled();
 

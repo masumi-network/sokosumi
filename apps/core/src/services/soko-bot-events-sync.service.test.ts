@@ -305,7 +305,9 @@ describe("SokoBotEventsSyncService", () => {
         comment: "second question",
       },
     ]);
-    inboxFindManyMock.mockResolvedValue([{ eventId: "event-2" }]);
+    inboxFindManyMock.mockResolvedValue([
+      { eventId: "event-2", purpose: "TASK_EVENT" },
+    ]);
     await new SokoBotEventsSyncService().syncDelegatedWork(input);
     expect(taskEventFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1038,6 +1040,39 @@ describe("SokoBotEventsSyncService", () => {
     expect(startTurnMock.mock.calls[0][0].eventBatch).toHaveLength(2);
   });
 
+  it("preserves the deployed Mainnet turn IDs, including mixed batches and status-only Jobs", () => {
+    const job = {
+      delegationId: "d",
+      kind: "JOB" as const,
+      entityId: "job-A",
+      eventId: "evt-2",
+      to: "COMPLETED",
+      name: "job",
+      from: null,
+      note: null,
+    };
+    const task = {
+      ...job,
+      kind: "TASK" as const,
+      entityId: "task-B",
+      eventId: "evt-1",
+    };
+    const batches = [
+      [job],
+      [task],
+      [job, task],
+      [{ ...job, eventId: null }, job, task],
+    ];
+    expect(
+      batches.map((batch) => sokoBotEventClientTurnId(batch, "mainnet")),
+    ).toEqual([
+      "event:a5637970a508ef2171b7437651bab62d60c4205d46f1515b450c701b8875584b",
+      "event:879eaf8dba977ad16f1677c40a70c4e0a52ed513272df9fc585ab64afd7c6045",
+      "event:db7562d831e3daef72210c64ee7b24f2e66cc6c7b4a5ae3b512cd6a6926c33a0",
+      "event:9e767efbaecf83e803795507038d9910274cdac52c757020086d726bf380cf91",
+    ]);
+  });
+
   it("hashes full canonical occurrence identities without prefix collisions", () => {
     const change = {
       delegationId: "x".repeat(150),
@@ -1049,10 +1084,13 @@ describe("SokoBotEventsSyncService", () => {
       note: null,
       eventId: "event-one",
     };
-    expect(sokoBotEventClientTurnId([change])).not.toBe(
-      sokoBotEventClientTurnId([{ ...change, eventId: "event-two" }]),
+    expect(sokoBotEventClientTurnId([change], "mainnet")).not.toBe(
+      sokoBotEventClientTurnId(
+        [{ ...change, eventId: "event-two" }],
+        "mainnet",
+      ),
     );
-    expect(sokoBotEventClientTurnId([change])).toHaveLength(70);
+    expect(sokoBotEventClientTurnId([change], "mainnet")).toHaveLength(70);
   });
 
   it("hands a follow-up plan over on the wake that reports completion", async () => {

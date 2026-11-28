@@ -1,10 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { deleteRate } from "@/lib/agent-catalog/admin";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
@@ -40,16 +38,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     requireAdminAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    try {
-      const deleted = await prisma.creditCost.delete({
-        where: { id },
-      });
-      return ok(c, creditCostSchema.parse(mapCreditCostForApi(deleted)));
-    } catch (error) {
-      if (isPrismaRecordNotFoundError(error)) {
-        throw notFound("Credit cost not found");
-      }
-      throw error;
-    }
+    const deleted = await deleteRate(c.var.networkScope, id);
+    return ok(c, creditCostSchema.parse(mapCreditCostForApi(deleted)));
   });
 }

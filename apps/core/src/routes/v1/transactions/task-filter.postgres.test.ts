@@ -10,10 +10,12 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { NETWORK_HEADER } from "@/middleware/network-scope";
+import { onSplitLayout } from "@/test/split-layout";
 
 import transactionsApp from "./index";
 
@@ -42,6 +44,8 @@ const otherOrganizationTaskId = randomUUID();
 const userIds = [memberA, memberB, outsider];
 const taskIds = [publicTaskId, privateTaskId, otherOrganizationTaskId];
 const transactionIds = taskIds.map(() => randomUUID());
+const eventIds = taskIds.map(() => randomUUID());
+const billingScope = createNetworkScope("mainnet");
 
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
@@ -83,6 +87,9 @@ describe.skipIf(!enabled)(
   "Transactions Task filter against PostgreSQL with mounted middleware",
   () => {
     beforeAll(async () => {
+      expect(await prisma.user.count({ where: { id: { in: userIds } } })).toBe(
+        0,
+      );
       for (const id of userIds) {
         await prisma.user.create({
           data: {
@@ -156,22 +163,29 @@ describe.skipIf(!enabled)(
       });
       for (const [index, taskId] of taskIds.entries()) {
         const isOther = taskId === otherOrganizationTaskId;
-        await prisma.transaction.create({
+        await billingScope.networkDb.transaction.create({
           data: {
             id: transactionIds[index],
             amount: -2n * CREDIT,
             userId: isOther ? outsider : memberA,
             organizationId: isOther ? otherOrganizationId : organizationId,
-            taskEvents: { create: { taskId, comment: "Agent run" } },
+          },
+        });
+        await prisma.taskEvent.create({
+          data: {
+            id: eventIds[index],
+            taskId,
+            transactionId: transactionIds[index],
+            comment: "Agent run",
           },
         });
       }
-    });
+    }, 60000);
 
     afterAll(async () => {
       if (!enabled) return;
-      await prisma.taskEvent.deleteMany({ where: { taskId: { in: taskIds } } });
-      await prisma.transaction.deleteMany({
+      await prisma.taskEvent.deleteMany({ where: { id: { in: eventIds } } });
+      await billingScope.networkDb.transaction.deleteMany({
         where: { id: { in: transactionIds } },
       });
       await prisma.task.deleteMany({ where: { id: { in: taskIds } } });
@@ -182,7 +196,38 @@ describe.skipIf(!enabled)(
         where: { id: { in: [organizationId, otherOrganizationId] } },
       });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    }, 60000);
+
+    it("names Mainnet on its ledger row", async () => {
+      const response = await appFor(memberA, organizationId).request(
+        `/transactions?scope=workspace&taskId=${publicTaskId}`,
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).data).toEqual([
+        expect.objectContaining({
+          id: transactionIds[0],
+          credits: 2,
+          network: "mainnet",
+          affectsBalance: true,
+        }),
+      ]);
     });
+
+    it.skipIf(onSplitLayout)(
+      "refuses a Preprod ledger on today's layout",
+      async () => {
+        const response = await appFor(memberA, organizationId).request(
+          "/transactions",
+          {
+            headers: { [NETWORK_HEADER]: "preprod" },
+          },
+        );
+        expect(response.status).toBe(403);
+        const body = await response.json();
+        expect(body.kind).toBe("preprod_off");
+        expect(body).not.toHaveProperty("data");
+      },
+    );
 
     it("totals a public Task for any member and a private one for its owner", async () => {
       const publicTotal = await appFor(memberB, organizationId).request(
@@ -192,13 +237,18 @@ describe.skipIf(!enabled)(
       expect((await publicTotal.json()).data).toEqual({
         credits: 2,
         count: 1,
+        network: "mainnet",
       });
 
       const ownPrivate = await appFor(memberA, organizationId).request(
         `/transactions/total?scope=workspace&taskId=${privateTaskId}`,
       );
       expect(ownPrivate.status).toBe(200);
-      expect((await ownPrivate.json()).data).toEqual({ credits: 2, count: 1 });
+      expect((await ownPrivate.json()).data).toEqual({
+        credits: 2,
+        count: 1,
+        network: "mainnet",
+      });
     });
 
     it.each(["/total", "", "/daily", "/export"])(

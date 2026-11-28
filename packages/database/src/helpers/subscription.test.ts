@@ -7,9 +7,25 @@ import {
   ensureInitialLocalFreeSubscriptionPeriod,
   ensureLocalFreeSubscriptionPeriod,
   ensureNextLocalFreeSubscriptionPeriod,
+  type GrantLocalFreePeriodCredits,
   getNextMonthlyPeriodEnd,
+  grantLocalFreePeriodCredits,
   transitionToNextLocalFreeSubscriptionPeriod,
 } from "./subscription.js";
+
+/**
+ * The grant port as Core's credits module fills it (`grant`): the period's
+ * writer, on the same transaction.
+ */
+function writing(
+  tx: PrismaType.TransactionClient,
+): GrantLocalFreePeriodCredits {
+  return async (credits) => ({
+    outcome: (await grantLocalFreePeriodCredits(credits, tx)).created
+      ? "granted"
+      : "already_granted",
+  });
+}
 
 function createTransactionClient(params?: {
   members?: Array<{ role?: string; userId: string }>;
@@ -185,6 +201,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: null,
         userId: "user-1",
@@ -222,6 +239,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         activatesAt,
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: null,
@@ -246,6 +264,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: "org-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -289,6 +308,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: "org-1",
         periodEnd,
@@ -311,6 +331,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: "org-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -334,6 +355,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: "org-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -363,6 +385,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: "org-1",
         periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -382,6 +405,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
     await assert.doesNotReject(
       ensureLocalFreeSubscriptionPeriod(
         {
+          grantCredits: writing(tx),
           billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
           organizationId: "org-1",
           periodEnd: new Date("2026-05-01T00:00:00.000Z"),
@@ -404,6 +428,7 @@ describe("ensureLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         billingAnchorDate: new Date("2026-04-01T00:00:00.000Z"),
         organizationId: null,
         userId: "user-1",
@@ -434,6 +459,7 @@ describe("ensureNextLocalFreeSubscriptionPeriod", () => {
 
     await ensureNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         subscription: {
           canceledAt: null,
           createdAt: new Date("2026-01-30T10:00:00.000Z"),
@@ -465,6 +491,7 @@ describe("ensureNextLocalFreeSubscriptionPeriod", () => {
 
     await ensureNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         activatesAt,
         subscription: {
           canceledAt: null,
@@ -496,6 +523,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureInitialLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         kind: "user",
         stripeCustomerId: "cus_user_1",
@@ -534,6 +562,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
     await assert.rejects(
       ensureInitialLocalFreeSubscriptionPeriod(
         {
+          grantCredits: writing(tx),
           createdAt: new Date("not-a-date"),
           kind: "user",
           stripeCustomerId: "cus_user_1",
@@ -551,6 +580,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureInitialLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         kind: "organization",
         organizationId: "org-1",
@@ -591,6 +621,7 @@ describe("ensureInitialLocalFreeSubscriptionPeriod", () => {
 
     const result = await ensureInitialLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         createdAt: new Date("2026-04-01T10:00:00.000Z"),
         kind: "organization",
         organizationId: "org-1",
@@ -630,6 +661,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: null,
@@ -679,6 +711,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: null,
@@ -713,6 +746,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: new Date("2026-04-09T11:59:00.000Z"),
@@ -750,6 +784,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: null,
@@ -787,6 +822,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: null,
@@ -824,6 +860,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: false,
         subscription: {
           canceledAt: null,
@@ -864,6 +901,7 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
 
     await transitionToNextLocalFreeSubscriptionPeriod(
       {
+        grantCredits: writing(tx),
         setCanceledAt: true,
         subscription: {
           canceledAt: null,

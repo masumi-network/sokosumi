@@ -1,27 +1,17 @@
+// Set the default layout here (not only in beforeEach) because `@/lib/db/prisma`
+// reads getEnv().DATABASE_URL and configures the SQL tables at module load, before any hook runs.
+import "@/test-fixtures/preprod-env";
 import type { Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
+import { x402ReadySources } from "@/lib/agent-catalog/availability";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import {
   findX402ReadySource,
   getAllowedX402Caip2Networks,
-  getX402ReadySources,
   isX402NetworkAllowed,
   requiresX402AgentCuration,
-  X402_BUY_SIDE_READINESS_KEY,
 } from "./x402-readiness";
-
-const { getEnvMock } = vi.hoisted(() => ({
-  // Default is set here (not only in beforeEach) because `@/lib/db/prisma`
-  // reads getEnv().DATABASE_URL at module load, before any hook runs.
-  getEnvMock: vi.fn().mockReturnValue({
-    DATABASE_URL: "https://example.com/database",
-    NETWORK: "Preprod",
-  }),
-}));
-
-vi.mock("@/config/env", () => ({
-  getEnv: getEnvMock,
-}));
 
 const USDC_BASE_SEPOLIA =
   "0x036CbD53842c5426634e7929541eC2318f3dCF7e".toLowerCase();
@@ -34,7 +24,9 @@ const X402_READY_SOURCE = {
   decimals: 6,
 };
 
-describe("getX402ReadySources", () => {
+describe("x402ReadySources", () => {
+  const preprodScope = createNetworkScope("preprod");
+
   function createSyncMetadataTransactionClient(
     row: { cursorId: string; lastSyncedAt: Date } | null,
   ) {
@@ -53,20 +45,22 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
     expect(findUnique).toHaveBeenCalledWith({
-      where: { key: X402_BUY_SIDE_READINESS_KEY },
+      where: { key: "preprod:x402-buy-side-readiness" },
     });
   });
 
   it("reads Preprod's own readiness row", async () => {
     const { tx, findUnique } = createSyncMetadataTransactionClient(null);
 
-    await getX402ReadySources(tx, "mainnet");
-    await getX402ReadySources(tx, "preprod");
+    await x402ReadySources(createNetworkScope("mainnet"), tx);
+    await x402ReadySources(preprodScope, tx);
     expect(findUnique.mock.calls).toEqual([
-      [{ where: { key: X402_BUY_SIDE_READINESS_KEY } }],
-      [{ where: { key: `preprod:${X402_BUY_SIDE_READINESS_KEY}` } }],
+      [{ where: { key: "x402-buy-side-readiness" } }],
+      [{ where: { key: "preprod:x402-buy-side-readiness" } }],
     ]);
   });
 
@@ -76,13 +70,13 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("returns no pairs when no readiness row exists yet (fail closed)", async () => {
     const { tx } = createSyncMetadataTransactionClient(null);
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("keeps serving readiness that has not been refreshed for a long time", async () => {
@@ -94,7 +88,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
   });
 
   it("fails closed for a non-array payload", async () => {
@@ -103,7 +99,7 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("drops cached pairs with malformed networks, assets, or wallet identity", async () => {
@@ -131,7 +127,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
   });
 
   it("trims surrounding whitespace from a cached wallet id", async () => {
@@ -142,7 +140,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
   });
 
   it("preserves mixed-case cached wallet ids", async () => {
@@ -153,7 +153,7 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
       { ...X402_READY_SOURCE, evmWalletId: "Wallet_1" },
     ]);
   });
@@ -169,7 +169,7 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("drops cached pairs whose decimals are missing or out of range", async () => {
@@ -193,7 +193,7 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("serves the cached decimals at the edges of the valid range", async () => {
@@ -205,7 +205,7 @@ describe("getX402ReadySources", () => {
         lastSyncedAt: new Date(),
       });
 
-      await expect(getX402ReadySources(tx)).resolves.toEqual([
+      await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
         { ...X402_READY_SOURCE, decimals },
       ]);
     }
@@ -235,7 +235,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
   });
 
   it("still drops a row whose network is not canonical lowercase", async () => {
@@ -249,7 +251,7 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("drops cached pairs outside this environment's allowlist", async () => {
@@ -270,7 +272,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
   });
 
   it("collapses an exact duplicate cached pair to one row", async () => {
@@ -279,7 +283,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([
+      X402_READY_SOURCE,
+    ]);
   });
 
   it("poisons a cached pair repeated with a disagreeing wallet or scale", async () => {
@@ -295,7 +301,7 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("poisons a duplicate pair even when the repeats differ only in spelling", async () => {
@@ -314,14 +320,10 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+    await expect(x402ReadySources(preprodScope, tx)).resolves.toEqual([]);
   });
 
   it("serves the mainnet pair and drops the testnet one on Mainnet", async () => {
-    getEnvMock.mockReturnValueOnce({
-      DATABASE_URL: "https://example.com/database",
-      NETWORK: "Mainnet",
-    });
     const mainnetSource = {
       caip2Network: "eip155:8453",
       asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
@@ -334,7 +336,9 @@ describe("getX402ReadySources", () => {
       lastSyncedAt: new Date(),
     });
 
-    await expect(getX402ReadySources(tx)).resolves.toEqual([mainnetSource]);
+    await expect(
+      x402ReadySources(createNetworkScope("mainnet"), tx),
+    ).resolves.toEqual([mainnetSource]);
   });
 });
 

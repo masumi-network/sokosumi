@@ -5,13 +5,17 @@ import type {
   X402Wallet,
 } from "@sokosumi/masumi";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { type masumiClients, requireSameMasumiNetwork } from "@/clients/masumi";
 import { getEnv } from "@/config/env";
+import { allowedX402ReadinessNetworks } from "@/lib/agent-catalog/availability";
 import {
-  X402_BUY_SIDE_READINESS_FAILURE_KEY,
-  X402_BUY_SIDE_READINESS_KEY,
-} from "@/helpers/x402-readiness";
-import prisma from "@/lib/db/prisma";
+  clearReadinessFailure,
+  findRecordedReadiness,
+  markReadinessFailure,
+  readinessFailureKey,
+  saveReadiness,
+} from "@/lib/agent-catalog/readiness";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { emitCoreWarning } from "@/lib/evlog";
 import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
@@ -58,7 +62,7 @@ function hasPreviewHost(candidate: string | undefined): boolean {
 /**
  * Whether this deploy must warn and write its markers but never page Sentry.
  *
- * Preview mainnet crons run a deliberately non-admin `PAYMENT_API_KEY`, so
+ * Preview mainnet crons run a deliberately non-admin `MAINNET_PAYMENT_API_KEY`, so
  * they report unready pairs that live mainnet does not have. Fail-closed
  * listing and pay behavior are unchanged here; only the page is suppressed.
  *
@@ -175,12 +179,24 @@ function summarizeEmptyX402Readiness(
  * Returns whether the ready source set CHANGED.
  */
 export async function syncX402BuySideReadiness(
+  scope: NetworkScope,
+  payment: {
+    readonly network: NetworkScope["network"];
+    beginX402Readiness(): Pick<
+      ReturnType<typeof masumiClients>["payment"],
+      | "getX402AvailableNetworks"
+      | "getX402KeySpendCaps"
+      | "getX402PurchasingWallets"
+      | "getX402WalletBalances"
+    >;
+  },
   options: { signal?: AbortSignal } = {},
 ): Promise<boolean> {
+  requireSameMasumiNetwork(scope, payment);
+  const nodeClient = payment.beginX402Readiness();
   // ONE client instance for the whole cycle: the spend caps read IS the
   // memoized `GET /api-key-status` the client already resolves, so this
   // costs one request, not two, because separate instances each fetch it.
-  const nodeClient = paymentClient();
   const [networksResult, spendCapsResult, walletsResult] = await Promise.all([
     nodeClient.getX402AvailableNetworks({ signal: options.signal }),
     nodeClient.getX402KeySpendCaps({ signal: options.signal }),
@@ -200,7 +216,12 @@ export async function syncX402BuySideReadiness(
     // whole check and keep serving a stale ready pair that a successful
     // check would have delisted.
     const balanceEligibleNetworks = new Set(
-      [...computeEnabledPricedNetworks(availableNetworks, getEnv().NETWORK)]
+      [
+        ...computeEnabledPricedNetworks(
+          availableNetworks,
+          allowedX402ReadinessNetworks(scope),
+        ),
+      ]
         .filter(([, pricedAsset]) => pricedAsset !== null)
         .map(([caip2Network]) => caip2Network),
     );
@@ -246,7 +267,7 @@ export async function syncX402BuySideReadiness(
           "The x402 buy-side readiness check failed, so the last recorded readiness stays served",
         why: "The payment node did not answer one or more x402 readiness reads",
         cause: checkError,
-        fix: "Check that the payment node is reachable and that Soko's PAYMENT_API_KEY can read its x402 networks, api-key status and wallets. The next agents sync checks again.",
+        fix: "Check that the payment node is reachable and that the payment key for this Network can read its x402 networks, api-key status and wallets. The next agents sync checks again.",
       },
     );
     try {
@@ -261,25 +282,13 @@ export async function syncX402BuySideReadiness(
       // "nothing ready" and returns [], which hides the ENTIRE x402 listing
       // and rejects every x402 payment. That is an outage, and it is the
       // state a fresh environment starts in.
-      const recordedReadiness = await prisma.syncMetadata.findUnique({
-        where: { key: X402_BUY_SIDE_READINESS_KEY },
-        select: { key: true },
-      });
+      const recordedReadiness = await findRecordedReadiness(scope, "x402");
       const hasNeverBeenRecorded = !recordedReadiness;
 
       // createMany + skipDuplicates is an atomic cross-instance latch:
       // exactly one worker creates the marker and reports the failure; later
       // workers see count=0 until a successful check clears it.
-      const marker = await prisma.syncMetadata.createMany({
-        data: [
-          {
-            key: X402_BUY_SIDE_READINESS_FAILURE_KEY,
-            cursorId: "failed",
-            lastSyncedAt: new Date(),
-          },
-        ],
-        skipDuplicates: true,
-      });
+      const marker = await markReadinessFailure(scope, "x402");
       // The latch is deliberately bypassed while readiness has never been
       // recorded: silence would otherwise be indistinguishable from a
       // healthy deployment that simply has no x402 agents.
@@ -322,30 +331,19 @@ export async function syncX402BuySideReadiness(
   const readySources = composeX402ReadySources(
     availableNetworks,
     keySpendCaps,
-    getEnv().NETWORK,
+    allowedX402ReadinessNetworks(scope),
     walletsWithBalances,
   );
   const serializedReadySources = JSON.stringify(readySources);
   let readinessChanged: boolean;
   try {
-    const previousReadiness = await prisma.syncMetadata.findUnique({
-      where: { key: X402_BUY_SIDE_READINESS_KEY },
-    });
     // Age alone is not a change: readers always serve the last recorded
     // value. `undefined !== string` also covers the first run.
-    readinessChanged = previousReadiness?.cursorId !== serializedReadySources;
-    await prisma.syncMetadata.upsert({
-      where: { key: X402_BUY_SIDE_READINESS_KEY },
-      create: {
-        key: X402_BUY_SIDE_READINESS_KEY,
-        cursorId: serializedReadySources,
-        lastSyncedAt: new Date(),
-      },
-      update: {
-        cursorId: serializedReadySources,
-        lastSyncedAt: new Date(),
-      },
-    });
+    readinessChanged = await saveReadiness(
+      scope,
+      "x402",
+      serializedReadySources,
+    );
   } catch (cacheError) {
     // Readiness is advisory and must never crash the sync loop. A failed
     // write leaves the old cache intact, so retry on the next cycle.
@@ -362,9 +360,7 @@ export async function syncX402BuySideReadiness(
   }
 
   try {
-    await prisma.syncMetadata.deleteMany({
-      where: { key: X402_BUY_SIDE_READINESS_FAILURE_KEY },
-    });
+    await clearReadinessFailure(scope, "x402");
   } catch (cleanupError) {
     // Cache persistence already succeeded. Keep readinessChanged so source
     // changes still propagate; retry marker cleanup next time. Loud, not just
@@ -379,7 +375,7 @@ export async function syncX402BuySideReadiness(
           "Could not clear the x402 readiness failure marker, so the next failure streak will not page",
         why: "The database delete of the failure marker failed",
         cause: cleanupError,
-        fix: `If the next agents sync does not clear it, delete the syncMetadata row "${X402_BUY_SIDE_READINESS_FAILURE_KEY}" by hand.`,
+        fix: `If the next agents sync does not clear it, delete the syncMetadata row "${readinessFailureKey(scope.network, "x402")}" by hand.`,
       },
     );
     Sentry.captureException(cleanupError, {

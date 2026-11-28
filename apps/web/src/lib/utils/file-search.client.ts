@@ -22,6 +22,7 @@ import {
   patchDriveLabelsById,
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
+  postDriveFilesCombinePdf,
   postDriveLabels,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   putDriveShares,
@@ -136,6 +137,43 @@ export async function fetchFileSearchPage(input: {
   });
 
   return response.data.data;
+}
+
+/**
+ * The `README.md` filed directly in `folder` (the root when empty), any case,
+ * or null. Its own read, so a README sorted past the first page of a long
+ * folder is still found. Cost: Core runs its filename, full-text and metadata
+ * retrieval over this one folder's direct files (Postgres only); an explicit
+ * name sort is never reranked, so no model is called. `limit` bounds only the
+ * response, not that work. Exact filename matches come first. No narrower
+ * authorized seam exists: `/v1/drive/files?q=` is a case-sensitive prefix
+ * match over the Blob listing and returns no resource id.
+ */
+export async function fetchFolderReadme(input: {
+  store: FileStore;
+  folder: string;
+  signal?: AbortSignal;
+}): Promise<FileResource | null> {
+  const response = await getDriveSearch({
+    client: getBrowserCoreClient(),
+    query: {
+      ...storeQuery(input.store),
+      q: "README.md",
+      folder: input.folder || undefined,
+      directOnly: "true",
+      sortBy: "name",
+      sortOrder: "asc",
+      limit: 5,
+    },
+    signal: input.signal,
+    throwOnError: true,
+  });
+
+  return (
+    response.data.data.items.find(
+      (item) => item.displayName.toLowerCase() === "readme.md",
+    ) ?? null
+  );
 }
 
 export async function fetchWorkspaceLabels(input: {
@@ -335,6 +373,39 @@ export async function deleteDriveUploads(
     ),
   );
   return pathnames.filter((_, index) => results[index].status === "rejected");
+}
+
+/** Core refused a combine: `kind` says why, `fileName` names the file. */
+export class DriveCombinePdfError extends Error {
+  constructor(
+    readonly status: number,
+    readonly kind: string | null,
+    readonly fileName: string | null,
+  ) {
+    super(`Combine failed: ${status} ${kind ?? ""}`);
+    this.name = "DriveCombinePdfError";
+  }
+}
+
+/** The PDFs, pages in this order, as one PDF to download. Nothing is saved. */
+export async function combineDrivePdfs(body: {
+  pathnames: string[];
+  filename: string;
+}): Promise<Blob> {
+  const { data, error, response } = await postDriveFilesCombinePdf({
+    client: getBrowserCoreClient(),
+    body,
+    parseAs: "blob",
+  });
+  // The generated `Blob | File` names a Core schema called File; with
+  // `parseAs: "blob"` the body is always a Blob.
+  if (data) return data as Blob;
+  const fields: { kind?: string; fileName?: string } = error ?? {};
+  throw new DriveCombinePdfError(
+    response?.status ?? 0,
+    fields.kind ?? null,
+    fields.fileName ?? null,
+  );
 }
 
 /** One Drive file (catalog id) or folder (path in the store). */

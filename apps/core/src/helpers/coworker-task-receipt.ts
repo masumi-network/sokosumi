@@ -1,4 +1,4 @@
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { masumiClients } from "@/clients/masumi";
 import { getEnv } from "@/config/env";
 import { badGateway, internalServerError } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
@@ -68,14 +68,13 @@ export async function resolveTaskSellerReceipt(
   }
 
   const timeout = AbortSignal.timeout(RECEIPT_REQUEST_TIMEOUT_MS);
-  const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
-    payload,
-    {
-      signal: options.signal
-        ? AbortSignal.any([options.signal, timeout])
-        : timeout,
-    },
-  );
+  const resolved = await masumiClients(
+    "mainnet",
+  ).payment.resolveMasumiTaskPaymentPurchase(payload, {
+    signal: options.signal
+      ? AbortSignal.any([options.signal, timeout])
+      : timeout,
+  });
   if (resolved.isErr()) {
     // No purchase on the node yet is a real "not settled" answer, unless the
     // sync already confirmed the purchase: then a 404 is a node or proxy

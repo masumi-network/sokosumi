@@ -48,7 +48,7 @@ vi.mock(
       .userWorkspaces,
 );
 vi.mock(
-  "@/helpers/subscription",
+  "@/lib/credits/funding",
   async () =>
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.subscription,
 );

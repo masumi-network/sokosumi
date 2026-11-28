@@ -5,7 +5,6 @@ import {
   ensureInitialLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
-  grantSignupBonusCredits,
 } from "@sokosumi/database/helpers";
 import {
   vendorGrantRepository,
@@ -27,6 +26,8 @@ import {
   refuseJobsInWorkspace,
   workspaceHasDependents,
 } from "@/helpers/workspace-deletion-crossing-rules";
+import { grant, grantLocalFreePeriods } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
@@ -41,6 +42,8 @@ async function grantPersonalWorkspaceCredits(
   const grantedAt = new Date();
   const expiresAt = getCreditExpiryDate(grantedAt, SIGNUP_BONUS_TTL_DAYS);
 
+  // The free plan's credits are Mainnet's too.
+  const mainnet = createNetworkScope("mainnet");
   try {
     await prisma.$transaction(async (tx) => {
       // Delete and recreate can leave two workspace creations granting at once.
@@ -68,6 +71,7 @@ async function grantPersonalWorkspaceCredits(
           await ensureInitialLocalFreeSubscriptionPeriod(
             {
               createdAt: workspaceCreatedAt,
+              grantCredits: grantLocalFreePeriods(mainnet, tx),
               kind: "user",
               stripeCustomerId: user.stripeCustomerId,
               userId,
@@ -77,14 +81,18 @@ async function grantPersonalWorkspaceCredits(
         freePlanGranted = grantsCreated > 0;
       }
 
-      const { created: bonusGranted } = await grantSignupBonusCredits(
-        {
-          credits: SIGNUP_BONUS_CREDITS,
-          expiresAt,
-          userId,
-        },
+      // The sign-up bonus is Mainnet's. The wake below covers it and the
+      // free plan together, so the grant does not wake by itself.
+      const { outcome } = await grant({
+        scope: mainnet,
         tx,
-      );
+        kind: "signup_bonus",
+        userId,
+        credits: SIGNUP_BONUS_CREDITS,
+        expiresAt,
+        wakeTasks: false,
+      });
+      const bonusGranted = outcome === "granted";
 
       if (freePlanGranted || bonusGranted) {
         await markOutOfCreditsTasksAsToppedUp({

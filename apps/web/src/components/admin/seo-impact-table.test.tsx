@@ -42,9 +42,10 @@ const row = (
 
 const table = (rows: AdminSeoImpactVerdicts["rows"]) =>
   SeoImpactTable({
-    verdicts: { total: rows.length, rows },
-    period: "90",
+    verdicts: { total: rows.length, counts: [], rows },
+    filters: { period: "90" },
     periods: ["90", "365", "all"],
+    sources: ["cuso_done", "audit_recheck"],
   });
 
 describe("SeoImpactTable", () => {

@@ -18,7 +18,7 @@ import {
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
-import { isPreprodOn, type Network } from "@/lib/network";
+import { isNetworkRoutingEnabled, type Network } from "@/lib/network";
 import { networkFromUserApiKeyPrefix } from "@/lib/user-api-key";
 
 import { BEARER_USER_SELECT, isActiveUser } from "./auth-active-user";
@@ -528,7 +528,7 @@ async function verifyApiKey(
         authenticationMethod: "api_key",
         // From the row the plugin verified, so no read. While Preprod is off
         // the prefix is not read: every key is a Mainnet key, as before.
-        ...(isPreprodOn()
+        ...(isNetworkRoutingEnabled()
           ? {
               apiKeyNetwork: networkFromUserApiKeyPrefix(
                 apiKeyResult.key.prefix,

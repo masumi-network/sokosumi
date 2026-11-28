@@ -174,6 +174,10 @@ export type ProjectSeoActionImpact = {
 
 export type AdminSeoImpactVerdicts = {
     total: number;
+    counts: Array<{
+        state: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        count: number;
+    }>;
     rows: Array<{
         id: string;
         organizationSlug: string | null;
@@ -13187,6 +13191,7 @@ export type ProjectSeoObservation = {
         };
     }>;
     pageSpeedRecoveryFileId?: string;
+    siteCrawl?: ProjectSeoSiteCrawl;
     pageMarketEvidence?: {
         regionalVersions: Array<{
             country: string;
@@ -13229,6 +13234,101 @@ export type SeoAuditPlan = {
     };
     revisit?: string;
     source?: string;
+};
+
+export type ProjectSeoSiteCrawl = {
+    state: 'crawled';
+    fetched: number;
+    read: number;
+    stop: 'complete' | 'page cap' | 'depth cap' | 'template cap' | 'link cap' | 'time' | 'rate limited' | 'robots.txt' | 'fetch failed';
+    links: {
+        broken: Array<{
+            target: string;
+            status: number;
+            linkedFrom: number;
+            sources: Array<string>;
+            javascript?: 'needed' | 'not determined';
+        }>;
+        brokenTotal: number;
+        chains: Array<{
+            start: string;
+            kind: 'chain' | 'loop' | 'too many hops';
+            hops: Array<{
+                url: string;
+                status: number;
+            }>;
+            final: string | null;
+            linkedFrom: number;
+        }>;
+        chainsTotal: number;
+        notJudged: number;
+    } | null;
+    javascript: {
+        unseen: number;
+        groups: Array<{
+            group: string;
+            state: 'needs javascript' | 'no difference' | 'sampled, one page' | 'not determined';
+            shellPages: number;
+            reason?: string;
+        }>;
+    } | null;
+    orphans: {
+        state: 'found';
+        urls: Array<string>;
+        total: number;
+        nofollowOnly?: {
+            urls: Array<string>;
+            total: number;
+        };
+        candidates: boolean;
+    } | {
+        state: 'not determined';
+        reason: string;
+    } | null;
+    pageChecks: {
+        pages: number;
+        checked: number;
+        missingTitle: {
+            urls: Array<string>;
+            total: number;
+        };
+        missingH1: {
+            urls: Array<string>;
+            total: number;
+        };
+        duplicateTitles: {
+            groups: Array<{
+                text: string;
+                size: number;
+                urls: Array<string>;
+            }>;
+            total: number;
+            notDetermined: number;
+        };
+        noindexInSitemap: {
+            urls: Array<string>;
+            total: number;
+            sitemapUrls: number;
+            checked: number;
+        } | null;
+        badCanonicals: {
+            pages: Array<{
+                kind: 'target not 2xx' | 'other host' | 'conflicting' | 'changed in render' | 'removed in render' | 'unreadable';
+                url: string;
+                canonical: string | null;
+                status: number | null;
+            }>;
+            total: number;
+            notDetermined: number;
+        };
+    } | null;
+    gaps: Array<{
+        item: string;
+        reason: string;
+    }>;
+} | {
+    state: 'not crawled';
+    reason: string;
 };
 
 export type ProjectSeoKeyword = {
@@ -18635,6 +18735,11 @@ export type TransactionHistoryJobItem = {
      * Resolved icon URL for the agent
      */
     agentIcon: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryOwner = {
@@ -18690,6 +18795,11 @@ export type TransactionHistoryImageItem = {
      * Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
      */
     modelLabel: string;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryTaskItem = {
@@ -18734,6 +18844,11 @@ export type TransactionHistoryTaskItem = {
      * Whether the task is archived. An archived task cannot be opened, so clients should not link to it.
      */
     taskArchived: boolean;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryCoworkerItem = {
@@ -18770,6 +18885,11 @@ export type TransactionHistoryCoworkerItem = {
      * Coworker whose usage consumed the credits
      */
     coworkerId: string;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistorySokoBotItem = {
@@ -18806,6 +18926,11 @@ export type TransactionHistorySokoBotItem = {
      * Soko Bot whose usage consumed the credits
      */
     sokoBotId: string;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistorySeoChatItem = {
@@ -18838,6 +18963,11 @@ export type TransactionHistorySeoChatItem = {
      */
     owner: TransactionHistoryOwner | null;
     kind: 'seoChat';
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryContactsItem = {
@@ -18874,6 +19004,11 @@ export type TransactionHistoryContactsItem = {
      * Contact list a Find people run searched for. Null once the list is deleted.
      */
     contactListId: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryTopUpItem = {
@@ -18922,6 +19057,11 @@ export type TransactionHistoryTopUpItem = {
      * Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.
      */
     refundedTaskId: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionHistoryUnattributedItem = {
@@ -18958,6 +19098,11 @@ export type TransactionHistoryUnattributedItem = {
      * Credit bucket the spend drew from, when a consumption row records one. Null when nothing about the source is known.
      */
     bucketSource: string | null;
+    network: 'mainnet' | 'preprod';
+    /**
+     * true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged
+     */
+    affectsBalance: boolean;
 };
 
 export type TransactionDailySpendList = Array<{
@@ -18969,6 +19114,7 @@ export type TransactionDailySpendList = Array<{
      * Credits spent that day. Top ups are not counted.
      */
     credits: number;
+    network: 'mainnet' | 'preprod';
 }>;
 
 export type TransactionTotal = {
@@ -18980,6 +19126,7 @@ export type TransactionTotal = {
      * Matching ledger rows.
      */
     count: number;
+    network: 'mainnet' | 'preprod';
 };
 
 export type CreditPriceOption = {
@@ -19750,6 +19897,8 @@ export type ListAdminSeoImpactVerdictsData = {
     path?: never;
     query?: {
         period?: '90' | '365' | 'all';
+        state?: 'waiting_crawl' | 'waiting_window' | 'ready' | 'waiting_retry' | 'measured' | 'not_measurable';
+        source?: 'cuso_done' | 'audit_recheck';
     };
     url: '/admin/seo-impact';
 };
@@ -22430,6 +22579,21 @@ export type PerformAdminSokoBotActionErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod retry cannot resume now
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
@@ -36593,7 +36757,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
         };
     };
     /**
-     * Mention is not failed
+     * Mention is not failed or its Network is stale
      */
     409: {
         error: string;
@@ -36611,6 +36775,21 @@ export type PostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetryErrors 
      * Internal Server Error
      */
     500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod is paused or unavailable
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;
@@ -47996,6 +48175,137 @@ export type PatchDriveFilesMoveResponses = {
 
 export type PatchDriveFilesMoveResponse = PatchDriveFilesMoveResponses[keyof PatchDriveFilesMoveResponses];
 
+export type PostDriveFilesCombinePdfData = {
+    body: {
+        pathnames: Array<string>;
+        filename: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/combine-pdf';
+};
+
+export type PostDriveFilesCombinePdfErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - a source is gone (`fileName`)
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        fileName?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Payload Too Large - the sources pass the size cap (`too_large`), or `fileName` passes the page or decompression limit, or the result would be too large (`too_complex`)
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        fileName?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - `fileName` is not a readable PDF (`unreadable_pdf`), or the files cross a data room (`mixed_data_room`)
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        fileName?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesCombinePdfError = PostDriveFilesCombinePdfErrors[keyof PostDriveFilesCombinePdfErrors];
+
+export type PostDriveFilesCombinePdfResponses = {
+    /**
+     * The combined PDF
+     */
+    200: Blob | File;
+};
+
+export type PostDriveFilesCombinePdfResponse = PostDriveFilesCombinePdfResponses[keyof PostDriveFilesCombinePdfResponses];
+
 export type PatchDriveFilesRenameData = {
     body: RenameDriveFileRequest;
     headers?: {
@@ -56162,6 +56472,7 @@ export type GetUsersByIdCreditsResponses = {
                  */
                 total: number;
             };
+            network: 'mainnet' | 'preprod';
         };
         meta: {
             timestamp: Date;
@@ -56806,6 +57117,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsResponses = {
                  */
                 total: number;
             };
+            network: 'mainnet' | 'preprod';
         };
         meta: {
             timestamp: Date;
@@ -67740,6 +68052,117 @@ export type PutProjectsByIdDesignMdResponses = {
 };
 
 export type PutProjectsByIdDesignMdResponse = PutProjectsByIdDesignMdResponses[keyof PutProjectsByIdDesignMdResponses];
+
+export type PostProjectsByIdDesignMdFromOrganizationData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/design-md/from-organization';
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found, or the organization has no DESIGN.md
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Project already has a DESIGN.md, or is a read-only CMO Project
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationError = PostProjectsByIdDesignMdFromOrganizationErrors[keyof PostProjectsByIdDesignMdFromOrganizationErrors];
+
+export type PostProjectsByIdDesignMdFromOrganizationResponses = {
+    /**
+     * Project DESIGN.md copied
+     */
+    200: {
+        data: Project;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdDesignMdFromOrganizationResponse = PostProjectsByIdDesignMdFromOrganizationResponses[keyof PostProjectsByIdDesignMdFromOrganizationResponses];
 
 export type GetProjectsByIdCalendarData = {
     body?: never;
@@ -101162,6 +101585,21 @@ export type ResolveMySokoBotDecisionErrors = {
             method: string;
         };
     };
+    /**
+     * Preprod approval cannot resume now
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ResolveMySokoBotDecisionError = ResolveMySokoBotDecisionErrors[keyof ResolveMySokoBotDecisionErrors];
@@ -104107,6 +104545,21 @@ export type ResolveSokoBotDecisionErrors = {
      * Unprocessable Entity
      */
     422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Preprod approval cannot resume now
+     */
+    503: {
         error: string;
         message: string;
         kind?: string;

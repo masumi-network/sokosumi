@@ -65,7 +65,7 @@ function setup() {
           branches: branches.filter(
             (branch) =>
               branch.name.includes(search) &&
-              (!url.pathname.includes("neon-mainnet") || branch.default),
+              (!url.pathname.includes("neon-preprod") || branch.default),
           ),
         });
       }
@@ -181,6 +181,8 @@ test("new commits renew an existing preview for 24 hours without deploying", asy
   assert.equal(calls.filter((call) => call.method === "PATCH").length, 1);
   assert.ok(calls.every((call) => ["GET", "PATCH"].includes(call.method)));
   assert.ok(!calls.some((call) => call.url.host === "api.vercel.com"));
+  // The frozen Preprod gets no renewal: its branches expire on their own.
+  assert.ok(!calls.some((call) => call.url.pathname.includes("neon-preprod")));
 });
 
 test("commits do not create previews when none exist or the database expired", async () => {
@@ -223,11 +225,11 @@ test("renewal tolerates native expiry deleting a branch after lookup", async () 
   });
 });
 
-test("/deploy preprod provisions preprod before deployment and reuses its DB on the next request", async () => {
+test("/deploy mainnet provisions mainnet before deployment and reuses its DB on the next request", async () => {
   const { options, calls, branches, envs, deployments, pull } = setup();
   const command = {
     ...options,
-    commentBody: "/deploy preprod",
+    commentBody: "/deploy mainnet",
     isPullRequest: true,
     commentAuthor: "alice",
     readPermission: async () => "write",
@@ -244,7 +246,7 @@ test("/deploy preprod provisions preprod before deployment and reuses its DB on 
   assert.ok(
     remaining > 23.99 * 60 * 60 * 1000 && remaining <= 24 * 60 * 60 * 1000,
   );
-  assert.equal(deployments.length, 4);
+  assert.equal(deployments.length, 6);
   assert.equal(envs.length, 2);
   assert.ok(
     envs.every(
@@ -286,7 +288,7 @@ test("/deploy preprod provisions preprod before deployment and reuses its DB on 
       ).length,
     2,
   );
-  assert.ok(!calls.some((call) => call.url.pathname.includes("neon-mainnet")));
+  assert.ok(!calls.some((call) => call.url.pathname.includes("neon-preprod")));
   assert.ok(
     !calls.some(
       (call) =>
@@ -316,7 +318,7 @@ for (const pooled of [true, false]) {
     await assert.rejects(
       preparePreviewResources(
         { ...options, neonFetchImpl },
-        deployTargets(["preprod"]),
+        deployTargets(["mainnet"]),
       ),
       new RegExp(
         `${key} does not match the read-write endpoint of Neon branch "preview/gh-99-pr-7"`,
@@ -347,7 +349,7 @@ test("provision refuses an endpoint response belonging to another branch", async
   await assert.rejects(
     preparePreviewResources(
       { ...options, neonFetchImpl },
-      deployTargets(["preprod"]),
+      deployTargets(["mainnet"]),
     ),
     /Neon branch "preview\/gh-99-pr-7" has no read-write endpoint host/,
   );
@@ -360,7 +362,7 @@ test("closed PRs cannot recreate previews, and unprivileged commenters cannot pr
     pull.state = "closed";
     const result = await runPreviewDeployComment({
       ...options,
-      commentBody: "/deploy preprod",
+      commentBody: "/deploy mainnet",
       isPullRequest: true,
       readPermission: async () => permission,
       readPullRequest: async () => pull,
@@ -375,7 +377,7 @@ test("provision refuses an unprotected default parent before creating a branch",
   const { options, calls, branches } = setup();
   branches[0].protected = false;
   await assert.rejects(
-    preparePreviewResources(options, deployTargets(["preprod"])),
+    preparePreviewResources(options, deployTargets(["mainnet"])),
     /must be protected/,
   );
   assert.equal(branches.length, 1);
@@ -393,12 +395,12 @@ test("a Neon failure does not include the project path", async () => {
   await assert.rejects(
     preparePreviewResources(
       { ...options, neonFetchImpl },
-      deployTargets(["preprod"]),
+      deployTargets(["mainnet"]),
     ),
     (error: unknown) => {
       assert.ok(error instanceof Error);
       assert.match(error.message, /Neon answered 500: nope/);
-      assert.doesNotMatch(error.message, /neon-preprod|\/branches/);
+      assert.doesNotMatch(error.message, /neon-mainnet|\/branches/);
       return true;
     },
   );
@@ -412,7 +414,7 @@ test("integration-owned preview credentials block provisioning before any Neon m
     configurationId: "neon-integration",
   });
   await assert.rejects(
-    preparePreviewResources(options, deployTargets(["preprod"])),
+    preparePreviewResources(options, deployTargets(["mainnet"])),
     /Disable the Neon integration/,
   );
   assert.ok(
@@ -438,7 +440,7 @@ test("a failed credential write never starts a Vercel deployment and does not di
     runPreviewDeployComment({
       ...options,
       fetchImpl,
-      commentBody: "/deploy preprod",
+      commentBody: "/deploy mainnet",
       isPullRequest: true,
       readPermission: async () => "write",
       readPullRequest: async () => pull,
@@ -456,7 +458,7 @@ test("a failed credential write never starts a Vercel deployment and does not di
 
 test("close cleanup deletes only owned previews, keeps production and legacy branches, and skips reopened PRs", async () => {
   const { options, calls, branches, deployments, pull, envs } = setup();
-  await preparePreviewResources(options, deployTargets(["preprod"]));
+  await preparePreviewResources(options, deployTargets(["mainnet"]));
   branches.push({
     id: "br-legacy",
     name: "preview/feat/x",
@@ -504,11 +506,46 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
   assert.deepEqual(await previewCleanupInventory(options), [7]);
 });
 
+// The two frozen Preprod Vercel projects (still named in vercel.json).
+const FROZEN_PREPROD_PROJECT_IDS = [
+  "prj_DsK6SqWjSU47g7O3unja5h4jtxMk",
+  "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
+];
+
+test("inventory, close and reconcile never call a Preprod project, and a PR known only by an old Preprod marker is not selected", async () => {
+  const { options, calls, branches, pull } = setup();
+  await preparePreviewResources(options, deployTargets(["mainnet"]));
+  // An old Preprod Core would list PR 9; nothing may ask it.
+  const fetchImpl: typeof fetch = (input, init) => {
+    const url = new URL(String(input));
+    return url.pathname === `/v10/projects/${FROZEN_PREPROD_PROJECT_IDS[1]}/env`
+      ? Promise.resolve(
+          Response.json({
+            envs: [{ comment: "GitHub-managed preview/gh-99-pr-9" }],
+          }),
+        )
+      : options.fetchImpl(input, init);
+  };
+  const run = { ...options, fetchImpl };
+  pull.state = "closed";
+  assert.deepEqual(await previewCleanupInventory(run), [7]);
+  assert.equal((await cleanupClosedPreview(run)).kind, "cleanup");
+  assert.deepEqual(
+    branches.map((branch) => branch.id),
+    ["br-production"],
+  );
+  const requested = calls.map((call) => String(call.url));
+  for (const id of FROZEN_PREPROD_PROJECT_IDS) {
+    assert.ok(!requested.some((url) => url.includes(id)), id);
+  }
+  assert.ok(!requested.some((url) => url.includes("neon-preprod")));
+});
+
 test("closed fork PRs are cleaned up and listed by the daily inventory", async () => {
   const { options, calls, branches, pull } = setup();
   await preparePreviewResources(
     { ...options, ref: "preview-fork/pr-7" },
-    deployTargets(["preprod"]),
+    deployTargets(["mainnet"]),
   );
   pull.head.repo.id = 100;
   pull.state = "closed";

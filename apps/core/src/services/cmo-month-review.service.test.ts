@@ -696,7 +696,10 @@ describe("advanceCmoMonthReview", () => {
       version: { id: "v1", monthReview: null },
       runs: [],
     });
-    expect(notifyCusoLowCredits).toHaveBeenCalledWith("project-1");
+    expect(notifyCusoLowCredits).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks nothing when the read charged nothing", async () => {

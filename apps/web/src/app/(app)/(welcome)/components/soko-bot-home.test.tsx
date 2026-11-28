@@ -61,6 +61,7 @@ vi.mock("@/app/chat/components/room-composer", () => ({
     onSubmit: (event: FormEvent<HTMLFormElement>) => void;
     placeholder: string;
     sendDisabled: boolean;
+    className?: string;
   }) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     useImperativeHandle(props.ref, () => ({
@@ -68,7 +69,7 @@ vi.mock("@/app/chat/components/room-composer", () => ({
       focusAtEnd: () => focusedAtEnd(textareaRef.current?.value),
     }));
     return (
-      <form onSubmit={props.onSubmit}>
+      <form onSubmit={props.onSubmit} className={props.className}>
         <textarea
           ref={textareaRef}
           aria-label="composer"
@@ -173,6 +174,22 @@ describe("SokoBotHome", () => {
     expect(
       screen.getByPlaceholderText('placeholder:{"name":"Joseph"}'),
     ).toBeTruthy();
+  });
+
+  // A phone has room for the composer's four tools only on the app's one
+  // 16px gutter; Home's own padding and the room's hid "Add a skill".
+  it("gives the composer the app's gutter on a phone and no more", async () => {
+    await renderHome();
+    const form = screen
+      .getByRole("textbox", { name: "composer" })
+      .closest("form");
+    const tokens = (el: Element | null | undefined) =>
+      (el?.className ?? "").split(/\s+/);
+
+    expect(tokens(form)).toEqual(expect.arrayContaining(["px-0", "md:px-5"]));
+    const wrapper = form?.closest(".isolate");
+    expect(tokens(wrapper)).toContain("md:px-4");
+    expect(tokens(wrapper)).not.toContain("px-4");
   });
 
   it("puts a suggested prompt in the composer to edit or send", async () => {

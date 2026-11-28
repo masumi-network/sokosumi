@@ -15,9 +15,13 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { failOpen } from "@/lib/fail-open";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import {
+  DetachedNetworkRefusal,
+  detachedNetworkScopeForTick,
+  turnProvenance,
+} from "@/lib/soko-bot/detached-network";
 import {
   capabilitiesForWatchFollowUp,
   deriveWatchAuthority,
@@ -611,7 +615,10 @@ export async function syncSokoBotWatches(input: {
       status: "WAITING",
       ...(input.sokoBotId ? { sokoBotId: input.sokoBotId } : {}),
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [
+      { turn: { network: { sort: "asc", nulls: "first" } } },
+      { createdAt: "asc" },
+    ],
     take: BATCH,
     select: {
       id: true,
@@ -626,6 +633,8 @@ export async function syncSokoBotWatches(input: {
       turn: {
         select: {
           id: true,
+          network: true,
+          preprodGeneration: true,
           requestedByUserId: true,
           askedByUserId: true,
           chainDepth: true,
@@ -642,9 +651,29 @@ export async function syncSokoBotWatches(input: {
   const { sokoBotControlPlane, SokoBotBusyError } = await import(
     "@/services/soko-bot-control-plane.service"
   );
+  const admission = detachedNetworkScopeForTick();
   for (const watch of watches) {
     if (!input.shouldContinue()) break;
     result.checked += 1;
+    try {
+      await admission.resume(watch.turn);
+    } catch (error) {
+      if (error instanceof DetachedNetworkRefusal && !error.final) {
+        result.deferred += 1;
+        continue;
+      }
+      const failed = await prisma.sokoBotWatch.updateMany({
+        where: { id: watch.id, status: "WAITING" },
+        data: {
+          status: "FAILED",
+          outcome: clip(
+            error instanceof Error ? error.message : "Unknown Network",
+          ),
+        },
+      });
+      result.failed += failed.count;
+      continue;
+    }
     const done = await watchOutcome(watch).catch(
       failOpen(
         null,
@@ -749,7 +778,7 @@ export async function syncSokoBotWatches(input: {
     );
     try {
       const started = await sokoBotControlPlane.startTurn({
-        network: DETACHED_SOKO_BOT_NETWORK,
+        ...turnProvenance(watch.turn),
         userId: watch.turn.requestedByUserId,
         sokoBotId: watch.sokoBotId,
         workspaceId: watch.turn.workspaceId,
@@ -829,7 +858,11 @@ export async function syncSokoBotWatches(input: {
           ),
         );
     } catch (error) {
-      if (error instanceof SokoBotBusyError) {
+      if (error instanceof DetachedNetworkRefusal) admission.invalidate();
+      if (
+        error instanceof SokoBotBusyError ||
+        (error instanceof DetachedNetworkRefusal && !error.final)
+      ) {
         // Three runs at once, or the owner's limit: try again next tick.
         await prisma.sokoBotWatch.update({
           where: { id: watch.id },

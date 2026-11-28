@@ -220,7 +220,12 @@ export function TaskSchedulesView({
               labels={{ list: t("viewList"), grid: t("viewGrid") }}
             />
             {canCreate ? (
-              <Button size="sm" onClick={() => setIsCreateOpen(true)}>
+              <Button
+                // 40px like the search field and view switch while the toolbar is stacked.
+                className="h-10 @2xl/page-toolbar:h-8"
+                onClick={() => setIsCreateOpen(true)}
+                size="sm"
+              >
                 <Plus className="size-4" aria-hidden />
                 {t("newSchedule")}
               </Button>

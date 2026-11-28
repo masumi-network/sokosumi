@@ -1,10 +1,14 @@
 import type { Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { hasAssignedOrganizationSeat } from "@sokosumi/database/helpers";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
+import { v7 as uuidv7 } from "uuid";
 import { getEnv } from "@/config/env";
 import { isPersonalSokoBot, isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { getBalance, getOrganizationPoolBalance } from "@/lib/credits/balance";
+import { spend } from "@/lib/credits/spend";
+import { createNetworkScope, type MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 
@@ -93,8 +97,9 @@ function payerProjectScope(payer: SokoBotPayer | null): {
  * here too.
  */
 async function sokoBotPayer(
+  scope: MainnetScope,
   sokoBotId: string,
-  client: Pick<Prisma.TransactionClient, "sokoBot">,
+  client: Pick<Prisma.TransactionClient, "sokoBot" | "$queryRaw">,
 ): Promise<SokoBotPayer | null> {
   const bot = await client.sokoBot.findUnique({
     where: { id: sokoBotId },
@@ -114,22 +119,28 @@ async function sokoBotPayer(
     userId: bot.userId,
     organizationId: bot.workspace.organizationId,
     projectId: bot.projectId,
-    freeHiring: mayBeCuso && (await cusoInFreeHiring(sokoBotId, client)),
+    freeHiring: mayBeCuso && (await cusoInFreeHiring(scope, sokoBotId, client)),
     cuso: mayBeCuso,
   };
 }
 
 async function cusoInFreeHiring(
+  scope: MainnetScope,
   sokoBotId: string,
-  client: Pick<Prisma.TransactionClient, "sokoBot">,
+  client: Pick<Prisma.TransactionClient, "sokoBot" | "$queryRaw">,
 ): Promise<boolean> {
   const { isCusoInFreeHiring } = await import("@/services/cmo-billing.service");
-  return isCusoInFreeHiring(sokoBotId, client);
+  return isCusoInFreeHiring(scope, sokoBotId, client);
 }
 
-async function cusoMayWork(projectId: string): Promise<boolean> {
-  const { isCmoSubscribed } = await import("@/services/cmo-billing.service");
-  return isCmoSubscribed({ projectId });
+async function cusoMayWork(
+  scope: MainnetScope,
+  projectId: string,
+): Promise<boolean> {
+  const { cmoSubscriptionAllowsWork } = await import(
+    "@/services/cmo-billing.service"
+  );
+  return cmoSubscriptionAllowsWork(scope, projectId, new Date());
 }
 
 /** A shared bot's payer is its organization alone, whoever asked. */
@@ -143,19 +154,24 @@ export function sokoBotPayerKey(payer: SokoBotPayer): string {
  * A shared bot has no member to read through, so it reads the pool without
  * a seat check. That answers "is the pool empty?" for the notice only.
  */
-async function sokoBotPayerBalance(payer: SokoBotPayer): Promise<bigint> {
+async function sokoBotPayerBalance(
+  scope: MainnetScope,
+  payer: SokoBotPayer,
+): Promise<bigint> {
   if (isPersonalSokoBot(payer)) {
-    return await creditBucketRepository.getBalance(
+    return await getBalance(
+      scope,
       payer.userId,
       payer.organizationId,
-      prisma,
+      scope.sharedDb,
       payerProjectScope(payer),
     );
   }
   if (payer.organizationId === null) return 0n;
-  return await creditBucketRepository.getOrganizationPoolBalance(
+  return await getOrganizationPoolBalance(
+    scope,
     payer.organizationId,
-    prisma,
+    scope.sharedDb,
     payerProjectScope(payer),
   );
 }
@@ -221,11 +237,15 @@ export async function sokoBotIdsOutOfCredits(
   const payers = [
     ...new Map(bots.map((bot) => [sokoBotPayerKey(bot), bot])).values(),
   ];
+  const scope = createNetworkScope("mainnet");
   const balances = new Map(
     await Promise.all(
       payers.map(
         async (bot) =>
-          [sokoBotPayerKey(bot), await sokoBotPayerBalance(bot)] as const,
+          [
+            sokoBotPayerKey(bot),
+            await sokoBotPayerBalance(scope, bot),
+          ] as const,
       ),
     ),
   );
@@ -249,7 +269,8 @@ export async function requireSokoBotTurnFunding(
   userId: string | null,
   sokoBotId: string,
 ): Promise<void> {
-  const payer = await sokoBotPayer(sokoBotId, prisma);
+  const scope = createNetworkScope("mainnet");
+  const payer = await sokoBotPayer(scope, sokoBotId, scope.sharedDb);
   if (payer?.freeHiring) {
     // Nothing is charged, so only a member's Seat still gates the turn.
     if (userId !== null && payer.organizationId !== null) {
@@ -258,7 +279,11 @@ export async function requireSokoBotTurnFunding(
     return;
   }
   // Pool credits alone never pay for a Cuso's turn (ADR 0068).
-  if (payer?.cuso && payer.projectId && !(await cusoMayWork(payer.projectId))) {
+  if (
+    payer?.cuso &&
+    payer.projectId &&
+    !(await cusoMayWork(scope, payer.projectId))
+  ) {
     throw new SokoBotBillingAccessError(
       "Cuso is paused: his Project has no active CMO subscription.",
       "cmo_paused",
@@ -295,7 +320,7 @@ export async function requireSokoBotTurnFunding(
   ]);
   const [recentUsage, shortfallUsage] = await Promise.all([
     completedTurns.length > 0
-      ? prisma.sokoBotUsage.findMany({
+      ? scope.networkDb.sokoBotUsage.findMany({
           where: {
             sokoBotId,
             ...usageMember,
@@ -309,7 +334,7 @@ export async function requireSokoBotTurnFunding(
         })
       : [],
     shortfallTurn
-      ? prisma.sokoBotUsage.findUnique({
+      ? scope.networkDb.sokoBotUsage.findUnique({
           where: {
             sokoBotId_idempotencyKey: {
               sokoBotId,
@@ -332,10 +357,11 @@ export async function requireSokoBotTurnFunding(
       ? shortfallExpectedCents - (shortfallUsage?.cents ?? 0n)
       : 0n;
   const organizationId = payer?.organizationId ?? null;
-  const balance = await creditBucketRepository.getBalance(
+  const balance = await getBalance(
+    scope,
     userId,
     organizationId,
-    prisma,
+    scope.sharedDb,
     payerProjectScope(payer),
   );
   if (balance < shortfallCents) {
@@ -385,8 +411,10 @@ export async function recordSokoBotTurnUsage(
     ranModel?: boolean;
   },
   tx: Prisma.TransactionClient,
+  scope: MainnetScope,
 ): Promise<SokoBotUsageChargeResult> {
   return chargeSokoBotUsage(
+    scope,
     {
       sokoBotId: input.sokoBotId,
       userId: input.userId,
@@ -428,10 +456,12 @@ export async function chargeSokoBotCredits(input: {
   key: string;
   credits: number;
 }): Promise<SokoBotUsageChargeResult> {
+  const scope = createNetworkScope("mainnet");
   const expectedCents = convertCreditsToCents(input.credits);
   return serializableTransaction(async (tx) => {
-    const payer = await sokoBotPayer(input.sokoBotId, tx);
+    const payer = await sokoBotPayer(scope, input.sokoBotId, tx);
     return chargeSokoBotUsage(
+      scope,
       {
         sokoBotId: input.sokoBotId,
         userId: payer?.userId ?? null,
@@ -445,6 +475,7 @@ export async function chargeSokoBotCredits(input: {
 }
 
 async function chargeSokoBotUsage(
+  scope: MainnetScope,
   input: {
     sokoBotId: string;
     userId: string | null;
@@ -455,7 +486,7 @@ async function chargeSokoBotUsage(
   tx: Prisma.TransactionClient,
 ): Promise<SokoBotUsageChargeResult> {
   const { expectedCents, idempotencyKey } = input;
-  const payer = await sokoBotPayer(input.sokoBotId, tx);
+  const payer = await sokoBotPayer(scope, input.sokoBotId, tx);
   const cusoProjectId = payer?.cuso ? (payer.projectId ?? null) : null;
   if (expectedCents <= 0n) {
     return {
@@ -467,15 +498,11 @@ async function chargeSokoBotUsage(
     };
   }
 
-  const existing = await tx.sokoBotUsage.findUnique({
-    where: {
-      sokoBotId_idempotencyKey: {
-        sokoBotId: input.sokoBotId,
-        idempotencyKey,
-      },
-    },
-    select: { cents: true, organizationId: true },
-  });
+  // Both receipt statements retain the original public-layout SQL on this transaction.
+  const usage = scope.networkTable("soko_bot_usage");
+  const [existing] = await tx.$queryRaw<
+    { cents: bigint; organizationId: string | null }[]
+  >`SELECT ${usage}."id", ${usage}."cents", ${usage}."organizationId" FROM ${usage} WHERE ((${usage}."sokoBotId" = ${input.sokoBotId} AND ${usage}."idempotencyKey" = ${idempotencyKey}) AND 1=1) LIMIT ${1n} OFFSET ${0n}`;
   if (existing) {
     return {
       chargedCents: existing.cents,
@@ -498,15 +525,22 @@ async function chargeSokoBotUsage(
     };
   }
   const organizationId = payer?.organizationId ?? null;
-  const projectScope = payerProjectScope(payer);
-  const balance = await creditBucketRepository.getBalance(
-    input.userId,
-    organizationId,
+  // An empty wallet pays nothing; credits gone after the balance covered the
+  // charge throw, and the caller's transaction rolls back.
+  const spent = await spend({
+    // A turn's model usage always bills Mainnet, a Preprod turn's too.
+    scope,
     tx,
-    projectScope,
-  );
-  const chargedCents = balance < expectedCents ? balance : expectedCents;
-  if (chargedCents <= 0n) {
+    kind: "soko_bot_turn",
+    payer: {
+      userId: input.userId,
+      organizationId,
+      projectId: payerProjectScope(payer).projectId,
+    },
+    quotedCents: expectedCents,
+    mode: "up_to_balance",
+  });
+  if (spent.outcome === "not_charged") {
     return {
       chargedCents: 0n,
       expectedCents,
@@ -515,38 +549,42 @@ async function chargeSokoBotUsage(
       cusoProjectId,
     };
   }
-  const consumptions = await creditBucketRepository.prepareConsumption(
-    "mainnet",
+  const { chargedCents } = spent;
+  // Match Prisma's uuid(7): IDs increase within a millisecond and precede the row time.
+  const id = uuidv7();
+  const now = new Date();
+  const columns = [
+    "id",
+    "createdAt",
+    "updatedAt",
+    "idempotencyKey",
+    "referenceId",
+    "sokoBotId",
+    "userId",
+    "organizationId",
+    "cents",
+    "transactionId",
+  ].map((name) => PrismaRaw.raw(`"${name}"`));
+  const values = [
+    id,
+    now,
+    now,
+    idempotencyKey,
+    input.referenceId,
+    input.sokoBotId,
     input.userId,
     organizationId,
     chargedCents,
-    tx,
-    projectScope,
-  );
-  const transaction = await tx.transaction.create({
-    data: {
-      amount: -chargedCents,
-      userId: input.userId,
-      organizationId,
-      creditConsumptions: { createMany: { data: consumptions } },
-    },
-    select: { id: true },
-  });
-  await tx.sokoBotUsage.create({
-    data: {
-      sokoBotId: input.sokoBotId,
-      userId: input.userId,
-      organizationId,
-      idempotencyKey,
-      referenceId: input.referenceId,
-      cents: chargedCents,
-      transactionId: transaction.id,
-    },
-  });
+    spent.transactionId,
+  ];
+  await tx.$executeRaw`INSERT INTO ${usage} (${PrismaRaw.join(columns)}) VALUES (${PrismaRaw.join(values)}) RETURNING ${PrismaRaw.join(
+    columns.map((column) => PrismaRaw.sql`${usage}.${column}`),
+    ", ",
+  )}`;
   return {
     chargedCents,
     expectedCents,
-    shortfall: chargedCents < expectedCents,
+    shortfall: spent.shortfall,
     organizationId,
     cusoProjectId,
   };

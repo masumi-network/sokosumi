@@ -1,8 +1,21 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
+import { netType, sharedTable } from "@sokosumi/database/sql-tables";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
 import { type CmoVolumeLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
+import {
+  findTesterGrant,
+  testerCreditsWhere,
+  testerFunding,
+  testerFundingQuery,
+} from "@/lib/credits/commercial-funding";
+import {
+  createNetworkScope,
+  type MainnetScope,
+  type NetworkScope,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
@@ -21,18 +34,6 @@ import {
   requireCuso,
 } from "@/services/cmo-cuso.service";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
-
-/**
- * Tester credits (all Projects, or one): what a Cuso works on without a CMO
- * subscription, found by their type. The gate, free hiring, the unpaid-Cuso
- * rule and the hiring steps all read them through this.
- */
-function testerCreditsWhere(projectId?: string): Prisma.CreditBucketWhereInput {
-  return {
-    referenceType: CreditBucketReferenceType.CMO_TESTER_CREDITS,
-    ...(projectId && { projectId }),
-  };
-}
 
 /**
  * A Cuso's Project that never had a CMO subscription (any status, ended or
@@ -59,10 +60,22 @@ export async function isCmoProjectUnpaid(
 }
 
 /** An unpaid Cuso's Project whose strategy is not approved yet (Launch). */
-const FREE_HIRING_PROJECT_WHERE = {
-  ...UNPAID_CUSO_PROJECT_WHERE,
-  marketingStrategies: { none: { approvedAt: { not: null } } },
-} satisfies Prisma.ProjectWhereInput;
+// Keep the public-layout query and its binds identical to the original relation filter.
+function freeHiringProject(
+  scope: MainnetScope,
+  project: PrismaRaw.Sql,
+  aliases: readonly [PrismaRaw.Sql, PrismaRaw.Sql, PrismaRaw.Sql],
+) {
+  const [subscription, bucket, strategy] = aliases;
+  return PrismaRaw.join(
+    [
+      PrismaRaw.sql`NOT EXISTS(SELECT ${subscription}."projectId" FROM ${sharedTable("polar_subscription")} AS ${subscription} WHERE (1=1 AND (${project}."id") = (${subscription}."projectId") AND ${subscription}."projectId" IS NOT NULL))`,
+      PrismaRaw.sql`NOT EXISTS(SELECT ${bucket}."projectId" FROM ${scope.networkTable("credit_bucket")} AS ${bucket} WHERE (${bucket}."referenceType" = CAST(${CreditBucketReferenceType.CMO_TESTER_CREDITS}::text AS ${netType(scope.network, "CreditBucketReferenceType")}) AND (${project}."id") = (${bucket}."projectId") AND ${bucket}."projectId" IS NOT NULL))`,
+      PrismaRaw.sql`NOT EXISTS(SELECT ${strategy}."projectId" FROM ${sharedTable("marketing_strategy")} AS ${strategy} WHERE (${strategy}."approvedAt" IS NOT NULL AND (${project}."id") = (${strategy}."projectId") AND ${strategy}."projectId" IS NOT NULL))`,
+    ],
+    " AND ",
+  );
+}
 
 /**
  * Free hiring (ADR 0068): an unpaid live Cuso whose strategy is not approved
@@ -70,18 +83,21 @@ const FREE_HIRING_PROJECT_WHERE = {
  * approval (Launch) he is paused until a plan is paid.
  */
 export async function isCusoInFreeHiring(
+  scope: MainnetScope,
   sokoBotId: string,
-  db: Pick<Prisma.TransactionClient, "sokoBot"> = prisma,
+  db: Pick<Prisma.TransactionClient, "$queryRaw">,
 ): Promise<boolean> {
-  const bot = await db.sokoBot.findFirst({
-    where: {
-      id: sokoBotId,
-      ...LIVE_CUSO_WHERE,
-      project: FREE_HIRING_PROJECT_WHERE,
-    },
-    select: { id: true },
-  });
-  return bot !== null;
+  const bot = sharedTable("soko_bot");
+  const project = PrismaRaw.raw('"j0"');
+  const unpaid = freeHiringProject(scope, project, [
+    PrismaRaw.raw('"t1"'),
+    PrismaRaw.raw('"t2"'),
+    PrismaRaw.raw('"t3"'),
+  ]);
+  const rows = await db.$queryRaw<
+    { id: string }[]
+  >`SELECT ${bot}."id" FROM ${bot} LEFT JOIN ${sharedTable("project")} AS ${project} ON (${project}."id") = (${bot}."projectId") WHERE (${bot}."id" = ${sokoBotId} AND ${bot}."versionId" IN (${PrismaRaw.join(LIVE_CUSO_WHERE.versionId.in)}) AND ${bot}."userId" IS NULL AND ${bot}."projectId" IS NOT NULL AND ${bot}."deletedAt" IS NULL AND ${bot}."archivedAt" IS NULL AND (${unpaid} AND (${project}."id" IS NOT NULL))) LIMIT ${1n} OFFSET ${0n}`;
+  return rows.length > 0;
 }
 
 /**
@@ -95,21 +111,35 @@ export async function isCusoInFreeHiring(
 export async function isCmoSubscribed(
   cuso: Pick<Cuso, "projectId">,
   now: Date = new Date(),
-  db: Pick<
-    Prisma.TransactionClient,
-    "polarSubscription" | "project" | "creditBucket"
-  > = prisma,
 ): Promise<boolean> {
-  const { projectId } = cuso;
+  return cmoSubscriptionAllowsWork(
+    createNetworkScope("mainnet"),
+    cuso.projectId,
+    now,
+  );
+}
+
+export async function cmoSubscriptionAllowsWork(
+  scope: MainnetScope,
+  projectId: string,
+  now: Date,
+): Promise<boolean> {
   if (await isEvalCusoProject(projectId)) return true;
-  const [paid, freeHiring] = await Promise.all([
-    cmoPaidFor(projectId, now, db),
-    db.project.findFirst({
-      where: { id: projectId, ...FREE_HIRING_PROJECT_WHERE },
-      select: { id: true },
-    }),
+  const project = sharedTable("project");
+  const unpaid = freeHiringProject(scope, project, [
+    PrismaRaw.raw('"t0"'),
+    PrismaRaw.raw('"t1"'),
+    PrismaRaw.raw('"t2"'),
   ]);
-  return paid.subscribed || paid.testerCreditsLeft || freeHiring !== null;
+  const [paid, freeHiring] = await Promise.all([
+    cmoPaidFor(projectId, now, scope),
+    scope.sharedDb.$queryRaw<
+      { id: string }[]
+    >`SELECT ${project}."id" FROM ${project} WHERE (${project}."id" = ${projectId} AND ${unpaid}) LIMIT ${1n} OFFSET ${0n}`.then(
+      (rows) => rows.length > 0,
+    ),
+  ]);
+  return paid.subscribed || paid.testerCreditsLeft || freeHiring;
 }
 
 /**
@@ -120,14 +150,15 @@ export async function isCmoSubscribed(
 export async function cmoPaidFor(
   projectId: string,
   now: Date,
-  db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
+  scope: NetworkScope,
+  tx?: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
 ): Promise<{
   subscribed: boolean;
   tier: string | null;
   testerCreditsLeft: boolean;
 }> {
   const [subscription, testerBuckets] = await Promise.all([
-    db.polarSubscription.findFirst({
+    (tx ?? scope.sharedDb).polarSubscription.findFirst({
       where: {
         projectId,
         endedAt: null,
@@ -136,15 +167,10 @@ export async function cmoPaidFor(
       },
       select: { tier: true },
     }),
-    db.creditBucket.findMany({
-      where: {
-        AND: [
-          testerCreditsWhere(projectId),
-          { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-        ],
-      },
-      select: { amount: true, consumptions: { select: { amount: true } } },
-    }),
+    // The grant and month reservation keep their funding guard in their open transaction.
+    tx
+      ? tx.creditBucket.findMany(testerFundingQuery(projectId, now))
+      : testerFunding(scope, projectId, now),
   ]);
   return {
     subscribed: subscription !== null,
@@ -166,7 +192,7 @@ export async function cmoPlanLevel(
   projectId: string,
   now: Date,
 ): Promise<CmoVolumeLevel> {
-  const paid = await cmoPaidFor(projectId, now, prisma);
+  const paid = await cmoPaidFor(projectId, now, createNetworkScope("mainnet"));
   return cmoVolumeLevelForTier(paid.testerCreditsLeft ? null : paid.tier);
 }
 
@@ -193,7 +219,7 @@ export async function maySkipCmoSubscription(
   ) {
     return false;
   }
-  const paid = await cmoPaidFor(projectId, now, prisma);
+  const paid = await cmoPaidFor(projectId, now, createNetworkScope("mainnet"));
   return !paid.subscribed && !paid.testerCreditsLeft;
 }
 
@@ -255,7 +281,12 @@ export async function grantCmoTesterCredits(input: {
       data: { updatedAt: new Date() },
     });
     if (count === 0) return "not_live";
-    const paid = await cmoPaidFor(input.projectId, new Date(), tx);
+    const paid = await cmoPaidFor(
+      input.projectId,
+      new Date(),
+      createNetworkScope("mainnet"),
+      tx,
+    );
     if (paid.subscribed || paid.testerCreditsLeft) return "paid";
     await freeCreditAdminService.grantFreeCredits({
       target: { targetType: "organization", targetId: input.organizationId },
@@ -345,10 +376,7 @@ export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
         pendingPolarProductId: true,
       },
     }),
-    prisma.creditBucket.findFirst({
-      where: testerCreditsWhere(projectId),
-      select: { id: true },
-    }),
+    findTesterGrant(createNetworkScope("mainnet"), projectId),
   ]);
   return {
     tier: subscription?.tier ?? null,

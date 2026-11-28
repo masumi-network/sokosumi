@@ -8,6 +8,7 @@ export interface PurgeExpiredTaskX402PaymentHeadersOptions {
   now?: Date;
   /** Checked before every batch, so the sync deadline can cut the sweep short. */
   abortSignal?: AbortSignal;
+  write: <T>(work: (db: NetworkDb) => Promise<T>) => Promise<T>;
 }
 
 /**
@@ -106,7 +107,7 @@ export const X402_UNDATED_HEADER_TTL_MS =
  */
 export async function purgeExpiredTaskX402PaymentHeaders(
   networkDb: NetworkDb,
-  options: PurgeExpiredTaskX402PaymentHeadersOptions = {},
+  options: PurgeExpiredTaskX402PaymentHeadersOptions,
 ): Promise<{ purged: number }> {
   const now = options.now ?? new Date();
   const where: Prisma.TaskX402PaymentWhereInput = {
@@ -150,13 +151,15 @@ export async function purgeExpiredTaskX402PaymentHeaders(
     // Scoped to the ids just read, and still guarded on the column, so a row
     // purged by a concurrent pass between the read and the write is not
     // recounted.
-    const result = await networkDb.taskX402Payment.updateMany({
-      where: {
-        id: { in: batch.map((row) => row.id) },
-        xPaymentHeader: { not: null },
-      },
-      data: { xPaymentHeader: null },
-    });
+    const result = await options.write((db) =>
+      db.taskX402Payment.updateMany({
+        where: {
+          id: { in: batch.map((row) => row.id) },
+          xPaymentHeader: { not: null },
+        },
+        data: { xPaymentHeader: null },
+      }),
+    );
     purged += result.count;
 
     if (batch.length < X402_HEADER_PURGE_BATCH_SIZE) {

@@ -8,7 +8,6 @@ import { networkStamp } from "@/helpers/preprod-control";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import {
   chatChainMayWake,
@@ -26,6 +25,7 @@ import {
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
 import { resolveChatResultReference } from "@/services/chat-result-preview.service";
+import type { NewChatRoomMention } from "@/services/chat-room-mention-state";
 import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import {
@@ -289,7 +289,7 @@ export async function postChat(
         select: { id: true, createdAt: true },
       });
       if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
-        const stamp = await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx);
+        const stamp = await networkStamp(authorized.provenance, tx);
         await tx.chatRoomMention.createMany({
           data: [
             ...mentionedCoworkerIds.map((coworkerId) => ({
@@ -308,7 +308,7 @@ export async function postChat(
               chainDepth,
               status: "staged",
             })),
-          ],
+          ] satisfies NewChatRoomMention[],
           skipDuplicates: true,
         });
       }

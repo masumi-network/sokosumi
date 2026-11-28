@@ -5,7 +5,6 @@ import {
   ProjectImageJobStatus,
   ProjectImageMediaType,
 } from "@sokosumi/database";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
@@ -38,8 +37,10 @@ import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
 } from "@/helpers/task-credits";
+import { getBalance } from "@/lib/credits/balance";
 import { DATA_ROOM_PEOPLE_KINDS } from "@/lib/data-room-visibility";
 import type { MainnetScope } from "@/lib/db/network-scope";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { driveHead, driveReadUrl } from "@/lib/drive-blob";
@@ -405,7 +406,8 @@ async function requireBalanceForQuote(options: {
   const inFlight =
     (committed._sum.chargedCents ?? 0n) +
     (committed._sum.letteringQuoteCents ?? 0n);
-  const balance = await creditBucketRepository.getBalance(
+  const balance = await getBalance(
+    createNetworkScope("mainnet"),
     options.userId,
     options.organizationId,
     options.tx,

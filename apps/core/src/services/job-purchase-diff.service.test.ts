@@ -27,9 +27,11 @@ vi.mock("@sentry/node", () => ({
     callback({ setExtras: () => {} }),
 }));
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({
-    getPurchasesDiff: getPurchasesDiffMock,
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({
+    payment: {
+      getPurchasesDiff: getPurchasesDiffMock,
+    },
   }),
 }));
 

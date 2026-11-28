@@ -8,10 +8,10 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { forbidden, unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { Network } from "@/lib/network";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -34,8 +34,8 @@ const {
   captureMessageMock,
   createNotificationMock,
   createTaskEventTransactionMock,
-  getCreditCostsOrThrowMock,
-  getX402ReadySourcesMock,
+  requireRatesMock,
+  x402ReadySourcesMock,
   outerPaymentFindUniqueMock,
   outerPaymentUpdateMock,
   outerPaymentUpdateManyMock,
@@ -51,8 +51,8 @@ const {
   captureMessageMock: vi.fn(),
   createNotificationMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
-  getX402ReadySourcesMock: vi.fn(),
+  requireRatesMock: vi.fn(),
+  x402ReadySourcesMock: vi.fn(),
   outerPaymentFindUniqueMock: vi.fn(),
   outerPaymentUpdateMock: vi.fn(),
   outerPaymentUpdateManyMock: vi.fn(),
@@ -65,7 +65,7 @@ const {
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 /** Whether this test's deployment has Preprod on. */
-const preprod = vi.hoisted(() => ({ on: false }));
+const preprod = vi.hoisted(() => ({ on: false, disabledByMasumi: false }));
 
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
@@ -83,6 +83,9 @@ vi.mock("@/config/env", async (importOriginal) => {
       ...actual.getEnv(),
       NETWORK: "Preprod" as const,
       NETWORK_PREPROD_ENABLED: preprod.on,
+      missingPreprodMasumiVariables: preprod.disabledByMasumi
+        ? ["PREPROD_REGISTRY_API_URL"]
+        : undefined,
     }),
   };
 });
@@ -104,25 +107,14 @@ vi.mock("@/helpers/task-credits", async (importOriginal) => {
   };
 });
 
-vi.mock("@/helpers/agent", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/helpers/agent")>();
-  return {
-    ...actual,
-    getCreditCostsOrThrow: getCreditCostsOrThrowMock,
-  };
-});
+vi.mock("@/lib/agent-catalog/availability", async (original) => ({
+  ...(await original<typeof import("@/lib/agent-catalog/availability")>()),
+  requireRates: requireRatesMock,
+  x402ReadySources: x402ReadySourcesMock,
+}));
 
-vi.mock("@/helpers/x402-readiness", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/helpers/x402-readiness")>();
-  return {
-    ...actual,
-    getX402ReadySources: getX402ReadySourcesMock,
-  };
-});
-
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({ payX402: payX402Mock }),
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({ payment: { payX402: payX402Mock } }),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -169,9 +161,9 @@ const AGENT_ID = "agent_x402_1";
 const PAYMENT_ID = "pay_1";
 const IDEMPOTENCY_KEY = "intent-1";
 
-const BASE_SEPOLIA = "eip155:84532";
 const BASE_MAINNET = "eip155:8453";
-const USDC_ADDRESS = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+const BASE_SEPOLIA = "eip155:84532";
+const USDC_ADDRESS = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 /** A second registered asset on the same chain, priced far above USDC. */
 const EXPENSIVE_ASSET = "0x8888888888888888888888888888888888888888";
 const PAY_TO = "0x1111111111111111111111111111111111111111";
@@ -243,7 +235,7 @@ function createAgentRow(overrides: Partial<Record<string, unknown>> = {}) {
     paymentSources: [
       {
         sourceIndex: 0,
-        network: BASE_SEPOLIA,
+        network: BASE_MAINNET,
         payTo: PAY_TO,
         scheme: "exact",
         pricingType: "FIXED",
@@ -271,12 +263,12 @@ function create402(overrides: Partial<Record<string, unknown>> = {}) {
     accepts: [
       {
         scheme: "exact",
-        network: BASE_SEPOLIA,
+        network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         amount: "250000",
         payTo: PAY_TO,
         maxTimeoutSeconds: 60,
-        extra: { name: "USDC", version: "2" },
+        extra: { name: "USD Coin", version: "2" },
       },
     ],
     extensions: { "payment-identifier": {} },
@@ -308,7 +300,7 @@ function createPaymentRecord(overrides: Partial<Record<string, unknown>> = {}) {
     updatedAt: now,
     idempotencyKey: IDEMPOTENCY_KEY,
     status: "PENDING",
-    caip2Network: BASE_SEPOLIA,
+    caip2Network: BASE_MAINNET,
     asset: USDC_ADDRESS,
     amount: "250000",
     payTo: PAY_TO,
@@ -357,14 +349,14 @@ async function signAuthorization(
   nonce: `0x${string}`,
   validBefore: number,
   validAfter = 0,
-  domainName = "USDC",
+  domainName = "USD Coin",
   domainVersion = "2",
 ) {
   return await PAYER_ACCOUNT.signTypedData({
     domain: {
       name: domainName,
       version: domainVersion,
-      chainId: 84532,
+      chainId: 8453,
       verifyingContract: USDC_ADDRESS,
     },
     types: EIP_3009_TYPES,
@@ -415,12 +407,12 @@ function xPaymentHeader(
       x402Version: 2,
       accepted: {
         scheme: "exact",
-        network: BASE_SEPOLIA,
+        network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         amount: "250000",
         payTo: PAY_TO,
         maxTimeoutSeconds: 60,
-        extra: { name: "USDC", version: "2" },
+        extra: { name: "USD Coin", version: "2" },
         ...acceptedOverrides,
       },
       payload: {
@@ -454,7 +446,7 @@ function xPaymentHeaderV1() {
     JSON.stringify({
       x402Version: 1,
       scheme: "exact",
-      network: "base-sepolia",
+      network: "base",
       payload: {
         signature: V1_SIGNATURE,
         authorization: {
@@ -475,7 +467,7 @@ function signedNodePayment(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     attemptId: "attempt_1",
     payer: PAYER,
-    caip2Network: BASE_SEPOLIA,
+    caip2Network: BASE_MAINNET,
     asset: USDC_ADDRESS,
     amount: "250000",
     payTo: PAY_TO,
@@ -582,6 +574,7 @@ describe("POST /{id}/x402-payments", () => {
     vi.clearAllMocks();
     waitUntilCapturedPromises.length = 0;
     preprod.on = false;
+    preprod.disabledByMasumi = false;
 
     tx = createTxMock();
     prismaTransactionMock.mockImplementation(
@@ -590,15 +583,15 @@ describe("POST /{id}/x402-payments", () => {
 
     requireTaskCollaborationMock.mockResolvedValue(createTask());
     createTaskEventTransactionMock.mockResolvedValue("txn_1");
-    getCreditCostsOrThrowMock.mockResolvedValue([
+    requireRatesMock.mockResolvedValue([
       createCreditCostRow(
-        `${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`,
+        `${BASE_MAINNET}/erc20:${USDC_ADDRESS}`,
         2n * 10n ** 10n,
       ),
     ]);
-    getX402ReadySourcesMock.mockResolvedValue([
+    x402ReadySourcesMock.mockResolvedValue([
       {
-        caip2Network: BASE_SEPOLIA,
+        caip2Network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         evmWalletId: "wallet-1",
         evmWalletAddress: PAYER,
@@ -679,8 +672,8 @@ describe("POST /{id}/x402-payments", () => {
         TASK_ID,
       );
       expect(prismaTransactionMock).not.toHaveBeenCalled();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalled();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalled();
+      expect(requireRatesMock).not.toHaveBeenCalled();
+      expect(x402ReadySourcesMock).not.toHaveBeenCalled();
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
     });
@@ -711,8 +704,8 @@ describe("POST /{id}/x402-payments", () => {
         kind: "task_parked",
       });
       expect(prismaTransactionMock).not.toHaveBeenCalled();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalled();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalled();
+      expect(requireRatesMock).not.toHaveBeenCalled();
+      expect(x402ReadySourcesMock).not.toHaveBeenCalled();
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
     });
@@ -882,8 +875,10 @@ describe("POST /{id}/x402-payments", () => {
       await postPayment(app, validBody());
 
       // No transaction client argument: the read does not join the snapshot.
-      expect(getX402ReadySourcesMock).toHaveBeenCalledWith();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalledWith(tx);
+      expect(x402ReadySourcesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
+      );
+      expect(x402ReadySourcesMock).not.toHaveBeenCalledWith(tx);
     });
 
     it("reads credit costs outside the charge transaction", async () => {
@@ -891,8 +886,10 @@ describe("POST /{id}/x402-payments", () => {
 
       await postPayment(app, validBody());
 
-      expect(getCreditCostsOrThrowMock).toHaveBeenCalledWith();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalledWith(tx);
+      expect(requireRatesMock).toHaveBeenCalledWith(
+        expect.objectContaining({ network: "mainnet" }),
+      );
+      expect(requireRatesMock).not.toHaveBeenCalledWith(tx);
     });
   });
 
@@ -923,7 +920,7 @@ describe("POST /{id}/x402-payments", () => {
           name: "PAYMENT-SIGNATURE",
           value: normalizedPaymentHeader(),
         },
-        caip2Network: BASE_SEPOLIA,
+        caip2Network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         amount: "250000",
         payTo: PAY_TO,
@@ -931,8 +928,8 @@ describe("POST /{id}/x402-payments", () => {
       expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
       expect(tx.taskX402Payment.create).not.toHaveBeenCalled();
       expect(payX402Mock).not.toHaveBeenCalled();
-      expect(getCreditCostsOrThrowMock).not.toHaveBeenCalled();
-      expect(getX402ReadySourcesMock).not.toHaveBeenCalled();
+      expect(requireRatesMock).not.toHaveBeenCalled();
+      expect(x402ReadySourcesMock).not.toHaveBeenCalled();
       expect(tx.agent.findFirst).not.toHaveBeenCalled();
     });
 
@@ -984,18 +981,18 @@ describe("POST /{id}/x402-payments", () => {
       expect(payX402Mock).toHaveBeenCalledWith(
         expect.objectContaining({
           evmWalletId: "wallet-1",
-          preferredNetwork: BASE_SEPOLIA,
+          preferredNetwork: BASE_MAINNET,
           preferredAsset: USDC_ADDRESS,
           paymentRequired: expect.objectContaining({
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "250000",
                 payTo: PAY_TO,
                 maxTimeoutSeconds: 60,
-                extra: { name: "USDC", version: "2" },
+                extra: { name: "USD Coin", version: "2" },
               },
             ],
           }),
@@ -1019,12 +1016,12 @@ describe("POST /{id}/x402-payments", () => {
       tx.taskX402Payment.findUnique.mockResolvedValue(createPaymentRecord());
       const verified = {
         scheme: "exact",
-        network: BASE_SEPOLIA,
+        network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         amount: "250000",
         payTo: PAY_TO,
         maxTimeoutSeconds: 60,
-        extra: { name: "USDC", version: "2" },
+        extra: { name: "USD Coin", version: "2" },
       };
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
@@ -1036,7 +1033,7 @@ describe("POST /{id}/x402-payments", () => {
               verified,
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: "0x9999999999999999999999999999999999999999",
                 amount: "999999999",
                 payTo: OTHER_PAY_TO,
@@ -1070,7 +1067,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "250000",
                 payTo: PAY_TO,
@@ -1078,7 +1075,7 @@ describe("POST /{id}/x402-payments", () => {
               },
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "999999999",
                 payTo: OTHER_PAY_TO,
@@ -1140,7 +1137,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "1",
                 payTo: OTHER_PAY_TO,
@@ -1160,7 +1157,7 @@ describe("POST /{id}/x402-payments", () => {
         "differing payTo",
         {
           scheme: "exact",
-          network: BASE_SEPOLIA,
+          network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           amount: "250000",
           payTo: OTHER_PAY_TO,
@@ -1171,7 +1168,7 @@ describe("POST /{id}/x402-payments", () => {
         "differing network",
         {
           scheme: "exact",
-          network: BASE_MAINNET,
+          network: BASE_SEPOLIA,
           asset: USDC_ADDRESS,
           amount: "250000",
           payTo: PAY_TO,
@@ -1182,7 +1179,7 @@ describe("POST /{id}/x402-payments", () => {
         "differing asset",
         {
           scheme: "exact",
-          network: BASE_SEPOLIA,
+          network: BASE_MAINNET,
           asset: "0x9999999999999999999999999999999999999999",
           amount: "250000",
           payTo: PAY_TO,
@@ -1216,7 +1213,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "999999",
                 payTo: PAY_TO,
@@ -1248,7 +1245,7 @@ describe("POST /{id}/x402-payments", () => {
       // The charge stays PENDING and nothing auto-refunds it yet, so the
       // message must not promise a refund and ops must be paged now.
       tx.taskX402Payment.findUnique.mockResolvedValue(createPaymentRecord());
-      getX402ReadySourcesMock.mockResolvedValue([]);
+      x402ReadySourcesMock.mockResolvedValue([]);
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
       const response = await postPayment(app, validBody());
@@ -1367,7 +1364,7 @@ describe("POST /{id}/x402-payments", () => {
           agentId: AGENT_ID,
           amount: "250000",
           asset: USDC_ADDRESS,
-          caip2Network: BASE_SEPOLIA,
+          caip2Network: BASE_MAINNET,
           transaction: {
             amount: CENTS_FOR_DEMAND * -1n,
             userId: USER_ID,
@@ -1469,7 +1466,7 @@ describe("POST /{id}/x402-payments", () => {
       expect(payX402Mock).not.toHaveBeenCalled();
     }
 
-    it("answers 404 for an unavailable Preprod agent using the catalog gates", async () => {
+    it("answers 404 for an unavailable Mainnet agent using the catalog gates", async () => {
       tx.agent.findFirst.mockResolvedValue(null);
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
@@ -1492,6 +1489,7 @@ describe("POST /{id}/x402-payments", () => {
               },
             ],
             status: "ONLINE",
+            isShown: true,
           },
         }),
       );
@@ -1507,7 +1505,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "250000",
                 payTo: OTHER_PAY_TO,
@@ -1528,7 +1526,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_MAINNET,
+              network: BASE_SEPOLIA,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "FIXED",
@@ -1546,7 +1544,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_MAINNET,
+                network: BASE_SEPOLIA,
                 asset: USDC_ADDRESS,
                 amount: "250000",
                 payTo: PAY_TO,
@@ -1570,7 +1568,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "250001",
                 payTo: PAY_TO,
@@ -1585,7 +1583,7 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("rejects when the (network, asset) pair is not buy-side ready", async () => {
-      getX402ReadySourcesMock.mockResolvedValue([]);
+      x402ReadySourcesMock.mockResolvedValue([]);
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
       const response = await postPayment(app, validBody());
@@ -1599,7 +1597,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "DYNAMIC",
@@ -1607,7 +1605,7 @@ describe("POST /{id}/x402-payments", () => {
             },
             {
               sourceIndex: 1,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: "not-an-address",
               scheme: "exact",
               pricingType: "DYNAMIC",
@@ -1630,7 +1628,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "DYNAMIC",
@@ -1638,7 +1636,7 @@ describe("POST /{id}/x402-payments", () => {
             },
             {
               sourceIndex: 1,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "FIXED",
@@ -1668,7 +1666,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "FIXED",
@@ -1676,7 +1674,7 @@ describe("POST /{id}/x402-payments", () => {
             },
             {
               sourceIndex: 1,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: OTHER_PAY_TO,
               scheme: "exact",
               pricingType: "FIXED",
@@ -1687,26 +1685,26 @@ describe("POST /{id}/x402-payments", () => {
           ],
         }),
       );
-      getCreditCostsOrThrowMock.mockResolvedValue([
+      requireRatesMock.mockResolvedValue([
         createCreditCostRow(
-          `${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`,
+          `${BASE_MAINNET}/erc20:${USDC_ADDRESS}`,
           2n * 10n ** 10n,
         ),
         createCreditCostRow(
-          `${BASE_SEPOLIA}/erc20:${EXPENSIVE_ASSET}`,
+          `${BASE_MAINNET}/erc20:${EXPENSIVE_ASSET}`,
           2n * 10n ** 10n,
         ),
       ]);
-      getX402ReadySourcesMock.mockResolvedValue([
+      x402ReadySourcesMock.mockResolvedValue([
         {
-          caip2Network: BASE_SEPOLIA,
+          caip2Network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           evmWalletId: "wallet-1",
           evmWalletAddress: PAYER,
           decimals: 6,
         },
         {
-          caip2Network: BASE_SEPOLIA,
+          caip2Network: BASE_MAINNET,
           asset: EXPENSIVE_ASSET,
           evmWalletId: "wallet-1",
           evmWalletAddress: PAYER,
@@ -1723,7 +1721,7 @@ describe("POST /{id}/x402-payments", () => {
             accepts: [
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: EXPENSIVE_ASSET,
                 amount: "999999999",
                 payTo: OTHER_PAY_TO,
@@ -1732,12 +1730,12 @@ describe("POST /{id}/x402-payments", () => {
               },
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: USDC_ADDRESS,
                 amount: "250000",
                 payTo: PAY_TO,
                 maxTimeoutSeconds: 60,
-                extra: { name: "USDC", version: "2" },
+                extra: { name: "USD Coin", version: "2" },
               },
             ],
           }),
@@ -1810,7 +1808,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "DYNAMIC",
@@ -1836,7 +1834,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "DYNAMIC",
@@ -1860,7 +1858,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "DYNAMIC",
@@ -1924,7 +1922,7 @@ describe("POST /{id}/x402-payments", () => {
           paymentSources: [
             {
               sourceIndex: 0,
-              network: BASE_SEPOLIA,
+              network: BASE_MAINNET,
               payTo: PAY_TO,
               scheme: "exact",
               pricingType: "FIXED",
@@ -1944,7 +1942,7 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("rejects when the asset has no CreditCost row (fail closed)", async () => {
-      getCreditCostsOrThrowMock.mockResolvedValue([
+      requireRatesMock.mockResolvedValue([
         createCreditCostRow("some-other-unit", 10n ** 10n),
       ]);
       const app = createApp(COWORKER_AGENT_CONTEXT);
@@ -1966,12 +1964,12 @@ describe("POST /{id}/x402-payments", () => {
         accepts: [
           {
             scheme: "exact",
-            network: "base-sepolia",
+            network: "base",
             asset: USDC_ADDRESS,
             maxAmountRequired: "250000",
             payTo: PAY_TO,
             maxTimeoutSeconds: 60,
-            extra: { name: "USDC", version: "2" },
+            extra: { name: "USD Coin", version: "2" },
           },
         ],
       };
@@ -1998,7 +1996,7 @@ describe("POST /{id}/x402-payments", () => {
             x402Version: 1,
             accepts: [
               expect.objectContaining({
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 amount: "250000",
               }),
             ],
@@ -2025,6 +2023,7 @@ describe("POST /{id}/x402-payments", () => {
         preprod.on = true;
         billedUser = vi.fn().mockResolvedValue({ preprodEnabled: true });
         Object.assign(tx, { user: { findUnique: billedUser } });
+        Object.assign(prisma, { user: { findUnique: billedUser } });
       });
 
       const pay = (
@@ -2037,7 +2036,22 @@ describe("POST /{id}/x402-payments", () => {
             method: "POST",
             headers: { "Content-Type": "application/json", ...headers },
             // Base Sepolia: Preprod's chain.
-            body: JSON.stringify(validBody()),
+            body: JSON.stringify(
+              validBody({
+                paymentRequired: create402({
+                  accepts: [
+                    {
+                      scheme: "exact",
+                      network: BASE_SEPOLIA,
+                      asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+                      amount: "250000",
+                      payTo: PAY_TO,
+                      maxTimeoutSeconds: 60,
+                    },
+                  ],
+                }),
+              }),
+            ),
           },
         );
 
@@ -2047,6 +2061,53 @@ describe("POST /{id}/x402-payments", () => {
         expect(tx.taskX402Payment.create).not.toHaveBeenCalled();
         expect(payX402Mock).not.toHaveBeenCalled();
       }
+
+      it("refuses a Preprod payment before reading the billed party when Masumi configuration disabled Preprod", async () => {
+        preprod.on = false;
+        preprod.disabledByMasumi = true;
+
+        const response = await pay(COWORKER_AGENT_CONTEXT);
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.PREPROD_OFF,
+        });
+        expect(billedUser).not.toHaveBeenCalled();
+        expectNothingCharged();
+      });
+
+      it("refuses a mixed offer replay whose stored chain is Preprod", async () => {
+        const mainnet = create402().accepts[0];
+        const preprodEntry = {
+          ...mainnet,
+          network: BASE_SEPOLIA,
+          asset: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+        };
+        const mixed = create402({ accepts: [preprodEntry, mainnet] });
+        preflightPaymentFindUniqueMock.mockResolvedValue(
+          createPaymentRecord({
+            status: "VERIFIED",
+            attemptId: "attempt_stored",
+            caip2Network: BASE_SEPOLIA,
+            asset: preprodEntry.asset,
+            demandFingerprint: paymentDemandFingerprint(mixed),
+            xPaymentHeader: normalizedPaymentHeader(),
+            validBefore: new Date(VALID_BEFORE_SECONDS * 1000),
+          }),
+        );
+
+        const response = await postPayment(
+          createApp(COWORKER_AGENT_CONTEXT),
+          validBody({ paymentRequired: mixed }),
+        );
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH,
+        });
+        expect(billedUser).toHaveBeenCalledTimes(1);
+        expectNothingCharged();
+      });
 
       it("refuses a header that names the other Network, before the charge", async () => {
         const response = await pay(COWORKER_AGENT_CONTEXT, {
@@ -2140,10 +2201,13 @@ describe("POST /{id}/x402-payments", () => {
           await expectNothingReplayed(response);
         });
 
-        it("goes on for a billed party with access", async () => {
+        it("refuses Preprod settlement for a billed party with access", async () => {
           const response = await pay(COWORKER_AGENT_CONTEXT);
 
-          expect(response.status).toBe(200);
+          expect(response.status).toBe(403);
+          expect(await response.json()).toMatchObject({
+            kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH,
+          });
           expect(billedUser).toHaveBeenCalledWith({
             where: { id: USER_ID },
             select: { preprodEnabled: true },
@@ -2156,24 +2220,20 @@ describe("POST /{id}/x402-payments", () => {
         ["without the header", {}],
         ["with the header that names it", { "X-Sokosumi-Network": "preprod" }],
       ])(
-        "charges the chain's Network for a billed party with access, %s",
+        "refuses to charge Preprod for a billed party with access, %s",
         async (_name, headers) => {
           const response = await pay(COWORKER_AGENT_CONTEXT, headers);
 
-          expect(response.status).toBe(200);
+          expect(response.status).toBe(403);
+          expect(await response.json()).toMatchObject({
+            kind: CORE_API_ERROR_KINDS.NETWORK_MISMATCH,
+          });
           // The Task's Owner is asked, not the Coworker that calls.
           expect(billedUser).toHaveBeenCalledWith({
             where: { id: USER_ID },
             select: { preprodEnabled: true },
           });
-          expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-              scope: expect.objectContaining({ network: "preprod" }),
-            }),
-          );
-          expect(tx.taskEvent.create).toHaveBeenCalledWith({
-            data: expect.objectContaining({ network: "preprod" }),
-          });
+          expectNothingCharged();
         },
       );
     });
@@ -2193,7 +2253,7 @@ describe("POST /{id}/x402-payments", () => {
           name: "PAYMENT-SIGNATURE",
           value: normalizedPaymentHeader(),
         },
-        caip2Network: BASE_SEPOLIA,
+        caip2Network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         amount: "250000",
         payTo: PAY_TO,
@@ -2226,7 +2286,7 @@ describe("POST /{id}/x402-payments", () => {
           idempotencyKey: IDEMPOTENCY_KEY,
           taskId: TASK_ID,
           agentId: AGENT_ID,
-          caip2Network: BASE_SEPOLIA,
+          caip2Network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           amount: "250000",
           payTo: PAY_TO,
@@ -2252,7 +2312,7 @@ describe("POST /{id}/x402-payments", () => {
         {
           evmWalletId: "wallet-1",
           paymentRequired: expect.objectContaining({ x402Version: 2 }),
-          preferredNetwork: BASE_SEPOLIA,
+          preferredNetwork: BASE_MAINNET,
           preferredAsset: USDC_ADDRESS,
           paymentIdentifier: `${TASK_ID}_${PAYMENT_ID}`,
         },
@@ -2274,7 +2334,7 @@ describe("POST /{id}/x402-payments", () => {
           status: "VERIFIED",
           attemptId: "attempt_1",
           xPaymentHeader: normalizedPaymentHeader(),
-          caip2Network: BASE_SEPOLIA,
+          caip2Network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           amount: "250000",
           payTo: PAY_TO,
@@ -2499,12 +2559,12 @@ describe("POST /{id}/x402-payments", () => {
         accepts: [
           {
             scheme: "exact",
-            network: BASE_SEPOLIA,
+            network: BASE_MAINNET,
             asset: USDC_ADDRESS,
             amount: "0250000",
             payTo: PAY_TO,
             maxTimeoutSeconds: 60,
-            extra: { name: "USDC", version: "2" },
+            extra: { name: "USD Coin", version: "2" },
           },
         ],
       });
@@ -2557,12 +2617,12 @@ describe("POST /{id}/x402-payments", () => {
       // node's selection rule irrelevant.
       const verified = {
         scheme: "exact",
-        network: BASE_SEPOLIA,
+        network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         amount: "250000",
         payTo: PAY_TO,
         maxTimeoutSeconds: 60,
-        extra: { name: "USDC", version: "2" },
+        extra: { name: "USD Coin", version: "2" },
       };
       const app = createApp(COWORKER_AGENT_CONTEXT);
 
@@ -2574,7 +2634,7 @@ describe("POST /{id}/x402-payments", () => {
               verified,
               {
                 scheme: "exact",
-                network: BASE_SEPOLIA,
+                network: BASE_MAINNET,
                 asset: "0x9999999999999999999999999999999999999999",
                 amount: "999999999",
                 payTo: OTHER_PAY_TO,
@@ -2999,9 +3059,9 @@ describe("POST /{id}/x402-payments", () => {
     });
 
     it("binds the signed payer to the managed wallet selected before charging", async () => {
-      getX402ReadySourcesMock.mockResolvedValue([
+      x402ReadySourcesMock.mockResolvedValue([
         {
-          caip2Network: BASE_SEPOLIA,
+          caip2Network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           evmWalletId: "wallet-1",
           evmWalletAddress: "0x4444444444444444444444444444444444444444",
@@ -3059,7 +3119,7 @@ describe("POST /{id}/x402-payments", () => {
         accepts: [
           {
             ...base.accepts[0],
-            extra: { name: "USDC", version: "2" },
+            extra: { name: "USD Coin", version: "2" },
           },
         ],
       };
@@ -3144,7 +3204,7 @@ describe("POST /{id}/x402-payments", () => {
               {},
               {
                 extra: {
-                  name: "USDC",
+                  name: "USD Coin",
                   version: "2",
                   assetTransferMethod: "permit2",
                 },
@@ -3492,7 +3552,7 @@ describe("POST /{id}/x402-payments", () => {
       payX402Mock.mockResolvedValue(
         ok(
           signedNodePayment({
-            xPaymentHeader: xPaymentHeader({}, { network: BASE_MAINNET }),
+            xPaymentHeader: xPaymentHeader({}, { network: BASE_SEPOLIA }),
           }),
         ),
       );
@@ -3552,7 +3612,7 @@ describe("POST /{id}/x402-payments", () => {
       payX402Mock.mockResolvedValue(
         ok(
           signedNodePayment({
-            xPaymentHeader: xPaymentHeader({}, { network: "base-sepolia" }),
+            xPaymentHeader: xPaymentHeader({}, { network: "base" }),
           }),
         ),
       );

@@ -38,7 +38,7 @@ vi.mock("@/config/env", async () => ({
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: { getBalance: getBalanceMock },
+  creditBucketRepository: { getNetworkBalance: getBalanceMock },
 }));
 
 vi.mock("@/lib/db/prisma", () => {

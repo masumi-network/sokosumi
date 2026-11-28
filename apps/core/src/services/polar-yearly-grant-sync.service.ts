@@ -3,6 +3,7 @@ import { CreditBucketReferenceType } from "@sokosumi/database";
 import { getNextMonthlyPeriodEnd } from "@sokosumi/database/helpers";
 import { convertCreditsToCents } from "@sokosumi/utils";
 
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
@@ -80,12 +81,14 @@ export async function grantStartedPolarYearlyMonths(
   plan: { credits: number; name: string },
 ): Promise<void> {
   const paidOrderId = subscription.lastPaidOrderId;
+  const scope = createNetworkScope("mainnet");
   for (const month of startedMonths(
     subscription.currentPeriodStart,
     paidOrderId,
     new Date(),
   )) {
     await grantPolarCredits({
+      scope,
       amount: convertCreditsToCents(plan.credits),
       expiresAt: month.expiresAt,
       organizationId: subscription.organizationId,
@@ -156,6 +159,7 @@ export async function syncPolarYearlyGrants(
   if (missing.length === 0) return result;
 
   const { plans } = await getCmoCatalog();
+  const scope = createNetworkScope("mainnet");
   for (const grant of missing) {
     if (!shouldContinue()) {
       result.stoppedEarly = true;
@@ -177,6 +181,7 @@ export async function syncPolarYearlyGrants(
     }
     try {
       const granted = await grantPolarCredits({
+        scope,
         amount: convertCreditsToCents(plan.credits),
         expiresAt: grant.expiresAt,
         organizationId: grant.organizationId,

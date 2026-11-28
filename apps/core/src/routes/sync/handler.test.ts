@@ -290,15 +290,18 @@ describe("handleSyncRequest with a Network", () => {
     expect(response.status).toBe(401);
   });
 
-  it("creates the scope before it takes the lock", async () => {
+  it("skips Preprod before it takes the lock", async () => {
     const work = vi.fn();
 
     const response = await request((c) =>
       handleSyncRequest(c, "lock-key", work, { network: "preprod" }),
     );
 
-    expect(response.status).toBe(500);
-    expect(await response.text()).toContain("Preprod is off");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      message: "Sync skipped",
+      reason: "off",
+    });
     expect(acquireLock).not.toHaveBeenCalled();
     expect(work).not.toHaveBeenCalled();
   });

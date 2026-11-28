@@ -1,5 +1,6 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { buildSokoBotTaskWhere } from "@/helpers/task-visibility";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { roundCredits } from "@/lib/soko-bot/task-charges";
 
@@ -87,6 +88,7 @@ export async function activityStats(
   since: Date,
   until: Date,
 ): Promise<ActivityStats> {
+  const scope = createNetworkScope("mainnet");
   const window = { gte: since, lt: until };
   // Null for a shared bot, which has no owner.
   const ownerId = bot.userId;
@@ -117,7 +119,7 @@ export async function activityStats(
     prisma.chatRoomMessage.count({
       where: { senderSokoBotId: bot.id, createdAt: window, deletedAt: null },
     }),
-    prisma.sokoBotUsage.aggregate({
+    scope.networkDb.sokoBotUsage.aggregate({
       where: { sokoBotId: bot.id, createdAt: window },
       _sum: { cents: true },
     }),

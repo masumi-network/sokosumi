@@ -20,7 +20,25 @@ import { onSplitLayout } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
 /** Statements Core's pool sent: the database client decides what a read is. */
-const sent = vi.hoisted(() => ({ statements: 0 }));
+const sent = vi.hoisted(() => ({ statements: 0, detailReads: [] as number[] }));
+// Count statements during the real catalog call. Authentication may also read
+// a vendor grant on the first request for a workspace.
+vi.mock("@/lib/agent-catalog/detail", async (load) => {
+  const actual = await load<typeof import("@/lib/agent-catalog/detail")>();
+  return {
+    ...actual,
+    async getAvailableAgent(
+      ...args: Parameters<typeof actual.getAvailableAgent>
+    ) {
+      const before = sent.statements;
+      try {
+        return await actual.getAvailableAgent(...args);
+      } finally {
+        sent.detailReads.push(sent.statements - before);
+      }
+    },
+  };
+});
 /** Work a request hands to `waitUntil`, awaited as part of that request. */
 const background = vi.hoisted(() => [] as Promise<unknown>[]);
 vi.mock("@vercel/functions", async (importOriginal) => {
@@ -131,9 +149,13 @@ async function call(
   headers: Record<string, string>,
 ): Promise<Answer> {
   const before = sent.statements;
+  const detailCalls = sent.detailReads.length;
   const response = await loaded.app.request(`${ORIGIN}${path}`, {
     headers: { origin: ORIGIN, ...headers },
   });
+  if (response.status === 403 && path.startsWith("/v1/agents/")) {
+    expect(sent.detailReads.slice(detailCalls)).toEqual([0]);
+  }
   const text = await response.text();
   while (background.length > 0) {
     await Promise.allSettled(background.splice(0));
@@ -594,236 +616,12 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         ...sharedPaths(userId),
         "/v1/agents",
         "/v1/credit-costs",
-        // Still on the default client, so their tables are not there on the
-        // split layout until their tickets move them.
-        ...(onSplitLayout ? [] : [`/v1/agents/${catalog.agentId}`, "/v1/jobs"]),
+        `/v1/agents/${catalog.agentId}`,
+        // Jobs are still on the default client, so their tables are not there
+        // on the split layout until the Jobs ticket moves them.
+        ...(onSplitLayout ? [] : ["/v1/jobs"]),
       ];
     }
-
-    // The old Preprod: `NETWORK` is Preprod, Preprod off, one schema. Its
-    // paid catalog keeps the deployment's `NETWORK` in the V2 and x402
-    // filters (decision 9), so it must answer as before this ticket.
-    it.runIf(deploymentNetwork === "Preprod" && !onSplitLayout)(
-      "answers the old Preprod's paid catalog as before this ticket",
-      async () => {
-        const ids = { v2: "n20-old-preprod-v2", x402: "n20-old-preprod-x402" };
-        const v2Policy = "a".repeat(56);
-        const v2Address = "addr_test1_n20";
-        const asset = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
-        const payTo = "0x1111111111111111111111111111111111111111";
-        const now = new Date("2026-11-25T12:00:00.000Z");
-        const seed = {
-          lastUptimeCheck: now,
-          uptimeCount: 1,
-          uptimeCheckCount: 1,
-          createdAt: now,
-          updatedAt: now,
-          isShown: true,
-          apiBaseUrl: "https://agent.example.com",
-        };
-        const readiness = [
-          {
-            key: "cardano-v2-rail-readiness",
-            cursorId: JSON.stringify([
-              { policyId: v2Policy, smartContractAddress: v2Address },
-            ]),
-          },
-          {
-            key: "x402-buy-side-readiness",
-            cursorId: JSON.stringify([
-              {
-                caip2Network: "eip155:84532",
-                asset,
-                decimals: 6,
-                evmWalletId: "n20-wallet",
-                evmWalletAddress: payTo,
-              },
-            ]),
-          },
-        ];
-        const units = ["lovelace", `eip155:84532/erc20:${asset}`];
-        const { prisma } = loaded;
-        // Network rows through the Mainnet scope, shared ones on the default
-        // client, so the fixture names the right schema on either layout.
-        const scope = loaded.createNetworkScope("mainnet");
-        const db = scope.networkDb;
-        const keys = readiness.map((row) => row.key);
-        // What the fixture finds is kept and put back; what it creates, it
-        // removes. Every created row is known to cleanup before the next
-        // await: ids are made here and recorded before the write, and an
-        // Agent (fixed id, so it may exist already) right after its create.
-        const kept = await prisma.syncMetadata.findMany({
-          where: { key: { in: keys } },
-        });
-        const created = {
-          costIds: [] as string[],
-          agentIds: [] as string[],
-          pricingIds: [] as string[],
-          fixedPricingIds: [] as string[],
-          unitValueIds: [] as string[],
-        };
-        const made = <K extends keyof typeof created>(kind: K) => {
-          const id = randomUUID();
-          created[kind].push(id);
-          return id;
-        };
-        try {
-          for (const row of readiness) {
-            await prisma.syncMetadata.upsert({
-              where: { key: row.key },
-              create: { ...row, lastSyncedAt: now },
-              update: { cursorId: row.cursorId, lastSyncedAt: now },
-            });
-          }
-          const existingUnits = (
-            await db.creditCost.findMany({ where: { unit: { in: units } } })
-          ).map((cost) => cost.unit);
-          for (const unit of units.filter((u) => !existingUnits.includes(u))) {
-            const id = made("costIds");
-            await scope.netTransaction(async (tx) => {
-              // shortcut: the unit trigger calls `public.canonical_credit_cost_unit`,
-              // which the split layout moved to `shared`; drop this line with ticket 19.
-              if (onSplitLayout) {
-                await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
-              }
-              await tx.creditCost.create({
-                data: { id, unit, centsPerUnit: 10n ** 10n },
-              });
-            }, "Fixture conflict");
-          }
-          const v2 = await db.agent.create({
-            data: {
-              ...seed,
-              id: ids.v2,
-              blockchainIdentifier: `${v2Policy}123456`,
-              name: "Paid Cardano V2",
-              description: "Paid Cardano fixture",
-              jobCount: 9,
-              paymentType: "WEB3_CARDANO_V2",
-              pricing: {
-                create: {
-                  id: made("pricingIds"),
-                  pricingType: "FIXED",
-                  fixedPricing: {
-                    create: {
-                      id: made("fixedPricingIds"),
-                      amounts: {
-                        create: {
-                          id: made("unitValueIds"),
-                          unit: "lovelace",
-                          amount: 2n,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              paymentSources: {
-                create: {
-                  sourceIndex: 0,
-                  chain: "Cardano",
-                  network: "Preprod",
-                  paymentSourceType: "Web3CardanoV2",
-                  address: v2Address,
-                  pricingType: "FIXED",
-                },
-              },
-            },
-          });
-          created.agentIds.push(v2.id);
-          await db.userAgentRating.create({
-            data: { userId: optedIn.id, agentId: v2.id, rating: 4 },
-          });
-          const x402 = await db.agent.create({
-            data: {
-              ...seed,
-              id: ids.x402,
-              blockchainIdentifier: "n20-old-preprod-x402-identifier",
-              apiBaseUrl: null,
-              type: "X402",
-              name: "Paid x402",
-              description: "Paid x402 fixture",
-              jobCount: 8,
-              x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
-              pricing: {
-                create: { id: made("pricingIds"), pricingType: "UNKNOWN" },
-              },
-              paymentSources: {
-                create: {
-                  sourceIndex: 0,
-                  chain: "EVM",
-                  network: "eip155:84532",
-                  scheme: "exact",
-                  payTo,
-                  address: asset,
-                  pricingType: "FIXED",
-                  amounts: {
-                    create: { unit: asset, amount: 2_000_000n, decimals: 6 },
-                  },
-                },
-              },
-            },
-          });
-          created.agentIds.push(x402.id);
-
-          const answers: Record<string, unknown> = {};
-          for (const path of [
-            "/v1/agents?limit=2",
-            `/v1/agents?limit=2&cursor=${ids.x402}`,
-            "/v1/agents?kind=cardano",
-            "/v1/agents?kind=x402&limit=2",
-          ]) {
-            await call(loaded, path, {});
-            const answer = await call(loaded, path, {});
-            // The free fixture Agent's id, name and times are random.
-            const free = JSON.stringify(answer)
-              .replaceAll(catalog.agentId, "free-agent")
-              .replaceAll(agentName, "free agent");
-            answers[path] = JSON.parse(free, (key, value) =>
-              value?.id === "free-agent"
-                ? { ...value, createdAt: "free", updatedAt: "free" }
-                : value,
-            );
-          }
-          expect(answers).toEqual(OLD_PREPROD_CATALOG);
-        } finally {
-          // Ratings, payment sources and their amounts go with the Agent.
-          await db.agent.deleteMany({
-            where: { id: { in: created.agentIds } },
-          });
-          await db.agentPricing.deleteMany({
-            where: { id: { in: created.pricingIds } },
-          });
-          await db.unitValue.deleteMany({
-            where: { id: { in: created.unitValueIds } },
-          });
-          await db.agentFixedPricing.deleteMany({
-            where: { id: { in: created.fixedPricingIds } },
-          });
-          await scope.netTransaction(async (tx) => {
-            if (onSplitLayout) {
-              await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
-            }
-            await tx.creditCost.deleteMany({
-              where: { id: { in: created.costIds } },
-            });
-          }, "Fixture conflict");
-          await prisma.syncMetadata.deleteMany({
-            where: {
-              key: {
-                in: keys.filter((key) => !kept.some((r) => r.key === key)),
-              },
-            },
-          });
-          for (const row of kept) {
-            await prisma.syncMetadata.update({
-              where: { key: row.key },
-              data: row,
-            });
-          }
-        }
-      },
-    );
 
     it("reads for a Mainnet request what it read before this ticket", {
       timeout: MANY_REQUESTS,
@@ -954,6 +752,7 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
       for (const [who, path] of [
         [admin, "/v1/agents"],
         [admin, "/v1/credit-costs"],
+        [admin, `/v1/agents/${catalog.agentId}`],
         [optedIn, "/v1/agents"],
       ] as const) {
         {
@@ -969,7 +768,11 @@ describe.skipIf(!enabled).each(["Mainnet", "Preprod"])(
         }
       }
       for (const [name, credential] of bearers) {
-        for (const path of ["/v1/agents", "/v1/credit-costs"]) {
+        for (const path of [
+          "/v1/agents",
+          "/v1/credit-costs",
+          `/v1/agents/${catalog.agentId}`,
+        ]) {
           const answer = await call(loaded, path, {
             ...credential,
             [HEADER]: "preprod",
@@ -1204,6 +1007,16 @@ describe.runIf(enabled && onSplitLayout)(
       };
     }
 
+    async function detail(headers: Record<string, string>) {
+      const answer = await call(loaded, `/v1/agents/${agentId}`, headers);
+      const body = answer.body as { data?: { name: string }; kind?: string };
+      return {
+        status: answer.status,
+        kind: body.kind,
+        names: body.data ? [body.data.name] : undefined,
+      };
+    }
+
     const allowed = (network: "mainnet" | "preprod") => ({
       status: 200,
       kind: undefined,
@@ -1226,6 +1039,242 @@ describe.runIf(enabled && onSplitLayout)(
     /** A key of the person, its row and text with this prefix (null: none). */
     const key = async (who: Person, prefix: string | null) =>
       bearer(await loaded.fixture.createApiKey(who.id, prefix));
+
+    // The old Preprod recording used NETWORK=Preprod, one schema and Preprod off.
+    // It captured both paid rails, pagination, response bodies and statement counts.
+    // Ticket 22 now serves that catalog through an authenticated, enabled Preprod scope.
+    it("serves the recorded paid catalog from the Preprod scope", async () => {
+      const ids = { v2: "n20-old-preprod-v2", x402: "n20-old-preprod-x402" };
+      const v2Policy = "a".repeat(56);
+      const v2Address = "addr_test1_n20";
+      const asset = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+      const payTo = "0x1111111111111111111111111111111111111111";
+      const now = new Date("2026-11-25T12:00:00.000Z");
+      const seed = {
+        lastUptimeCheck: now,
+        uptimeCount: 1,
+        uptimeCheckCount: 1,
+        createdAt: now,
+        updatedAt: now,
+        isShown: true,
+        apiBaseUrl: "https://agent.example.com",
+      };
+      const readiness = [
+        {
+          key: "preprod:cardano-v2-rail-readiness",
+          cursorId: JSON.stringify([
+            { policyId: v2Policy, smartContractAddress: v2Address },
+          ]),
+        },
+        {
+          key: "preprod:x402-buy-side-readiness",
+          cursorId: JSON.stringify([
+            {
+              caip2Network: "eip155:84532",
+              asset,
+              decimals: 6,
+              evmWalletId: "n20-wallet",
+              evmWalletAddress: payTo,
+            },
+          ]),
+        },
+      ];
+      const units = ["lovelace", `eip155:84532/erc20:${asset}`];
+      const { prisma } = loaded;
+      // Network rows through the Mainnet scope, shared ones on the default
+      // client, so the fixture names the right schema on either layout.
+      const scope = loaded.createNetworkScope("preprod");
+      const db = scope.networkDb;
+      const keys = readiness.map((row) => row.key);
+      // What the fixture finds is kept and put back; what it creates, it
+      // removes. Every created row is known to cleanup before the next
+      // await: ids are made here and recorded before the write, and an
+      // Agent (fixed id, so it may exist already) right after its create.
+      const kept = await prisma.syncMetadata.findMany({
+        where: { key: { in: keys } },
+      });
+      const created = {
+        costIds: [] as string[],
+        agentIds: [] as string[],
+        pricingIds: [] as string[],
+        fixedPricingIds: [] as string[],
+        unitValueIds: [] as string[],
+      };
+      const made = <K extends keyof typeof created>(kind: K) => {
+        const id = randomUUID();
+        created[kind].push(id);
+        return id;
+      };
+      try {
+        for (const row of readiness) {
+          await prisma.syncMetadata.upsert({
+            where: { key: row.key },
+            create: { ...row, lastSyncedAt: now },
+            update: { cursorId: row.cursorId, lastSyncedAt: now },
+          });
+        }
+        const existingUnits = (
+          await db.creditCost.findMany({ where: { unit: { in: units } } })
+        ).map((cost) => cost.unit);
+        for (const unit of units.filter((u) => !existingUnits.includes(u))) {
+          const id = made("costIds");
+          await scope.netTransaction(async (tx) => {
+            // shortcut: the unit trigger calls `public.canonical_credit_cost_unit`,
+            // which the split layout moved to `shared`; drop this line with ticket 19.
+            if (onSplitLayout) {
+              await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+            }
+            await tx.creditCost.create({
+              data: { id, unit, centsPerUnit: 10n ** 10n },
+            });
+          }, "Fixture conflict");
+        }
+        const v2 = await db.agent.create({
+          data: {
+            ...seed,
+            id: ids.v2,
+            blockchainIdentifier: `${v2Policy}123456`,
+            name: "Paid Cardano V2",
+            description: "Paid Cardano fixture",
+            jobCount: 9,
+            paymentType: "WEB3_CARDANO_V2",
+            pricing: {
+              create: {
+                id: made("pricingIds"),
+                pricingType: "FIXED",
+                fixedPricing: {
+                  create: {
+                    id: made("fixedPricingIds"),
+                    amounts: {
+                      create: {
+                        id: made("unitValueIds"),
+                        unit: "lovelace",
+                        amount: 2n,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            paymentSources: {
+              create: {
+                sourceIndex: 0,
+                chain: "Cardano",
+                network: "Preprod",
+                paymentSourceType: "Web3CardanoV2",
+                address: v2Address,
+                pricingType: "FIXED",
+              },
+            },
+          },
+        });
+        created.agentIds.push(v2.id);
+        await db.userAgentRating.create({
+          data: { userId: optedIn.id, agentId: v2.id, rating: 4 },
+        });
+        const x402 = await db.agent.create({
+          data: {
+            ...seed,
+            id: ids.x402,
+            blockchainIdentifier: "n20-old-preprod-x402-identifier",
+            apiBaseUrl: null,
+            type: "X402",
+            name: "Paid x402",
+            description: "Paid x402 fixture",
+            jobCount: 8,
+            x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
+            pricing: {
+              create: { id: made("pricingIds"), pricingType: "UNKNOWN" },
+            },
+            paymentSources: {
+              create: {
+                sourceIndex: 0,
+                chain: "EVM",
+                network: "eip155:84532",
+                scheme: "exact",
+                payTo,
+                address: asset,
+                pricingType: "FIXED",
+                amounts: {
+                  create: { unit: asset, amount: 2_000_000n, decimals: 6 },
+                },
+              },
+            },
+          },
+        });
+        created.agentIds.push(x402.id);
+
+        const answers: Record<string, unknown> = {};
+        for (const path of [
+          "/v1/agents?limit=2",
+          `/v1/agents?limit=2&cursor=${ids.x402}`,
+          "/v1/agents?kind=cardano",
+          "/v1/agents?kind=x402&limit=2",
+        ]) {
+          await call(loaded, path, {
+            cookie: admin.cookie,
+            [HEADER]: "preprod",
+          });
+          const answer = await call(loaded, path, {
+            cookie: admin.cookie,
+            [HEADER]: "preprod",
+          });
+          // The free fixture Agent's id, name and times are random.
+          const free = JSON.stringify(answer)
+            .replaceAll(names.preprod, "free agent")
+            .replaceAll(agentId, "free-agent");
+          answers[path] = JSON.parse(free, (key, value) =>
+            value?.id === "free-agent"
+              ? { ...value, createdAt: "free", updatedAt: "free" }
+              : value,
+          );
+        }
+        // Authenticating the admin session for Preprod adds two statements to each public read.
+        expect(answers).toEqual(
+          Object.fromEntries(
+            Object.entries(OLD_PREPROD_CATALOG).map(([path, answer]) => [
+              path,
+              { ...answer, statements: answer.statements + 2 },
+            ]),
+          ),
+        );
+      } finally {
+        // Ratings, payment sources and their amounts go with the Agent.
+        await db.agent.deleteMany({
+          where: { id: { in: created.agentIds } },
+        });
+        await db.agentPricing.deleteMany({
+          where: { id: { in: created.pricingIds } },
+        });
+        await db.unitValue.deleteMany({
+          where: { id: { in: created.unitValueIds } },
+        });
+        await db.agentFixedPricing.deleteMany({
+          where: { id: { in: created.fixedPricingIds } },
+        });
+        await scope.netTransaction(async (tx) => {
+          if (onSplitLayout) {
+            await tx.$executeRaw`SET LOCAL session_replication_role = replica`;
+          }
+          await tx.creditCost.deleteMany({
+            where: { id: { in: created.costIds } },
+          });
+        }, "Fixture conflict");
+        await prisma.syncMetadata.deleteMany({
+          where: {
+            key: {
+              in: keys.filter((key) => !kept.some((r) => r.key === key)),
+            },
+          },
+        });
+        for (const row of kept) {
+          await prisma.syncMetadata.update({
+            where: { key: row.key },
+            data: row,
+          });
+        }
+      }
+    });
 
     it("lists each Network's own row for the same Agent id", async () => {
       expect(await listed({})).toEqual(allowed("mainnet"));
@@ -1360,6 +1409,13 @@ describe.runIf(enabled && onSplitLayout)(
           caller,
           await listed({ ...headers, [HEADER]: "preprod" }),
         ]).toEqual([caller, expected]);
+        // Detail uses the authenticated router. Anonymous callers stop at auth.
+        if (caller !== "anonymous") {
+          expect([
+            caller,
+            await detail({ ...headers, [HEADER]: "preprod" }),
+          ]).toEqual([caller, expected]);
+        }
         // Without the header every one of them reads Mainnet.
         expect([caller, (await listed(headers)).names]).toEqual([
           caller,
@@ -1399,6 +1455,11 @@ describe.runIf(enabled && onSplitLayout)(
       ];
       for (const [caller, headers, expected] of cases) {
         expect([caller, await listed(headers)]).toEqual([caller, expected]);
+        expect([caller, await detail(headers)]).toEqual([caller, expected]);
+        expect([
+          caller,
+          await detail({ ...headers, [HEADER]: "mainnet" }),
+        ]).toEqual([caller, mismatch]);
         expect([
           caller,
           await listed({ ...headers, [HEADER]: "preprod" }),
@@ -1426,6 +1487,7 @@ describe.runIf(enabled && onSplitLayout)(
       // scope's Network.
       for (const [name, app, path] of [
         ["the catalog", loaded.app, "/v1/agents"],
+        ["the authenticated detail", loaded.app, `/v1/agents/${agentId}`],
         ["an authenticated router", probe, "/"],
       ] as const) {
         const request = new Request(`${ORIGIN}${path}`, {
@@ -1749,6 +1811,114 @@ describe.runIf(enabled && onSplitLayout)(
       });
       // Each Network has its own fixture credit cost.
       expect(answer.body).not.toEqual(mainnet.body);
+    });
+
+    it("runs the admin Agent and rate routes on the Preprod scope of an admin", async () => {
+      async function send(
+        method: string,
+        path: string,
+        network: "mainnet" | "preprod",
+        body?: unknown,
+      ) {
+        const response = await loaded.app.request(`${ORIGIN}${path}`, {
+          method,
+          headers: {
+            origin: ORIGIN,
+            cookie: admin.cookie,
+            [HEADER]: network,
+            ...(body !== undefined && { "content-type": "application/json" }),
+          },
+          ...(body !== undefined && { body: JSON.stringify(body) }),
+        });
+        const json = (await response.json()) as {
+          data?: Record<string, unknown> & {
+            registry?: { name: string };
+            resolved?: { name: string };
+          };
+        };
+        return { status: response.status, data: json.data };
+      }
+      const detail = async (network: "mainnet" | "preprod") => {
+        const { status, data } = await send(
+          "GET",
+          `/v1/admin/agents/${agentId}`,
+          network,
+        );
+        return [status, data?.registry?.name, data?.resolved?.name];
+      };
+
+      for (const sortBy of ["displayName", "createdAt"]) {
+        const list = await send(
+          "GET",
+          `/v1/admin/agents?q=${agentId}&sortBy=${sortBy}`,
+          "preprod",
+        );
+        const items = list.data as unknown as { registryName: string }[];
+        expect([sortBy, items.map((item) => item.registryName)]).toEqual([
+          sortBy,
+          [names.preprod],
+        ]);
+      }
+      expect(await detail("preprod")).toEqual([
+        200,
+        names.preprod,
+        names.preprod,
+      ]);
+      const patched = await send(
+        "PATCH",
+        `/v1/admin/agents/${agentId}/metadata-override`,
+        "preprod",
+        { name: "Preprod override" },
+      );
+      expect(patched.data?.resolved?.name).toBe("Preprod override");
+      expect(await detail("mainnet")).toEqual([
+        200,
+        names.mainnet,
+        names.mainnet,
+      ]);
+      await send(
+        "DELETE",
+        `/v1/admin/agents/${agentId}/metadata-override`,
+        "preprod",
+      );
+      expect(await detail("preprod")).toEqual([
+        200,
+        names.preprod,
+        names.preprod,
+      ]);
+
+      const unit = `n6_${agentId}`;
+      const created = await send("POST", "/v1/credit-costs", "preprod", {
+        unit: ` ${unit.toUpperCase()} `,
+        creditsPerUnit: 2,
+      });
+      const rateId = String(created.data?.id);
+      try {
+        expect([created.status, created.data?.unit]).toEqual([201, unit]);
+        const where = { where: { unit } };
+        const preprod = loaded.createNetworkScope("preprod").networkDb;
+        const mainnet = loaded.createNetworkScope("mainnet").networkDb;
+        expect(await preprod.creditCost.count(where)).toBe(1);
+        expect(await mainnet.creditCost.count(where)).toBe(0);
+        const path = `/v1/credit-costs/${rateId}`;
+        expect((await send("GET", path, "mainnet")).status).toBe(404);
+        expect((await send("GET", path, "preprod")).status).toBe(200);
+        const updated = await send("PATCH", path, "preprod", {
+          creditsPerUnit: 3,
+        });
+        expect([updated.status, updated.data?.creditsPerUnit]).toEqual([
+          200, 3,
+        ]);
+        expect((await send("DELETE", path, "mainnet")).status).toBe(404);
+        expect((await send("DELETE", path, "preprod")).status).toBe(200);
+        expect(await preprod.creditCost.count(where)).toBe(0);
+      } finally {
+        for (const network of ["mainnet", "preprod"] as const) {
+          await loaded
+            .createNetworkScope(network)
+            .networkDb.creditCost.deleteMany({ where: { id: rateId } });
+        }
+      }
     });
 
     it("serves shared data to preprod without access as without the header", async () => {

@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { NETWORKS } from "@/lib/network";
 
 /**
  * Transactions is the credit ledger, not an activity feed. One row is
@@ -78,6 +79,14 @@ const transactionHistoryBaseItemSchema = z.object({
   }),
 });
 
+const ledgerFields = {
+  network: z.enum(NETWORKS),
+  affectsBalance: z.boolean().openapi({
+    description:
+      "true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged",
+  }),
+};
+
 const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
   .extend({
     kind: z.literal("job"),
@@ -98,6 +107,7 @@ const transactionHistoryJobItemSchema = transactionHistoryBaseItemSchema
       example: "https://example.com/research.svg",
     }),
   })
+  .extend(ledgerFields)
   .openapi("TransactionHistoryJobItem");
 
 const transactionHistoryImageItemSchema = transactionHistoryBaseItemSchema
@@ -113,6 +123,7 @@ const transactionHistoryImageItemSchema = transactionHistoryBaseItemSchema
       example: "Gemini 3.1 Flash Image",
     }),
   })
+  .extend(ledgerFields)
   .openapi("TransactionHistoryImageItem");
 
 const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
@@ -132,6 +143,7 @@ const transactionHistoryTaskItemSchema = transactionHistoryBaseItemSchema
       example: false,
     }),
   })
+  .extend(ledgerFields)
   .openapi("TransactionHistoryTaskItem");
 
 const transactionHistoryCoworkerItemSchema = transactionHistoryBaseItemSchema
@@ -142,6 +154,7 @@ const transactionHistoryCoworkerItemSchema = transactionHistoryBaseItemSchema
       example: "cow_123",
     }),
   })
+  .extend(ledgerFields)
   .openapi("TransactionHistoryCoworkerItem");
 
 export const transactionHistorySokoBotItemSchema =
@@ -153,10 +166,12 @@ export const transactionHistorySokoBotItemSchema =
         example: "01960001-0001-7001-8001-000000000099",
       }),
     })
+    .extend(ledgerFields)
     .openapi("TransactionHistorySokoBotItem");
 
 const transactionHistorySeoChatItemSchema = transactionHistoryBaseItemSchema
   .extend({ kind: z.literal("seoChat") })
+  .extend(ledgerFields)
   .openapi("TransactionHistorySeoChatItem");
 
 const transactionHistoryContactsItemSchema = transactionHistoryBaseItemSchema
@@ -168,6 +183,7 @@ const transactionHistoryContactsItemSchema = transactionHistoryBaseItemSchema
       example: "01960001-0001-7001-8001-000000000077",
     }),
   })
+  .extend(ledgerFields)
   .openapi("TransactionHistoryContactsItem");
 
 const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
@@ -198,6 +214,7 @@ const transactionHistoryTopUpItemSchema = transactionHistoryBaseItemSchema
       example: "tsk_123",
     }),
   })
+  .extend(ledgerFields)
   .openapi("TransactionHistoryTopUpItem");
 
 const transactionHistoryUnattributedItemSchema =
@@ -215,6 +232,7 @@ const transactionHistoryUnattributedItemSchema =
         example: "STRIPE_SUBSCRIPTION_PERIOD",
       }),
     })
+    .extend(ledgerFields)
     .openapi("TransactionHistoryUnattributedItem");
 
 const transactionHistoryItemSchema = z
@@ -254,6 +272,8 @@ export const transactionHistoryListResponseExample = {
         name: "Bob Smith",
         image: null,
       },
+      network: "mainnet",
+      affectsBalance: true,
     },
     {
       kind: "topUp",
@@ -272,6 +292,8 @@ export const transactionHistoryListResponseExample = {
         name: "Bob Smith",
         image: null,
       },
+      network: "mainnet",
+      affectsBalance: true,
     },
     {
       kind: "unattributed",
@@ -287,6 +309,8 @@ export const transactionHistoryListResponseExample = {
         name: "Bob Smith",
         image: null,
       },
+      network: "mainnet",
+      affectsBalance: true,
     },
   ],
   meta: {
@@ -317,6 +341,7 @@ export const transactionTotalSchema = z
       description: "Matching ledger rows.",
       example: 3,
     }),
+    network: z.enum(NETWORKS),
   })
   .openapi("TransactionTotal");
 
@@ -331,6 +356,7 @@ export const transactionDailySpendListSchema = z
         description: "Credits spent that day. Top ups are not counted.",
         example: 12.5,
       }),
+      network: z.enum(NETWORKS),
     }),
   )
   .openapi("TransactionDailySpendList");

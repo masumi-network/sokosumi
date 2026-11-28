@@ -18,9 +18,9 @@ import {
   sqlTableLayoutFromEnv,
 } from "@sokosumi/database/sql-tables";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { writeOff } from "@/lib/credits/write-off";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { testSchemaNames } from "@/test/split-layout";
-
-import { writeOffProjectCredits } from "./cuso-project-credits";
 
 const { sharedTable } = createSqlTables(sqlTableLayoutFromEnv(process.env));
 
@@ -41,11 +41,13 @@ const PROJECT = randomUUID();
 
 /** 10^10 ledger units are one credit. */
 const CREDIT = 10_000_000_000n;
+const DAY = 86_400_000;
 
 async function grant(
   referenceType: CreditBucketReferenceType,
   credits: bigint,
   projectId: string | null,
+  dates?: { expiresAt: Date; createdAt: Date },
 ): Promise<string> {
   if (!db) throw new Error("Missing integration database");
   const amount = credits * CREDIT;
@@ -63,6 +65,7 @@ async function grant(
           referenceId: `${referenceType}-${randomUUID()}`,
           referenceType,
           userId: null,
+          ...dates,
         },
       },
     },
@@ -84,7 +87,7 @@ async function remaining(bucketId: string): Promise<bigint> {
   );
 }
 
-describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
+describe.skipIf(!db)("a Project's write-off against PostgreSQL", () => {
   beforeAll(async () => {
     if (!db) return;
     await db.$executeRaw`INSERT INTO ${sharedTable("organization")} ("id", "name", "slug", "createdAt") VALUES (${ORGANIZATION}, 'Write-off Org', ${ORGANIZATION}, NOW())`;
@@ -104,8 +107,13 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
     await db.$disconnect();
   });
 
-  it("writes off plan grants, top-ups and Tester credits, and keeps the pool", async () => {
+  it("writes off Project credits in expiry, creation and ID order, and keeps the pool", async () => {
     if (!db) throw new Error("Missing integration database");
+    const now = Date.now();
+    const soon = new Date(now + DAY);
+    const later = new Date(now + 2 * DAY);
+    const older = new Date(now - DAY);
+    const newer = new Date(now);
     const plan = await grant(
       CreditBucketReferenceType.POLAR_SUBSCRIPTION_MONTH,
       25_000n,
@@ -115,16 +123,52 @@ describe.skipIf(!db)("writeOffProjectCredits against PostgreSQL", () => {
       CreditBucketReferenceType.PROJECT_TOP_UP,
       5_000n,
       PROJECT,
+      { expiresAt: soon, createdAt: newer },
     );
     const tester = await grant(
       CreditBucketReferenceType.CMO_TESTER_CREDITS,
       10_000n,
       PROJECT,
+      { expiresAt: soon, createdAt: older },
+    );
+    const tied = await grant(
+      CreditBucketReferenceType.PROJECT_TOP_UP,
+      3n,
+      PROJECT,
+      { expiresAt: soon, createdAt: older },
+    );
+    const laterTopUp = await grant(
+      CreditBucketReferenceType.PROJECT_TOP_UP,
+      2n,
+      PROJECT,
+      { expiresAt: later, createdAt: older },
     );
     const pool = await grant(CreditBucketReferenceType.FREE, 700n, null);
 
-    await db.$transaction((tx) => writeOffProjectCredits(PROJECT, tx));
+    const writeOffs = await db.$transaction(async (tx) => {
+      // The old query emits bucket ID order with a sorted aggregate.
+      await tx.$executeRaw`SET LOCAL enable_hashagg = off`;
+      await writeOff({
+        scope: createNetworkScope("mainnet"),
+        tx,
+        of: { projectId: PROJECT },
+      });
+      return tx.creditConsumption.findMany({
+        where: { transaction: { organizationId: ORGANIZATION } },
+        orderBy: [
+          { transaction: { createdAt: "asc" } },
+          { transactionId: "asc" },
+        ],
+        select: { bucketId: true },
+      });
+    });
 
+    expect(writeOffs.map(({ bucketId }) => bucketId)).toEqual([
+      ...[tester, tied].sort(),
+      topUp,
+      laterTopUp,
+      plan,
+    ]);
     expect(await remaining(plan)).toBe(0n);
     expect(await remaining(topUp)).toBe(0n);
     expect(await remaining(tester)).toBe(0n);

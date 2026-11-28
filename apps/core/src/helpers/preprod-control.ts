@@ -1,5 +1,7 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { v7 as uuidv7 } from "uuid";
 
 import { serviceUnavailable } from "@/helpers/error";
@@ -11,7 +13,9 @@ import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import { recordCoreError } from "@/lib/evlog";
-import type { Network } from "@/lib/network";
+import { isPreprodOn, type Network } from "@/lib/network";
+import type { DetachedTurnProvenance } from "@/lib/soko-bot/detached-network";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
 
 /**
  * The Preprod pause and generation number: two `sync_metadata` rows on the
@@ -45,6 +49,23 @@ export type PreprodControl =
   | { state: "unavailable" };
 
 type KnownPreprodControl = Exclude<PreprodControl, { state: "unavailable" }>;
+
+const controlLog = new AsyncLocalStorage<{ reported: boolean }>();
+
+/** Share the unavailable log across a batch while keeping its reads fresh. */
+export function reportPreprodControlUnavailableOnce<T>(work: () => T): T {
+  return controlLog.run({ reported: false }, work);
+}
+
+function reportUnavailable(error: unknown): void {
+  const log = controlLog.getStore();
+  if (log?.reported) return;
+  if (log) log.reported = true;
+  recordCoreError(
+    { operation: "read_preprod_control" },
+    { ...UNREADABLE, cause: error },
+  );
+}
 
 /** One statement for both rows. Throws on a failed read or an invalid value. */
 async function readControl(db: DbClient): Promise<KnownPreprodControl> {
@@ -87,10 +108,7 @@ export async function readPreprodControl(
   try {
     return await readControl(db);
   } catch (error) {
-    recordCoreError(
-      { operation: "read_preprod_control" },
-      { ...UNREADABLE, cause: error },
-    );
+    reportUnavailable(error);
     return { state: "unavailable" };
   }
 }
@@ -117,12 +135,21 @@ const UNREADABLE = {
  * second statement, unlocked, so there is one lock order everywhere (pause,
  * then generation). A transaction conflict is rethrown for the caller's
  * retry; any other failed read is the unavailable 503.
+ *
+ * For a derived row, pass the turn's expected generation. Compare it before
+ * checking the pause so a known stale generation stays final while paused.
  */
 export async function networkStamp(
-  network: Network,
-  tx: Prisma.TransactionClient,
+  input: Network | DetachedTurnProvenance,
+  tx: Pick<Prisma.TransactionClient, "$queryRaw">,
 ): Promise<{ network: Network; preprodGeneration?: number }> {
+  const network = typeof input === "string" ? input : input.network;
   if (network === "mainnet") return { network };
+  const expected =
+    typeof input === "string" ? undefined : input.expectedPreprodGeneration;
+  if (expected !== undefined && !isPreprodOn()) {
+    throw new DetachedNetworkRefusal(CORE_API_ERROR_KINDS.PREPROD_OFF);
+  }
   let control: KnownPreprodControl;
   try {
     const pause = await tx.$queryRaw<
@@ -139,19 +166,33 @@ export async function networkStamp(
     control = controlOf([...pause, ...generation]);
   } catch (error) {
     if (isPrismaTransactionConflict(error)) throw error;
-    recordCoreError(
-      { operation: "read_preprod_control" },
-      { ...UNREADABLE, cause: error },
-    );
+    reportUnavailable(error);
     // Recorded above; a planned refusal is no Sentry Issue.
+    if (expected !== undefined) {
+      throw new DetachedNetworkRefusal(
+        CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+      );
+    }
     throw serviceUnavailable(
       "Preprod's state could not be read; try again later",
-      { reportToSentry: false },
+      {
+        kind: CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+        reportToSentry: false,
+      },
+    );
+  }
+  if (expected !== undefined && control.generation !== expected) {
+    throw new DetachedNetworkRefusal(
+      CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
     );
   }
   if (control.state !== "open") {
     // An operator's pause: planned, so no Sentry Issue.
+    if (expected !== undefined) {
+      throw new DetachedNetworkRefusal(CORE_API_ERROR_KINDS.PREPROD_PAUSED);
+    }
     throw serviceUnavailable("Preprod is paused; try again later", {
+      kind: CORE_API_ERROR_KINDS.PREPROD_PAUSED,
       reportToSentry: false,
     });
   }

@@ -1,11 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
-
 import { loadUserPreviewsByIds } from "@/helpers/history";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
+import { organizationSpendByUser } from "@/lib/credits/history";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -63,25 +64,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const previousMonthStart = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
     );
-    const spendWhere = (from: Date, to?: Date) => ({
-      organizationId: organization.id,
-      amount: { lt: 0n },
-      createdAt: { gte: from, ...(to ? { lt: to } : {}) },
-    });
-
+    const scope = createNetworkScope("mainnet");
     // ponytail: scans the organization's ledger like History's workspace
     // scope; add an (organizationId, createdAt) index if this gets slow.
     const [current, previous, members] = await Promise.all([
-      prisma.transaction.groupBy({
-        by: ["userId"],
-        where: spendWhere(monthStart),
-        _sum: { amount: true },
-      }),
-      prisma.transaction.groupBy({
-        by: ["userId"],
-        where: spendWhere(previousMonthStart, monthStart),
-        _sum: { amount: true },
-      }),
+      organizationSpendByUser(scope, organization.id, monthStart),
+      organizationSpendByUser(
+        scope,
+        organization.id,
+        previousMonthStart,
+        monthStart,
+      ),
       prisma.member.findMany({
         where: { organizationId: organization.id },
         select: { userId: true },

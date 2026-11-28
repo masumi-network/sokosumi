@@ -9,7 +9,12 @@
  * while it ran on `origin/main`'s route (`dd9d0b53b`), before the charge moved
  * into the credits module, once on each layout:
  * RECORD_COWORKER_USAGE_SPEND_BASE=true RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/routes/v1/coworkers/me/usage/post-spend.postgres.test.ts
- * Without `RECORD_COWORKER_USAGE_SPEND_BASE` the same command compares.
+ * Without `RECORD_COWORKER_USAGE_SPEND_BASE` the same command compares. The
+ * cases ticket 29 added (each case again with the `mainnet` header, a price
+ * of zero, the other three conflicts, a user who is not a member, the ledger
+ * of a charge) were recorded the same way on `origin/main` at `56b37da22`,
+ * today's layout only. Since ticket 29 the split layout is compared with
+ * today's base too: there `origin/main` stopped at its first statement.
  *
  * It needs the database to itself, as CI gives each worker its own
  * (`POSTGRES_TEST_DATABASE_PER_WORKER`): another file's Serializable
@@ -81,6 +86,22 @@ vi.mock("@vercel/functions", async (importOriginal) => {
     },
   };
 });
+/**
+ * While on, the controlled clock moves one millisecond just before each UUID
+ * v7 the `uuid` package mints, and at no other time: an id taken after a row's
+ * time is then always a millisecond after it.
+ */
+const mintClock = vi.hoisted(() => ({ ticking: false }));
+vi.mock("uuid", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("uuid")>();
+  return {
+    ...actual,
+    v7: ((...args: Parameters<typeof actual.v7>) => {
+      if (mintClock.ticking) vi.setSystemTime(Date.now() + 1);
+      return actual.v7(...args);
+    }) as typeof actual.v7,
+  };
+});
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
   const { stubAuthMiddleware } = await import(
@@ -114,15 +135,20 @@ import {
   creditBucketRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
-import { convertCreditsToCents } from "@sokosumi/utils";
+import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 
 import { errorHandler } from "@/helpers/error-handler";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
+import {
+  countTransactionHistory,
+  findTransactionHistoryPage,
+  sumTransactionHistory,
+} from "@/lib/credits/history";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { NETWORK_HEADER } from "@/middleware/network-scope";
-import { expectCoreLog } from "@/test/core-log";
+import { nextMillisecond } from "@/test/spend-comparison";
 import { onSplitLayout } from "@/test/split-layout";
 
 import mountPostCoworkerMeUsage from "./post";
@@ -147,8 +173,11 @@ const BASE_FILE = fileURLToPath(
   new URL("./post-spend.base.json", import.meta.url),
 );
 const recording = process.env.RECORD_COWORKER_USAGE_SPEND_BASE === "true";
-/** Each layout has its own base, recorded there on `origin/main`. */
-const layout = onSplitLayout ? "split" : "today";
+/**
+ * Recorded on today's layout. The split layout names other schemas, which
+ * `statements` writes as today's, and is compared with the same base.
+ */
+const layout = "today";
 
 function recorded(): Record<string, unknown> {
   return existsSync(BASE_FILE)
@@ -161,7 +190,10 @@ interface Statement {
   values: unknown[];
 }
 interface Observed {
-  statements: { transactions: Statement[][] };
+  statements: {
+    transactions: Statement[][];
+    outsideTransactions: Record<string, number>;
+  };
 }
 
 /*
@@ -197,6 +229,97 @@ const NOW_INSERT_DEBIT =
 const NOW_INSERT_CONSUMPTIONS =
   'INSERT INTO "public"."credit_consumption" (id, "createdAt", amount, "bucketId", "transactionId") SELECT c.id, $1::timestamp(3), c.amount, c."bucketId", $2::text FROM unnest($3::text[], $4::bigint[], $5::text[]) AS c(id, amount, "bucketId")';
 
+/*
+ * Ticket 29's difference: the usage row is read and written on the Network's
+ * table in raw SQL that names its schema (`networkTable`), so it runs on the
+ * shared side's transaction on either Network. On `origin/main` it was
+ * Prisma's model on the default client: the lookup by the unique key, and a
+ * nested create that read each row it connects (the debit, whether another
+ * usage holds that debit, the Organization when there is one, the user, the
+ * Coworker), inserted, and read the row back.
+ */
+const MAIN_USAGE_FIELDS = [
+  "id",
+  "createdAt",
+  "updatedAt",
+  "idempotencyKey",
+  "referenceId",
+  "coworkerId",
+  "userId",
+  "organizationId",
+  "cents",
+  "transactionId",
+]
+  .map((field) => `"public"."coworker_usage"."${field}"`)
+  .join(", ");
+const MAIN_READ_USAGE = `SELECT ${MAIN_USAGE_FIELDS} FROM "public"."coworker_usage" WHERE (("public"."coworker_usage"."coworkerId" = $1 AND "public"."coworker_usage"."idempotencyKey" = $2) AND 1=1) LIMIT $3 OFFSET $4`;
+const MAIN_CONNECT_DEBIT =
+  'SELECT "public"."Transaction"."id" FROM "public"."Transaction" WHERE ("public"."Transaction"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const MAIN_USAGE_OF_DEBIT =
+  'SELECT "public"."coworker_usage"."id", "public"."coworker_usage"."transactionId" FROM "public"."coworker_usage" WHERE (1=1 AND "public"."coworker_usage"."transactionId" IN ($1)) OFFSET $2';
+const MAIN_CONNECT_COWORKER =
+  'SELECT "public"."coworker"."id" FROM "public"."coworker" WHERE ("public"."coworker"."id" = $1 AND 1=1) LIMIT $2 OFFSET $3';
+const MAIN_INSERT_PERSONAL_USAGE =
+  'INSERT INTO "public"."coworker_usage" ("id","createdAt","updatedAt","idempotencyKey","referenceId","coworkerId","userId","cents","transactionId") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING "public"."coworker_usage"."id"';
+const MAIN_INSERT_ORGANIZATION_USAGE =
+  'INSERT INTO "public"."coworker_usage" ("id","createdAt","updatedAt","idempotencyKey","referenceId","coworkerId","userId","organizationId","cents","transactionId") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING "public"."coworker_usage"."id"';
+const MAIN_READ_USAGE_BACK = `SELECT ${MAIN_USAGE_FIELDS} FROM "public"."coworker_usage" WHERE "public"."coworker_usage"."id" = $1 LIMIT $2 OFFSET $3`;
+const NOW_USAGE_COLUMNS =
+  'id, "createdAt", "updatedAt", "idempotencyKey", "referenceId", "coworkerId", "userId", "organizationId", cents, "transactionId"';
+const NOW_READ_USAGE = `SELECT ${NOW_USAGE_COLUMNS} FROM "public"."coworker_usage" WHERE "coworkerId" = $1 AND "idempotencyKey" = $2`;
+const NOW_INSERT_USAGE = `INSERT INTO "public"."coworker_usage" (${NOW_USAGE_COLUMNS}) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING ${NOW_USAGE_COLUMNS}`;
+
+/**
+ * A transaction recorded on `origin/main`, with its usage row read and
+ * written as the route does now: the same values in the same place, every
+ * other statement untouched. It refuses a create that is not exactly the
+ * statements above.
+ */
+function usageAsWrittenNow(transaction: Statement[]): Statement[] {
+  const now: Statement[] = [];
+  for (let at = 0; at < transaction.length; at += 1) {
+    const statement = transaction[at];
+    if (!statement) throw new Error("A transaction is cut");
+    if (statement.sql === MAIN_READ_USAGE) {
+      expect(statement.values.slice(2)).toEqual(["1", "0"]);
+      now.push({ sql: NOW_READ_USAGE, values: statement.values.slice(0, 2) });
+      continue;
+    }
+    const personal = statement.sql === MAIN_INSERT_PERSONAL_USAGE;
+    if (!personal && statement.sql !== MAIN_INSERT_ORGANIZATION_USAGE) {
+      now.push(statement);
+      continue;
+    }
+    const values = personal
+      ? [...statement.values.slice(0, 7), null, ...statement.values.slice(7)]
+      : statement.values;
+    const [usageId, , , , , coworker, user, organization, , debitId] = values;
+    const connects = [
+      { sql: MAIN_CONNECT_DEBIT, values: [debitId, "1", "0"] },
+      { sql: MAIN_USAGE_OF_DEBIT, values: [debitId, "0"] },
+      ...(organization === null
+        ? []
+        : [
+            {
+              sql: MAIN_CONNECT_ORGANIZATION,
+              values: [organization, "1", "0"],
+            },
+          ]),
+      { sql: MAIN_CONNECT_USER, values: [user, "1", "0"] },
+      { sql: MAIN_CONNECT_COWORKER, values: [coworker, "1", "0"] },
+    ];
+    expect(now.splice(now.length - connects.length)).toEqual(connects);
+    now.push({ sql: NOW_INSERT_USAGE, values });
+    if (/^ROLLBACK\b/.test(transaction[at + 1]?.sql ?? "")) continue;
+    expect(transaction[at + 1]).toEqual({
+      sql: MAIN_READ_USAGE_BACK,
+      values: [usageId, "1", "0"],
+    });
+    at += 1;
+  }
+  return now;
+}
+
 /**
  * A transaction recorded on `origin/main`, with its debit written as
  * `recordSpend` writes it: the same values in the same place, every other
@@ -204,7 +327,7 @@ const NOW_INSERT_CONSUMPTIONS =
  * above. A debit whose insert failed (a lost race) ends at the insert on
  * both.
  */
-function asWrittenNow(transaction: Statement[]): Statement[] {
+function debitAsWrittenNow(transaction: Statement[]): Statement[] {
   const at = transaction.findIndex(
     ({ sql }) =>
       sql === MAIN_INSERT_PERSONAL_DEBIT ||
@@ -270,10 +393,22 @@ function asWrittenNow(transaction: Statement[]): Statement[] {
   ];
 }
 
-/** Compares with what `origin/main` did, or records it while run there. */
-function expectAsOnBase(name: string, observed: unknown) {
+function asWrittenNow(transaction: Statement[]): Statement[] {
+  return usageAsWrittenNow(debitAsWrittenNow(transaction));
+}
+
+/**
+ * Compares with what `origin/main` did, or records it while run there,
+ * through `now` where head is meant to differ.
+ */
+function expectAsOnBase(
+  name: string,
+  observed: unknown,
+  now: (base: Observed) => Observed = (base) => base,
+) {
   const key = `${layout}: ${name}`;
   if (recording) {
+    expect(onSplitLayout, "record on today's layout").toBe(false);
     writeFileSync(
       BASE_FILE,
       `${JSON.stringify({ ...recorded(), [key]: observed }, null, 2)}\n`,
@@ -283,31 +418,18 @@ function expectAsOnBase(name: string, observed: unknown) {
   const base = recorded()[key] as Observed | undefined;
   expect(base, `no base recorded for "${key}"`).toBeDefined();
   if (!base) return;
-  expect(observed).toEqual({
-    ...base,
-    statements: {
-      ...base.statements,
-      transactions: base.statements.transactions.map(asWrittenNow),
-    },
-  });
+  expect(observed).toEqual(
+    now({
+      ...base,
+      statements: {
+        ...base.statements,
+        transactions: base.statements.transactions.map(asWrittenNow),
+      },
+    }),
+  );
 }
 
 const mainnet = () => createNetworkScope("mainnet").networkDb;
-
-/**
- * On the split layout the route stops at its first statement, the usage read
- * on the shared client (`split-layout-pending.txt` line of
- * `post.postgres.test.ts`, ticket 29), on `origin/main` as at head: each of
- * the case's requests answers 500 and logs it once. The base holds that stop.
- */
-function stopsOnTheSplitLayout(requests: number) {
-  if (onSplitLayout)
-    expectCoreLog(
-      "error",
-      "Kept a database schema mismatch out of Sentry",
-      requests,
-    );
-}
 
 /** Random values in a statement or a row, each under a name. */
 const labels = new Map<string, string>();
@@ -323,6 +445,8 @@ interface Payer {
   userId: string;
   organizationId: string | null;
   recipients: string[];
+  /** The workspace whose ledger shows the payer's usage. */
+  workspaceId: string;
 }
 
 async function createUser(name: string): Promise<string> {
@@ -412,7 +536,12 @@ async function person(
     { credits: 1, expiresInDays: 1 },
   );
   if (access === "granted") await grantWorkspace(workspace.id, name);
-  return { userId, organizationId: null, recipients: [userId] };
+  return {
+    userId,
+    organizationId: null,
+    recipients: [userId],
+    workspaceId: workspace.id,
+  };
 }
 
 /**
@@ -472,7 +601,12 @@ async function seatedOrganizationMember(
     },
   );
   await grantWorkspace(workspace.id, name);
-  return { userId: memberId, organizationId, recipients: [ownerId] };
+  return {
+    userId: memberId,
+    organizationId,
+    recipients: [ownerId],
+    workspaceId: workspace.id,
+  };
 }
 
 function createApp() {
@@ -633,6 +767,19 @@ async function rows(payer: Payer) {
   };
 }
 
+/** The id of the transaction that wrote a Mainnet row: PostgreSQL's `xmin`. */
+async function writerOf(
+  table: "coworker_usage" | "Transaction",
+  id: string,
+): Promise<string> {
+  const scope = createNetworkScope("mainnet");
+  const [row] = await scope.networkDb.$queryRaw<{ xmin: string }[]>`
+    SELECT xmin::text AS xmin FROM ${scope.networkTable(table)} WHERE id = ${id}
+  `;
+  if (!row) throw new Error(`No ${table} row ${id}`);
+  return row.xmin;
+}
+
 /** Waits for the work the requests scheduled, the low-balance alert's too. */
 async function drainBackground() {
   while (outside.background.length > 0) {
@@ -648,7 +795,9 @@ async function observe(payer: Payer, run: () => Promise<unknown>) {
   outside.email.mockClear();
   outside.publish.mockClear();
   outside.dispatchEmail.mockClear();
-  const started = Date.now();
+  // Work an earlier step left ends before the window opens.
+  await drainBackground();
+  const started = await nextMillisecond();
   sent.log = [];
   sent.observing = true;
   let answer: unknown;
@@ -671,6 +820,22 @@ async function observe(payer: Payer, run: () => Promise<unknown>) {
     ];
     expect(times.map((time) => time.getTime())).toEqual(
       times.map(() => debit.createdAt.getTime()),
+    );
+  }
+  // The usage row: a UUID v7, one instant, not before its debit, and written
+  // by the debit's own transaction, as PostgreSQL's `xmin` of each row says.
+  for (const usage of left.usage) {
+    const debit = left.transactions.find(
+      (row) => row.id === usage.transactionId,
+    );
+    expect(debit, "the usage's debit").toBeDefined();
+    expect(usage.id.charAt(14)).toBe("7");
+    expect(usage.updatedAt.getTime()).toBe(usage.createdAt.getTime());
+    expect(usage.createdAt.getTime()).toBeGreaterThanOrEqual(
+      debit?.createdAt.getTime() ?? Infinity,
+    );
+    expect(await writerOf("coworker_usage", usage.id)).toBe(
+      await writerOf("Transaction", usage.transactionId),
     );
   }
   const debitRows = [...left.transactions, ...left.consumptions];
@@ -804,281 +969,655 @@ describe.skipIf(!enabled)(
     }, SETUP_TIMEOUT);
 
     it(
-      "charges a person's credits, soonest expiry first, with no alert above the threshold",
-      async () => {
-        const payer = await person("funded person", { later: 200 });
-        stopsOnTheSplitLayout(1);
-        const usage = {
-          idempotencyKey: key("funded"),
-          credits: 2.5,
-          referenceId: "reference-funded",
-        };
-
-        expectAsOnBase(
-          "a person, funded",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "charges the smallest amount the schema lets through, one cent",
-      async () => {
-        const payer = await person("smallest person", { later: 200 });
-        stopsOnTheSplitLayout(1);
-        const usage = {
-          idempotencyKey: key("smallest"),
-          credits: SMALLEST_CREDITS,
-        };
-
-        expectAsOnBase(
-          "a person, the smallest amount",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "warns the wallet after a charge that leaves it below the threshold",
-      async () => {
-        const payer = await person("low person", { later: 9 });
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("low"), credits: 2.5 };
-
-        expectAsOnBase(
-          "a person, low balance after the charge",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "refuses a usage the credits do not cover, and writes nothing",
-      async () => {
-        const payer = await person("short person", { later: 9 });
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("short"), credits: 20 };
-
-        expectAsOnBase(
-          "a person, short",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "answers a matching replay with the original usage, after the grant was revoked",
-      async () => {
-        const payer = await person("replaying person", { later: 200 });
-        stopsOnTheSplitLayout(2);
-        const usage = {
-          idempotencyKey: key("replayed"),
-          credits: 2.5,
-          referenceId: "reference-replayed",
-        };
-        // Recorded, not asserted: on the split layout it stops there too.
-        const original = await postUsage(payer, usage);
-        await drainBackground();
-        await prisma.vendorGrant.updateMany({
-          where: { vendorId, workspace: { userId: payer.userId } },
-          data: { status: VendorGrantStatus.REVOKED },
-        });
-
-        expectAsOnBase(
-          "a person, matching replay after revocation",
-          await observe(payer, async () => ({
-            original,
-            replay: await postUsage(payer, usage),
-          })),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "refuses a replay with other parameters, and writes nothing",
-      async () => {
-        const payer = await person("mismatching person", { later: 200 });
-        stopsOnTheSplitLayout(2);
-        const usage = { idempotencyKey: key("mismatched"), credits: 2.5 };
-        const original = await postUsage(payer, usage);
-        await drainBackground();
-
-        expectAsOnBase(
-          "a person, mismatching replay",
-          await observe(payer, async () => ({
-            original,
-            replay: await postUsage(payer, { ...usage, credits: 3 }),
-          })),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "refuses a person whose workspace the Coworker's vendor may not bill",
-      async () => {
-        const payer = await person("ungranted person", { later: 200 }, "none");
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("ungranted"), credits: 2.5 };
-
-        expectAsOnBase(
-          "a person, no access",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "refuses a usage that names Preprod while Preprod is off, with the scope's 403",
+      "refuses a usage that names Preprod while Preprod is off, with the scope's 403 and no statement",
       async () => {
         const payer = await person("preprod person", { later: 200 });
-        stopsOnTheSplitLayout(1);
         const usage = { idempotencyKey: key("preprod"), credits: 2.5 };
 
+        // Not as on `origin/main`: the refusal comes before any statement
+        // (there the key's lookup, the binding and the bucket read ran first).
+        // The same answer, the same rows.
         expectAsOnBase(
           "a person, names Preprod while it is off",
           await observe(payer, () =>
             postUsage(payer, usage, { [NETWORK_HEADER]: "preprod" }),
           ),
+          (base) => ({
+            ...base,
+            statements: { transactions: [], outsideTransactions: {} },
+          }),
         );
       },
       CASE_TIMEOUT,
     );
 
     it(
-      "charges the pool for a seated member of a paid Organization, and warns its owner",
+      "refuses Preprod while it is off with no statement, also for a key that has a Mainnet row",
       async () => {
-        const payer = await seatedOrganizationMember("seated", "assigned");
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("seated"), credits: 2.5 };
+        const payer = await person("preprod replayer", { later: 200 });
+        const usage = { idempotencyKey: key("preprod replay"), credits: 2.5 };
+        expect((await postUsage(payer, usage)).status).toBe(201);
+        await drainBackground();
+        const before = await rows(payer);
 
-        expectAsOnBase(
-          "an Organization, seated member",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
+        const observed = (await observe(payer, () =>
+          postUsage(payer, usage, { [NETWORK_HEADER]: "preprod" }),
+        )) as { answer: unknown; statements: unknown; rows: unknown };
 
-    it(
-      "refuses a member of a paid Organization with no assigned Seat",
-      async () => {
-        const payer = await seatedOrganizationMember("unseated", "none");
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("unseated"), credits: 2.5 };
-
-        expectAsOnBase(
-          "an Organization, member without a Seat",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    it(
-      "retries a conflict the bucket read reports in PostgreSQL's words",
-      async () => {
-        const payer = await person("raw conflict person", { later: 200 });
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("raw conflict"), credits: 2.5 };
-        // A real 40001 from PostgreSQL, in the route's transaction, where the
-        // bucket read's raw SQL would meet it.
-        vi.spyOn(
-          creditBucketRepository,
-          "prepareConsumption",
-        ).mockImplementationOnce(async (_network, _user, _org, _cents, tx) => {
-          await tx.$executeRawUnsafe(
-            "DO $$ BEGIN RAISE EXCEPTION USING ERRCODE = '40001', MESSAGE = 'could not serialize access due to read/write dependencies among transactions'; END $$",
-          );
-          throw new Error("The raised conflict did not throw");
+        // `origin/main` answered this replay with the Mainnet row (200).
+        expect(observed.answer).toMatchObject({
+          status: 403,
+          body: { message: "Preprod is switched off", kind: "preprod_off" },
         });
-
-        expectAsOnBase(
-          "a person, PostgreSQL's conflict in the bucket read",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
+        expect(observed.statements).toEqual({
+          transactions: [],
+          outsideTransactions: {},
+        });
+        expect(observed.rows).toEqual(plain(before));
       },
       CASE_TIMEOUT,
     );
 
-    it(
-      "answers a conflict the plan read reports as Prisma's P2034 once",
-      async () => {
-        const payer = await seatedOrganizationMember("P2034", "assigned");
-        stopsOnTheSplitLayout(1);
-        const usage = { idempotencyKey: key("P2034"), credits: 2.5 };
-        // What Prisma throws when a model read (the plan, the Seat) meets a
-        // serialization failure: known by its code, its text names no 40001.
-        vi.spyOn(
-          creditBucketRepository,
-          "prepareConsumption",
-        ).mockRejectedValueOnce(
-          Object.assign(
-            new Error(
-              "Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
-            ),
-            { code: "P2034" },
-          ),
-        );
+    /** The time a UUID v7 holds: its first 48 bits, in milliseconds. */
+    const uuidTime = (id: string) =>
+      Number.parseInt(id.replaceAll("-", "").slice(0, 12), 16);
 
-        expectAsOnBase(
-          "an Organization, Prisma's conflict in the plan read",
-          await observe(payer, () => postUsage(payer, usage)),
-        );
-      },
-      CASE_TIMEOUT,
-    );
+    /**
+     * Writes 1,000 receipts one after another and returns their ids in
+     * creation order. A number controls `Date` alone (no timer): that many
+     * receipts in each millisecond, so their order rests on the id generator
+     * alone. "ticks at each id" moves that clock only as the `uuid` package
+     * mints (`mintClock`). "real" runs the real clock.
+     */
+    async function writeReceipts(
+      payer: Payer,
+      clock: "real" | "ticks at each id" | number,
+    ) {
+      const start = Date.now();
+      const ids: string[] = [];
+      const perMillisecond = typeof clock === "number" ? clock : undefined;
+      if (clock !== "real") vi.useFakeTimers({ toFake: ["Date"] });
+      mintClock.ticking = clock === "ticks at each id";
+      try {
+        for (let receipt = 0; receipt < 1_000; receipt += 1) {
+          if (perMillisecond)
+            vi.setSystemTime(start + Math.floor(receipt / perMillisecond));
+          const answer = await postUsage(payer, {
+            idempotencyKey: `receipt-id-${receipt}-${randomUUID()}`,
+            credits: SMALLEST_CREDITS,
+          });
+          expect(answer.status).toBe(201);
+          ids.push(answer.body.data.id);
+        }
+      } finally {
+        mintClock.ticking = false;
+        vi.useRealTimers();
+      }
+      await drainBackground();
+      return ids;
+    }
 
-    it(
-      "charges once for two requests with the same key at once",
-      async () => {
-        const payer = await person("same key person", { later: 200 });
-        stopsOnTheSplitLayout(2);
-        const usage = { idempotencyKey: key("same key"), credits: 2.5 };
-
-        expectAsOnBase(
-          "a person, the same key twice at once",
-          await observe(payer, () =>
-            overlapping(
-              () => postUsage(payer, usage),
-              () => postUsage(payer, usage),
-            ),
-          ),
-        );
-      },
-      CASE_TIMEOUT,
-    );
-
-    // Two connections spend the same credits: 10 in all, 6 and 7 asked.
-    for (const order of ["six first", "seven first"] as const) {
+    for (const clock of ["real", 4, "ticks at each id"] as const) {
       it(
-        `lets one of two usages over the same credits through, ${order}`,
+        `mints each of 1,000 receipt ids before its time, in creation order (clock: ${clock === 4 ? "4 receipts in each millisecond" : clock})`,
         async () => {
-          const payer = await person(`racing person ${order}`, { later: 9 });
-          stopsOnTheSplitLayout(2);
-          const six = { idempotencyKey: key(`six ${order}`), credits: 6 };
-          const seven = { idempotencyKey: key(`seven ${order}`), credits: 7 };
-          const [first, second] =
-            order === "six first" ? [six, seven] : [seven, six];
+          const payer = await person("receipt ids", { later: 200 });
+          const ids = await writeReceipts(payer, clock);
+
+          const rows = await mainnet().coworkerUsage.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, createdAt: true },
+          });
+          const createdAt = new Map(
+            rows.map((row) => [row.id, row.createdAt.getTime()]),
+          );
+          expect(createdAt.size).toBe(1_000);
+          const late = ids.filter(
+            (id) => uuidTime(id) > (createdAt.get(id) ?? -Infinity),
+          );
+          expect(late, "ids whose time is after the row's createdAt").toEqual(
+            [],
+          );
+          // Ids sort as the receipts were created, those of one millisecond too.
+          expect([...ids].sort()).toEqual(ids);
+        },
+        10 * CASE_TIMEOUT,
+      );
+    }
+
+    /** The usage row as `origin/main`'s route wrote it: Prisma's nested create. */
+    async function createAsOnMain(payer: Payer, usage: Usage) {
+      const cents = convertCreditsToCents(usage.credits);
+      const debit = await mainnet().transaction.create({
+        data: { amount: -cents, userId: payer.userId },
+        select: { id: true },
+      });
+      return await mainnet().coworkerUsage.create({
+        data: {
+          idempotencyKey: usage.idempotencyKey,
+          referenceId: usage.referenceId ?? null,
+          cents,
+          coworker: { connect: { id: coworkerId } },
+          user: { connect: { id: payer.userId } },
+          transaction: { connect: { id: debit.id } },
+        },
+      });
+    }
+
+    /** The row as the route answers it. */
+    const answered = (row: Awaited<ReturnType<typeof createAsOnMain>>) => ({
+      ...row,
+      cents: undefined,
+      credits: convertCentsToCredits(row.cents),
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    });
+
+    // Today's layout only: the old build runs only there, and its nested
+    // create cannot run on the split layout (its connects read shared rows
+    // through the Mainnet client).
+    it.skipIf(onSplitLayout)(
+      "replays a usage that origin/main's statements wrote, and the unique key refuses a second row",
+      async () => {
+        const payer = await person("row of main", { later: 200 });
+        const usage = {
+          idempotencyKey: key("row of main"),
+          credits: 2.5,
+          referenceId: "reference-main",
+        };
+        const row = await createAsOnMain(payer, usage);
+
+        const calls: Record<string, string>[] = [
+          {},
+          { [NETWORK_HEADER]: "mainnet" },
+        ];
+        for (const headers of calls) {
+          const replay = await postUsage(payer, usage, headers);
+          expect(replay.status).toBe(200);
+          expect(replay.body.data).toEqual(
+            JSON.parse(JSON.stringify(answered(row))),
+          );
+        }
+        // Head's own insert statement, for the same key: refused by the key.
+        const scope = createNetworkScope("mainnet");
+        const insert = (idempotencyKey: string) => scope.networkDb.$executeRaw`
+          INSERT INTO ${scope.networkTable("coworker_usage")}
+            (id, "createdAt", "updatedAt", "idempotencyKey", "coworkerId", "userId", cents, "transactionId")
+          SELECT ${randomUUID()}, now(), now(), ${idempotencyKey}, ${coworkerId}, ${payer.userId}, 1, t.id
+          FROM ${scope.networkTable("Transaction")} t
+          WHERE t."userId" = ${payer.userId} AND t.amount = 0
+        `;
+        await mainnet().transaction.create({
+          data: { amount: 0n, userId: payer.userId },
+        });
+        await expect(insert(usage.idempotencyKey)).rejects.toThrow();
+        expect(
+          await mainnet().coworkerUsage.count({
+            where: { coworkerId, idempotencyKey: usage.idempotencyKey },
+          }),
+        ).toBe(1);
+        // The same statement with a fresh key writes: only the key refused it.
+        await expect(insert(key("fresh beside main"))).resolves.toBe(1);
+      },
+      CASE_TIMEOUT,
+    );
+
+    // Today's layout only: the old build runs only there, and its nested
+    // create cannot run on the split layout (its connects read shared rows
+    // through the Mainnet client).
+    it.skipIf(onSplitLayout)(
+      "writes a usage origin/main's lookup finds and replays, and its create cannot add a second row",
+      async () => {
+        const payer = await person("row of head", { later: 200 });
+        const usage = {
+          idempotencyKey: key("row of head"),
+          credits: 2.5,
+          referenceId: "reference-head",
+        };
+        const fresh = await postUsage(payer, usage);
+        expect(fresh.status).toBe(201);
+        await drainBackground();
+
+        // `origin/main`'s lookup, and its replay's answer.
+        const found = await mainnet().coworkerUsage.findUnique({
+          where: {
+            coworkerId_idempotencyKey: {
+              coworkerId,
+              idempotencyKey: usage.idempotencyKey,
+            },
+          },
+        });
+        expect(found).not.toBeNull();
+        if (!found) return;
+        expect(JSON.parse(JSON.stringify(answered(found)))).toEqual(
+          fresh.body.data,
+        );
+        await expect(createAsOnMain(payer, usage)).rejects.toMatchObject({
+          code: "P2002",
+        });
+        expect(
+          await mainnet().coworkerUsage.count({
+            where: { coworkerId, idempotencyKey: usage.idempotencyKey },
+          }),
+        ).toBe(1);
+      },
+      CASE_TIMEOUT,
+    );
+
+    // Each case as a call without the header and with `mainnet`, which
+    // `origin/main` answered alike.
+    describe.each(["no", "the mainnet"] as const)("with %s header", (which) => {
+      const headers: Record<string, string> =
+        which === "no" ? {} : { [NETWORK_HEADER]: "mainnet" };
+      const send = (
+        payer: Payer,
+        usage: Usage,
+        extra: Record<string, string> = {},
+      ) => postUsage(payer, usage, { ...headers, ...extra });
+      /** The base's name of a case: the header's cases were recorded after. */
+      const named = (name: string) =>
+        which === "no" ? name : `${name}, with the mainnet header`;
+
+      it(
+        "charges a person's credits, soonest expiry first, with no alert above the threshold",
+        async () => {
+          const payer = await person("funded person", { later: 200 });
+          const usage = {
+            idempotencyKey: key("funded"),
+            credits: 2.5,
+            referenceId: "reference-funded",
+          };
 
           expectAsOnBase(
-            `a person, two usages over the same credits, ${order}`,
+            named("a person, funded"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "charges the smallest amount the schema lets through, one cent",
+        async () => {
+          const payer = await person("smallest person", { later: 200 });
+          const usage = {
+            idempotencyKey: key("smallest"),
+            credits: SMALLEST_CREDITS,
+          };
+
+          expectAsOnBase(
+            named("a person, the smallest amount"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "warns the wallet after a charge that leaves it below the threshold",
+        async () => {
+          const payer = await person("low person", { later: 9 });
+          const usage = { idempotencyKey: key("low"), credits: 2.5 };
+
+          expectAsOnBase(
+            named("a person, low balance after the charge"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a usage the credits do not cover, and writes nothing",
+        async () => {
+          const payer = await person("short person", { later: 9 });
+          const usage = { idempotencyKey: key("short"), credits: 20 };
+
+          expectAsOnBase(
+            named("a person, short"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "answers a matching replay with the original usage, after the grant was revoked",
+        async () => {
+          const payer = await person("replaying person", { later: 200 });
+          const usage = {
+            idempotencyKey: key("replayed"),
+            credits: 2.5,
+            referenceId: "reference-replayed",
+          };
+          const original = await send(payer, usage);
+          await drainBackground();
+          await prisma.vendorGrant.updateMany({
+            where: { vendorId, workspace: { userId: payer.userId } },
+            data: { status: VendorGrantStatus.REVOKED },
+          });
+
+          expectAsOnBase(
+            named("a person, matching replay after revocation"),
+            await observe(payer, async () => ({
+              original,
+              replay: await send(payer, usage),
+            })),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a replay with other parameters, and writes nothing",
+        async () => {
+          const payer = await person("mismatching person", { later: 200 });
+          const usage = { idempotencyKey: key("mismatched"), credits: 2.5 };
+          const original = await send(payer, usage);
+          await drainBackground();
+
+          expectAsOnBase(
+            named("a person, mismatching replay"),
+            await observe(payer, async () => ({
+              original,
+              replay: await send(payer, { ...usage, credits: 3 }),
+            })),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a person whose workspace the Coworker's vendor may not bill",
+        async () => {
+          const payer = await person(
+            "ungranted person",
+            { later: 200 },
+            "none",
+          );
+          const usage = { idempotencyKey: key("ungranted"), credits: 2.5 };
+
+          expectAsOnBase(
+            named("a person, no access"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "charges the pool for a seated member of a paid Organization, and warns its owner",
+        async () => {
+          const payer = await seatedOrganizationMember("seated", "assigned");
+          const usage = { idempotencyKey: key("seated"), credits: 2.5 };
+
+          expectAsOnBase(
+            named("an Organization, seated member"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a member of a paid Organization with no assigned Seat",
+        async () => {
+          const payer = await seatedOrganizationMember("unseated", "none");
+          const usage = { idempotencyKey: key("unseated"), credits: 2.5 };
+
+          expectAsOnBase(
+            named("an Organization, member without a Seat"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "retries a conflict the bucket read reports in PostgreSQL's words",
+        async () => {
+          const payer = await person("raw conflict person", { later: 200 });
+          const usage = { idempotencyKey: key("raw conflict"), credits: 2.5 };
+          // A real 40001 from PostgreSQL, in the route's transaction, where the
+          // bucket read's raw SQL would meet it.
+          vi.spyOn(
+            creditBucketRepository,
+            "prepareConsumption",
+          ).mockImplementationOnce(
+            async (_network, _user, _org, _cents, tx) => {
+              await tx.$executeRawUnsafe(
+                "DO $$ BEGIN RAISE EXCEPTION USING ERRCODE = '40001', MESSAGE = 'could not serialize access due to read/write dependencies among transactions'; END $$",
+              );
+              throw new Error("The raised conflict did not throw");
+            },
+          );
+
+          expectAsOnBase(
+            named("a person, PostgreSQL's conflict in the bucket read"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "answers a conflict the plan read reports as Prisma's P2034 once",
+        async () => {
+          const payer = await seatedOrganizationMember("P2034", "assigned");
+          const usage = { idempotencyKey: key("P2034"), credits: 2.5 };
+          // What Prisma throws when a model read (the plan, the Seat) meets a
+          // serialization failure: known by its code, its text names no 40001.
+          vi.spyOn(
+            creditBucketRepository,
+            "prepareConsumption",
+          ).mockRejectedValueOnce(
+            Object.assign(
+              new Error(
+                "Transaction failed due to a write conflict or a deadlock. Please retry your transaction",
+              ),
+              { code: "P2034" },
+            ),
+          );
+
+          expectAsOnBase(
+            named("an Organization, Prisma's conflict in the plan read"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "charges once for two requests with the same key at once",
+        async () => {
+          const payer = await person("same key person", { later: 200 });
+          const usage = { idempotencyKey: key("same key"), credits: 2.5 };
+
+          expectAsOnBase(
+            named("a person, the same key twice at once"),
             await observe(payer, () =>
               overlapping(
-                () => postUsage(payer, first),
-                () => postUsage(payer, second),
+                () => send(payer, usage),
+                () => send(payer, usage),
               ),
             ),
           );
         },
         CASE_TIMEOUT,
       );
-    }
+
+      // Two connections spend the same credits: 10 in all, 6 and 7 asked.
+      for (const order of ["six first", "seven first"] as const) {
+        it(
+          `lets one of two usages over the same credits through, ${order}`,
+          async () => {
+            const payer = await person(`racing person ${order}`, { later: 9 });
+            const six = { idempotencyKey: key(`six ${order}`), credits: 6 };
+            const seven = { idempotencyKey: key(`seven ${order}`), credits: 7 };
+            const [first, second] =
+              order === "six first" ? [six, seven] : [seven, six];
+
+            expectAsOnBase(
+              named(`a person, two usages over the same credits, ${order}`),
+              await observe(payer, () =>
+                overlapping(
+                  () => send(payer, first),
+                  () => send(payer, second),
+                ),
+              ),
+            );
+          },
+          CASE_TIMEOUT,
+        );
+      }
+
+      it(
+        "refuses a price of zero before the route, as the schema does",
+        async () => {
+          const payer = await person("zero person", { later: 200 });
+          const usage = { idempotencyKey: key("zero"), credits: 0 };
+
+          expectAsOnBase(
+            named("a person, a price of zero"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a replay for another user, and writes nothing",
+        async () => {
+          const payer = await person("first user", { later: 200 });
+          const other = await person("other user", { later: 200 });
+          const usage = { idempotencyKey: key("other user"), credits: 2.5 };
+          const original = await send(payer, usage);
+          await drainBackground();
+
+          expectAsOnBase(
+            named("a person, replay for another user"),
+            await observe(payer, async () => ({
+              original,
+              replay: await send(other, usage),
+              // The other user's wallet is untouched too.
+              otherRows: await rows(other),
+            })),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a replay with another reference, and writes nothing",
+        async () => {
+          const payer = await person("referencing person", { later: 200 });
+          const usage = {
+            idempotencyKey: key("other reference"),
+            credits: 2.5,
+            referenceId: "reference-first",
+          };
+          const original = await send(payer, usage);
+          await drainBackground();
+
+          expectAsOnBase(
+            named("a person, replay with another reference"),
+            await observe(payer, async () => ({
+              original,
+              replay: await send(payer, {
+                ...usage,
+                referenceId: "reference-second",
+              }),
+            })),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a replay for another Organization, and writes nothing",
+        async () => {
+          const payer = await seatedOrganizationMember("replayed", "assigned");
+          const usage = {
+            idempotencyKey: key("other organization"),
+            credits: 2.5,
+          };
+          const original = await send(payer, usage);
+          await drainBackground();
+
+          expectAsOnBase(
+            named("an Organization, replay for another Organization"),
+            await observe(payer, async () => ({
+              original,
+              replay: await send({ ...payer, organizationId: null }, usage),
+            })),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "refuses a user who is not a member of the Organization",
+        async () => {
+          const organization = await seatedOrganizationMember(
+            "foreign",
+            "assigned",
+          );
+          const outsider = await person("outsider", { later: 200 });
+          const payer = {
+            ...outsider,
+            organizationId: organization.organizationId,
+            recipients: organization.recipients,
+          };
+          const usage = { idempotencyKey: key("outsider"), credits: 2.5 };
+
+          expectAsOnBase(
+            named("an Organization, a user who is not a member"),
+            await observe(payer, () => send(payer, usage)),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+
+      it(
+        "lists the charge in the payer's ledger, its count and its total",
+        async () => {
+          const payer = await person("ledger person", { later: 200 });
+          const usage = {
+            idempotencyKey: key("ledger"),
+            credits: 2.5,
+            referenceId: "reference-ledger",
+          };
+          const ledger = {
+            billingScope: createNetworkScope("mainnet"),
+            scope: "workspace" as const,
+            userContext: {
+              source: "context" as const,
+              userId: payer.userId,
+              organizationId: null,
+            },
+            workspaceContext: {
+              workspaceId: payer.workspaceId,
+              userId: payer.userId,
+              organizationId: null,
+            },
+          };
+
+          expectAsOnBase(
+            named("a person, the ledger of a usage charge"),
+            await observe(payer, async () => {
+              const answer = await send(payer, usage);
+              await drainBackground();
+              return {
+                answer,
+                page: await findTransactionHistoryPage(ledger, { take: 10 }),
+                count: await countTransactionHistory(ledger),
+                total: await sumTransactionHistory(ledger),
+              };
+            }),
+          );
+        },
+        CASE_TIMEOUT,
+      );
+    });
   },
 );

@@ -8,8 +8,8 @@
  * same credits at once are run in both orders.
  *
  * All of it is compared with `task-credits-spend.base.json`, which this file
- * wrote while it ran with `origin/main`'s `helpers/task-credits.ts`
- * (`dd9d0b53b`), before the writer called the credits module:
+ * wrote while it ran with `helpers/task-credits.ts` as it was before the
+ * writer called the credits module (`4d353a8c8`, the parent of #8511):
  * RECORD_TASK_CREDITS_SPEND_BASE=true RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… pnpm --filter core test src/helpers/task-credits-spend.postgres.test.ts
  * Without `RECORD_TASK_CREDITS_SPEND_BASE` the same command compares. Each
  * layout has its own part of the file.
@@ -158,15 +158,19 @@ vi.mock(
           fixture.failAfterCharge = false;
           throw new Error("after the charge");
         }
-        const { taskId } = await tx.taskEvent.findUniqueOrThrow({
-          where: { id: eventId },
-          select: { taskId: true },
-        });
-        const held = fixture.held.get(taskId);
-        if (held) {
-          fixture.held.delete(taskId);
-          held.reached();
-          await held.release;
+        // Only a race case holds a request: every other case sends exactly
+        // the route's own statements.
+        if (fixture.held.size > 0) {
+          const { taskId } = await tx.taskEvent.findUniqueOrThrow({
+            where: { id: eventId },
+            select: { taskId: true },
+          });
+          const held = fixture.held.get(taskId);
+          if (held) {
+            fixture.held.delete(taskId);
+            held.reached();
+            await held.release;
+          }
         }
         return actual.mapCreatedTaskEventForResponse(tx, eventId);
       }) satisfies typeof actual.mapCreatedTaskEventForResponse,
@@ -564,18 +568,15 @@ function plain(value: unknown): unknown {
  * The statements as PostgreSQL received them. A transaction is the statements
  * of one connection from its BEGIN to its COMMIT or ROLLBACK, in the order
  * sent, with the values bound. Statements outside a transaction can run side
- * by side, so they are counted per text. On the split layout the schema names
- * differ and are written as today's.
+ * by side, so they are counted per text. Schema names stay as sent: each
+ * layout has its own part of the base file.
  */
 function statements(log: readonly SentStatement[]) {
   const open = new Map<number, { sql: string; values: unknown[] }[]>();
   const transactions: { sql: string; values: unknown[] }[][] = [];
   const outside = new Map<string, number>();
   for (const { connection, text, values } of log) {
-    const sql = text
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/"(shared|mainnet|preprod)"\./g, '"public".');
+    const sql = text.replace(/\s+/g, " ").trim();
     const transaction = open.get(connection);
     if (/^BEGIN\b/i.test(sql)) {
       const started = [{ sql, values }];
@@ -598,16 +599,15 @@ function statements(log: readonly SentStatement[]) {
 
 /**
  * The statements of two connections that ran at once. Which one sends first
- * is the scheduler's choice, so each transaction is its statements without
- * their values (ids would be numbered in that order), and the transactions
- * are a sorted list. Each transaction's own order, boundaries and isolation
- * level stay.
+ * is the scheduler's choice, so each transaction is made plain on its own
+ * (its ids numbered within it), and the transactions are a sorted list. Each
+ * transaction's own order, values, boundaries and isolation level stay.
  */
 function interleavedStatements(log: readonly SentStatement[]) {
   const { transactions, outsideTransactions } = statements(log);
   return {
     transactions: transactions
-      .map((transaction) => transaction.map(({ sql }) => sql))
+      .map((transaction) => plain(transaction))
       .sort((a, b) => {
         const [x, y] = [JSON.stringify(a), JSON.stringify(b)];
         return x < y ? -1 : x > y ? 1 : 0;
@@ -671,10 +671,28 @@ async function rows() {
         channel: true,
       },
     }),
+    contactSuggestions: await prisma.contactSuggestion.findMany({
+      where: { workspaceId: { in: thisCase.workspaceIds } },
+      orderBy: { profileKey: "asc" },
+      select: {
+        searchId: true,
+        listId: true,
+        profileKey: true,
+        profileUrl: true,
+        name: true,
+        role: true,
+        organization: true,
+        location: true,
+        reason: true,
+        status: true,
+        contactId: true,
+      },
+    }),
     contactSearches: await prisma.contactPeopleSearch.findMany({
       where: { workspaceId: { in: thisCase.workspaceIds } },
       orderBy: { createdAt: "asc" },
       select: {
+        id: true,
         found: true,
         requested: true,
         chargedCents: true,
@@ -686,10 +704,27 @@ async function rows() {
       where: { projectId: { in: thisCase.projectIds } },
       orderBy: { createdAt: "asc" },
       select: {
+        id: true,
         status: true,
         chargedCents: true,
         transactionId: true,
         settledAt: true,
+      },
+    }),
+    studioAssets: await prisma.projectImageAsset.findMany({
+      where: { projectId: { in: thisCase.projectIds } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        jobId: true,
+        version: true,
+        model: true,
+        prompt: true,
+        contentType: true,
+        mediaType: true,
+        width: true,
+        height: true,
+        bytes: true,
+        checksum: true,
       },
     }),
   };
@@ -724,6 +759,24 @@ async function observe(
     named(a) < named(b) ? -1 : named(a) > named(b) ? 1 : 0;
   left.tasks.sort((a, b) => byName(a.id, b.id));
   left.events.sort((a, b) => byName(a.taskId, b.taskId));
+  // Before `plain` turns ids and times into names: a debit's rows are UUID v7,
+  // and a debit is one instant, its update time and each consumption's
+  // creation time equal its creation time.
+  for (const debit of left.debits) {
+    const consumptions = left.consumptions.filter(
+      (consumption) => consumption.transactionId === debit.id,
+    );
+    expect([debit, ...consumptions].map((row) => row.id.charAt(14))).toEqual(
+      [debit, ...consumptions].map(() => "7"),
+    );
+    const times = [
+      debit.updatedAt,
+      ...consumptions.map((consumption) => consumption.createdAt),
+    ];
+    expect(times.map((time) => time.getTime())).toEqual(
+      times.map(() => debit.createdAt.getTime()),
+    );
+  }
   return plain({
     answer,
     lowBalanceAlerts: fixture.lowBalanceAlert.mock.calls.map(
@@ -782,8 +835,13 @@ function stopsOnTheSplitLayout(requests: number) {
 describe.skipIf(!enabled)(
   "the Task writer's charge, as on origin/main (PostgreSQL)",
   () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       for (const ids of Object.values(thisCase)) ids.length = 0;
+      // Keep the key's usage write throttled for the cases that reuse it.
+      await prisma.coworkerApiKey.updateMany({
+        where: { coworkerId: (await theCoworker()).id },
+        data: { lastUsedAt: new Date(Date.now() + DAY) },
+      });
     });
 
     beforeAll(async () => {
@@ -839,6 +897,11 @@ describe.skipIf(!enabled)(
     it(
       "charges a Task's Owner their personal credits, soonest expiry first",
       async () => {
+        // Record the first-use write in this case even when it runs alone.
+        await prisma.coworkerApiKey.updateMany({
+          where: { coworkerId: (await theCoworker()).id },
+          data: { lastUsedAt: null },
+        });
         stopsOnTheSplitLayout(1);
         const payer = await person("funded person");
         const taskId = await task(payer, "funded person's Task");

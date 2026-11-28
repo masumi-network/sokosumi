@@ -4,6 +4,7 @@ import {
   NETWORKS,
   type Network,
   networkKey,
+  otherNetwork,
   requireNetwork,
   requireNetworkOn,
 } from "./network";
@@ -59,6 +60,12 @@ describe("networkKey", () => {
 describe("requireNetwork", () => {
   it.each(NETWORKS)("returns %s", (network) => {
     expect(requireNetwork(network)).toBe(network);
+  });
+});
+
+describe("otherNetwork", () => {
+  it("names the other of the two Networks", () => {
+    expect(NETWORKS.map(otherNetwork)).toEqual(["preprod", "mainnet"]);
   });
 });
 

@@ -18,10 +18,12 @@ import { afterAll, describe, it, vi } from "vitest";
 const createPurchaseMock = vi.hoisted(() => vi.fn());
 const resolvePurchaseMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({
-    createPurchaseFromMasumiTaskPayment: createPurchaseMock,
-    resolveMasumiTaskPaymentPurchase: resolvePurchaseMock,
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({
+    payment: {
+      createPurchaseFromMasumiTaskPayment: createPurchaseMock,
+      resolveMasumiTaskPaymentPurchase: resolvePurchaseMock,
+    },
   }),
 }));
 

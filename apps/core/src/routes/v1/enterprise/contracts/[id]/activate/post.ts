@@ -9,6 +9,8 @@ import {
   jsonEnterpriseSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { grantEnterpriseCredits } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
@@ -73,6 +75,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             id,
             {
               activatedAt,
+              // Enterprise credits are Mainnet's, whatever the request names.
+              grantCredits: grantEnterpriseCredits(
+                createNetworkScope("mainnet"),
+                tx,
+              ),
               paymentReference: body.paymentReference,
             },
             tx,

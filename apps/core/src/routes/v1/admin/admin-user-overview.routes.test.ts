@@ -56,7 +56,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@/helpers/user", () => ({ getCredits: getCreditsMock }));
+vi.mock("@/lib/credits/balance", () => ({ getCredits: getCreditsMock }));
 
 const { default: mountListAdminUsers } = await import("./users/get.js");
 
@@ -154,6 +154,7 @@ describe("GET /v1/admin/users", () => {
       expect.anything(),
     );
     expect(getCreditsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       "user_1",
       null,
       expect.anything(),

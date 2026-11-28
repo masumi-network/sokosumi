@@ -422,6 +422,21 @@ export const designMdService = (() => {
     });
   }
 
+  /**
+   * Core copies the workspace organization's DESIGN.md into a Project that
+   * has none; it refuses (409 `project_design_md_exists`) rather than replace.
+   */
+  async function copyOrganizationDesignMdToProject(
+    projectId: string,
+  ): Promise<PersistedDesignMd> {
+    const { data } =
+      await coreClient.postProjectsByIdDesignMdFromOrganization(projectId);
+    if (!data.designMd) {
+      throw new DesignMdServiceError("internal", "DESIGN.md was not copied");
+    }
+    return toPersistedDesignMd(data.designMd);
+  }
+
   const resolveEffectiveDesignMd = cache(
     async (): Promise<EffectiveDesignMdAttachment | null> => {
       const { data } = await coreClient.getWorkspaceDesignMd();
@@ -431,6 +446,7 @@ export const designMdService = (() => {
   );
 
   return {
+    copyOrganizationDesignMdToProject,
     finalizeAndPersistDesignMd,
     getDesignMdPreviewUrl,
     persistUploadedDesignMd,

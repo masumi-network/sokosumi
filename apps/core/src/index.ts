@@ -7,7 +7,7 @@ import { createMarkdownFromOpenApi } from "@scalar/openapi-to-markdown";
 import { Hono } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
-import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
+import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { bindCoreRequestContext, coreEvlogMiddleware } from "@/lib/evlog";
@@ -27,7 +27,7 @@ import { getV1OpenApiDocument } from "@/routes/v1/openapi-document";
 import falWebhooksRouter from "@/routes/webhooks/fal/image-jobs";
 import wellKnownRouter from "@/routes/well-known/index";
 
-validateEnv();
+getEnv();
 initSentry();
 
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;

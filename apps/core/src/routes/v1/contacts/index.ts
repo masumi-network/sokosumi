@@ -24,6 +24,7 @@ import mountStage from "./stage.js";
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
   requireOrganizationProductSeat: true,
+  mainnetOnly: [{ path: "/:id/enrich", methods: ["POST"] }],
 });
 
 // Static paths before `/{id}`.

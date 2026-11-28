@@ -37,8 +37,8 @@ moved.
 ## Why these hosts
 
 `fetch:specs` defaults to the deployments Core actually calls at runtime — the
-hosts behind `PAYMENT_API_URL` and `REGISTRY_API_URL` in
-`apps/core/.env.example`. A generated client is only as correct as the server it
+Mainnet services operators configure with `MAINNET_PAYMENT_API_URL` and
+`MAINNET_REGISTRY_API_URL`. A generated client is only as correct as the server it
 was generated from, so a snapshot taken from any other deployment would freeze a
 contract nobody talks to.
 

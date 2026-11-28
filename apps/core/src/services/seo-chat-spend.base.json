@@ -1747,7 +1747,8 @@
       "threw": {
         "name": "Error",
         "message": "Not enough credits for this SEO chat reply",
-        "status": 422
+        "status": 422,
+        "kind": "insufficient_balance"
       }
     },
     "modelCalls": 1,
@@ -2077,7 +2078,8 @@
         "threw": {
           "name": "Error",
           "message": "Not enough credits for this SEO chat reply",
-          "status": 422
+          "status": 422,
+          "kind": "insufficient_balance"
         }
       }
     ],
@@ -2785,7 +2787,8 @@
         "threw": {
           "name": "Error",
           "message": "Not enough credits for this SEO chat reply",
-          "status": 422
+          "status": 422,
+          "kind": "insufficient_balance"
         }
       },
       {

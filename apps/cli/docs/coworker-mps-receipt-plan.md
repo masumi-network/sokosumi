@@ -14,9 +14,9 @@
 
 [REPORTED: earlier code review, 2026-09-29] The following rationale preceded #5342.
 
-- Jobs already read settlement state. `apps/core/src/services/job-sync.service.ts` resolves the purchase with `paymentClient().getPurchaseByBlockchainIdentifier(...)`, checks it with `doesPurchaseMatchJobTerms`, then maps MPS `onChainState` (including `Withdrawn`) through `transformPurchaseToJobUpdate` (`apps/core/src/helpers/purchase.ts`). `paymentClient` (`apps/core/src/clients/masumi-payment.client.ts`) wraps `@sokosumi/masumi` `createPaymentClient` and reads `PAYMENT_API_URL` / `PAYMENT_API_KEY`.
+- Jobs already read settlement state. `apps/core/src/services/job-sync.service.ts` resolves the purchase with `masumiClients(JOB_SYNC_NETWORK).payment.getPurchaseByBlockchainIdentifier(...)`, checks it with `doesPurchaseMatchJobTerms`, then maps MPS `onChainState` (including `Withdrawn`) through `transformPurchaseToJobUpdate` (`apps/core/src/helpers/purchase.ts`). `masumiClients` (`apps/core/src/clients/masumi.ts`) wraps `@sokosumi/masumi` `createPaymentClient` and reads `MAINNET_PAYMENT_API_URL` / `MAINNET_PAYMENT_API_KEY`.
 - Historical Task gap. `TaskPaymentClaim` tracks `PENDING | PURCHASED | REFUNDED`. [CORRECTION, VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:71-124`] Core now reads settlement through MPS on demand. The earlier statement that Core cannot observe Task settlement is stale.
-- `paymentClient().resolveMasumiTaskPaymentPurchase(payload)` resolves a Task claim's purchase and returns `err({ kind: "mismatch" })` unless the purchase matches the claim's stored terms (`doesPurchaseMatchRequest`: seller vkey, amounts, times, input hash). The purchase row carries `onChainState`, `WithdrawnForSeller[]` and `CurrentTransaction.txHash`.
+- `masumiClients("mainnet").payment.resolveMasumiTaskPaymentPurchase(payload)` resolves a Task claim's purchase and returns `err({ kind: "mismatch" })` unless the purchase matches the claim's stored terms (`doesPurchaseMatchRequest`: seller vkey, amounts, times, input hash). The purchase row carries `onChainState`, `WithdrawnForSeller[]` and `CurrentTransaction.txHash`.
 
 So the minimal change resolves the Task claim's purchase on demand through the same terms-checked seam the claim sync already uses.
 
@@ -27,7 +27,7 @@ So the minimal change resolves the Task claim's purchase on demand through the s
 ### Core (reuses `paymentClient` and the claim payload parser)
 
 1. Helper `apps/core/src/helpers/coworker-task-receipt.ts`:
-   - `resolveTaskSellerReceipt(taskId, db, { signal })`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().resolveMasumiTaskPaymentPurchase(parsePurchasePayload(claim.purchasePayload))` with a 20 s timeout combined with the request abort signal.
+   - `resolveTaskSellerReceipt(taskId, db, { signal })`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `masumiClients("mainnet").payment.resolveMasumiTaskPaymentPurchase(parsePurchasePayload(claim.purchasePayload))` with a 20 s timeout combined with the request abort signal.
    - Return `{ blockchainIdentifier, claimStatus, onChainState, settled, txHash, withdrawnForSeller }`, where `settled` is `Withdrawn`, or `DisputedWithdrawn` with a non-empty `WithdrawnForSeller`.
    - The claim read is scoped to this deployment's `NETWORK`, like the claim sync.
    - No purchase on the node (`not_found`) returns `settled: false` unless the claim is `PURCHASED`; then the 404 is a node fault and returns 502. A mismatch on a claim the sync already refunded also returns `settled: false`. Any other node failure or terms mismatch throws 502, so an outage never reads as a proven non-payment. An unreadable stored payload returns 500.

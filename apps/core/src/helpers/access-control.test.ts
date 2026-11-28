@@ -9,6 +9,7 @@ import {
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireTaskAssignableSokoBot } from "@/helpers/soko-bot-task-assign";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import type { EnvVariables } from "@/lib/hono";
 import type {
   CoworkerAuthenticationContext,
@@ -2044,14 +2045,35 @@ describe("requireCoworkerChatCapabilityInWorkspace", () => {
   });
 });
 
+function jobReadScope(tx: Prisma.TransactionClient) {
+  return { networkDb: { job: tx.job } } as NetworkScope;
+}
+
+// The callers must choose a Network, including on today's layout.
+if (false) {
+  // @ts-expect-error A Job read requires a Network scope.
+  void requireJobRead(jobReadWorkspaceContext, "job_123");
+  // @ts-expect-error A route Job read requires a Network scope.
+  void requireJobReadForRouteVars({} as EnvVariables["Variables"], "job_123");
+}
+
 describe("requireJobRead", () => {
+  it("rejects a legacy transaction outside Mainnet", async () => {
+    const tx = createTransactionClient();
+    const scope = { ...jobReadScope(tx), network: "preprod" } as const;
+    await expect(
+      requireJobRead(jobReadWorkspaceContext, "job_123", scope, "user_123", tx),
+    ).rejects.toThrow("Expected the Mainnet scope, got preprod's");
+    expect(tx.job.findFirst).not.toHaveBeenCalled();
+  });
+
   it("uses workspace-scoped job reads", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce({
       id: "job_123",
     } as never);
 
-    await requireJobRead(jobReadWorkspaceContext, "job_123", tx);
+    await requireJobRead(jobReadWorkspaceContext, "job_123", jobReadScope(tx));
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -2067,7 +2089,12 @@ describe("requireJobRead", () => {
       id: "job_123",
     } as never);
 
-    await requireJobRead(jobReadWorkspaceContext, "job_123", tx, "user_123");
+    await requireJobRead(
+      jobReadWorkspaceContext,
+      "job_123",
+      jobReadScope(tx),
+      "user_123",
+    );
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -2101,7 +2128,7 @@ describe("requireJobRead", () => {
       requireJobRead(
         { workspaceId: "", userId: null, organizationId: null },
         "job_123",
-        tx,
+        jobReadScope(tx),
       ),
     ).rejects.toThrow("Job not found");
 
@@ -2115,7 +2142,7 @@ describe("requireJobRead", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobRead(jobReadWorkspaceContext, "job_123", tx),
+      requireJobRead(jobReadWorkspaceContext, "job_123", jobReadScope(tx)),
     ).rejects.toThrow("Job not found");
   });
 });
@@ -2166,7 +2193,7 @@ describe("requireJobReadForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireJobReadForRouteVars(vars, "job_123", tx);
+    await requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -2205,7 +2232,7 @@ describe("requireJobReadForRouteVars", () => {
     };
 
     await expect(
-      requireJobReadForRouteVars(vars, "job_123", tx),
+      requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx),
     ).rejects.toThrow("Job not found");
   });
 
@@ -2227,7 +2254,7 @@ describe("requireJobReadForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireJobReadForRouteVars(vars, "job_123", tx);
+    await requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: { id: "job_123", workspaceId },
@@ -2272,7 +2299,7 @@ describe("requireJobReadForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireJobReadForRouteVars(vars, "job_123", tx);
+    await requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx);
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: { id: "job_123", workspaceId },
@@ -2314,7 +2341,7 @@ describe("requireJobReadForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireJobReadForRouteVars(vars, "job_123", tx);
+    await requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx);
   });
 
   it("rejects a delegated coworker reading a cross-vendor sibling job", async () => {
@@ -2345,7 +2372,7 @@ describe("requireJobReadForRouteVars", () => {
     };
 
     await expect(
-      requireJobReadForRouteVars(vars, "job_123", tx),
+      requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx),
     ).rejects.toThrow("Task not found");
   });
 
@@ -2370,7 +2397,7 @@ describe("requireJobReadForRouteVars", () => {
     };
 
     await expect(
-      requireJobReadForRouteVars(vars, "job_123", tx),
+      requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx),
     ).rejects.toThrow("You can only access jobs assigned to your coworker");
 
     expect(tx.task.findFirst).not.toHaveBeenCalled();
@@ -2388,7 +2415,7 @@ describe("requireJobReadForRouteVars", () => {
     };
 
     await expect(
-      requireJobReadForRouteVars(vars, "job_123", tx),
+      requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
 
     expect(tx.job.findFirst).not.toHaveBeenCalled();
@@ -2422,7 +2449,7 @@ describe("requireJobReadForRouteVars", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireJobReadForRouteVars(vars, "job_123", tx);
+    await requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx);
   });
 });
 
@@ -2698,7 +2725,7 @@ describe("shared Soko Bot collaboration", () => {
     [
       "requireJobReadForRouteVars",
       (tx: Prisma.TransactionClient) =>
-        requireJobReadForRouteVars(vars, "job_123", tx),
+        requireJobReadForRouteVars(vars, "job_123", jobReadScope(tx), tx),
     ],
   ])("%s answers 403 before any read", async (_, call) => {
     const tx = createTransactionClient();

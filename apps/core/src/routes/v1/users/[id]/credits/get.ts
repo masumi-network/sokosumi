@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildCreditsPayload } from "@/helpers/subscription";
+import { creditViewForRequest } from "@/lib/credits/view";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -94,6 +93,7 @@ const route = withCoworkerContextHeaderParameters(
               buffer: 12.5,
               total: 70,
             },
+            network: "mainnet",
           },
           meta: {
             timestamp: "2025-01-01T00:00:00.000Z",
@@ -123,11 +123,10 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     if (!organizationId) await requirePersonalWorkspace(resolvedUserId);
     const referenceId = organizationId ?? resolvedUserId;
 
-    const payload = await buildCreditsPayload({
+    const payload = await creditViewForRequest(c.var.networkScope).funding({
       userId: resolvedUserId,
       organizationId,
       referenceId,
-      tx: prisma,
     });
 
     return ok(c, creditsResponseSchema.parse(payload));

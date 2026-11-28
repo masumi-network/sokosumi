@@ -5,12 +5,13 @@ import type { MasumiTaskPurchaseInput } from "@sokosumi/masumi/clients";
 import { createError } from "evlog";
 import { v4 as uuidv4 } from "uuid";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { masumiClients } from "@/clients/masumi";
 import { getEnv } from "@/config/env";
 import {
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
-  createCompensatingRefund,
-} from "@/helpers/compensating-refund";
+  refund,
+} from "@/lib/credits/refund";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 
@@ -223,19 +224,14 @@ export async function refundFailedTaskPaymentClaim(
       throw new Error(`Task payment claim ${claimId} has no debit to refund`);
     }
 
-    const actorUserId = claim.transaction.userId;
-    if (actorUserId === null) {
-      throw new Error(
-        `Task payment claim ${claimId} spend transaction is missing userId`,
-      );
-    }
-
-    const refundId = await createCompensatingRefund(tx, {
-      amount: refundAmount,
-      actorUserId,
-      organizationId: claim.transaction.organizationId,
+    const refundId = await refund({
+      // shortcut: the legacy transaction writes this deployment's own ledger;
+      // ticket 29 passes the claim's Network.
+      scope: createNetworkScope("mainnet"),
+      tx,
+      charge: claim.transaction,
       referenceId: `task-payment:${claim.id}`,
-      consumptions: claim.transaction.creditConsumptions,
+      record: `Task payment claim ${claimId}`,
     });
     await tx.taskPaymentClaim.update({
       where: { id: claim.id },
@@ -452,7 +448,7 @@ async function runAcquiredTaskPaymentClaim(
     return await finalizeAmbiguousFailure(claim, processingToken, reason, true);
   }
 
-  const client = paymentClient();
+  const client = masumiClients("mainnet").payment;
 
   if (claim.attemptCount > 1) {
     const resolved = await client.resolveMasumiTaskPaymentPurchase(payload, {
@@ -651,10 +647,11 @@ export async function resolveReviewedTaskPaymentClaim(
     );
   }
 
-  const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
-    payload,
-    { signal: getRequestSignal() },
-  );
+  const resolved = await masumiClients(
+    "mainnet",
+  ).payment.resolveMasumiTaskPaymentPurchase(payload, {
+    signal: getRequestSignal(),
+  });
   if (resolved.isOk()) {
     await markTaskPaymentClaimPurchased(
       claim.id,

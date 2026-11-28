@@ -6,7 +6,11 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
+import {
+  createRefusedNetworkScope,
+  type NetworkScope,
+  type SharedDb,
+} from "@/lib/db/network-scope";
 
 import {
   createTaskEventTransaction,
@@ -28,12 +32,37 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
 const prepareConsumption = vi.mocked(creditBucketRepository.prepareConsumption);
 const recordSpend = vi.mocked(creditBucketRepository.recordSpend);
 // The charge hands both on untouched: it reads only the scope's Network.
-const scope = { network: "preprod" } as NetworkScope;
+const scope = { network: "mainnet" } as NetworkScope;
 const tx = {} as SharedDb;
 
 describe("createTaskEventTransaction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+  it("records a Preprod charge at its price on Preprod, with no bucket choice", async () => {
+    recordSpend.mockResolvedValue("trx_preprod");
+
+    const result = await createTaskEventTransaction({
+      userId: "user_1",
+      organizationId: null,
+      cents: 500n,
+      scope: { network: "preprod" } as NetworkScope,
+      tx,
+    });
+
+    expect(result).toBe("trx_preprod");
+    expect(prepareConsumption).not.toHaveBeenCalled();
+    expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
+      "preprod",
+      {
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        consumptions: [],
+        createdAt: expect.any(Date),
+      },
+      tx,
+    );
   });
   it("consumes personal credits when organizationId is null", async () => {
     const consumptions = [{ bucketId: "bucket_1", amount: 100n }];
@@ -51,7 +80,7 @@ describe("createTaskEventTransaction", () => {
     expect(result).toBe("trx_1");
     // No Project: the charge sees only the pool.
     expect(prepareConsumption).toHaveBeenCalledWith(
-      "preprod",
+      "mainnet",
       "user_1",
       null,
       500n,
@@ -59,8 +88,14 @@ describe("createTaskEventTransaction", () => {
       { projectId: null },
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
-      "preprod",
-      { userId: "user_1", organizationId: null, cents: 500n, consumptions },
+      "mainnet",
+      {
+        userId: "user_1",
+        organizationId: null,
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -80,7 +115,7 @@ describe("createTaskEventTransaction", () => {
 
     expect(result).toBe("trx_2");
     expect(prepareConsumption).toHaveBeenCalledWith(
-      "preprod",
+      "mainnet",
       "user_1",
       "org_1",
       500n,
@@ -88,8 +123,14 @@ describe("createTaskEventTransaction", () => {
       { projectId: null },
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
-      "preprod",
-      { userId: "user_1", organizationId: "org_1", cents: 500n, consumptions },
+      "mainnet",
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -112,7 +153,7 @@ describe("createTaskEventTransaction", () => {
     });
 
     expect(prepareConsumption).toHaveBeenCalledExactlyOnceWith(
-      "preprod",
+      "mainnet",
       null,
       null,
       500n,
@@ -120,8 +161,14 @@ describe("createTaskEventTransaction", () => {
       { projectId: null },
     );
     expect(recordSpend).toHaveBeenCalledExactlyOnceWith(
-      "preprod",
-      { userId: null, organizationId: null, cents: 500n, consumptions },
+      "mainnet",
+      {
+        userId: null,
+        organizationId: null,
+        cents: 500n,
+        consumptions,
+        createdAt: expect.any(Date),
+      },
       tx,
     );
   });
@@ -141,7 +188,7 @@ describe("createTaskEventTransaction", () => {
     });
 
     expect(prepareConsumption).toHaveBeenCalledWith(
-      "preprod",
+      "mainnet",
       "user_1",
       "org_1",
       500n,
@@ -209,11 +256,9 @@ describe("createTaskEventTransaction", () => {
   });
 
   it("answers a scope that refuses its Network with a plain 422", async () => {
-    const refusing = {
-      get network(): never {
-        throw new HTTPException(403, { message: "Preprod is switched off" });
-      },
-    } as unknown as NetworkScope;
+    const refusing = createRefusedNetworkScope(
+      new HTTPException(403, { message: "Preprod is switched off" }),
+    );
 
     await expect(
       createTaskEventTransaction({

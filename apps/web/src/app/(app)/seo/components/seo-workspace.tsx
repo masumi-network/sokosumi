@@ -157,6 +157,40 @@ export function SeoWorkspace({
       ? []
       : seoReportVersions(model.data, model.filters);
   const unavailable = model.loadingScope || model.invalidDates;
+  // A page the site crawl names opens the Audit's checks of that page. Another page reads afresh, so the Actions
+  // unmount under a skeleton: the focus and the scroll move to them once the read of that page is in.
+  const actionsPanel = useRef<HTMLDivElement | null>(null);
+  const pickedPage = useRef<string | null>(null);
+  const showActions = (panel: HTMLElement) => {
+    panel.focus({ preventScroll: true });
+    panel.scrollIntoView({ block: "start" });
+  };
+  const openPage = (pageId: string) => {
+    // The page in view already: its read stays, so nothing renders again to move the focus.
+    if (pageId === model.filters.pageId && actionsPanel.current) {
+      showActions(actionsPanel.current);
+      return;
+    }
+    pickedPage.current = pageId;
+    void model.setFilters({ pageId, scopeId: null });
+  };
+  // A new function each render on purpose: React calls it again after each render, so the pick lands with its read.
+  const holdActionsPanel = (panel: HTMLDivElement | null) => {
+    actionsPanel.current = panel;
+    if (
+      !panel ||
+      pickedPage.current === null ||
+      pickedPage.current !== model.filters.pageId ||
+      model.updating
+    )
+      return;
+    pickedPage.current = null;
+    // The reader moved on while the page loaded: the focus stays where they put it.
+    const focused = document.activeElement;
+    if (focused && focused !== document.body && !panel.contains(focused))
+      return;
+    showActions(panel);
+  };
   const loadStatus = seoLoadErrorStatus(model.result.error);
   if (
     model.result.isError &&
@@ -553,8 +587,12 @@ export function SeoWorkspace({
               <SeoRankings model={model} />
             </TabsContent>
             {/* What to do first, then what the checks found: the health of the site stands under its fixes. */}
-            <TabsContent value="actions" className="stagger space-y-6">
-              <SeoActions model={model} />
+            <TabsContent
+              ref={holdActionsPanel}
+              value="actions"
+              className="stagger focus-visible:outline-ring scroll-mt-4 space-y-6 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4"
+            >
+              <SeoActions model={model} openPage={openPage} />
               <SeoHealth model={model} />
             </TabsContent>
           </div>

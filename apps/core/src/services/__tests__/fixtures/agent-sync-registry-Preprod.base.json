@@ -1,0 +1,3178 @@
+[
+  {
+    "phase": "create",
+    "requests": [
+      {
+        "network": "Preprod",
+        "statusUpdatedAfter": "1970-01-01T00:00:00.000Z",
+        "limit": 50
+      }
+    ],
+    "transactions": [
+      [3, 4, 5, 6, 7],
+      [8, 9, 10, 11, 12],
+      [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+    ],
+    "queries": [
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
+        "values": ["0"],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
+        "values": ["z-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "06be9f9fbe2dbe13800db6c795e9e3708332ba49028a1d71fd052d02612fd4a2",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "z-sync"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
+        "values": ["040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
+        "values": ["a-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "06be9f9fbe2dbe13800db6c795e9e3708332ba49028a1d71fd052d02612fd4a2",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "a-sync"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
+        "values": ["040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "c0b66884032fab2eb6dcbc9f5d843b32f79976b7a44a14c71097fc92a4f64031",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "1",
+          "0"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "0db125214f98d46c9e2cf83deb879331f19f580f017836b5ec1b721e42b18efa",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000001"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "3c79f0b6eb4bc9d111084a98a40e3ca1b7c0caae0edc4d520a431944da315344",
+        "values": ["1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f85ff860454d8a3f4eb6b04d8d654b3c8513b5f8c9ede8dbe29f675515b2aed7",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "2c05339db33a21fcaa3743decf89ba3cf264029d998b9cc5efd5e8161a76f8df",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-b62a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "lovelace",
+          "11",
+          "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ba2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "abc",
+          "3",
+          "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "8bdcba6b8453a159943cf9dc6caf72d97735ef7235f2b31ac16a6a291700a5e8",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "FIXED",
+          "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "a10474dacb514238bb4dcdc08da5f802438973e0887ee151c20f4c5cfd06c9a5",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000001",
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          1,
+          "Registry fixture",
+          "Canonical",
+          "https://seller.example",
+          "STANDARD",
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "2026-11-01 00:00:01",
+          7,
+          9,
+          null,
+          1,
+          "WEB3_CARDANO_V2",
+          "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "ONLINE",
+          false,
+          "MINIMAL",
+          "0"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "5ef170a81944a427dfec7895fb918c1090e73972c58135b54e8428f820143e8a",
+        "values": ["z-sync", "a-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "40b15803d0d1522eb39c805767b71f4c750564cdd3c0085b3b0dca133b42a67d",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          1,
+          "Cardano",
+          "Mainnet",
+          "Web3CardanoV2",
+          "addr_b",
+          "seller",
+          null,
+          null,
+          "FIXED"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-ca2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
+          "lovelace",
+          "10",
+          6,
+          "040bfbae-5e60-7152-a8a8-ce2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
+          "abc",
+          "2",
+          2
+        ],
+        "pending": []
+      },
+      {
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          0,
+          "Cardano",
+          "Preprod",
+          "Web3CardanoV2",
+          "addr_b",
+          "seller",
+          null,
+          null,
+          "FIXED"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-d62a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
+          "lovelace",
+          "11",
+          6,
+          "040bfbae-5e60-7152-a8a8-da2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
+          "abc",
+          "3",
+          2
+        ],
+        "pending": []
+      },
+      {
+        "sql": "e8727f58d7b52a7955e1ad9f0caa05d73cb96abedf2fce6980fbb940acf12fed",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-de2a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "z1",
+          "text/plain",
+          "https://seller.example/z",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-e22a2a2a2a2a",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "a1",
+          "text/plain",
+          "https://seller.example/a",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f33e94ce170b9b08a6804e19420889b25d6a5ff434f0fa25b45708f6c3bc33f2",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1",
+          "2026-11-01 00:00:01",
+          "registry-1",
+          "2111-01-01 00:01:00",
+          "2111-01-01 00:01:00",
+          "registry-1",
+          "2026-11-01 00:00:01",
+          "2111-01-01 00:01:00",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1"
+        ],
+        "pending": []
+      }
+    ],
+    "rows": {
+      "agents": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "blockchainIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000001",
+          "registryIdentity": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "registryVersion": 1,
+          "name": "Registry fixture",
+          "description": "Canonical",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 7,
+          "uptimeCheckCount": 9,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V2",
+          "pricingId": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": false,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 0,
+          "tags": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "z-sync"
+            },
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "a-sync"
+            }
+          ],
+          "categories": [],
+          "metadataOverride": null
+        }
+      ],
+      "pricing": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FIXED",
+          "agentFixedPricingId": "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"
+        }
+      ],
+      "fixed": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z"
+        }
+      ],
+      "amounts": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "unit": "lovelace",
+          "amount": "11",
+          "agentFixedPricingId": "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "unit": "abc",
+          "amount": "3",
+          "agentFixedPricingId": "040bfbae-5e60-7152-a8a8-b22a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        }
+      ],
+      "sources": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 1,
+          "chain": "Cardano",
+          "network": "Mainnet",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 0,
+          "chain": "Cardano",
+          "network": "Preprod",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        }
+      ],
+      "sourceAmounts": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ca2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "paymentSourceId": "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "10",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ce2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "paymentSourceId": "040bfbae-5e60-7152-a8a8-c62a2a2a2a2a",
+          "unit": "abc",
+          "amount": "2",
+          "decimals": 2
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-d62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "paymentSourceId": "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "11",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-da2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "paymentSourceId": "040bfbae-5e60-7152-a8a8-d22a2a2a2a2a",
+          "unit": "abc",
+          "amount": "3",
+          "decimals": 2
+        }
+      ],
+      "outputs": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-de2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "name": "z1",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-e22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "name": "a1",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/a",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        }
+      ],
+      "jobs": [],
+      "payments": [],
+      "actions": [],
+      "ratings": [],
+      "notifications": [],
+      "cursor": {
+        "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
+        "lastSyncedAt": "2026-11-01T00:00:01.000Z",
+        "cursorId": "registry-1",
+        "updatedAt": "2111-01-01T00:01:00.000Z",
+        "createdAt": "2111-01-01T00:01:00.000Z"
+      }
+    }
+  },
+  {
+    "phase": "promote and consolidate",
+    "requests": [
+      {
+        "network": "Preprod",
+        "statusUpdatedAfter": "2026-11-01T00:00:01.000Z",
+        "cursorId": "registry-1",
+        "limit": 50
+      }
+    ],
+    "transactions": [
+      [3, 4, 5, 6, 7],
+      [8, 9, 10, 11, 12],
+      [
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+        35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+        53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69
+      ]
+    ],
+    "queries": [
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
+        "values": ["0"],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
+        "values": ["z-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
+        "values": ["z-sync", "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
+        "values": ["040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
+        "values": ["a-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
+        "values": ["a-sync", "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
+        "values": ["040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "c0b66884032fab2eb6dcbc9f5d843b32f79976b7a44a14c71097fc92a4f64031",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "1",
+          "0"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "0db125214f98d46c9e2cf83deb879331f19f580f017836b5ec1b721e42b18efa",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "acc088274978c1e4e6eb35a51613cafa3efd0f1a9197a17603d557436d703a6f",
+        "values": ["rollback-copy", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "70a47144dcd93edf9b759a11ce141be203dbe85624cd55dfbd089964b448b058",
+        "values": ["rollback-copy", "0"],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "c8c30c55bac7d0ef01cb8b762a019c92e58c21d2ed28be43ca0f935ba9e6b7ea",
+        "values": [
+          "67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "2111-01-01 00:02:00",
+          "rollback-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "98de36013f45d7fe1e3fdc97acb7de52eaf94d0a60bb33d6b2593217fc957e57",
+        "values": [
+          "https://seller.example",
+          "2111-01-01 00:02:00",
+          "rollback-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "ee739cc46838196627106d387b84f5bf700e706b7c3249c6784b5843aa90517d",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "rollback-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "34583d52d3cf31b3abc60f3cce07f9ff04c8ac1da4b4c6d7176dce74b2037d0d",
+        "values": [
+          1,
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "0e1959a9a798c13237d2b3bb81238ad30f2ef05ab91c29670e6849a615093903",
+        "values": [0, "2111-01-01 00:02:00", "rollback-copy"],
+        "pending": []
+      },
+      {
+        "sql": "e2816f34aded0447a179160c4555326026af800836ac59b06e4a5d6b800a8a0d",
+        "values": ["rollback-copy", "0"],
+        "pending": []
+      },
+      {
+        "sql": "e2816f34aded0447a179160c4555326026af800836ac59b06e4a5d6b800a8a0d",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "3014a621e03550a9942f4386a62c40c7d38354c25240fcd869b8836cfd546375",
+        "values": ["newer-canonical"],
+        "pending": []
+      },
+      {
+        "sql": "b1bb9f393eb19f0ece6e3fed394a583c16e9ef77993c7ff159f29eb944808f51",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "newer-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "3014a621e03550a9942f4386a62c40c7d38354c25240fcd869b8836cfd546375",
+        "values": ["equal-copy"],
+        "pending": []
+      },
+      {
+        "sql": "b1bb9f393eb19f0ece6e3fed394a583c16e9ef77993c7ff159f29eb944808f51",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "only-copy-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "82b31568778cca2c16e22c5c1ed0a4d625030f44705735f3ed892334c5a7fd4b",
+        "values": ["rollback-copy", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "f61ada13bec8c7c4edb529d4949d3b4c67b1797e6a0700a16f9b36132cd5c5c0",
+        "values": ["rollback-copy", "0"],
+        "pending": []
+      },
+      {
+        "sql": "cefc987dd33b8fbde44a1b535ac458d4ebedf38ba0511f7e8711531885b0abef",
+        "values": ["rollback-copy", "0"],
+        "pending": [30]
+      },
+      {
+        "sql": "e20492acdd3b41cb771291ce851f7e2fdd52ffb80138308fb241616c91b2fc53",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "86727bf8d73228e3f58a9a7d65ead7a6d38bf1d0dd2e12c02edf4f9fa2758014",
+        "values": ["040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "4429e1259cf16f7449fcd5baef4947394b37e03207a16c3dd0cee2e7ba41aa57",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "9e08336ca5e210d89353a58f7ff3b4d79a06b1813fa2e90ff702b82b90bf9d52",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "a92a4289cae6b5c03e9ffed5e76b8d0185f6e9b774ba58f79cc2eb9ffd6c9828",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-f22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "7e3abc299eedd006ed325b303ed2ea048ec283f79df0d8b6b7a0e512db504c7c",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "rollback-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "bbde9931d31440049fecab8d80a0a4500cf106c2d9cd7147399fe02621d97942",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "rollback-copy"],
+        "pending": []
+      },
+      {
+        "sql": "e17433d927b5923e7ed54502161eae5daf41b447fc0073d48674e2ea9cee53eb",
+        "values": [
+          "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "INVALID",
+          false,
+          "2111-01-01 00:02:00",
+          "rollback-copy"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "39a4b464c889f92e3da8c7dc4f4de6d569710d444c096af5a697f2b238af7a15",
+        "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "b5eb1bf804d382b3457b5a230a29ec6f47130bf9fa5671679f821c3dd6766808",
+        "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "1993232162fc3e59f5634a2e2d4597423aa18e0f708a2da68f08562b2ff8fda8",
+        "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "b99d99d6fda0d44a3a7b3cb4b85dc88a413d179abdf43929621eb9b75a956d79",
+        "values": [
+          "FIXED",
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "7536dce139e87d4a7f54c9ac9e7253bc3199e94a07ffa693a092bf14d52dbe65",
+        "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "382e5ba2d2561a72b8341a8c5d2798958e66d5cff0efb4e93547f08baa8b8fbd",
+        "values": [null, "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a"],
+        "pending": []
+      },
+      {
+        "sql": "67e957c54867c589d63495082ed3d54b0d519a1a50dabe2fbc73c26ed142014f",
+        "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "676bf10f25ab3ad9b19b32c7457c7d613e548bd3a4127e7b3f76e36b65042d97",
+        "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"],
+        "pending": []
+      },
+      {
+        "sql": "832e1f1ca669d46477bdf8d6d36c56cff39d32f678e0d8dda35092da6c50ab00",
+        "values": ["040bfbae-5e60-7152-a8a8-b22a2a2a2a2a"],
+        "pending": []
+      },
+      {
+        "sql": "f85ff860454d8a3f4eb6b04d8d654b3c8513b5f8c9ede8dbe29f675515b2aed7",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "2c05339db33a21fcaa3743decf89ba3cf264029d998b9cc5efd5e8161a76f8df",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-ae2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "lovelace",
+          "21",
+          "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "040bfbaf-48c0-7152-a8a8-b22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "abc",
+          "4",
+          "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "55f65a2c6725341879cee24b1def0407031d0654be22eaab41c103cba32d6826",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "7536dce139e87d4a7f54c9ac9e7253bc3199e94a07ffa693a092bf14d52dbe65",
+        "values": ["040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "386928f677d293ba4389a7ebe5a9a613679738f26ea13d9cded1176f5c15d469",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "67e957c54867c589d63495082ed3d54b0d519a1a50dabe2fbc73c26ed142014f",
+        "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "a65092ee78bd4892d924a85d0093910cc26218422e8156ad200aee79fe458524",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"],
+        "pending": []
+      },
+      {
+        "sql": "b5b6857fb51e2080908925562d339cde243ae24cecc2b130805ab0db715d5a5d",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"],
+        "pending": []
+      },
+      {
+        "sql": "cd7b7a7354515a42e1294841c53282e3fed6bb6b3256b74f1ec410be62b6e09b",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          2,
+          "Registry fixture",
+          "Canonical",
+          "https://seller.example",
+          "STANDARD",
+          null,
+          null,
+          2,
+          null,
+          "2026-11-01 00:00:02",
+          7,
+          9,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "ONLINE",
+          null,
+          null,
+          null,
+          "WEB3_CARDANO_V2",
+          null,
+          null,
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "bf8885dd3d93da5d046bb2341b1fa00a9d397713f048c753cb9882217564440d",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "93a0a383419bdb6c7bb4fd1cdcb24841b44f66598d7a5a9b3c5ecfabf551a29f",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "5ef170a81944a427dfec7895fb918c1090e73972c58135b54e8428f820143e8a",
+        "values": ["z-sync", "a-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "40b15803d0d1522eb39c805767b71f4c750564cdd3c0085b3b0dca133b42a67d",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "e8727f58d7b52a7955e1ad9f0caa05d73cb96abedf2fce6980fbb940acf12fed",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-b62a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "z2",
+          "text/plain",
+          "https://seller.example/z",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbaf-48c0-7152-a8a8-ba2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "a2",
+          "text/plain",
+          "https://seller.example/a",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          1,
+          "Cardano",
+          "Mainnet",
+          "Web3CardanoV2",
+          "addr_b",
+          "seller",
+          null,
+          null,
+          "FIXED"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-c22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "lovelace",
+          "20",
+          6,
+          "040bfbaf-48c0-7152-a8a8-c62a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "abc",
+          "3",
+          2
+        ],
+        "pending": []
+      },
+      {
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          0,
+          "Cardano",
+          "Preprod",
+          "Web3CardanoV2",
+          "addr_b",
+          "seller",
+          null,
+          null,
+          "FIXED"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-ce2a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "lovelace",
+          "21",
+          6,
+          "040bfbaf-48c0-7152-a8a8-d22a2a2a2a2a",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "abc",
+          "4",
+          2
+        ],
+        "pending": []
+      },
+      {
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "b7b97dac7e63134cc13ebb4cb14ef4d6a65b1b95ba251fad6c6a85bb136e73a2",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "rollback-copy"],
+        "pending": []
+      },
+      {
+        "sql": "f33e94ce170b9b08a6804e19420889b25d6a5ff434f0fa25b45708f6c3bc33f2",
+        "values": [
+          "040bfbaf-48c0-7152-a8a8-d62a2a2a2a2a",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1",
+          "2026-11-01 00:00:02",
+          "registry-2",
+          "2111-01-01 00:02:00",
+          "2111-01-01 00:02:00",
+          "registry-2",
+          "2026-11-01 00:00:02",
+          "2111-01-01 00:02:00",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1"
+        ],
+        "pending": []
+      }
+    ],
+    "rows": {
+      "agents": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "blockchainIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
+          "registryIdentity": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "registryVersion": 2,
+          "name": "Registry fixture",
+          "description": "Canonical",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:02.000Z",
+          "uptimeCount": 7,
+          "uptimeCheckCount": 9,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 2,
+          "paymentType": "WEB3_CARDANO_V2",
+          "pricingId": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": false,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 1,
+          "tags": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "z-sync"
+            },
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "a-sync"
+            }
+          ],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": {
+            "id": "040bfbae-5e60-7152-a8a8-f22a2a2a2a2a",
+            "createdAt": "2111-01-01T00:01:00.000Z",
+            "updatedAt": "2111-01-01T00:02:00.000Z",
+            "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+            "name": null,
+            "description": "Describe",
+            "apiBaseUrl": null,
+            "capabilityName": null,
+            "capabilityVersion": null,
+            "authorName": null,
+            "authorImage": null,
+            "authorContactEmail": null,
+            "authorContactOther": null,
+            "authorOrganization": null,
+            "legalPrivacyPolicy": null,
+            "legalDpa": null,
+            "legalTerms": null,
+            "legalOther": null,
+            "image": null
+          }
+        },
+        {
+          "id": "decline",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "blockchainIdentifier": "decline",
+          "registryIdentity": null,
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": "Decline",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 0,
+          "tags": [],
+          "categories": [],
+          "metadataOverride": null
+        },
+        {
+          "id": "rollback-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "blockchainIdentifier": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryIdentity": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": null,
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "status": "INVALID",
+          "isShown": false,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 0,
+          "tags": [],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": null
+        }
+      ],
+      "pricing": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "pricingType": "FIXED",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a"
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        }
+      ],
+      "fixed": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z"
+        }
+      ],
+      "amounts": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ae2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "lovelace",
+          "amount": "21",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "abc",
+          "amount": "4",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        }
+      ],
+      "sources": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 1,
+          "chain": "Cardano",
+          "network": "Mainnet",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 0,
+          "chain": "Cardano",
+          "network": "Preprod",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        }
+      ],
+      "sourceAmounts": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "20",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-c62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "unit": "abc",
+          "amount": "3",
+          "decimals": 2
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ce2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "21",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-d22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "unit": "abc",
+          "amount": "4",
+          "decimals": 2
+        }
+      ],
+      "outputs": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "z2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "a2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/a",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        }
+      ],
+      "jobs": [
+        {
+          "id": "job",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "agentBlockchainIdentifier": "67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "agentApiBaseUrl": "https://seller.example"
+        }
+      ],
+      "payments": [
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "ratings": [
+        {
+          "id": "equal-canonical",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2026-11-01T00:00:01.000Z",
+          "rating": 4,
+          "comment": null,
+          "isHidden": false,
+          "userId": "equal",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "newer-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "newer",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "only-copy-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "only-copy",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "notifications": [
+        {
+          "id": "notification-0",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": null
+        },
+        {
+          "id": "notification-1",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-2",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "preprod"
+        },
+        {
+          "id": "notification-3",
+          "metadata": "{\"agentId\":\"other\"}",
+          "network": null
+        },
+        {
+          "id": "notification-4",
+          "metadata": "{invalid",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
+      ],
+      "cursor": {
+        "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
+        "lastSyncedAt": "2026-11-01T00:00:02.000Z",
+        "cursorId": "registry-2",
+        "updatedAt": "2111-01-01T00:02:00.000Z",
+        "createdAt": "2111-01-01T00:01:00.000Z"
+      }
+    }
+  },
+  {
+    "phase": "summaries",
+    "requests": [],
+    "transactions": [],
+    "queries": [
+      {
+        "sql": "6e2006f5149b5a09a1355418b27ee34816bced00236bedd3ee55a1d5064b8506",
+        "values": ["ONLINE", true, "20", "0"],
+        "pending": []
+      },
+      {
+        "sql": "cfdec98868f4fb4188f4351e54b79a5df5cb8f80d5ee64dbae0c2d4ed965a634",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "decline", "0"],
+        "pending": []
+      },
+      {
+        "sql": "5a4c59769b1d52ecc4472c03578324911bd10be401660477548e6c3c6af2b670",
+        "values": [
+          "Generated summary",
+          "2111-01-01 00:03:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "0f6bceb384afa6a01ee99cee49371d219780dafc26bdaf2e4f84a281e5011408",
+        "values": ["2111-01-01 00:03:00", "2111-01-01 00:01:00", "decline"],
+        "pending": []
+      }
+    ],
+    "rows": {
+      "agents": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:03:00.000Z",
+          "blockchainIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
+          "registryIdentity": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "registryVersion": 2,
+          "name": "Registry fixture",
+          "description": "Canonical",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:02.000Z",
+          "uptimeCount": 7,
+          "uptimeCheckCount": 9,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 2,
+          "paymentType": "WEB3_CARDANO_V2",
+          "pricingId": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": "Generated summary",
+          "summaryDeclinedAt": null,
+          "jobCount": 1,
+          "tags": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "z-sync"
+            },
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "a-sync"
+            }
+          ],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": {
+            "id": "040bfbae-5e60-7152-a8a8-f22a2a2a2a2a",
+            "createdAt": "2111-01-01T00:01:00.000Z",
+            "updatedAt": "2111-01-01T00:02:00.000Z",
+            "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+            "name": null,
+            "description": "Describe",
+            "apiBaseUrl": null,
+            "capabilityName": null,
+            "capabilityVersion": null,
+            "authorName": null,
+            "authorImage": null,
+            "authorContactEmail": null,
+            "authorContactOther": null,
+            "authorOrganization": null,
+            "legalPrivacyPolicy": null,
+            "legalDpa": null,
+            "legalTerms": null,
+            "legalOther": null,
+            "image": null
+          }
+        },
+        {
+          "id": "decline",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "blockchainIdentifier": "decline",
+          "registryIdentity": null,
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": "Decline",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": "2111-01-01T00:03:00.000Z",
+          "jobCount": 0,
+          "tags": [],
+          "categories": [],
+          "metadataOverride": null
+        },
+        {
+          "id": "rollback-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "blockchainIdentifier": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryIdentity": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": null,
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "status": "INVALID",
+          "isShown": false,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 0,
+          "tags": [],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": null
+        }
+      ],
+      "pricing": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "pricingType": "FIXED",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a"
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        }
+      ],
+      "fixed": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z"
+        }
+      ],
+      "amounts": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ae2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "lovelace",
+          "amount": "21",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "abc",
+          "amount": "4",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        }
+      ],
+      "sources": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 1,
+          "chain": "Cardano",
+          "network": "Mainnet",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 0,
+          "chain": "Cardano",
+          "network": "Preprod",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        }
+      ],
+      "sourceAmounts": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "20",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-c62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-be2a2a2a2a2a",
+          "unit": "abc",
+          "amount": "3",
+          "decimals": 2
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ce2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "21",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-d22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "paymentSourceId": "040bfbaf-48c0-7152-a8a8-ca2a2a2a2a2a",
+          "unit": "abc",
+          "amount": "4",
+          "decimals": 2
+        }
+      ],
+      "outputs": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "z2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "a2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/a",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        }
+      ],
+      "jobs": [
+        {
+          "id": "job",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "agentBlockchainIdentifier": "67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "agentApiBaseUrl": "https://seller.example"
+        }
+      ],
+      "payments": [
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "ratings": [
+        {
+          "id": "equal-canonical",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2026-11-01T00:00:01.000Z",
+          "rating": 4,
+          "comment": null,
+          "isHidden": false,
+          "userId": "equal",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "newer-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "newer",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "only-copy-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "only-copy",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "notifications": [
+        {
+          "id": "notification-0",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": null
+        },
+        {
+          "id": "notification-1",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-2",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "preprod"
+        },
+        {
+          "id": "notification-3",
+          "metadata": "{\"agentId\":\"other\"}",
+          "network": null
+        },
+        {
+          "id": "notification-4",
+          "metadata": "{invalid",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
+      ],
+      "cursor": {
+        "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
+        "lastSyncedAt": "2026-11-01T00:00:02.000Z",
+        "cursorId": "registry-2",
+        "updatedAt": "2111-01-01T00:02:00.000Z",
+        "createdAt": "2111-01-01T00:01:00.000Z"
+      }
+    }
+  },
+  {
+    "phase": "unchanged revision",
+    "requests": [
+      {
+        "network": "Preprod",
+        "statusUpdatedAfter": "2026-11-01T00:00:02.000Z",
+        "cursorId": "registry-2",
+        "limit": 50
+      }
+    ],
+    "transactions": [
+      [3, 4, 5, 6, 7],
+      [8, 9, 10, 11, 12],
+      [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+    ],
+    "queries": [
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
+        "values": ["0"],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
+        "values": ["z-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
+        "values": ["z-sync", "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
+        "values": ["040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f0f4a1bbf3ba69974a9a233a38d32c2a77fbbf663dc437ffdb213e2c84f91b86",
+        "values": ["a-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "5f60d439884ef918d3a27499fcbca1b6d2cd2a331e01ba4ed82abc9d4e9f4a0c",
+        "values": ["a-sync", "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "3032e3fc7fb4634f9b06727e30fa617505defd44a9db63fc57ecf607278b21d7",
+        "values": ["040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "c0b66884032fab2eb6dcbc9f5d843b32f79976b7a44a14c71097fc92a4f64031",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "1",
+          "0"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "a8402858d4f1e1d27afee976520485ebb4b96a5387355b823f0d0b8079729032",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "39a4b464c889f92e3da8c7dc4f4de6d569710d444c096af5a697f2b238af7a15",
+        "values": ["040bfbae-5e60-7152-a8a8-be2a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "b5eb1bf804d382b3457b5a230a29ec6f47130bf9fa5671679f821c3dd6766808",
+        "values": ["040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "1993232162fc3e59f5634a2e2d4597423aa18e0f708a2da68f08562b2ff8fda8",
+        "values": ["040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "a65092ee78bd4892d924a85d0093910cc26218422e8156ad200aee79fe458524",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"],
+        "pending": []
+      },
+      {
+        "sql": "1f5c5a0dea93d8a3e25d52ff7eb1e4c7306390ff39fed0327f3a30baa1bbce8a",
+        "values": [
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
+          "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          2,
+          "Registry fixture",
+          "Canonical",
+          "https://seller.example",
+          "STANDARD",
+          null,
+          null,
+          2,
+          null,
+          "2026-11-01 00:00:02",
+          7,
+          9,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "ONLINE",
+          null,
+          null,
+          null,
+          "WEB3_CARDANO_V2",
+          "2111-01-01 00:04:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "bf8885dd3d93da5d046bb2341b1fa00a9d397713f048c753cb9882217564440d",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "0"],
+        "pending": []
+      },
+      {
+        "sql": "93a0a383419bdb6c7bb4fd1cdcb24841b44f66598d7a5a9b3c5ecfabf551a29f",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "5ef170a81944a427dfec7895fb918c1090e73972c58135b54e8428f820143e8a",
+        "values": ["z-sync", "a-sync", "0"],
+        "pending": []
+      },
+      {
+        "sql": "40b15803d0d1522eb39c805767b71f4c750564cdd3c0085b3b0dca133b42a67d",
+        "values": [
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
+        "values": [
+          "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          1,
+          "Cardano",
+          "Mainnet",
+          "Web3CardanoV2",
+          "addr_b",
+          "seller",
+          null,
+          null,
+          "FIXED"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
+        "values": [
+          "040bfbb1-1d80-7152-a8a8-ae2a2a2a2a2a",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "lovelace",
+          "20",
+          6,
+          "040bfbb1-1d80-7152-a8a8-b22a2a2a2a2a",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "abc",
+          "3",
+          2
+        ],
+        "pending": []
+      },
+      {
+        "sql": "4a3e0aacd826183ddc4a78ad442efbba4bae216aaa2477aac74ee06f6f773907",
+        "values": [
+          "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          0,
+          "Cardano",
+          "Preprod",
+          "Web3CardanoV2",
+          "addr_b",
+          "seller",
+          null,
+          null,
+          "FIXED"
+        ],
+        "pending": []
+      },
+      {
+        "sql": "95bf1bff1b0110d59187d997895514bc20db13fb2e4ef1a67e3d312426e4198f",
+        "values": [
+          "040bfbb1-1d80-7152-a8a8-ba2a2a2a2a2a",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "lovelace",
+          "21",
+          6,
+          "040bfbb1-1d80-7152-a8a8-be2a2a2a2a2a",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "abc",
+          "4",
+          2
+        ],
+        "pending": []
+      },
+      {
+        "sql": "c614a880e943d6a1bf9364b5832ae7c7a6244392b3940e27fd3a7a7884f31927",
+        "values": ["040bfbae-5e60-7152-a8a8-c22a2a2a2a2a", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "79663c1d3b43ceaf9ee728e501c64b57ae2e4d6cb36ff5c65eddcda1de27342f",
+        "values": [],
+        "pending": []
+      },
+      {
+        "sql": "f33e94ce170b9b08a6804e19420889b25d6a5ff434f0fa25b45708f6c3bc33f2",
+        "values": [
+          "040bfbb1-1d80-7152-a8a8-c22a2a2a2a2a",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1",
+          "2026-11-01 00:00:02",
+          "registry-2",
+          "2111-01-01 00:04:00",
+          "2111-01-01 00:04:00",
+          "registry-2",
+          "2026-11-01 00:00:02",
+          "2111-01-01 00:04:00",
+          "preprod:agents-sync-metadata:dynamic-pricing-v1"
+        ],
+        "pending": []
+      }
+    ],
+    "rows": {
+      "agents": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "blockchainIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
+          "registryIdentity": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "registryVersion": 2,
+          "name": "Registry fixture",
+          "description": "Canonical",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:02.000Z",
+          "uptimeCount": 7,
+          "uptimeCheckCount": 9,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 2,
+          "paymentType": "WEB3_CARDANO_V2",
+          "pricingId": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": "Generated summary",
+          "summaryDeclinedAt": null,
+          "jobCount": 1,
+          "tags": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "z-sync"
+            },
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "a-sync"
+            }
+          ],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": {
+            "id": "040bfbae-5e60-7152-a8a8-f22a2a2a2a2a",
+            "createdAt": "2111-01-01T00:01:00.000Z",
+            "updatedAt": "2111-01-01T00:02:00.000Z",
+            "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+            "name": null,
+            "description": "Describe",
+            "apiBaseUrl": null,
+            "capabilityName": null,
+            "capabilityVersion": null,
+            "authorName": null,
+            "authorImage": null,
+            "authorContactEmail": null,
+            "authorContactOther": null,
+            "authorOrganization": null,
+            "legalPrivacyPolicy": null,
+            "legalDpa": null,
+            "legalTerms": null,
+            "legalOther": null,
+            "image": null
+          }
+        },
+        {
+          "id": "decline",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "blockchainIdentifier": "decline",
+          "registryIdentity": null,
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": "Decline",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": "2111-01-01T00:03:00.000Z",
+          "jobCount": 0,
+          "tags": [],
+          "categories": [],
+          "metadataOverride": null
+        },
+        {
+          "id": "rollback-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "blockchainIdentifier": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryIdentity": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": null,
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "status": "INVALID",
+          "isShown": false,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 0,
+          "tags": [],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": null
+        }
+      ],
+      "pricing": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "pricingType": "FIXED",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a"
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        }
+      ],
+      "fixed": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z"
+        }
+      ],
+      "amounts": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ae2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "lovelace",
+          "amount": "21",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "abc",
+          "amount": "4",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        }
+      ],
+      "sources": [
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 1,
+          "chain": "Cardano",
+          "network": "Mainnet",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 0,
+          "chain": "Cardano",
+          "network": "Preprod",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        }
+      ],
+      "sourceAmounts": [
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-ae2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "20",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "unit": "abc",
+          "amount": "3",
+          "decimals": 2
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "21",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "unit": "abc",
+          "amount": "4",
+          "decimals": 2
+        }
+      ],
+      "outputs": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "z2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "a2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/a",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        }
+      ],
+      "jobs": [
+        {
+          "id": "job",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "agentBlockchainIdentifier": "67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "agentApiBaseUrl": "https://seller.example"
+        }
+      ],
+      "payments": [
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "ratings": [
+        {
+          "id": "equal-canonical",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2026-11-01T00:00:01.000Z",
+          "rating": 4,
+          "comment": null,
+          "isHidden": false,
+          "userId": "equal",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "newer-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "newer",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "only-copy-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "only-copy",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "notifications": [
+        {
+          "id": "notification-0",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": null
+        },
+        {
+          "id": "notification-1",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-2",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "preprod"
+        },
+        {
+          "id": "notification-3",
+          "metadata": "{\"agentId\":\"other\"}",
+          "network": null
+        },
+        {
+          "id": "notification-4",
+          "metadata": "{invalid",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
+      ],
+      "cursor": {
+        "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
+        "lastSyncedAt": "2026-11-01T00:00:02.000Z",
+        "cursorId": "registry-2",
+        "updatedAt": "2111-01-01T00:04:00.000Z",
+        "createdAt": "2111-01-01T00:01:00.000Z"
+      }
+    }
+  },
+  {
+    "phase": "resume from cursor",
+    "requests": [
+      {
+        "network": "Preprod",
+        "statusUpdatedAfter": "2026-11-01T00:00:02.000Z",
+        "cursorId": "registry-2",
+        "limit": 50
+      }
+    ],
+    "transactions": [],
+    "queries": [
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:agents-sync-metadata:dynamic-pricing-v1", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "756d5b2895a2feaebe34a836f5d07c6847d4f0decc3ed65d8ed0f5f559171180",
+        "values": ["preprod:cardano-v2-rail-readiness", "1", "0"],
+        "pending": []
+      },
+      {
+        "sql": "11053fa1322378a4d24bbb3efa72280d477ced862662968be0d1277c0d2b9b7a",
+        "values": ["0"],
+        "pending": []
+      }
+    ],
+    "rows": {
+      "agents": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "blockchainIdentifier": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab000002",
+          "registryIdentity": "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0bababababababababababababababababababababababababababababab",
+          "registryVersion": 2,
+          "name": "Registry fixture",
+          "description": "Canonical",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:02.000Z",
+          "uptimeCount": 7,
+          "uptimeCheckCount": 9,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 2,
+          "paymentType": "WEB3_CARDANO_V2",
+          "pricingId": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": "Generated summary",
+          "summaryDeclinedAt": null,
+          "jobCount": 1,
+          "tags": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-aa2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "z-sync"
+            },
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ae2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "a-sync"
+            }
+          ],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": {
+            "id": "040bfbae-5e60-7152-a8a8-f22a2a2a2a2a",
+            "createdAt": "2111-01-01T00:01:00.000Z",
+            "updatedAt": "2111-01-01T00:02:00.000Z",
+            "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+            "name": null,
+            "description": "Describe",
+            "apiBaseUrl": null,
+            "capabilityName": null,
+            "capabilityVersion": null,
+            "authorName": null,
+            "authorImage": null,
+            "authorContactEmail": null,
+            "authorContactOther": null,
+            "authorOrganization": null,
+            "legalPrivacyPolicy": null,
+            "legalDpa": null,
+            "legalTerms": null,
+            "legalOther": null,
+            "image": null
+          }
+        },
+        {
+          "id": "decline",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "blockchainIdentifier": "decline",
+          "registryIdentity": null,
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": "Decline",
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "status": "ONLINE",
+          "isShown": true,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": "2111-01-01T00:03:00.000Z",
+          "jobCount": 0,
+          "tags": [],
+          "categories": [],
+          "metadataOverride": null
+        },
+        {
+          "id": "rollback-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "blockchainIdentifier": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryIdentity": "legacy-v2:rollback-copy:67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "registryVersion": 0,
+          "name": "Rollback",
+          "description": null,
+          "apiBaseUrl": "https://seller.example",
+          "type": "STANDARD",
+          "openApiSpecUrl": null,
+          "x402ResourcesUrl": null,
+          "supersededByAgentIdentifier": null,
+          "capabilityName": null,
+          "capabilityVersion": null,
+          "authorName": null,
+          "authorImage": null,
+          "authorContactEmail": null,
+          "authorContactOther": null,
+          "authorOrganization": null,
+          "legalPrivacyPolicy": null,
+          "legalDpa": null,
+          "legalTerms": null,
+          "legalOther": null,
+          "lastUptimeCheck": "2026-11-01T00:00:01.000Z",
+          "uptimeCount": 0,
+          "uptimeCheckCount": 0,
+          "image": null,
+          "icon": null,
+          "metadataVersion": 1,
+          "paymentType": "WEB3_CARDANO_V1",
+          "pricingId": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "status": "INVALID",
+          "isShown": false,
+          "riskClassification": "MINIMAL",
+          "summary": null,
+          "summaryDeclinedAt": null,
+          "jobCount": 0,
+          "tags": [],
+          "categories": [
+            {
+              "id": "040bfbae-5e60-7152-a8a8-ee2a2a2a2a2a",
+              "createdAt": "2111-01-01T00:01:00.000Z",
+              "updatedAt": "2111-01-01T00:01:00.000Z",
+              "name": "Rollback",
+              "slug": "rollback",
+              "description": null,
+              "image": null,
+              "icon": null,
+              "styles": null,
+              "priority": 1
+            }
+          ],
+          "metadataOverride": null
+        }
+      ],
+      "pricing": [
+        {
+          "id": "040bfbae-5e60-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "pricingType": "FIXED",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a"
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-ea2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        },
+        {
+          "id": "040bfbae-5e60-7152-a8a8-f62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:01:00.000Z",
+          "pricingType": "FREE",
+          "agentFixedPricingId": null
+        }
+      ],
+      "fixed": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z"
+        }
+      ],
+      "amounts": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ae2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "lovelace",
+          "amount": "21",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "unit": "abc",
+          "amount": "4",
+          "agentFixedPricingId": "040bfbaf-48c0-7152-a8a8-aa2a2a2a2a2a",
+          "paymentRequestId": null,
+          "purchaseRequestId": null
+        }
+      ],
+      "sources": [
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 1,
+          "chain": "Cardano",
+          "network": "Mainnet",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "sourceIndex": 0,
+          "chain": "Cardano",
+          "network": "Preprod",
+          "paymentSourceType": "Web3CardanoV2",
+          "address": "addr_b",
+          "payTo": "seller",
+          "scheme": null,
+          "resource": null,
+          "pricingType": "FIXED"
+        }
+      ],
+      "sourceAmounts": [
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-ae2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "20",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-b22a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-aa2a2a2a2a2a",
+          "unit": "abc",
+          "amount": "3",
+          "decimals": 2
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "unit": "lovelace",
+          "amount": "21",
+          "decimals": 6
+        },
+        {
+          "id": "040bfbb1-1d80-7152-a8a8-be2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:04:00.000Z",
+          "updatedAt": "2111-01-01T00:04:00.000Z",
+          "paymentSourceId": "040bfbb1-1d80-7152-a8a8-b62a2a2a2a2a",
+          "unit": "abc",
+          "amount": "4",
+          "decimals": 2
+        }
+      ],
+      "outputs": [
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-b62a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "z2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/z",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        },
+        {
+          "id": "040bfbaf-48c0-7152-a8a8-ba2a2a2a2a2a",
+          "createdAt": "2111-01-01T00:02:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "name": "a2",
+          "mimeType": "text/plain",
+          "url": "https://seller.example/a",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "metadataOverrideId": null
+        }
+      ],
+      "jobs": [
+        {
+          "id": "job",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a",
+          "agentBlockchainIdentifier": "67AB0C92C4AC1610895A1C965EE50ABA41A8F1513B15240723B3BD0BABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB000002",
+          "agentApiBaseUrl": "https://seller.example"
+        }
+      ],
+      "payments": [
+        {
+          "id": "payment",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "ratings": [
+        {
+          "id": "equal-canonical",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2026-11-01T00:00:01.000Z",
+          "rating": 4,
+          "comment": null,
+          "isHidden": false,
+          "userId": "equal",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "newer-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "newer",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        },
+        {
+          "id": "only-copy-copy",
+          "createdAt": "2111-01-01T00:01:00.000Z",
+          "updatedAt": "2111-01-01T00:02:00.000Z",
+          "rating": 2,
+          "comment": null,
+          "isHidden": false,
+          "userId": "only-copy",
+          "agentId": "040bfbae-5e60-7152-a8a8-c22a2a2a2a2a"
+        }
+      ],
+      "notifications": [
+        {
+          "id": "notification-0",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": null
+        },
+        {
+          "id": "notification-1",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-2",
+          "metadata": "{\"other\": 1, \"agentId\": \"040bfbae-5e60-7152-a8a8-c22a2a2a2a2a\"}",
+          "network": "preprod"
+        },
+        {
+          "id": "notification-3",
+          "metadata": "{\"agentId\":\"other\"}",
+          "network": null
+        },
+        {
+          "id": "notification-4",
+          "metadata": "{invalid",
+          "network": "mainnet"
+        },
+        {
+          "id": "notification-5",
+          "metadata": null,
+          "network": "preprod"
+        }
+      ],
+      "cursor": {
+        "id": "040bfbae-5e60-7152-a8a8-e62a2a2a2a2a",
+        "key": "preprod:agents-sync-metadata:dynamic-pricing-v1",
+        "lastSyncedAt": "2026-11-01T00:00:02.000Z",
+        "cursorId": "registry-2",
+        "updatedAt": "2111-01-01T00:04:00.000Z",
+        "createdAt": "2111-01-01T00:01:00.000Z"
+      }
+    }
+  }
+]

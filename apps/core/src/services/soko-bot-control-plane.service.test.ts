@@ -13,6 +13,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { sokoBotTurnReader } from "@/helpers/task-visibility";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { recordCoreError } from "@/lib/evlog";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import { loadClassificationContext } from "@/lib/soko-bot/classification-context";
@@ -251,6 +252,7 @@ vi.mock("@/lib/db/database-now", () => ({
   databaseNow: async () => new Date(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ agent: { findMany: agentFindManyMock } }),
   default: {
     $transaction: transactionMock,
     // The only raw read here is the fleet move's selection; it returns the
@@ -269,7 +271,6 @@ vi.mock("@/lib/db/prisma", () => ({
         sokoBotMembers: [],
       }),
     },
-    agent: { findMany: agentFindManyMock },
     // Creation resolves the promoted default version before its transaction.
     sokoBotSetting: { findUnique: settingFindUniqueMock },
     sokoBotAuthoredVersion: { findFirst: authoredVersionFindFirstMock },
@@ -454,6 +455,8 @@ function transactionClient() {
     sokoBotSchedule: {
       count: scheduleCountMock,
       update: scheduleUpdateMock,
+      // A built-in rhythm insert runs in its own retried transaction.
+      create: vi.fn().mockResolvedValue({}),
     },
     sokoBotScheduleRun: {
       findUnique: scheduleRunFindUniqueMock,
@@ -1852,6 +1855,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       },
     ]);
     const context = await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
       'What is the status of "Apollo launch"?',
@@ -1880,6 +1884,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       { id: "apollo-two", name: "Apollo launch engineering" },
     ]);
     const context = await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("user_1", "OWNER", null),
       "workspace_1",
       "What is the status of Apollo launch?",
@@ -1890,6 +1895,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   it("does not expand a teammate request through owner-only descriptive search", async () => {
     taskFindManyMock.mockResolvedValue([]);
     const context = await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("user_1", "TEAMMATE", null),
       "workspace_1",
       'Find "Apollo launch"',
@@ -5928,10 +5934,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(settled).toBe(true);
     // After the transaction, on the wallet the turn was charged to.
     expect(notifiedInsideTransaction).toBe(false);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: null,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: null,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks the wallet for a charge that committed even when settlement lost its lease", async () => {
@@ -5957,10 +5966,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(false);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: null,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: null,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks the Organization wallet a turn in an Organization workspace drew on", async () => {
@@ -5988,10 +6000,13 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     // Not the member's personal wallet: a new Organization owner has none,
     // and was told "0 left" while the Organization held 249 credits.
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: "org_1",
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
     expect(notifyCusoLowCreditsAfterChargeMock).not.toHaveBeenCalled();
   });
 
@@ -6029,6 +6044,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       // His own notice instead, on his Project, after the charge committed.
       expect(notifyCusoLowCreditsAfterChargeMock).toHaveBeenCalledWith(
         "01960001-0001-7001-8001-0000000000aa",
+        expect.objectContaining({ network: "mainnet" }),
       );
     },
   );

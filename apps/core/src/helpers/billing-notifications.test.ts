@@ -7,6 +7,7 @@ import {
   convertCreditsToCents,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const {
   captureExceptionMock,
@@ -38,7 +39,7 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
-    getBalance: (...args: unknown[]) => getBalanceMock(...args),
+    getNetworkBalance: (...args: unknown[]) => getBalanceMock(...args),
   },
   organizationRepository: {
     getOrganizationByStripeCustomerId: (...args: unknown[]) =>
@@ -68,6 +69,9 @@ vi.mock("@/helpers/notification-read", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({
+    creditBucket: { findFirst: prismaCreditBucketFindFirstMock },
+  }),
   default: {
     creditBucket: {
       findFirst: (...args: unknown[]) =>
@@ -92,6 +96,7 @@ import {
 } from "./billing-notifications";
 import { BILLING_ATTENTION_MESSAGE_KEYS } from "./notification-delivery";
 
+const scope = createNetworkScope("mainnet");
 const PERSONAL = { userId: "user-1", organizationId: null };
 const ORGANIZATION = { userId: "member-1", organizationId: "org-1" };
 
@@ -110,12 +115,14 @@ describe("notifyLowBalanceAfterCharge", () => {
   it("tells the owner of a personal wallet that ran under the threshold", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(42.7));
 
-    await notifyLowBalanceAfterCharge(PERSONAL);
+    await notifyLowBalanceAfterCharge(PERSONAL, scope);
 
     expect(getBalanceMock).toHaveBeenCalledWith(
+      "mainnet",
       "user-1",
       null,
       expect.anything(),
+      undefined,
     );
     expect(prismaWorkspaceFindUniqueMock).toHaveBeenCalledWith({
       where: { userId: "user-1" },
@@ -150,7 +157,7 @@ describe("notifyLowBalanceAfterCharge", () => {
   it("says nothing while the balance is at or above the threshold", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(100));
 
-    await notifyLowBalanceAfterCharge(PERSONAL);
+    await notifyLowBalanceAfterCharge(PERSONAL, scope);
 
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
@@ -159,7 +166,7 @@ describe("notifyLowBalanceAfterCharge", () => {
     getBalanceMock.mockResolvedValue(0n);
     createNotificationMock.mockResolvedValue({ created: false });
 
-    await notifyLowBalanceAfterCharge(PERSONAL);
+    await notifyLowBalanceAfterCharge(PERSONAL, scope);
 
     expect(sendBillingNotificationEmailMock).not.toHaveBeenCalled();
   });
@@ -171,7 +178,7 @@ describe("notifyLowBalanceAfterCharge", () => {
   it("reads the bucket before the balance", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(1));
 
-    await notifyLowBalanceAfterCharge(PERSONAL);
+    await notifyLowBalanceAfterCharge(PERSONAL, scope);
 
     expect(
       prismaCreditBucketFindFirstMock.mock.invocationCallOrder[0],
@@ -187,7 +194,7 @@ describe("notifyLowBalanceAfterCharge", () => {
     getBalanceMock.mockResolvedValue(0n);
     prismaCreditBucketFindFirstMock.mockResolvedValue(null);
 
-    await notifyLowBalanceAfterCharge(ORGANIZATION);
+    await notifyLowBalanceAfterCharge(ORGANIZATION, scope);
 
     expect(prismaCreditBucketFindFirstMock).toHaveBeenCalledWith({
       where: {
@@ -207,12 +214,14 @@ describe("notifyLowBalanceAfterCharge", () => {
   it("tells every owner and admin of an organization wallet", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(5));
 
-    await notifyLowBalanceAfterCharge(ORGANIZATION);
+    await notifyLowBalanceAfterCharge(ORGANIZATION, scope);
 
     expect(getBalanceMock).toHaveBeenCalledWith(
+      "mainnet",
       "member-1",
       "org-1",
       expect.anything(),
+      undefined,
     );
     expect(prismaMemberFindManyMock).toHaveBeenCalledWith({
       where: { organizationId: "org-1", role: { in: ["owner", "admin"] } },
@@ -235,15 +244,20 @@ describe("notifyLowBalanceAfterCharge", () => {
   it("reads the Organization pool after a charge with no member (ADR 0057)", async () => {
     getBalanceMock.mockResolvedValue(convertCreditsToCents(5));
 
-    await notifyLowBalanceAfterCharge({
-      userId: null,
-      organizationId: "org-1",
-    });
+    await notifyLowBalanceAfterCharge(
+      {
+        userId: null,
+        organizationId: "org-1",
+      },
+      scope,
+    );
 
     expect(getBalanceMock).toHaveBeenCalledWith(
+      "mainnet",
       null,
       "org-1",
       expect.anything(),
+      undefined,
     );
     expect(createNotificationMock.mock.calls.map((call) => call[0])).toEqual([
       expect.objectContaining({ userId: "owner-1", referenceId: "org-1" }),
@@ -258,7 +272,7 @@ describe("notifyLowBalanceAfterCharge", () => {
       .mockResolvedValue(undefined);
 
     await expect(
-      notifyLowBalanceAfterCharge(ORGANIZATION),
+      notifyLowBalanceAfterCharge(ORGANIZATION, scope),
     ).resolves.toBeUndefined();
 
     expect(
@@ -280,7 +294,7 @@ describe("notifyLowBalanceAfterCharge", () => {
     getBalanceMock.mockRejectedValue(new Error("db down"));
 
     await expect(
-      notifyLowBalanceAfterCharge(PERSONAL),
+      notifyLowBalanceAfterCharge(PERSONAL, scope),
     ).resolves.toBeUndefined();
 
     expect(createNotificationMock).not.toHaveBeenCalled();

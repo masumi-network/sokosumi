@@ -1,6 +1,15 @@
+import { configureSqlTables } from "@sokosumi/database/sql-tables";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -90,6 +99,14 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+/** A layout with Preprod on, so its SQL may name its schema. */
+const PREPROD_ON_LAYOUT = {
+  shared: "shared",
+  mainnet: "mainnet",
+  preprod: "preprod",
+  preprodOn: true,
+};
+
 const COWORKER_ID = "cow_123";
 const TARGET_USER_ID = "user_456";
 const ORGANIZATION_ID = "org_123";
@@ -111,10 +128,19 @@ interface TransactionMock {
   member: {
     findUnique: ReturnType<typeof vi.fn>;
   };
-  coworkerUsage: {
-    findUnique: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
-  };
+  /** The usage row's raw SQL: its lookup, then its insert. */
+  $queryRaw: ReturnType<typeof vi.fn>;
+}
+
+/**
+ * The route's raw SQL on the usage table, in the order it sends it: the
+ * lookup of the key, then the insert of the new row, each answering rows.
+ */
+function usageQueries(...answers: (UsageRecord | null)[]) {
+  const queries = vi.fn();
+  for (const answer of answers)
+    queries.mockResolvedValueOnce(answer ? [answer] : []);
+  return queries;
 }
 
 function createUsage(overrides: Partial<UsageRecord> = {}): UsageRecord {
@@ -181,10 +207,8 @@ describe("POST /me/usage", () => {
         member: {
           findUnique: vi.fn().mockResolvedValue({ userId: TARGET_USER_ID }),
         },
-        coworkerUsage: {
-          findUnique: vi.fn().mockResolvedValue(null),
-          create: vi.fn().mockResolvedValue(createUsage()),
-        },
+        // Preprod is on: the key is also looked up on the other Network.
+        $queryRaw: usageQueries(null, null, createUsage()),
         user: { findUnique: access.user ?? vi.fn() },
         organization: { findUnique: access.organization ?? vi.fn() },
       };
@@ -224,6 +248,7 @@ describe("POST /me/usage", () => {
 
     it("is refused to a billed user without Preprod access, before any credit is read", async () => {
       preprod.on = true;
+      onTestFinished(configureSqlTables(PREPROD_ON_LAYOUT));
       const tx = usageTransaction({ user: flag(false) });
 
       const response = await post(null);
@@ -240,8 +265,9 @@ describe("POST /me/usage", () => {
       expect(recordSpendMock).not.toHaveBeenCalled();
     });
 
-    it("spends Preprod's credits when the billed Organization has access, whatever its member's flag", async () => {
+    it("records the usage on Preprod at its price, taking no credits, when the billed Organization has access, whatever its member's flag", async () => {
       preprod.on = true;
+      onTestFinished(configureSqlTables(PREPROD_ON_LAYOUT));
       const tx = usageTransaction({ organization: flag(true) });
 
       const response = await post(ORGANIZATION_ID);
@@ -252,9 +278,13 @@ describe("POST /me/usage", () => {
         select: { preprodEnabled: true },
       });
       expect(tx.user.findUnique).not.toHaveBeenCalled();
-      expect(prepareConsumptionMock.mock.calls.map((call) => call[0])).toEqual([
+      // Preprod costs no credits: no bucket is chosen, the price is recorded.
+      expect(prepareConsumptionMock).not.toHaveBeenCalled();
+      expect(recordSpendMock).toHaveBeenCalledExactlyOnceWith(
         "preprod",
-      ]);
+        expect.objectContaining({ consumptions: [] }),
+        tx,
+      );
     });
   });
 
@@ -306,12 +336,7 @@ describe("POST /me/usage", () => {
           userId: TARGET_USER_ID,
         }),
       },
-      coworkerUsage: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        create: vi
-          .fn()
-          .mockResolvedValue(createUsage({ userId: TARGET_USER_ID })),
-      },
+      $queryRaw: usageQueries(null, createUsage({ userId: TARGET_USER_ID })),
     };
 
     mockTransaction(tx);
@@ -354,6 +379,11 @@ describe("POST /me/usage", () => {
     expect(prepareConsumptionMock.mock.calls[0]?.[1]).toBe(TARGET_USER_ID);
     expect(prepareConsumptionMock.mock.calls[0]?.[2]).toBe(ORGANIZATION_ID);
     expect(typeof prepareConsumptionMock.mock.calls[0]?.[3]).toBe("bigint");
+    // The pool only: a usage never draws a Project's credits, so the history
+    // never has to name a Project from its consumptions.
+    expect(prepareConsumptionMock.mock.calls[0]?.[5]).toEqual({
+      projectId: null,
+    });
     expect(recordSpendMock).toHaveBeenCalledWith(
       "mainnet",
       {
@@ -361,25 +391,25 @@ describe("POST /me/usage", () => {
         organizationId: ORGANIZATION_ID,
         cents: 25000000000n,
         consumptions: [{ bucketId: "bucket_123", amount: 25000000000n }],
+        createdAt: expect.any(Date),
       },
       tx,
     );
-    expect(tx.coworkerUsage.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          user: { connect: { id: TARGET_USER_ID } },
-        }),
-      }),
-    );
+    // The lookup, then the insert, which bills the request's user.
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw.mock.calls[1]).toContain(TARGET_USER_ID);
 
     const body = await response.json();
     expect(body.data.userId).toBe(TARGET_USER_ID);
     expect(waitUntilCapturedPromises).toHaveLength(1);
     await waitUntilCapturedPromises[0];
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: TARGET_USER_ID,
-      organizationId: ORGANIZATION_ID,
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
   });
 
   it("checks the balance as background work, so a failure inside it is not put on the request's event", async () => {
@@ -391,12 +421,7 @@ describe("POST /me/usage", () => {
       member: {
         findUnique: vi.fn().mockResolvedValue({ userId: TARGET_USER_ID }),
       },
-      coworkerUsage: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        create: vi
-          .fn()
-          .mockResolvedValue(createUsage({ userId: TARGET_USER_ID })),
-      },
+      $queryRaw: usageQueries(null, createUsage({ userId: TARGET_USER_ID })),
     });
     prepareConsumptionMock.mockResolvedValue([
       { bucketId: "bucket_123", amount: 25000000000n },
@@ -434,10 +459,7 @@ describe("POST /me/usage", () => {
           userId: TARGET_USER_ID,
         }),
       },
-      coworkerUsage: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn(),
-      },
+      $queryRaw: usageQueries(null),
     };
     mockTransaction(tx);
 
@@ -458,7 +480,7 @@ describe("POST /me/usage", () => {
     expect(response.status).toBe(403);
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
     expect(recordSpendMock).not.toHaveBeenCalled();
-    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(waitUntilCapturedPromises).toHaveLength(0);
   });
 
@@ -476,10 +498,7 @@ describe("POST /me/usage", () => {
           userId: TARGET_USER_ID,
         }),
       },
-      coworkerUsage: {
-        findUnique: vi.fn().mockResolvedValue(null),
-        create: vi.fn(),
-      },
+      $queryRaw: usageQueries(null),
     };
     mockTransaction(tx);
 
@@ -498,7 +517,7 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
   });
 
@@ -535,12 +554,7 @@ describe("POST /me/usage", () => {
           userId: TARGET_USER_ID,
         }),
       },
-      coworkerUsage: {
-        findUnique: vi
-          .fn()
-          .mockResolvedValue(createUsage({ userId: "user_original" })),
-        create: vi.fn(),
-      },
+      $queryRaw: usageQueries(createUsage({ userId: "user_original" })),
     };
 
     mockTransaction(tx);
@@ -562,7 +576,7 @@ describe("POST /me/usage", () => {
 
     expect(response.status).toBe(409);
     expect(recordSpendMock).not.toHaveBeenCalled();
-    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
   it("returns 409 when idempotency key is reused with a different organizationId", async () => {
@@ -572,15 +586,12 @@ describe("POST /me/usage", () => {
           userId: TARGET_USER_ID,
         }),
       },
-      coworkerUsage: {
-        findUnique: vi.fn().mockResolvedValue(
-          createUsage({
-            userId: TARGET_USER_ID,
-            organizationId: "org_original",
-          }),
-        ),
-        create: vi.fn(),
-      },
+      $queryRaw: usageQueries(
+        createUsage({
+          userId: TARGET_USER_ID,
+          organizationId: "org_original",
+        }),
+      ),
     };
 
     mockTransaction(tx);
@@ -602,7 +613,7 @@ describe("POST /me/usage", () => {
 
     expect(response.status).toBe(409);
     expect(recordSpendMock).not.toHaveBeenCalled();
-    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
   it("replays existing usage even when membership no longer exists", async () => {
@@ -610,15 +621,12 @@ describe("POST /me/usage", () => {
       member: {
         findUnique: vi.fn().mockResolvedValue(null),
       },
-      coworkerUsage: {
-        findUnique: vi.fn().mockResolvedValue(
-          createUsage({
-            userId: TARGET_USER_ID,
-            organizationId: ORGANIZATION_ID,
-          }),
-        ),
-        create: vi.fn(),
-      },
+      $queryRaw: usageQueries(
+        createUsage({
+          userId: TARGET_USER_ID,
+          organizationId: ORGANIZATION_ID,
+        }),
+      ),
     };
 
     mockTransaction(tx);
@@ -639,11 +647,11 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
+    // The lookup only: no insert.
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.member.findUnique).not.toHaveBeenCalled();
     expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
     expect(recordSpendMock).not.toHaveBeenCalled();
-    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
     expect(waitUntilCapturedPromises).toHaveLength(0);
     expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
@@ -654,10 +662,7 @@ describe("POST /me/usage", () => {
       member: {
         findUnique: vi.fn().mockResolvedValue(null),
       },
-      coworkerUsage: {
-        findUnique: vi.fn(),
-        create: vi.fn(),
-      },
+      $queryRaw: usageQueries(null),
     };
 
     mockTransaction(tx);
@@ -678,12 +683,10 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     expect(tx.member.findUnique).toHaveBeenCalledTimes(1);
     expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
-    expect(
-      tx.coworkerUsage.findUnique.mock.invocationCallOrder[0],
-    ).toBeLessThan(
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
       tx.member.findUnique.mock.invocationCallOrder[0] ?? Infinity,
     );
     expect(recordSpendMock).not.toHaveBeenCalled();

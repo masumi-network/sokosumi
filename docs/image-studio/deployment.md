@@ -121,6 +121,13 @@ five-minute token the Web route mints for it.
 
 ## Setting it up for a branch preview
 
+Preprod previews are gone (the old Preprod is frozen), and `/deploy mainnet`
+builds only the Mainnet projects, so this recipe uses `sokosumi-app-mainnet`
+and `sokosumi-core-mainnet` throughout. The OIDC check above
+(`oidcTokenConfig`) was made on the Preprod projects only: **verify
+`oidcTokenConfig.enabled` on both Mainnet projects before relying on OIDC**
+for the preview, and set `AI_GATEWAY_API_KEY` for the branch if it is off.
+
 Preview variables can be scoped to one Git branch, which is how a feature
 branch gets a working studio without touching what every other preview on the
 network sees. `vercel env add <name> <environment> <gitbranch>`.
@@ -139,11 +146,11 @@ Then, with `BRANCH` set to the branch the preview was built from:
 ```sh
 BRANCH=codepat/project-image-studio-01a0d5d6
 
-vercel link --project sokosumi-app-preprod --team masumi --yes --cwd apps/web
+vercel link --project sokosumi-app-mainnet --team masumi --yes --cwd apps/web
 vercel env add IMAGE_STUDIO_AGENT_SECRET preview "$BRANCH" --cwd apps/web --force --yes \
   < /tmp/image-studio-agent-secret
 
-vercel link --project sokosumi-core-preprod --team masumi --yes --cwd apps/core
+vercel link --project sokosumi-core-mainnet --team masumi --yes --cwd apps/core
 vercel env add IMAGE_STUDIO_AGENT_SECRET preview "$BRANCH" --cwd apps/core --force --yes \
   < /tmp/image-studio-agent-secret
 
@@ -168,11 +175,13 @@ vercel env add AI_GATEWAY_API_KEY preview "$BRANCH" --cwd apps/web --force --yes
   < /path/to/gateway-key
 ```
 
-Core's origin for that branch follows the branch alias:
+Core's origin for that branch is the Core preview URL: copy the
+`sokosumi-core-mainnet` URL from the `/deploy mainnet` result (Vercel's comment,
+or the Deploy comment's alias list) rather than building it by hand, because a
+branch name with a slash or a long name is normalized or truncated by Vercel:
 
 ```sh
-printf 'https://sokosumi-core-preprod-git-%s.preview.sokosumi.com' \
-  "$(echo "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/-$//')" \
+printf '%s' "https://<the sokosumi-core-mainnet preview host from the deploy>" \
   | vercel env add CORE_APP_BASE_URL preview "$BRANCH" --cwd apps/web --force --yes
 ```
 
@@ -182,16 +191,17 @@ secret. The Web project already holds a `CORE_APP_BASE_URL`, but on the
 **Production** target only, so Preview has to be given its own.
 
 Preview variables are applied at build time, so **redeploy after setting them**
-(`/deploy preprod` on the pull request). Remove the branch-scoped variables
+(`/deploy mainnet` on the pull request). Remove the branch-scoped variables
 when the branch is done; they outlive the branch otherwise.
 
 For production, the same keys go on the Preview-wide or Production scope of
 `sokosumi-app-mainnet` and `sokosumi-core-mainnet`, with a secret generated for
-that network — never the preprod one. Two things there are unchecked and must be
-read before anyone plans that rollout: whether the mainnet projects have
-`oidcTokenConfig.enabled`, and that `sokosumi-app-preprod` has no
-`IMAGE_STUDIO_AGENT_SECRET` on **any** target, Production included — so
-production Web is missing it too, not only this preview.
+that network and not reused from the branch preview. Two things there are
+unchecked and must be read before anyone plans that rollout: whether the
+mainnet projects have `oidcTokenConfig.enabled`, and whether
+`sokosumi-app-mainnet` has `IMAGE_STUDIO_AGENT_SECRET` on its Production target
+(check it with `vercel env ls` on that project). The Preprod project had none on
+**any** target, so Mainnet Production Web may be missing it too.
 
 ## Verifying
 

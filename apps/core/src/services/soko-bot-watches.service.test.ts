@@ -437,6 +437,8 @@ describe("syncSokoBotWatches", () => {
     then: "post it in #Sokosumi, room room-9",
     turn: {
       id: "turn-1",
+      network: "mainnet",
+      preprodGeneration: null,
       requestedByUserId: "user-1",
       askedByUserId: null,
       chainDepth: 0,

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const {
   agentCountMock,
@@ -50,18 +51,20 @@ const {
   workspaceFindFirstMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/subscription", () => ({
+vi.mock("@/lib/credits/funding", () => ({
   buildCreditsPayload: billingMock,
 }));
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
+  networkPrisma: () => ({
     $transaction: transactionMock,
+    agent: { count: agentCountMock, findMany: agentFindManyMock },
+    creditCost: { findMany: creditCostFindManyMock },
+  }),
+  default: {
     sokoBot: { findUnique: sokoBotFindUniqueMock },
     sokoBotNudge: { findMany: vi.fn().mockResolvedValue([]) },
-    agent: { count: agentCountMock, findMany: agentFindManyMock },
     brandBrain: { findUnique: brandBrainFindUniqueMock },
     coworker: { count: coworkerCountMock, findMany: coworkerFindManyMock },
-    creditCost: { findMany: creditCostFindManyMock },
     job: { count: jobCountMock, findMany: jobFindManyMock },
     project: { count: projectCountMock, findMany: projectFindManyMock },
     sokoBotTurn: {
@@ -124,6 +127,7 @@ function billingSummary() {
 
 function buildInput() {
   return {
+    networkScope: createNetworkScope("mainnet"),
     userId: "user-1",
     sokoBotId: "01960001-0001-7001-8001-000000000001",
     workspaceId: "01960001-0001-7001-8001-000000000002",
@@ -1163,11 +1167,7 @@ describe("ContextPacketBuilder", () => {
 describe("triggerHints", () => {
   const typed = (classification: object, extra: object = {}) =>
     triggerHints({
-      userId: "user-1",
-      sokoBotId: "bot-1",
-      workspaceId: "ws-1",
-      sharedScope: null,
-      source: "CHAT",
+      ...buildInput(),
       classification: { ...CLASSIFICATION, ...classification },
       personAsked: true,
       ...extra,

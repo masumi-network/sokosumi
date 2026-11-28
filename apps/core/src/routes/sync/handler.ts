@@ -13,9 +13,12 @@ import {
   emitCoreWarning,
   logCoreWarning,
   runAsBackgroundWork,
+  tryUseLogger,
 } from "@/lib/evlog";
-import type { Network } from "@/lib/network";
+import { isPreprodOn, type Network, networkKey } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
+import type { networkSyncLease } from "@/services/network-sync-lease";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
 import {
@@ -55,6 +58,7 @@ export interface SyncRunContext extends SyncExecutionContext {
  */
 export interface NetworkSyncRunContext extends SyncRunContext {
   scope: NetworkScope;
+  lease: ReturnType<typeof networkSyncLease>;
 }
 
 type SyncOperation<Context = SyncRunContext> = (
@@ -160,7 +164,7 @@ function getSyncTimeoutMs(): number {
  */
 function runBackgroundSync(
   lock: AcquiredSyncLock,
-  syncOperation: SyncOperation,
+  syncOperation: (context: SyncRunContext) => Promise<void | "skipped">,
   {
     path,
     errorDetail,
@@ -230,10 +234,17 @@ function runBackgroundSync(
 
     const startedAt = Date.now();
     let failed = false;
+    let skipped = false;
     try {
-      await syncOperation(context);
+      skipped = (await syncOperation(context)) === "skipped";
       log.set({
-        sync: { outcome: context.shouldContinue() ? "completed" : "cancelled" },
+        sync: {
+          outcome: skipped
+            ? "skipped"
+            : context.shouldContinue()
+              ? "completed"
+              : "cancelled",
+        },
       });
     } catch (error) {
       failed = true;
@@ -279,7 +290,7 @@ function runBackgroundSync(
         reportCronIdleness({
           path,
           lockKey: lock.key,
-          idle: !failed && idle,
+          idle: !skipped && !failed && idle,
           idleRunsAlert,
         });
       await flushCronMonitor();
@@ -319,7 +330,17 @@ export async function handleSyncRequest(
   if (unauthorized) {
     return unauthorized;
   }
+  const preprod = network === "preprod";
+  const skip = (reason: string) => {
+    const key = networkKey("preprod", lockKey);
+    tryUseLogger()?.set({ sync: { lockKey: key, outcome: "skipped", reason } });
+    cronStillRunning(c.req.path, key, idleRunsAlert);
+    waitUntil(flushCronMonitor());
+    return Response.json({ message: "Sync skipped", reason });
+  };
+  if (preprod && !isPreprodOn()) return skip("off");
   if (enabled && !enabled()) {
+    if (preprod) return skip("unconfigured");
     return new Response(JSON.stringify({ message: "Sync disabled" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -329,23 +350,57 @@ export async function handleSyncRequest(
   // Before the lock: a Network that is off throws here and holds nothing.
   // Imported here, so a cron without a Network does not load the clients'
   // module through this handler.
-  let run: SyncOperation;
+  let run: (context: SyncRunContext) => Promise<void | "skipped">;
+  let resolvedKey = lockKey;
   if (network === undefined) {
     // Known safe: `network?: never` on the plain options leaves only the
     // plain overload without a Network, and its operation asks for no scope.
     run = syncOperation as SyncOperation;
   } else {
     const { createNetworkScope } = await import("@/lib/db/network-scope");
+    const preprodControl = preprod
+      ? await import("@/helpers/preprod-control")
+      : undefined;
+    const { networkSyncLease, SyncLeaseLost } = await import(
+      "@/services/network-sync-lease"
+    );
+    const admission = await preprodControl?.readPreprodControl();
+    if (admission && admission.state !== "open") return skip(admission.state);
     const scope = createNetworkScope(network);
-    run = (context) => syncOperation({ ...context, scope });
+    resolvedKey = networkKey(scope.network, lockKey);
+    run = async (context) => {
+      if (preprodControl && admission) {
+        const current = await preprodControl.readPreprodControl();
+        if (
+          current.state !== "open" ||
+          current.generation !== admission.generation
+        )
+          return "skipped";
+      }
+      const lease = networkSyncLease(
+        scope,
+        acquiredLock,
+        admission?.generation ?? null,
+      );
+      try {
+        await syncOperation({ ...context, scope, lease });
+      } catch (error) {
+        if (
+          error instanceof SyncLeaseLost ||
+          (preprod && error instanceof DetachedNetworkRefusal)
+        )
+          return "skipped";
+        throw error;
+      }
+    };
   }
 
   let acquiredLock: AcquiredSyncLock;
   try {
-    acquiredLock = await syncLockService.acquireLock(lockKey);
+    acquiredLock = await syncLockService.acquireLock(resolvedKey);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
-      cronStillRunning(c.req.path, lockKey, idleRunsAlert);
+      cronStillRunning(c.req.path, resolvedKey, idleRunsAlert);
       // Sent before the function may freeze, as a run's check-ins are.
       waitUntil(flushCronMonitor());
       return new Response(

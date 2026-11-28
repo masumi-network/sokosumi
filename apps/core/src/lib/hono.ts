@@ -5,6 +5,10 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { coworkerContextMiddleware } from "@/middleware/coworker-context";
 import {
+  requireMainnetOnlyFeatureForMethods,
+  requireMainnetOnlyFeatureMiddleware,
+} from "@/middleware/mainnet-only-feature";
+import {
   type NetworkScopeVariables,
   networkScopeMiddleware,
 } from "@/middleware/network-scope";
@@ -29,6 +33,15 @@ export function defaultValidationHook(result: {
 }
 
 /**
+ * A path rule for gating specific operations on a mixed router as Mainnet-only.
+ * Pass a Hono path pattern (e.g. `"/:id/competitors/*"`) to gate every method,
+ * or `{ path, methods }` to gate only named HTTP methods.
+ */
+export type MainnetOnlyRouteRule =
+  | string
+  | { readonly path: string; readonly methods: readonly string[] };
+
+/**
  * Options for OpenAPIHonoWithAuth constructor
  */
 export interface OpenAPIHonoWithAuthOptions {
@@ -44,6 +57,13 @@ export interface OpenAPIHonoWithAuthOptions {
    * checked against the owner's userId and can 403.
    */
   requireOrganizationProductSeat?: boolean;
+  /**
+   * Refuse Preprod requests immediately after authentication with 422
+   * `mainnet_only_feature`, before organization, Network-scope, workspace, or
+   * seat queries run. Pass `true` to gate the entire router, or a list of path
+   * rules for a mixed router.
+   */
+  mainnetOnly?: boolean | readonly MainnetOnlyRouteRule[];
 }
 
 export type EnvVariables = {
@@ -89,6 +109,7 @@ export class OpenAPIHonoWithAuth<
     const {
       includeWorkspaceContext = false,
       requireOrganizationProductSeat = false,
+      mainnetOnly = false,
     } = options;
 
     super({
@@ -96,6 +117,20 @@ export class OpenAPIHonoWithAuth<
     });
 
     this.use(authMiddleware);
+    if (mainnetOnly === true) {
+      this.use(requireMainnetOnlyFeatureMiddleware);
+    } else if (mainnetOnly) {
+      for (const rule of mainnetOnly) {
+        if (typeof rule === "string") {
+          this.use(rule, requireMainnetOnlyFeatureMiddleware);
+        } else {
+          this.use(
+            rule.path,
+            requireMainnetOnlyFeatureForMethods(rule.methods),
+          );
+        }
+      }
+    }
     this.use(coworkerContextMiddleware);
     this.use(organizationContextMiddleware);
     // After the Organization of the request is known: Preprod access depends on it.

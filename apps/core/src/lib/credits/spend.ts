@@ -5,6 +5,15 @@ import {
 
 import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 
+import {
+  chargesCredits,
+  type RecordedSpendKind,
+  requireRecordedSpendKind,
+  type SpendKind,
+} from "./policy";
+
+export type { RecordedSpendKind, SpendKind } from "./policy";
+
 /** Whose credits a spend takes. */
 export interface CreditPayer {
   /**
@@ -31,9 +40,18 @@ export interface CreditPayer {
  */
 export type SpendMode = "in_full" | "in_full_or_zero" | "up_to_balance";
 
-export interface SpendInput<Mode extends SpendMode = SpendMode> {
+export interface SpendInput<
+  Mode extends SpendMode = SpendMode,
+  Kind extends SpendKind = SpendKind,
+> {
   /** The Network whose credits pay. The one place the Network is read. */
   scope: NetworkScope;
+  /**
+   * What the spend pays for. On a Network that charges no credits (Preprod)
+   * only a Job hire, a Task's credits and Coworker usage are recorded; any
+   * other kind is refused there before anything is written.
+   */
+  kind: Kind;
   /**
    * The caller's open transaction, of the shared side: the debit commits or
    * rolls back with the caller's own receipt, at the caller's isolation level
@@ -52,6 +70,12 @@ export interface SpendInput<Mode extends SpendMode = SpendMode> {
 export interface SpendCharged {
   outcome: "charged";
   transactionId: string;
+  /**
+   * The debit's creation time, which its consumptions share: a receipt
+   * written after it in the same transaction takes it as its own, so the
+   * two read as one instant, as one nested create wrote them.
+   */
+  createdAt: Date;
   quotedCents: bigint;
   chargedCents: bigint;
   shortfall: false;
@@ -60,6 +84,8 @@ export interface SpendCharged {
 export interface SpendPartlyCharged {
   outcome: "partly_charged";
   transactionId: string;
+  /** See `SpendCharged.createdAt`. */
+  createdAt: Date;
   quotedCents: bigint;
   /** Above zero and below the price. */
   chargedCents: bigint;
@@ -69,6 +95,8 @@ export interface SpendPartlyCharged {
 export interface SpendRecordedZero {
   outcome: "recorded_zero";
   transactionId: string;
+  /** See `SpendCharged.createdAt`. */
+  createdAt: Date;
   quotedCents: 0n;
   chargedCents: 0n;
   shortfall: false;
@@ -77,6 +105,7 @@ export interface SpendRecordedZero {
 export interface SpendNotCharged {
   outcome: "not_charged";
   transactionId: null;
+  createdAt: null;
   quotedCents: bigint;
   chargedCents: 0n;
   shortfall: true;
@@ -84,13 +113,33 @@ export interface SpendNotCharged {
   availableCents: bigint;
 }
 
+/**
+ * The Network charges no credits (Preprod): one debit of the price is
+ * recorded on its own tables, which the caller's receipt points to, and no
+ * credits are taken. Not a charge: there was no balance to read.
+ */
+export interface SpendRecordedNotCharged {
+  outcome: "recorded_not_charged";
+  transactionId: string;
+  /** See `SpendCharged.createdAt`. */
+  createdAt: Date;
+  quotedCents: bigint;
+  chargedCents: 0n;
+  shortfall: false;
+}
+
 interface SpendResults {
   in_full: SpendCharged | SpendNotCharged;
   in_full_or_zero: SpendCharged | SpendRecordedZero | SpendNotCharged;
   up_to_balance: SpendCharged | SpendPartlyCharged | SpendNotCharged;
 }
-export type SpendResult<Mode extends SpendMode = SpendMode> =
-  SpendResults[Mode];
+/** What a spend answers: a kind recorded on Preprod adds `recorded_not_charged`. */
+export type SpendResult<
+  Mode extends SpendMode = SpendMode,
+  Kind extends SpendKind = SpendKind,
+> =
+  | SpendResults[Mode]
+  | (Kind extends RecordedSpendKind ? SpendRecordedNotCharged : never);
 
 /**
  * The errors whose latest throw by a spend came from its preparation. Kept
@@ -148,34 +197,58 @@ async function inStage<T>(
  * Network-side transaction is added by the ticket that moves a payer to that
  * side, with its own proof that the plan and the Seat are read the same.
  */
-export async function spend(
-  input: SpendInput<"in_full">,
-): Promise<SpendResult<"in_full">>;
-export async function spend(
-  input: SpendInput<"in_full_or_zero">,
-): Promise<SpendResult<"in_full_or_zero">>;
-export async function spend(
-  input: SpendInput<"up_to_balance">,
-): Promise<SpendResult<"up_to_balance">>;
+export async function spend<Kind extends SpendKind>(
+  input: SpendInput<"in_full", Kind>,
+): Promise<SpendResult<"in_full", Kind>>;
+export async function spend<Kind extends SpendKind>(
+  input: SpendInput<"in_full_or_zero", Kind>,
+): Promise<SpendResult<"in_full_or_zero", Kind>>;
+export async function spend<Kind extends SpendKind>(
+  input: SpendInput<"up_to_balance", Kind>,
+): Promise<SpendResult<"up_to_balance", Kind>>;
 export async function spend(input: SpendInput): Promise<SpendResult> {
-  const { scope, tx, payer, quotedCents, mode } = input;
+  const { scope, tx, kind, payer, quotedCents, mode } = input;
   const { userId, organizationId, projectId } = payer;
   // A scope that refuses its Network throws here: a failed preparation.
   const network = await inStage("preparation", () => scope.network);
-  const record = (cents: bigint, consumptions: Consumptions) =>
-    inStage("write", () =>
+  const charges = chargesCredits(network);
+  if (!charges) {
+    await inStage("preparation", () => requireRecordedSpendKind(kind, network));
+  }
+  const record = async (cents: bigint, consumptions: Consumptions) => {
+    const createdAt = new Date();
+    const transactionId = await inStage("write", () =>
       creditBucketRepository.recordSpend(
         network,
-        { userId, organizationId, cents, consumptions },
+        { userId, organizationId, cents, consumptions, createdAt },
         tx,
       ),
     );
+    return { transactionId, createdAt };
+  };
 
   if (mode === "in_full_or_zero" && quotedCents === 0n) {
     return {
       outcome: "recorded_zero",
-      transactionId: await record(0n, []),
+      ...(await record(0n, [])),
       quotedCents: 0n,
+      chargedCents: 0n,
+      shortfall: false,
+    };
+  }
+
+  if (!charges) {
+    // No balance, bucket, Seat or plan read: they choose credits, and none
+    // are taken. A price of zero is refused, as the bucket choice refuses it.
+    if (quotedCents <= 0n) {
+      await inStage("preparation", () => {
+        throw new Error("Cents to consume must be positive");
+      });
+    }
+    return {
+      outcome: "recorded_not_charged",
+      ...(await record(quotedCents, [])),
+      quotedCents,
       chargedCents: 0n,
       shortfall: false,
     };
@@ -197,6 +270,7 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
       return {
         outcome: "not_charged",
         transactionId: null,
+        createdAt: null,
         quotedCents,
         chargedCents: 0n,
         shortfall: true,
@@ -231,17 +305,19 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
     return {
       outcome: "not_charged",
       transactionId: null,
+      createdAt: null,
       quotedCents,
       chargedCents: 0n,
       shortfall: true,
       availableCents: error.available,
     };
   }
-  const transactionId = await record(chargedCents, consumptions);
+  const { transactionId, createdAt } = await record(chargedCents, consumptions);
   return chargedCents < quotedCents
     ? {
         outcome: "partly_charged",
         transactionId,
+        createdAt,
         quotedCents,
         chargedCents,
         shortfall: true,
@@ -249,6 +325,7 @@ export async function spend(input: SpendInput): Promise<SpendResult> {
     : {
         outcome: "charged",
         transactionId,
+        createdAt,
         quotedCents,
         chargedCents,
         shortfall: false,

@@ -49,6 +49,8 @@ export const CORE_API_ERROR_KINDS = {
   INSUFFICIENT_BALANCE: "insufficient_balance",
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
+  /** The feature is available on Mainnet only, not Preprod. */
+  MAINNET_ONLY_FEATURE: "mainnet_only_feature",
   MEMBER_NOT_FOUND: "member_not_found",
   /** A Coworker's payment names another Network than `X-Sokosumi-Network`. */
   NETWORK_MISMATCH: "network_mismatch",
@@ -63,6 +65,8 @@ export const CORE_API_ERROR_KINDS = {
   /** The person may own or join no more organizations. */
   ORGANIZATION_LIMIT_REACHED: "organization_limit_reached",
   ORGANIZATION_NOT_FOUND: "organization_not_found",
+  /** The organization has no DESIGN.md a Project could start from. */
+  ORGANIZATION_DESIGN_MD_MISSING: "organization_design_md_missing",
   ORGANIZATION_ROLE_FORBIDDEN: "organization_role_forbidden",
   ORGANIZATION_SEAT_REQUIRED: "organization_seat_required",
   SEAT_CAPACITY_EXCEEDED: "seat_capacity_exceeded",
@@ -83,6 +87,8 @@ export const CORE_API_ERROR_KINDS = {
   /** The request names Preprod, and the caller has no Preprod access in this Workspace. */
   PREPROD_ACCESS_REQUIRED: "preprod_access_required",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
+  /** The Project already has a DESIGN.md; a copy only fills an empty one. */
+  PROJECT_DESIGN_MD_EXISTS: "project_design_md_exists",
   SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
   SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",
   SEO_AUDIT_RESUMABLE_MONITOR: "seo_audit_resumable_monitor",

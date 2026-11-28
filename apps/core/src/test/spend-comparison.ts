@@ -19,21 +19,89 @@
  *     };
  *   });
  */
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { Pool, PoolClient } from "pg";
 import { expect } from "vitest";
+import { onSplitLayout } from "./split-layout";
 
 interface SentStatement {
   connection: number;
+  pendingAtSend?: number[];
   text: string;
   values: unknown[];
+  /** When it was sent, on one clock shared with `answered`. */
+  sent: number;
+  /** When PostgreSQL answered it, or its error arrived; null until then. */
+  answered: number | null;
+  /** The flow that sent it (`inFlow`): `"call"` unless one was named. */
+  flow: string;
 }
+
+/** The flow a statement is sent from, carried through its async calls. */
+const flows = new AsyncLocalStorage<string>();
+
+/**
+ * Runs `work` as a flow of its own: its statements are told apart from those
+ * of another flow running at the same time, as two requests at once are, so
+ * whether one flow awaited each answer is decided within that flow.
+ */
+export function inFlow<T>(name: string, work: () => Promise<T>): Promise<T> {
+  return flows.run(name, work);
+}
+/** What `statements` reads of a statement sent. */
+type StatementSent = Pick<SentStatement, "connection" | "text" | "values">;
 /** What Core's pool sent while a call was observed, per connection. */
 const sent = {
   observing: false,
+  pending: undefined as Set<number> | undefined,
   connections: 0,
+  /** A counter, not a time: two events never share a tick. */
+  ticks: 0,
   log: [] as SentStatement[],
 };
+
+/** Flows whose `nth` COMMIT waits (`holdCommit`). */
+const commitHolds = new Map<
+  string,
+  { nth: number; reached: () => void; release: Promise<void> }
+>();
+
+/**
+ * Holds the flow's `nth` COMMIT from now until `release`: its transaction
+ * has written everything and still holds its locks, so another flow can run
+ * into them. `reached` settles when the COMMIT is held. No statement of its
+ * own.
+ */
+export function holdCommit(
+  flow: string,
+  nth = 1,
+): {
+  reached: Promise<void>;
+  release: () => void;
+  cancel: () => void;
+} {
+  let release = () => {};
+  let reached = () => {};
+  const isReached = new Promise<void>((resolve) => {
+    reached = resolve;
+  });
+  commitHolds.set(flow, {
+    nth,
+    reached: () => reached(),
+    release: new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+  });
+  return {
+    reached: isReached,
+    release: () => release(),
+    cancel: () => {
+      commitHolds.delete(flow);
+    },
+  };
+}
 
 /** Records what each new connection of the pool sends while observing. */
 export function observePool(pool: Pool): void {
@@ -41,53 +109,200 @@ export function observePool(pool: Pool): void {
     sent.connections += 1;
     const connection = sent.connections;
     const query = client.query.bind(client) as (...a: unknown[]) => unknown;
-    (client as { query: unknown }).query = (...args: unknown[]) => {
+    const observed = (...args: unknown[]): unknown => {
+      const flow = flows.getStore() ?? "call";
+      const held = commitHolds.get(flow);
+      const [text] = args;
+      if (
+        held &&
+        typeof args.at(-1) !== "function" &&
+        /^\s*COMMIT\b/i.test(
+          typeof text === "string" ? text : (text as { text: string }).text,
+        )
+      ) {
+        held.nth -= 1;
+        if (held.nth === 0) {
+          commitHolds.delete(flow);
+          held.reached();
+          return held.release.then(() => observed(...args));
+        }
+      }
       if (sent.observing) {
         const [first, second] = args;
         const config =
           typeof first === "string"
             ? { text: first, values: second }
             : (first as { text: string; values?: unknown });
-        sent.log.push({
+        const pending = sent.pending;
+        const index = sent.log.length;
+        const entry: SentStatement = {
+          ...(pending && { pendingAtSend: [...pending] }),
           connection,
           text: config.text,
           values: Array.isArray(config.values) ? config.values : [],
-        });
+          sent: ++sent.ticks,
+          answered: null,
+          flow: flows.getStore() ?? "call",
+        };
+        sent.log.push(entry);
+        pending?.add(index);
+        const answered = () => {
+          entry.answered ??= ++sent.ticks;
+          pending?.delete(index);
+        };
+        // A query with a callback (the pool's own `query`) is answered when
+        // the callback runs; one without returns a promise.
+        const last = args.at(-1);
+        if (typeof last === "function") {
+          args[args.length - 1] = (...results: unknown[]) => {
+            answered();
+            return (last as (...r: unknown[]) => unknown)(...results);
+          };
+        }
+        const result = query(...args);
+        if (result instanceof Promise) {
+          // A derived promise: the caller still gets the original and its error.
+          result.then(answered, answered);
+        }
+        return result;
       }
       return query(...args);
     };
+    (client as { query: unknown }).query = observed;
   });
+}
+
+/**
+ * What a caller sees of an error: its name, message, HTTP status and the
+ * public error kind, which an `HTTPException` of `@/helpers/error` carries in
+ * its `cause` and Core's error handler answers with.
+ */
+export function thrown(error: unknown) {
+  const { name, message, status, cause } = error as {
+    name?: unknown;
+    message?: unknown;
+    status?: unknown;
+    cause?: unknown;
+  };
+  const kind =
+    typeof cause === "object" && cause !== null
+      ? (cause as { kind?: unknown }).kind
+      : undefined;
+  return {
+    name,
+    message,
+    ...(status === undefined ? {} : { status }),
+    ...(kind === undefined ? {} : { kind }),
+  };
+}
+
+/**
+ * `Date.now()` once the clock has left the current millisecond. An observed
+ * call's start taken this way lies after every row written before it, also
+ * in the milliseconds a time column keeps, so "within the call" never takes
+ * in a write that ended in the same millisecond the call started.
+ */
+export async function nextMillisecond(): Promise<number> {
+  const before = Date.now();
+  while (Date.now() <= before) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  return Date.now();
 }
 
 /** Runs `call` and returns its outcome with what the pool sent meanwhile. */
 export async function observing<T>(
   call: () => Promise<T>,
+  options?: { trackResponses: boolean },
 ): Promise<{ outcome: T | { threw: unknown }; log: SentStatement[] }> {
   sent.log = [];
+  sent.pending = options?.trackResponses ? new Set() : undefined;
   sent.observing = true;
   try {
     return { outcome: await call(), log: sent.log };
   } catch (error) {
     if (!(error instanceof Error)) throw error;
-    const status = (error as { status?: unknown }).status;
-    return {
-      outcome: {
-        threw: {
-          name: error.name,
-          message: error.message,
-          ...(status === undefined ? {} : { status }),
-        },
-      },
-      log: sent.log,
-    };
+    return { outcome: { threw: thrown(error) }, log: sent.log };
   } finally {
     sent.observing = false;
   }
 }
 
+/** Compare the exact driver statement, allowing only the two layouts’ schema qualifiers. */
+export function statementDigest(sql: string): string {
+  const text = onSplitLayout
+    ? sql
+        .replaceAll('"mainnet".', '"public".')
+        .replaceAll('"shared".', '"public".')
+    : sql;
+  return createHash("sha256").update(text).digest("hex");
+}
+
 export interface Statement {
   sql: string;
   values: unknown[];
+}
+
+/** Each statement's transaction, numbered as `statements` orders them. */
+function inTransactions(log: readonly SentStatement[]) {
+  const open = new Map<number, number>();
+  let count = 0;
+  return log.map((entry) => {
+    let transaction = open.get(entry.connection) ?? null;
+    if (/^\s*BEGIN\b/i.test(entry.text)) {
+      transaction = count++;
+      open.set(entry.connection, transaction);
+    } else if (/^\s*(COMMIT|ROLLBACK)\b/i.test(entry.text)) {
+      open.delete(entry.connection);
+    }
+    return { entry, transaction };
+  });
+}
+
+/**
+ * Within each flow (`inFlow`), every statement sent before an earlier one of
+ * the same flow was answered, inside a transaction or outside, as
+ * `"<flow> <later> before <earlier>"` with each statement numbered in its
+ * flow's send order: `[]` when the flow awaited every answer before it sent
+ * again. A statement never answered counts as not answered.
+ */
+export function sentBeforeAnswered(log: readonly SentStatement[]): string[] {
+  const byFlow = new Map<string, SentStatement[]>();
+  for (const entry of log) {
+    const flow = byFlow.get(entry.flow) ?? [];
+    flow.push(entry);
+    byFlow.set(entry.flow, flow);
+  }
+  return [...byFlow].flatMap(([name, flow]) =>
+    flow.flatMap((later, at) =>
+      flow
+        .slice(0, at)
+        .flatMap((earlier, before) =>
+          earlier.answered === null || earlier.answered > later.sent
+            ? [`${name} ${at} before ${before}`]
+            : [],
+        ),
+    ),
+  );
+}
+
+/**
+ * The order every statement was sent in, across flows and transactions and
+ * outside them: runs of `"<n> <flow> in transaction <t>"` or
+ * `"<n> <flow> outside"`, with `t` numbered as `statements` orders the
+ * transactions.
+ */
+export function sendOrder(log: readonly SentStatement[]): string[] {
+  const runs: { where: string; count: number }[] = [];
+  for (const { entry, transaction } of inTransactions(log)) {
+    const where = `${entry.flow} ${
+      transaction === null ? "outside" : `in transaction ${transaction}`
+    }`;
+    const last = runs.at(-1);
+    if (last?.where === where) last.count += 1;
+    else runs.push({ where, count: 1 });
+  }
+  return runs.map(({ where, count }) => `${count} ${where}`);
 }
 
 /**
@@ -96,16 +311,32 @@ export interface Statement {
  * sent, with the values bound. Statements outside a transaction can run side
  * by side, so they are counted per text. On the split layout the schema names
  * differ and are written as today's.
+ *
+ * `asSent` keeps every schema name as sent, and keeps each statement outside
+ * a transaction with its values, in the order sent: the caller makes them
+ * plain and sorts them.
  */
-export function statements(log: readonly SentStatement[]) {
+export function statements(
+  log: readonly StatementSent[],
+  options?: { asSent?: false },
+): { transactions: Statement[][]; outsideTransactions: Record<string, number> };
+export function statements(
+  log: readonly StatementSent[],
+  options: { asSent: true },
+): { transactions: Statement[][]; outsideTransactions: Statement[] };
+export function statements(
+  log: readonly StatementSent[],
+  { asSent = false }: { asSent?: boolean } = {},
+) {
   const open = new Map<number, Statement[]>();
   const transactions: Statement[][] = [];
   const outside = new Map<string, number>();
+  const outsideAsSent: Statement[] = [];
   for (const { connection, text, values } of log) {
-    const sql = text
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/"(shared|mainnet)"\./g, '"public".');
+    const collapsed = text.replace(/\s+/g, " ").trim();
+    const sql = asSent
+      ? collapsed
+      : collapsed.replace(/"(shared|mainnet)"\./g, '"public".');
     const transaction = open.get(connection);
     if (/^BEGIN\b/i.test(sql)) {
       const started = [{ sql, values }];
@@ -114,15 +345,19 @@ export function statements(log: readonly SentStatement[]) {
     } else if (transaction) {
       transaction.push({ sql, values });
       if (/^(COMMIT|ROLLBACK)\b/i.test(sql)) open.delete(connection);
+    } else if (asSent) {
+      outsideAsSent.push({ sql, values });
     } else {
       outside.set(sql, (outside.get(sql) ?? 0) + 1);
     }
   }
   return {
     transactions,
-    outsideTransactions: Object.fromEntries(
-      [...outside].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-    ),
+    outsideTransactions: asSent
+      ? outsideAsSent
+      : Object.fromEntries(
+          [...outside].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+        ),
   };
 }
 
@@ -225,9 +460,15 @@ interface Observed {
  * A payer's base file. While `recording`, `expectAsOnBase` writes what it
  * observes under the key; otherwise it compares: the answer, the rows and
  * every statement are `origin/main`'s, only the debit's own statements are
- * the ones `recordSpend` sends.
+ * the ones `recordSpend` sends. A payer whose debit `recordSpend` already
+ * wrote on `origin/main` passes `debitMoved: false`: nothing is rewritten,
+ * and a compensating refund's own insert stays as recorded.
  */
-export function baseFile(path: string, recording: boolean) {
+export function baseFile(
+  path: string,
+  recording: boolean,
+  { debitMoved = true }: { debitMoved?: boolean } = {},
+) {
   const recorded = (): Record<string, unknown> =>
     existsSync(path)
       ? (JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>)
@@ -235,7 +476,9 @@ export function baseFile(path: string, recording: boolean) {
   return {
     /**
      * `rewrite` names a further difference of one case, which the caller
-     * states and checks; it gets the base's transactions as recorded.
+     * states and checks. The base file holds what was observed, whole; the
+     * rewrite applies to the base's and to the observed transactions alike,
+     * only when they are compared.
      */
     expectAsOnBase(
       key: string,
@@ -251,13 +494,22 @@ export function baseFile(path: string, recording: boolean) {
       }
       const base = recorded()[key] as Observed | undefined;
       if (!base) throw new Error(`The base file has no case "${key}"`);
-      expect(observed).toEqual({
+      const now = observed as Observed;
+      expect({
+        ...now,
+        statements: {
+          ...now.statements,
+          transactions: rewrite(now.statements.transactions),
+        },
+      }).toEqual({
         ...base,
         statements: {
           ...base.statements,
-          transactions: rewrite(base.statements.transactions).map(
-            withTheDebitAsWrittenNow,
-          ),
+          transactions: debitMoved
+            ? rewrite(base.statements.transactions).map(
+                withTheDebitAsWrittenNow,
+              )
+            : rewrite(base.statements.transactions),
         },
       });
     },

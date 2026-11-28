@@ -4,10 +4,8 @@ import { isX402PaymentIdentifierAdvertised } from "@sokosumi/masumi/schemas";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
-import { getEnv } from "@/config/env";
+import { masumiClients } from "@/clients/masumi";
 import { requireTaskCollaboration } from "@/helpers/access-control";
-import { getCreditCostsOrThrow } from "@/helpers/agent";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
   badGateway,
@@ -18,6 +16,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isIdempotencyKeyUniqueConstraintError } from "@/helpers/prisma";
 import {
@@ -28,14 +27,18 @@ import { buildX402AgentPricingListing } from "@/helpers/x402-agent-listing";
 import { verifyX402DemandAgainstAgentSources } from "@/helpers/x402-payment-verify";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
 import {
+  findListedX402Agent,
+  requireRates,
+  x402ReadySources,
+} from "@/lib/agent-catalog/availability";
+import {
   findX402ReadySource,
-  getX402ReadySources,
   x402ChainNetwork,
-} from "@/helpers/x402-readiness";
+} from "@/lib/agent-catalog/x402";
 import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import type { Network } from "@/lib/network";
+import { isNetworkRoutingEnabled, type Network } from "@/lib/network";
 import { requireSeparateAuditPurchaseAllowed } from "@/lib/seo/audit-settlement";
 import {
   type AuthenticationContext,
@@ -64,7 +67,6 @@ import {
 } from "@/services/task-x402-payment.replay";
 import {
   createX402DemandFingerprint,
-  findListedX402Agent,
   narrowOrThrow,
   sourceRequirementForEntry,
 } from "@/services/task-x402-payment.replay-demand";
@@ -79,6 +81,7 @@ const MAX_NODE_MESSAGE_ECHO_LENGTH = 2_000;
 
 export interface PayTaskX402Input {
   authContext: AuthenticationContext;
+  catalogScope: NetworkScope;
   taskId: string;
   idempotencyKey: string;
   agentId: string;
@@ -117,7 +120,7 @@ async function runX402ChargePhase(
   input: PayTaskX402Input,
   taskEventAttribution: TaskEventAgentAttribution,
 ): Promise<ChargePhaseOutcome> {
-  const { authContext, taskId, idempotencyKey, agentId } = input;
+  const { authContext, taskId, idempotencyKey, agentId, catalogScope } = input;
 
   // Everything below this line runs BEFORE the serializable transaction opens.
   //
@@ -178,11 +181,32 @@ async function runX402ChargePhase(
   // replay working after an agent is hidden, readiness changes, or pricing
   // is emptied.
   const task = await requireTaskCollaboration(authContext, taskId);
+  async function mainnetPaymentScope(
+    ...args: Parameters<typeof input.paymentScope>
+  ) {
+    const scope = await input.paymentScope(...args);
+    requireMainnetMasumiPayment(scope);
+    return scope;
+  }
+  if (isNetworkRoutingEnabled()) {
+    // Coworker Task settlement and replay still use the Mainnet ledger (ticket 29).
+    // A mixed offer is narrowed by the Mainnet catalog; a testnet-only offer names Preprod.
+    const offeredNetworks = new Set(
+      normalized.accepts.map((entry) => x402ChainNetwork(entry.network)),
+    );
+    const network =
+      offeredNetworks.size === 1 ? [...offeredNetworks][0] : undefined;
+    await mainnetPaymentScope(
+      network,
+      { userId: task.ownerId, organizationId: task.organizationId },
+      prisma,
+    );
+  }
   // A replay asks the same resolver as a fresh charge, with the stored chain.
   const replayNetworkFor =
     (billed: BilledParty): X402ReplayInput["requireNetwork"] =>
     (caip2Network, tx) =>
-      input.paymentScope(x402ChainNetwork(caip2Network), billed, tx);
+      mainnetPaymentScope(x402ChainNetwork(caip2Network), billed, tx);
   const preflightPayment = await prisma.taskX402Payment.findUnique({
     where: { taskId_idempotencyKey: { taskId, idempotencyKey } },
   });
@@ -191,6 +215,7 @@ async function runX402ChargePhase(
     preflightPayment.status !== TaskX402PaymentStatus.PENDING
   ) {
     const replayArgs = {
+      catalogScope,
       agentId,
       normalized,
       requirementSources: normalization.requirementSources,
@@ -222,10 +247,11 @@ async function runX402ChargePhase(
   // authority for every state transition and lease.
   const needsPricing = preflightPayment === null;
   const [readySources, creditCosts] = await Promise.all([
-    getX402ReadySources(),
-    needsPricing ? getCreditCostsOrThrow() : Promise.resolve(undefined),
+    x402ReadySources(catalogScope),
+    needsPricing ? requireRates(catalogScope) : Promise.resolve(undefined),
   ]);
   const replayInput = {
+    catalogScope,
     agentId,
     normalized,
     readySources,
@@ -262,10 +288,12 @@ async function runX402ChargePhase(
         );
       }
 
-      const agent = await findListedX402Agent(agentId, tx);
-      if (!agent) {
+      const listed = await findListedX402Agent(catalogScope, agentId, tx);
+      if (!listed) {
         throw notFound("x402 agent not found or not listed");
       }
+
+      const { agent, network } = listed;
 
       // Enforce the same per-agent gates as GET /v1/agents?kind=x402. Matching only
       // the demanded source would let a caller with a remembered id pay an
@@ -276,7 +304,7 @@ async function runX402ChargePhase(
       const listingContext = {
         creditCosts,
         readySources,
-        network: getEnv().NETWORK,
+        network,
       };
       const listing = buildX402AgentPricingListing(
         agent.paymentSources,
@@ -291,13 +319,13 @@ async function runX402ChargePhase(
       const demand = verifyX402DemandAgainstAgentSources(
         normalized.accepts,
         agent.paymentSources,
-        getEnv().NETWORK,
+        network,
       );
 
       // The chain names the payment's Network: a header that names the other
       // one, or a billed party without access, is refused here, before the
       // charge.
-      const scope = await input.paymentScope(
+      const scope = await mainnetPaymentScope(
         x402ChainNetwork(demand.caip2Network),
         { userId: task.ownerId, organizationId: task.organizationId },
         tx,
@@ -468,7 +496,7 @@ async function runX402ChargePhase(
         kind: "sign",
         paymentId: record.id,
         taskOwnerId: task.ownerId,
-        chargedNow: true,
+        chargedScope: scope,
         signStartedAt,
         // Only the verified entry is forwarded — the node must not be handed
         // a menu it gets to choose from. See narrowOrThrow.
@@ -501,13 +529,16 @@ async function runX402ChargePhase(
     throw error;
   });
 
-  if (outcome.kind === "sign" && outcome.chargedNow) {
+  if (outcome.kind === "sign" && outcome.chargedScope) {
     // After the commit: the wallet the charge came out of is the task's.
     waitUntil(
-      notifyLowBalanceAfterCharge({
-        userId: task.ownerId,
-        organizationId: task.organizationId,
-      }),
+      notifyLowBalanceAfterCharge(
+        {
+          userId: task.ownerId,
+          organizationId: task.organizationId,
+        },
+        outcome.chargedScope,
+      ),
     );
   }
 
@@ -570,7 +601,7 @@ export async function payTaskX402(
     };
   }
 
-  if (outcome.chargedNow) {
+  if (outcome.chargedScope) {
     // The charge event is committed; surface it on the task timeline even if
     // the sign below fails.
     schedulePostCommitFanout(taskId, outcome.taskOwnerId);
@@ -600,7 +631,7 @@ export async function payTaskX402(
   // Fresh path only: replay already incremented inside its charge-phase txn.
   // Spend the L3 cap only now so a withheld dispatch never burns the
   // first-attempt auto-refund slot.
-  if (outcome.chargedNow) {
+  if (outcome.chargedScope) {
     await prisma.taskX402Payment.update({
       where: { id: outcome.paymentId },
       data: { signAttemptCount: { increment: 1 } },
@@ -618,7 +649,7 @@ export async function payTaskX402(
   // ids are uuid(7) (hyphenated hex), so "_" keeps the whole value legal and
   // within the 16–128 length bound.
   const advertised = isX402PaymentIdentifierAdvertised(outcome.normalized);
-  const signResult = await paymentClient().payX402(
+  const signResult = await masumiClients("mainnet").payment.payX402(
     {
       evmWalletId: outcome.evmWalletId,
       paymentRequired: outcome.normalized,
@@ -669,7 +700,7 @@ export async function payTaskX402(
       },
     });
 
-    if (!outcome.chargedNow) {
+    if (!outcome.chargedScope) {
       // This refusal proves only that the CURRENT call issued no header. The
       // PENDING row exists because an earlier call ended ambiguously, and that
       // earlier call may have produced an authorization which is still live.

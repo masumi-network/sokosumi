@@ -293,3 +293,64 @@ describe("MessageSignalBar on a touch screen", () => {
     expect(sheet.querySelector(".rounded-full")).toBeNull();
   });
 });
+
+describe("MessageSignalBar tag editor", () => {
+  it("lists the message's tags first with a word, and the rest under More tags without numbers", async () => {
+    const user = userEvent.setup();
+    const message = tagged(["decisionMade", "announcement", "bug"]);
+    if (!message.signal) throw new Error("tagged message has a signal");
+    message.signal.probabilities = {
+      decisionMade: 0.97,
+      announcement: 0.7,
+      question: 0.02,
+    };
+    render(bar(message));
+
+    await user.click(screen.getByRole("button", { name: "Edit tags" }));
+    const [applied, more] = await screen.findAllByRole("list");
+
+    expect(applied).toHaveAccessibleName("Tags for this message");
+    expect(applied).toHaveTextContent(
+      "Decision madeVery likelyAnnouncementLikelyReports a bug",
+    );
+    expect(more).toHaveAccessibleName("More tags");
+    expect(more).not.toHaveTextContent(/%|\d/);
+    expect(more).toHaveTextContent("Asks someone a question");
+    expect(screen.queryByText(/%/)).toBeNull();
+  });
+
+  it("keeps a ticked tag in place while the editor is open", async () => {
+    const user = userEvent.setup();
+    correctMock.mockResolvedValue({
+      ok: true,
+      value: {
+        signal: {
+          tags: ["decisionMade", "question"],
+          probabilities: {},
+          addressedUserIds: [],
+          commitmentDueAt: null,
+          loopClosedAt: null,
+          loopTaskId: null,
+          correctedTags: ["question"],
+        },
+      },
+    });
+    render(bar(tagged(["decisionMade"])));
+
+    await user.click(screen.getByRole("button", { name: "Edit tags" }));
+    await user.click(
+      screen.getByRole("checkbox", { name: "Asks someone a question" }),
+    );
+
+    await waitFor(() => expect(correctMock).toHaveBeenCalled());
+    const more = screen.getByRole("list", { name: "More tags" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "Asks someone a question" }),
+      ).toBeChecked(),
+    );
+    expect(more).toContainElement(
+      screen.getByRole("checkbox", { name: "Asks someone a question" }),
+    );
+  });
+});

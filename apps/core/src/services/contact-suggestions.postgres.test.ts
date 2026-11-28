@@ -102,7 +102,12 @@ function scripted(found = hits): PeopleSearchDeps & { searched: string[] } {
 }
 
 function balance(): Promise<bigint> {
-  return creditBucketRepository.getBalance(alice, organizationId, prisma);
+  return creditBucketRepository.getNetworkBalance(
+    "mainnet",
+    alice,
+    organizationId,
+    prisma,
+  );
 }
 
 describe.runIf(enabled)("Find people on PostgreSQL", () => {
