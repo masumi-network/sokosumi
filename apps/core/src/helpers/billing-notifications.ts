@@ -1,8 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { MemberRole, NotificationKind } from "@sokosumi/database";
-import { creditBucketActivatesAtOrBefore } from "@sokosumi/database/helpers";
 import {
-  creditBucketRepository,
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
@@ -14,12 +12,13 @@ import {
   convertCentsToCredits,
   convertCreditsToCents,
 } from "@sokosumi/utils";
-
 import { getEnv } from "@/config/env";
 import { sendBillingNotificationEmail } from "@/helpers/billing-notification-email";
 import { BILLING_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import { markAttentionRead } from "@/helpers/notification-read";
 import { createNotification } from "@/helpers/notifications";
+import { lowBalanceFunding } from "@/lib/credits/balance";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -197,24 +196,14 @@ function reportBillingNotificationFailure(
  */
 export async function notifyLowBalanceAfterCharge(
   wallet: BillingWallet,
+  scope: NetworkScope,
 ): Promise<void> {
   try {
     const threshold = convertCreditsToCents(getEnv().LOW_CREDITS_THRESHOLD);
-    const newestBucket = await prisma.creditBucket.findFirst({
-      where: {
-        ...(wallet.organizationId
-          ? { organizationId: wallet.organizationId }
-          : { userId: wallet.userId, organizationId: null }),
-        ...creditBucketActivatesAtOrBefore(new Date()),
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      select: { id: true },
-    });
-    const balance = await creditBucketRepository.getBalance(
-      wallet.userId,
-      wallet.organizationId,
-      prisma,
-    );
+    const funding = await lowBalanceFunding(scope, wallet);
+    // A Network that charges no credits took nothing: no warning.
+    if (!funding) return;
+    const { newestBucket, balance } = funding;
 
     if (balance >= threshold) {
       return;

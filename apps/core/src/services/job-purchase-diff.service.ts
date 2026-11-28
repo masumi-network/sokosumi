@@ -6,11 +6,12 @@ import {
 } from "@sokosumi/database/types/job";
 import type { MasumiPurchaseDiffEntry } from "@sokosumi/masumi/clients";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { masumiClients } from "@/clients/masumi";
 import { doesPurchaseMatchJobTerms } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError, emitCoreWarning } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { JOB_SYNC_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /**
@@ -570,12 +571,11 @@ async function runPurchaseDiff(
 
     const requestChangedAt = changedAt;
     const requestCursorId = cursorId;
-    const purchasesResult = await paymentClient().getPurchasesDiff(
-      changedAt,
-      cursorId,
-      PURCHASE_DIFF_PAGE_SIZE,
-      { signal },
-    );
+    const purchasesResult = await masumiClients(
+      JOB_SYNC_NETWORK,
+    ).payment.getPurchasesDiff(changedAt, cursorId, PURCHASE_DIFF_PAGE_SIZE, {
+      signal,
+    });
     if (
       signal.aborted &&
       (options.abortSignal.aborted ||

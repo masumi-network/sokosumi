@@ -23,9 +23,9 @@ const taskX402Payment: Pick<
 const networkDb = { taskX402Payment } as NetworkDb;
 
 function purgeExpiredTaskX402PaymentHeaders(
-  options?: Parameters<typeof purgeOn>[1],
+  options?: Omit<Parameters<typeof purgeOn>[1], "write">,
 ) {
-  return purgeOn(networkDb, options);
+  return purgeOn(networkDb, { ...options, write: (work) => work(networkDb) });
 }
 
 const NOW = new Date("2026-06-01T12:00:00.000Z");

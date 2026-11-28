@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://example.com/payment/purchase",
+    "method": "POST",
+    "credential": "mainnet payment",
+    "body": "{\"blockchainIdentifier\":\"b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4\",\"agentIdentifier\":\"7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74\",\"sellerVkey\":\"0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd\",\"submitResultTime\":\"1775681853000\",\"payByTime\":\"1775737949000\",\"unlockTime\":\"1775763149000\",\"externalDisputeUnlockTime\":\"1775784749000\",\"inputHash\":\"3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1\",\"Amounts\":[{\"unit\":\"b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3\",\"amount\":\"2\"}],\"identifierFromPurchaser\":\"aabbccddeeff00112233\",\"network\":\"Mainnet\",\"metadata\":\"{\\\"taskId\\\":\\\"<fixture task id>\\\",\\\"taskEventId\\\":\\\"<fixture event id>\\\"}\"}"
+  },
+  {
+    "url": "https://example.com/payment/x402/pay",
+    "method": "POST",
+    "credential": "mainnet payment",
+    "body": "{\"evmWalletId\":\"fixture-wallet\",\"paymentRequired\":{\"x402Version\":2,\"accepts\":[{\"scheme\":\"exact\",\"network\":\"eip155:8453\",\"asset\":\"0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\",\"amount\":\"2000000\",\"payTo\":\"0x1111111111111111111111111111111111111111\",\"maxTimeoutSeconds\":60,\"extra\":{\"name\":\"USD Coin\",\"version\":\"2\"}}]},\"preferredNetwork\":\"eip155:8453\",\"preferredAsset\":\"0x833589fcd6edb6e08f4c7c32d4f71b54bda02913\"}"
+  }
+]

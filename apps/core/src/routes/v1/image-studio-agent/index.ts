@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { defaultValidationHook } from "@/lib/hono";
+import { requireMainnetOnlyFeature } from "@/middleware/mainnet-only-feature";
 import {
   type AgentGrantContext,
   requireAgentGrant,
@@ -36,6 +37,7 @@ const app = new OpenAPIHono<{
 
 app.use("*", async (c, next) => {
   c.set("agentGrant", await requireAgentGrant(c.req.raw));
+  requireMainnetOnlyFeature(c);
   await next();
 });
 

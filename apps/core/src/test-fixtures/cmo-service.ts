@@ -218,6 +218,10 @@ const client = {
   // Runs the callback against this same mock, as one transaction would.
   $transaction: (callback: (tx: unknown) => unknown) => callback(client),
   $executeRaw: vi.fn(async () => 1),
+  $queryRaw: async (...args: unknown[]) => {
+    const project = await projectFindFirst(...args);
+    return project ? [project] : [];
+  },
   brandBrain: {
     findUnique: brainFindUnique,
     upsert: brainUpsert,
@@ -321,7 +325,7 @@ export const funding = {
 
 /** The module mocks, keyed by what they stand for. */
 export const cmoServiceMocks = {
-  prisma: { default: client },
+  prisma: { default: client, networkPrisma: () => client },
   env: (actual: typeof import("@/config/env")) => ({
     ...actual,
     getEnv: () => ({ ...actual.getEnv(), ...envOverrides }),

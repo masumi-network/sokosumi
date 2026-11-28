@@ -10,7 +10,6 @@ import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
 import {
-  buildAvailableAgentWhereClause,
   getCardanoV2ReadySources as readCardanoReadiness,
   getCreditCostsOrThrow as readRequiredRates,
 } from "@/lib/agent-catalog/availability";
@@ -18,7 +17,7 @@ import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { Network } from "@/lib/network";
 
-import { notFound, unprocessableEntity } from "./error";
+import { unprocessableEntity } from "./error";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
 
@@ -164,8 +163,6 @@ export function getJobDetailsAgentOverrideFields(agent: {
 export {
   AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
-  CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-  CARDANO_V2_RAIL_READINESS_KEY,
   type CardanoV2ReadySource,
   isCardanoV2SourceReady,
 } from "@/lib/agent-catalog/availability";
@@ -179,37 +176,16 @@ export const getCardanoV2ReadySources = (
   network: Network = "mainnet",
 ) => readCardanoReadiness(tx, network);
 
-/**
- * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
- * throwing a 404 otherwise. Centralizes the availability existence check shared
- * by the agent rating sub-resource handlers (rating upsert and eligibility).
- */
-export const requireAvailableAgentOrThrow = async (
-  agentId: string,
-  tx: Prisma.TransactionClient,
-): Promise<void> => {
-  const creditCosts = await getCreditCostsOrThrow(tx);
-  const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
-  const agent = await tx.agent.findFirst({
-    where: {
-      id: agentId,
-      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-    },
-    select: { id: true },
-  });
-
-  if (!agent) {
-    throw notFound("Agent not found");
-  }
-};
-
 export const calculateAverageExecutionTime = async (
   agentId: string,
   scope: NetworkScope,
 ): Promise<number | null> => {
   // Calculate cutoff date in JavaScript to avoid SQL injection risk
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
+  // UTC arithmetic: local-zone setDate moves the cutoff an hour across a DST change.
+  cutoffDate.setUTCDate(
+    cutoffDate.getUTCDate() - TIME.AGENT_EXECUTION_METRICS_DAYS,
+  );
 
   const result = await scope.networkDb.$queryRaw<
     [{ avg_duration_seconds: PrismaRaw.Decimal | null }]

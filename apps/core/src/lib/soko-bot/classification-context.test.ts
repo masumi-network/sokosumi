@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const db = vi.hoisted(() => ({
   project: { findMany: vi.fn() },
@@ -7,7 +8,10 @@ const db = vi.hoisted(() => ({
   task: { findMany: vi.fn() },
   job: { findMany: vi.fn() },
 }));
-vi.mock("@/lib/db/prisma", () => ({ default: db }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: db,
+  networkPrisma: () => ({ agent: db.agent }),
+}));
 
 import {
   buildSokoBotScopeJobWhere,
@@ -26,6 +30,7 @@ beforeEach(() => {
 describe("loadClassificationContext for a shared bot", () => {
   it("reads only the bot's scope, never the member's private view", async () => {
     await loadClassificationContext(
+      createNetworkScope("mainnet"),
       sokoBotTurnReader("member", "OWNER", scope),
       "ws-1",
       'What about "Apollo launch" task-0123456789abcdef?',

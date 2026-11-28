@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import type { Hono } from "hono";
+import { masumiClients } from "@/clients/masumi";
 import { logCoreWarning } from "@/lib/evlog";
+import { networkKey } from "@/lib/network";
 import { agentSyncService } from "@/services/agent-sync.service";
 // Imported from the module directly, not through agentSyncService: the
 // service file sits at the size ceiling and the x402 readiness sync has no
@@ -9,7 +11,8 @@ import { syncX402BuySideReadiness } from "@/services/agent-sync.x402-readiness";
 
 import { handleSyncRequest } from "../handler.js";
 
-const AGENTS_SYNC_LOCK_KEY = "agents-sync";
+const network = "mainnet";
+const AGENTS_SYNC_LOCK_KEY = networkKey(network, "agents-sync");
 // Projection versions use distinct cursor keys so old and new binaries cannot
 // advance each other's cursors during a rolling deployment. Bump the suffix
 // whenever already-synced registry rows require a full replay.
@@ -59,10 +62,15 @@ export default function mount(app: Hono) {
         // not be starved by a long registry replay eating the time budget. It
         // needs no ceiling from here: the sync owns one that already covers its
         // retries, so a hung payment node cannot pin the lock either way.
+        const { payment, registry } = masumiClients(context.scope.network);
         const readinessChanged =
-          await agentSyncService.syncCardanoV2RailReadiness({
-            signal: context.abortSignal,
-          });
+          await agentSyncService.syncCardanoV2RailReadiness(
+            context.scope,
+            payment,
+            {
+              signal: context.abortSignal,
+            },
+          );
         // x402 buy-side readiness rides the same cron under its own ceiling
         // above. Its change signal deliberately does NOT reset the registry
         // cursor: the x402 listing reads getX402ReadySources at request time,
@@ -73,11 +81,11 @@ export default function mount(app: Hono) {
         // this route's primary job. syncX402BuySideReadiness handles its own
         // failures internally (aborts and node errors land in its check-error
         // path and return false), so a throw reaching here is genuinely
-        // exceptional — e.g. paymentClient() or getEnv() failing on
+        // exceptional — e.g. initializing the payment readiness check or getEnv() failing on
         // misconfiguration — and must not abort the registry sync: swallow it,
         // last-known readiness stays served, and the next cron retries.
         try {
-          await syncX402BuySideReadiness({
+          await syncX402BuySideReadiness(context.scope, payment, {
             signal: AbortSignal.any([
               context.abortSignal,
               AbortSignal.timeout(X402_READINESS_SYNC_TIMEOUT_MS),
@@ -99,13 +107,20 @@ export default function mount(app: Hono) {
             tags: { x402_readiness: "sync_threw" },
           });
         }
-        await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
-          abortSignal: context.abortSignal,
-          shouldContinue: context.shouldContinue,
-          ...(readinessChanged || replayRequested ? { resetCursor: true } : {}),
-        });
+        await agentSyncService.syncRegistryAgents(
+          context.scope,
+          registry,
+          AGENTS_SYNC_METADATA_KEY,
+          {
+            abortSignal: context.abortSignal,
+            shouldContinue: context.shouldContinue,
+            ...(readinessChanged || replayRequested
+              ? { resetCursor: true }
+              : {}),
+          },
+        );
       },
-      { errorDetail: "safe-fields" },
+      { network, errorDetail: "safe-fields" },
     );
   });
 }

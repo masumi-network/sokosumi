@@ -2,7 +2,7 @@ import { JobType, OnChainJobStatus, type Prisma } from "@sokosumi/database";
 import { finalizedAgentJobStatuses } from "@sokosumi/database/types/job";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
-import type { NetworkDb } from "@/lib/db/network-scope";
+import type { NetworkDb, NetworkScope } from "@/lib/db/network-scope";
 import {
   type AgentMyReview,
   type AgentReview,
@@ -61,7 +61,7 @@ function finishedJobsWhere(): Prisma.JobWhereInput {
 export async function doesUserHaveFinishedJobWithAgent(
   ownerId: string,
   agentId: string,
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
 ): Promise<boolean> {
   const jobCount = await tx.job.count({
     where: {
@@ -131,7 +131,7 @@ export const calculateAgentRatings = async (
 
 export const getAgentRatingDistribution = async (
   agentId: string,
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
 ): Promise<RatingDistribution> => {
   const ratings = await tx.userAgentRating.groupBy({
     by: ["rating"],
@@ -161,43 +161,53 @@ export const getAgentRatingDistribution = async (
 export const getRecentAgentReviews = async (
   agentId: string,
   limit: number,
-  tx: Prisma.TransactionClient,
+  scope: NetworkScope,
 ): Promise<AgentReview[]> => {
-  const ratings = await tx.userAgentRating.findMany({
+  const ratings = await scope.networkDb.userAgentRating.findMany({
     where: {
       agentId,
       isHidden: false,
       AND: [{ comment: { not: null } }, { comment: { not: "" } }],
     },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          image: true,
-        },
-      },
-    },
     orderBy: { createdAt: "desc" },
     take: limit,
   });
 
-  return ratings.map((rating) =>
-    agentReviewSchema.parse({
-      id: rating.id,
-      rating: rating.rating,
-      comment: rating.comment,
-      createdAt: rating.createdAt,
-      updatedAt: rating.updatedAt,
-      user: {
-        id: rating.user.id,
-        name: rating.user.name,
-        image: rating.user.image
-          ? resolveIpfsOrHttpUrl(rating.user.image)
-          : rating.user.image,
-      },
-    }),
-  );
+  if (ratings.length === 0) {
+    return [];
+  }
+
+  const userIds = [...new Set(ratings.map((rating) => rating.userId))];
+  const users = await scope.sharedDb.user.findMany({
+    where: { id: { in: userIds } },
+    select: {
+      id: true,
+      name: true,
+      image: true,
+    },
+  });
+  const usersById = new Map(users.map((user) => [user.id, user]));
+
+  return ratings.flatMap((rating) => {
+    const user = usersById.get(rating.userId);
+    if (!user) {
+      return [];
+    }
+    return [
+      agentReviewSchema.parse({
+        id: rating.id,
+        rating: rating.rating,
+        comment: rating.comment,
+        createdAt: rating.createdAt,
+        updatedAt: rating.updatedAt,
+        user: {
+          id: user.id,
+          name: user.name,
+          image: user.image ? resolveIpfsOrHttpUrl(user.image) : user.image,
+        },
+      }),
+    ];
+  });
 };
 
 /**
@@ -208,7 +218,7 @@ export const getRecentAgentReviews = async (
 export const getUserAgentReview = async (
   agentId: string,
   userId: string,
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
 ): Promise<AgentMyReview | null> => {
   const rating = await tx.userAgentRating.findUnique({
     where: {
@@ -240,7 +250,7 @@ export const upsertUserAgentReview = async (
   userId: string,
   rating: number,
   comment: string | null,
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
 ): Promise<AgentMyReview> => {
   const upserted = await tx.userAgentRating.upsert({
     where: {

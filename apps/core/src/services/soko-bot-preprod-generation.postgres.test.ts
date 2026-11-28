@@ -31,21 +31,10 @@ import { expectCoreLog } from "@/test/core-log";
 import { recordStatements } from "@/test/record-statements";
 import { onSplitLayout, testSchemaNames } from "@/test/split-layout";
 
-const { detached, caller } = vi.hoisted(() => ({
-  /** The detached Network the runtime's delegation writers pass. */
-  detached: { network: "mainnet" as "mainnet" | "preprod" },
+const { caller } = vi.hoisted(() => ({
   /** The request's caller, set before the Network scope is built. */
   caller: { current: undefined as unknown },
 }));
-vi.mock("@/lib/network", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/network")>();
-  return {
-    ...actual,
-    get DETACHED_SOKO_BOT_NETWORK() {
-      return detached.network;
-    },
-  };
-});
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: async (
@@ -145,7 +134,6 @@ describe.skipIf(!enabled)(
     }, COLD_IMPORT_TIMEOUT_MS);
 
     afterEach(async () => {
-      detached.network = "mainnet";
       vi.restoreAllMocks();
       await prisma.syncMetadata.deleteMany({
         where: {
@@ -291,13 +279,17 @@ describe.skipIf(!enabled)(
       });
     }
 
-    /** A `create_task` call in a running turn: the Task delegation writer. */
-    async function taskDelegation({ userId, workspaceId, bot }: Fixture) {
-      const capabilityNames: SokoBotCapability[] = ["create_task"];
+    function seedRuntimeTurn(
+      { userId, workspaceId, bot }: Fixture,
+      capabilityNames: SokoBotCapability[],
+      network: "mainnet" | "preprod" = "mainnet",
+      preprodGeneration?: number,
+    ) {
       const future = new Date(Date.now() + 60_000);
-      const turn = await prisma.sokoBotTurn.create({
+      return prisma.sokoBotTurn.create({
         data: {
-          network: "mainnet",
+          network,
+          preprodGeneration: preprodGeneration ?? null,
           sokoBotId: bot.id,
           requestedByUserId: userId,
           workspaceId,
@@ -322,6 +314,20 @@ describe.skipIf(!enabled)(
           },
         },
       });
+    }
+
+    /** A `create_task` call in a running turn: the Task delegation writer. */
+    async function taskDelegation(
+      fixture: Fixture,
+      network: "mainnet" | "preprod" = "mainnet",
+      preprodGeneration?: number,
+    ) {
+      const turn = await seedRuntimeTurn(
+        fixture,
+        ["create_task"],
+        network,
+        preprodGeneration,
+      );
       if (onSplitLayout) {
         const { DATABASE_SCHEMA_SHARED: shared, DATABASE_SCHEMA_MAINNET: net } =
           testSchemaNames();
@@ -427,42 +433,402 @@ describe.skipIf(!enabled)(
       }
     });
 
-    // The turn insert stamps from its input alone, which needs no Preprod
-    // flag. On the split layout the classifier and the context packet still
-    // read Agent, Job and Project-to-Job through the shared client (ticket 30).
     it.skipIf(onSplitLayout)(
-      "stamps the current generation on a Preprod turn (on the split layout this waits for ticket 30: startTurn reads Agent through the shared client)",
+      "skips the context credits payload when a disabled Preprod turn is refused",
       async () => {
         const fixture = await seed();
-        await writeControl("open", "3");
-        const session = (
-          await import("@/lib/soko-bot/factory")
-        ).getSokoBotRuntime();
-        vi.spyOn(session, "createSession").mockResolvedValue({
-          sessionId: randomUUID(),
-          runtimeVersion: "test",
-          acceptedAt: new Date().toISOString(),
-        });
-        const { turnId } = await startTurn(fixture, "preprod");
-        await expect(
-          prisma.sokoBotTurn.findUniqueOrThrow({
-            where: { id: turnId },
-            select: { network: true, preprodGeneration: true },
-          }),
-        ).resolves.toEqual({ network: "preprod", preprodGeneration: 3 });
-        // Paused: no Preprod turn is reserved. The first one ends, so the bot
-        // is free for the next start.
-        await prisma.sokoBotTurn.update({
-          where: { id: turnId },
-          data: { status: "COMPLETED" },
-        });
         await writeControl("paused", "3");
-        await expect(startTurn(fixture, "preprod")).rejects.toMatchObject({
-          status: 503,
-        });
+        // Turn funding is mocked here. This spy observes only the context packet.
+        const credits = vi.spyOn(
+          await import("@/lib/credits/funding"),
+          "buildCreditsPayload",
+        );
+        await expect(startTurn(fixture, "preprod")).rejects.toThrow(
+          "Preprod is off",
+        );
+        expect(credits).not.toHaveBeenCalled();
         await expect(
           prisma.sokoBotTurn.count({ where: { sokoBotId: fixture.bot.id } }),
+        ).resolves.toBe(0);
+      },
+    );
+
+    it
+      .runIf(onSplitLayout)
+      .each(["off", "paused", "unavailable", "open"] as const)(
+      "refuses fresh Preprod work before funding with both wallet balances while %s",
+      async (state) => {
+        const { createNetworkScope } = await import("@/lib/db/network-scope");
+        const fixture = await seed();
+        const wallet = createNetworkScope("mainnet").networkDb;
+        const env = await import("@/config/env");
+        vi.spyOn(env, "getEnv").mockReturnValue({
+          ...env.getEnv(),
+          NETWORK_PREPROD_ENABLED: state !== "off",
+        });
+        await writeControl(
+          state === "paused" ? "paused" : "open",
+          state === "unavailable" ? "invalid" : "3",
+        );
+        const billing = await import("./soko-bot-billing.service");
+        const realBilling = await vi.importActual<typeof billing>(
+          "./soko-bot-billing.service",
+        );
+        const funding = vi.mocked(billing.requireSokoBotTurnFunding);
+        funding.mockClear();
+        funding.mockImplementation(realBilling.requireSokoBotTurnFunding);
+        const refusal =
+          state === "off"
+            ? {
+                status: 500,
+                message: expect.stringContaining("Preprod is off"),
+              }
+            : {
+                status: 503,
+                cause: {
+                  kind:
+                    state === "paused"
+                      ? "preprod_paused"
+                      : "preprod_control_unavailable",
+                },
+              };
+        if (state === "unavailable")
+          expectCoreLog(
+            "error",
+            "Could not read the Preprod pause and generation",
+            4,
+          );
+        const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+        const turns = new OpenAPIHonoWithAuth({
+          includeWorkspaceContext: true,
+          requireOrganizationProductSeat: true,
+        });
+        (await import("@/routes/v1/soko-bots/me/turns/post")).default(turns);
+        turns.onError((await import("@/helpers/error-handler")).errorHandler);
+        const where = { userId: fixture.userId };
+        const grant = await wallet.transaction.create({
+          data: {
+            ...where,
+            amount: 1_000_000_000_000_000n,
+            sourceCreditBucket: {
+              create: { ...where, amount: 1_000_000_000_000_000n },
+            },
+          },
+        });
+        try {
+          for (const funded of [true, false]) {
+            if (!funded)
+              await wallet.creditBucket.updateMany({
+                where,
+                data: { amount: 0n },
+              });
+            const recorded = recordStatements();
+            try {
+              await expect(startTurn(fixture, "preprod")).rejects.toMatchObject(
+                refusal,
+              );
+              expect(funding).not.toHaveBeenCalled();
+              // These are the original shared admission reads, plus a control read when on.
+              expect(recorded.texts).toHaveLength(state === "off" ? 4 : 5);
+            } finally {
+              recorded.restore();
+            }
+            const response = await turns.request("/me/turns", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "X-Sokosumi-Network": "preprod",
+              },
+              body: JSON.stringify({
+                message: "Check my board",
+                clientTurnId: randomUUID(),
+              }),
+            });
+            expect(response.status).toBe(state === "off" ? 403 : 503);
+            expect(await response.json()).toMatchObject({
+              kind: state === "off" ? "preprod_off" : refusal.cause?.kind,
+            });
+            expect(funding).not.toHaveBeenCalled();
+          }
+        } finally {
+          funding.mockReset();
+          await wallet.transaction.delete({ where: { id: grant.id } });
+        }
+        await expect(
+          prisma.sokoBotTurn.count({ where: { sokoBotId: fixture.bot.id } }),
+        ).resolves.toBe(0);
+        await expect(
+          wallet.sokoBotUsage.count({ where: { sokoBotId: fixture.bot.id } }),
+        ).resolves.toBe(0);
+      },
+    );
+
+    async function seedHireApproval(fixture: Fixture, generation = 3) {
+      const { userId, workspaceId, bot } = fixture;
+      const turn = await prisma.sokoBotTurn.create({
+        data: {
+          sokoBotId: bot.id,
+          requestedByUserId: userId,
+          workspaceId,
+          source: "CHAT",
+          network: "preprod",
+          preprodGeneration: generation,
+          status: "COMPLETED",
+          clientTurnId: randomUUID(),
+          deadlineAt: new Date(),
+          userMessage: "Hire the Agent",
+          capabilityNames: ["hire_agent"],
+        },
+      });
+      const decision = await prisma.sokoBotPendingDecision.create({
+        data: {
+          turnId: turn.id,
+          sokoBotId: bot.id,
+          workspaceId,
+          requestedByUserId: userId,
+          toolName: "hire_agent",
+          reason: "Fixture",
+          status: "PROCESSING",
+          proposal: {},
+          expiresAt: new Date(Date.now() + 60_000),
+        },
+      });
+      return { turn, decision };
+    }
+
+    it.skipIf(onSplitLayout)(
+      "leaves an approval untouched when Preprod is off",
+      async () => {
+        const fixture = await seed();
+        const { decision } = await seedHireApproval(fixture);
+        await expect(
+          runtime.resolveDecision(fixture.userId, decision.id, true),
+        ).rejects.toMatchObject({ kind: "preprod_off", status: 403 });
+        await expect(
+          prisma.sokoBotPendingDecision.findUnique({
+            where: { id: decision.id },
+          }),
+        ).resolves.toEqual(decision);
+      },
+    );
+
+    it.runIf(onSplitLayout)(
+      "refuses a Preprod request to approve a fresh Mainnet hire before claiming the decision",
+      async () => {
+        await writeControl("open", "3");
+        const fixture = await seed();
+        const { turn, decision } = await seedHireApproval(fixture);
+        await prisma.sokoBotTurn.update({
+          where: { id: turn.id },
+          data: { network: "mainnet", preprodGeneration: null },
+        });
+        const pending = await prisma.sokoBotPendingDecision.update({
+          where: { id: decision.id },
+          data: {
+            status: "PENDING",
+            proposal: {
+              agentId: "scoped-approval-fixture",
+              inputSchema: {
+                input_data: [{ id: "prompt", type: "string", name: "Prompt" }],
+              },
+              inputData: { prompt: "Prepare a report" },
+              maxCredits: 10,
+            },
+          },
+        });
+        const { OpenAPIHonoWithAuth } = await import("@/lib/hono");
+        const { default: mount } = await import(
+          "@/routes/v1/soko-bots/me/decisions/[decisionId]/post"
+        );
+        const { errorHandler } = await import("@/helpers/error-handler");
+        const app = new OpenAPIHonoWithAuth();
+        app.onError(errorHandler);
+        mount(app);
+        const { stubMasumiSyncHttp } = await import("@/test/masumi-sync-http");
+        const node = stubMasumiSyncHttp();
+        try {
+          const response = await app.request("/me/decisions/" + decision.id, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "X-Sokosumi-Network": "preprod",
+            },
+            body: JSON.stringify({ resolution: "ACCEPT" }),
+          });
+          expect([response.status, (await response.json()).kind]).toEqual([
+            403,
+            "network_mismatch",
+          ]);
+          expect(
+            await prisma.sokoBotPendingDecision.findUnique({
+              where: { id: decision.id },
+            }),
+          ).toEqual(pending);
+          expect(
+            await prisma.sokoBotToolCall.count({ where: { turnId: turn.id } }),
+          ).toBe(0);
+          const { createNetworkScope } = await import("@/lib/db/network-scope");
+          for (const network of ["mainnet", "preprod"] as const) {
+            const { networkDb } = createNetworkScope(network);
+            expect(
+              await networkDb.job.count({
+                where: { workspaceId: fixture.workspaceId },
+              }),
+            ).toBe(0);
+            expect(
+              await networkDb.transaction.count({
+                where: { userId: fixture.userId, amount: { lt: 0n } },
+              }),
+            ).toBe(0);
+          }
+          expect(node.requests).toEqual([]);
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      },
+      COLD_IMPORT_TIMEOUT_MS,
+    );
+
+    it("expires an approval whose legacy turn has no Network", async () => {
+      const fixture = await seed();
+      const { turn, decision } = await seedHireApproval(fixture);
+      await prisma.sokoBotTurn.update({
+        where: { id: turn.id },
+        data: { network: null, preprodGeneration: null },
+      });
+
+      await expect(
+        runtime.resolveDecision(fixture.userId, decision.id, true),
+      ).rejects.toMatchObject({ kind: "soko_bot_network_stale" });
+      await expect(
+        prisma.sokoBotPendingDecision.findUnique({
+          where: { id: decision.id },
+        }),
+      ).resolves.toMatchObject({ status: "EXPIRED" });
+      await expect(
+        prisma.sokoBotToolCall.count({ where: { turnId: turn.id } }),
+      ).resolves.toBe(0);
+    });
+
+    async function seedWatch(
+      fixture: Fixture,
+      network: "mainnet" | "preprod",
+      count: number,
+      createdAt: Date,
+    ) {
+      const turn = await prisma.sokoBotTurn.create({
+        data: {
+          network,
+          preprodGeneration: network === "preprod" ? 3 : null,
+          sokoBotId: fixture.bot.id,
+          workspaceId: fixture.workspaceId,
+          requestedByUserId: fixture.userId,
+          source: "CHAT",
+          status: "COMPLETED",
+          clientTurnId: randomUUID(),
+          userMessage: "Tell me when I connect the app",
+          deadlineAt: new Date(),
+          capabilityNames: [],
+        },
+      });
+      await prisma.sokoBotWatch.createMany({
+        data: Array.from({ length: count }, (_, index) => ({
+          sokoBotId: fixture.bot.id,
+          turnId: turn.id,
+          kind: "app_connected",
+          targetId: `fixture-${index}`,
+          then: "Tell me",
+          createdAt,
+          expiresAt: new Date(Date.now() - 1_000),
+        })),
+      });
+      return turn.id;
+    }
+
+    it.each(onSplitLayout ? ["paused", "unavailable"] : ["off"])(
+      "expires Mainnet before 50 older Preprod watches while Preprod is %s",
+      async (state) => {
+        const { syncSokoBotWatches } = await import(
+          "./soko-bot-watches.service"
+        );
+        await writeControl(
+          state === "paused" ? "paused" : "open",
+          state === "unavailable" ? "invalid" : "3",
+        );
+        const mainnet = await seed();
+        const tick = () => syncSokoBotWatches({ shouldContinue: () => true });
+        const newer = new Date(Date.now() - 60_000);
+        await seedWatch(mainnet, "mainnet", 1, newer);
+        const recorder = recordStatements();
+        try {
+          await expect(tick()).resolves.toMatchObject({
+            checked: 1,
+            deferred: 0,
+            failed: 0,
+          });
+        } finally {
+          recorder.restore();
+        }
+        expect(recorder.statements).toHaveLength(5);
+        for (const key of KEYS())
+          expect(recorder.statements.flat()).not.toContain(key);
+
+        const preprod = await seed();
+        const ahead = await seedWatch(
+          preprod,
+          "preprod",
+          50,
+          new Date(Date.now() - 3_600_000),
+        );
+        const after = await seedWatch(mainnet, "mainnet", 1, newer);
+        if (state === "unavailable") {
+          expectCoreLog(
+            "error",
+            "Could not read the Preprod pause and generation",
+            1,
+          );
+        }
+        const mixed = recordStatements();
+        try {
+          await expect(tick()).resolves.toMatchObject({
+            checked: 50,
+            deferred: 49,
+            failed: 0,
+          });
+        } finally {
+          mixed.restore();
+        }
+        expect(
+          mixed.texts.filter((text) => text.includes("sync_metadata")),
+        ).toHaveLength(state === "off" ? 0 : 1);
+        await expect(
+          prisma.sokoBotWatch.count({
+            where: { turnId: after, status: "EXPIRED" },
+          }),
         ).resolves.toBe(1);
+        await expect(
+          prisma.sokoBotWatch.count({
+            where: { turnId: ahead, status: "WAITING", outcome: null },
+          }),
+        ).resolves.toBe(50);
+      },
+    );
+
+    it.skipIf(onSplitLayout)(
+      "refuses derived stamps when Preprod is off",
+      async () => {
+        await writeControl("open", "3");
+        await expect(
+          prisma.$transaction((tx) =>
+            control.networkStamp(
+              {
+                network: "preprod",
+                expectedPreprodGeneration: 3,
+              },
+              tx,
+            ),
+          ),
+        ).rejects.toMatchObject({ kind: "preprod_off", status: 403 });
       },
     );
 
@@ -479,13 +845,539 @@ describe.skipIf(!enabled)(
           network: "preprod",
           preprodGeneration: 3,
         });
-        detached.network = "preprod";
-        const delegation = await taskDelegation(fixture);
+        const delegation = await taskDelegation(fixture, "preprod", 3);
         await delegation.result;
         await expect(delegation.read()).resolves.toEqual({
           network: "preprod",
           preprodGeneration: 3,
         });
+      });
+
+      async function seedApproval(fixture: Fixture, generation = 3) {
+        const { userId, workspaceId } = fixture;
+        const { turn, decision } = await seedHireApproval(fixture, generation);
+        const { createNetworkScope } = await import("@/lib/db/network-scope");
+        const preprod = createNetworkScope("preprod").networkDb;
+        const mainnet = createNetworkScope("mainnet").networkDb;
+        const jobId = randomUUID();
+        const makeJob = async (db: typeof preprod, ownerId: string | null) => {
+          const agent = await db.agent.create({
+            data: {
+              blockchainIdentifier: randomUUID(),
+              name: "Fixture Agent",
+              isShown: true,
+              lastUptimeCheck: new Date(),
+              uptimeCount: 1,
+              uptimeCheckCount: 1,
+              pricing: { create: { pricingType: "FREE" } },
+            },
+          });
+          onTestFinished(async () => {
+            await db.job.deleteMany({ where: { agentId: agent.id } });
+            await db.agent.delete({ where: { id: agent.id } });
+            await db.agentPricing.delete({ where: { id: agent.pricingId } });
+          });
+          return db.job.create({
+            data: {
+              id: jobId,
+              ownerId,
+              workspaceId,
+              agentId: agent.id,
+              agentJobId: randomUUID(),
+              jobType: "FREE",
+            },
+          });
+        };
+        // The split fixture still has the legacy Mainnet Job FK. A same-ID
+        // placeholder satisfies it but cannot be recovered for this owner.
+        const mainnetJob = await makeJob(mainnet, null);
+        const job = await makeJob(preprod, userId);
+        const receiptKey = {
+          turnId: turn.id,
+          toolCallId: `decision:${decision.id}`,
+        };
+        const reservation = await prisma.sokoBotDelegation.create({
+          data: {
+            ...receiptKey,
+            kind: "JOB",
+            action: "hire_agent",
+            outcome: "processing",
+            network: "preprod",
+            preprodGeneration: generation,
+            jobId: job.id,
+          },
+        });
+        return {
+          decision,
+          job,
+          mainnetJob,
+          preprod,
+          mainnet,
+          reservation,
+          resolve: () => runtime.resolveDecision(userId, decision.id, true),
+          readDecision: () =>
+            prisma.sokoBotPendingDecision.findUniqueOrThrow({
+              where: { id: decision.id },
+            }),
+          receipts: () => prisma.sokoBotToolCall.count({ where: receiptKey }),
+        };
+      }
+
+      it("replays a durable Preprod Job reservation using only Preprod Job data", async () => {
+        await writeControl("open", "3");
+        const approval = await seedApproval(await seed());
+        await expect(approval.resolve()).resolves.toMatchObject({
+          status: "ACCEPTED",
+          resultingEntityId: approval.job.id,
+        });
+        await expect(approval.receipts()).resolves.toBe(1);
+        await expect(
+          approval.mainnet.job.findUnique({
+            where: { id: approval.job.id },
+          }),
+        ).resolves.toEqual(approval.mainnetJob);
+        await expect(
+          approval.mainnet.transaction.count({
+            where: { userId: approval.job.ownerId, amount: { lt: 0n } },
+          }),
+        ).resolves.toBe(0);
+        await expect(
+          prisma.sokoBotDelegation.findUnique({
+            where: { id: approval.reservation.id },
+          }),
+        ).resolves.toMatchObject({
+          outcome: "accepted",
+          network: "preprod",
+          preprodGeneration: 3,
+        });
+      });
+
+      it.each([
+        ["paused", "4", "soko_bot_network_stale", true],
+        ["open", "invalid", "preprod_control_unavailable", false],
+      ] as const)(
+        "classifies a derived stamp while %s at generation %s",
+        async (pause, generation, kind, final) => {
+          const { DetachedNetworkRefusal } = await import(
+            "@/lib/soko-bot/detached-network"
+          );
+          await writeControl(pause, generation);
+          if (!final)
+            expectCoreLog(
+              "error",
+              "Could not read the Preprod pause and generation",
+              1,
+            );
+          const stamp = prisma.$transaction((tx) =>
+            control.networkStamp(
+              {
+                network: "preprod",
+                expectedPreprodGeneration: 3,
+              },
+              tx,
+            ),
+          );
+          await expect(stamp).rejects.toBeInstanceOf(DetachedNetworkRefusal);
+          await expect(stamp).rejects.toMatchObject({ kind, final });
+        },
+      );
+
+      it("rejects replay after the reservation outcome changes", async () => {
+        await writeControl("open", "3");
+        const approval = await seedApproval(await seed());
+        const serializable = transactions.serializableTransaction;
+        vi.spyOn(
+          transactions,
+          "serializableTransaction",
+        ).mockImplementationOnce(async (run, message, timing) => {
+          await prisma.sokoBotDelegation.update({
+            where: { id: approval.reservation.id },
+            data: { outcome: "ambiguous" },
+          });
+          return serializable(run, message, timing);
+        });
+
+        await expect(approval.resolve()).rejects.toThrow(
+          "Soko Bot reservation changed during recovery",
+        );
+        await expect(approval.readDecision()).resolves.toMatchObject({
+          status: "PROCESSING",
+        });
+        await expect(approval.receipts()).resolves.toBe(0);
+        await expect(
+          prisma.sokoBotDelegation.findUnique({
+            where: { id: approval.reservation.id },
+          }),
+        ).resolves.toMatchObject({ outcome: "ambiguous" });
+      });
+
+      it("checks a derived schedule's Job in Preprod", async () => {
+        await writeControl("open", "3");
+        const fixture = await seed();
+        const other = await seed();
+        const approval = await seedApproval(fixture);
+        await approval.mainnet.job.update({
+          where: { id: approval.job.id },
+          data: { workspaceId: other.workspaceId },
+        });
+        const run = () =>
+          prisma.$transaction(
+            (tx) =>
+              createSchedule(
+                {
+                  network: "preprod",
+                  expectedPreprodGeneration: 3,
+                  userId: fixture.userId,
+                  workspaceId: fixture.workspaceId,
+                  sokoBotId: fixture.bot.id,
+                  jobId: approval.job.id,
+                  name: "Watch the Preprod Job",
+                  timezone: "UTC",
+                  cronExpression: "0 9 * * *",
+                  prompt: "Check in",
+                },
+                tx,
+              ),
+            { isolationLevel: "Serializable" },
+          );
+        const recorder = recordStatements();
+        try {
+          await expect(run()).resolves.toMatchObject({
+            network: "preprod",
+            preprodGeneration: 3,
+            jobId: approval.job.id,
+          });
+        } finally {
+          recorder.restore();
+        }
+        expect(recorder.checkouts).toHaveLength(1);
+        const stamp = recorder.texts.findIndex((text) =>
+          text.includes("FOR SHARE"),
+        );
+        const job = recorder.texts.findIndex((text) =>
+          text.includes('"preprod"."Job"'),
+        );
+        expect(stamp).toBeGreaterThanOrEqual(0);
+        expect(job).toBeGreaterThan(stamp);
+
+        await writeControl("paused", "3");
+        const refused = recordStatements();
+        try {
+          await expect(run()).rejects.toMatchObject({ kind: "preprod_paused" });
+        } finally {
+          refused.restore();
+        }
+        expect(refused.checkouts).toHaveLength(1);
+        expect(
+          refused.texts.some((text) => text.includes('"preprod"."Job"')),
+        ).toBe(false);
+      });
+
+      it("wakes a connected Preprod watch with its original generation", async () => {
+        const { syncSokoBotWatches } = await import(
+          "./soko-bot-watches.service"
+        );
+        const fixture = await seed();
+        const turnId = await seedWatch(
+          fixture,
+          "preprod",
+          1,
+          new Date(Date.now() - 60_000),
+        );
+        await prisma.sokoBotIntegration.create({
+          data: {
+            sokoBotId: fixture.bot.id,
+            provider: "fixture-0",
+            status: "ACTIVE",
+            composioAccountId: randomUUID(),
+          },
+        });
+        const start = vi.spyOn(controlPlane, "startTurn").mockResolvedValue({
+          turnId,
+          sokoBotId: fixture.bot.id,
+          sessionId: "watch-fixture",
+          status: "RUNNING",
+          route: "DELEGATE_TASK",
+          capabilities: [],
+          duplicate: false,
+        });
+        const tick = () => syncSokoBotWatches({ shouldContinue: () => true });
+        await writeControl("paused", "3");
+        await expect(tick()).resolves.toMatchObject({ deferred: 1, fired: 0 });
+        expect(start).not.toHaveBeenCalled();
+
+        await writeControl("open", "3");
+        await expect(tick()).resolves.toMatchObject({ fired: 1 });
+        expect(start).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({
+            network: "preprod",
+            expectedPreprodGeneration: 3,
+            source: "CHAT",
+          }),
+        );
+      });
+
+      it("passes the failed Preprod turn's generation to admin retry", async () => {
+        const { failedRetryInput } = await import(
+          "./soko-bot-admin-retry.service"
+        );
+        await writeControl("open", "3");
+        const fixture = await seed();
+        const { turn } = await seedHireApproval(fixture);
+        const failed = await prisma.sokoBotTurn.update({
+          where: { id: turn.id },
+          data: { status: "FAILED" },
+        });
+        await expect(
+          failedRetryInput(fixture.bot, failed, "retry-fixture"),
+        ).resolves.toMatchObject({
+          network: "preprod",
+          expectedPreprodGeneration: 3,
+        });
+      });
+
+      it("stamps a mention posted by a Preprod runtime turn", async () => {
+        await writeControl("open", "3");
+        const fixture = await seed();
+        const peer = await prisma.sokoBot.create({
+          data: {
+            userId: null,
+            workspaceId: fixture.workspaceId,
+            name: "HelperBot",
+          },
+        });
+        await prisma.chatRoomSokoBotMember.create({
+          data: { roomId: fixture.roomId, sokoBotId: peer.id },
+        });
+        const turn = await seedRuntimeTurn(
+          fixture,
+          ["post_chat"],
+          "preprod",
+          3,
+        );
+        await expect(
+          runtime.executeTool({
+            sessionId: `session-${turn.id}`,
+            turnId: turn.id,
+            toolCallId: randomUUID(),
+            capability: "post_chat",
+            input: {
+              roomId: fixture.roomId,
+              content: "Hey @HelperBot please check this",
+            },
+          }),
+        ).resolves.toMatchObject({ queuedMentions: 1 });
+        await expect(mentionsOf(fixture)).resolves.toEqual([
+          { network: "preprod", preprodGeneration: 3 },
+        ]);
+      });
+
+      it.each([
+        ["paused", "3", "preprod_paused", "PROCESSING"],
+        ["paused", "4", "soko_bot_network_stale", "EXPIRED"],
+      ] as const)(
+        "settles a resumed Task approval refused after admission at generation %s/%s",
+        async (pause, generation, kind, status) => {
+          const { prepareDecision } = await import(
+            "./soko-bot-runtime/decision-claim"
+          );
+          const { applyDecision } = await import(
+            "./soko-bot-runtime/decision-apply"
+          );
+          await writeControl("open", "3");
+          const fixture = await seed();
+          const { turn, decision } = await seedHireApproval(fixture);
+          await prisma.sokoBotTurn.update({
+            where: { id: turn.id },
+            data: { capabilityNames: ["create_task"] },
+          });
+          const taskName = "Task refused after admission";
+          await prisma.sokoBotPendingDecision.update({
+            where: { id: decision.id },
+            data: {
+              toolName: "create_task",
+              proposal: { name: taskName, status: "READY" },
+            },
+          });
+          const operations = runtime["operations"];
+          const prepared = await prepareDecision(
+            operations,
+            fixture.userId,
+            decision.id,
+            true,
+            true,
+          );
+          if (prepared.done)
+            throw new Error("The approval should be ready to apply");
+          expect(prepared.resumeProcessing).toBe(true);
+
+          await writeControl(pause, generation);
+          await expect(
+            applyDecision(operations, prepared),
+          ).rejects.toMatchObject({ kind });
+          await expect(
+            prisma.sokoBotPendingDecision.findUnique({
+              where: { id: decision.id },
+            }),
+          ).resolves.toMatchObject({ status });
+          await expect(
+            prisma.task.count({
+              where: { workspaceId: fixture.workspaceId, name: taskName },
+            }),
+          ).resolves.toBe(0);
+          await expect(
+            prisma.sokoBotToolCall.count({ where: { turnId: turn.id } }),
+          ).resolves.toBe(0);
+        },
+      );
+
+      it("keeps the admin failed-turn retry open while Preprod is paused", async () => {
+        await writeControl("paused", "3");
+        const fixture = await seed();
+        const { turn } = await seedHireApproval(fixture);
+        await prisma.sokoBotTurn.update({
+          where: { id: turn.id },
+          data: { status: "FAILED" },
+        });
+        const operationId = randomUUID();
+        const retry = () =>
+          controlPlane.performAdminAction({
+            sokoBotId: fixture.bot.id,
+            operatorId: fixture.userId,
+            action: "RETRY_LAST_FAILED",
+            operationId,
+            reason: "Retry test",
+          });
+        const statuses = () =>
+          prisma.sokoBotAdminAction.findMany({
+            where: { operationId },
+            select: { status: true },
+          });
+        await expect(retry()).rejects.toMatchObject({ kind: "preprod_paused" });
+        await expect(retry()).rejects.toMatchObject({ kind: "preprod_paused" });
+        await expect(statuses()).resolves.toEqual([{ status: "ATTEMPTED" }]);
+        await writeControl("paused", "4");
+        await expect(retry()).rejects.toMatchObject({
+          kind: "soko_bot_network_stale",
+        });
+        await expect(statuses()).resolves.toEqual(
+          expect.arrayContaining([
+            { status: "ATTEMPTED" },
+            { status: "FAILED" },
+          ]),
+        );
+        await expect(
+          prisma.sokoBotTurn.count({ where: { sokoBotId: fixture.bot.id } }),
+        ).resolves.toBe(1);
+      });
+
+      it("recovers Job input from the turn's Preprod schema", async () => {
+        await writeControl("open", "3");
+        const approval = await seedApproval(await seed());
+        const event = await approval.preprod.jobEvent.create({
+          data: {
+            jobId: approval.job.id,
+            status: "AWAITING_INPUT",
+            input: { create: { input: "{}" } },
+          },
+          include: { input: true },
+        });
+        await prisma.sokoBotPendingDecision.update({
+          where: { id: approval.decision.id },
+          data: {
+            toolName: "provide_job_input",
+            proposal: {
+              jobId: approval.job.id,
+              eventId: event.id,
+              inputData: {},
+            },
+          },
+        });
+        await prisma.sokoBotDelegation.update({
+          where: { id: approval.reservation.id },
+          data: { action: "provide_job_input" },
+        });
+        expect(event.input?.id).toBeTruthy();
+        await expect(approval.resolve()).resolves.toMatchObject({
+          status: "ACCEPTED",
+          resultingEntityId: event.input?.id,
+        });
+        await expect(approval.receipts()).resolves.toBe(1);
+      });
+
+      it("expires a reservation whose Job exists only in Mainnet", async () => {
+        await writeControl("open", "3");
+        const approval = await seedApproval(await seed());
+        await approval.preprod.job.delete({ where: { id: approval.job.id } });
+        await expect(approval.resolve()).rejects.toMatchObject({
+          kind: "soko_bot_network_stale",
+        });
+        await expect(approval.readDecision()).resolves.toMatchObject({
+          status: "EXPIRED",
+        });
+        await expect(approval.receipts()).resolves.toBe(0);
+      });
+
+      it.each([
+        ["paused", "3", "preprod_paused", "PROCESSING"],
+        ["paused", "4", "soko_bot_network_stale", "EXPIRED"],
+        ["open", "invalid", "preprod_control_unavailable", "PROCESSING"],
+      ] as const)(
+        "refuses approval replay while %s at generation %s",
+        async (pause, generation, kind, status) => {
+          const approval = await seedApproval(await seed());
+          await writeControl(pause, generation);
+          if (kind === "preprod_control_unavailable") {
+            expectCoreLog(
+              "error",
+              "Could not read the Preprod pause and generation",
+              1,
+            );
+          }
+          await expect(approval.resolve()).rejects.toMatchObject({ kind });
+          await expect(approval.readDecision()).resolves.toMatchObject({
+            status,
+          });
+          await expect(approval.receipts()).resolves.toBe(0);
+          await expect(
+            prisma.sokoBotDelegation.findUnique({
+              where: { id: approval.reservation.id },
+            }),
+          ).resolves.toEqual(approval.reservation);
+        },
+      );
+
+      it("expires a Preprod approval for a reservation from a different Network", async () => {
+        await writeControl("open", "3");
+        const approval = await seedApproval(await seed());
+        await prisma.sokoBotDelegation.update({
+          where: { id: approval.reservation.id },
+          data: { network: "mainnet", preprodGeneration: null },
+        });
+        await expect(approval.resolve()).rejects.toMatchObject({
+          kind: "soko_bot_network_stale",
+        });
+        await expect(approval.readDecision()).resolves.toMatchObject({
+          status: "EXPIRED",
+        });
+        await expect(approval.receipts()).resolves.toBe(0);
+      });
+
+      it("leaves a Preprod hire awaiting approval until a scoped seller is available", async () => {
+        await writeControl("open", "3");
+        const approval = await seedApproval(await seed());
+        await prisma.sokoBotPendingDecision.update({
+          where: { id: approval.decision.id },
+          data: { status: "PENDING" },
+        });
+        await prisma.sokoBotDelegation.delete({
+          where: { id: approval.reservation.id },
+        });
+        await expect(approval.resolve()).rejects.toMatchObject({ status: 503 });
+        await expect(approval.readDecision()).resolves.toMatchObject({
+          status: "PENDING",
+        });
+        await expect(approval.receipts()).resolves.toBe(0);
       });
 
       it.each([
@@ -570,6 +1462,77 @@ describe.skipIf(!enabled)(
           await holder;
         };
       }
+
+      it.each(["pause", "raise"] as const)(
+        "orders %s against replay at the existing stamp",
+        async (operation) => {
+          const fixture = await seed();
+          await writeControl("open", "3");
+          const loses = await seedApproval(fixture);
+          const wins = await seedApproval(fixture);
+          const change = async (tx: Prisma.TransactionClient) => {
+            await tx.syncMetadata.update({
+              where: { key: control.PREPROD_PAUSE_KEY },
+              data: { cursorId: operation === "pause" ? "paused" : "open" },
+            });
+            if (operation === "raise") {
+              await tx.syncMetadata.update({
+                where: { key: control.PREPROD_GENERATION_KEY },
+                data: { cursorId: "4" },
+              });
+            }
+          };
+          const releaseOperator = await holdOpen(change);
+          const refused = expect(loses.resolve()).rejects.toMatchObject({
+            kind:
+              operation === "pause"
+                ? "preprod_paused"
+                : "soko_bot_network_stale",
+          });
+          try {
+            await untilWaiting(1);
+          } finally {
+            await releaseOperator();
+          }
+          await refused;
+          await expect(loses.receipts()).resolves.toBe(0);
+          await expect(loses.readDecision()).resolves.toMatchObject({
+            status: operation === "pause" ? "PROCESSING" : "EXPIRED",
+          });
+
+          await writeControl("open", "3");
+          const releaseInsert = await holdOpen(
+            (tx) =>
+              tx.$executeRaw`LOCK TABLE ${sharedTable("soko_bot_delegation")} IN SHARE MODE`,
+          );
+          const accepted = expect(wins.resolve()).resolves.toMatchObject({
+            status: "ACCEPTED",
+          });
+          try {
+            await untilWaiting(1);
+            const changed =
+              operation === "pause"
+                ? control.setPreprodPaused({
+                    paused: true,
+                    operatorId: fixture.userId,
+                    reason: "Race fixture",
+                  })
+                : control.raisePreprodGeneration();
+            try {
+              await untilWaiting(2);
+            } finally {
+              await releaseInsert();
+            }
+            await changed;
+          } catch (error) {
+            await releaseInsert();
+            throw error;
+          }
+          await accepted;
+          await expect(wins.receipts()).resolves.toBe(1);
+        },
+        30_000,
+      );
 
       /** Holds back the schedule INSERT, after its stamp read the control. */
       const holdScheduleInserts = () =>

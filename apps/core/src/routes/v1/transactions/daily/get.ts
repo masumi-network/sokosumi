@@ -1,10 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { findTransactionDailySpend } from "@/helpers/transaction-history";
-import prisma from "@/lib/db/prisma";
+import { creditViewForRequest } from "@/lib/credits/view";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -54,6 +52,7 @@ function toDay(ms: number): string {
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const view = creditViewForRequest(c.var.networkScope);
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const query = c.req.valid("query");
@@ -79,23 +78,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest(`Range is limited to ${MAX_DAYS} days`);
     }
 
-    const spend = await findTransactionDailySpend(
-      {
-        ...range,
-        kinds: query.types,
-        projectId: query.projectId === "null" ? null : query.projectId,
-        q: query.q,
-        taskId: query.taskId,
-        scope: query.scope,
-        userContext,
-        workspaceContext,
-      },
-      prisma,
-    );
+    const spend = await view.daily({
+      ...range,
+      kinds: query.types,
+      projectId: query.projectId === "null" ? null : query.projectId,
+      q: query.q,
+      taskId: query.taskId,
+      scope: query.scope,
+      userContext,
+      workspaceContext,
+    });
     const creditsByDate = new Map(spend.map((row) => [row.date, row.credits]));
     const series = Array.from({ length: days }, (_, index) => {
       const date = toDay(start + index * DAY_MS);
-      return { date, credits: creditsByDate.get(date) ?? 0 };
+      return {
+        date,
+        credits: creditsByDate.get(date) ?? 0,
+        network: view.network,
+      };
     });
 
     return ok(c, series);

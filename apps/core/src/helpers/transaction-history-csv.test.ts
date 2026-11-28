@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-
-import type { TransactionHistoryRow } from "@/helpers/transaction-history";
+import type { TransactionHistoryRow } from "@/lib/credits/history";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 import {
   csvField,
@@ -66,6 +66,7 @@ async function readAll(stream: ReadableStream<Uint8Array>): Promise<string> {
 }
 
 const params = {
+  billingScope: createNetworkScope("mainnet"),
   scope: "owned" as const,
   userContext: {
     actor: "user",

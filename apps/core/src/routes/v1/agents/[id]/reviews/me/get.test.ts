@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { notFound } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
@@ -13,22 +14,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  agentFindFirstMock,
-  buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrowMock,
-  getUserAgentReviewMock,
-} = vi.hoisted(() => ({
-  agentFindFirstMock: vi.fn(),
-  buildAvailableAgentWhereClauseMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
-  getUserAgentReviewMock: vi.fn(),
-}));
+const { getUserAgentReviewMock, requireAvailableAgentMock } = vi.hoisted(
+  () => ({
+    getUserAgentReviewMock: vi.fn(),
+    requireAvailableAgentMock: vi.fn(),
+  }),
+);
 
-vi.mock("@/helpers/agent", () => ({
-  getCardanoV2ReadySources: () => Promise.resolve([]),
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+vi.mock("@/lib/agent-catalog/availability", () => ({
+  requireAvailableAgent: requireAvailableAgentMock,
 }));
 
 vi.mock("@/helpers/agent-rating", () => ({
@@ -36,11 +30,8 @@ vi.mock("@/helpers/agent-rating", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    agent: {
-      findFirst: agentFindFirstMock,
-    },
-  },
+  default: {},
+  networkPrisma: () => ({}),
 }));
 
 function createApp(
@@ -68,11 +59,7 @@ describe("GET /agents/{id}/reviews/me", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    buildAvailableAgentWhereClauseMock.mockReturnValue({
-      isAvailable: true,
-    });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
-    agentFindFirstMock.mockResolvedValue({ id: "agent_123" });
+    requireAvailableAgentMock.mockResolvedValue(undefined);
   });
 
   it("returns the caller's own review for the agent", async () => {
@@ -87,6 +74,10 @@ describe("GET /agents/{id}/reviews/me", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(requireAvailableAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      "agent_123",
+    );
     expect(getUserAgentReviewMock).toHaveBeenCalledWith(
       "agent_123",
       "user_123",
@@ -111,7 +102,7 @@ describe("GET /agents/{id}/reviews/me", () => {
   });
 
   it("returns 404 when the agent is not available", async () => {
-    agentFindFirstMock.mockResolvedValue(null);
+    requireAvailableAgentMock.mockRejectedValue(notFound("Agent not found"));
 
     const app = createApp();
     const response = await app.request("http://localhost/agent_123/reviews/me");

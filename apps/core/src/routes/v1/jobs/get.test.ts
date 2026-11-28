@@ -114,6 +114,7 @@ describe("GET /jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       {
         userContext: {
           source: "session",
@@ -166,6 +167,7 @@ describe("GET /jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       expect.any(Object),
       expect.objectContaining({
         scope: "workspace",
@@ -202,6 +204,7 @@ describe("GET /jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       {
         userContext: {
           source: "context",
@@ -257,6 +260,7 @@ describe("GET /jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       expect.any(Object),
       expect.objectContaining({
         projectId,
@@ -290,6 +294,7 @@ describe("GET /jobs", () => {
 
     expect(response.status).toBe(200);
     expect(getUserJobsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
       expect.any(Object),
       expect.objectContaining({
         projectId: null,

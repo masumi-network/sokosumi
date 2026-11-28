@@ -1,9 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-
 import {
   COMPENSATED_SPEND_CONSUMPTIONS_SELECT,
-  createCompensatingRefund,
-} from "@/helpers/compensating-refund";
+  refund,
+} from "@/lib/credits/refund";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 /**
  * Creates a refund transaction and source credit bucket for a job when the job
@@ -31,17 +31,13 @@ export async function refundJob(
     throw new Error("Transaction not found");
   }
 
-  const amount = transaction.amount * BigInt(-1);
-  const actorUserId = transaction.userId;
-  if (actorUserId === null) {
-    throw new Error("Spend transaction is missing userId");
-  }
-  const refundId = await createCompensatingRefund(tx, {
-    amount,
-    actorUserId,
-    organizationId: transaction.organizationId,
+  const refundId = await refund({
+    // shortcut: the legacy transaction writes this deployment's own ledger;
+    // ticket 25 passes the Job's Network.
+    scope: createNetworkScope("mainnet"),
+    tx,
+    charge: transaction,
     referenceId: jobId,
-    consumptions: transaction.creditConsumptions,
   });
   await tx.job.update({
     where: { id: jobId },

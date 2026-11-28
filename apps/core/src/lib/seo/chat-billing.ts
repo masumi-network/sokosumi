@@ -1,8 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-
 import { serviceUnavailable, unprocessableEntity } from "@/helpers/error";
+import { getBalance } from "@/lib/credits/balance";
 import { spend } from "@/lib/credits/spend";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import { gatewayCallUsage } from "@/lib/soko-bot/gateway-cost";
@@ -46,7 +45,8 @@ export async function requireSeoChatBalance(
   tx: Prisma.TransactionClient,
   payer: SeoChatPayer,
 ): Promise<void> {
-  const balance = await creditBucketRepository.getBalance(
+  const balance = await getBalance(
+    createNetworkScope("mainnet"),
     payer.userId,
     payer.organizationId,
     tx,
@@ -68,6 +68,7 @@ export async function chargeSeoChatReply(
     // A Mainnet-only feature names its Network.
     scope: createNetworkScope("mainnet"),
     tx,
+    kind: "seo_chat",
     payer,
     quotedCents: sokoBotUsageCents(BigInt(micros), true),
     mode: "in_full",

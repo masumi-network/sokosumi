@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { envDefaults } from "@/test/env-defaults";
 
 const fixture = (name: string) =>
   fileURLToPath(new URL(`./__fixtures__/${name}.ts`, import.meta.url));
@@ -91,6 +92,71 @@ describe("a start that fails the environment check", () => {
 
     expect(code).toBe(1);
   }, 30_000);
+});
+
+describe("incomplete production Preprod configuration on cold start", () => {
+  it.each([true, false])(
+    "delivers one alert only when Preprod was requested (%s)",
+    async (enabled) => {
+      const sentry = await sentryServer();
+      const invalidUrl = "invalid-private-url";
+      const { code, output } = await start(
+        {
+          ...envDefaults,
+          NODE_ENV: "production",
+          NETWORK: "Mainnet",
+          SOKO_BOT_RUNTIME_ADAPTER: "in-process",
+          DATABASE_SCHEMA_SHARED: "shared",
+          DATABASE_SCHEMA_MAINNET: "mainnet",
+          DATABASE_SCHEMA_PREPROD: "preprod",
+          NETWORK_PREPROD_ENABLED: String(enabled),
+          PREPROD_PAYMENT_API_URL: invalidUrl,
+          PREPROD_REGISTRY_API_KEY: "",
+          SENTRY_DSN: sentry.dsn,
+        },
+        fixture("start-sentry"),
+      );
+
+      expect(code).toBe(0);
+      const message =
+        "Preprod is disabled because its Masumi configuration is incomplete";
+      const warningLines = output
+        .split("\n")
+        .filter((line) => line.includes(message));
+      expect(warningLines.length).toBe(enabled ? 1 : 0);
+      const events = sentry.envelopes.flatMap((envelope) => {
+        const [, ...items] = envelope.trimEnd().split("\n");
+        const events: unknown[] = [];
+        for (let i = 0; i < items.length; i += 2) {
+          if (JSON.parse(items[i]).type === "event") {
+            events.push(JSON.parse(items[i + 1]));
+          }
+        }
+        return events;
+      });
+      expect(events.length).toBe(enabled ? 1 : 0);
+      if (enabled) {
+        expect(events[0]).toMatchObject({
+          message,
+          level: "warning",
+          tags: { operation: "masumi_configuration" },
+          extra: {
+            missingVariables: [
+              "PREPROD_PAYMENT_API_URL",
+              "PREPROD_REGISTRY_API_KEY",
+            ],
+          },
+        });
+      }
+      for (const value of [invalidUrl, envDefaults.PREPROD_PAYMENT_API_KEY]) {
+        expect(output.includes(value)).toBe(false);
+        expect(
+          sentry.envelopes.some((envelope) => envelope.includes(value)),
+        ).toBe(false);
+      }
+    },
+    30_000,
+  );
 });
 
 describe("importing the environment module", () => {

@@ -15,6 +15,10 @@ const {
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({
+    sokoBotUsage: { aggregate: usageAggregateMock },
+    creditBucket: { findMany: creditBucketFindManyMock },
+  }),
   default: {
     $queryRaw: queryRawMock,
     sokoBotUsage: { aggregate: usageAggregateMock },

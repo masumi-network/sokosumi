@@ -207,6 +207,7 @@ export async function listAvailableAgents(
   const clauses: Prisma.AgentWhereInput[] = [];
   if (includeCardano) {
     const cardanoWhere = buildAvailableAgentWhereClause(
+      scope,
       creditCosts,
       cardanoV2ReadySources,
     );

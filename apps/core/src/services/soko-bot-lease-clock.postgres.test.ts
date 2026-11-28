@@ -31,6 +31,7 @@ import {
 import { errorHandler } from "@/helpers/error-handler";
 import * as databaseClock from "@/lib/db/database-now";
 import { databaseNow } from "@/lib/db/database-now";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
@@ -255,10 +256,12 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
   }
 
   async function fundStart() {
-    const grant = await prisma.transaction.create({
+    const grant = await createNetworkScope(
+      "mainnet",
+    ).networkDb.transaction.create({
       data: { userId, amount: 100_000n * 10_000_000_000n },
     });
-    await prisma.creditBucket.create({
+    await createNetworkScope("mainnet").networkDb.creditBucket.create({
       data: { userId, amount: grant.amount, sourceTransactionId: grant.id },
     });
   }
@@ -1707,6 +1710,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
             operations,
             tx,
             {
+              provenance: { network: "mainnet" },
               turn: {
                 id: turnId,
                 sokoBotId: botId,

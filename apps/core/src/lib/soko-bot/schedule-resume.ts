@@ -26,6 +26,7 @@ export type ScheduledTurnProvenance = Pick<
 
 export async function scheduleTurnProvenance(
   schedule: ScheduleSource,
+  deferFreshPreprodTurn = false,
 ): Promise<ScheduledTurnProvenance> {
   if (schedule.jobId == null) {
     return { network: createNetworkScope("mainnet").network };
@@ -39,6 +40,11 @@ export async function scheduleTurnProvenance(
     select: { id: true },
   });
   if (!job) throw staleScheduleNetwork();
+  // Slice 30-3 opens fresh Preprod turns. Until then leave their occurrences due.
+  if (deferFreshPreprodTurn)
+    throw new DetachedNetworkRefusal(
+      CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+    );
   return {
     network: scope.network,
     expectedPreprodGeneration: schedule.preprodGeneration,

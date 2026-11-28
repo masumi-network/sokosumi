@@ -24,6 +24,7 @@ import type { Pool, PoolClient } from "pg";
 import { privateKeyToAccount } from "viem/accounts";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { expectCoreLog } from "@/test/core-log";
 import { onSplitLayout } from "@/test/split-layout";
 
 const pools = vi.hoisted(() => [] as Pool[]);
@@ -33,6 +34,7 @@ const sent = vi.hoisted(() => ({ statements: 0 }));
 const background = vi.hoisted(() => [] as Promise<unknown>[]);
 /** The low-balance alert a charge asks for, and the payment node's x402 call. */
 const outside = vi.hoisted(() => ({
+  useNode: false,
   lowBalanceAlert: vi.fn(async (_billed: unknown) => undefined),
   payX402: vi.fn(),
 }));
@@ -80,19 +82,32 @@ vi.mock("@/helpers/task-notifications", async (importOriginal) => ({
 }));
 // The purchase at the payment node runs after the response; the claim it
 // would process is written by the request and stays PENDING here.
-vi.mock("@/services/task-payment-claim.service", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@/services/task-payment-claim.service")
-  >()),
-  processTaskPaymentClaim: async () => ({
-    status: "purchased",
-    purchaseId: "fixture-purchase",
-  }),
-}));
-vi.mock("@/clients/masumi-payment.client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/clients/masumi-payment.client")>()),
-  paymentClient: () => ({ payX402: outside.payX402 }),
-}));
+vi.mock("@/services/task-payment-claim.service", async (load) => {
+  const actual =
+    await load<typeof import("@/services/task-payment-claim.service")>();
+  return {
+    ...actual,
+    processTaskPaymentClaim: (
+      ...args: Parameters<typeof actual.processTaskPaymentClaim>
+    ) =>
+      outside.useNode
+        ? actual.processTaskPaymentClaim(...args)
+        : Promise.resolve({
+            status: "purchased",
+            purchaseId: "fixture-purchase",
+          }),
+  };
+});
+vi.mock("@/clients/masumi", async (load) => {
+  const actual = await load<typeof import("@/clients/masumi")>();
+  return {
+    ...actual,
+    masumiClients: (network: NetworkName) =>
+      outside.useNode
+        ? actual.masumiClients(network)
+        : { payment: { payX402: outside.payX402 } },
+  };
+});
 
 // shortcut: the event's response read joins Transaction on the default client,
 // which has no Network table on the split layout until ticket 27. There this
@@ -173,19 +188,47 @@ function expectAsOnBase(
  * is compared in `coworkers/me/usage/post-spend.postgres.test.ts`.
  */
 const PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED = 2;
+/**
+ * Since ticket 29 the usage row is one raw insert on the Network's table,
+ * where Prisma's nested create sent six statements (a read of the debit, of
+ * a usage that holds it, of the user and of the Coworker, the insert, a read
+ * back). Compared statement by statement in the same file.
+ */
+const USAGE_ROW_STATEMENTS_SAVED = 5;
+/**
+ * Since ticket 29 a usage that names Preprod while Preprod is off is refused
+ * before the route reads anything, a replay of a Mainnet key included, which
+ * `origin/main` answered with the Mainnet row: the Coworker's capability read
+ * and the lookup's transaction (begin, isolation, lookup, commit) are not sent.
+ */
+const PREPROD_OFF_REPLAY_STATEMENTS_SAVED = 5;
 function withUsageDebitAsWrittenNow(base: unknown): unknown {
   return Object.fromEntries(
     Object.entries(
       base as Record<string, { status: number; statements: number }>,
     ).map(([step, answer]) => [
       step,
-      answer.status === 201
+      step === "the second key again, preprod"
         ? {
             ...answer,
-            statements:
-              answer.statements - PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED,
+            status: 403,
+            body: {
+              error: "Forbidden",
+              message: "Preprod is switched off",
+              kind: "preprod_off",
+              meta: { path: "/v1/coworkers/me/usage", method: "POST" },
+            },
+            statements: answer.statements - PREPROD_OFF_REPLAY_STATEMENTS_SAVED,
           }
-        : answer,
+        : answer.status === 201
+          ? {
+              ...answer,
+              statements:
+                answer.statements -
+                PERSONAL_USAGE_DEBIT_STATEMENTS_SAVED -
+                USAGE_ROW_STATEMENTS_SAVED,
+            }
+          : answer,
     ]),
   );
 }
@@ -541,6 +584,13 @@ async function send(
     await Promise.allSettled(background.splice(0));
   }
   const statements = sent.statements - before;
+  // The key's use is written at most once a minute: the world's first request
+  // writes it, as recorded. Held fresh after each request, outside the count,
+  // so a world whose requests span a minute on a slow runner writes no more.
+  await loaded.prisma.coworkerApiKey.updateMany({
+    where: { coworkerId: (await world.coworker()).id },
+    data: { lastUsedAt: new Date(Date.now() + 86_400_000) },
+  });
   const answer = text ? (JSON.parse(text) as Record<string, unknown>) : null;
   // A signed authorization carries its own expiry and signature.
   const signed = (answer?.data as { paymentHeader?: { value?: string } })
@@ -856,6 +906,111 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
       }
     }
 
+    it.skipIf(deploymentNetwork !== "Mainnet")(
+      "serves Mainnet registry entries when the header names Preprod and routing is off",
+      () =>
+        withWorld(async (world) => {
+          const owner = await world.person("registry reader", {});
+          const key = await loaded.fixture.createApiKey(owner.id);
+          const { stubMasumiSyncHttp } = await import(
+            "@/test/masumi-sync-http"
+          );
+          const node = stubMasumiSyncHttp();
+          outside.useNode = true;
+          try {
+            const response = await loaded.app.request(
+              ORIGIN + "/v1/registry/agents",
+              {
+                headers: {
+                  authorization: "Bearer " + key,
+                  [HEADER]: "preprod",
+                },
+              },
+            );
+            expect(response.status).toBe(200);
+            expect(node.requests).toMatchObject([
+              {
+                url: "https://example.com/registry/registry-entry/",
+                credential: "mainnet registry",
+                method: "POST",
+              },
+            ]);
+            expect(JSON.parse(node.requests[0].body).network).toBe("Mainnet");
+          } finally {
+            outside.useNode = false;
+            vi.unstubAllGlobals();
+          }
+        }),
+      MANY_REQUESTS,
+    );
+
+    it.skipIf(deploymentNetwork !== "Mainnet")(
+      "sends the same Mainnet Task claim and x402 requests",
+      async () =>
+        withWorld(async (world) => {
+          const { stubMasumiSyncHttp } = await import(
+            "@/test/masumi-sync-http"
+          );
+          const owner = await world.person("node request owner", {
+            mainnet: 30,
+          });
+          const task = await world.task(owner);
+          const payment = (await masumiPayments(loaded, world))("node claim");
+          // Fix the two asset and purchase identifiers in the raw HTTP comparison.
+          const fixtureUnit = "b3".repeat(30);
+          await creditCost(loaded, world, fixtureUnit);
+          payment.Amounts[0].unit = fixtureUnit;
+          payment.blockchainIdentifier = "b4".repeat(20);
+          const agent = await x402Agent(loaded, world, "Mainnet");
+          const node = stubMasumiSyncHttp();
+          outside.useNode = true;
+          try {
+            const claim = await send(
+              loaded,
+              world,
+              `/v1/tasks/${task}/events`,
+              { masumiPayment: payment },
+            );
+            expect(claim.status).toBe(201);
+            expect(node.requests.map((r) => new URL(r.url).pathname)).toEqual([
+              "/payment/purchase",
+            ]);
+            node.x402Reply = (await agent.signed())._unsafeUnwrap();
+            const pay = await send(
+              loaded,
+              world,
+              `/v1/tasks/${task}/x402-payments`,
+              agent.pay("mainnet-proof"),
+            );
+            expect(pay.status).toBe(200);
+            expect(node.requests).toHaveLength(2);
+            const claimRow = await world
+              .networkDb("mainnet")
+              .taskPaymentClaim.findFirstOrThrow({
+                where: { blockchainIdentifier: payment.blockchainIdentifier },
+              });
+            // Bind the recording to the two actual PostgreSQL ids before comparing raw bytes.
+            if (!claimRow.taskEventId)
+              throw new Error(
+                "Expected the persisted claim to reference its Task event",
+              );
+            const expected = readFileSync(
+              new URL("./masumi-mainnet-task.http.json", import.meta.url),
+              "utf8",
+            )
+              .replaceAll("<fixture task id>", task)
+              .replaceAll("<fixture event id>", claimRow.taskEventId);
+            expect(JSON.stringify(node.requests, null, 2) + "\n").toBe(
+              expected,
+            );
+          } finally {
+            outside.useNode = false;
+            vi.unstubAllGlobals();
+          }
+        }),
+      MANY_REQUESTS,
+    );
+
     it(
       "answers a Task event's charge as on origin/main",
       {
@@ -1018,7 +1173,7 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
           const { pay, signed, expireLeases } = await x402Agent(
             loaded,
             world,
-            deploymentNetwork,
+            "Mainnet",
           );
           const refused = err({
             kind: "refused",
@@ -1094,17 +1249,19 @@ describe.runIf(enabled && !onSplitLayout).each(["Mainnet", "Preprod"] as const)(
             outside.payX402.mockResolvedValue(node);
             answers[name] = await send(loaded, world, path, body, headers);
           }
-          expectAsOnBase(baseKey("x402 payments"), answers);
+          expectAsOnBase("NETWORK=Mainnet, x402 payments", answers);
         }),
     );
   },
 );
 
-// Preprod is on only on the split layout. There usage, the x402 payment and a
+// Preprod is on only on the split layout. There the x402 payment and a
 // Masumi payment's price still read Network tables on the default client
 // (tickets 22 and 29) and answer 500 before or after the resolver, so their
-// Network is proven with the database mocked (`coworkers/me/usage/post.test.ts`,
-// `tasks/[id]/x402-payments/post.test.ts`) and by the refusals below.
+// Network is proven with the database mocked
+// (`tasks/[id]/x402-payments/post.test.ts`) and by the refusals below. Usage
+// runs on its Network there since ticket 29's first slice:
+// `coworkers/me/usage/post-network.postgres.test.ts`.
 describe.runIf(enabled && onSplitLayout)(
   "A Coworker's payments with Preprod on, on the split layout",
   () => {
@@ -1143,6 +1300,233 @@ describe.runIf(enabled && onSplitLayout)(
       status: 422,
       body: { kind: "insufficient_balance" },
     };
+    // Preprod costs no credits: the charge is recorded at its price on
+    // Preprod's Transaction, and the event's write refuses it, because
+    // `taskEvent.transactionId` has a foreign key to Mainnet's Transaction
+    // (ticket 29). The request rolls back: nothing stays on either Network.
+    const crossingKey = { status: 500 };
+
+    it(
+      "routes authenticated registry browsing and refuses deferred Preprod payments before booking or sending",
+      async () =>
+        withWorld(async (world) => {
+          const owner = await world.person(
+            "scoped request owner",
+            credits,
+            true,
+          );
+          const task = await world.task(owner);
+          const payment = (await masumiPayments(loaded, world))(
+            "preprod claim",
+            { network: "Preprod" },
+          );
+          const agent = await x402Agent(loaded, world, "Preprod");
+          const stored = (await x402Agent(loaded, world, "Mainnet")).pay(
+            "verified-replay",
+          );
+          const db = world.networkDb("mainnet");
+          const debit = await db.transaction.create({
+            data: { userId: owner.id, amount: -1n },
+          });
+          const acceptance = stored.paymentRequired.accepts[0];
+          await db.taskX402Payment.create({
+            data: {
+              taskId: task,
+              agentId: stored.agentId,
+              idempotencyKey: stored.idempotencyKey,
+              status: "VERIFIED",
+              caip2Network: X402_CHAINS.Mainnet.caip2Network,
+              asset: X402_CHAINS.Mainnet.asset,
+              amount: acceptance.amount,
+              payTo: acceptance.payTo,
+              transactionId: debit.id,
+              xPaymentHeader: "synthetic-stored-header",
+              validBefore: new Date(Date.now() + 60000),
+            },
+          });
+          await loaded.prisma.user.update({
+            where: { id: owner.id },
+            data: { role: "admin" },
+          });
+          const keys = {
+            mainnet: await loaded.fixture.createApiKey(
+              owner.id,
+              "soko_mainnet_",
+            ),
+            preprod: await loaded.fixture.createApiKey(
+              owner.id,
+              "soko_preprod_",
+            ),
+          };
+          const job = {
+            inputSchema: {
+              input_data: [{ id: "prompt", type: "string", name: "prompt" }],
+            },
+            inputData: { prompt: "hello" },
+          };
+          const { stubMasumiSyncHttp } = await import(
+            "@/test/masumi-sync-http"
+          );
+          const node = stubMasumiSyncHttp();
+          outside.useNode = true;
+          try {
+            for (const network of ["mainnet", "preprod"] as const) {
+              const response = await loaded.app.request(
+                ORIGIN + "/v1/registry/agents?limit=1",
+                { headers: { authorization: "Bearer " + keys[network] } },
+              );
+              expect(response.status).toBe(200);
+              expect(node.requests.at(-1)).toMatchObject({
+                url:
+                  (network === "mainnet"
+                    ? "https://example.com"
+                    : "https://preprod.example.com") +
+                  "/registry/registry-entry/",
+                credential: network + " registry",
+                method: "POST",
+                body: JSON.stringify({
+                  network: network === "mainnet" ? "Mainnet" : "Preprod",
+                  limit: 3,
+                  filter: {
+                    status: ["Online", "Offline", "Deregistered", "Invalid"],
+                  },
+                }),
+              });
+            }
+            expect(node.requests).toHaveLength(2);
+            const before = await world.ledger();
+            const id = randomUUID();
+            for (const [path, body, token, kind] of [
+              [`/v1/agents/${id}/jobs`, job, keys.preprod, "network_mismatch"],
+              [
+                `/v1/jobs/${id}/refund`,
+                undefined,
+                keys.preprod,
+                "network_mismatch",
+              ],
+              [
+                `/v1/tasks/${task}/jobs`,
+                { ...job, agentId: id },
+                (await world.coworker()).token,
+                "preprod_access_required",
+              ],
+              [
+                `/v1/tasks/${task}/receipt`,
+                undefined,
+                (await world.coworker()).token,
+                "preprod_access_required",
+              ],
+              [
+                `/v1/tasks/${task}/events`,
+                { masumiPayment: payment },
+                (await world.coworker()).token,
+                "network_mismatch",
+              ],
+              [
+                `/v1/tasks/${task}/x402-payments`,
+                agent.pay("preprod-proof"),
+                (await world.coworker()).token,
+                "network_mismatch",
+              ],
+              ...(["retry", "refund", "resolve"] as const).map(
+                (action) =>
+                  [
+                    `/v1/admin/task-payment-claims/${id}/${action}`,
+                    { reason: "test" },
+                    keys.preprod,
+                    "network_mismatch",
+                  ] as const,
+              ),
+            ] as const) {
+              const response = await loaded.app.request(ORIGIN + path, {
+                method: path.endsWith("/receipt") ? "GET" : "POST",
+                headers: {
+                  ...preprod,
+                  authorization: "Bearer " + token,
+                  "content-type": "application/json",
+                },
+                ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+              });
+              expect([
+                path,
+                response.status,
+                (await response.json()).kind,
+              ]).toEqual([path, 403, kind]);
+            }
+            expect(node.requests).toHaveLength(2);
+            const replay = await send(
+              loaded,
+              world,
+              `/v1/tasks/${task}/x402-payments`,
+              stored,
+              preprod,
+            );
+            expect(replay).toMatchObject({
+              status: 400,
+              body: { kind: "network_mismatch" },
+            });
+            expect(node.requests).toHaveLength(2);
+            expect(await world.ledger()).toEqual(before);
+            for (const network of ["mainnet", "preprod"] as const)
+              expect(
+                await world
+                  .networkDb(network)
+                  .job.count({ where: { workspaceId: owner.workspaceId } }),
+              ).toBe(0);
+          } finally {
+            outside.useNode = false;
+            vi.unstubAllGlobals();
+          }
+        }),
+      MANY_REQUESTS,
+    );
+
+    it(
+      "keeps the Mainnet Task payment outcomes on the split layout",
+      async () =>
+        withWorld(async (world) => {
+          const owner = await world.person("split Mainnet task", credits, true);
+          const task = await world.task(owner);
+          const payment = (await masumiPayments(loaded, world))("split claim", {
+            network: "Mainnet",
+          });
+          const agent = await x402Agent(loaded, world, "Mainnet");
+          const { stubMasumiSyncHttp } = await import(
+            "@/test/masumi-sync-http"
+          );
+          const node = stubMasumiSyncHttp();
+          outside.useNode = true;
+          try {
+            expectCoreLog(
+              "error",
+              "Kept a database schema mismatch out of Sentry",
+              2,
+            );
+            const before = await world.ledger();
+            const claim = await send(
+              loaded,
+              world,
+              `/v1/tasks/${task}/events`,
+              { masumiPayment: payment },
+              mainnet,
+            );
+            const x402 = await send(
+              loaded,
+              world,
+              `/v1/tasks/${task}/x402-payments`,
+              agent.pay("split-mainnet"),
+              mainnet,
+            );
+            expect([claim.status, x402.status]).toEqual([500, 500]);
+            expect(node.requests).toEqual([]);
+            expect(await world.ledger()).toEqual(before);
+          } finally {
+            outside.useNode = false;
+            vi.unstubAllGlobals();
+          }
+        }),
+      MANY_REQUESTS,
+    );
 
     function expectNothingWritten(answer: Sent) {
       expect(spent(answer, "mainnet")).toEqual([]);
@@ -1154,10 +1538,10 @@ describe.runIf(enabled && onSplitLayout)(
       expect(answer.rows.events).toEqual([]);
     }
 
-    // A Preprod charge cannot commit here yet: the event's `transactionId`
-    // has a foreign key to Mainnet's Transaction (ticket 29). So the proof is
-    // whose credits the charge looks for: a Network without credits pauses
-    // the Task as out of credits while the other Network's stay untouched.
+    // A Preprod charge cannot commit here yet (`crossingKey`). So the proof is
+    // which Network the charge goes to: Preprod's rolls back and leaves
+    // Mainnet's credits untouched, and a Mainnet charge without Mainnet
+    // credits pauses the Task as out of credits.
     it(
       "charges a Task event's credits on the Network the request names, and only there",
       {
@@ -1188,8 +1572,8 @@ describe.runIf(enabled && onSplitLayout)(
             );
 
           const namedPreprod = await charge(onMainnet, preprod);
-          expect(namedPreprod).toMatchObject(outOfCredits);
-          expect(spent(namedPreprod, "mainnet")).toEqual([]);
+          expect(namedPreprod).toMatchObject(crossingKey);
+          expectNothingWritten(namedPreprod);
 
           for (const headers of [undefined, mainnet]) {
             const answer = await charge(onPreprod, headers);
@@ -1245,8 +1629,8 @@ describe.runIf(enabled && onSplitLayout)(
           expect(inClosed).toMatchObject(refused);
           expectNothingWritten(inClosed);
 
-          // The Organization's flag is on; its member needs none. With no
-          // Preprod credits the charge passes the access check and pauses.
+          // The Organization's flag is on; its member needs none. The charge
+          // passes the access check and reaches the event (`crossingKey`).
           const open = await world.organization(
             plain.id,
             { mainnet: 10 },
@@ -1259,9 +1643,8 @@ describe.runIf(enabled && onSplitLayout)(
             { credits: 1 },
             preprod,
           );
-          expect(inOpen).toMatchObject(outOfCredits);
-          expect(spent(inOpen, "mainnet")).toEqual([]);
-          expect(spent(inOpen, "preprod")).toEqual([]);
+          expect(inOpen).toMatchObject(crossingKey);
+          expectNothingWritten(inOpen);
         }),
     );
 
@@ -1312,4 +1695,49 @@ describe.runIf(enabled && onSplitLayout)(
         }),
     );
   },
+);
+
+it.runIf(enabled && onSplitLayout)(
+  "keeps a Preprod API key scoped when missing production configuration disables Preprod",
+  async () => {
+    expectCoreLog(
+      "warn",
+      "Preprod is disabled because its Masumi configuration is incomplete",
+    );
+    const loaded = await load({
+      NETWORK_PREPROD_ENABLED: "true",
+      NODE_ENV: "production",
+      SOKO_BOT_RUNTIME_ADAPTER: "in-process",
+      PREPROD_REGISTRY_API_KEY: "",
+    });
+    const world = createWorld(loaded, ["mainnet"]);
+    const { stubMasumiSyncHttp } = await import("@/test/masumi-sync-http");
+    const node = stubMasumiSyncHttp();
+    outside.useNode = true;
+    try {
+      const owner = await world.person("missing configuration", {}, true);
+      const key = await loaded.fixture.createApiKey(owner.id, "soko_preprod_");
+      const task = await world.task(owner);
+      for (const path of [
+        "/v1/registry/agents",
+        "/v1/agents",
+        `/v1/tasks/${task}/receipt`,
+      ]) {
+        const response = await loaded.app.request(ORIGIN + path, {
+          headers: { authorization: "Bearer " + key },
+        });
+        expect([path, response.status, (await response.json()).kind]).toEqual([
+          path,
+          403,
+          "preprod_off",
+        ]);
+      }
+      expect(node.requests).toHaveLength(0);
+    } finally {
+      outside.useNode = false;
+      vi.unstubAllGlobals();
+      await world.remove();
+    }
+  },
+  MANY_REQUESTS,
 );

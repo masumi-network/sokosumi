@@ -1,4 +1,4 @@
-import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { CreditBucketReferenceType } from "@sokosumi/database";
 import {
   creditBucketActivatesAtOrBefore,
   resolveOrganizationBillingPlan,
@@ -8,9 +8,10 @@ import {
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits } from "@sokosumi/utils";
-
 import { getEnterpriseContractBillingSummary } from "@/helpers/enterprise-contract-summary";
-import { getCredits } from "@/helpers/user";
+import { getCredits } from "@/lib/credits/balance";
+import type { NetworkScope } from "@/lib/db/network-scope";
+import { chargesCredits, requireChargingNetwork } from "./policy";
 
 interface SubscriptionPeriodRecord {
   periodStart: Date | null;
@@ -83,9 +84,11 @@ export async function getCurrentSubscriptionCredits(params: {
   subscription: SubscriptionPeriodRecord | null;
   userId: string | null;
   organizationId: string | null;
-  tx: Prisma.TransactionClient;
+  scope: NetworkScope;
   now?: Date;
 }): Promise<SubscriptionCredits | null> {
+  // A plan's credits are Mainnet's only: no other Network has a balance.
+  requireChargingNetwork(params.scope.network, "A plan's credits");
   const now = params.now ?? new Date();
   const period = getCurrentSubscriptionPeriod(params.subscription, now);
   if (!period) {
@@ -127,7 +130,7 @@ export async function getCurrentSubscriptionCredits(params: {
     ],
   };
 
-  const buckets = await params.tx.creditBucket.findMany({
+  const buckets = await params.scope.networkDb.creditBucket.findMany({
     select: {
       amount: true,
       id: true,
@@ -145,7 +148,7 @@ export async function getCurrentSubscriptionCredits(params: {
 
   const bucketIds = buckets.map((bucket) => bucket.id);
   const [lifetimeUsedRows, periodUsedRows] = await Promise.all([
-    params.tx.creditConsumption.groupBy({
+    params.scope.networkDb.creditConsumption.groupBy({
       by: ["bucketId"],
       where: {
         bucketId: { in: bucketIds },
@@ -154,7 +157,7 @@ export async function getCurrentSubscriptionCredits(params: {
         amount: true,
       },
     }),
-    params.tx.creditConsumption.groupBy({
+    params.scope.networkDb.creditConsumption.groupBy({
       by: ["bucketId"],
       where: {
         bucketId: { in: bucketIds },
@@ -315,29 +318,34 @@ export async function buildCreditsPayload(params: {
   referenceId: string;
   /** Cuso's Project: its Project credits count with the pool (ADR 0067). */
   projectId?: string | null;
-  tx: Prisma.TransactionClient;
+  scope: NetworkScope;
 }): Promise<CreditsApiPayload> {
+  // A Network that charges no credits has no balance and no plan: nothing is read.
+  if (!chargesCredits(params.scope.network)) {
+    return withoutCredits(params.organizationId);
+  }
   const projectScope = { projectId: params.projectId };
   const totalCredits = await getCredits(
+    params.scope,
     params.userId,
     params.organizationId,
-    params.tx,
+    params.scope.sharedDb,
     projectScope,
   );
   const latestSubscription =
     (await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
       params.referenceId,
-      params.tx,
+      params.scope.sharedDb,
     )) ??
     (await subscriptionRepository.getLatestSubscriptionByReferenceId(
       params.referenceId,
-      params.tx,
+      params.scope.sharedDb,
     ));
   const subscriptionCredits = await getCurrentSubscriptionCredits({
     subscription: latestSubscription,
     userId: params.userId,
     organizationId: params.organizationId,
-    tx: params.tx,
+    scope: params.scope,
   });
   const subscription = mapSubscription(
     latestSubscription
@@ -349,9 +357,10 @@ export async function buildCreditsPayload(params: {
   );
   const bucketRows =
     await creditBucketRepository.listAvailableBucketsWithBalances(
+      params.scope.network,
       params.userId,
       params.organizationId,
-      params.tx,
+      params.scope.sharedDb,
       projectScope,
     );
 
@@ -360,17 +369,19 @@ export async function buildCreditsPayload(params: {
   const projectBucketRows =
     params.organizationId && !params.projectId
       ? await creditBucketRepository.listProjectBucketsWithBalances(
+          params.scope.network,
           params.userId,
           params.organizationId,
-          params.tx,
+          params.scope.sharedDb,
         )
       : [];
 
   const enterpriseBucketRows = params.organizationId
     ? await creditBucketRepository.listEnterprisePoolBucketsWithBalances(
+        params.scope.network,
         params.userId,
         params.organizationId,
-        params.tx,
+        params.scope.sharedDb,
       )
     : [];
 
@@ -452,16 +463,29 @@ export async function buildCreditsPayload(params: {
     enterprise: await resolveEnterpriseWallet({
       extraEnterprise: enterprise,
       organizationId: params.organizationId,
-      tx: params.tx,
+      scope: params.scope,
     }),
     credits,
+  };
+}
+
+/** The payload of a Network that charges no credits: no balance, plan or enterprise data. */
+function withoutCredits(organizationId: string | null): CreditsApiPayload {
+  const none = { total: 0, remaining: 0, used: 0 };
+  return {
+    scope: organizationId ? "organization" : "personal",
+    spendable: 0,
+    subscription: null,
+    extra: { credits: none, buckets: [], enterprise: null },
+    enterprise: null,
+    credits: { subscription: null, buffer: 0, total: 0 },
   };
 }
 
 async function resolveEnterpriseWallet(params: {
   extraEnterprise: CreditsApiPayload["extra"]["enterprise"];
   organizationId: string | null;
-  tx: Prisma.TransactionClient;
+  scope: NetworkScope;
 }): Promise<CreditsApiPayload["enterprise"]> {
   if (!params.organizationId) {
     return null;
@@ -469,16 +493,17 @@ async function resolveEnterpriseWallet(params: {
 
   const billingPlan = await resolveOrganizationBillingPlan(
     params.organizationId,
-    params.tx,
+    params.scope.sharedDb,
   );
   if (billingPlan.mode !== "enterprise_contract") {
     return null;
   }
 
   const summary = await getEnterpriseContractBillingSummary(
+    params.scope,
     billingPlan,
     params.organizationId,
-    params.tx,
+    params.scope.sharedDb,
   );
   const emptyCredits = { remaining: 0, total: 0, used: 0 };
 

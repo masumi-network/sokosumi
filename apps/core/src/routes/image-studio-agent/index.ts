@@ -1,5 +1,5 @@
 import { productBrief } from "@sokosumi/utils";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
@@ -9,6 +9,8 @@ import {
   describeImageStudioRefusal,
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
+import { requireMainnetOnlyFeature } from "@/middleware/mainnet-only-feature";
+import { NETWORK_HEADER } from "@/middleware/network-scope";
 import { createAgentImageJobSchema } from "@/schemas/project-image-studio.schema";
 import { studioBrandAssetsSchema } from "@/schemas/studio-brand-kit.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
@@ -29,7 +31,7 @@ import {
   readStudioProductCatalog,
 } from "@/services/studio-product-catalog.service";
 
-import { authorizeAgentGrant as authorize } from "./authorize";
+import { type AgentGrantContext, authorizeAgentGrant } from "./authorize";
 
 /**
  * The surface the image-studio agent calls.
@@ -47,6 +49,15 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 
+async function authorize(c: Context): Promise<AgentGrantContext | Response> {
+  const context = await authorizeAgentGrant(c.req.raw);
+  if (context instanceof Response) return context;
+  if (c.req.header(NETWORK_HEADER) === "preprod") {
+    requireMainnetOnlyFeature(c);
+  }
+  return context;
+}
+
 /**
  * Confirm the grant's user still has access to the grant's project.
  *
@@ -54,13 +65,13 @@ const app = new Hono();
  * reaching the handler at all is the answer.
  */
 app.post("/access", async (c) => {
-  const context = await authorize(c.req.raw);
+  const context = await authorize(c);
   if (context instanceof Response) return context;
   return c.json({ ok: true });
 });
 
 app.post("/sessions/:eveSessionId/authorize", async (c) => {
-  const context = await authorize(c.req.raw);
+  const context = await authorize(c);
   if (context instanceof Response) return context;
 
   const eveSessionId = c.req.param("eveSessionId");
@@ -75,14 +86,14 @@ app.post("/sessions/:eveSessionId/authorize", async (c) => {
 });
 
 app.get("/options", async (c) => {
-  const context = await authorize(c.req.raw);
+  const context = await authorize(c);
   if (context instanceof Response) return context;
   await ensureImageCatalogFresh();
   return c.json({ ok: true, catalog: getImageCatalog("agent") });
 });
 
 app.get("/versions", async (c) => {
-  const context = await authorize(c.req.raw);
+  const context = await authorize(c);
   if (context instanceof Response) return context;
 
   await reconcileProjectJobs(createNetworkScope("mainnet"), context.projectId);
@@ -120,7 +131,7 @@ app.get("/versions", async (c) => {
 });
 
 app.post("/generations", async (c) => {
-  const context = await authorize(c.req.raw);
+  const context = await authorize(c);
   if (context instanceof Response) return context;
   // A CMO Project's Studio is CMO's (ADR 0066); Cuso's own media go through
   // Core's services, not this surface.
@@ -269,7 +280,7 @@ app.post("/generations", async (c) => {
 });
 
 app.get("/generations/:jobId", async (c) => {
-  const context = await authorize(c.req.raw);
+  const context = await authorize(c);
   if (context instanceof Response) return context;
 
   const jobId = c.req.param("jobId");

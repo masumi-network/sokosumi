@@ -1,12 +1,15 @@
 import * as Sentry from "@sentry/node";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { type masumiClients, requireSameMasumiNetwork } from "@/clients/masumi";
+import { cardanoV2ReadySources } from "@/lib/agent-catalog/availability";
 import {
-  CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-  CARDANO_V2_RAIL_READINESS_KEY,
-  getCardanoV2ReadySources,
-} from "@/helpers/agent";
-import prisma from "@/lib/db/prisma";
+  clearReadinessFailure,
+  escalateCardanoReadinessFailure,
+  findRecordedReadiness,
+  markReadinessFailure,
+  saveReadiness,
+} from "@/lib/agent-catalog/readiness";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 
 /**
@@ -112,14 +115,10 @@ export interface SyncCardanoV2RailReadinessOptions {
   budget?: ReadinessBudget;
 }
 
-/**
- * Marker states. The row exists for the length of one failure streak and a
- * successful check deletes it, so these are the streak's own states, not the
- * rail's. "failed" is what a fresh streak writes; the escalation flips it so
- * exactly one worker can report the streak outliving the threshold below.
- */
-const READINESS_FAILURE_NEW = "failed";
-const READINESS_FAILURE_ESCALATED = "escalated";
+type CardanoReadinessClient = Pick<
+  ReturnType<typeof masumiClients>["payment"],
+  "network" | "getCardanoV2RailReadiness"
+>;
 
 /**
  * How long a failure streak may run before it stops being a blip.
@@ -156,6 +155,8 @@ const READINESS_FAILURE_ESCALATION_MS = 30 * 60 * 1000;
  * syncRegistryAgents, that replay is what first writes the V2 rows.
  */
 async function refreshCardanoV2RailReadiness(
+  scope: NetworkScope,
+  node: CardanoReadinessClient,
   options: SyncCardanoV2RailReadinessOptions,
   log: CoreLogger,
 ): Promise<boolean> {
@@ -163,7 +164,6 @@ async function refreshCardanoV2RailReadiness(
     options.budget ?? READINESS_BUDGET;
   const sleep = options.sleep ?? sleepMs;
   const deadline = withTimeout(options.signal, totalTimeoutMs);
-  const node = paymentClient();
   let readinessResult = await node.getCardanoV2RailReadiness({
     signal: withTimeout(deadline, attemptTimeoutMs),
   });
@@ -217,7 +217,7 @@ async function refreshCardanoV2RailReadiness(
       // Stale (sources are being served): readers keep serving the last known
       // value, so a failed check costs nothing user-visible.
       const isCatalogueHidden =
-        (await getCardanoV2ReadySources(prisma)).length === 0;
+        (await cardanoV2ReadySources(scope)).length === 0;
 
       // HOW OFTEN may it page is a separate question, and row existence is
       // the right answer to THIS one. A catalogue that was recorded and then
@@ -225,25 +225,13 @@ async function refreshCardanoV2RailReadiness(
       // below. Bypassing the latch for it as well would page every five
       // minutes for the length of an outage, which is the noise this change
       // exists to cut, not add to.
-      const recordedReadiness = await prisma.syncMetadata.findUnique({
-        where: { key: CARDANO_V2_RAIL_READINESS_KEY },
-        select: { key: true },
-      });
+      const recordedReadiness = await findRecordedReadiness(scope, "cardanoV2");
       const hasNeverBeenRecorded = !recordedReadiness;
 
       // createMany + skipDuplicates is an atomic cross-instance latch:
       // exactly one serverless worker creates the marker and reports the
       // failure; later workers see count=0 until a successful check clears it.
-      const marker = await prisma.syncMetadata.createMany({
-        data: [
-          {
-            key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-            cursorId: READINESS_FAILURE_NEW,
-            lastSyncedAt: new Date(),
-          },
-        ],
-        skipDuplicates: true,
-      });
+      const marker = await markReadinessFailure(scope, "cardanoV2");
       // HOW LONG has it been failing is the third question, and the marker
       // row already answers it: skipDuplicates never touches an existing row,
       // so lastSyncedAt still holds the moment the streak started.
@@ -262,16 +250,10 @@ async function refreshCardanoV2RailReadiness(
       const escalation =
         marker.count > 0
           ? { count: 0 }
-          : await prisma.syncMetadata.updateMany({
-              where: {
-                key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-                cursorId: READINESS_FAILURE_NEW,
-                lastSyncedAt: {
-                  lt: new Date(Date.now() - READINESS_FAILURE_ESCALATION_MS),
-                },
-              },
-              data: { cursorId: READINESS_FAILURE_ESCALATED },
-            });
+          : await escalateCardanoReadinessFailure(
+              scope,
+              new Date(Date.now() - READINESS_FAILURE_ESCALATION_MS),
+            );
       const isStreakSustained = escalation.count > 0;
 
       // The latch is deliberately bypassed while readiness has never been
@@ -332,27 +314,16 @@ async function refreshCardanoV2RailReadiness(
   const serializedReadySources = JSON.stringify(readySources);
   let readinessChanged: boolean;
   try {
-    const previousReadiness = await prisma.syncMetadata.findUnique({
-      where: { key: CARDANO_V2_RAIL_READINESS_KEY },
-    });
     // A changed source set reprojects every V2 price, because pricing is
     // projected from the purchase-ready source. Age alone is not a change:
     // readers now always serve the last recorded value, so no window exists in
     // which they saw [] and projected against the fallback instead.
     // `undefined !== string` also covers the first run, when no row exists.
-    readinessChanged = previousReadiness?.cursorId !== serializedReadySources;
-    await prisma.syncMetadata.upsert({
-      where: { key: CARDANO_V2_RAIL_READINESS_KEY },
-      create: {
-        key: CARDANO_V2_RAIL_READINESS_KEY,
-        cursorId: serializedReadySources,
-        lastSyncedAt: new Date(),
-      },
-      update: {
-        cursorId: serializedReadySources,
-        lastSyncedAt: new Date(),
-      },
-    });
+    readinessChanged = await saveReadiness(
+      scope,
+      "cardanoV2",
+      serializedReadySources,
+    );
   } catch (cacheError) {
     // Readiness is advisory and must never crash the registry sync loop. A
     // failed write leaves the old cache intact, so retry on the next cycle.
@@ -367,9 +338,7 @@ async function refreshCardanoV2RailReadiness(
   }
 
   try {
-    await prisma.syncMetadata.deleteMany({
-      where: { key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY },
-    });
+    await clearReadinessFailure(scope, "cardanoV2");
   } catch (cleanupError) {
     // Cache persistence already succeeded. Keep readinessChanged so source
     // changes still trigger a registry replay; retry marker cleanup next time.
@@ -408,11 +377,19 @@ type CoreLogger = ReturnType<typeof createCoreLogger>;
  * standalone event: its failed attempts and warnings, and whether it changed.
  */
 export async function syncCardanoV2RailReadiness(
+  scope: NetworkScope,
+  node: CardanoReadinessClient,
   options: SyncCardanoV2RailReadinessOptions = {},
 ): Promise<boolean> {
+  requireSameMasumiNetwork(scope, node);
   const log = createCoreLogger({ operation: "agent_cardano_v2_readiness" });
   try {
-    const changed = await refreshCardanoV2RailReadiness(options, log);
+    const changed = await refreshCardanoV2RailReadiness(
+      scope,
+      node,
+      options,
+      log,
+    );
     log.set({ cardanoV2Readiness: { changed } });
     return changed;
   } finally {

@@ -2,26 +2,26 @@ import * as Sentry from "@sentry/node";
 import {
   AgentEntryType,
   AgentStatus,
-  type Prisma,
   RiskClassification,
 } from "@sokosumi/database";
-import { netTable } from "@sokosumi/database/sql-tables";
 import {
   isV2RegistryIdentifier,
   normalizeMasumiPaymentUnit,
 } from "@sokosumi/masumi";
 import { createError } from "evlog";
-import { registryClient } from "@/clients/masumi-registry.client";
-import { openrouterClient } from "@/clients/openrouter.client";
+import { type masumiClients, requireSameMasumiNetwork } from "@/clients/masumi";
+import type { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
-import { getAgentDescription, getCardanoV2ReadySources } from "@/helpers/agent";
-import prisma from "@/lib/db/prisma";
+import { getAgentDescription } from "@/helpers/agent";
+import { cardanoV2ReadySources } from "@/lib/agent-catalog/availability";
+import type { NetworkDb, NetworkScope } from "@/lib/db/network-scope";
 import {
   createCoreLogger,
   emitCoreError,
   emitCoreWarning,
   logCoreWarning,
 } from "@/lib/evlog";
+import { networkKey } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
@@ -95,15 +95,17 @@ interface SyncRunStop {
  * by an order of magnitude.
  */
 async function findAgentIdsByIdentifierCaseInsensitive(
+  scope: NetworkScope,
   agentIdentifier: string,
 ): Promise<string[]> {
-  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM ${netTable("mainnet", "Agent")}
+  const rows = await scope.networkDb.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM ${scope.networkTable("Agent")}
     WHERE lower("blockchainIdentifier") = lower(${agentIdentifier})`;
   return rows.map((row) => row.id);
 }
 
 async function quarantineInvalidRegistryEntry(
+  scope: NetworkScope,
   entry: RegistryDiffEntry,
   issue: string,
 ): Promise<void> {
@@ -152,13 +154,15 @@ async function quarantineInvalidRegistryEntry(
       fix: REGISTRY_ENTRY_FIX,
     },
   );
-  const identifierMatchIds =
-    await findAgentIdsByIdentifierCaseInsensitive(agentIdentifier);
+  const identifierMatchIds = await findAgentIdsByIdentifierCaseInsensitive(
+    scope,
+    agentIdentifier,
+  );
 
   // Invalidate only this revision or an older canonical row. Preserve
   // administrator visibility choice: a later corrected registry entry can
   // restore status, but must never silently re-enable a hidden agent.
-  await prisma.agent.updateMany({
+  await scope.networkDb.agent.updateMany({
     where: {
       OR: [
         ...(version.isValid
@@ -232,7 +236,7 @@ function reportAgentRepricing(
  * rows.
  */
 async function replaceAgentPricing(
-  tx: Prisma.TransactionClient,
+  tx: NetworkDb,
   pricingId: string,
   pricing: ParsedAgentPricing,
   agentIdentifier: string,
@@ -302,6 +306,7 @@ async function replaceAgentPricing(
 }
 
 async function upsertRegistryAgent(
+  scope: NetworkScope,
   entry: RegistryDiffEntry,
   pricing: ParsedAgentPricing,
 ): Promise<void> {
@@ -327,7 +332,7 @@ async function upsertRegistryAgent(
     openApiSpecUrl: true,
     isShown: true,
   } as const;
-  const existingByRegistryIdentity = await prisma.agent.findUnique({
+  const existingByRegistryIdentity = await scope.networkDb.agent.findUnique({
     where: { registryIdentity: version.registryIdentity },
     select: existingAgentSelect,
   });
@@ -337,17 +342,18 @@ async function upsertRegistryAgent(
   const existing =
     existingByRegistryIdentity ??
     (isV2RegistryIdentifier(entry.agentIdentifier)
-      ? await prisma.agent.findFirst({
+      ? await scope.networkDb.agent.findFirst({
           where: {
             id: {
               in: await findAgentIdsByIdentifierCaseInsensitive(
+                scope,
                 entry.agentIdentifier,
               ),
             },
           },
           select: existingAgentSelect,
         })
-      : await prisma.agent.findUnique({
+      : await scope.networkDb.agent.findUnique({
           where: { blockchainIdentifier: entry.agentIdentifier },
           select: existingAgentSelect,
         }));
@@ -394,7 +400,7 @@ async function upsertRegistryAgent(
     // The cost is that an admin re-reviews a re-registered agent. That is the
     // correct place for the decision — a human who can actually tell whether
     // this is the same product.
-    await prisma.agent.create({
+    await scope.networkDb.agent.create({
       data: {
         blockchainIdentifier: entry.agentIdentifier,
         registryIdentity: version.registryIdentity,
@@ -473,11 +479,12 @@ async function upsertRegistryAgent(
   // Agent_blockchainIdentifier_key exactly as this block exists to prevent.
   const conflictingByIdentifier =
     existing.blockchainIdentifier !== entry.agentIdentifier
-      ? await prisma.agent.findFirst({
+      ? await scope.networkDb.agent.findFirst({
           where: {
             id: {
               in: (
                 await findAgentIdsByIdentifierCaseInsensitive(
+                  scope,
                   entry.agentIdentifier,
                 )
               ).filter((agentId) => agentId !== existing.id),
@@ -495,7 +502,7 @@ async function upsertRegistryAgent(
   // Scalars refresh on every diff. A V2 revision promotion additionally
   // replaces registry-owned collections and invalidates the generated summary
   // so the stable Agent row never presents a mixture of two revisions.
-  await prisma.$transaction(async (tx) => {
+  await scope.netTransactionOnce(async (tx) => {
     if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
       await tx.job.updateMany({
         where: {
@@ -620,6 +627,7 @@ async function upsertRegistryAgent(
   // note on why it must stay out of the transaction.
   if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
     await retargetDuplicateAgentNotifications(
+      scope.sharedDb,
       conflictingByIdentifier.id,
       existing.id,
     );
@@ -699,11 +707,17 @@ type CoreLogger = ReturnType<typeof createCoreLogger>;
  * its counts, where it stopped early, and the failure that ended it.
  */
 async function syncRegistryAgents(
+  scope: NetworkScope,
+  registry: Pick<
+    ReturnType<typeof masumiClients>["registry"],
+    "network" | "getAgentsDiff"
+  >,
   metadataKey: string,
   options: SyncExecutionOptions & { resetCursor?: boolean },
 ): Promise<void> {
+  requireSameMasumiNetwork(scope, registry);
   const run: RegistrySyncRun = {
-    metadataKey,
+    metadataKey: networkKey(scope.network, metadataKey),
     cursorReset: false,
     batches: 0,
     processed: 0,
@@ -713,7 +727,7 @@ async function syncRegistryAgents(
   };
   const log = createCoreLogger({ operation: REGISTRY_SYNC_OPERATION });
   try {
-    await runRegistrySync(options, run, log);
+    await runRegistrySync(scope, registry, options, run, log);
   } finally {
     log.set({ agentRegistrySync: run });
     log.emit();
@@ -721,6 +735,11 @@ async function syncRegistryAgents(
 }
 
 async function runRegistrySync(
+  scope: NetworkScope,
+  registry: Pick<
+    ReturnType<typeof masumiClients>["registry"],
+    "network" | "getAgentsDiff"
+  >,
   options: SyncExecutionOptions & { resetCursor?: boolean },
   run: RegistrySyncRun,
   log: CoreLogger,
@@ -737,14 +756,14 @@ async function runRegistrySync(
   }
 
   if (options.resetCursor) {
-    await prisma.syncMetadata.deleteMany({
+    await scope.sharedDb.syncMetadata.deleteMany({
       where: { key: metadataKey },
     });
     // Cursor reset requested — replaying the full registry diff.
     run.cursorReset = true;
   }
 
-  const metadata = await prisma.syncMetadata.findUnique({
+  const metadata = await scope.sharedDb.syncMetadata.findUnique({
     where: {
       key: metadataKey,
     },
@@ -755,18 +774,18 @@ async function runRegistrySync(
   // Loaded once per run: readiness was refreshed immediately before this sync
   // (route ordering), and V2 pricing projection prefers purchase-ready
   // sources so listed prices match hireable sources.
-  const cardanoV2ReadySources = await getCardanoV2ReadySources();
+  const readySources = await cardanoV2ReadySources(scope);
   // Units Sokosumi can convert to credits, for the advisory unbillable-source
   // check below. Normalized so "" / "lovelace" compare as one unit, matching
   // how projectSourcePricing stores them.
   const creditCostUnits = new Set(
-    (await prisma.creditCost.findMany({ select: { unit: true } })).map(
+    (await scope.networkDb.creditCost.findMany({ select: { unit: true } })).map(
       (creditCost) => normalizeMasumiPaymentUnit(creditCost.unit),
     ),
   );
   // Closed by the first readiness success, which also resets the cursor and
   // replays everything deferred while it was open.
-  const deferRollbackUnsafeEntries = cardanoV2ReadySources.length === 0;
+  const deferRollbackUnsafeEntries = readySources.length === 0;
 
   // Loop batches within the run's time budget (shouldStopSync consults the
   // handler deadline) instead of one 50-entry batch per cron run — the full
@@ -779,7 +798,7 @@ async function runRegistrySync(
       return;
     }
 
-    const entriesResult = await registryClient.getAgentsDiff(
+    const entriesResult = await registry.getAgentsDiff(
       lastSyncedAt,
       cursorId,
       AGENT_SYNC_BATCH_SIZE,
@@ -790,14 +809,14 @@ async function runRegistrySync(
     if (entriesResult.isErr()) {
       // The registry client caps this string, but its content is still the
       // far side's, and a proxy that echoes request headers would put
-      // REGISTRY_API_KEY inside it. Sentry redacts in `beforeSend`; stdout
+      // MAINNET_REGISTRY_API_KEY inside it. Sentry redacts in `beforeSend`; stdout
       // has no such hook.
       log.error(
         createError({
           message: "Could not read the agent registry diff",
           why: "The registry did not return the agent diff",
           cause: new Error(redactSecrets(entriesResult.error, getEnvSecrets())),
-          fix: "The next agents sync retries from the same cursor. If it fails every run, check the registry service and REGISTRY_API_KEY.",
+          fix: "The next agents sync retries from the same cursor. If it fails every run, check the registry service and the registry key for this Network.",
         }),
       );
       return;
@@ -831,7 +850,7 @@ async function runRegistrySync(
         return;
       }
 
-      await prisma.tag.upsert({
+      await scope.networkDb.tag.upsert({
         where: {
           name: tag,
         },
@@ -884,7 +903,7 @@ async function runRegistrySync(
       try {
         const storageIssue = storageIssues[entryIndex];
         if (storageIssue) {
-          await quarantineInvalidRegistryEntry(entry, storageIssue);
+          await quarantineInvalidRegistryEntry(scope, entry, storageIssue);
           run.quarantined++;
           processedEntryCount++;
           lastProcessedCursor = entryCursor;
@@ -901,15 +920,17 @@ async function runRegistrySync(
         }
         const normalizedEntry = normalizeRegistryEntry(entry);
         const pricing = resolveEntryPricing(
+          scope,
           normalizedEntry,
-          cardanoV2ReadySources,
+          readySources,
         );
         warnOnUnbillableReadyV2Sources(
+          scope,
           normalizedEntry,
-          cardanoV2ReadySources,
+          readySources,
           creditCostUnits,
         );
-        await upsertRegistryAgent(normalizedEntry, pricing);
+        await upsertRegistryAgent(scope, normalizedEntry, pricing);
         processedEntryCount++;
         lastProcessedCursor = entryCursor;
       } catch (error) {
@@ -956,7 +977,7 @@ async function runRegistrySync(
       return;
     }
 
-    await prisma.syncMetadata.upsert({
+    await scope.sharedDb.syncMetadata.upsert({
       where: {
         key: metadataKey,
       },
@@ -995,6 +1016,8 @@ interface SummarySyncRun extends SyncRunStop {
 
 /** Runs after the agents-summary cron response: one standalone event per run. */
 async function syncAgentSummaries(
+  scope: NetworkScope,
+  model: Pick<typeof openrouterClient, "generateAgentSummary">,
   options: SyncExecutionOptions,
 ): Promise<void> {
   const run: SummarySyncRun = {
@@ -1009,7 +1032,7 @@ async function syncAgentSummaries(
   // Created before the run, so the event's duration covers it.
   const log = createCoreLogger({ operation: SUMMARY_SYNC_OPERATION });
   try {
-    await runSummarySync(options, run);
+    await runSummarySync(scope, model, options, run);
   } finally {
     log.set({ agentSummarySync: run });
     log.emit();
@@ -1017,6 +1040,8 @@ async function syncAgentSummaries(
 }
 
 async function runSummarySync(
+  scope: NetworkScope,
+  model: Pick<typeof openrouterClient, "generateAgentSummary">,
   options: SyncExecutionOptions,
   run: SummarySyncRun,
 ): Promise<void> {
@@ -1026,7 +1051,7 @@ async function runSummarySync(
     return;
   }
 
-  const agentsWithoutSummary = await prisma.agent.findMany({
+  const agentsWithoutSummary = await scope.networkDb.agent.findMany({
     where: {
       status: AgentStatus.ONLINE,
       isShown: true,
@@ -1058,7 +1083,7 @@ async function runSummarySync(
     }
 
     try {
-      const result = await openrouterClient.generateAgentSummary(description, {
+      const result = await model.generateAgentSummary(description, {
         abortSignal: options.abortSignal,
       });
       if (!result) {
@@ -1078,7 +1103,7 @@ async function runSummarySync(
 
       // A decline is stored so the Agent leaves this candidate set; otherwise
       // it is picked again every run and can crowd out the rest of the batch.
-      await prisma.agent.update({
+      await scope.networkDb.agent.update({
         where: {
           id: agent.id,
         },

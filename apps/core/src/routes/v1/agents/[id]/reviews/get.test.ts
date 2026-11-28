@@ -13,23 +13,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
-  agentFindFirstMock,
-  buildAvailableAgentWhereClauseMock,
   getAgentRatingDistributionMock,
-  getCreditCostsOrThrowMock,
   getRecentAgentReviewsMock,
+  requireAvailableAgentMock,
 } = vi.hoisted(() => ({
-  agentFindFirstMock: vi.fn(),
-  buildAvailableAgentWhereClauseMock: vi.fn(),
   getAgentRatingDistributionMock: vi.fn(),
-  getCreditCostsOrThrowMock: vi.fn(),
   getRecentAgentReviewsMock: vi.fn(),
+  requireAvailableAgentMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/agent", () => ({
-  getCardanoV2ReadySources: () => Promise.resolve([]),
-  buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+vi.mock("@/lib/agent-catalog/availability", () => ({
+  requireAvailableAgent: requireAvailableAgentMock,
 }));
 
 vi.mock("@/helpers/agent-rating", () => ({
@@ -38,11 +32,8 @@ vi.mock("@/helpers/agent-rating", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: {
-    agent: {
-      findFirst: agentFindFirstMock,
-    },
-  },
+  default: {},
+  networkPrisma: () => ({}),
 }));
 
 function createApp() {
@@ -68,11 +59,7 @@ describe("GET /agents/{id}/reviews", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    buildAvailableAgentWhereClauseMock.mockReturnValue({
-      isAvailable: true,
-    });
-    getCreditCostsOrThrowMock.mockResolvedValue([]);
-    agentFindFirstMock.mockResolvedValue({ id: "agent_123" });
+    requireAvailableAgentMock.mockResolvedValue(undefined);
     getAgentRatingDistributionMock.mockResolvedValue({
       "1": 0,
       "2": 1,
@@ -102,19 +89,14 @@ describe("GET /agents/{id}/reviews", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(agentFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        id: "agent_123",
-        isAvailable: true,
-      },
-      select: {
-        id: true,
-      },
-    });
+    expect(requireAvailableAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ network: "mainnet" }),
+      "agent_123",
+    );
     expect(getRecentAgentReviewsMock).toHaveBeenCalledWith(
       "agent_123",
       10,
-      expect.anything(),
+      expect.objectContaining({ network: "mainnet" }),
     );
     expect(body.data).toEqual({
       distribution: {

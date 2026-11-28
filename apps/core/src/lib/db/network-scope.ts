@@ -6,6 +6,7 @@ import {
   netTable,
 } from "@sokosumi/database/sql-tables";
 
+import { getEnv } from "@/config/env";
 import { type Network, requireNetworkOn } from "@/lib/network";
 
 import prisma, { networkPrisma } from "./prisma";
@@ -32,6 +33,12 @@ export type NetworkDb = NetworkSide & { readonly [networkSide]: true };
  */
 export type { SharedDb };
 
+/** Whether Prisma can read both sides of a relation in today's public schema. */
+export function networkUsesSharedSchema(): boolean {
+  const { DATABASE_SCHEMA_SHARED, DATABASE_SCHEMA_MAINNET } = getEnv();
+  return DATABASE_SCHEMA_SHARED === DATABASE_SCHEMA_MAINNET;
+}
+
 /**
  * What Core's database module hands out for work on one Network. An entry
  * point creates it; code below receives it, or one side of it, as an argument.
@@ -52,6 +59,11 @@ export interface NetworkScope {
     callback: (tx: NetworkDb) => Promise<T>,
     conflictMessage: string,
     isolationLevel?: Prisma.TransactionIsolationLevel,
+  ): Promise<T>;
+  /** One attempt at the database default isolation. The registry retries from its cursor on the next tick. */
+  netTransactionOnce<T>(
+    callback: (tx: NetworkDb) => Promise<T>,
+    options: { timeout: number },
   ): Promise<T>;
   /**
    * Independent reads on this Network's client in one batch transaction: one
@@ -111,6 +123,11 @@ export function createNetworkScope(network: Network): NetworkScope {
       return prisma;
     },
     networkTable: (table) => netTable(known, table),
+    netTransactionOnce: (callback, options) =>
+      networkPrisma(known).$transaction((tx) => {
+        const side: NetworkSide = tx;
+        return callback(side as NetworkDb);
+      }, options),
     netTransaction: (callback, conflictMessage, isolationLevel) =>
       retriedTransactionOn(
         networkPrisma(known),
@@ -141,7 +158,7 @@ export function createNetworkScope(network: Network): NetworkScope {
 
 /**
  * A scope for a request that names a Network it may not use: its Network side
- * (`network`, `networkDb`, `networkTable`, `netTransaction`, `netBatch`) throws `refusal`
+ * (`network`, `networkDb`, `networkTable`, `netTransaction`, `netTransactionOnce`, `netBatch`) throws `refusal`
  * on first use, its shared side works. So only work on Network data is
  * refused.
  */
@@ -161,6 +178,7 @@ export function createRefusedNetworkScope(refusal: Error): NetworkScope {
     },
     networkTable: refuse,
     netTransaction: async () => refuse(),
+    netTransactionOnce: async () => refuse(),
     netBatch: async () => refuse(),
     sharedTransaction: (callback, conflictMessage, isolationLevel) =>
       retriedTransaction(callback, conflictMessage, isolationLevel),

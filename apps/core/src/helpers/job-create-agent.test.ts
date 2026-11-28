@@ -15,6 +15,7 @@ const {
   createAgentClientMock,
   createPurchaseMock,
   creditBucketPrepareConsumptionMock,
+  creditBucketRecordSpendMock,
   generateJobNameMock,
   getAgentCostMock,
   getCardanoV2ReadySourcesMock,
@@ -31,6 +32,7 @@ const {
   createAgentClientMock: vi.fn(),
   createPurchaseMock: vi.fn(),
   creditBucketPrepareConsumptionMock: vi.fn(),
+  creditBucketRecordSpendMock: vi.fn(),
   generateJobNameMock: vi.fn(),
   getAgentCostMock: vi.fn(),
   getCardanoV2ReadySourcesMock: vi.fn(),
@@ -53,11 +55,17 @@ vi.mock("@/helpers/agent-cost", async (importOriginal) => ({
   getAgentCost: getAgentCostMock,
 }));
 
-vi.mock("@/helpers/agent", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/helpers/agent")>()),
+vi.mock("@/lib/agent-catalog/availability", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/agent-catalog/availability")
+  >()),
   buildAvailableAgentWhereClause: () => ({}),
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getCardanoV2ReadySources: getCardanoV2ReadySourcesMock,
+}));
+
+vi.mock("@/helpers/agent", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/agent")>()),
   toMasumiAgent: (agent: {
     id: string;
     name: string;
@@ -105,14 +113,16 @@ vi.mock("@/clients/openrouter.client", () => ({
   },
 }));
 
-vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({
-    createPurchase: createPurchaseMock,
+vi.mock("@/clients/masumi", () => ({
+  masumiClients: () => ({
+    payment: {
+      createPurchase: createPurchaseMock,
+    },
   }),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     agent: {
       findFirst: agentFindFirstMock,
     },
@@ -120,8 +130,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: projectFindFirstMock,
     },
     $transaction: prismaTransactionMock,
-  },
-}));
+  };
+  // The hire's lookup reads Mainnet's catalog through its scope.
+  return { default: client, networkPrisma: () => client };
+});
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: vi.fn().mockResolvedValue(undefined),
@@ -129,8 +141,9 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
-    getBalance: getBalanceMock,
+    getNetworkBalance: getBalanceMock,
     prepareConsumption: creditBucketPrepareConsumptionMock,
+    recordSpend: creditBucketRecordSpendMock,
   },
   jobPurchaseRepository: {
     createJobPurchase: vi.fn().mockResolvedValue({ id: "purchase_1" }),
@@ -272,6 +285,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     ]);
     calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(2));
     creditBucketPrepareConsumptionMock.mockResolvedValue([]);
+    creditBucketRecordSpendMock.mockResolvedValue("debit_1");
     // A PurchaseFailure shape, not a bare string: registerJobPurchase retries
     // an `ambiguous` verdict, and these tests assert the payload the node
     // receives rather than the retry policy, which has its own tests.
@@ -378,10 +392,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     await createAgentJobForUser(createInput());
 
     expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(1);
-    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      organizationId: "org_1",
-    });
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+      {
+        userId: "user_1",
+        organizationId: "org_1",
+      },
+      expect.objectContaining({ network: "mainnet" }),
+    );
     expect(txJobCreateMock).toHaveBeenCalledOnce();
     expect(notifiedInsideTransaction).toBe(false);
   });
@@ -470,14 +487,37 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         expect.anything(),
         { projectId: null },
       );
+      expect(creditBucketRecordSpendMock).toHaveBeenCalledWith(
+        "mainnet",
+        {
+          userId: "user_1",
+          organizationId: "org_1",
+          cents: BigInt(5),
+          consumptions: [],
+          createdAt: expect.any(Date),
+        },
+        expect.anything(),
+      );
       const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
-      expect(data.transaction.create.user).toEqual({
-        connect: { id: "user_1" },
-      });
-      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
-        userId: "user_1",
-        organizationId: "org_1",
-      });
+      expect(data.transaction).toEqual({ connect: { id: "debit_1" } });
+      // The debit's time is the Job's, its first event's and its input's.
+      const debitTime =
+        creditBucketRecordSpendMock.mock.calls[0]?.[1].createdAt;
+      expect([
+        data.createdAt,
+        data.updatedAt,
+        data.events.create.createdAt,
+        data.events.create.updatedAt,
+        data.events.create.input.create.createdAt,
+        data.events.create.input.create.updatedAt,
+      ]).toEqual(Array(6).fill(debitTime));
+      expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith(
+        {
+          userId: "user_1",
+          organizationId: "org_1",
+        },
+        expect.objectContaining({ network: "mainnet" }),
+      );
     },
   );
 
@@ -514,10 +554,18 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     const { data } = txJobCreateMock.mock.calls[0]?.[0] ?? {};
     expect(data.owner).toBeUndefined();
     expect(data.creatorSokoBot).toEqual({ connect: { id: "bot_1" } });
-    expect(data.transaction.create.user).toBeUndefined();
-    expect(data.transaction.create.organization).toEqual({
-      connect: { id: "org_1" },
-    });
+    expect(creditBucketRecordSpendMock).toHaveBeenCalledWith(
+      "mainnet",
+      {
+        userId: null,
+        organizationId: "org_1",
+        cents: BigInt(5),
+        consumptions: [],
+        createdAt: expect.any(Date),
+      },
+      expect.anything(),
+    );
+    expect(data.transaction).toEqual({ connect: { id: "debit_1" } });
     expect(requireAssignedOrganizationSeat).not.toHaveBeenCalled();
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
       "mainnet",
@@ -526,6 +574,41 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       BigInt(5),
       expect.anything(),
       { projectId: null },
+    );
+  });
+
+  it("reads and writes the debit of an empty Owner id as no Owner", async () => {
+    // Decided 2026-11-27: an empty id is not a payer. The nested debit
+    // connected only a present Owner, so its row held no user.
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        owner: {
+          ownerId: "",
+          organizationId: "org_1",
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+        },
+        creator: { kind: "soko_bot", sokoBotId: "bot_1" },
+      }),
+    );
+
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "mainnet",
+      null,
+      "org_1",
+      BigInt(5),
+      expect.anything(),
+      { projectId: null },
+    );
+    expect(creditBucketRecordSpendMock).toHaveBeenCalledWith(
+      "mainnet",
+      expect.objectContaining({ userId: null, organizationId: "org_1" }),
+      expect.anything(),
     );
   });
 
@@ -554,7 +637,13 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     // Preflight and the re-check inside the creation transaction.
     expect(getBalanceMock).toHaveBeenCalledTimes(2);
     for (const call of getBalanceMock.mock.calls) {
-      expect(call).toEqual([null, "org_1", expect.anything(), scope]);
+      expect(call).toEqual([
+        "mainnet",
+        null,
+        "org_1",
+        expect.anything(),
+        scope,
+      ]);
     }
     expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
       "mainnet",
@@ -702,6 +791,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       expect(getBalanceMock).toHaveBeenCalledTimes(2);
       for (const call of getBalanceMock.mock.calls) {
         expect(call).toEqual([
+          "mainnet",
           "user_1",
           "org_1",
           expect.anything(),
@@ -814,7 +904,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
           paymentSources: {
             where: {
               chain: "Cardano",
-              network: "Preprod",
+              network: "Mainnet",
               paymentSourceType: "Web3CardanoV2",
             },
             include: {

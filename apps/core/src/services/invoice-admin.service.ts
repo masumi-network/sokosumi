@@ -1,8 +1,4 @@
 import {
-  buildOrganizationInvoiceCreditReferenceId,
-  buildUserInvoiceCreditReferenceId,
-} from "@sokosumi/database/helpers";
-import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
@@ -11,6 +7,7 @@ import type Stripe from "stripe";
 
 import { stripeClient } from "@/clients/stripe.client";
 import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
+import { findStripeInvoiceGrant } from "@/lib/credits/grant";
 import prisma from "@/lib/db/prisma";
 import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 import { handleInvoicePaidEvent } from "@/services/stripe-invoice-credit.service";
@@ -420,31 +417,18 @@ async function grantCreditsForPaidInvoice(
 
   await handleInvoicePaidEvent(paidInvoice);
 
-  const expectedReferenceId =
-    target.targetType === "user"
-      ? buildUserInvoiceCreditReferenceId(target.id, paidInvoice.id, "topup")
-      : buildOrganizationInvoiceCreditReferenceId(
-          target.id,
-          paidInvoice.id,
-          "topup",
-        );
-  const grantedBucketWhere =
-    target.targetType === "user"
-      ? {
-          userId: target.id,
-          organizationId: null,
-          referenceId: expectedReferenceId,
-        }
-      : { organizationId: target.id, referenceId: expectedReferenceId };
-
   // handleInvoicePaidEvent can return early without granting (no line
   // items, nothing grantable for the billing reason), leaving the invoice
   // paid but no credits issued. Verify the grant landed instead of
   // reporting false success; granting is idempotent, so a retry after
   // fixing the cause completes it.
-  const grantedBucket = await prisma.creditBucket.findFirst({
-    where: grantedBucketWhere,
-    select: { id: true },
+  const grantedBucket = await findStripeInvoiceGrant(prisma, {
+    invoiceId: paidInvoice.id,
+    entry: "topup",
+    owner:
+      target.targetType === "user"
+        ? { userId: target.id }
+        : { organizationId: target.id },
   });
   if (!grantedBucket) {
     throw new InvoiceValidationError(

@@ -1,7 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import { normalizeX402PaymentRequiredWithSources } from "@sokosumi/masumi/schemas";
 import { vi } from "vitest";
-
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { createX402DemandFingerprint } from "@/services/task-x402-payment.replay-demand";
 
 import type { StoredTaskX402Payment } from "../../task-x402-payment.replay";
@@ -138,6 +138,7 @@ export function replayInput(
 ) {
   return {
     ...verificationInput(overrides.accepts),
+    catalogScope: createNetworkScope("preprod"),
     readySources: overrides.readySources ?? READY_SOURCES,
     // The request may use the stored payment's Network.
     requireNetwork: async () => undefined,

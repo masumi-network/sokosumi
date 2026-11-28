@@ -10,21 +10,20 @@ import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { DETACHED_SOKO_BOT_NETWORK } from "@/lib/network";
 import {
   decisionProposalTargets,
   parseHireAgentInput,
 } from "@/lib/soko-bot/decision-proposal";
+import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network";
 import { deriveDelegationAuthority } from "@/lib/soko-bot/owner-authority";
 import { criteriaForConfirmedSokoBotAction } from "@/services/soko-bot-outcome.service";
 import {
-  type SokoBotActionContext,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { actingMemberOf } from "./acting-scope";
-import { type prepareDecision } from "./decision-claim";
+import { expireStaleDecision, type prepareDecision } from "./decision-claim";
 import { type RuntimeOperations } from "./operations";
 import {
   createSellerReservationMarker,
@@ -42,7 +41,6 @@ export async function applyDecision(
 ) {
   const {
     ownerConfirmed,
-    confirmationTurnId,
     decision,
     actingUserId,
     decisionToolCallId,
@@ -242,7 +240,7 @@ export async function applyDecision(
             } else {
               await tx.sokoBotDelegation.create({
                 data: {
-                  ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
+                  ...(await networkStamp(actionContext.provenance, tx)),
                   turnId: decision.turnId,
                   toolCallId: decisionToolCallId,
                   kind: "JOB",
@@ -307,7 +305,7 @@ export async function applyDecision(
             UPDATE ${sharedTable("soko_bot_delegation")}
             SET "outcome" = 'accepted',
                 "jobId" = ${job.id},
-                "network" = COALESCE("network", ${DETACHED_SOKO_BOT_NETWORK}),
+                "network" = COALESCE("network", ${actionContext.provenance.network}),
                 "error" = NULL,
                 "updatedAt" = ${new Date()}
             WHERE "turnId" = ${decision.turnId}::uuid
@@ -415,7 +413,7 @@ export async function applyDecision(
           } else {
             await tx.sokoBotDelegation.create({
               data: {
-                ...(await networkStamp(DETACHED_SOKO_BOT_NETWORK, tx)),
+                ...(await networkStamp(actionContext.provenance, tx)),
                 turnId: decision.turnId,
                 toolCallId: decisionToolCallId,
                 kind: "JOB",
@@ -521,23 +519,8 @@ export async function applyDecision(
         });
       }
     } else if (decision.toolName === "create_task") {
-      const authorized: SokoBotActionContext = {
-        confirmationTurnId,
-        turn: {
-          id: decision.turnId,
-          sokoBotId: decision.sokoBotId,
-          actingUserId,
-          requestedByUserId: decision.requestedByUserId,
-          workspaceId: decision.workspaceId,
-          eveSessionId: decision.turn.eveSessionId,
-          versionId: decision.turn.versionId,
-          source: decision.turn.source,
-          chainDepth: decision.turn.chainDepth,
-        },
-        classificationConfidence: 1,
-      };
       const task = await runtime.createTask(
-        authorized,
+        actionContext,
         proposal,
         `decision:${decision.id}`,
         true,
@@ -548,21 +531,7 @@ export async function applyDecision(
       decision.toolName === "archive_task"
     ) {
       const updated = await runtime.mutateTask(
-        {
-          confirmationTurnId,
-          turn: {
-            id: decision.turnId,
-            sokoBotId: decision.sokoBotId,
-            actingUserId,
-            requestedByUserId: decision.requestedByUserId,
-            workspaceId: decision.workspaceId,
-            eveSessionId: decision.turn.eveSessionId,
-            versionId: decision.turn.versionId,
-            source: decision.turn.source,
-            chainDepth: decision.turn.chainDepth,
-          },
-          classificationConfidence: 1,
-        },
+        actionContext,
         proposal,
         `decision:${decision.id}`,
         { capability: decision.toolName, approved: true },
@@ -575,21 +544,7 @@ export async function applyDecision(
       resultingEntityId = updated.id;
     } else if (decision.toolName === "assign_task") {
       const updated = await runtime.assignTask(
-        {
-          confirmationTurnId,
-          turn: {
-            id: decision.turnId,
-            sokoBotId: decision.sokoBotId,
-            actingUserId,
-            requestedByUserId: decision.requestedByUserId,
-            workspaceId: decision.workspaceId,
-            eveSessionId: decision.turn.eveSessionId,
-            versionId: decision.turn.versionId,
-            source: decision.turn.source,
-            chainDepth: decision.turn.chainDepth,
-          },
-          classificationConfidence: 1,
-        },
+        actionContext,
         proposal,
         `decision:${decision.id}`,
         true,
@@ -617,12 +572,17 @@ export async function applyDecision(
       },
     });
   } catch (error) {
-    if (failureDisposition === "restore") {
+    if (error instanceof DetachedNetworkRefusal && error.final) {
+      await expireStaleDecision(decision.id);
+    } else if (
+      failureDisposition === "restore" &&
+      (!(error instanceof DetachedNetworkRefusal) || !context.resumeProcessing)
+    ) {
       await prisma.sokoBotPendingDecision.updateMany({
         where: { id: decision.id, status: "PROCESSING" },
         data: { status: "PENDING", resolvedByUserId: null },
       });
-    } else {
+    } else if (failureDisposition === "retain") {
       await prisma.sokoBotDelegation.updateMany({
         where: {
           turnId: decision.turnId,
@@ -631,6 +591,9 @@ export async function applyDecision(
         },
         data: {
           outcome: "ambiguous",
+          // The text of a database failure is no contract: the hire's debit
+          // write fails as Prisma's P2010 from raw SQL where its nested create
+          // failed as P2039. Either rolls back and keeps the replay fenced.
           error: sellerReservationMarker
             ? serializeSellerReservationMarker(sellerReservationMarker, error)
             : persistedErrorDetail(error),

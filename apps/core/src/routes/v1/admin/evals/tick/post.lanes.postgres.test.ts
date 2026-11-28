@@ -25,8 +25,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   );
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
-vi.mock("@/helpers/user", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/helpers/user")>()),
+vi.mock("@/lib/credits/balance", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/credits/balance")>()),
   getCredits: vi.fn(async () => 1_000_000),
 }));
 vi.mock("@/services/soko-bot-version.service", async (importOriginal) => ({

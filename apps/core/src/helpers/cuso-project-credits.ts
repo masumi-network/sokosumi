@@ -1,7 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
-import { PrismaRaw } from "@sokosumi/database/client";
-import { netTable } from "@sokosumi/database/sql-tables";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
+import { writeOff } from "@/lib/credits/write-off";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 
 /**
@@ -10,9 +10,10 @@ import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
  * Any other bot leaves the Project's credits alone, so archiving another bot
  * of a CMO Project forfeits nothing.
  *
- * Writes off what is left: one spend per bucket for its remaining amount, the
- * way a leftover member period is drained, so the bucket's history stays
- * intact. Pool buckets and other Projects' buckets are untouched.
+ * Writes off what is left (`writeOff`): one spend per bucket for its
+ * remaining amount, the way a leftover member period is drained, so the
+ * bucket's history stays intact. Pool buckets and other Projects' buckets
+ * are untouched.
  */
 export async function forfeitCusoProjectCredits(
   sokoBotId: string,
@@ -65,70 +66,16 @@ export async function writeOffUnlessLiveCuso(
 /**
  * Writes off what is left of one Project's credits. Also used for a refund
  * that lands after the Project lost its live Cuso, and for a version change
- * that takes Cuso off CMO.
+ * that takes Cuso off CMO. A Cuso's credits are Mainnet's: CMO runs there
+ * only.
  */
-export async function writeOffProjectCredits(
+async function writeOffProjectCredits(
   projectId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {
-  await writeOffCreditBuckets(
-    PrismaRaw.sql`cb."projectId" = ${projectId}::uuid`,
+  await writeOff({
+    scope: createNetworkScope("mainnet"),
     tx,
-  );
-}
-
-/**
- * Writes off what is left of the given buckets, for a refunded Polar order
- * (ADR 0068). A bucket that is spent or expired has nothing left and gets no
- * row, so a second call writes nothing.
- */
-export async function writeOffCreditBucketsById(
-  bucketIds: string[],
-  tx: Prisma.TransactionClient,
-): Promise<void> {
-  if (bucketIds.length === 0) return;
-  await writeOffCreditBuckets(
-    PrismaRaw.sql`cb.id IN (${PrismaRaw.join(bucketIds)})`,
-    tx,
-  );
-}
-
-async function writeOffCreditBuckets(
-  where: PrismaRaw.Sql,
-  tx: Prisma.TransactionClient,
-): Promise<void> {
-  const now = new Date();
-  const buckets = await tx.$queryRaw<
-    Array<{
-      id: string;
-      organizationId: string | null;
-      userId: string | null;
-      remaining: bigint;
-    }>
-  >(PrismaRaw.sql`
-    SELECT
-      cb.id,
-      cb."organizationId",
-      cb."userId",
-      (cb.amount - COALESCE(SUM(cc.amount), 0))::bigint AS remaining
-    FROM ${netTable("mainnet", "credit_bucket")} cb
-    LEFT JOIN ${netTable("mainnet", "credit_consumption")} cc ON cc."bucketId" = cb.id
-    WHERE ${where}
-      AND (cb."expiresAt" IS NULL OR cb."expiresAt" > ${now})
-    GROUP BY cb.id, cb."organizationId", cb."userId", cb.amount
-    HAVING (cb.amount - COALESCE(SUM(cc.amount), 0)) > 0
-  `);
-  // No note/type column on Transaction: a write-off reads as a plain spend.
-  for (const bucket of buckets) {
-    await tx.transaction.create({
-      data: {
-        amount: bucket.remaining * -1n,
-        organizationId: bucket.organizationId,
-        userId: bucket.userId,
-        creditConsumptions: {
-          create: { amount: bucket.remaining, bucketId: bucket.id },
-        },
-      },
-    });
-  }
+    of: { projectId },
+  });
 }

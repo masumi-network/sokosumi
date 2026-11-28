@@ -1,0 +1,104 @@
+[
+  {
+    "url": "https://example.com/payment/rail-readiness?network=Mainnet",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/networks/available?isTestnet=false",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/api-key-status",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/wallets?take=100&type=Purchasing",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/wallets/balance?id=x402net_2-wallet&caip2Network=eip155%3A8453",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/registry/registry-diff/",
+    "method": "POST",
+    "credential": "mainnet registry",
+    "body": "{\"network\":\"Mainnet\",\"statusUpdatedAfter\":\"1970-01-01T00:00:00.000Z\",\"limit\":50}"
+  },
+  {
+    "url": "https://example.com/payment/rail-readiness?network=Mainnet",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/networks/available?isTestnet=false",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/api-key-status",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/wallets?take=100&type=Purchasing",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/wallets/balance?id=x402net_2-wallet&caip2Network=eip155%3A8453",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/registry/registry-diff/",
+    "method": "POST",
+    "credential": "mainnet registry",
+    "body": "{\"network\":\"Mainnet\",\"statusUpdatedAfter\":\"2026-11-27T11:59:00.000Z\",\"cursorId\":\"registry-page\",\"limit\":50}"
+  },
+  {
+    "url": "https://example.com/payment/rail-readiness?network=Mainnet",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/networks/available?isTestnet=false",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/api-key-status",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/payment/x402/wallets?take=100&type=Purchasing",
+    "method": "GET",
+    "credential": "mainnet payment",
+    "body": ""
+  },
+  {
+    "url": "https://example.com/registry/registry-diff/",
+    "method": "POST",
+    "credential": "mainnet registry",
+    "body": "{\"network\":\"Mainnet\",\"statusUpdatedAfter\":\"2026-11-27T11:59:00.000Z\",\"cursorId\":\"registry-page\",\"limit\":50}"
+  }
+]

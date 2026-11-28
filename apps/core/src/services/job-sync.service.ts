@@ -15,7 +15,7 @@ import {
 import { createAgentClient } from "@sokosumi/masumi";
 import pLimit from "p-limit";
 import { type SendEmailInput, sendEmails } from "@/clients/email.client";
-import { paymentClient } from "@/clients/masumi-payment.client";
+import { masumiClients } from "@/clients/masumi";
 import { toMasumiAgentForJob } from "@/helpers/agent";
 import {
   doesPurchaseMatchJobTerms,
@@ -24,6 +24,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
+import { JOB_SYNC_NETWORK } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { syncPurchasesFromDiff } from "@/services/job-purchase-diff.service";
 import { refundJob } from "@/services/job-refund";
@@ -226,13 +227,11 @@ async function backfillJobPurchase(
       return false;
     }
 
-    const purchaseResult =
-      await paymentClient().getPurchaseByBlockchainIdentifier(
-        job.blockchainIdentifier,
-        {
-          signal: backfillSignal,
-        },
-      );
+    const purchaseResult = await masumiClients(
+      JOB_SYNC_NETWORK,
+    ).payment.getPurchaseByBlockchainIdentifier(job.blockchainIdentifier, {
+      signal: backfillSignal,
+    });
     if (
       backfillSignal.aborted ||
       shouldStopSync(
@@ -327,11 +326,11 @@ async function syncPurchaseTransaction(
     return false;
   }
 
-  const purchaseResult =
-    await paymentClient().getPurchaseByBlockchainIdentifier(
-      job.blockchainIdentifier,
-      { signal: pollingSignal },
-    );
+  const purchaseResult = await masumiClients(
+    JOB_SYNC_NETWORK,
+  ).payment.getPurchaseByBlockchainIdentifier(job.blockchainIdentifier, {
+    signal: pollingSignal,
+  });
   if (
     pollingSignal.aborted ||
     shouldStopSync(

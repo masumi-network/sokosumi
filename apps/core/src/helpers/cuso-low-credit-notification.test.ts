@@ -4,6 +4,7 @@ import {
   convertCreditsToCents,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createNetworkScope } from "@/lib/db/network-scope";
 
 const {
   captureExceptionMock,
@@ -52,6 +53,9 @@ vi.mock("@/services/cmo-catalog.service", () => ({
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({
+    creditBucket: { findMany: creditBucketFindManyMock },
+  }),
   default: {
     creditBucket: {
       findMany: (...args: unknown[]) => creditBucketFindManyMock(...args),
@@ -122,7 +126,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("top-up-1", 300, "2026-11-10T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
     expect(createNotificationMock).toHaveBeenCalledWith({
@@ -167,7 +175,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("month-1", 1_000, "2026-11-01T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
@@ -178,7 +190,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
     ]);
     createNotificationMock.mockResolvedValue({ created: false });
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({ eventId: "cuso-low-credits:month-1" }),
@@ -192,7 +208,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("tester-1", 999, "2026-10-01T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(getCmoCatalogMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith(
@@ -216,7 +236,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("month-8", 10, "2026-11-05T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -236,7 +260,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("month-1", 10, "2026-11-01T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -247,7 +275,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
 
   it("does nothing for a Project without a live Cuso or without anyone to tell", async () => {
     sokoBotFindFirstMock.mockResolvedValue(null);
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     sokoBotFindFirstMock.mockResolvedValue({
       id: "bot-1",
@@ -257,7 +289,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       project: { websiteUrl: "https://acme.com" },
     });
     cmoRunnerUserIdMock.mockResolvedValue(null);
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(creditBucketFindManyMock).not.toHaveBeenCalled();
     expect(createNotificationMock).not.toHaveBeenCalled();
@@ -269,7 +305,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("month-1", 200, "2026-11-01T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(cmoRunnerUserIdMock).toHaveBeenCalledWith({
       sokoBotId: "bot-1",
@@ -300,7 +340,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       ),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -322,7 +366,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
       bucket("top-up-1", 10, "2026-11-05T00:00:00.000Z"),
     ]);
 
-    await notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW);
+    await notifyCusoLowCreditsAfterCharge(
+      PROJECT_ID,
+      createNetworkScope("mainnet"),
+      NOW,
+    );
 
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -337,7 +385,11 @@ describe("notifyCusoLowCreditsAfterCharge", () => {
     creditBucketFindManyMock.mockRejectedValue(new Error("db down"));
 
     await expect(
-      notifyCusoLowCreditsAfterCharge(PROJECT_ID, NOW),
+      notifyCusoLowCreditsAfterCharge(
+        PROJECT_ID,
+        createNetworkScope("mainnet"),
+        NOW,
+      ),
     ).resolves.toBeUndefined();
 
     expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {

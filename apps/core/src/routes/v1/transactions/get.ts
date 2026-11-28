@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import {
   loadAgentPreviewsByIds,
   loadUserPreviewsByIds,
@@ -13,11 +12,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import {
-  countTransactionHistory,
-  findTransactionHistoryPage,
-  mapTransactionHistoryRow,
-} from "@/helpers/transaction-history";
+import { creditViewForRequest } from "@/lib/credits/view";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -67,6 +62,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const view = creditViewForRequest(c.var.networkScope);
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
@@ -88,8 +84,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     };
 
     const [{ rows, hasMore }, count] = await Promise.all([
-      findTransactionHistoryPage(params, { cursor, take }, prisma),
-      countTransactionHistory(params, prisma),
+      view.page(params, { cursor, take }),
+      view.count(params),
     ]);
 
     const agentIds = [
@@ -107,11 +103,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       ),
     ];
     const [agentPreviewById, userPreviewById] = await Promise.all([
-      loadAgentPreviewsByIds(agentIds, prisma),
+      loadAgentPreviewsByIds(agentIds, view.billingScope.networkDb),
       loadUserPreviewsByIds(userIds, prisma),
     ]);
     const items = rows.map((row) =>
-      mapTransactionHistoryRow(row, { agentPreviewById, userPreviewById }),
+      view.item(row, { agentPreviewById, userPreviewById }),
     );
     const paginationMeta = createPaginationMeta(
       items,

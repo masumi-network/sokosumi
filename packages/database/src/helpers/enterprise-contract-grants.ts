@@ -11,6 +11,44 @@ function buildEnterpriseTopUpCreditReferenceId(contractId: string): string {
   return contractId;
 }
 
+/**
+ * An enterprise contract's credits for a period or its top-up: once per
+ * period or contract id. A period always expires; a top-up may not.
+ */
+export type EnterpriseCredits = {
+  organizationId: string;
+  cents: bigint;
+  activatesAt: Date;
+} & (
+  | { kind: "enterprise_period"; periodId: string; expiresAt: Date }
+  | {
+      kind: "enterprise_top_up";
+      contractId: string;
+      /** Null never expires. */
+      expiresAt: Date | null;
+    }
+);
+
+/**
+ * Gives a contract's credits on the caller's transaction: Core's credits
+ * module (`grant`), which writes them with the bucket writers below.
+ */
+export type GrantEnterpriseCredits = (
+  credits: EnterpriseCredits,
+) => Promise<{ outcome: "granted" | "already_granted"; bucketId: string }>;
+
+/**
+ * Expires a contract's credits now, on the caller's transaction: Core's
+ * credits module (`expireEnterpriseGrants`), which writes it with
+ * `expireCreditBucketsNow`. Answers how many buckets it expired.
+ */
+export type ExpireEnterpriseCredits = (contract: {
+  periodIds: string[];
+  /** The contract's id when it has a top-up, else null. */
+  topUpContractId: string | null;
+  now: Date;
+}) => Promise<number>;
+
 interface CreateEnterprisePeriodCreditBucketParams {
   activatesAt: Date;
   amount: bigint;

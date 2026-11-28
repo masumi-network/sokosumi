@@ -128,9 +128,11 @@ vi.mock("@/helpers/organization", () => ({
 
 const requestRefundMock = vi.fn();
 
-vi.mock("@/clients/masumi-payment.client.js", () => ({
-  paymentClient: () => ({
-    requestRefund: requestRefundMock,
+vi.mock("@/clients/masumi.js", () => ({
+  masumiClients: () => ({
+    payment: {
+      requestRefund: requestRefundMock,
+    },
   }),
 }));
 

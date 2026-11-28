@@ -4,7 +4,6 @@ import { BlobStatus } from "@sokosumi/database";
 import { requireJobReadForRouteVars } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -60,8 +59,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    await requireJobReadForRouteVars(c.var, id, prisma);
-    const blobs = await prisma.blob.findMany({
+    const { networkScope } = c.var;
+    await requireJobReadForRouteVars(c.var, id, networkScope);
+    const blobs = await networkScope.networkDb.blob.findMany({
       where: {
         event: { jobId: id },
       },

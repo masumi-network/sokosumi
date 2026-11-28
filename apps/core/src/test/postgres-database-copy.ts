@@ -16,7 +16,14 @@ function maintenanceUrl(source: string): string {
  */
 export async function copyPostgresTestDatabase(
   source: string,
-  prefix: "catalog_test" | "files_import_test",
+  prefix:
+    | "catalog_test"
+    | "cron_test"
+    | "credit_grant_test"
+    | "credit_refund_test"
+    | "files_import_test"
+    | "job_reads_test"
+    | "mainnet_only_test",
 ) {
   const { Client } = await import("pg");
 

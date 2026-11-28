@@ -2,6 +2,8 @@ import type { CreditBucketReferenceType, Prisma } from "@sokosumi/database";
 import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { isCreditBucketReferenceUniqueConstraintError } from "@/helpers/prisma";
+import { grant as grantCredits } from "@/lib/credits/grant";
+import type { MainnetScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
@@ -12,6 +14,8 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
  * only the reference type and the expiry differ.
  */
 export interface PolarCreditGrant {
+  /** Mainnet's: CMO runs there only. Each entry point names it. */
+  scope: MainnetScope;
   amount: bigint;
   expiresAt: Date;
   organizationId: string;
@@ -53,24 +57,20 @@ export async function grantPolarCredits(
     return await prisma.$transaction(async (tx) => {
       if (await isOrderRefunded(tx, grant.referenceId)) return "refunded";
       if (!(await lockLiveSubscription(tx, grant))) return "not_live";
-      await tx.transaction.create({
-        data: {
-          amount,
-          organizationId,
-          userId: null,
-          sourceCreditBucket: {
-            create: {
-              amount,
-              expiresAt: grant.expiresAt,
-              organizationId,
-              projectId,
-              referenceId: grant.referenceId,
-              referenceNote: grant.referenceNote,
-              referenceType: grant.referenceType,
-              userId: null,
-            },
-          },
-        },
+      // A grant given before fails on the bucket's key and rolls this back,
+      // answered below. The wake comes after the caller's own write.
+      await grantCredits({
+        kind: "polar",
+        scope: grant.scope,
+        tx,
+        cents: amount,
+        organizationId,
+        projectId,
+        referenceId: grant.referenceId,
+        referenceType: grant.referenceType,
+        note: grant.referenceNote,
+        expiresAt: grant.expiresAt,
+        wakeTasks: false,
       });
       await alsoWrite?.(tx);
       await markOutOfCreditsTasksAsToppedUp({

@@ -25,6 +25,7 @@ import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { mapTaskTags } from "@/helpers/task-tags";
 import { sokoBotFace } from "@/lib/cuso-face";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { requireProjectAccess } from "@/lib/image-studio/access";
@@ -919,7 +920,14 @@ export async function resolveChatResultReference(
       break;
     }
     case "job": {
-      await requireJobRead(workspace, ref.id, client, actor.userId);
+      // shortcut: Job previews stay on Mainnet until ticket 30.
+      await requireJobRead(
+        workspace,
+        ref.id,
+        createNetworkScope("mainnet"),
+        actor.userId,
+        client === prisma ? undefined : client,
+      );
       const row = await client.job.findFirst({
         where: { id: ref.id, workspaceId: actor.workspaceId },
         include: jobInclude,

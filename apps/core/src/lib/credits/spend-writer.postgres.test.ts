@@ -9,7 +9,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { sumTransactionHistory } from "@/helpers/transaction-history";
+import { sumTransactionHistory } from "@/lib/credits/history";
 import { spend } from "@/lib/credits/spend";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
@@ -104,7 +104,15 @@ function spendInFull(
   cents: bigint,
 ) {
   return scope.sharedTransaction(
-    (tx) => spend({ scope, tx, payer, quotedCents: cents, mode: "in_full" }),
+    (tx) =>
+      spend({
+        scope,
+        tx,
+        kind: "competitor_check",
+        payer,
+        quotedCents: cents,
+        mode: "in_full",
+      }),
     "Spend writer fixture conflict",
   );
 }
@@ -236,6 +244,7 @@ describe.skipIf(!enabled)(
         }
 
         const history = {
+          billingScope: createNetworkScope("mainnet"),
           scope: "workspace" as const,
           userContext: {
             source: "context" as const,
@@ -286,6 +295,7 @@ describe.skipIf(!enabled)(
           found.push(
             await sumTransactionHistory(
               {
+                billingScope: createNetworkScope("mainnet"),
                 scope: "workspace",
                 userContext: {
                   source: "context",

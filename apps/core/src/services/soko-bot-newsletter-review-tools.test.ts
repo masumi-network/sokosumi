@@ -123,6 +123,7 @@ const INPUTS: Record<Tool, Record<string, unknown>> = {
   },
 };
 const AUTHORIZED: AuthorizedSokoBotRuntime = {
+  provenance: { network: "mainnet" },
   turn: {
     id: "turn",
     sokoBotId: BOT_ID,

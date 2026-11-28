@@ -76452,6 +76452,17 @@ export const TransactionHistoryJobItemSchema = {
             ],
             description: 'Resolved icon URL for the agent',
             example: 'https://example.com/research.svg'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76466,7 +76477,9 @@ export const TransactionHistoryJobItemSchema = {
         'jobId',
         'agentId',
         'agentName',
-        'agentIcon'
+        'agentIcon',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -76568,6 +76581,17 @@ export const TransactionHistoryImageItemSchema = {
             type: 'string',
             description: 'Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
             example: 'Gemini 3.1 Flash Image'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76580,7 +76604,9 @@ export const TransactionHistoryImageItemSchema = {
         'owner',
         'kind',
         'imageJobId',
-        'modelLabel'
+        'modelLabel',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -76657,6 +76683,17 @@ export const TransactionHistoryTaskItemSchema = {
             type: 'boolean',
             description: 'Whether the task is archived. An archived task cannot be opened, so clients should not link to it.',
             example: false
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76670,7 +76707,9 @@ export const TransactionHistoryTaskItemSchema = {
         'kind',
         'taskId',
         'taskEventId',
-        'taskArchived'
+        'taskArchived',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -76737,6 +76776,17 @@ export const TransactionHistoryCoworkerItemSchema = {
             type: 'string',
             description: 'Coworker whose usage consumed the credits',
             example: 'cow_123'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76748,7 +76798,9 @@ export const TransactionHistoryCoworkerItemSchema = {
         'projectId',
         'owner',
         'kind',
-        'coworkerId'
+        'coworkerId',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -76816,6 +76868,17 @@ export const TransactionHistorySokoBotItemSchema = {
             format: 'uuid',
             description: 'Soko Bot whose usage consumed the credits',
             example: '01960001-0001-7001-8001-000000000099'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76827,7 +76890,9 @@ export const TransactionHistorySokoBotItemSchema = {
         'projectId',
         'owner',
         'kind',
-        'sokoBotId'
+        'sokoBotId',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -76889,6 +76954,17 @@ export const TransactionHistorySeoChatItemSchema = {
             enum: [
                 'seoChat'
             ]
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76899,7 +76975,9 @@ export const TransactionHistorySeoChatItemSchema = {
         'consumedAt',
         'projectId',
         'owner',
-        'kind'
+        'kind',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -76970,6 +77048,17 @@ export const TransactionHistoryContactsItemSchema = {
             format: 'uuid',
             description: 'Contact list a Find people run searched for. Null once the list is deleted.',
             example: '01960001-0001-7001-8001-000000000077'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -76981,7 +77070,9 @@ export const TransactionHistoryContactsItemSchema = {
         'projectId',
         'owner',
         'kind',
-        'contactListId'
+        'contactListId',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -77075,6 +77166,17 @@ export const TransactionHistoryTopUpItemSchema = {
             ],
             description: 'Task whose payment this refund top up refunded, for deep-linking. Null for any other top up, or when the task no longer exists or is archived.',
             example: 'tsk_123'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -77089,7 +77191,9 @@ export const TransactionHistoryTopUpItemSchema = {
         'bucketSource',
         'refundedJobId',
         'refundedAgentId',
-        'refundedTaskId'
+        'refundedTaskId',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -77159,6 +77263,17 @@ export const TransactionHistoryUnattributedItemSchema = {
             ],
             description: 'Credit bucket the spend drew from, when a consumption row records one. Null when nothing about the source is known.',
             example: 'STRIPE_SUBSCRIPTION_PERIOD'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
+        },
+        affectsBalance: {
+            type: 'boolean',
+            description: 'true when this entry moved credits on a balance (a debit or a credit); false for a Preprod entry, which is recorded and not charged'
         }
     },
     required: [
@@ -77170,7 +77285,9 @@ export const TransactionHistoryUnattributedItemSchema = {
         'projectId',
         'owner',
         'kind',
-        'bucketSource'
+        'bucketSource',
+        'network',
+        'affectsBalance'
     ]
 } as const;
 
@@ -77188,11 +77305,19 @@ export const TransactionDailySpendListSchema = {
                 type: 'number',
                 description: 'Credits spent that day. Top ups are not counted.',
                 example: 12.5
+            },
+            network: {
+                type: 'string',
+                enum: [
+                    'mainnet',
+                    'preprod'
+                ]
             }
         },
         required: [
             'date',
-            'credits'
+            'credits',
+            'network'
         ]
     }
 } as const;
@@ -77209,11 +77334,19 @@ export const TransactionTotalSchema = {
             type: 'integer',
             description: 'Matching ledger rows.',
             example: 3
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'mainnet',
+                'preprod'
+            ]
         }
     },
     required: [
         'credits',
-        'count'
+        'count',
+        'network'
     ]
 } as const;
 

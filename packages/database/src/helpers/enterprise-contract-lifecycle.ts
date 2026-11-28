@@ -1,5 +1,4 @@
 import {
-  CreditBucketReferenceType,
   EnterpriseContractPeriodStatus,
   EnterpriseContractStatus,
   type Prisma,
@@ -16,10 +15,9 @@ import {
 } from "./enterprise-contract-errors.js";
 import { findPaidSubscriptionsBlockingEnterpriseActivation } from "./enterprise-contract-exclusivity.js";
 import {
-  createEnterprisePeriodCreditBucket,
-  createEnterpriseTopUpCreditBucket,
-  expireCreditBucketsNow,
+  type ExpireEnterpriseCredits,
   findEnterprisePeriodCreditBucket,
+  type GrantEnterpriseCredits,
 } from "./enterprise-contract-grants.js";
 import {
   autoAssignSeatsOnPaidSubscribe,
@@ -29,6 +27,7 @@ import {
 interface ActivateEnterpriseContractParams {
   activatedAt: Date;
   paymentReference?: string | null;
+  grantCredits: GrantEnterpriseCredits;
 }
 
 interface ActivateEnterpriseContractResult {
@@ -136,16 +135,14 @@ export async function activateEnterpriseContract(
     );
   }
 
-  const periodBucket = await createEnterprisePeriodCreditBucket(
-    {
-      activatesAt: activatedAt,
-      amount: firstPeriod.centsToGrant,
-      expiresAt: firstPeriod.periodEnd,
-      organizationId: contract.organizationId,
-      periodId: firstPeriod.id,
-    },
-    tx,
-  );
+  const periodBucket = await params.grantCredits({
+    kind: "enterprise_period",
+    activatesAt: activatedAt,
+    cents: firstPeriod.centsToGrant,
+    expiresAt: firstPeriod.periodEnd,
+    organizationId: contract.organizationId,
+    periodId: firstPeriod.id,
+  });
 
   await tx.enterpriseContractPeriod.update({
     where: {
@@ -158,17 +155,15 @@ export async function activateEnterpriseContract(
 
   let topUpBucketCreated = false;
   if (contract.oneTimeCents != null && contract.oneTimeCents > 0n) {
-    const topUpBucket = await createEnterpriseTopUpCreditBucket(
-      {
-        activatesAt: activatedAt,
-        amount: contract.oneTimeCents,
-        contractId: contract.id,
-        expiresAt: contract.oneTimeExpiresAt,
-        organizationId: contract.organizationId,
-      },
-      tx,
-    );
-    topUpBucketCreated = topUpBucket.created;
+    const topUpBucket = await params.grantCredits({
+      kind: "enterprise_top_up",
+      activatesAt: activatedAt,
+      cents: contract.oneTimeCents,
+      contractId: contract.id,
+      expiresAt: contract.oneTimeExpiresAt,
+      organizationId: contract.organizationId,
+    });
+    topUpBucketCreated = topUpBucket.outcome === "granted";
   }
 
   await tx.enterpriseContract.update({
@@ -195,7 +190,7 @@ export async function activateEnterpriseContract(
 
   return {
     contractId,
-    periodBucketCreated: periodBucket.created,
+    periodBucketCreated: periodBucket.outcome === "granted",
     periodsCreated: createdPeriods.length,
     topUpBucketCreated,
   };
@@ -204,7 +199,7 @@ export async function activateEnterpriseContract(
 export async function cancelEnterpriseContract(
   contractId: string,
   tx: Prisma.TransactionClient,
-  now: Date = new Date(),
+  { now, expireCredits }: { now: Date; expireCredits: ExpireEnterpriseCredits },
 ): Promise<void> {
   const contract = await tx.enterpriseContract.findUnique({
     where: { id: contractId },
@@ -223,22 +218,14 @@ export async function cancelEnterpriseContract(
     );
   }
 
-  const referenceIds = contract.periods.map((period) => period.id);
-  if (contract.oneTimeCents != null && contract.oneTimeCents > 0n) {
-    referenceIds.push(contract.id);
-  }
-
-  await expireCreditBucketsNow(
-    {
-      now,
-      referenceIds,
-      referenceTypes: [
-        CreditBucketReferenceType.ENTERPRISE_PERIOD,
-        CreditBucketReferenceType.ENTERPRISE_TOP_UP,
-      ],
-    },
-    tx,
-  );
+  await expireCredits({
+    periodIds: contract.periods.map((period) => period.id),
+    topUpContractId:
+      contract.oneTimeCents != null && contract.oneTimeCents > 0n
+        ? contract.id
+        : null,
+    now,
+  });
 
   await tx.enterpriseContractPeriod.updateMany({
     where: {

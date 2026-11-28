@@ -1,0 +1,432 @@
+{
+  "base": "549ff8a56e849b4e0287a966617956a122a4aab6",
+  "personal": "70000000000",
+  "balances": ["30000000000", "20000000000", "20000000000"],
+  "debits": [
+    {
+      "id": "01a21f12-841f-76a4-ae76-2a9ae1401283",
+      "time": "2026-11-27T22:13:56.895Z"
+    },
+    {
+      "id": "01a21f12-842d-7661-a955-868f402216f4",
+      "time": "2026-11-27T22:13:56.909Z"
+    },
+    {
+      "id": "01a21f12-8435-7f76-92dd-cdb3063f471f",
+      "time": "2026-11-27T22:13:56.917Z"
+    },
+    {
+      "id": "01a21f12-843b-7b87-b5f9-721d398b28ca",
+      "time": "2026-11-27T22:13:56.923Z"
+    },
+    {
+      "id": "01a21f12-8442-7250-8901-14249aeebf43",
+      "time": "2026-11-27T22:13:56.930Z"
+    },
+    {
+      "id": "01a21f12-844c-78df-8169-0d724112c33e",
+      "time": "2026-11-27T22:13:56.940Z"
+    },
+    {
+      "id": "01a21f12-8451-7c1a-8f33-ffa6f1d0cba5",
+      "time": "2026-11-27T22:13:56.945Z"
+    },
+    {
+      "id": "01a21f12-8457-7874-b1bc-109d32e0caaa",
+      "time": "2026-11-27T22:13:56.951Z"
+    },
+    {
+      "id": "01a21f12-845e-7962-82f2-11eea57e4b35",
+      "time": "2026-11-27T22:13:56.958Z"
+    },
+    {
+      "id": "01a21f12-8463-7867-8acd-522e58c8e406",
+      "time": "2026-11-27T22:13:56.963Z"
+    },
+    {
+      "id": "01a21f12-8467-77cd-aeee-affbb70ed401",
+      "time": "2026-11-27T22:13:56.967Z"
+    },
+    {
+      "id": "01a21f12-846c-7a55-ba24-964a93d43757",
+      "time": "2026-11-27T22:13:56.972Z"
+    },
+    {
+      "id": "01a21f12-8474-7953-a8d2-f2cb07cfc57e",
+      "time": "2026-11-27T22:13:56.980Z"
+    },
+    {
+      "id": "01a21f12-8479-7224-9881-83c6239acb0b",
+      "time": "2026-11-27T22:13:56.985Z"
+    },
+    {
+      "id": "01a21f12-847f-7fb5-8551-b054c7323565",
+      "time": "2026-11-27T22:13:56.991Z"
+    },
+    {
+      "id": "01a21f12-8484-76af-96d3-fb41894b65d7",
+      "time": "2026-11-27T22:13:56.996Z"
+    },
+    {
+      "id": "01a21f12-848a-73b8-ab97-02c07c255841",
+      "time": "2026-11-27T22:13:57.002Z"
+    },
+    {
+      "id": "01a21f12-848e-7a42-ad8d-ec5aae19625b",
+      "time": "2026-11-27T22:13:57.006Z"
+    },
+    {
+      "id": "01a21f12-8493-7466-87e1-34c7b4af0e63",
+      "time": "2026-11-27T22:13:57.011Z"
+    },
+    {
+      "id": "01a21f12-8498-7a22-8a22-a0b62fd56a7e",
+      "time": "2026-11-27T22:13:57.016Z"
+    },
+    {
+      "id": "01a21f12-849c-7cdd-adcd-20d5371c467f",
+      "time": "2026-11-27T22:13:57.020Z"
+    },
+    {
+      "id": "01a21f12-84a1-7742-97b1-fb28708dee6f",
+      "time": "2026-11-27T22:13:57.025Z"
+    },
+    {
+      "id": "01a21f12-84a5-7289-a918-be6bfa32545d",
+      "time": "2026-11-27T22:13:57.029Z"
+    },
+    {
+      "id": "01a21f12-84aa-79e9-80c5-aa01858ee53d",
+      "time": "2026-11-27T22:13:57.034Z"
+    },
+    {
+      "id": "01a21f12-84af-7961-937e-0ecd0a4048e6",
+      "time": "2026-11-27T22:13:57.039Z"
+    },
+    {
+      "id": "01a21f12-84b5-78ea-adb2-72c24bbe50f1",
+      "time": "2026-11-27T22:13:57.045Z"
+    },
+    {
+      "id": "01a21f12-84b9-7c80-a1f9-4c2afbd46589",
+      "time": "2026-11-27T22:13:57.049Z"
+    },
+    {
+      "id": "01a21f12-84bd-7c24-891f-c55666b16187",
+      "time": "2026-11-27T22:13:57.053Z"
+    },
+    {
+      "id": "01a21f12-84c4-77f5-b428-ca52299edfa9",
+      "time": "2026-11-27T22:13:57.060Z"
+    },
+    {
+      "id": "01a21f12-84c9-77ba-8bbc-d1181a4cdc06",
+      "time": "2026-11-27T22:13:57.065Z"
+    }
+  ],
+  "row": {
+    "id": "01a21f12-84c9-77ba-8bbc-d1181a4cdc06",
+    "consumedAt": "2026-11-27T22:13:57.065Z",
+    "amount": "-30000000000",
+    "kind": "unattributed",
+    "userId": null,
+    "projectId": "ad4e7db1-0865-460d-952f-a1b92d3aa339",
+    "jobId": null,
+    "jobName": null,
+    "agentId": null,
+    "imageJobId": null,
+    "imageModel": null,
+    "imagePrompt": null,
+    "taskId": null,
+    "taskName": null,
+    "taskArchived": false,
+    "taskEventId": null,
+    "taskEventComment": null,
+    "coworkerId": null,
+    "coworkerName": null,
+    "sokoBotId": null,
+    "sokoBotName": null,
+    "sokoBotTurnSource": null,
+    "sokoBotScheduleName": null,
+    "sokoBotScheduleKey": null,
+    "contactListId": null,
+    "contactListName": null,
+    "contactFound": null,
+    "contactName": null,
+    "bucketSource": null,
+    "topUpSource": null,
+    "topUpNote": null,
+    "refundedJobId": null,
+    "refundedJobName": null,
+    "refundedAgentId": null,
+    "refundedJobOnChainStatus": null,
+    "refundedTaskId": null,
+    "refundedTaskName": null,
+    "refundedTaskArchived": false,
+    "refundedImagePrompt": null,
+    "refundSource": null,
+    "refundX402Kind": null
+  },
+  "item": {
+    "id": "01a21f12-84c9-77ba-8bbc-d1181a4cdc06",
+    "credits": 3,
+    "consumedAt": "2026-11-27T22:13:57.065Z",
+    "projectId": "ad4e7db1-0865-460d-952f-a1b92d3aa339",
+    "owner": null,
+    "kind": "unattributed",
+    "title": "Credit consumption",
+    "description": null,
+    "bucketSource": null,
+    "network": "mainnet",
+    "affectsBalance": true
+  },
+  "cursorIndices": [23, 16, 9, 2],
+  "total": {
+    "credits": 90,
+    "count": 30,
+    "network": "mainnet"
+  },
+  "count": 30,
+  "csv": "date,source,label,credits\r\n2026-11-27T22:13:57.065Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.060Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.053Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.049Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.045Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.039Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.034Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.029Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.025Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.020Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.016Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.011Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.006Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:57.002Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.996Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.991Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.985Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.980Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.972Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.967Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.963Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.958Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.951Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.945Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.940Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.930Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.923Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.917Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.909Z,unattributed,Credit consumption,-3\r\n2026-11-27T22:13:56.895Z,unattributed,Credit consumption,-3\r\n,total,Spent,-90\r\n,total,Top ups,0\r\n,total,Net,-90\r\n",
+  "balanceQueries": [
+    {
+      "sha256": "0b14b814f083df3788b9e877dda8c6b834a15de7c16e541a7d3dc2705286ad95",
+      "bindings": ["$userId", "$readTime", "$readTime"]
+    },
+    {
+      "sha256": "962200066c5ee031a7004b1003dd113d8cbb4e74ee6faf2a927aceec3571432c",
+      "bindings": ["$organizationId", "active", "1", "0"]
+    },
+    {
+      "sha256": "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
+      "bindings": [
+        "$organizationId",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "$readTime",
+        "$readTime",
+        "0"
+      ]
+    },
+    {
+      "sha256": "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
+      "bindings": [
+        "$organizationId",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "$readTime",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "sha256": "d8ffc4357b38adeb657e2947bcc29dbf07ab0249fd971a7f82e6f721a07cca80",
+      "bindings": [
+        "$organizationId",
+        "$projectId",
+        "STRIPE_SUBSCRIPTION_PERIOD",
+        "STRIPE_SUBSCRIPTION_PERIOD",
+        "ENTERPRISE_PERIOD",
+        "ENTERPRISE_TOP_UP",
+        "$readTime",
+        "$readTime"
+      ]
+    },
+    {
+      "sha256": "962200066c5ee031a7004b1003dd113d8cbb4e74ee6faf2a927aceec3571432c",
+      "bindings": ["$organizationId", "active", "1", "0"]
+    },
+    {
+      "sha256": "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
+      "bindings": [
+        "$organizationId",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "$readTime",
+        "$readTime",
+        "0"
+      ]
+    },
+    {
+      "sha256": "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
+      "bindings": [
+        "$organizationId",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "$readTime",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "sha256": "0b9c6d1af0f093ea7d94e16817fffe537dd23452f226d6ea8b83b6358d5ed4d0",
+      "bindings": [
+        "$organizationId",
+        "STRIPE_SUBSCRIPTION_PERIOD",
+        "STRIPE_SUBSCRIPTION_PERIOD",
+        "ENTERPRISE_PERIOD",
+        "ENTERPRISE_TOP_UP",
+        "$readTime",
+        "$readTime"
+      ]
+    },
+    {
+      "sha256": "962200066c5ee031a7004b1003dd113d8cbb4e74ee6faf2a927aceec3571432c",
+      "bindings": ["$organizationId", "active", "1", "0"]
+    },
+    {
+      "sha256": "d4ab5065e34d9da0fcd94d7592d0c028ed6f98306270d9774fc8782ea7146360",
+      "bindings": [
+        "$organizationId",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "$readTime",
+        "$readTime",
+        "0"
+      ]
+    },
+    {
+      "sha256": "ded995df11d59f85f9b5aa58cd76980a57bf6bf91403047393bea67d2a9b711d",
+      "bindings": [
+        "$organizationId",
+        "active",
+        "trialing",
+        "past_due",
+        "unpaid",
+        "$readTime",
+        "1",
+        "0"
+      ]
+    },
+    {
+      "sha256": "0b9c6d1af0f093ea7d94e16817fffe537dd23452f226d6ea8b83b6358d5ed4d0",
+      "bindings": [
+        "$organizationId",
+        "STRIPE_SUBSCRIPTION_PERIOD",
+        "STRIPE_SUBSCRIPTION_PERIOD",
+        "ENTERPRISE_PERIOD",
+        "ENTERPRISE_TOP_UP",
+        "$readTime",
+        "$readTime"
+      ]
+    }
+  ],
+  "historyQueries": [
+    {
+      "sha256": "0f87662250db4d31457fad3ec755ed7e27d8ad854010d7c07761ba0930211465",
+      "bindings": ["$organizationId", ["unattributed"], "$projectId", 8]
+    },
+    {
+      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "bindings": [
+        "$organizationId",
+        ["unattributed"],
+        "$projectId",
+        "$debit23",
+        8
+      ]
+    },
+    {
+      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "bindings": [
+        "$organizationId",
+        ["unattributed"],
+        "$projectId",
+        "$debit16",
+        8
+      ]
+    },
+    {
+      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "bindings": [
+        "$organizationId",
+        ["unattributed"],
+        "$projectId",
+        "$debit9",
+        8
+      ]
+    },
+    {
+      "sha256": "1966a13f8ebc11f1dca6cc364a8e247f65c20670e92232427f3a369cfee57654",
+      "bindings": [
+        "$organizationId",
+        ["unattributed"],
+        "$projectId",
+        "$debit2",
+        8
+      ]
+    },
+    {
+      "sha256": "b9109404efed9b67a99a9f67a4be6f7826a9e201892e7d26a1f03215899399ed",
+      "bindings": ["$organizationId", ["unattributed"], "$projectId"]
+    },
+    {
+      "sha256": "25540a56108c05739e2fced2f1dece68bf14120509cd5b4d9ffa6fae55c16b8d",
+      "bindings": ["$organizationId", ["unattributed"], "$projectId"]
+    },
+    {
+      "sha256": "0f87662250db4d31457fad3ec755ed7e27d8ad854010d7c07761ba0930211465",
+      "bindings": ["$organizationId", ["unattributed"], "$projectId", 1001]
+    }
+  ],
+  "publicAlert": {
+    "notices": 1,
+    "emails": 1,
+    "statements": [
+      "75739249fe90eaf8869ff42c6f73503e34596fa07ff7c08fb332ed5852fb3d88",
+      "0b14b814f083df3788b9e877dda8c6b834a15de7c16e541a7d3dc2705286ad95",
+      "e7985c5660f94ef2e707c2fbeda63ad3b6fad9d9f58cffde766acea16ca2f29f",
+      "7e56a7cb5247b15fa3435d77a233d0337fd4570deeecd4aa4136fd9d16b66239",
+      "52d3af0a3d315bee3a05c10418d247dd9e90bb6d3b7a14ff56af5f7be8f0651e",
+      "275475385f93222b774c2e281a932711972d8446b5f4c810fe30ff939364d8c2",
+      "75739249fe90eaf8869ff42c6f73503e34596fa07ff7c08fb332ed5852fb3d88",
+      "0b14b814f083df3788b9e877dda8c6b834a15de7c16e541a7d3dc2705286ad95",
+      "e7985c5660f94ef2e707c2fbeda63ad3b6fad9d9f58cffde766acea16ca2f29f",
+      "7e56a7cb5247b15fa3435d77a233d0337fd4570deeecd4aa4136fd9d16b66239",
+      "52d3af0a3d315bee3a05c10418d247dd9e90bb6d3b7a14ff56af5f7be8f0651e",
+      "275475385f93222b774c2e281a932711972d8446b5f4c810fe30ff939364d8c2",
+      "d2d265a86878633ce38209c4ac4804ce540e5e69348a89e0e70dcbac32eb0c5c"
+    ]
+  },
+  "splitAlertOnBase": {
+    "notices": 0,
+    "emails": 0,
+    "statements": [
+      "SELECT \"shared\".\"credit_bucket\".\"id\" FROM \"shared\".\"credit_bucket\" WHERE (\"shared\".\"credit_bucket\".\"userId\" = $1 AND \"shared\".\"credit_bucket\".\"organizationId\" IS NULL AND (\"shared\".\"credit_bucket\".\"activatesAt\" IS NULL OR \"shared\".\"credit_bucket\".\"activatesAt\" <= $2)) ORDER BY \"shared\".\"credit_bucket\".\"createdAt\" DESC, \"shared\".\"credit_bucket\".\"id\" DESC LIMIT $3 OFFSET $4",
+      "SELECT \"shared\".\"credit_bucket\".\"id\" FROM \"shared\".\"credit_bucket\" WHERE (\"shared\".\"credit_bucket\".\"userId\" = $1 AND \"shared\".\"credit_bucket\".\"organizationId\" IS NULL AND (\"shared\".\"credit_bucket\".\"activatesAt\" IS NULL OR \"shared\".\"credit_bucket\".\"activatesAt\" <= $2)) ORDER BY \"shared\".\"credit_bucket\".\"createdAt\" DESC, \"shared\".\"credit_bucket\".\"id\" DESC LIMIT $3 OFFSET $4"
+    ]
+  },
+  "agentPreview": {
+    "rows": [
+      {
+        "name": "Ledger preview",
+        "icon": null
+      }
+    ],
+    "queries": [
+      {
+        "sha256": "4076fa8c8db9af1b78e76176c1713341015293734eabc293fae44c0371ef02e6",
+        "bindings": ["$agentId", "0"]
+      },
+      {
+        "sha256": "d1c771cab575d0be38ee23b188a4bdbe2bbdde967a8014c89b541e440277d248",
+        "bindings": ["$agentId", "0"]
+      }
+    ],
+    "splitOnBase": {
+      "source": "helpers/history.ts:521",
+      "rows": [],
+      "failingSql": "SELECT \"shared\".\"Agent\".\"id\", \"shared\".\"Agent\".\"name\", \"shared\".\"Agent\".\"icon\" FROM \"shared\".\"Agent\" WHERE \"shared\".\"Agent\".\"id\" IN ($1) OFFSET $2"
+    }
+  }
+}

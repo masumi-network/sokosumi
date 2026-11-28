@@ -6,31 +6,52 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 import {
   CAIP2_EVM_NETWORK_PATTERN,
   EVM_ADDRESS_PATTERN,
   listV2RegistryPolicyIds,
 } from "@sokosumi/masumi";
-import { getEnv } from "@/config/env";
 import { listCardanoBillableUnitSpellings } from "@/helpers/agent-cost";
-import { internalServerError } from "@/helpers/error";
+import { internalServerError, notFound } from "@/helpers/error";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
-import { type Network, networkKey } from "@/lib/network";
+import type { Network } from "@/lib/network";
+import { readinessKey, readReadiness } from "./readiness";
 import {
+  getAllowedX402Caip2Networks,
   getTrustedX402ExactEvmDomain,
+  getX402AgentCatalogWhere,
+  hasValidX402DiscoveryUrl,
   isX402NetworkAllowed,
   trimEvmWalletId,
-  X402_BUY_SIDE_READINESS_KEY,
   type X402ReadySource,
 } from "./x402";
 
-// The old Preprod deployment also uses the Mainnet scope until ticket 22.
-function deploymentRail() {
-  return getEnv().NETWORK;
+// Before ticket 22 the old Preprod deployment used the Mainnet scope with a deployment-wide catalog rail.
+function scopeRail(
+  scope: Pick<NetworkScope, "network">,
+): "Mainnet" | "Preprod" {
+  return scope.network === "mainnet" ? "Mainnet" : "Preprod";
 }
 
-const readRates = (rates: NetworkDb["creditCost"]) => rates.findMany();
+/** The hire's Cardano V2 payment sources: those on the rail. */
+export const cardanoV2PaymentSourcesOnRail = (scope: NetworkScope) => ({
+  chain: "Cardano",
+  network: scopeRail(scope),
+  paymentSourceType: "Web3CardanoV2",
+});
+
+export function registrySourceOnNetwork(scope: NetworkScope, network: string) {
+  return network === scopeRail(scope);
+}
+
+export function allowedX402ReadinessNetworks(scope: NetworkScope) {
+  return getAllowedX402Caip2Networks(scopeRail(scope));
+}
+
+/** Every rate of a Network, empty included: the one read of the rate table. */
+export const readRates = (rates: NetworkDb["creditCost"]) => rates.findMany();
 
 /**
  * Retrieves credit costs used for agent availability and pricing checks.
@@ -45,25 +66,6 @@ export const getCreditCostsOrThrow = async (
   }
   return creditCosts;
 };
-
-/**
- * Builds a Prisma where clause for filtering agents by availability and valid pricing.
- *
- * Availability rules:
- * - Only shows agents with status ONLINE and isShown: true
- *
- * Pricing validation rules:
- * - Exclude agents with pricingType UNKNOWN
- * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
- * - For FIXED pricing: ensure all amount units exist in CreditCost table
- * - FREE pricing is always valid (no additional validation needed)
- *
- * @param creditCosts - Array of credit costs to validate pricing units against
- * @returns Prisma where clause for agent queries
- */
-export const CARDANO_V2_RAIL_READINESS_KEY = "cardano-v2-rail-readiness";
-export const CARDANO_V2_RAIL_READINESS_FAILURE_KEY =
-  "cardano-v2-rail-readiness-failure";
 
 export interface CardanoV2ReadySource {
   policyId: string;
@@ -129,19 +131,15 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
  * process-local memo in front of it would only add staleness on top of the
  * cron's own lag while letting instances disagree with each other.
  */
-export const getCardanoV2ReadySources = async (
-  tx: SharedDb,
-  network: Network,
-): Promise<CardanoV2ReadySource[]> => {
-  const readiness = await tx.syncMetadata.findUnique({
-    where: { key: networkKey(network, CARDANO_V2_RAIL_READINESS_KEY) },
-  });
-  if (!readiness?.cursorId) {
+function parseCardanoV2ReadySources(
+  cursorId: string | null | undefined,
+): CardanoV2ReadySource[] {
+  if (!cursorId) {
     return [];
   }
 
   try {
-    const payload: unknown = JSON.parse(readiness.cursorId);
+    const payload: unknown = JSON.parse(cursorId);
     if (!Array.isArray(payload)) {
       return [];
     }
@@ -159,9 +157,80 @@ export const getCardanoV2ReadySources = async (
   } catch {
     return [];
   }
+}
+
+export const getCardanoV2ReadySources = async (
+  tx: SharedDb,
+  network: Network,
+): Promise<CardanoV2ReadySource[]> => {
+  const readiness = await readReadiness(tx, network, "cardanoV2");
+  return parseCardanoV2ReadySources(readiness?.cursorId);
 };
 
+async function getCardanoV2ReadySourcesInTransaction(
+  tx: NetworkDb,
+  network: Network,
+): Promise<CardanoV2ReadySource[]> {
+  const key = readinessKey(network, "cardanoV2");
+  const [readiness] = await tx.$queryRaw<{ cursorId: string | null }[]>`
+    SELECT "cursorId"
+    FROM ${sharedTable("sync_metadata")}
+    WHERE "key" = ${key}
+    LIMIT 1
+  `;
+  return parseCardanoV2ReadySources(readiness?.cursorId);
+}
+
+/**
+ * Asserts that an agent exists and is available (ONLINE, shown, valid pricing),
+ * throwing a 404 otherwise. Pass `tx` when running inside an open Network
+ * transaction so readiness and agent reads stay on the same connection.
+ */
+export async function requireAvailableAgent(
+  scope: NetworkScope,
+  id: string,
+  tx?: NetworkDb,
+): Promise<void> {
+  const db = tx ?? scope.networkDb;
+  const creditCosts = await getCreditCostsOrThrow(db.creditCost);
+  const cardanoV2ReadySources = tx
+    ? await getCardanoV2ReadySourcesInTransaction(tx, scope.network)
+    : await getCardanoV2ReadySources(scope.sharedDb, scope.network);
+
+  const agent = await db.agent.findFirst({
+    where: {
+      id,
+      ...buildAvailableAgentWhereClause(
+        scope,
+        creditCosts,
+        cardanoV2ReadySources,
+      ),
+    },
+    select: { id: true },
+  });
+
+  if (!agent) {
+    throw notFound("Agent not found");
+  }
+}
+
+/**
+ * Builds a Prisma where clause for filtering agents by availability and valid pricing.
+ *
+ * Availability rules:
+ * - Only shows agents with status ONLINE and isShown: true
+ *
+ * Pricing validation rules:
+ * - Exclude agents with pricingType UNKNOWN
+ * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
+ * - For FIXED pricing: ensure all amount units exist in CreditCost table
+ * - FREE pricing is always valid (no additional validation needed)
+ *
+ * @param creditCosts - Array of credit costs to validate pricing units against
+ * @returns Prisma where clause for agent queries
+ */
 export const buildAvailableAgentWhereClause = (
+  scope: Pick<NetworkScope, "network">,
   creditCosts: CreditCost[],
   cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
@@ -256,7 +325,7 @@ export const buildAvailableAgentWhereClause = (
                 paymentSources: {
                   some: {
                     chain: "Cardano",
-                    network: deploymentRail(),
+                    network: scopeRail(scope),
                     paymentSourceType: "Web3CardanoV2",
                     // Exact match on purpose. Prisma's `mode: "insensitive"`
                     // compiles to ILIKE with the value as an unescaped
@@ -302,18 +371,16 @@ export const buildAvailableAgentWhereClause = (
  * a mainnet pair to a Preprod deployment. Re-filtering on read costs an array
  * pass and removes the cache as a trusted input.
  */
-export const getX402ReadySources = async (
-  tx: SharedDb,
-  network: Network,
+export const x402ReadySources = async (
+  scope: NetworkScope,
+  tx: SharedDb = scope.sharedDb,
 ): Promise<X402ReadySource[]> => {
-  const readiness = await tx.syncMetadata.findUnique({
-    where: { key: networkKey(network, X402_BUY_SIDE_READINESS_KEY) },
-  });
+  const readiness = await readReadiness(tx, scope.network, "x402");
   if (!readiness?.cursorId) {
     return [];
   }
 
-  const environment = deploymentRail();
+  const environment = scopeRail(scope);
   try {
     const payload: unknown = JSON.parse(readiness.cursorId);
     if (!Array.isArray(payload)) {
@@ -410,6 +477,69 @@ export const getX402ReadySources = async (
   }
 };
 
+// The default charge transaction still has Network delegates on today's public layout.
+// After the split SharedDb cannot read these models. Ticket 29 moves the payment
+// rows and decides how to read this catalog on the charge's connection.
+type CatalogChargeTransaction = Prisma.TransactionClient;
+
+export function requireRates(
+  scope: NetworkScope,
+  tx?: CatalogChargeTransaction,
+) {
+  return getCreditCostsOrThrow((tx ?? scope.networkDb).creditCost);
+}
+
+export function cardanoV2ReadySources(
+  scope: NetworkScope,
+  tx: SharedDb = scope.sharedDb,
+) {
+  return getCardanoV2ReadySources(tx, scope.network);
+}
+
+/**
+ * The listed x402 agent for a payable id, or null. Same environment-aware SQL
+ * gates as the listing: type and status everywhere, plus curation on Mainnet.
+ * Preprod intentionally permits hidden online entries; offline entries never
+ * remain payable through a remembered id. The charge transaction supplies
+ * the Agent table until ticket 29 can select it by scope.
+ */
+export async function findListedX402Agent(
+  scope: NetworkScope,
+  agentId: string,
+  tx: CatalogChargeTransaction,
+) {
+  const network = scopeRail(scope);
+  const agent = await tx.agent.findFirst({
+    where: {
+      id: agentId,
+      ...getX402AgentCatalogWhere(network),
+    },
+    include: {
+      paymentSources: {
+        // The normalized demand is always `exact`, but registry source data is
+        // independent. Keep unsupported signing contracts out so an agent
+        // hidden by the listing cannot still be paid through a remembered id.
+        where: {
+          scheme: { not: null },
+        },
+        include: {
+          // Both relations are explicitly ordered, mirroring the listing
+          // query. Unordered, Prisma returns Postgres heap order, so the
+          // matcher's `find` — "the first amount row for this asset" — could
+          // resolve to a different row here than the one the listing
+          // advertised a price for. Ingestion deliberately permits duplicate
+          // units within one source, so identical ordering on both sides is
+          // what makes listing and pay agree on row identity; a unique on
+          // (paymentSourceId, unit) would instead break the sync.
+          amounts: { orderBy: [{ unit: "asc" }, { id: "asc" }] },
+        },
+        orderBy: { sourceIndex: "asc" },
+      },
+    },
+  });
+  return agent && hasValidX402DiscoveryUrl(agent) ? { agent, network } : null;
+}
+
 export async function readListingInputs(
   scope: NetworkScope,
   includeCardano: boolean,
@@ -420,12 +550,10 @@ export async function readListingInputs(
     includeCardano
       ? getCardanoV2ReadySources(scope.sharedDb, scope.network)
       : Promise.resolve([]),
-    includeX402
-      ? getX402ReadySources(scope.sharedDb, scope.network)
-      : Promise.resolve([]),
+    includeX402 ? x402ReadySources(scope) : Promise.resolve([]),
   ]);
   // Masumi configuration per Network is ticket 22.
-  const network = deploymentRail();
+  const network = scopeRail(scope);
 
   return { creditCosts, cardanoV2ReadySources, readySources, network };
 }

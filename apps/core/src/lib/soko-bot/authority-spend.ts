@@ -455,7 +455,8 @@ async function loadGrantAccounting(
         },
         replayedReceiptId: null,
         OR: [
-          { disposition: null },
+          // A pending receipt with no disposition has not reached dispatch.
+          { disposition: null, status: { not: "PENDING" } },
           { disposition: { notIn: ["REJECTED", "ALREADY_SATISFIED"] } },
         ],
         NOT: { turnId: exclude.turnId, toolCallId: exclude.toolCallId },

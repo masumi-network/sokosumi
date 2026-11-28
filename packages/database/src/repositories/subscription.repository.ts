@@ -85,7 +85,7 @@ export const subscriptionRepository = {
 
   async getLatestSubscriptionByReferenceId(
     referenceId: string,
-    tx: Prisma.TransactionClient,
+    tx: SharedDb,
   ): Promise<Subscription | null> {
     return await tx.subscription.findFirst({
       where: {

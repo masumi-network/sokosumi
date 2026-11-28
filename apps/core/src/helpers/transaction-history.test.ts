@@ -1,10 +1,8 @@
 import type { TaskX402PaymentRefundKind } from "@sokosumi/database";
 import { describe, expect, it } from "vitest";
 
-import {
-  mapTransactionHistoryRow,
-  type TransactionHistoryRow,
-} from "./transaction-history";
+import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
+import { type TransactionHistoryRow } from "@/lib/credits/history";
 
 function sokoBotRow(
   overrides: Partial<TransactionHistoryRow> = {},

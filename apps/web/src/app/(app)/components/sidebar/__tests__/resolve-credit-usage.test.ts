@@ -75,6 +75,7 @@ describe("mapAccountCreditsChrome", () => {
       mapAccountCreditsChrome({
         data: {
           scope: "organization",
+          network: "mainnet",
           spendable: 100,
           subscription,
           extra: {

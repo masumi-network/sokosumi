@@ -3,6 +3,7 @@ import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 
 import type { PolarWebhookEvent } from "@/clients/polar.client";
 import { serviceUnavailable } from "@/helpers/error";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   cmoProductMetadataSchema,
@@ -90,6 +91,7 @@ export async function handlePolarTopUpPaid(
   const expiresAt = new Date(event.timestamp);
   expiresAt.setUTCFullYear(expiresAt.getUTCFullYear() + 1);
   const granted = await grantPolarCredits({
+    scope: createNetworkScope("mainnet"),
     amount,
     expiresAt,
     organizationId,

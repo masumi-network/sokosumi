@@ -12,12 +12,12 @@ import {
   parseVersionedAgentIdentifier,
 } from "@sokosumi/masumi";
 import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
-
-import { getEnv } from "@/config/env";
 import {
   type CardanoV2ReadySource,
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
+import { registrySourceOnNetwork } from "@/lib/agent-catalog/availability";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import { type CoreWarning, emitCoreWarning } from "@/lib/evlog";
 
 const POSTGRES_INT_MAX = 2_147_483_647;
@@ -597,16 +597,16 @@ function projectSourcePricing(
  * that job creation must reject. Readiness changes trigger a registry replay.
  */
 function projectV2AgentPricing(
+  scope: NetworkScope,
   entry: RegistryDiffEntry,
   readySources: readonly CardanoV2ReadySource[],
 ): ParsedAgentPricing {
-  const network = getEnv().NETWORK;
   // Defensive `?? []`: the generated client does no runtime validation, so a
   // registry deployment predating the V2 surface must not crash the sync.
   const matching = (entry.SupportedPaymentSources ?? []).filter(
     (candidate) =>
       candidate.chain === "Cardano" &&
-      candidate.network === network &&
+      registrySourceOnNetwork(scope, candidate.network) &&
       candidate.paymentSourceType === "Web3CardanoV2",
   );
   const readyMatching = matching.filter((candidate) =>
@@ -668,13 +668,14 @@ function areProjectedPricingsEqual(
 }
 
 export function resolveEntryPricing(
+  scope: NetworkScope,
   entry: RegistryDiffEntry,
   readySources: readonly CardanoV2ReadySource[],
 ): ParsedAgentPricing {
   // V2 pricing belongs to the registry policy/source model, not the legacy
   // top-level payment type. Free and EVM-only V2 entries report `None`.
   if (isV2RegistryIdentifier(entry.agentIdentifier)) {
-    return projectV2AgentPricing(entry, readySources);
+    return projectV2AgentPricing(scope, entry, readySources);
   }
   return parseEntryAgentPricing(entry.AgentPricing, entry.agentIdentifier);
 }
@@ -688,6 +689,7 @@ export function resolveEntryPricing(
  * pricing projection and availability filters own enforcement.
  */
 export function warnOnUnbillableReadyV2Sources(
+  scope: NetworkScope,
   entry: RegistryDiffEntry,
   readySources: readonly CardanoV2ReadySource[],
   creditCostUnits: ReadonlySet<string>,
@@ -695,11 +697,10 @@ export function warnOnUnbillableReadyV2Sources(
   if (!isV2RegistryIdentifier(entry.agentIdentifier)) {
     return;
   }
-  const network = getEnv().NETWORK;
   for (const source of entry.SupportedPaymentSources ?? []) {
     if (
       source.chain !== "Cardano" ||
-      source.network !== network ||
+      !registrySourceOnNetwork(scope, source.network) ||
       source.paymentSourceType !== "Web3CardanoV2" ||
       !isCardanoV2SourceReady(
         entry.agentIdentifier,

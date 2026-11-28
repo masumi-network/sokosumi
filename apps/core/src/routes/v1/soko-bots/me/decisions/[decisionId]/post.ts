@@ -36,6 +36,7 @@ const spec = {
     ),
     409: jsonErrorResponse("Conflict"),
     422: jsonErrorResponse("Unprocessable Entity"),
+    503: jsonErrorResponse("Preprod approval cannot resume now"),
   },
 };
 
@@ -78,6 +79,9 @@ async function handle(
       auth.userId,
       decisionId,
       input.resolution === "ACCEPT",
+      true,
+      undefined,
+      c.var.networkScope,
     );
     return ok(c, sokoBotPendingDecisionSchema.parse(decision));
   } catch (error) {

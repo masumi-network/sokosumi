@@ -1,5 +1,4 @@
 import type { Prisma, Task } from "@sokosumi/database";
-import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { canonicalJsonKey } from "@sokosumi/masumi/schemas";
 import {
   CORE_API_ERROR_KINDS,
@@ -15,8 +14,9 @@ import {
   seoTaskRequestPacket,
 } from "@sokosumi/utils";
 import { z } from "zod";
-
 import { conflict, unprocessableEntity } from "@/helpers/error";
+import { getBalance } from "@/lib/credits/balance";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import type { RequestSeoAnalysis } from "@/schemas/project-seo.schema";
 import {
   seoCrawlNextPriceSchema,
@@ -102,7 +102,8 @@ export async function requireSeoAnalysisBalance(
   maxCredits: number,
 ): Promise<void> {
   if (maxCredits <= 0) return;
-  const balance = await creditBucketRepository.getBalance(
+  const balance = await getBalance(
+    createNetworkScope("mainnet"),
     payer.userId,
     payer.organizationId,
     tx,

@@ -59,7 +59,12 @@ const MONDAY = new Date("2026-11-16T09:00:00Z");
 
 async function poolCredits(project: SeededProject): Promise<bigint> {
   const cents = await prisma.$transaction((tx) =>
-    creditBucketRepository.getBalance(null, project.organizationId, tx),
+    creditBucketRepository.getNetworkBalance(
+      "mainnet",
+      null,
+      project.organizationId,
+      tx,
+    ),
   );
   return cents / CREDIT;
 }

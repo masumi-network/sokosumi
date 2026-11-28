@@ -144,7 +144,7 @@ export async function cleanupClosedPreview(options: LifecycleOptions) {
   }
   return cleanupPreviewResources(
     { ...options, ref },
-    deployTargets(["mainnet", "preprod"]),
+    deployTargets(["mainnet"]),
   );
 }
 
@@ -165,10 +165,7 @@ export async function renewOpenPreview(options: LifecycleOptions) {
   const name = previewBranchName(options);
   const expiresAt = new Date(Date.now() + PREVIEW_TTL_MS).toISOString();
   let renewed = 0;
-  for (const { config } of previewNeonConfigs(options, [
-    "mainnet",
-    "preprod",
-  ])) {
+  for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     const branch = await findBranchByName(config, name);
     // Commit activity extends an existing preview; it never creates one or deploys.
     if (!branch) continue;
@@ -194,10 +191,7 @@ export async function previewCleanupInventory(
 ) {
   const numbers = new Set<number>();
   const pattern = new RegExp(`^preview/gh-${options.repoId}-pr-([1-9][0-9]*)$`);
-  for (const { config } of previewNeonConfigs(options, [
-    "mainnet",
-    "preprod",
-  ])) {
+  for (const { config } of previewNeonConfigs(options, ["mainnet"])) {
     for (const branch of await listBranches(
       config,
       `preview/gh-${options.repoId}-pr-`,
@@ -223,7 +217,7 @@ export async function previewCleanupInventory(
   }
   // Native Neon expiry can remove a branch before the close event reaches us.
   // Its Vercel env marker keeps that PR discoverable for daily reconciliation.
-  for (const target of deployTargets(["mainnet", "preprod"], ["core"])) {
+  for (const target of deployTargets(["mainnet"], ["core"])) {
     const result = await vercelRequest(
       options,
       `/v10/projects/${target.projectId}/env`,

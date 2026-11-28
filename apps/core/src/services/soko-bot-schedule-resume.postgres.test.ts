@@ -374,6 +374,12 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
       const run = () => tick(fixture.schedule.id);
       const measured = network === "mainnet" ? await capture(run) : null;
       const result = measured?.result ?? (await run());
+      if (network === "preprod") {
+        expect(result.claimed).toBe(0);
+        expect(start).not.toHaveBeenCalled();
+        expect(await runsOf(fixture)).toEqual([]);
+        return;
+      }
       expect(result).toMatchObject({ claimed: 1, failed: 1, deferred: 0 });
       expect(start).toHaveBeenCalledOnce();
       expect(await scheduleOf(fixture)).toMatchObject({
@@ -545,30 +551,63 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
   );
 
   it.skipIf(!onSplitLayout).each([false, true])(
-    "resumes a Preprod Job with generation 7 when recovering an existing run (%s)",
+    "leaves open Preprod Job work untouched at pickup, including a pending run (%s)",
     async (recover) => {
       await setControl();
       const fixture = await seed({
         network: "preprod",
         job: "both",
-        ...(recover ? { run: "PENDING" } : {}),
+        ...(recover ? { run: "PENDING" as const } : {}),
       });
+      const before = await runsOf(fixture);
       const start = stubTurnStart();
       await expect(tick(fixture.schedule.id)).resolves.toMatchObject({
-        claimed: 1,
+        claimed: 0,
       });
-      expect(start).toHaveBeenCalledWith(
-        expect.objectContaining({
-          network: "preprod",
-          expectedPreprodGeneration: 7,
-        }),
-      );
+      expect(start).not.toHaveBeenCalled();
+      expect(await runsOf(fixture)).toEqual(before);
+      expect(await scheduleOf(fixture)).toEqual(fixture.schedule);
+      await expectNoCharges(fixture);
+    },
+  );
+
+  it.skipIf(!onSplitLayout)(
+    "keeps an open Preprod Job occurrence pending without a turn or a charge until slice 30-3",
+    async () => {
+      await setControl("open", "7");
+      const fixture = await seed({
+        network: "preprod",
+        job: "both",
+        run: "PENDING",
+      });
+      const run = await prisma.sokoBotScheduleRun.update({
+        where: { id: fixture.run!.id },
+        data: { attempt: 0 },
+      });
+      await fund(fixture);
+
+      await tick(fixture.schedule.id);
+
       expect(await runsOf(fixture)).toEqual([
         expect.objectContaining({
-          status: "FAILED",
-          attempt: recover ? 2 : 1,
+          id: run.id,
+          status: "PENDING",
+          attempt: 0,
+          turnId: null,
+          leaseToken: null,
+          leaseExpiresAt: null,
         }),
       ]);
+      expect(
+        await prisma.sokoBotTurn.count({
+          where: { sokoBotId: fixture.bot.id },
+        }),
+      ).toBe(0);
+      expect(
+        await fixture.mainnet.sokoBotUsage.count({
+          where: { sokoBotId: fixture.bot.id },
+        }),
+      ).toBe(0);
       await expectNoCharges(fixture);
     },
   );
@@ -719,10 +758,10 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
     },
   );
 
-  it.skipIf(!onSplitLayout)(
-    "passes a paused Preprod schedule and picks up the legacy Mainnet row",
-    async () => {
-      await setControl("paused");
+  it.runIf(onSplitLayout).each(["paused", "open"] as const)(
+    "passes a %s Preprod schedule and picks up the legacy Mainnet row",
+    async (state) => {
+      await setControl(state);
       const paused = await seed({ network: "preprod", job: "both" });
       const legacy = await seed({ network: null });
       const start = stubTurnStart();
@@ -743,23 +782,38 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
       flag.on = onSplitLayout;
     });
     await setControl();
-    const fixture = await seed({ network: "preprod", job: "both" });
+    const fixture = await seed({
+      network: "preprod",
+      job: "both",
+      run: "PENDING",
+    });
+    const turn = await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: fixture.bot.id,
+        workspaceId: fixture.workspaceId,
+        requestedByUserId: fixture.userId,
+        source: "SCHEDULE",
+        status: "FAILED",
+        userMessage: fixture.schedule.prompt,
+        clientTurnId: randomUUID(),
+        capabilityNames: [],
+        deadlineAt: new Date(),
+        network: "preprod",
+        preprodGeneration: 7,
+        errorKind: staleKind,
+      },
+    });
+    await prisma.sokoBotScheduleRun.update({
+      where: { id: fixture.run!.id },
+      data: { turnId: turn.id },
+    });
     await prisma.sokoBotSchedule.update({
       where: { id: fixture.schedule.id },
-      data: { runOnce: false },
-    });
-    const start = stubTurnStart();
-    const create = start.getMockImplementation();
-    if (!create) throw new Error("Expected the start boundary");
-    start.mockImplementationOnce(async (input) => {
-      const turn = await create(input);
-      if (!input.scheduleReservation)
-        throw new Error("Expected the schedule claim");
-      await prisma.sokoBotScheduleRun.update({
-        where: { id: input.scheduleReservation.runId },
-        data: { turnId: turn.turnId },
-      });
-      return { ...turn, errorKind: staleKind };
+      data: {
+        enabled: true,
+        runOnce: false,
+        nextRunAt: new Date(Date.now() + 60_000),
+      },
     });
     expectCoreLog("warn", staleWarning, 1);
     await expect(tick(fixture.schedule.id)).resolves.toMatchObject({
@@ -873,37 +927,25 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
       const fixture = await seed({ network: "preprod", job: "both" });
       if (!onSplitLayout) await fund(fixture);
       const realStarter = publicTurnStarter();
-      const start = vi.spyOn(controlPlane, "startTurn");
-      onTestFinished(() => start.mockRestore());
-      const { requireDetachedTurnProvenance } = await import(
-        "@/lib/soko-bot/detached-network"
-      );
-      start.mockImplementationOnce(async (input) => {
-        if (operation === "raise") await control.raisePreprodGeneration();
-        else
-          await prisma.syncMetadata.update({
-            where: { key: control.PREPROD_PAUSE_KEY },
-            data: { cursorId: "paused" },
-          });
-        if (!onSplitLayout) return realStarter.startTurn(input);
-        // The split fixture stops at the writer fence (ticket 30).
-        await prisma.$transaction(async (tx) => {
-          const stamp = await control.networkStamp(input.network, tx);
-          requireDetachedTurnProvenance(input, stamp);
+      const input = {
+        network: "preprod" as const,
+        expectedPreprodGeneration: 7,
+        sokoBotId: fixture.bot.id,
+        userId: fixture.userId,
+        workspaceId: fixture.workspaceId,
+        source: "SCHEDULE" as const,
+        clientTurnId: randomUUID(),
+        message: "Previously picked up",
+      };
+      if (operation === "raise") await control.raisePreprodGeneration();
+      else
+        await prisma.syncMetadata.update({
+          where: { key: control.PREPROD_PAUSE_KEY },
+          data: { cursorId: "paused" },
         });
-        throw new Error("Expected the fence to refuse the turn");
+      await expect(realStarter.startTurn(input)).rejects.toMatchObject({
+        kind: operation === "raise" ? staleKind : "preprod_paused",
       });
-      await expect(tick(fixture.schedule.id)).resolves.toMatchObject({
-        claimed: 1,
-        ...(operation === "raise" ? { failed: 1 } : { deferred: 1 }),
-      });
-      expect(await runsOf(fixture)).toEqual([
-        expect.objectContaining(
-          operation === "raise"
-            ? { status: "FAILED", errorKind: staleKind, attempt: 1 }
-            : { status: "PENDING", attempt: 0, leaseToken: null },
-        ),
-      ]);
       expect(
         await prisma.sokoBotTurn.count({
           where: { sokoBotId: fixture.bot.id },
@@ -982,18 +1024,13 @@ describe.skipIf(!enabled)("detached schedules on PostgreSQL", () => {
       await update();
       try {
         await expect(tick(winner.schedule.id)).resolves.toMatchObject({
-          claimed: 1,
+          claimed: 0,
         });
       } finally {
         await operator.query("COMMIT");
       }
-      expect(start).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({
-          sokoBotId: winner.bot.id,
-          network: "preprod",
-          expectedPreprodGeneration: 7,
-        }),
-      );
+      expect(start).not.toHaveBeenCalled();
+      expect(await runsOf(winner)).toEqual([]);
       await expectNoCharges(loser);
       await expectNoCharges(winner);
     },

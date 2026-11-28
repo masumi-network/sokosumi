@@ -14,8 +14,9 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import { X402_BUY_SIDE_READINESS_KEY } from "@/helpers/x402-readiness";
 import { coreEvlogMiddleware } from "@/lib/evlog";
+import type { Network } from "@/lib/network";
+import { preAuthenticatedRequests } from "@/middleware/auth";
 
 import mountGetAgents from "../../../get";
 
@@ -35,7 +36,9 @@ export const EVM_WALLET_ADDRESS = "0x3333333333333333333333333333333333333333";
  * property is an excess property against `UserAuthenticationContext`.
  */
 /** `evlog` mounts the request logger, for tests that read the wide event. */
-export function createApp(options: { evlog?: boolean } = {}) {
+export function createApp(
+  options: { evlog?: boolean; network?: Network } = {},
+) {
   const app = new OpenAPIHono({
     defaultHook: (result) => {
       if (!result.success && result.error) {
@@ -46,6 +49,17 @@ export function createApp(options: { evlog?: boolean } = {}) {
 
   if (options.evlog) app.use("*", coreEvlogMiddleware());
   app.use("*", async (c, next) => {
+    c.req.raw.headers.set("X-Sokosumi-Network", options.network ?? "preprod");
+    preAuthenticatedRequests.set(c.req.raw, {
+      isAuthenticated: true,
+      authContext: {
+        actor: "user",
+        userId: "catalog-reader",
+        organizationId: null,
+        authenticationMethod: "session",
+        role: "admin",
+      },
+    });
     c.set("requestId", "test-req-id");
     return await next();
   });
@@ -73,7 +87,7 @@ export interface ReadinessPairFixture {
 /** The `syncMetadata` row `getX402ReadySources` parses its pairs out of. */
 export function createReadinessRow(pairs: ReadinessPairFixture[]) {
   return {
-    key: X402_BUY_SIDE_READINESS_KEY,
+    key: "x402-buy-side-readiness",
     cursorId: JSON.stringify(
       pairs.map((pair) => ({
         decimals: NODE_DECIMALS,

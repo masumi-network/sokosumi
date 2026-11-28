@@ -155,6 +155,7 @@ describe("organization creation", () => {
     });
     expect(mocks.ensureFreeSubscription).toHaveBeenCalledWith(
       {
+        grantCredits: expect.any(Function),
         createdAt: organization.createdAt,
         kind: "organization",
         organizationId: "org-1",

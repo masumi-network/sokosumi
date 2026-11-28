@@ -1,8 +1,10 @@
 import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
-
 import { getEnv } from "../config/env.js";
+import { PREPROD_MASUMI_WARNING } from "../config/masumi.js";
 import { getEnvSecrets, redactDeep } from "./secret-redaction.js";
+
+let reportedMissingPreprodMasumi = false;
 
 export function initSentry() {
   const env = getEnv();
@@ -96,4 +98,13 @@ export function initSentry() {
     // exception values, and breadcrumbs are all covered by the walk.
     beforeSend: (event) => redactDeep(event, getEnvSecrets()),
   });
+
+  if (env.missingPreprodMasumiVariables && !reportedMissingPreprodMasumi) {
+    Sentry.captureMessage(PREPROD_MASUMI_WARNING, {
+      level: "warning",
+      tags: { operation: "masumi_configuration" },
+      extra: { missingVariables: env.missingPreprodMasumiVariables },
+    });
+    reportedMissingPreprodMasumi = true;
+  }
 }

@@ -30,7 +30,31 @@ export function ignoreBase(env = process.env) {
   return base;
 }
 
+// The old Preprod's two Vercel projects (web, core). They are frozen until
+// the owner deletes them: no push and no redeploy may build there. The
+// dashboard's Ignored Build Step cannot do this, because `ignoreCommand` in
+// vercel.json overrides it.
+const FROZEN_PROJECT_IDS = new Set([
+  "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
+  "prj_DsK6SqWjSU47g7O3unja5h4jtxMk",
+]);
+
+/**
+ * True for a build of the frozen old Preprod, by project id, or by the
+ * project's own `NETWORK` variable in case the id is not passed to this step.
+ */
+export function isFrozenProject(env = process.env) {
+  return (
+    FROZEN_PROJECT_IDS.has(env.VERCEL_PROJECT_ID) ||
+    env.NETWORK?.toLowerCase() === "preprod"
+  );
+}
+
 if (import.meta.main) {
+  if (isFrozenProject()) {
+    console.log("The old Preprod is frozen: skipping this build.");
+    process.exit(0);
+  }
   const base = ignoreBase();
   const turboPackage = process.argv[2];
   if (!base || !turboPackage) {

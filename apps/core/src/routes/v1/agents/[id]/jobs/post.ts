@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
 import { createAgentJobForUser } from "@/helpers/job";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import {
@@ -64,6 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireNotCmoProject(projectId, workspaceContext.workspaceId);
     }
 
+    requireMainnetMasumiPayment(c.var.networkScope);
     const job = await createAgentJobForUser({
       owner: {
         ownerId: userContext.userId,

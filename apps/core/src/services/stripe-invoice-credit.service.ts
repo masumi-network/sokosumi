@@ -1,8 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { CreditBucketReferenceType } from "@sokosumi/database";
 import {
-  buildOrganizationInvoiceCreditReferenceId,
-  buildUserInvoiceCreditReferenceId,
   getCreditExpiryDate,
   resolveOrganizationBillingPlan,
   resolvePurchasedSeats,
@@ -19,6 +17,12 @@ import { stripeClient } from "@/clients/stripe.client";
 import { getEnv } from "@/config/env";
 import { notifyInvoicePaid } from "@/helpers/billing-notifications";
 import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
+import {
+  findStripeInvoiceGrant,
+  grant,
+  type StripeInvoiceGrant,
+} from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
@@ -36,13 +40,9 @@ const SUBSCRIPTION_METADATA_CREDIT_BILLING_REASONS = new Set([
 ]);
 const SUBSCRIPTION_UPDATE_BILLING_REASON = "subscription_update";
 
-interface InvoiceCreditGrant {
-  bucketUserId: string | null;
+interface InvoiceCreditGrant
+  extends Pick<StripeInvoiceGrant, "entry" | "expiresAt" | "referenceType"> {
   credits: number;
-  expiresAt: Date | null;
-  referenceId: string;
-  referenceType: CreditBucketReferenceType;
-  userId: string | null;
 }
 
 interface SubscriptionLine {
@@ -68,12 +68,9 @@ interface BuildInvoiceCreditGrantsParams {
   oneTimeTopUpExpiresAt: Date | null;
   oneTimeTopUpCredits: number;
   oneTimeTopUpReferenceType: CreditBucketReferenceType;
-  organizationId: string | null;
   skipOrganizationSubscriptionSplit: boolean;
   subscriptionCredits: number;
   subscriptionCreditsExpiry: Date | null;
-  userId: string | null;
-  invoiceId: string;
 }
 
 function getTopUpCreditsFromInvoiceMetadata(
@@ -320,87 +317,44 @@ function buildInvoiceCreditGrants(
   const creditGrants: InvoiceCreditGrant[] = [];
 
   if (params.oneTimeTopUpCredits > 0) {
-    if (params.organizationId) {
-      creditGrants.push({
-        bucketUserId: null,
-        credits: params.oneTimeTopUpCredits,
-        expiresAt: params.oneTimeTopUpExpiresAt,
-        referenceId: buildOrganizationInvoiceCreditReferenceId(
-          params.organizationId,
-          params.invoiceId,
-          "topup",
-        ),
-        referenceType: params.oneTimeTopUpReferenceType,
-        userId: null,
-      });
-    } else {
-      if (params.userId === null) {
-        throw new Error(
-          `Missing user for personal invoice ${params.invoiceId}`,
-        );
-      }
-      creditGrants.push({
-        bucketUserId: params.userId,
-        credits: params.oneTimeTopUpCredits,
-        expiresAt: params.oneTimeTopUpExpiresAt,
-        referenceId: buildUserInvoiceCreditReferenceId(
-          params.userId,
-          params.invoiceId,
-          "topup",
-        ),
-        referenceType: params.oneTimeTopUpReferenceType,
-        userId: params.userId,
-      });
-    }
-  }
-
-  if (params.subscriptionCredits <= 0) {
-    return creditGrants;
-  }
-
-  if (!params.organizationId) {
-    if (params.userId === null) {
-      throw new Error(`Missing user for personal invoice ${params.invoiceId}`);
-    }
     creditGrants.push({
-      bucketUserId: params.userId,
-      credits: params.subscriptionCredits,
-      expiresAt: params.subscriptionCreditsExpiry,
-      referenceId: buildUserInvoiceCreditReferenceId(
-        params.userId,
-        params.invoiceId,
-        "subscription",
-      ),
-      referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-      userId: params.userId,
+      entry: "topup",
+      credits: params.oneTimeTopUpCredits,
+      expiresAt: params.oneTimeTopUpExpiresAt,
+      referenceType: params.oneTimeTopUpReferenceType,
     });
-
+  }
+  if (
+    params.subscriptionCredits <= 0 ||
+    params.skipOrganizationSubscriptionSplit
+  ) {
     return creditGrants;
   }
-
-  if (params.skipOrganizationSubscriptionSplit) {
-    return creditGrants;
-  }
-
   creditGrants.push({
-    bucketUserId: null,
+    entry: "subscription",
     credits: params.subscriptionCredits,
     expiresAt: params.subscriptionCreditsExpiry,
-    referenceId: buildOrganizationInvoiceCreditReferenceId(
-      params.organizationId,
-      params.invoiceId,
-      "subscription",
-    ),
-    referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
-    userId: null,
+    referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
   });
-
   return creditGrants;
 }
 
 interface InvoiceCreditOwner {
   organizationId: string | null;
   userId: string | null;
+}
+
+function invoiceCreditOwner(
+  organizationId: string | null,
+  userId: string | null,
+  invoiceId: string,
+): StripeInvoiceGrant["owner"] {
+  if (organizationId) return { organizationId };
+  if (userId === null)
+    throw new Error(`Missing user for personal invoice ${invoiceId}`);
+  // The personal reference is validated before opening the grant transaction.
+  if (!userId) throw new Error("userId is required");
+  return { userId };
 }
 
 type PermanentUnknownInvoiceCustomerReason =
@@ -744,21 +698,11 @@ export async function handleInvoicePaidEvent(
     !skipOrganizationSubscriptionSplit
   ) {
     const existingOrganizationInvoiceSubscriptionBucket =
-      await prisma.creditBucket.findUnique({
-        where: {
-          referenceId_referenceType: {
-            referenceId: buildOrganizationInvoiceCreditReferenceId(
-              organizationId,
-              invoiceId,
-              "subscription",
-            ),
-            referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
+      await findStripeInvoiceGrant(
+        prisma,
+        { owner: { organizationId }, invoiceId, entry: "subscription" },
+        CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
+      );
 
     if (existingOrganizationInvoiceSubscriptionBucket) {
       skipOrganizationSubscriptionSplit = true;
@@ -767,15 +711,12 @@ export async function handleInvoicePaidEvent(
   }
 
   const creditGrants = buildInvoiceCreditGrants({
-    invoiceId,
     oneTimeTopUpExpiresAt: oneTimeTopUpGrantPolicy.expiresAt,
     oneTimeTopUpCredits,
     oneTimeTopUpReferenceType: oneTimeTopUpGrantPolicy.referenceType,
-    organizationId,
     skipOrganizationSubscriptionSplit,
     subscriptionCredits,
     subscriptionCreditsExpiry,
-    userId,
   });
 
   const wallet = { userId, organizationId };
@@ -790,69 +731,28 @@ export async function handleInvoicePaidEvent(
     return;
   }
 
+  const owner = invoiceCreditOwner(organizationId, userId, invoiceId);
+  const scope = createNetworkScope("mainnet");
   let creditsGranted = false;
 
   await prisma.$transaction(async (tx) => {
-    for (const grant of creditGrants) {
-      const existingBucket = await tx.creditBucket.findUnique({
-        where: {
-          referenceId_referenceType: {
-            referenceId: grant.referenceId,
-            referenceType: grant.referenceType,
-          },
+    for (const item of creditGrants) {
+      const receipt = await grant({
+        kind: "stripe_invoice",
+        scope,
+        tx,
+        owner,
+        invoiceId,
+        entry: item.entry,
+        expiresAt: item.expiresAt,
+        referenceType: item.referenceType,
+        // A replay reads its existing reference without converting the amount.
+        get cents() {
+          return convertCreditsToCents(item.credits);
         },
-        select: { id: true },
+        wakeTasks: false,
       });
-
-      if (existingBucket) {
-        creditsLanded = true;
-        continue;
-      }
-
-      const cents = convertCreditsToCents(grant.credits);
-      if (organizationId) {
-        await tx.transaction.create({
-          data: {
-            amount: cents,
-            organizationId,
-            userId: null,
-            sourceCreditBucket: {
-              create: {
-                amount: cents,
-                expiresAt: grant.expiresAt,
-                referenceId: grant.referenceId,
-                referenceType: grant.referenceType,
-                userId: grant.bucketUserId,
-                organizationId,
-              },
-            },
-          },
-        });
-      } else {
-        if (grant.userId === null) {
-          throw new Error(
-            `Missing user for personal invoice grant ${grant.referenceId}`,
-          );
-        }
-        await tx.transaction.create({
-          data: {
-            amount: cents,
-            user: { connect: { id: grant.userId } },
-            sourceCreditBucket: {
-              create: {
-                amount: cents,
-                expiresAt: grant.expiresAt,
-                referenceId: grant.referenceId,
-                referenceType: grant.referenceType,
-                userId: grant.bucketUserId,
-                organizationId,
-              },
-            },
-          },
-        });
-      }
-
-      creditsGranted = true;
+      if (receipt.outcome === "granted") creditsGranted = true;
       creditsLanded = true;
     }
 

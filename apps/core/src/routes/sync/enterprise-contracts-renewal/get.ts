@@ -1,6 +1,7 @@
 import { runEnterpriseContractSchedulerPass } from "@sokosumi/database/helpers";
 import type { Hono } from "hono";
 
+import { grantEnterpriseCredits } from "@/lib/credits/grant";
 import { serializableTransaction } from "@/lib/db/transaction";
 
 import { handleSyncRequest } from "../handler.js";
@@ -16,7 +17,11 @@ export default function mount(app: Hono) {
       async (context) => {
         // The period amount read here must serialize with admin credit edits.
         const result = await serializableTransaction(
-          (tx) => runEnterpriseContractSchedulerPass(tx),
+          (tx) =>
+            runEnterpriseContractSchedulerPass(
+              tx,
+              grantEnterpriseCredits(context.scope, tx),
+            ),
           "Enterprise contract changed concurrently; retry renewal",
         );
 
@@ -29,7 +34,8 @@ export default function mount(app: Hono) {
           },
         });
       },
-      { errorDetail: "cause" },
+      // Enterprise credits are Mainnet's.
+      { errorDetail: "cause", network: "mainnet" },
     );
   });
 }

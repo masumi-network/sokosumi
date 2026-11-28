@@ -84,6 +84,22 @@ export function canUsePreprodInWorkspace(
   return (workspace.organization ?? user).preprodEnabled === true;
 }
 
+/** Keep interpreting scoped keys and headers while a configuration failure keeps Preprod offline. */
+export function isNetworkRoutingEnabled(): boolean {
+  const env = getEnv();
+  return (
+    env.NETWORK_PREPROD_ENABLED ||
+    env.missingPreprodMasumiVariables !== undefined
+  );
+}
+
+/** The Network that is not `network`: where a key used on one is looked up on the other. */
+export function otherNetwork(network: Network): Network {
+  const other = NETWORKS.find((candidate) => candidate !== network);
+  if (!other) throw new Error(`No Network besides ${network}`);
+  return other;
+}
+
 export function networksThatAreOn(): readonly Network[] {
   return isPreprodOn() ? NETWORKS : ["mainnet"];
 }

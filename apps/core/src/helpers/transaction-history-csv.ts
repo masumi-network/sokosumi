@@ -1,12 +1,12 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { loadAgentPreviewsByIds } from "@/helpers/history";
+import { mapTransactionHistoryRow } from "@/helpers/transaction-history";
 import {
   type BuildTransactionHistoryParams,
   findTransactionHistoryPage,
-  mapTransactionHistoryRow,
   type TransactionHistoryPrismaClient,
-} from "@/helpers/transaction-history";
+} from "@/lib/credits/history";
 import type prisma from "@/lib/db/prisma";
 
 const PAGE_SIZE = 1000;
@@ -47,7 +47,8 @@ function csvRow(fields: string[]): string {
  */
 export function streamTransactionCsv(
   params: BuildTransactionHistoryParams,
-  prismaClient: TransactionHistoryPrismaClient & Pick<typeof prisma, "agent">,
+  prismaClient: TransactionHistoryPrismaClient &
+    Pick<typeof prisma, "agent"> = params.billingScope.networkDb,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   let cursor: string | undefined;

@@ -18,12 +18,7 @@
  * transaction on the same database can make a settlement retry, and a retry
  * is a second transaction in the statements.
  *
- * On the split layout every case that charges stops at the usage check,
- * before any debit: `chargeSokoBotUsage` reads `soko_bot_usage` through the
- * shared client (a Cuso's check, before it, at his free-hiring read).
- * `origin/main` stops at the same statement. There each such case checks
- * that stop (`expectStoppedAtTheUsageCheck`), and the stale Preprod turn and
- * the check without a price, which stop before, are compared as here.
+ * Both layouts compare the committed Mainnet receipts with the same base.
  *
  * What runs after a settlement commits and is not the payer's, the delivery
  * of the turn and the log of its route, does nothing here; the low-balance
@@ -31,8 +26,14 @@
  */
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import type { Pool } from "pg";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import {
+  configureSqlTables,
+  sharedTable,
+  sqlTableLayoutFromEnv,
+} from "@sokosumi/database/sql-tables";
+import { Client, type Pool } from "pg";
+import { afterAll, describe, expect, it, onTestFinished, vi } from "vitest";
+import { onSplitLayout } from "@/test/split-layout";
 
 const background = vi.hoisted(() => [] as Promise<unknown>[]);
 vi.mock("@vercel/functions", async (importOriginal) => {
@@ -78,27 +79,28 @@ vi.mock("@/lib/soko-bot/route-outcome", async (importOriginal) => ({
 }));
 
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { convertCreditsToCents } from "@sokosumi/utils";
-
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   chargeSokoBotCredits,
+  requireSokoBotTurnFunding,
   sokoBotUsageCents,
 } from "@/services/soko-bot-billing.service";
 import { SokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import {
   baseFile,
+  nextMillisecond,
   observing,
   plain,
   type Statement,
   statements,
   thrown,
 } from "@/test/spend-comparison";
-import { onSplitLayout } from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -414,11 +416,22 @@ async function rows(payer: Payer) {
  * One observed call: its answer, the statements it sent, and the rows it
  * left. What the call left to run after it, the notices of a settlement,
  * ends before the rows are read.
+ *
+ * That work ends inside the observation: it runs beside the call (the
+ * low-balance notice's publish), so a window closed when the call returns
+ * would cut its statements wherever the scheduler stood. Work an earlier
+ * step left ends before the window opens.
  */
 async function observe(payer: Payer, call: () => Promise<unknown>) {
-  const started = Date.now();
-  const { outcome, log } = await observing(call);
-  while (background.length > 0) await Promise.allSettled(background.splice(0));
+  await drainBackground();
+  const started = await nextMillisecond();
+  const { outcome, log } = await observing(async () => {
+    try {
+      return await call();
+    } finally {
+      await drainBackground();
+    }
+  });
   const ended = Date.now();
   const left = await rows(payer);
   // Before `plain` turns every time into `<time>`: a debit is one instant, its
@@ -462,7 +475,11 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
     return debitAt !== undefined && usage.createdAt.getTime() >= debitAt;
   });
   expect(receiptsNotBeforeTheirDebit).not.toContain(false);
-  const debitRows = [...left.transactions, ...left.consumptions];
+  const billedRows = [
+    ...left.transactions,
+    ...left.consumptions,
+    ...left.usage,
+  ];
   const debitTimes = [
     ...left.transactions.flatMap((row) => [row.createdAt, row.updatedAt]),
     ...left.consumptions.map((row) => row.createdAt),
@@ -476,7 +493,7 @@ async function observe(payer: Payer, call: () => Promise<unknown>) {
       // times are this call's, the order of a debit's consumption ids and
       // how a receipt's time relates to its debit's.
       debit: {
-        uuidVersions: debitRows.map((row) => row.id.charAt(14)),
+        uuidVersions: billedRows.map((row) => row.id.charAt(14)),
         timesWithinTheCall: debitTimes.map(
           (time) => time.getTime() >= started && time.getTime() <= ended,
         ),
@@ -507,6 +524,10 @@ function bucketsAsBound(
       return rows.filter((row) => row[4] === debitId).map((row) => row[3]);
   }
   return null;
+}
+
+async function drainBackground() {
+  while (background.length > 0) await Promise.allSettled(background.splice(0));
 }
 
 function settled(result: PromiseSettledResult<unknown>) {
@@ -630,58 +651,6 @@ function withTheCancelledDebitInsert(
   });
 }
 
-const USAGE_READ = /^SELECT .* FROM "public"\."soko_bot_usage" /;
-/** Whether a Cuso is in free hiring: it reads his Project's credit buckets. */
-const FREE_HIRING_READ = /^SELECT .*"public"\."credit_bucket"/;
-
-/**
- * What a call that reaches the usage check does on the split layout: it
- * stops there, before any debit, and rolls back. `chargeSokoBotUsage` reads
- * `soko_bot_usage`, a Mainnet table, through the shared client until ticket
- * 30 moves it; `origin/main` stops at the same statement. Every call that
- * charges is held to this, so a new charge that fails there cannot hide the
- * stale Preprod turn's comparison, which runs on both layouts. A Cuso's
- * call stops before, at `stopsAt`: whether he is in free hiring reads his
- * Project's credit buckets through the shared client too.
- */
-function expectStoppedAtTheUsageCheck(
-  observed: unknown,
-  stopsAt = USAGE_READ,
-): void {
-  const { rows, statements: sent } = observed as {
-    rows: { transactions: unknown[]; usage: unknown[] };
-    statements: { transactions: Statement[][] };
-  };
-  expect({ debits: rows.transactions, usage: rows.usage }).toEqual({
-    debits: [],
-    usage: [],
-  });
-  const attempts = sent.transactions.filter((transaction) =>
-    transaction.some(({ sql }) => stopsAt.test(sql)),
-  );
-  expect(attempts.length).toBeGreaterThan(0);
-  for (const transaction of attempts) {
-    expect(transaction.map(({ sql }) => sql).slice(-2)).toEqual([
-      expect.stringMatching(stopsAt),
-      "ROLLBACK",
-    ]);
-  }
-  expect(
-    sent.transactions.flat().filter(({ sql }) => DEBIT_INSERT.test(sql)),
-  ).toEqual([]);
-}
-
-/** A case that charges: as on `origin/main`, or on the split layout, stopped. */
-function expectAsOnMain(
-  key: string,
-  observed: unknown,
-  rewrite?: (transactions: Statement[][]) => Statement[][],
-  stopsAt?: RegExp,
-): void {
-  if (onSplitLayout) expectStoppedAtTheUsageCheck(observed, stopsAt);
-  else expectAsOnBase(key, observed, rewrite);
-}
-
 describe.skipIf(!enabled)(
   "the Soko Bot's debit, as on origin/main (PostgreSQL)",
   () => {
@@ -720,10 +689,337 @@ describe.skipIf(!enabled)(
       });
       // The free plan `createPersonalWorkspace` grants is not tied to the user.
       await prisma.subscription.deleteMany({
-        where: { referenceId: { in: userIds } },
+        where: { referenceId: { in: [...userIds, ...organizationIds] } },
       });
       await prisma.user.deleteMany({ where: { id: { in: userIds } } });
     }, CASE_TIMEOUT);
+
+    it.each(["real", "same millisecond", "tick at Date.now"] as const)(
+      "orders 1,000 settled usage IDs by creation and mints each by its row time (%s)",
+      async (clock) => {
+        const count = 1_000;
+        const payer = await person("receipt clock", [
+          { name: "personal", cents: PRICE * BigInt(count), expiresInDays: 30 },
+        ]);
+        const control = plane();
+        const turnIds: string[] = [];
+        if (clock !== "real") vi.useFakeTimers({ toFake: ["Date"] });
+        // Both Prisma's bundled UUID v7 and Core's UUID v7 read Date.now().
+        // Force a millisecond boundary even when the next new Date() is immediate.
+        const ticking =
+          clock === "tick at Date.now"
+            ? vi.spyOn(Date, "now").mockImplementation(() => {
+                const next = new Date().getTime() + 1;
+                vi.setSystemTime(next);
+                return next;
+              })
+            : undefined;
+        try {
+          for (let index = 0; index < count; index++) {
+            const id = await turn(payer, `receipt-${index}`);
+            expect(await control.expireTurn(id)).toBe(true);
+            turnIds.push(id);
+            await drainBackground();
+          }
+        } finally {
+          ticking?.mockRestore();
+          vi.useRealTimers();
+        }
+
+        const receipts = await mainnet().sokoBotUsage.findMany({
+          where: { sokoBotId: payer.botId },
+          orderBy: { id: "asc" },
+          select: { id: true, createdAt: true, referenceId: true },
+        });
+        expect(receipts.map((row) => row.referenceId)).toEqual(turnIds);
+        if (clock !== "real") {
+          const times = new Set(receipts.map((row) => row.createdAt.getTime()));
+          expect(times.size).toBe(clock === "same millisecond" ? 1 : count);
+        }
+        for (const row of receipts) {
+          // The first 48 bits of a UUID v7 are its Unix time in milliseconds.
+          const idTime = Number.parseInt(
+            row.id.replaceAll("-", "").slice(0, 12),
+            16,
+          );
+          expect(idTime).toBeLessThanOrEqual(row.createdAt.getTime());
+        }
+      },
+      10 * CASE_TIMEOUT,
+    );
+
+    it(
+      "uses a prior release's turn receipt for replay",
+      async () => {
+        const payer = await person("prior receipt", [
+          { name: "personal", cents: PRICE * 2n, expiresInDays: 30 },
+        ]);
+        const id = await turn(payer, "rolling");
+        const debit = await mainnet().transaction.create({
+          data: {
+            userId: payer.memberId,
+            amount: -PRICE,
+            creditConsumptions: {
+              create: { bucketId: payer.bucketIds[0]!, amount: PRICE },
+            },
+          },
+        });
+        await mainnet().sokoBotUsage.create({
+          data: {
+            userId: payer.memberId,
+            sokoBotId: payer.botId,
+            referenceId: id,
+            idempotencyKey: `soko-bot-turn:${id}`,
+            cents: PRICE,
+            transactionId: debit.id,
+          },
+        });
+        await plane().expireTurn(id);
+        await drainBackground();
+        const result = await rows(payer);
+        expect(result.transactions).toMatchObject([
+          { id: debit.id, amount: -PRICE },
+        ]);
+        expect(result.usage).toMatchObject([
+          { transactionId: debit.id, cents: PRICE },
+        ]);
+      },
+      CASE_TIMEOUT,
+    );
+
+    it.each([
+      ["settlement", "settlement", 0],
+      ["settlement", "settlement", 1],
+      ["settlement", "cancel", 0],
+      ["settlement", "cancel", 1],
+    ] as const)(
+      "serializes one turn under %s and %s with caller %i first",
+      async (left, right, first) => {
+        const payer = await person("one-turn race", [
+          { name: "personal", cents: PRICE * 2n, expiresInDays: 30 },
+        ]);
+        const id = await turn(payer, "racing");
+        const control = plane();
+        const operations = [left, right].map(
+          (kind) => () =>
+            kind === "cancel"
+              ? control.cancelTurn(payer.memberId, id)
+              : control.expireTurn(id),
+        );
+        const lock = new Client({ connectionString: process.env.DATABASE_URL });
+        await lock.connect();
+        const pending: Promise<unknown>[] = [];
+        try {
+          await lock.query("BEGIN");
+          const table = sharedTable("soko_bot_turn").text;
+          await lock.query(`SELECT id FROM ${table} WHERE id=$1 FOR UPDATE`, [
+            id,
+          ]);
+          const observed = await observing(async () => {
+            for (const index of [first, 1 - first]) {
+              pending.push(operations[index]!());
+              await vi.waitFor(
+                async () => {
+                  await lock.query("SELECT pg_stat_clear_snapshot()");
+                  const { rows } = await lock.query<{ waiting: number }>(
+                    `SELECT count(*)::int AS waiting FROM pg_stat_activity WHERE datname=current_database() AND cardinality(pg_blocking_pids(pid))>0`,
+                  );
+                  expect(rows[0]?.waiting).toBe(pending.length);
+                },
+                { timeout: 5000, interval: 10 },
+              );
+            }
+            await lock.query("COMMIT");
+            return Promise.all(pending);
+          });
+          expect(observed.outcome).toBeInstanceOf(Array);
+          await drainBackground();
+          const leftRows = await rows(payer);
+          expect(leftRows.usage).toMatchObject([
+            {
+              referenceId: id,
+              idempotencyKey: `soko-bot-turn:${id}`,
+              cents: PRICE,
+            },
+          ]);
+          expect(leftRows.transactions).toHaveLength(1);
+          expect(leftRows.consumptions).toMatchObject([{ amount: PRICE }]);
+          expect(leftRows.turns).toMatchObject([
+            { status: "FAILED", errorKind: "turn_deadline_exceeded" },
+          ]);
+          const expected =
+            right === "cancel"
+              ? [first === 0 ? true : undefined, first === 0 ? undefined : true]
+              : [true, false];
+          expect(observed.outcome).toEqual(expected);
+        } finally {
+          await lock.query("ROLLBACK");
+          await Promise.allSettled(pending);
+          await lock.end();
+        }
+      },
+      CASE_TIMEOUT,
+    );
+
+    it.runIf(onSplitLayout)(
+      "charges a previously admitted Preprod turn on Mainnet and notifies its wallet owner",
+      async () => {
+        onTestFinished(
+          configureSqlTables({
+            ...sqlTableLayoutFromEnv(process.env),
+            preprodOn: true,
+          }),
+        );
+        const env = await import("@/config/env");
+        const getEnv = vi
+          .spyOn(env, "getEnv")
+          .mockReturnValue({ ...env.getEnv(), NETWORK_PREPROD_ENABLED: true });
+        const control = await import("@/helpers/preprod-control");
+        const keys = [
+          control.PREPROD_PAUSE_KEY,
+          control.PREPROD_GENERATION_KEY,
+        ];
+        const saved = await prisma.syncMetadata.findMany({
+          where: { key: { in: keys } },
+        });
+        try {
+          for (const [key, cursorId] of [
+            [keys[0]!, "open"],
+            [keys[1]!, "7"],
+          ]) {
+            await prisma.syncMetadata.upsert({
+              where: { key },
+              create: { key, cursorId, lastSyncedAt: new Date() },
+              update: { cursorId },
+            });
+          }
+          const payer = await person("Preprod wallet owner", [
+            { name: "crossing", cents: PRICE / 2n, expiresInDays: 30 },
+          ]);
+          const id = await turn(payer, "admitted", "preprod");
+          await prisma.sokoBotTurn.update({
+            where: { id },
+            data: { preprodGeneration: 7 },
+          });
+          expect(await plane().expireTurn(id)).toBe(true);
+          await drainBackground();
+          const result = await rows(payer);
+          expect(result.usage).toMatchObject([
+            { referenceId: id, cents: PRICE / 2n },
+          ]);
+          expect(result.notifications).toMatchObject([
+            { messageKey: "Notifications.Billing.lowBalance" },
+          ]);
+          expect(
+            await createNetworkScope("preprod").networkDb.sokoBotUsage.count({
+              where: { sokoBotId: payer.botId },
+            }),
+          ).toBe(0);
+        } finally {
+          await prisma.syncMetadata.deleteMany({
+            where: { key: { in: keys } },
+          });
+          await prisma.syncMetadata.createMany({ data: saved });
+          getEnv.mockRestore();
+        }
+      },
+      CASE_TIMEOUT,
+    );
+
+    it.each([
+      "funded",
+      "empty",
+      "recent large turn",
+      "open shortfall",
+      "free hiring",
+      "paused Cuso",
+      "Organization pool",
+      "member without Seat",
+    ] as const)(
+      "keeps the Mainnet funding decision for %s",
+      async (scenario) => {
+        const cuso =
+          scenario === "free hiring" ||
+          scenario === "paused Cuso" ||
+          scenario === "member without Seat";
+        const payer =
+          cuso || scenario === "Organization pool"
+            ? await organization(scenario, cuso ? "in free hiring" : undefined)
+            : await person(
+                scenario,
+                scenario === "empty"
+                  ? []
+                  : [{ name: "funding", cents: PRICE, expiresInDays: 30 }],
+              );
+        if (scenario === "paused Cuso") {
+          const { projectId } = await prisma.sokoBot.findUniqueOrThrow({
+            where: { id: payer.botId },
+            select: { projectId: true },
+          });
+          await prisma.marketingStrategy.create({
+            data: { projectId: projectId!, plan: {}, approvedAt: new Date() },
+          });
+        }
+        if (scenario === "member without Seat") {
+          const organizationId = (payer.billedTo as { organizationId: string })
+            .organizationId;
+          await prisma.subscription.create({
+            data: {
+              referenceId: organizationId,
+              plan: "starter",
+              status: "active",
+              seats: 1,
+              periodStart: new Date(),
+              periodEnd: new Date(Date.now() + DAY),
+              stripeSubscriptionId: "sub_" + organizationId,
+            },
+          });
+          await prisma.member.updateMany({
+            where: { userId: payer.memberId },
+            data: { seatAssignedAt: null },
+          });
+        }
+        if (scenario === "recent large turn" || scenario === "open shortfall") {
+          const id = await turn(payer, scenario, "preprod");
+          await prisma.sokoBotTurn.update({
+            where: { id },
+            data: {
+              status: "COMPLETED",
+              completedAt: new Date(),
+              costUsdMicros: COST_USD_MICROS * 3n,
+              errorKind:
+                scenario === "open shortfall" ? "insufficient_credits" : null,
+            },
+          });
+          const transaction = await mainnet().transaction.create({
+            data: { userId: payer.memberId, amount: -PRICE * 2n },
+          });
+          await mainnet().sokoBotUsage.create({
+            data: {
+              sokoBotId: payer.botId,
+              userId: payer.memberId,
+              idempotencyKey: `soko-bot-turn:${id}`,
+              referenceId: id,
+              transactionId: transaction.id,
+              cents: scenario === "recent large turn" ? PRICE * 2n : PRICE / 2n,
+            },
+          });
+        }
+        const member =
+          scenario === "Organization pool" ||
+          scenario === "paused Cuso" ||
+          scenario === "free hiring"
+            ? null
+            : payer.memberId;
+        expectAsOnBase(
+          "funding " + scenario,
+          await observe(payer, () =>
+            requireSokoBotTurnFunding(member, payer.botId),
+          ),
+        );
+      },
+      CASE_TIMEOUT,
+    );
 
     it(
       "charges a person's turn to their credits, soonest expiry first",
@@ -734,7 +1030,7 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "funded");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, a turn funded in full",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -748,7 +1044,7 @@ describe.skipIf(!enabled)(
         const payer = await organization("funded Organization");
         const turnId = await turn(payer, "Organization");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a Project bot of an Organization, a turn funded in full",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -765,7 +1061,7 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "partial");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, a turn funded in part",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -779,7 +1075,7 @@ describe.skipIf(!enabled)(
         const payer = await person("empty person", []);
         const turnId = await turn(payer, "empty");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, an empty wallet",
           await observe(payer, () => plane().expireTurn(turnId)),
         );
@@ -795,16 +1091,15 @@ describe.skipIf(!enabled)(
         ]);
         const turnId = await turn(payer, "drained");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, credits gone after the balance read",
           await aroundTheBucketChoice(
             async (prepare, args) => {
               // Inside the settlement's transaction, between its two reads.
               const tx = args[4] as Prisma.TransactionClient;
-              await tx.creditBucket.updateMany({
-                where: { id: { in: payer.bucketIds } },
-                data: { amount: 0n },
-              });
+              const bucket =
+                createNetworkScope("mainnet").networkTable("credit_bucket");
+              await tx.$executeRaw`UPDATE ${bucket} SET "amount" = ${0n}, "updatedAt" = ${new Date()} WHERE ${bucket}."id" IN (${PrismaRaw.join(payer.bucketIds)})`;
               return prepare(...args);
             },
             () => observe(payer, () => plane().expireTurn(turnId)),
@@ -823,7 +1118,7 @@ describe.skipIf(!enabled)(
         const turnId = await turn(payer, "rolled back");
         failAfterTheDebit.armed = true;
         try {
-          expectAsOnMain(
+          expectAsOnBase(
             "a person, the settlement fails after its debit",
             await observe(payer, () => plane().expireTurn(turnId)),
           );
@@ -857,7 +1152,7 @@ describe.skipIf(!enabled)(
       async () => {
         const payer = await organization("checked Organization");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a Project bot of an Organization, a check",
           await observe(payer, () =>
             chargeSokoBotCredits({
@@ -883,10 +1178,6 @@ describe.skipIf(!enabled)(
             key: "soko-bot-usage-spend-replay",
             credits: CHECK_CREDITS,
           });
-        if (onSplitLayout) {
-          expectStoppedAtTheUsageCheck(await observe(payer, check));
-          return;
-        }
         await check();
         // The first charge's times lie before the observed call, also in
         // milliseconds: the debit's times are read against the call's.
@@ -894,7 +1185,7 @@ describe.skipIf(!enabled)(
         while (Date.now() <= charged)
           await new Promise((resolve) => setTimeout(resolve, 1));
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, a check charged before",
           await observe(payer, check),
         );
@@ -905,7 +1196,7 @@ describe.skipIf(!enabled)(
     it(
       "charges two turns racing for the same credits, the second created settling first",
       async () => {
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, two turns race, the first created holds",
           await race("first holds", 0),
           withTheCancelledDebitInsert,
@@ -917,7 +1208,7 @@ describe.skipIf(!enabled)(
     it(
       "charges two turns racing for the same credits, the first created settling first",
       async () => {
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, two turns race, the second created holds",
           await race("second holds", 1),
           withTheCancelledDebitInsert,
@@ -960,17 +1251,13 @@ describe.skipIf(!enabled)(
             key: "soko-bot-usage-spend-short-replay",
             credits: CHECK_CREDITS,
           });
-        if (onSplitLayout) {
-          expectStoppedAtTheUsageCheck(await observe(payer, check));
-          return;
-        }
         await check();
         // As in the replay above: the first charge's times lie before the call.
         const charged = Date.now();
         while (Date.now() <= charged)
           await new Promise((resolve) => setTimeout(resolve, 1));
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a person, a check charged in part before",
           await observe(payer, check),
         );
@@ -986,7 +1273,7 @@ describe.skipIf(!enabled)(
           "in free hiring",
         );
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a Cuso in free hiring, a check",
           await observe(payer, () =>
             chargeSokoBotCredits({
@@ -995,8 +1282,6 @@ describe.skipIf(!enabled)(
               credits: CHECK_CREDITS,
             }),
           ),
-          undefined,
-          FREE_HIRING_READ,
         );
       },
       CASE_TIMEOUT,
@@ -1007,7 +1292,7 @@ describe.skipIf(!enabled)(
       async () => {
         const payer = await organization("paid Cuso Organization", "paid");
 
-        expectAsOnMain(
+        expectAsOnBase(
           "a paid Cuso, a check",
           await observe(payer, () =>
             chargeSokoBotCredits({
@@ -1017,8 +1302,6 @@ describe.skipIf(!enabled)(
               credits: 100,
             }),
           ),
-          undefined,
-          FREE_HIRING_READ,
         );
       },
       CASE_TIMEOUT,

@@ -12,7 +12,6 @@ import {
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import {
   getTrustedX402ExactEvmDomain,
-  isX402NetworkAllowed,
   trimEvmWalletId,
   type X402ReadySource,
 } from "@/helpers/x402-readiness";
@@ -134,7 +133,7 @@ function toPricedNetworkAsset(
  */
 export function computeEnabledPricedNetworks(
   networks: readonly X402AvailableNetwork[],
-  environment: "Preprod" | "Mainnet",
+  allowedNetworks: readonly string[],
 ): Map<string, PricedNetworkAsset | null> {
   const enabledNetworks = new Map<string, PricedNetworkAsset | null>();
   // Chains seen disabled, tracked separately so a disabled duplicate of an
@@ -148,7 +147,7 @@ export function computeEnabledPricedNetworks(
     if (
       !caip2Id ||
       !CAIP2_EVM_NETWORK_PATTERN.test(caip2Id) ||
-      !isX402NetworkAllowed(caip2Id, environment)
+      !allowedNetworks.includes(caip2Id)
     ) {
       continue;
     }
@@ -263,10 +262,13 @@ export function computeEnabledPricedNetworks(
 export function composeX402ReadySources(
   networks: readonly X402AvailableNetwork[],
   spendCaps: X402KeySpendCaps | null,
-  environment: "Preprod" | "Mainnet",
+  allowedNetworks: readonly string[],
   purchasingWallets: readonly PurchasingWalletWithBalances[] = [],
 ): X402ReadySource[] {
-  const enabledNetworks = computeEnabledPricedNetworks(networks, environment);
+  const enabledNetworks = computeEnabledPricedNetworks(
+    networks,
+    allowedNetworks,
+  );
 
   // A wallet id is the node's primary key, so two rows sharing one is a
   // malformed listing. It matters because the recorded pair carries an id AND

@@ -836,8 +836,13 @@ function stopsOnTheSplitLayout(requests: number) {
 describe.skipIf(!enabled)(
   "the Task writer's charge, as on origin/main (PostgreSQL)",
   () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       for (const ids of Object.values(thisCase)) ids.length = 0;
+      // Keep the key's usage write throttled for the cases that reuse it.
+      await prisma.coworkerApiKey.updateMany({
+        where: { coworkerId: (await theCoworker()).id },
+        data: { lastUsedAt: new Date(Date.now() + DAY) },
+      });
     });
 
     beforeAll(async () => {
@@ -893,6 +898,11 @@ describe.skipIf(!enabled)(
     it(
       "charges a Task's Owner their personal credits, soonest expiry first",
       async () => {
+        // Record the first-use write in this case even when it runs alone.
+        await prisma.coworkerApiKey.updateMany({
+          where: { coworkerId: (await theCoworker()).id },
+          data: { lastUsedAt: null },
+        });
         stopsOnTheSplitLayout(1);
         const payer = await person("funded person");
         const taskId = await task(payer, "funded person's Task");

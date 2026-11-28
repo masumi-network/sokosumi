@@ -61,7 +61,7 @@ vi.mock("@/config/env", () => ({
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  creditBucketRepository: { getBalance: getBalanceMock },
+  creditBucketRepository: { getNetworkBalance: getBalanceMock },
 }));
 
 vi.mock("@/lib/db/prisma", () => {
@@ -262,6 +262,7 @@ describe("submitting quotes, and takes nothing", () => {
     await createImageJob(BASE_INPUT);
 
     expect(getBalanceMock).toHaveBeenCalledWith(
+      "mainnet",
       "user-1",
       null,
       expect.anything(),
@@ -281,6 +282,7 @@ describe("submitting quotes, and takes nothing", () => {
 
     // The same Project the delivery charges with.
     expect(getBalanceMock).toHaveBeenCalledWith(
+      "mainnet",
       "user-1",
       "org-1",
       expect.anything(),

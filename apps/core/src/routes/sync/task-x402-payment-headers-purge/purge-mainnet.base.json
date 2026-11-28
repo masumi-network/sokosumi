@@ -1,0 +1,118 @@
+{
+  "outcome": [
+    200,
+    {
+      "message": "Syncing started"
+    }
+  ],
+  "sql": [
+    {
+      "text": "BEGIN",
+      "values": []
+    },
+    {
+      "text": "SELECT \"public\".\"Lock\".\"id\" FROM \"public\".\"Lock\" WHERE (\"public\".\"Lock\".\"key\" = $1 AND 1=1) OFFSET $2",
+      "values": ["task-x402-payment-headers-purge-sync", "0"]
+    },
+    {
+      "text": "INSERT INTO \"public\".\"Lock\" (\"id\",\"createdAt\",\"updatedAt\",\"key\",\"isLocked\") VALUES ($1,$2,$3,$4,$5) RETURNING \"public\".\"Lock\".\"id\"",
+      "values": [
+        "<lock id>",
+        "2026-11-27 12:00:00",
+        "2026-11-27 12:00:00",
+        "task-x402-payment-headers-purge-sync",
+        false
+      ]
+    },
+    {
+      "text": "SELECT \"public\".\"Lock\".\"id\", \"public\".\"Lock\".\"createdAt\", \"public\".\"Lock\".\"updatedAt\", \"public\".\"Lock\".\"key\", \"public\".\"Lock\".\"isLocked\", \"public\".\"Lock\".\"lockedAt\", \"public\".\"Lock\".\"lockedBy\" FROM \"public\".\"Lock\" WHERE \"public\".\"Lock\".\"id\" = $1 LIMIT $2 OFFSET $3",
+      "values": ["<lock id>", "1", "0"]
+    },
+    {
+      "text": "UPDATE \"public\".\"Lock\" SET \"isLocked\" = $1, \"lockedBy\" = $2, \"lockedAt\" = $3, \"updatedAt\" = $4 WHERE (\"public\".\"Lock\".\"key\" = $5 AND (\"public\".\"Lock\".\"isLocked\" = $6 OR (\"public\".\"Lock\".\"isLocked\" = $7 AND \"public\".\"Lock\".\"lockedAt\" IS NULL) OR (\"public\".\"Lock\".\"isLocked\" = $8 AND \"public\".\"Lock\".\"lockedAt\" < $9)))",
+      "values": [
+        true,
+        "<owner token>",
+        "2026-11-27 12:00:00",
+        "2026-11-27 12:00:00",
+        "task-x402-payment-headers-purge-sync",
+        false,
+        true,
+        true,
+        "2026-11-27 11:45:00"
+      ]
+    },
+    {
+      "text": "COMMIT",
+      "values": []
+    },
+    {
+      "text": "SELECT \"public\".\"task_x402_payment\".\"id\" FROM \"public\".\"task_x402_payment\" WHERE (\"public\".\"task_x402_payment\".\"xPaymentHeader\" IS NOT NULL AND ((\"public\".\"task_x402_payment\".\"validBefore\" IS NOT NULL AND \"public\".\"task_x402_payment\".\"validBefore\" <= $1) OR \"public\".\"task_x402_payment\".\"updatedAt\" <= $2)) ORDER BY \"public\".\"task_x402_payment\".\"id\" ASC LIMIT $3 OFFSET $4",
+      "values": ["2026-11-27 12:00:00", "2026-11-27 09:59:00", "500", "0"]
+    },
+    {
+      "text": "UPDATE \"public\".\"task_x402_payment\" SET \"xPaymentHeader\" = $1, \"updatedAt\" = $2 WHERE (\"public\".\"task_x402_payment\".\"id\" IN ($3) AND \"public\".\"task_x402_payment\".\"xPaymentHeader\" IS NOT NULL)",
+      "values": [
+        null,
+        "2026-11-27 12:00:00",
+        "01970000-0000-7000-8000-000000000001"
+      ]
+    },
+    {
+      "text": "UPDATE \"public\".\"Lock\" SET \"isLocked\" = $1, \"lockedBy\" = $2, \"lockedAt\" = $3, \"updatedAt\" = $4 WHERE (\"public\".\"Lock\".\"key\" = $5 AND \"public\".\"Lock\".\"isLocked\" = $6 AND \"public\".\"Lock\".\"lockedBy\" = $7)",
+      "values": [
+        false,
+        null,
+        null,
+        "2026-11-27 12:00:00",
+        "task-x402-payment-headers-purge-sync",
+        true,
+        "<owner token>"
+      ]
+    }
+  ],
+  "locks": [
+    {
+      "id": "<lock id>",
+      "createdAt": "2026-11-27T12:00:00.000Z",
+      "updatedAt": "2026-11-27T12:00:00.000Z",
+      "key": "task-x402-payment-headers-purge-sync",
+      "isLocked": false,
+      "lockedAt": null,
+      "lockedBy": null
+    }
+  ],
+  "cursors": [],
+  "payment": {
+    "xPaymentHeader": null,
+    "status": "VERIFIED",
+    "amount": "1000"
+  },
+  "monitor": [
+    [
+      {
+        "monitorSlug": "task-x402-payment-headers-purge-sync",
+        "status": "in_progress"
+      },
+      {
+        "schedule": {
+          "type": "crontab",
+          "value": "30 * * * *"
+        },
+        "checkinMargin": 10,
+        "timezone": "UTC",
+        "failureIssueThreshold": 3,
+        "recoveryThreshold": 1,
+        "maxRuntime": 16
+      }
+    ],
+    [
+      {
+        "checkInId": "test-check-in",
+        "monitorSlug": "task-x402-payment-headers-purge-sync",
+        "status": "ok",
+        "duration": 0
+      }
+    ]
+  ]
+}

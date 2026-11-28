@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { conflict } from "@/helpers/error";
+import { requireMainnetMasumiPayment } from "@/helpers/mainnet-masumi-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -50,6 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { reason } = c.req.valid("json");
     const operator = requireAdminAuthContext(c.var.authContext);
+    requireMainnetMasumiPayment(c.var.networkScope);
     const result = await resolveReviewedTaskPaymentClaim({
       claimId: id,
       operatorId: operator.userId,

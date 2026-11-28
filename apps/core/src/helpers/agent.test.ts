@@ -22,7 +22,6 @@ import {
   getCreditCostsOrThrow,
   getJobDetailsAgentOverrideFields,
   isCardanoV2SourceReady,
-  requireAvailableAgentOrThrow,
   toMasumiAgent,
   toMasumiAgentForJob,
 } from "./agent";
@@ -78,7 +77,11 @@ describe("AGENT_PRICING_READ_TRANSACTION_OPTIONS", () => {
 
 describe("buildAvailableAgentWhereClause", () => {
   it("does not include organization allowlist or denylist filters", () => {
-    const where = buildAvailableAgentWhereClause([createCreditCost("USD")], []);
+    const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
+      [createCreditCost("USD")],
+      [],
+    );
 
     expect(Object.prototype.hasOwnProperty.call(where, "OR")).toBe(false);
     expect(Object.prototype.hasOwnProperty.call(where, "NOT")).toBe(false);
@@ -88,6 +91,7 @@ describe("buildAvailableAgentWhereClause", () => {
 
   it("requires fixed pricing to have at least one billable amount row", () => {
     const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
       [createCreditCost("USD"), createCreditCost("EUR")],
       [],
     );
@@ -126,6 +130,7 @@ describe("buildAvailableAgentWhereClause", () => {
     const upperCaseAssetUnit =
       "C48CBB3D5E57ED56E276BC45F99AB39ABE94E6CD7AC39FB402DA47AD0014DF105553444D";
     const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
       [createCreditCost(upperCaseAssetUnit)],
       [],
     );
@@ -151,6 +156,7 @@ describe("buildAvailableAgentWhereClause", () => {
     const caip19Unit =
       "eip155:84532/erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e";
     const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
       [createCreditCost("USD"), createCreditCost(caip19Unit)],
       [],
     );
@@ -169,7 +175,11 @@ describe("buildAvailableAgentWhereClause", () => {
   });
 
   it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rail is not ready", () => {
-    const where = buildAvailableAgentWhereClause([createCreditCost("USD")], []);
+    const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
+      [createCreditCost("USD")],
+      [],
+    );
 
     expect(where.type).toBe(AgentEntryType.STANDARD);
     // Allowlist: UNKNOWN rails are never available; V2 only when ready.
@@ -204,6 +214,7 @@ describe("buildAvailableAgentWhereClause", () => {
 
   it("allowlists V2-contract agents when the rail reports a purchase-ready source", () => {
     const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
       [createCreditCost("USD")],
       [CARDANO_V2_READY_SOURCE],
     );
@@ -238,7 +249,7 @@ describe("buildAvailableAgentWhereClause", () => {
           paymentSources: {
             some: {
               chain: "Cardano",
-              network: undefined,
+              network: "Mainnet",
               paymentSourceType: "Web3CardanoV2",
               address: "addr_test1_v2_contract",
             },
@@ -249,7 +260,11 @@ describe("buildAvailableAgentWhereClause", () => {
   });
 
   it("excludes V2-contract agents when the rail reports no purchase-ready source", () => {
-    const where = buildAvailableAgentWhereClause([createCreditCost("USD")], []);
+    const where = buildAvailableAgentWhereClause(
+      { network: "mainnet" },
+      [createCreditCost("USD")],
+      [],
+    );
 
     expect(where.paymentType).toEqual({
       in: [PaymentType.WEB3_CARDANO_V1, PaymentType.NONE],
@@ -490,43 +505,6 @@ describe("getCreditCostsOrThrow", () => {
     await expect(getCreditCostsOrThrow(tx)).rejects.toThrow(
       "Failed to get credit information for agents",
     );
-  });
-});
-
-describe("requireAvailableAgentOrThrow", () => {
-  it("resolves when an available agent exists", async () => {
-    const findFirst = vi.fn().mockResolvedValue({ id: "agent-1" });
-    const tx = {
-      creditCost: {
-        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
-      },
-      syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
-      agent: { findFirst },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      requireAvailableAgentOrThrow("agent-1", tx),
-    ).resolves.toBeUndefined();
-    expect(findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: "agent-1" }),
-        select: { id: true },
-      }),
-    );
-  });
-
-  it("throws a 404 when no available agent matches", async () => {
-    const tx = {
-      creditCost: {
-        findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
-      },
-      syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
-      agent: { findFirst: vi.fn().mockResolvedValue(null) },
-    } as unknown as Prisma.TransactionClient;
-
-    await expect(
-      requireAvailableAgentOrThrow("missing", tx),
-    ).rejects.toMatchObject({ status: 404 });
   });
 });
 

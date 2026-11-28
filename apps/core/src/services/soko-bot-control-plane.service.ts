@@ -49,7 +49,7 @@ import {
   forfeitCusoProjectCredits,
   forfeitCusoProjectCreditsIfLeavingCmo,
 } from "@/helpers/cuso-project-credits";
-import { networkStamp } from "@/helpers/preprod-control";
+import { networkStamp, readPreprodControl } from "@/helpers/preprod-control";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { jsonInput } from "@/helpers/prisma-json";
 import { cancelUnpublishedSocialPosts } from "@/helpers/social-post-quote";
@@ -83,6 +83,7 @@ import {
   GATEWAY_INTERNAL_SERVER_ERROR,
 } from "@/lib/ai-gateway-budget-error";
 import { databaseNow } from "@/lib/db/database-now";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { evalWorkspaceIds } from "@/lib/evals/eval-guard";
@@ -134,6 +135,7 @@ import {
   evaluationEvidence,
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { reserveEventOccurrence } from "@/lib/soko-bot/event-inbox";
 import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { recordModelCall, withModelCallTurn } from "@/lib/soko-bot/model-calls";
@@ -1155,28 +1157,57 @@ export class SokoBotControlPlane {
         decision.id,
         true,
         true,
-        turn.id,
+        turn,
       );
     }
     await serializableTransaction(async (tx) => {
-      const active = await tx.sokoBotTurn.findFirst({
-        where: {
-          id: turn.id,
-          status: "STARTING",
-          leaseToken,
-          cancellationRequestedAt: null,
+      const turns = await tx.sokoBotTurn.findMany({
+        where: { id: { in: [turn.id, decision.turnId] } },
+        select: {
+          id: true,
+          status: true,
+          leaseToken: true,
+          cancellationRequestedAt: true,
+          network: true,
+          preprodGeneration: true,
         },
       });
-      if (!active)
+      const active = turns.find(({ id }) => id === turn.id);
+      if (
+        !active ||
+        active.status !== "STARTING" ||
+        active.leaseToken !== leaseToken ||
+        active.cancellationRequestedAt !== null
+      )
         throw new SokoBotStartAbortedError(
           "Confirmation stopped before settlement",
         );
+      const source = turns.find(({ id }) => id === decision.turnId);
+      if (
+        !source ||
+        active.network === null ||
+        active.network !== source.network ||
+        (active.network === "preprod" &&
+          active.preprodGeneration !== source.preprodGeneration)
+      ) {
+        throw new DetachedNetworkRefusal(
+          CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+        );
+      }
       const receipt = await tx.sokoBotToolCall.findUnique({
         where: {
           turnId_toolCallId: {
             turnId: decision.turnId,
             toolCallId: `decision:${decision.id}`,
           },
+          ...(active.network === "preprod"
+            ? {
+                turn: {
+                  network: active.network,
+                  preprodGeneration: active.preprodGeneration,
+                },
+              }
+            : {}),
         },
       });
       await tx.sokoBotToolCall.upsert({
@@ -1765,6 +1796,7 @@ export class SokoBotControlPlane {
     requireMissingEveSession?: boolean;
     staleNetwork?: true;
   }): Promise<boolean> {
+    const billingScope = createNetworkScope("mainnet");
     // Set inside the transaction and read after it commits, because the
     // low-balance check publishes over realtime and must not run for a
     // charge that rolled back. Reset per attempt: a serialization retry
@@ -1859,6 +1891,7 @@ export class SokoBotControlPlane {
               ranModel: turnRanModel(turn.usage),
             },
             tx,
+            billingScope,
           );
       const chargedUserId = sokoBotActingUserId(turn);
       if (
@@ -2075,10 +2108,13 @@ export class SokoBotControlPlane {
         // On the charge alone: a settlement that lost its lease after the
         // usage was recorded still committed that charge.
         if (chargedWallet) {
-          await notifyLowBalanceAfterCharge(chargedWallet);
+          await notifyLowBalanceAfterCharge(chargedWallet, billingScope);
         }
         if (chargedCusoProjectId) {
-          await notifyCusoLowCreditsAfterCharge(chargedCusoProjectId);
+          await notifyCusoLowCreditsAfterCharge(
+            chargedCusoProjectId,
+            billingScope,
+          );
         }
         if (settled && cmoTurnEnded) {
           const ended: {
@@ -2446,6 +2482,25 @@ export class SokoBotControlPlane {
     if (input.chat?.mentionId)
       await requireOpenMention(prisma, input.chat.mentionId);
 
+    // Slice 30-3 removes this temporary refusal when Preprod turns can run.
+    if (input.network === "preprod") {
+      createNetworkScope(input.network);
+      const control = await readPreprodControl();
+      if (
+        control.state !== "unavailable" &&
+        input.expectedPreprodGeneration !== undefined &&
+        control.generation !== input.expectedPreprodGeneration
+      ) {
+        throw new DetachedNetworkRefusal(
+          CORE_API_ERROR_KINDS.SOKO_BOT_NETWORK_STALE,
+        );
+      }
+      throw new DetachedNetworkRefusal(
+        control.state === "paused"
+          ? CORE_API_ERROR_KINDS.PREPROD_PAUSED
+          : CORE_API_ERROR_KINDS.PREPROD_CONTROL_UNAVAILABLE,
+      );
+    }
     try {
       await requireSokoBotTurnFunding(input.userId, bot.id);
     } catch (error) {
@@ -2596,7 +2651,9 @@ export class SokoBotControlPlane {
             },
           })
         : null;
+    const networkScope = createNetworkScope(input.network);
     const classifierContext = await loadClassificationContext(
+      networkScope,
       sokoBotTurnReader(
         input.userId,
         askedByTeammate ? "TEAMMATE" : "OWNER",
@@ -2855,6 +2912,7 @@ export class SokoBotControlPlane {
           })
         : null;
     const context = await this.contextBuilder.build({
+      networkScope,
       userId: input.userId,
       sokoBotId: bot.id,
       sharedScope: sokoBotSharedScopeOf(bot),
@@ -3011,8 +3069,7 @@ export class SokoBotControlPlane {
           previous: previousTurn,
           now: reservedAt,
         });
-        const stamp = await networkStamp(input.network, tx);
-        requireDetachedTurnProvenance(input, stamp);
+        const stamp = await networkStamp(input, tx);
         const created = await tx.sokoBotTurn.create({
           data: {
             ...stamp,
@@ -3101,16 +3158,13 @@ export class SokoBotControlPlane {
           },
         });
         for (const occurrence of input.eventBatch ?? []) {
-          await tx.sokoBotEventInbox.create({
-            data: {
-              botId: bot.id,
-              turnId: created.id,
-              eventId: occurrence.eventId,
-              entityId: occurrence.entityId,
-              purpose: occurrence.purpose,
-              designatedHandlerBotId: occurrence.designatedHandlerBotId,
-            },
-          });
+          await reserveEventOccurrence(
+            tx,
+            bot.id,
+            created.id,
+            stamp.network,
+            occurrence,
+          );
           await invalidateSokoBotIntentOutcomes(tx, {
             sokoBotId: bot.id,
             workspaceId: input.workspaceId,
@@ -5523,7 +5577,9 @@ export class SokoBotControlPlane {
           ),
         );
       } catch (error) {
-        await recordFailure(error);
+        if (!(error instanceof DetachedNetworkRefusal) || error.final) {
+          await recordFailure(error);
+        }
         throw error;
       }
       const afterBot = await prisma.sokoBot.findUniqueOrThrow({

@@ -6,7 +6,6 @@ import {
   X402_MIN_TIMEOUT_SECONDS,
   type X402PaymentRequired,
 } from "@sokosumi/masumi/schemas";
-
 import {
   conflict,
   internalServerError,
@@ -17,6 +16,7 @@ import {
   type X402ReadySource,
 } from "@/helpers/x402-readiness";
 import { describeX402PaymentHeader } from "@/helpers/x402-settlement";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import type { TaskX402PaymentSigned } from "@/schemas/x402-payment.schema";
 import {
   assertReplayAgentIdentity,
@@ -155,6 +155,7 @@ function isSignLeaseHeld(processingAt: Date | null, now: Date): boolean {
 
 /** Everything a replay needs; only PENDING re-signing consumes readiness. */
 export interface X402ReplayInput extends X402ReplayVerification {
+  catalogScope: NetworkScope;
   /**
    * Buy-side readiness, read OUTSIDE the charge transaction. It is
    * configuration (a `SyncMetadata` row a cron rewrites) that the charge
@@ -209,7 +210,7 @@ export type ChargePhaseOutcome =
       /** Who the live update and the notification reach; null for nobody. */
       taskOwnerId: string | null;
       /** Set when this request created (and charged) the record just now. */
-      chargedNow: boolean;
+      chargedScope: NetworkScope | null;
       /**
        * The in-transaction stamp both persisted fences derive from. The
        * dispatch site compares it against the clock so a commit-to-dispatch
@@ -447,6 +448,7 @@ export async function resolveExistingPayment(
   // PENDING re-signing still uses current catalog state because it creates a
   // new node authorization. A terminal VERIFIED replay above does not.
   const verifiedReplay = await assertReplayMatchesStoredDemand(
+    input.catalogScope,
     existing,
     input,
     tx,
@@ -548,7 +550,7 @@ export async function resolveExistingPayment(
     kind: "sign",
     paymentId: existing.id,
     taskOwnerId,
-    chargedNow: false,
+    chargedScope: null,
     signStartedAt,
     normalized: verifiedReplay.normalized,
     sourceRequirement: verifiedReplay.sourceRequirement,
