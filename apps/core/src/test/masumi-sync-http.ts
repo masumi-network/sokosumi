@@ -33,6 +33,9 @@ export function stubMasumiSyncHttp(beforeRegistryReply?: () => Promise<void>) {
     }[],
     networks,
     offline: false,
+    beforePaymentReply: undefined as
+      | ((path: string) => Promise<void>)
+      | undefined,
     x402Reply: undefined as unknown,
     registryEntries: [] as RegistryEntry[],
     registryRequests: [] as { cursorId?: string; statusUpdatedAfter: string }[],
@@ -95,6 +98,7 @@ export function stubMasumiSyncHttp(beforeRegistryReply?: () => Promise<void>) {
           return success({ entries: state.registryEntries });
         }
         if (request.method === "GET" && url.pathname.startsWith("/payment/")) {
+          await state.beforePaymentReply?.(url.pathname);
           if (state.offline)
             return Response.json({ message: "offline" }, { status: 503 });
           switch (url.pathname) {

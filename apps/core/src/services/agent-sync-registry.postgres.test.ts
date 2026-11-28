@@ -1,4 +1,5 @@
 // The public-layout recording commit ran the writers at de314fe8c.
+// The notification statement and matched rows reflect the Network predicate.
 import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import type { Pool } from "pg";
@@ -11,6 +12,7 @@ import {
   onTestFinished,
   vi,
 } from "vitest";
+import type { NetworkScope } from "@/lib/db/network-scope";
 import {
   registrySyncRevision,
   stubMasumiSyncHttp,
@@ -22,6 +24,34 @@ import {
   statements,
 } from "@/test/spend-comparison";
 import { onSplitLayout } from "@/test/split-layout";
+
+// Preserve the historical projection recordings' database boundary. The
+// mounted route tests exercise the production lease and its cursor SQL.
+function projectionLease(scope: NetworkScope) {
+  return {
+    stamp: async () => {},
+    write: <T>(work: (db: NetworkScope["networkDb"]) => Promise<T>) =>
+      work(scope.networkDb),
+    writeShared: <T>(work: (db: NetworkScope["sharedDb"]) => Promise<T>) =>
+      work(scope.sharedDb),
+    writeCursor: async (
+      name: string,
+      cursor: { cursorId: string | null; lastSyncedAt: Date } | null,
+    ) => {
+      const { networkKey } = await import("@/lib/network");
+      const key = networkKey(scope.network, name);
+      if (cursor === null) {
+        await scope.sharedDb.syncMetadata.deleteMany({ where: { key } });
+        return;
+      }
+      await scope.sharedDb.syncMetadata.upsert({
+        where: { key },
+        create: { key, ...cursor },
+        update: cursor,
+      });
+    },
+  };
+}
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
@@ -152,6 +182,7 @@ it
     const options = {
       abortSignal: new AbortController().signal,
       shouldContinue: () => true,
+      lease: projectionLease(scope),
     };
     const byId = { id: "asc" } as const;
     const snapshot = async () => ({
@@ -404,7 +435,10 @@ it
       data: { isShown: true },
     });
     await tick("summaries", () =>
-      service.syncAgentSummaries(scope, openrouterClient, options),
+      service.syncAgentSummaries(scope, openrouterClient, {
+        ...options,
+        write: options.lease.write,
+      }),
     );
     const declined = await db.agent.findUniqueOrThrow({
       where: { id: decline.id },
@@ -545,6 +579,7 @@ it.skipIf(!enabled || !onSplitLayout)(
       const options = {
         abortSignal: new AbortController().signal,
         shouldContinue: () => true,
+        lease: projectionLease(preprod),
       };
       await service.syncCardanoV2RailReadiness(
         preprod,
@@ -556,7 +591,10 @@ it.skipIf(!enabled || !onSplitLayout)(
         key,
         options,
       );
-      await service.syncAgentSummaries(preprod, openrouterClient, options);
+      await service.syncAgentSummaries(preprod, openrouterClient, {
+        ...options,
+        write: options.lease.write,
+      });
       expect(
         await main.networkDb.agent.findMany({
           select: { id: true, summary: true, registryVersion: true },

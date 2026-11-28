@@ -1,5 +1,15 @@
 import type { NetworkScope, SharedDb } from "@/lib/db/network-scope";
 import { type Network, networkKey } from "@/lib/network";
+export interface ReadinessScope extends NetworkScope {
+  writeShared?<T>(write: (db: SharedDb) => Promise<T>): Promise<T>;
+}
+
+function writeReadiness<T>(
+  scope: ReadinessScope,
+  write: (db: SharedDb) => Promise<T>,
+): Promise<T> {
+  return scope.writeShared ? scope.writeShared(write) : write(scope.sharedDb);
+}
 
 /**
  * x402 buy-side readiness (PR1-SPEC §6, ticket 011 Q5).
@@ -42,17 +52,19 @@ export function readReadiness(db: SharedDb, network: Network, rail: Rail) {
 }
 
 export async function saveReadiness(
-  scope: NetworkScope,
+  scope: ReadinessScope,
   rail: Rail,
   cursorId: string,
 ) {
   const previous = await readReadiness(scope.sharedDb, scope.network, rail);
   const key = readinessKey(scope.network, rail);
-  await scope.sharedDb.syncMetadata.upsert({
-    where: { key },
-    create: { key, cursorId, lastSyncedAt: new Date() },
-    update: { cursorId, lastSyncedAt: new Date() },
-  });
+  await writeReadiness(scope, (db) =>
+    db.syncMetadata.upsert({
+      where: { key },
+      create: { key, cursorId, lastSyncedAt: new Date() },
+      update: { cursorId, lastSyncedAt: new Date() },
+    }),
+  );
   return previous?.cursorId !== cursorId;
 }
 
@@ -63,35 +75,41 @@ export function findRecordedReadiness(scope: NetworkScope, rail: Rail) {
   });
 }
 
-export function markReadinessFailure(scope: NetworkScope, rail: Rail) {
-  return scope.sharedDb.syncMetadata.createMany({
-    data: [
-      {
-        key: readinessFailureKey(scope.network, rail),
-        cursorId: READINESS_FAILURE_NEW,
-        lastSyncedAt: new Date(),
-      },
-    ],
-    skipDuplicates: true,
-  });
+export function markReadinessFailure(scope: ReadinessScope, rail: Rail) {
+  return writeReadiness(scope, (db) =>
+    db.syncMetadata.createMany({
+      data: [
+        {
+          key: readinessFailureKey(scope.network, rail),
+          cursorId: READINESS_FAILURE_NEW,
+          lastSyncedAt: new Date(),
+        },
+      ],
+      skipDuplicates: true,
+    }),
+  );
 }
 
 export function escalateCardanoReadinessFailure(
-  scope: NetworkScope,
+  scope: ReadinessScope,
   startedBefore: Date,
 ) {
-  return scope.sharedDb.syncMetadata.updateMany({
-    where: {
-      key: readinessFailureKey(scope.network, "cardanoV2"),
-      cursorId: READINESS_FAILURE_NEW,
-      lastSyncedAt: { lt: startedBefore },
-    },
-    data: { cursorId: READINESS_FAILURE_ESCALATED },
-  });
+  return writeReadiness(scope, (db) =>
+    db.syncMetadata.updateMany({
+      where: {
+        key: readinessFailureKey(scope.network, "cardanoV2"),
+        cursorId: READINESS_FAILURE_NEW,
+        lastSyncedAt: { lt: startedBefore },
+      },
+      data: { cursorId: READINESS_FAILURE_ESCALATED },
+    }),
+  );
 }
 
-export function clearReadinessFailure(scope: NetworkScope, rail: Rail) {
-  return scope.sharedDb.syncMetadata.deleteMany({
-    where: { key: readinessFailureKey(scope.network, rail) },
-  });
+export function clearReadinessFailure(scope: ReadinessScope, rail: Rail) {
+  return writeReadiness(scope, (db) =>
+    db.syncMetadata.deleteMany({
+      where: { key: readinessFailureKey(scope.network, rail) },
+    }),
+  );
 }

@@ -48,6 +48,10 @@ import {
 } from "./agent-sync.projection.js";
 import { syncCardanoV2RailReadiness } from "./agent-sync.readiness.js";
 import { evaluateRevisionExposureGuard } from "./agent-sync.revision-guard.js";
+import {
+  isNetworkSyncRefusal,
+  type networkSyncLease,
+} from "./network-sync-lease.js";
 
 const AGENT_SUMMARY_SYNC_LIMIT = 20;
 /**
@@ -63,6 +67,14 @@ interface SyncExecutionOptions {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
 }
+
+type Lease = ReturnType<typeof networkSyncLease>;
+type ProjectionLease = Pick<Lease, "stamp" | "write" | "writeShared">;
+type RegistrySyncOptions = SyncExecutionOptions & {
+  lease: ProjectionLease & Pick<Lease, "writeCursor">;
+  resetCursor?: boolean;
+};
+type SummarySyncOptions = SyncExecutionOptions & Pick<Lease, "write">;
 
 const REGISTRY_SYNC_OPERATION = "agent_registry_sync";
 const SUMMARY_SYNC_OPERATION = "agent_summary_sync";
@@ -108,6 +120,7 @@ async function quarantineInvalidRegistryEntry(
   scope: NetworkScope,
   entry: RegistryDiffEntry,
   issue: string,
+  write: Lease["write"],
 ): Promise<void> {
   // Do not run the full normalizer here: this path exists precisely because a
   // nested registry value may be null or malformed. Only the identifier is
@@ -162,24 +175,26 @@ async function quarantineInvalidRegistryEntry(
   // Invalidate only this revision or an older canonical row. Preserve
   // administrator visibility choice: a later corrected registry entry can
   // restore status, but must never silently re-enable a hidden agent.
-  await scope.networkDb.agent.updateMany({
-    where: {
-      OR: [
-        ...(version.isValid
-          ? [
-              {
-                registryIdentity: version.registryIdentity,
-                registryVersion: { lte: version.registryVersion },
-              },
-            ]
-          : []),
-        ...(identifierMatchIds.length > 0
-          ? [{ id: { in: identifierMatchIds } }]
-          : []),
-      ],
-    },
-    data: { status: AgentStatus.INVALID },
-  });
+  await write((db) =>
+    db.agent.updateMany({
+      where: {
+        OR: [
+          ...(version.isValid
+            ? [
+                {
+                  registryIdentity: version.registryIdentity,
+                  registryVersion: { lte: version.registryVersion },
+                },
+              ]
+            : []),
+          ...(identifierMatchIds.length > 0
+            ? [{ id: { in: identifierMatchIds } }]
+            : []),
+        ],
+      },
+      data: { status: AgentStatus.INVALID },
+    }),
+  );
 }
 
 /** Stable, comparable rendering of a pricing set for the reprice audit log. */
@@ -309,6 +324,7 @@ async function upsertRegistryAgent(
   scope: NetworkScope,
   entry: RegistryDiffEntry,
   pricing: ParsedAgentPricing,
+  lease: ProjectionLease,
 ): Promise<void> {
   const version = resolveRegistryAgentVersion(entry);
   const registryFields = buildRegistryAgentFields(entry, version);
@@ -400,43 +416,45 @@ async function upsertRegistryAgent(
     // The cost is that an admin re-reviews a re-registered agent. That is the
     // correct place for the decision — a human who can actually tell whether
     // this is the same product.
-    await scope.networkDb.agent.create({
-      data: {
-        blockchainIdentifier: entry.agentIdentifier,
-        registryIdentity: version.registryIdentity,
-        registryVersion: version.registryVersion,
-        ...registryFields,
-        tags: { connect: tagReferences },
-        riskClassification: RiskClassification.MINIMAL,
-        isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
-        pricing: {
-          create: {
-            pricingType: pricing.pricingType,
-            ...(pricing.fixedPricingAmounts
-              ? {
-                  fixedPricing: {
-                    create: {
-                      amounts: {
-                        createMany: {
-                          data: pricing.fixedPricingAmounts,
+    await lease.write((db) =>
+      db.agent.create({
+        data: {
+          blockchainIdentifier: entry.agentIdentifier,
+          registryIdentity: version.registryIdentity,
+          registryVersion: version.registryVersion,
+          ...registryFields,
+          tags: { connect: tagReferences },
+          riskClassification: RiskClassification.MINIMAL,
+          isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
+          pricing: {
+            create: {
+              pricingType: pricing.pricingType,
+              ...(pricing.fixedPricingAmounts
+                ? {
+                    fixedPricing: {
+                      create: {
+                        amounts: {
+                          createMany: {
+                            data: pricing.fixedPricingAmounts,
+                          },
                         },
                       },
                     },
-                  },
-                }
-              : {}),
+                  }
+                : {}),
+            },
+          },
+          paymentSources: {
+            create: buildPaymentSourcesCreate(paymentSourceRows),
+          },
+          exampleOutput: {
+            createMany: {
+              data: exampleOutputRows,
+            },
           },
         },
-        paymentSources: {
-          create: buildPaymentSourcesCreate(paymentSourceRows),
-        },
-        exampleOutput: {
-          createMany: {
-            data: exampleOutputRows,
-          },
-        },
-      },
-    });
+      }),
+    );
     return;
   }
 
@@ -503,6 +521,7 @@ async function upsertRegistryAgent(
   // replaces registry-owned collections and invalidates the generated summary
   // so the stable Agent row never presents a mixture of two revisions.
   await scope.netTransactionOnce(async (tx) => {
+    await lease.stamp(tx);
     if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
       await tx.job.updateMany({
         where: {
@@ -626,10 +645,13 @@ async function upsertRegistryAgent(
   // Deep-link retargeting runs after the park commits — see the function's
   // note on why it must stay out of the transaction.
   if (conflictingByIdentifier && conflictingByIdentifier.id !== existing.id) {
-    await retargetDuplicateAgentNotifications(
-      scope.sharedDb,
-      conflictingByIdentifier.id,
-      existing.id,
+    await lease.writeShared((db) =>
+      retargetDuplicateAgentNotifications(
+        db,
+        scope.network,
+        conflictingByIdentifier.id,
+        existing.id,
+      ),
     );
   }
 }
@@ -713,7 +735,7 @@ async function syncRegistryAgents(
     "network" | "getAgentsDiff"
   >,
   metadataKey: string,
-  options: SyncExecutionOptions & { resetCursor?: boolean },
+  options: RegistrySyncOptions,
 ): Promise<void> {
   requireSameMasumiNetwork(scope, registry);
   const run: RegistrySyncRun = {
@@ -727,7 +749,7 @@ async function syncRegistryAgents(
   };
   const log = createCoreLogger({ operation: REGISTRY_SYNC_OPERATION });
   try {
-    await runRegistrySync(scope, registry, options, run, log);
+    await runRegistrySync(scope, registry, metadataKey, options, run, log);
   } finally {
     log.set({ agentRegistrySync: run });
     log.emit();
@@ -740,7 +762,8 @@ async function runRegistrySync(
     ReturnType<typeof masumiClients>["registry"],
     "network" | "getAgentsDiff"
   >,
-  options: SyncExecutionOptions & { resetCursor?: boolean },
+  cursorName: string,
+  options: RegistrySyncOptions,
   run: RegistrySyncRun,
   log: CoreLogger,
 ): Promise<void> {
@@ -756,9 +779,7 @@ async function runRegistrySync(
   }
 
   if (options.resetCursor) {
-    await scope.sharedDb.syncMetadata.deleteMany({
-      where: { key: metadataKey },
-    });
+    await options.lease.writeCursor(cursorName, null);
     // Cursor reset requested — replaying the full registry diff.
     run.cursorReset = true;
   }
@@ -850,15 +871,17 @@ async function runRegistrySync(
         return;
       }
 
-      await scope.networkDb.tag.upsert({
-        where: {
-          name: tag,
-        },
-        create: {
-          name: tag,
-        },
-        update: {},
-      });
+      await options.lease.write((db) =>
+        db.tag.upsert({
+          where: {
+            name: tag,
+          },
+          create: {
+            name: tag,
+          },
+          update: {},
+        }),
+      );
     }
 
     // Entries fully handled (upserted or deliberately deferred). The cursor
@@ -903,7 +926,12 @@ async function runRegistrySync(
       try {
         const storageIssue = storageIssues[entryIndex];
         if (storageIssue) {
-          await quarantineInvalidRegistryEntry(scope, entry, storageIssue);
+          await quarantineInvalidRegistryEntry(
+            scope,
+            entry,
+            storageIssue,
+            options.lease.write,
+          );
           run.quarantined++;
           processedEntryCount++;
           lastProcessedCursor = entryCursor;
@@ -930,10 +958,16 @@ async function runRegistrySync(
           readySources,
           creditCostUnits,
         );
-        await upsertRegistryAgent(scope, normalizedEntry, pricing);
+        await upsertRegistryAgent(
+          scope,
+          normalizedEntry,
+          pricing,
+          options.lease,
+        );
         processedEntryCount++;
         lastProcessedCursor = entryCursor;
       } catch (error) {
+        if (isNetworkSyncRefusal(error, scope.network)) throw error;
         // Failure (infra error, or a data shape the defensive parsing above
         // did not anticipate): stop the batch WITHOUT advancing the cursor
         // past this entry so the next run retries it. Transient errors
@@ -977,19 +1011,9 @@ async function runRegistrySync(
       return;
     }
 
-    await scope.sharedDb.syncMetadata.upsert({
-      where: {
-        key: metadataKey,
-      },
-      create: {
-        key: metadataKey,
-        cursorId: lastProcessedCursor.id,
-        lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
-      },
-      update: {
-        cursorId: lastProcessedCursor.id,
-        lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
-      },
+    await options.lease.writeCursor(cursorName, {
+      cursorId: lastProcessedCursor.id,
+      lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
     });
     run.processed += processedEntryCount;
 
@@ -1018,7 +1042,7 @@ interface SummarySyncRun extends SyncRunStop {
 async function syncAgentSummaries(
   scope: NetworkScope,
   model: Pick<typeof openrouterClient, "generateAgentSummary">,
-  options: SyncExecutionOptions,
+  options: SummarySyncOptions,
 ): Promise<void> {
   const run: SummarySyncRun = {
     candidates: 0,
@@ -1042,7 +1066,7 @@ async function syncAgentSummaries(
 async function runSummarySync(
   scope: NetworkScope,
   model: Pick<typeof openrouterClient, "generateAgentSummary">,
-  options: SyncExecutionOptions,
+  options: SummarySyncOptions,
   run: SummarySyncRun,
 ): Promise<void> {
   if (
@@ -1103,23 +1127,26 @@ async function runSummarySync(
 
       // A decline is stored so the Agent leaves this candidate set; otherwise
       // it is picked again every run and can crowd out the rest of the batch.
-      await scope.networkDb.agent.update({
-        where: {
-          id: agent.id,
-        },
-        data:
-          result.kind === "summary"
-            ? { summary: result.text }
-            : // A decline changes nothing a viewer sees; keep the public
-              // `updatedAt` where it was.
-              { summaryDeclinedAt: new Date(), updatedAt: agent.updatedAt },
-      });
+      await options.write((db) =>
+        db.agent.update({
+          where: {
+            id: agent.id,
+          },
+          data:
+            result.kind === "summary"
+              ? { summary: result.text }
+              : // A decline changes nothing a viewer sees; keep the public
+                // `updatedAt` where it was.
+                { summaryDeclinedAt: new Date(), updatedAt: agent.updatedAt },
+        }),
+      );
       if (result.kind === "declined") {
         run.declined++;
         continue;
       }
       run.updated++;
     } catch (error) {
+      if (isNetworkSyncRefusal(error, scope.network)) throw error;
       run.failed++;
       // The AI call's error can quote the description and the update's the
       // summary, so only the error's shape is logged.

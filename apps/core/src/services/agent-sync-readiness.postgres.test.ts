@@ -12,7 +12,6 @@ import { onSplitLayout } from "@/test/split-layout";
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
   preprodEnabled: false,
-  testPreprodOperation: false,
   pools: [] as Pool[],
 }));
 vi.mock("@/config/env", async (load) => {
@@ -31,6 +30,7 @@ vi.mock("@vercel/functions", async (load) => {
   const { observePool } = await import("@/test/spend-comparison");
   return {
     ...actual,
+    waitUntil: vi.fn(),
     attachDatabasePool(pool: Pool) {
       state.pools.push(pool);
       observePool(pool);
@@ -38,30 +38,6 @@ vi.mock("@vercel/functions", async (load) => {
     },
   };
 });
-
-// Invoke the registered cron operation synchronously. Its lock and deferred
-// scheduling have independent tests. The cursor and the registry diff are real.
-vi.mock("@/routes/sync/handler.js", () => ({
-  async handleSyncRequest(
-    c: { json: (body: unknown) => Response },
-    _lock: string,
-    work: (context: object) => Promise<void>,
-    options: { network?: "mainnet" },
-  ) {
-    const { createNetworkScope } = await import("@/lib/db/network-scope");
-    const { createCoreLogger } = await import("@/lib/evlog");
-    expect(options.network).toBe("mainnet");
-    await work({
-      scope: createNetworkScope(
-        state.testPreprodOperation ? "preprod" : "mainnet",
-      ),
-      abortSignal: new AbortController().signal,
-      shouldContinue: () => true,
-      log: createCoreLogger({ operation: "cron_sync" }),
-    });
-    return c.json({ ok: true });
-  },
-}));
 
 const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
 const clock = Date.parse("2026-11-27T12:00:00.000Z");
@@ -83,7 +59,6 @@ if (enabled) {
   }, 60_000);
   afterEach(async () => {
     state.preprodEnabled = false;
-    state.testPreprodOperation = false;
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -224,16 +199,15 @@ it
   "resets the stored registry cursor only on a Cardano change on %s",
   async (network) => {
     // The original comparison used a separate SDK instance for each deployment.
-    // Exercise the same cron operation with each scope while keeping the real registration on Mainnet.
+    // Exercise the mounted cron and its lease with the corresponding scope.
     state.network = network;
-    state.testPreprodOperation = network === "Preprod";
-    state.preprodEnabled = state.testPreprodOperation;
+    state.preprodEnabled = network === "Preprod";
+    const { waitUntil } = await import("@vercel/functions");
+    const { PREPROD_PAUSE_KEY } = await import("@/helpers/preprod-control");
     const { default: mount, AGENTS_SYNC_METADATA_KEY } = await import(
       "@/routes/sync/agents/get"
     );
-    const scope = await testScope(
-      state.testPreprodOperation ? "preprod" : "mainnet",
-    );
+    const scope = await testScope(state.preprodEnabled ? "preprod" : "mainnet");
     const key =
       scope.network === "mainnet"
         ? AGENTS_SYNC_METADATA_KEY
@@ -243,8 +217,15 @@ it
     // After reading/resetting its cursor the registry sync now reaches the
     // registry on both layouts, including past the former default-client rate read.
     const node = stubMasumiSyncHttp();
-    vi.useFakeTimers({ toFake: ["Date"], now: clock });
     const rows = scope.sharedDb.syncMetadata;
+    if (state.preprodEnabled)
+      await rows.create({
+        data: {
+          key: PREPROD_PAUSE_KEY,
+          cursorId: "open",
+          lastSyncedAt: new Date(clock),
+        },
+      });
     const data = {
       cursorId: "registry-page",
       lastSyncedAt: new Date(clock - 60_000),
@@ -257,8 +238,15 @@ it
         update: data,
       });
       if (phase === "x402-only") node.networks = [];
-      const response = await app.request("/agents");
+      vi.mocked(waitUntil).mockClear();
+      const response = await app.request(
+        state.preprodEnabled ? "/preprod/agents" : "/agents",
+        { headers: { authorization: "Bearer test-cron-secret" } },
+      );
       expect(response.status).toBe(200);
+      await Promise.all(
+        vi.mocked(waitUntil).mock.calls.map(([promise]) => promise),
+      );
       const row = await rows.findUnique({ where: { key }, select: columns });
       calls.push({ phase, row, request: node.registryRequests.at(-1) });
     }

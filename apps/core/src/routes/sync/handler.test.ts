@@ -265,7 +265,7 @@ describe("handleSyncRequest with a Network", () => {
         c,
         "lock-key",
         async ({ reportWork }) => reportWork({ done: 0, failed: 2 }),
-        { network: "mainnet", idleRunsAlert: 6 },
+        { network: "mainnet" },
       ),
     );
 
@@ -273,7 +273,7 @@ describe("handleSyncRequest with a Network", () => {
     await deferredWork();
 
     expect(finished()).toEqual(["error"]);
-    expect(finished("lock-key-idle")).toEqual(["ok"]);
+    expect(finished("lock-key-idle")).toEqual([]);
   });
 
   // Preprod is off in a unit run, so creating its scope throws: where the
@@ -355,6 +355,9 @@ export function _noScopeWithoutTheNetworkOption(c: Context) {
     async (context) => takesScope(context.scope),
     { network: "mainnet", errorDetail: "cause" },
   );
+  const networkIdleMonitor = { network: "preprod", idleRunsAlert: 3 } as const;
+  // @ts-expect-error Network crons have no idle monitor
+  void handleSyncRequest(c, "lock-key", async () => {}, networkIdleMonitor);
 
   void handleSyncRequest(c, "lock-key", async (context) => {
     // @ts-expect-error no options, no scope

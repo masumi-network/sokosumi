@@ -17,7 +17,6 @@ import {
 } from "@/lib/evlog";
 import { isPreprodOn, type Network, networkKey } from "@/lib/network";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { DetachedNetworkRefusal } from "@/lib/soko-bot/detached-network-refusal";
 import type { networkSyncLease } from "@/services/network-sync-lease";
 import type { AcquiredSyncLock } from "@/services/sync-lock.service";
 import { syncLockService } from "@/services/sync-lock.service";
@@ -77,7 +76,8 @@ export interface SyncRequestOptions {
   /**
    * For a sync that always has work in production: this many runs in a row
    * that report no work (`reportWork`) open a Sentry issue on the cron's
-   * idle monitor. Failed runs stay on the run monitor.
+   * idle monitor. Failed runs stay on the run monitor. Network crons use
+   * only the run monitor.
    */
   idleRunsAlert?: number;
   /** A feature flag: while it is off, an authenticated tick returns before the lock, so it writes nothing. */
@@ -88,8 +88,9 @@ export interface SyncRequestOptions {
 
 /** The Network a cron works on, declared where it is registered. */
 export interface NetworkSyncRequestOptions
-  extends Omit<SyncRequestOptions, "network"> {
+  extends Omit<SyncRequestOptions, "network" | "idleRunsAlert"> {
   network: Network;
+  idleRunsAlert?: never;
 }
 const MIN_SYNC_TIMEOUT_MS = 1000;
 
@@ -334,7 +335,7 @@ export async function handleSyncRequest(
   const skip = (reason: string) => {
     const key = networkKey("preprod", lockKey);
     tryUseLogger()?.set({ sync: { lockKey: key, outcome: "skipped", reason } });
-    cronStillRunning(c.req.path, key, idleRunsAlert);
+    cronStillRunning(c.req.path, key);
     waitUntil(flushCronMonitor());
     return Response.json({ message: "Sync skipped", reason });
   };
@@ -361,7 +362,7 @@ export async function handleSyncRequest(
     const preprodControl = preprod
       ? await import("@/helpers/preprod-control")
       : undefined;
-    const { networkSyncLease, SyncLeaseLost } = await import(
+    const { networkSyncLease, isNetworkSyncRefusal } = await import(
       "@/services/network-sync-lease"
     );
     const admission = await preprodControl?.readPreprodControl();
@@ -385,11 +386,7 @@ export async function handleSyncRequest(
       try {
         await syncOperation({ ...context, scope, lease });
       } catch (error) {
-        if (
-          error instanceof SyncLeaseLost ||
-          (preprod && error instanceof DetachedNetworkRefusal)
-        )
-          return "skipped";
+        if (isNetworkSyncRefusal(error, network)) return "skipped";
         throw error;
       }
     };
