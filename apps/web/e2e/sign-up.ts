@@ -50,12 +50,43 @@ async function waitForCode(token: string): Promise<string> {
   throw new Error("No sign-up code arrived");
 }
 
+/** The Organization's invite link from setup's last step, once it fills in. */
+async function readInviteLink(page: Page, baseUrl: string): Promise<string> {
+  const field = page.getByRole("textbox", { name: "Invite link" });
+  let link = await field.inputValue();
+  for (let poll = 0; poll < 50 && !link; poll++) {
+    await page.waitForTimeout(200);
+    link = await field.inputValue();
+  }
+  const url = URL.canParse(link) ? new URL(link) : null;
+  assert.ok(
+    url?.origin === new URL(baseUrl).origin &&
+      url.pathname.startsWith("/join/"),
+    `setup showed no invite link on this preview, got "${link}"`,
+  );
+  return link;
+}
+
 /**
  * Signs a brand-new user up with a disposable mail.tm inbox and creates their
- * Organization, landing on Welcome home. Returns the Organization's invite
- * link, which lets a teammate join without an email invite.
+ * Organization, landing on Welcome home. With `inviteLink`, also returns the
+ * Organization's invite link, which lets a teammate join without an email
+ * invite.
  */
-export async function signUpWithOrganization(page: Page, baseUrl: string) {
+export async function signUpWithOrganization(
+  page: Page,
+  baseUrl: string,
+): Promise<void>;
+export async function signUpWithOrganization(
+  page: Page,
+  baseUrl: string,
+  options: { inviteLink: true },
+): Promise<string>;
+export async function signUpWithOrganization(
+  page: Page,
+  baseUrl: string,
+  options?: { inviteLink: true },
+): Promise<string | void> {
   const inbox = await createInbox();
   await page.goto(`${baseUrl}/signup`);
   // The cookie banner covers the form's buttons on a phone. It shows once the
@@ -83,13 +114,9 @@ export async function signUpWithOrganization(page: Page, baseUrl: string) {
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Skip for now" }).click();
   await page.getByRole("button", { name: "Finish setup" }).click();
-  // The link fills in a moment after the step shows.
-  const inviteLinkField = page.getByRole("textbox", { name: "Invite link" });
-  let inviteLink = await inviteLinkField.inputValue();
-  for (let poll = 0; poll < 50 && !inviteLink.startsWith("http"); poll++) {
-    await page.waitForTimeout(200);
-    inviteLink = await inviteLinkField.inputValue();
-  }
+  const inviteLink = options?.inviteLink
+    ? await readInviteLink(page, baseUrl)
+    : undefined;
   await page.getByRole("button", { name: "Go to workspace" }).click();
   await page.getByRole("link", { name: "Later" }).click();
   // Home forwards to /chat; either, on this preview, is the end of setup.

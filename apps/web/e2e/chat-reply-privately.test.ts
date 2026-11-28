@@ -95,7 +95,9 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const errors: string[] = [];
       owner.on("pageerror", (e) => errors.push(e.message));
 
-      const inviteLink = await signUpWithOrganization(owner, BASE_URL);
+      const inviteLink = await signUpWithOrganization(owner, BASE_URL, {
+        inviteLink: true,
+      });
       await joinByInviteLink(teammate, inviteLink);
 
       // A channel with everyone, the teammate included.

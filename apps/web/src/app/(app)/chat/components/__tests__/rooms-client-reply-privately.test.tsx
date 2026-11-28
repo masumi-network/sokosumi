@@ -12,6 +12,7 @@ import {
   mockPathname,
   mockReplace,
   mockSearch,
+  type RoomsClientProps,
   renderWithQueryClient,
   sampleMessage,
   userParticipant,
@@ -81,6 +82,26 @@ vi.mock("../thread-panel", () => ({
 }));
 
 const grace = userParticipant("user-2", "Grace");
+
+/** An Organization member, as the room's member list carries it. */
+function orgMember(
+  userId: string,
+): RoomsClientProps["organizationMembers"][number] {
+  return {
+    id: `member-${userId}`,
+    organizationId: "org-1",
+    role: "member",
+    seatAssignedAt: null,
+    createdAt: new Date("2026-07-01T12:00:00.000Z"),
+    lastSeenAt: null,
+    user: {
+      id: userId,
+      name: userId,
+      email: `${userId}@example.com`,
+      image: null,
+    },
+  };
+}
 
 function graceMessage(): ChatRoomMessage {
   return {
@@ -196,7 +217,7 @@ describe("Reply privately", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("is offered for a former member of a public Channel, who can still read it", async () => {
+  it("is offered for a former member of a public Channel who is still in its organization", async () => {
     renderWithQueryClient(
       createRoomsClient({
         rooms: [
@@ -206,6 +227,51 @@ describe("Reply privately", () => {
           }),
           direct,
         ],
+        organizationMembers: [orgMember("user-1"), orgMember("user-2")],
+        messages: [graceMessage()],
+      }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "reply privately msg-grace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("is not offered for a former guest of an External Channel, who is not in its organization", async () => {
+    renderWithQueryClient(
+      createRoomsClient({
+        rooms: [
+          channelRoom({
+            discoverability: "external",
+            userMembers: [userParticipant("user-1", "Ada")],
+          }),
+          direct,
+        ],
+        organizationMembers: [orgMember("user-1")],
+        messages: [graceMessage()],
+      }),
+    );
+
+    expect(await screen.findByText("msg-grace")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /reply privately/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("is offered for a guest still on an External Channel's roster", async () => {
+    renderWithQueryClient(
+      createRoomsClient({
+        rooms: [
+          channelRoom({
+            discoverability: "external",
+            userMembers: [
+              userParticipant("user-1", "Ada"),
+              { ...grace, access: "guest" },
+            ],
+          }),
+          direct,
+        ],
+        organizationMembers: [orgMember("user-1")],
         messages: [graceMessage()],
       }),
     );

@@ -178,20 +178,57 @@ describe("resolveMessageLinkQuote", () => {
 });
 
 describe("authorCanReadSource", () => {
+  const orgMembers = new Set(["me", "ada"]);
+
   it("lets a private Channel's member be quoted to", () => {
-    expect(authorCanReadSource(room("ch", ["me", "ada"]), "ada")).toBe(true);
+    expect(
+      authorCanReadSource(room("ch", ["me", "ada"]), "ada", orgMembers),
+    ).toBe(true);
+  });
+
+  it("lets a current guest on the roster be quoted to", () => {
+    expect(
+      authorCanReadSource(
+        room("ch", ["me"], { discoverability: "external", guestIds: ["gus"] }),
+        "gus",
+        orgMembers,
+      ),
+    ).toBe(true);
   });
 
   it("refuses a former member of a private Channel", () => {
-    expect(authorCanReadSource(room("ch", ["me"]), "ada")).toBe(false);
+    expect(authorCanReadSource(room("ch", ["me"]), "ada", orgMembers)).toBe(
+      false,
+    );
   });
 
-  it("lets anyone in the organization be quoted to from a public Channel", () => {
+  it("lets an organization member be quoted to from a public Channel they left", () => {
     expect(
       authorCanReadSource(
         room("ch", ["me"], { discoverability: "public" }),
         "ada",
+        orgMembers,
       ),
     ).toBe(true);
+  });
+
+  it("refuses a former guest of an External Channel, who is not in its organization", () => {
+    expect(
+      authorCanReadSource(
+        room("ch", ["me"], { discoverability: "external" }),
+        "gus",
+        orgMembers,
+      ),
+    ).toBe(false);
+  });
+
+  it("refuses the self-join fallback when the organization's members are not known", () => {
+    expect(
+      authorCanReadSource(
+        room("ch", ["me"], { discoverability: "public" }),
+        "ada",
+        null,
+      ),
+    ).toBe(false);
   });
 });

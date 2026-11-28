@@ -1133,12 +1133,24 @@ function RoomView({
     }
   }
 
+  // Members of the room's organization, when that is the workspace whose
+  // members are loaded here; a visit from another workspace proves nothing.
+  const sourceOrganizationMemberIds =
+    selectedRoom?.organizationId != null &&
+    selectedRoom.organizationId === activeOrganization?.id
+      ? new Set(organizationMembers.map((member) => member.user.id))
+      : null;
+
   function canReplyPrivatelyTo(message: ChatRoomMessage): boolean {
     return (
       !isDirectRoom &&
       selectedRoom != null &&
       message.sender.type === "user" &&
-      authorCanReadSource(selectedRoom, message.sender.user.id)
+      authorCanReadSource(
+        selectedRoom,
+        message.sender.user.id,
+        sourceOrganizationMemberIds,
+      )
     );
   }
 
