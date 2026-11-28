@@ -10,7 +10,8 @@ import { createMailbox } from "./mailbox.ts";
 // A new user names their Soko Bot, first with only spaces, then for real, and
 // opens its Advanced view: the empty and error states say what is missing,
 // the Daily limit shows its whole number, and each schedule's controls carry
-// the schedule's name.
+// the schedule's name. By keyboard, New schedule, Cancel and Change look keep
+// focus where the user is, and the time chips name their values.
 // Each size signs up a new throwaway user; nothing is paid for or connected.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
@@ -148,6 +149,35 @@ for (const { name, ...viewport } of PROJECTS) {
       await dreaming.waitFor();
       assert.equal(await dreaming.getAttribute("aria-checked"), "true");
       await shot("4-schedules");
+
+      // By keyboard, focus follows the form and the picture dialog instead of
+      // falling back to the page start.
+      const focused = (locator: ReturnType<Page["getByRole"]>) =>
+        locator.evaluate((el) => el === document.activeElement);
+      const newSchedule = main.getByRole("button", { name: "New schedule" });
+      await newSchedule.focus();
+      await page.keyboard.press("Enter");
+      const scheduleName = main.getByRole("textbox", { name: "Name" });
+      await scheduleName.waitFor();
+      assert.ok(await focused(scheduleName), "New schedule left focus behind");
+      // The chips say their value, not only "Time" and "Timezone".
+      await main.getByRole("button", { name: /^Time \d{2}:\d{2}$/ }).waitFor();
+      await main.getByRole("button", { name: /^Timezone \S+$/ }).waitFor();
+      await shot("5-new-schedule");
+      await main.getByRole("button", { name: "Cancel" }).focus();
+      await page.keyboard.press("Enter");
+      await newSchedule.waitFor();
+      assert.ok(await focused(newSchedule), "Cancel dropped focus");
+
+      const changeLook = main.getByRole("button", { name: "Change look" });
+      await changeLook.focus();
+      await page.keyboard.press("Enter");
+      await page.getByRole("dialog", { name: "Design the look" }).waitFor();
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog", { name: "Design the look" }).waitFor({
+        state: "detached",
+      });
+      assert.ok(await focused(changeLook), "Change look dropped focus");
 
       await context.close();
       assert.deepEqual(errors, []);
