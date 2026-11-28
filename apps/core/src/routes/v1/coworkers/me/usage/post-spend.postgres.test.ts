@@ -123,6 +123,7 @@ import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { NETWORK_HEADER } from "@/middleware/network-scope";
 import { expectCoreLog } from "@/test/core-log";
+import { nextMillisecond } from "@/test/spend-comparison";
 import { onSplitLayout } from "@/test/split-layout";
 
 import mountPostCoworkerMeUsage from "./post";
@@ -648,7 +649,9 @@ async function observe(payer: Payer, run: () => Promise<unknown>) {
   outside.email.mockClear();
   outside.publish.mockClear();
   outside.dispatchEmail.mockClear();
-  const started = Date.now();
+  // Work an earlier step left ends before the window opens.
+  await drainBackground();
+  const started = await nextMillisecond();
   sent.log = [];
   sent.observing = true;
   let answer: unknown;

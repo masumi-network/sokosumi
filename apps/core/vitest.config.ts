@@ -4,6 +4,16 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 /**
+ * Every Core test runs in UTC, as CI's runner does: set here, before Vitest
+ * starts a worker, so no test file sees another zone. `pg` sends a JavaScript
+ * Date in the process's zone and a `timestamp` column drops the offset, so a
+ * run in Europe/Berlin records other times than CI. `PGOPTIONS` gives each
+ * `pg` session CI's server zone too, for SQL that reads the clock.
+ */
+process.env.TZ = "UTC";
+process.env.PGOPTIONS ??= "-c TimeZone=UTC";
+
+/**
  * Opt-in Postgres / DB files skip in the unit run. Keep them out of collect
  * so Vitest does not load them. `admin.integration.test.ts` is a mocked
  * router test and is always collected, by the isolated `integration` project.
