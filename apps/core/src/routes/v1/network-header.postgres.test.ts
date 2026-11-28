@@ -1802,6 +1802,114 @@ describe.runIf(enabled && onSplitLayout)(
       expect(answer.body).not.toEqual(mainnet.body);
     });
 
+    it("runs the admin Agent and rate routes on the Preprod scope of an admin", async () => {
+      async function send(
+        method: string,
+        path: string,
+        network: "mainnet" | "preprod",
+        body?: unknown,
+      ) {
+        const response = await loaded.app.request(`${ORIGIN}${path}`, {
+          method,
+          headers: {
+            origin: ORIGIN,
+            cookie: admin.cookie,
+            [HEADER]: network,
+            ...(body !== undefined && { "content-type": "application/json" }),
+          },
+          ...(body !== undefined && { body: JSON.stringify(body) }),
+        });
+        const json = (await response.json()) as {
+          data?: Record<string, unknown> & {
+            registry?: { name: string };
+            resolved?: { name: string };
+          };
+        };
+        return { status: response.status, data: json.data };
+      }
+      const detail = async (network: "mainnet" | "preprod") => {
+        const { status, data } = await send(
+          "GET",
+          `/v1/admin/agents/${agentId}`,
+          network,
+        );
+        return [status, data?.registry?.name, data?.resolved?.name];
+      };
+
+      for (const sortBy of ["displayName", "createdAt"]) {
+        const list = await send(
+          "GET",
+          `/v1/admin/agents?q=${agentId}&sortBy=${sortBy}`,
+          "preprod",
+        );
+        const items = list.data as unknown as { registryName: string }[];
+        expect([sortBy, items.map((item) => item.registryName)]).toEqual([
+          sortBy,
+          [names.preprod],
+        ]);
+      }
+      expect(await detail("preprod")).toEqual([
+        200,
+        names.preprod,
+        names.preprod,
+      ]);
+      const patched = await send(
+        "PATCH",
+        `/v1/admin/agents/${agentId}/metadata-override`,
+        "preprod",
+        { name: "Preprod override" },
+      );
+      expect(patched.data?.resolved?.name).toBe("Preprod override");
+      expect(await detail("mainnet")).toEqual([
+        200,
+        names.mainnet,
+        names.mainnet,
+      ]);
+      await send(
+        "DELETE",
+        `/v1/admin/agents/${agentId}/metadata-override`,
+        "preprod",
+      );
+      expect(await detail("preprod")).toEqual([
+        200,
+        names.preprod,
+        names.preprod,
+      ]);
+
+      const unit = `n6_${agentId}`;
+      const created = await send("POST", "/v1/credit-costs", "preprod", {
+        unit: ` ${unit.toUpperCase()} `,
+        creditsPerUnit: 2,
+      });
+      const rateId = String(created.data?.id);
+      try {
+        expect([created.status, created.data?.unit]).toEqual([201, unit]);
+        const where = { where: { unit } };
+        const preprod = loaded.createNetworkScope("preprod").networkDb;
+        const mainnet = loaded.createNetworkScope("mainnet").networkDb;
+        expect(await preprod.creditCost.count(where)).toBe(1);
+        expect(await mainnet.creditCost.count(where)).toBe(0);
+        const path = `/v1/credit-costs/${rateId}`;
+        expect((await send("GET", path, "mainnet")).status).toBe(404);
+        expect((await send("GET", path, "preprod")).status).toBe(200);
+        const updated = await send("PATCH", path, "preprod", {
+          creditsPerUnit: 3,
+        });
+        expect([updated.status, updated.data?.creditsPerUnit]).toEqual([
+          200, 3,
+        ]);
+        expect((await send("DELETE", path, "mainnet")).status).toBe(404);
+        expect((await send("DELETE", path, "preprod")).status).toBe(200);
+        expect(await preprod.creditCost.count(where)).toBe(0);
+      } finally {
+        for (const network of ["mainnet", "preprod"] as const) {
+          await loaded
+            .createNetworkScope(network)
+            .networkDb.creditCost.deleteMany({ where: { id: rateId } });
+        }
+      }
+    });
+
     it("serves shared data to preprod without access as without the header", async () => {
       for (const path of [
         "/v1/users/me",

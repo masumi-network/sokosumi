@@ -69,8 +69,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  // The admin routes read Network models through their scope's Network
+  // client, and the display-name sort's raw SQL on the shared client.
+  const network = {
     agent: {
       count: agentCountMock,
       findMany: agentFindManyMock,
@@ -91,9 +93,12 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: tagUpsertMock,
     },
     $transaction: transactionMock,
-    $queryRawUnsafe: queryRawMock,
-  },
-}));
+  };
+  return {
+    default: { $queryRawUnsafe: queryRawMock },
+    networkPrisma: () => network,
+  };
+});
 
 const now = new Date("2026-01-01T00:00:00.000Z");
 
@@ -445,6 +450,52 @@ describe("admin agents routes", () => {
     const body = await response.json();
     expect(body.data.resolved.name).toBe("Display Name");
   });
+
+  // The patch's transaction is the scope's: a deadlock or serialization
+  // failure (P2034) runs the whole callback again, up to 8 times, then 409.
+  it("retries a patch whose transaction conflicts, then answers its result", async () => {
+    const conflict = Object.assign(new Error("Transaction failed"), {
+      code: "P2034",
+    });
+    const run = transactionMock.getMockImplementation();
+    transactionMock.mockRejectedValueOnce(conflict);
+    transactionMock.mockImplementationOnce(async (arg) => run?.(arg));
+
+    const response = await createApp().request(
+      "http://localhost/agent_1/metadata-override",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Display Name" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledTimes(2);
+    expect(agentMetadataOverrideUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers 409 when a patch's transaction conflicts on every attempt", async () => {
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    const response = await createApp().request(
+      "http://localhost/agent_1/metadata-override",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Display Name" }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({
+      message: "Agent override conflict",
+      kind: "concurrency_conflict",
+    });
+    expect(transactionMock).toHaveBeenCalledTimes(8);
+  }, 15_000);
 
   it("rejects invalid apiBaseUrl overrides", async () => {
     const app = createApp();

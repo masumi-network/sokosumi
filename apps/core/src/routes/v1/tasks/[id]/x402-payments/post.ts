@@ -9,6 +9,7 @@ import {
 } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok, unprocessableWithData } from "@/helpers/response";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { paymentScope } from "@/middleware/network-scope";
 import {
@@ -120,6 +121,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = await payTaskX402({
       authContext,
+      // Both deployments use the Mainnet catalog until ticket 29 moves payments.
+      catalogScope: createNetworkScope("mainnet"),
       taskId,
       idempotencyKey: body.idempotencyKey,
       agentId: body.agentId,
