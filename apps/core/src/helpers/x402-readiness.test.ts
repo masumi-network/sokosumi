@@ -8,7 +8,6 @@ import {
   getAllowedX402Caip2Networks,
   isX402NetworkAllowed,
   requiresX402AgentCuration,
-  X402_BUY_SIDE_READINESS_KEY,
 } from "./x402-readiness";
 
 const { getEnvMock } = vi.hoisted(() => ({
@@ -58,7 +57,7 @@ describe("x402ReadySources", () => {
       X402_READY_SOURCE,
     ]);
     expect(findUnique).toHaveBeenCalledWith({
-      where: { key: X402_BUY_SIDE_READINESS_KEY },
+      where: { key: "x402-buy-side-readiness" },
     });
   });
 
@@ -71,8 +70,8 @@ describe("x402ReadySources", () => {
       tx,
     );
     expect(findUnique.mock.calls).toEqual([
-      [{ where: { key: X402_BUY_SIDE_READINESS_KEY } }],
-      [{ where: { key: `preprod:${X402_BUY_SIDE_READINESS_KEY}` } }],
+      [{ where: { key: "x402-buy-side-readiness" } }],
+      [{ where: { key: "preprod:x402-buy-side-readiness" } }],
     ]);
   });
 

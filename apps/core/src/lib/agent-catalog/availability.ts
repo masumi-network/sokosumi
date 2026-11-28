@@ -17,20 +17,25 @@ import { listCardanoBillableUnitSpellings } from "@/helpers/agent-cost";
 import { internalServerError, notFound } from "@/helpers/error";
 import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import type { NetworkDb, NetworkScope, SharedDb } from "@/lib/db/network-scope";
-import { type Network, networkKey } from "@/lib/network";
+import type { Network } from "@/lib/network";
+import { readinessKey, readReadiness } from "./readiness";
 import {
+  getAllowedX402Caip2Networks,
   getTrustedX402ExactEvmDomain,
   getX402AgentCatalogWhere,
   hasValidX402DiscoveryUrl,
   isX402NetworkAllowed,
   trimEvmWalletId,
-  X402_BUY_SIDE_READINESS_KEY,
   type X402ReadySource,
 } from "./x402";
 
 // The old Preprod deployment also uses the Mainnet scope until ticket 22.
 function deploymentRail() {
   return getEnv().NETWORK;
+}
+
+export function allowedX402ReadinessNetworks(_scope: NetworkScope) {
+  return getAllowedX402Caip2Networks(deploymentRail());
 }
 
 /** Every rate of a Network, empty included: the one read of the rate table. */
@@ -49,25 +54,6 @@ export const getCreditCostsOrThrow = async (
   }
   return creditCosts;
 };
-
-/**
- * Builds a Prisma where clause for filtering agents by availability and valid pricing.
- *
- * Availability rules:
- * - Only shows agents with status ONLINE and isShown: true
- *
- * Pricing validation rules:
- * - Exclude agents with pricingType UNKNOWN
- * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
- * - For FIXED pricing: ensure all amount units exist in CreditCost table
- * - FREE pricing is always valid (no additional validation needed)
- *
- * @param creditCosts - Array of credit costs to validate pricing units against
- * @returns Prisma where clause for agent queries
- */
-export const CARDANO_V2_RAIL_READINESS_KEY = "cardano-v2-rail-readiness";
-export const CARDANO_V2_RAIL_READINESS_FAILURE_KEY =
-  "cardano-v2-rail-readiness-failure";
 
 export interface CardanoV2ReadySource {
   policyId: string;
@@ -165,9 +151,7 @@ export const getCardanoV2ReadySources = async (
   tx: SharedDb,
   network: Network,
 ): Promise<CardanoV2ReadySource[]> => {
-  const readiness = await tx.syncMetadata.findUnique({
-    where: { key: networkKey(network, CARDANO_V2_RAIL_READINESS_KEY) },
-  });
+  const readiness = await readReadiness(tx, network, "cardanoV2");
   return parseCardanoV2ReadySources(readiness?.cursorId);
 };
 
@@ -175,7 +159,7 @@ async function getCardanoV2ReadySourcesInTransaction(
   tx: NetworkDb,
   network: Network,
 ): Promise<CardanoV2ReadySource[]> {
-  const key = networkKey(network, CARDANO_V2_RAIL_READINESS_KEY);
+  const key = readinessKey(network, "cardanoV2");
   const [readiness] = await tx.$queryRaw<{ cursorId: string | null }[]>`
     SELECT "cursorId"
     FROM ${sharedTable("sync_metadata")}
@@ -214,6 +198,21 @@ export async function requireAvailableAgent(
   }
 }
 
+/**
+ * Builds a Prisma where clause for filtering agents by availability and valid pricing.
+ *
+ * Availability rules:
+ * - Only shows agents with status ONLINE and isShown: true
+ *
+ * Pricing validation rules:
+ * - Exclude agents with pricingType UNKNOWN
+ * - For FIXED pricing: require fixedPricing exists and has non-empty amounts
+ * - For FIXED pricing: ensure all amount units exist in CreditCost table
+ * - FREE pricing is always valid (no additional validation needed)
+ *
+ * @param creditCosts - Array of credit costs to validate pricing units against
+ * @returns Prisma where clause for agent queries
+ */
 export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
   cardanoV2ReadySources: readonly CardanoV2ReadySource[],
@@ -359,9 +358,7 @@ export const x402ReadySources = async (
   scope: NetworkScope,
   tx: SharedDb = scope.sharedDb,
 ): Promise<X402ReadySource[]> => {
-  const readiness = await tx.syncMetadata.findUnique({
-    where: { key: networkKey(scope.network, X402_BUY_SIDE_READINESS_KEY) },
-  });
+  const readiness = await readReadiness(tx, scope.network, "x402");
   if (!readiness?.cursorId) {
     return [];
   }

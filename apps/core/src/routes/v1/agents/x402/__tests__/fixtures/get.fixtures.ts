@@ -14,7 +14,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import { X402_BUY_SIDE_READINESS_KEY } from "@/helpers/x402-readiness";
 import { coreEvlogMiddleware } from "@/lib/evlog";
 
 import mountGetAgents from "../../../get";
@@ -73,7 +72,7 @@ export interface ReadinessPairFixture {
 /** The `syncMetadata` row `getX402ReadySources` parses its pairs out of. */
 export function createReadinessRow(pairs: ReadinessPairFixture[]) {
   return {
-    key: X402_BUY_SIDE_READINESS_KEY,
+    key: "x402-buy-side-readiness",
     cursorId: JSON.stringify(
       pairs.map((pair) => ({
         decimals: NODE_DECIMALS,

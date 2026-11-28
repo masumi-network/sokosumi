@@ -1,5 +1,6 @@
 // Base: 9ed8ced1b. Record only from the public layout on the base implementation.
 import { readFileSync, writeFileSync } from "node:fs";
+import { createRegistryClient } from "@sokosumi/masumi/clients";
 import { Hono } from "hono";
 import type { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
@@ -11,13 +12,18 @@ import { onSplitLayout } from "@/test/split-layout";
 
 const state = vi.hoisted(() => ({
   network: "Mainnet" as "Mainnet" | "Preprod",
+  preprodEnabled: false,
   pools: [] as Pool[],
 }));
 vi.mock("@/config/env", async (load) => {
   const actual = await load<typeof import("@/config/env")>();
   return {
     ...actual,
-    getEnv: () => ({ ...actual.getEnv(), NETWORK: state.network }),
+    getEnv: () => ({
+      ...actual.getEnv(),
+      NETWORK: state.network,
+      NETWORK_PREPROD_ENABLED: state.preprodEnabled,
+    }),
   };
 });
 vi.mock("@vercel/functions", async (load) => {
@@ -58,9 +64,9 @@ const enabled = process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
 const clock = Date.parse("2026-11-27T12:00:00.000Z");
 const columns = { key: true, cursorId: true, lastSyncedAt: true } as const;
 let database: Awaited<ReturnType<typeof copyPostgresTestDatabase>>;
-async function mainnet() {
+async function testScope(network: "mainnet" | "preprod" = "mainnet") {
   const { createNetworkScope } = await import("@/lib/db/network-scope");
-  return createNetworkScope("mainnet");
+  return createNetworkScope(network);
 }
 if (enabled) {
   beforeAll(async () => {
@@ -70,12 +76,14 @@ if (enabled) {
     database = await copyPostgresTestDatabase(source, "catalog_test");
     vi.stubEnv("DATABASE_URL", database.url);
     vi.stubEnv("DATABASE_URL_UNPOOLED", database.url);
-    await (await mainnet()).sharedDb.syncMetadata.deleteMany();
+    await (await testScope()).sharedDb.syncMetadata.deleteMany();
   }, 60_000);
   afterEach(async () => {
+    state.preprodEnabled = false;
+    vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
-    await (await mainnet()).sharedDb.syncMetadata.deleteMany();
+    await (await testScope()).sharedDb.syncMetadata.deleteMany();
   });
   afterAll(async () => {
     try {
@@ -87,14 +95,22 @@ if (enabled) {
   }, 60_000);
 }
 
-it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
-  "preserves readiness writes and reads on deployment %s",
-  async (network) => {
+it
+  .skipIf(!enabled)
+  .each([
+    ["Mainnet", "mainnet"],
+    ["Preprod", "mainnet"],
+    ...(onSplitLayout ? [["Preprod", "preprod"] as const] : []),
+  ] as const)(
+  "preserves readiness writes and reads on deployment %s, scope %s",
+  async (network, scopeNetwork) => {
     state.network = network;
-    const scope = await mainnet();
+    state.preprodEnabled = scopeNetwork === "preprod";
+    const scope = await testScope(scopeNetwork);
     const { cardanoV2ReadySources, x402ReadySources } = await import(
       "@/lib/agent-catalog/availability"
     );
+    const { paymentClient } = await import("@/clients/masumi-payment.client");
     const { syncCardanoV2RailReadiness } = await import(
       "./agent-sync.readiness"
     );
@@ -128,8 +144,10 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
         node.networks = [];
       }
       const { log, outcome } = await observing(async () => [
-        await syncCardanoV2RailReadiness({ sleep: async () => {} }),
-        await syncX402BuySideReadiness(),
+        await syncCardanoV2RailReadiness(scope, paymentClient(), {
+          sleep: async () => {},
+        }),
+        await syncX402BuySideReadiness(scope, paymentClient()),
       ]);
       expect(outcome).toHaveLength(2);
       expect(log.length).toBeGreaterThan(0);
@@ -166,7 +184,19 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
       expect(onSplitLayout).toBe(false);
       writeFileSync(file, actual);
     }
-    const base = JSON.parse(readFileSync(file, "utf8"));
+    const base = JSON.parse(readFileSync(file, "utf8")) as {
+      sql: string[];
+      ticks: {
+        rows: { key: string; cursorId: string | null; lastSyncedAt: string }[];
+        cardano: unknown[];
+        x402: unknown[];
+      }[];
+    };
+    if (scopeNetwork === "preprod") {
+      for (const tick of base.ticks) {
+        for (const row of tick.rows) row.key = `preprod:${row.key}`;
+      }
+    }
     expect(JSON.parse(actual)).toEqual(base);
     // An old writer's exact strings in PostgreSQL, consumed by today's readers.
     const old = base.ticks[2];
@@ -183,15 +213,36 @@ it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
 );
 
 // The registry sync still reads Network rates on the default client until PR 8.
-it.skipIf(!enabled || onSplitLayout)(
-  "resets the stored registry cursor only on a Cardano change",
-  async () => {
+it.skipIf(!enabled).each(["Mainnet", "Preprod"] as const)(
+  "resets the stored registry cursor only on a Cardano change on %s",
+  async (network) => {
+    // The registry client captures its deployment rail at import. Give each
+    // deployment its own real SDK client while both run in one test process.
+    state.network = network;
     const { default: mount, AGENTS_SYNC_METADATA_KEY: key } = await import(
       "@/routes/sync/agents/get"
     );
-    const scope = await mainnet();
+    const { registryClient } = await import("@/clients/masumi-registry.client");
+    const { getEnv } = await import("@/config/env");
+    const env = getEnv();
+    vi.spyOn(registryClient, "getAgentsDiff").mockImplementation(
+      createRegistryClient(network, env.REGISTRY_API_URL, env.REGISTRY_API_KEY)
+        .getAgentsDiff,
+    );
+    const scope = await testScope();
     const app = new Hono();
     mount(app);
+    if (onSplitLayout) {
+      // The real registry sync has already read/reset its cursor when its
+      // default-client rate read reaches the future PR 8 boundary.
+      app.onError((error, c) => {
+        expect(error).toMatchObject({
+          code: "P2021",
+          meta: { modelName: "CreditCost" },
+        });
+        return c.body(null, 503);
+      });
+    }
     const node = stubMasumiSyncHttp();
     vi.useFakeTimers({ toFake: ["Date"], now: clock });
     const rows = scope.sharedDb.syncMetadata;
@@ -207,21 +258,30 @@ it.skipIf(!enabled || onSplitLayout)(
         update: data,
       });
       if (phase === "x402-only") node.networks = [];
-      expect((await app.request("/agents")).status).toBe(200);
+      const response = await app.request("/agents");
+      expect(onSplitLayout ? [200, 503] : [200]).toContain(response.status);
       const row = await rows.findUnique({ where: { key }, select: columns });
       calls.push({ phase, row, request: node.registryRequests.at(-1) });
     }
     expectCoreLog("warn", "No x402 network and asset");
-    expect(node.registryRequests).toHaveLength(3);
+
     const file = new URL(
-      "./__tests__/fixtures/agent-sync-readiness-cursor.base.json",
+      `./__tests__/fixtures/agent-sync-readiness-cursor-${network}.base.json`,
       import.meta.url,
     );
-    if (process.env.RECORD_AGENT_READINESS_BASE === "true")
+    if (process.env.RECORD_AGENT_READINESS_BASE === "true") {
+      expect(onSplitLayout).toBe(false);
       writeFileSync(file, JSON.stringify(calls));
-    expect(JSON.parse(JSON.stringify(calls))).toEqual(
-      JSON.parse(readFileSync(file, "utf8")),
+    }
+    const expected = JSON.parse(readFileSync(file, "utf8")) as typeof calls;
+    const actual = JSON.parse(JSON.stringify(calls)) as typeof calls;
+    expect(actual.map(({ row }) => row)).toEqual(
+      expected.map(({ row }) => row),
     );
+    if (!onSplitLayout || node.registryRequests.length > 0) {
+      expect(node.registryRequests).toHaveLength(3);
+      expect(actual).toEqual(expected);
+    }
   },
   60_000,
 );

@@ -5,21 +5,6 @@ import { isValidHttpUrl } from "@sokosumi/utils";
 import type { Network } from "@/lib/network";
 
 /**
- * x402 buy-side readiness (PR1-SPEC §6, ticket 011 Q5).
- *
- * Composed Soko-side from the node's `GET /x402/networks/available`,
- * `GET /x402/wallets`, and the calling key's spend caps on
- * `GET /api-key-status`, by
- * `syncX402BuySideReadiness`, cached in SyncMetadata under
- * `X402_BUY_SIDE_READINESS_KEY` exactly like the Cardano V2 rail readiness:
- * last-known-value semantics, failure marker for one page per streak, and a
- * never-recorded state that hides the entire x402 listing (fail closed).
- */
-export const X402_BUY_SIDE_READINESS_KEY = "x402-buy-side-readiness";
-export const X402_BUY_SIDE_READINESS_FAILURE_KEY =
-  "x402-buy-side-readiness-failure";
-
-/**
  * One (network, asset) pair the payment node can pay on right now: the chain
  * is enabled for x402, the node publishes a usable scale for the asset, and a
  * funded Purchasing wallet has native gas plus the matching token. Network,
