@@ -9,6 +9,7 @@ const taskActivitySectionMock = vi.fn();
 const taskMetadataMock = vi.fn();
 const taskDetailActionsMock = vi.fn();
 const taskSubtaskSectionMock = vi.fn();
+const listTaskAssigneeOptionsMock = vi.fn();
 const viewer = vi.hoisted(() => ({
   id: "user_admin",
   hasAssignedSeat: false,
@@ -80,7 +81,8 @@ vi.mock("@/app/tasks/utils/task-activity-plan", () => ({
   resolveTaskDetailViewerPlan: async () => null,
 }));
 vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
-  listTaskAssigneeOptions: async () => [],
+  listTaskAssigneeOptions: (...args: unknown[]) =>
+    listTaskAssigneeOptionsMock(...args),
 }));
 vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
   listTaskAssigneeMemberOptions: async () => [],
@@ -391,5 +393,52 @@ describe("TaskDetailView (sub-task checklist)", () => {
     expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
 
     expect(taskSubtaskSectionMock).toHaveBeenCalled();
+  });
+});
+
+describe("TaskDetailView (assignee picker reads)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    viewer.id = "user_owner";
+    viewer.hasAssignedSeat = true;
+    listTaskAssigneeOptionsMock.mockResolvedValue([]);
+  });
+
+  // The Properties assignee field and the "Add sub-task" picker are the only
+  // readers, and a finished Task opens neither.
+  it.each(["COMPLETED", "FAILED", "CANCELED"])(
+    "loads no assignee options for a %s Task",
+    async (status) => {
+      const task = createTask([], {
+        status,
+        subtaskProgress: { completed: 0, total: 1 },
+      });
+
+      expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
+
+      expect(listTaskAssigneeOptionsMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["DRAFT", "QUEUED", "READY", "RUNNING"])(
+    "loads assignee options for a %s Task",
+    async (status) => {
+      const task = createTask([], { status });
+
+      expect(await renderErrors(<TaskDetailView task={task} />)).toEqual([]);
+
+      expect(listTaskAssigneeOptionsMock).toHaveBeenCalledOnce();
+      expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith("org_owner");
+    },
+  );
+
+  it("loads no assignee options for a read-only view", async () => {
+    const task = createTask([], { status: "READY" });
+
+    expect(
+      await renderErrors(<TaskDetailView task={task} forceReadOnly />),
+    ).toEqual([]);
+
+    expect(listTaskAssigneeOptionsMock).not.toHaveBeenCalled();
   });
 });
