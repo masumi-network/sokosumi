@@ -23,6 +23,7 @@ export async function copyPostgresTestDatabase(
     | "credit_refund_test"
     | "files_import_test"
     | "job_reads_test"
+    | "job_writes_test"
     | "mainnet_only_test",
 ) {
   const { Client } = await import("pg");

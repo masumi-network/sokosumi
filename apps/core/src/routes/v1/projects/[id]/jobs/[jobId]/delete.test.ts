@@ -26,12 +26,16 @@ const { jobUpdateManyMock, projectFindFirstMock } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     project: { findFirst: projectFindFirstMock },
     job: { updateMany: jobUpdateManyMock },
-  },
-}));
+  };
+  return {
+    default: client,
+    networkPrisma: () => client,
+  };
+});
 
 const OWNER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",

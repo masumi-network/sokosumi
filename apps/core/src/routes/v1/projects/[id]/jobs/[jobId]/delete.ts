@@ -1,10 +1,14 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { sharedTable } from "@sokosumi/database/sql-tables";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildHumanJobParentVisibilityWhere } from "@/helpers/task-visibility";
-import prisma from "@/lib/db/prisma";
+import {
+  buildHumanJobParentVisibilityWhere,
+  buildHumanTaskVisibilitySql,
+} from "@/helpers/task-visibility";
+import { networkUsesSharedSchema } from "@/lib/db/network-scope";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -54,24 +58,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: projectId, jobId } = c.req.valid("param");
 
     const workspaceId = workspaceContext.workspaceId;
+    const { networkScope } = c.var;
+    const { networkDb, sharedDb } = networkScope;
 
-    const project = await prisma.project.findFirst({
+    const project = await sharedDb.project.findFirst({
       where: { id: projectId, workspaceId },
     });
     if (!project) {
       throw notFound("Project or job link not found");
     }
 
-    const unlinkResult = await prisma.job.updateMany({
-      where: {
-        id: jobId,
-        projectId,
-        workspaceId,
-        ...buildHumanJobParentVisibilityWhere(userContext.userId),
-      },
-      data: { projectId: null },
-    });
-    if (unlinkResult.count === 0) {
+    const updatedCount = networkUsesSharedSchema()
+      ? (
+          await networkDb.job.updateMany({
+            where: {
+              id: jobId,
+              projectId,
+              workspaceId,
+              ...buildHumanJobParentVisibilityWhere(userContext.userId),
+            },
+            data: { projectId: null },
+          })
+        ).count
+      : await networkDb.$executeRaw`
+          UPDATE ${networkScope.networkTable("Job")} AS j
+          SET "projectId" = NULL, "updatedAt" = ${new Date()}
+          WHERE j."id" = ${jobId}
+            AND j."projectId" = ${projectId}::uuid
+            AND j."workspaceId" = ${workspaceId}::uuid
+            AND (
+              j."taskId" IS NULL
+              OR EXISTS (
+                SELECT 1
+                FROM ${sharedTable("task")} AS t
+                WHERE t."id" = j."taskId"
+                ${buildHumanTaskVisibilitySql(userContext.userId)}
+              )
+            )
+        `;
+    if (updatedCount === 0) {
       throw notFound("Project or job link not found");
     }
 

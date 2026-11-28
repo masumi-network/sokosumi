@@ -5,6 +5,11 @@ import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { requireJobCollaboration } from "@/helpers/access-control.js";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import {
+  createNetworkScope,
+  type NetworkDb,
+  type NetworkScope,
+} from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -53,7 +58,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { name } = c.req.valid("json");
 
-    await requireJobCollaboration(c.var.authContext, id, prisma);
+    // shortcut: Job rename stays on Mainnet's legacy client until slice 25-3b moves PATCH /v1/jobs/:id to the Job's Network.
+    const legacyMainnetScope = Object.defineProperties(
+      Object.create(createNetworkScope("mainnet")),
+      {
+        networkDb: { value: prisma as unknown as NetworkDb },
+        sharedDb: { value: prisma },
+      },
+    ) as NetworkScope;
+    await requireJobCollaboration(c.var.authContext, id, legacyMainnetScope);
 
     const job = await prisma.job.update({
       where: { id },

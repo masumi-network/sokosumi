@@ -64,8 +64,8 @@ vi.mock("@/lib/project-files-blob", () => ({
   uploadProjectBriefingFile: uploadProjectBriefingFileMock,
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     $transaction: transactionMock,
     $queryRaw: queryRawMock,
     sokoBot: { findFirst: async () => null, findMany: async () => [] },
@@ -85,8 +85,12 @@ vi.mock("@/lib/db/prisma", () => ({
     taskScheduleRun: {
       findFirst: taskScheduleOccurrenceFindFirstMock,
     },
-  },
-}));
+  };
+  return {
+    default: client,
+    networkPrisma: () => client,
+  };
+});
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "user",

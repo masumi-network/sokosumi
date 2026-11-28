@@ -231,6 +231,7 @@ const AUDIT_ID = "11111111-1111-4111-8111-111111111109";
 const LIST_ID = "11111111-1111-4111-8111-11111111110a";
 const CONTACT_ID = "11111111-1111-4111-8111-11111111110b";
 const TASK_ID = "11111111-1111-4111-8111-111111111119";
+const JOB_ID = "job_mainnet_only_25_3";
 const SEO_WORKER_COWORKER_ID = "11111111-1111-4111-8111-111111111130";
 const ADMIN_OAUTH_TOKEN = "soko_access_token_admin_mainnet_only_000001";
 const PLAIN_OAUTH_TOKEN = "soko_access_token_plain_mainnet_only_000002";
@@ -363,6 +364,9 @@ function classifyGatedV1Route(
   if (method === "GET" && path === "/admin/soko-bots/cmo-spend") {
     return { family: "CMO", mount: "GET /v1/admin/soko-bots/cmo-spend" };
   }
+  if ((method === "PUT" || method === "DELETE") && path === "/jobs/:id/share") {
+    return { family: "Jobs", mount: "/v1/jobs/:id/share" };
+  }
   // Slice 28-2: billing routes
   if (path === "/checkout" || path.startsWith("/checkout/")) {
     return { family: "Billing", mount: "/v1/checkout" };
@@ -412,6 +416,7 @@ function fillRouteParams(path: string): string {
       if (path.startsWith("/seo/audits/")) return AUDIT_ID;
       if (path.startsWith("/contact-lists/")) return LIST_ID;
       if (path.startsWith("/contacts/")) return CONTACT_ID;
+      if (path.startsWith("/jobs/")) return JOB_ID;
       return PROJECT_ID;
     }
     if (name === "projectId") return CMO_PROJECT_ID;
@@ -649,6 +654,39 @@ async function seedFixtures(loaded: Loaded) {
     },
   });
 
+  // Mainnet Agent + Job for Job share guard coverage (slice 25-3)
+  const pricing = await mainnetDb.agentPricing.create({
+    data: { pricingType: "FREE", createdAt: FIXED_DATE, updatedAt: FIXED_DATE },
+  });
+  const agent = await mainnetDb.agent.create({
+    data: {
+      id: "agent_mainnet_only_25_3",
+      blockchainIdentifier: "bc_mainnet_only_25_3",
+      name: "Fixture Share Agent",
+      apiBaseUrl: "https://share-agent.example.test",
+      pricingId: pricing.id,
+      isShown: true,
+      uptimeCount: 0,
+      uptimeCheckCount: 0,
+      lastUptimeCheck: FIXED_DATE,
+      createdAt: FIXED_DATE,
+      updatedAt: FIXED_DATE,
+    },
+  });
+  await mainnetDb.job.create({
+    data: {
+      id: JOB_ID,
+      agentJobId: "agent_job_mainnet_only_25_3",
+      jobType: "FREE",
+      agentId: agent.id,
+      ownerId: ADMIN_USER_ID,
+      workspaceId: adminWorkspace.id,
+      name: "Fixture Share Job",
+      createdAt: FIXED_DATE,
+      updatedAt: FIXED_DATE,
+    },
+  });
+
   // Fund Mainnet wallet for Studio settlement + Contact find/enrich
   const grant = await mainnetDb.transaction.create({
     data: {
@@ -809,6 +847,7 @@ async function featureTablesDigest(
       table: "contact_people_search",
     },
     { key: "shared.soko_bot", schema: shared, table: "soko_bot" },
+    { key: "shared.jobShare", schema: shared, table: "jobShare" },
     { key: "mainnet.Transaction", schema: mainnet, table: "Transaction" },
     { key: "mainnet.credit_bucket", schema: mainnet, table: "credit_bucket" },
     {
@@ -1085,6 +1124,20 @@ describe.runIf(enabled && !onSplitLayout)(
           "/v1/admin/soko-bots/cmo-spend",
           authHeaders,
         );
+        // 11. Job share (slice 25-3)
+        await run(
+          "job_share_put",
+          "PUT",
+          `/v1/jobs/${JOB_ID}/share`,
+          authHeaders,
+          { allowSearchIndexing: true },
+        );
+        await run(
+          "job_share_delete",
+          "DELETE",
+          `/v1/jobs/${JOB_ID}/share`,
+          authHeaders,
+        );
 
         await closePools();
         return out;
@@ -1217,6 +1270,16 @@ describe.runIf(enabled && !onSplitLayout)(
         admin_cmo_spend_read: {
           status: 200,
           statementCount: 17,
+          providers: [],
+        },
+        job_share_put: {
+          status: 200,
+          statementCount: 15,
+          providers: [],
+        },
+        job_share_delete: {
+          status: 200,
+          statementCount: 7,
           providers: [],
         },
       };
@@ -1515,6 +1578,7 @@ describe.skipIf(!enabled)(
       expect(countsByMount.get("POST /v1/contacts/:id/enrich")).toBe(1);
       expect(countsByMount.get("/v1/cmo")).toBeGreaterThanOrEqual(50);
       expect(countsByMount.get("GET /v1/admin/soko-bots/cmo-spend")).toBe(1);
+      expect(countsByMount.get("/v1/jobs/:id/share")).toBe(2);
       // Slice 28-2 billing mount floors
       expect(countsByMount.get("/v1/checkout")).toBeGreaterThanOrEqual(2);
       expect(countsByMount.get("/v1/products")).toBeGreaterThanOrEqual(3);
@@ -2449,6 +2513,8 @@ describe.skipIf(!enabled)(
         ["POST", `/v1/contacts/${CONTACT_ID}/enrich`],
         ["GET", "/v1/cmo/cusos"],
         ["GET", "/v1/admin/soko-bots/cmo-spend"],
+        ["PUT", `/v1/jobs/${JOB_ID}/share`],
+        ["DELETE", `/v1/jobs/${JOB_ID}/share`],
       ];
 
       for (const [method, path] of v1Paths) {
@@ -2507,9 +2573,12 @@ describe.skipIf(!enabled)(
           ["POST", `/v1/contacts/${CONTACT_ID}/enrich`],
           ["GET", "/v1/cmo/cusos"],
           ["GET", "/v1/admin/soko-bots/cmo-spend"],
+          ["PUT", `/v1/jobs/${JOB_ID}/share`],
+          ["DELETE", `/v1/jobs/${JOB_ID}/share`],
         ];
 
         for (const [method, path] of keyTargets) {
+          const hasBody = method === "POST" || method === "PUT";
           // Preprod API key without header -> 422 mainnet_only_feature, 0 statements after auth
           recorded.statements.length = 0;
           const preprodKeyRes = await loaded.app.request(`${ORIGIN}${path}`, {
@@ -2517,11 +2586,9 @@ describe.skipIf(!enabled)(
             headers: {
               origin: ORIGIN,
               authorization: `Bearer ${preprodKey}`,
-              ...(method === "POST"
-                ? { "content-type": "application/json" }
-                : {}),
+              ...(hasBody ? { "content-type": "application/json" } : {}),
             },
-            ...(method === "POST" ? { body: "{}" } : {}),
+            ...(hasBody ? { body: "{}" } : {}),
           });
           expect([method, path, preprodKeyRes.status]).toEqual([
             method,
@@ -2544,11 +2611,9 @@ describe.skipIf(!enabled)(
                 origin: ORIGIN,
                 authorization: `Bearer ${mainnetKey}`,
                 [HEADER]: "preprod",
-                ...(method === "POST"
-                  ? { "content-type": "application/json" }
-                  : {}),
+                ...(hasBody ? { "content-type": "application/json" } : {}),
               },
-              ...(method === "POST" ? { body: "{}" } : {}),
+              ...(hasBody ? { body: "{}" } : {}),
             },
           );
           expect([method, path, mainnetKeyPreprodHeader.status]).toEqual([
@@ -2571,11 +2636,9 @@ describe.skipIf(!enabled)(
                 origin: ORIGIN,
                 authorization: `Bearer ${preprodKey}`,
                 [HEADER]: "mainnet",
-                ...(method === "POST"
-                  ? { "content-type": "application/json" }
-                  : {}),
+                ...(hasBody ? { "content-type": "application/json" } : {}),
               },
-              ...(method === "POST" ? { body: "{}" } : {}),
+              ...(hasBody ? { body: "{}" } : {}),
             },
           );
           expect([method, path, preprodKeyMainnetHeader.status]).toEqual([

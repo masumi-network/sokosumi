@@ -44,7 +44,7 @@ it.skipIf(!enabled)(
           await tx.$executeRaw`RELEASE SAVEPOINT seo_alerts_read`;
         }
       };
-      await tx.$executeRaw`CREATE TABLE ${sharedTable("taskEvent")} ("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint)`;
+      await tx.$executeRaw`CREATE TABLE ${sharedTable("taskEvent")} ("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text, comment text, "userId" text, "sokoBotId" uuid, "transactionId" text, cents bigint, network text)`;
       await tx.$executeRaw`CREATE TABLE ${netTable("mainnet", "Transaction")} (id text, amount bigint)`;
       for (const ddl of [
         'project_seo_analysis(id uuid, "auditId" uuid, "projectId" uuid, "requestedBy" text, request jsonb, status text, "taskId" text, kind text, "createdAt" timestamp, "updatedAt" timestamp, "failureReason" text)',

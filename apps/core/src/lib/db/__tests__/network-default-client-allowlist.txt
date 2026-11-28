@@ -1,5 +1,4 @@
 apps/core/src/helpers/access-control.job-share.ts
-apps/core/src/helpers/access-control.ts
 apps/core/src/helpers/compensating-refund.ts
 apps/core/src/helpers/coworker-task-receipt.ts
 apps/core/src/helpers/history.ts
@@ -14,13 +13,8 @@ apps/core/src/lib/soko-bot/write-scope.ts
 apps/core/src/routes/v1/admin/task-payment-claims/get.ts
 apps/core/src/routes/v1/admin/task-x402-payments/aggregate/get.ts
 apps/core/src/routes/v1/admin/task-x402-payments/get.ts
-apps/core/src/routes/v1/jobs/[id]/inputs/post.ts
 apps/core/src/routes/v1/jobs/[id]/patch.ts
 apps/core/src/routes/v1/jobs/[id]/refund/post.ts
-apps/core/src/routes/v1/jobs/[id]/workspace/put.ts
-apps/core/src/routes/v1/projects/[id]/jobs/[jobId]/delete.ts
-apps/core/src/routes/v1/projects/[id]/jobs/post.ts
-apps/core/src/routes/v1/tasks/[id]/workspace/put.ts
 apps/core/src/services/chat-result-preview.service.ts
 apps/core/src/services/job-purchase-diff.service.ts
 apps/core/src/services/job-refund.ts
