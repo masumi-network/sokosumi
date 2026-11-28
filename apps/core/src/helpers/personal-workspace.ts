@@ -5,7 +5,6 @@ import {
   ensureInitialLocalFreeSubscriptionPeriod,
   FREE_SUBSCRIPTION_PLAN,
   getCreditExpiryDate,
-  grantSignupBonusCredits,
 } from "@sokosumi/database/helpers";
 import {
   vendorGrantRepository,
@@ -27,6 +26,8 @@ import {
   refuseJobsInWorkspace,
   workspaceHasDependents,
 } from "@/helpers/workspace-deletion-crossing-rules";
+import { grant } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
@@ -77,14 +78,18 @@ async function grantPersonalWorkspaceCredits(
         freePlanGranted = grantsCreated > 0;
       }
 
-      const { created: bonusGranted } = await grantSignupBonusCredits(
-        {
-          credits: SIGNUP_BONUS_CREDITS,
-          expiresAt,
-          userId,
-        },
+      // The sign-up bonus is Mainnet's. The wake below covers it and the
+      // free plan together, so the grant does not wake by itself.
+      const { outcome } = await grant({
+        scope: createNetworkScope("mainnet"),
         tx,
-      );
+        kind: "signup_bonus",
+        userId,
+        credits: SIGNUP_BONUS_CREDITS,
+        expiresAt,
+        wakeTasks: false,
+      });
+      const bonusGranted = outcome === "granted";
 
       if (freePlanGranted || bonusGranted) {
         await markOutOfCreditsTasksAsToppedUp({
