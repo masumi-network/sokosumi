@@ -696,6 +696,52 @@ describe("Vercel web turbo build command", () => {
     );
   });
 
+  it("skips every build of the frozen old Preprod projects", async () => {
+    const { isFrozenProject } = await import("../vercel-ignore.mjs");
+
+    for (const VERCEL_PROJECT_ID of [
+      "prj_CSgdc8zCRyR5ZT1LH8VkDJBJTtff",
+      "prj_DsK6SqWjSU47g7O3unja5h4jtxMk",
+    ]) {
+      assert.equal(isFrozenProject({ VERCEL_PROJECT_ID }), true);
+    }
+    assert.equal(isFrozenProject({ NETWORK: "Preprod" }), true);
+    assert.equal(isFrozenProject({ NETWORK: "preprod" }), true);
+    // Mainnet web and core, and a project with neither variable, build.
+    assert.equal(
+      isFrozenProject({
+        VERCEL_PROJECT_ID: "prj_GrqmJbIxWe0I6aYiZHZC2hiJYLiH",
+        NETWORK: "Mainnet",
+      }),
+      false,
+    );
+    assert.equal(isFrozenProject({}), false);
+
+    // The script itself exits 0 (skip) before it asks turbo, also for a
+    // redeploy and a preview, which `ignoreBase` would always build.
+    for (const env of [
+      { VERCEL_PROJECT_ID: "prj_DsK6SqWjSU47g7O3unja5h4jtxMk" },
+      { NETWORK: "Preprod", VERCEL_ENV: "preview" },
+    ]) {
+      const result = spawnSync(
+        process.execPath,
+        [path.join(repoRoot, "scripts/ci/vercel-ignore.mjs"), "@sokosumi/core"],
+        { env: { PATH: process.env.PATH, ...env }, encoding: "utf8" },
+      );
+      assert.equal(result.status, 0, result.stderr);
+    }
+    // Mainnet with no previous SHA still builds (exit 1), as before.
+    const mainnet = spawnSync(
+      process.execPath,
+      [path.join(repoRoot, "scripts/ci/vercel-ignore.mjs"), "@sokosumi/core"],
+      {
+        env: { PATH: process.env.PATH, NETWORK: "Mainnet" },
+        encoding: "utf8",
+      },
+    );
+    assert.equal(mainnet.status, 1);
+  });
+
   it("runs turbo --filter=web and forces production only", async () => {
     const { turboBuildArgs } = await import(
       "../../../apps/web/scripts/vercel-build.mjs"
