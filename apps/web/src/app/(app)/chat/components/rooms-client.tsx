@@ -2264,7 +2264,10 @@ function RoomView({
     ready: true,
     pathname,
     searchParams,
-    replace: router.replace,
+    // A router replace re-renders the arriving room and drops the quote it
+    // just staged; the native replace only takes the nonce off the URL.
+    replace: (href) =>
+      window.history.replaceState(window.history.state, "", href),
     open: applyPrivateReplyFromUrl,
   });
 

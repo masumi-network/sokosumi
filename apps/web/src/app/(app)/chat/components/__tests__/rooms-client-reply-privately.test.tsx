@@ -110,7 +110,12 @@ function openDirectNavigates() {
 }
 
 /** Renders the channel, picks Reply privately, then lands on `arrival`. */
+let replaceState: ReturnType<typeof vi.spyOn>;
+
 async function replyThenArrive(arrival: { search: string }) {
+  replaceState = vi
+    .spyOn(window.history, "replaceState")
+    .mockImplementation(() => undefined);
   openDirectNavigates();
   vi.spyOn(crypto, "randomUUID").mockReturnValue(
     "11111111-1111-4111-8111-111111111111",
@@ -146,10 +151,14 @@ describe("Reply privately", () => {
     expect(screen.getByTestId("room-session-composer")).toHaveTextContent(
       "quote:Grace:room-channel",
     );
-    // The request is taken off the URL, so a reload does not ask again.
-    expect(mockReplace).toHaveBeenCalledWith("/chat/rooms/room-dm", {
-      scroll: false,
-    });
+    // The request is taken off the URL, so a reload does not ask again,
+    // without a router navigation that would re-render the room.
+    expect(replaceState).toHaveBeenCalledWith(
+      window.history.state,
+      "",
+      "/chat/rooms/room-dm",
+    );
+    expect(mockReplace).not.toHaveBeenCalled();
     // The caret goes after any draft already in the Direct, not before it.
     await waitFor(() => {
       expect(focusAtEndMock).toHaveBeenCalled();
