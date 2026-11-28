@@ -2,18 +2,17 @@ import { randomUUID } from "node:crypto";
 
 import type { Prisma } from "@sokosumi/database";
 import {
-  type CreditBucketProjectOption,
   GrantFreeCreditsError,
   getCreditExpiryDate,
-  grantFreeCredits as grantFreeCreditsInDatabase,
 } from "@sokosumi/database/helpers";
 import {
   organizationRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
 import { MAX_ADMIN_CREDIT_TTL_DAYS } from "@/lib/admin-credit-grant";
+import { type CreditOwner, grant as grantCredits } from "@/lib/credits/grant";
+import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
-import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 
 export type FreeCreditTargetType = "user" | "organization";
 
@@ -46,18 +45,14 @@ function isPositiveIntegerCredits(credits: number): boolean {
 async function resolveTarget(
   target: FreeCreditTarget,
   tx: Prisma.TransactionClient,
-): Promise<{ id: string; name: string; transactionUserId: string | null }> {
+): Promise<{ id: string; name: string }> {
   if (target.targetType === "user") {
     const user = await userRepository.getUserById(target.targetId, tx);
     if (!user) {
       throw new FreeCreditValidationError("User not found");
     }
 
-    return {
-      id: user.id,
-      name: user.name,
-      transactionUserId: user.id,
-    };
+    return { id: user.id, name: user.name };
   }
 
   const organization =
@@ -69,11 +64,31 @@ async function resolveTarget(
     throw new FreeCreditValidationError("Organization not found");
   }
 
-  return {
-    id: organization.id,
-    name: organization.name,
-    transactionUserId: null,
-  };
+  return { id: organization.id, name: organization.name };
+}
+
+/**
+ * The owner of free credits. Personal credits have no Project, as the grant
+ * has always refused.
+ */
+function freeCreditOwner(
+  targetType: FreeCreditTargetType,
+  targetId: string,
+  projectId: string | undefined,
+): CreditOwner {
+  if (targetType === "organization") {
+    return {
+      userId: null,
+      organizationId: targetId,
+      projectId: projectId ?? null,
+    };
+  }
+  if (projectId) {
+    throw new GrantFreeCreditsError(
+      "User free credits cannot be scoped to a Project",
+    );
+  }
+  return { userId: targetId, organizationId: null, projectId: null };
 }
 
 export const freeCreditAdminService = {
@@ -81,17 +96,16 @@ export const freeCreditAdminService = {
    * A `projectId` makes them Project credits of the organization (ADR 0067).
    * A `tx` grants inside the caller's transaction instead of a new one.
    */
-  async grantFreeCredits(
-    params: CreditBucketProjectOption & {
-      target: FreeCreditTarget;
-      credits: number;
-      ttlDays: number | null;
-      referenceNote: string | null;
-      /** FREE unless the grant has a type of its own (Tester credits). */
-      referenceType?: "FREE" | "CMO_TESTER_CREDITS";
-      tx?: Prisma.TransactionClient;
-    },
-  ): Promise<FreeCreditGrant> {
+  async grantFreeCredits(params: {
+    target: FreeCreditTarget;
+    projectId?: string;
+    credits: number;
+    ttlDays: number | null;
+    referenceNote: string | null;
+    /** FREE unless the grant has a type of its own (Tester credits). */
+    referenceType?: "FREE" | "CMO_TESTER_CREDITS";
+    tx?: Prisma.TransactionClient;
+  }): Promise<FreeCreditGrant> {
     if (!isPositiveIntegerCredits(params.credits)) {
       throw new FreeCreditValidationError("Credits must be a positive integer");
     }
@@ -119,40 +133,35 @@ export const freeCreditAdminService = {
       tx: Prisma.TransactionClient,
     ): Promise<FreeCreditGrant> => {
       const target = await resolveTarget(params.target, tx);
-      const organizationId =
-        params.target.targetType === "organization" ? target.id : null;
       const referenceNote = params.referenceNote;
 
       let bucketId: string;
       try {
-        ({ bucketId } = await grantFreeCreditsInDatabase(
-          {
-            credits: params.credits,
-            expiresAt,
-            grantId,
-            organizationId,
-            projectId: params.projectId,
-            referenceNote,
-            referenceType: params.referenceType,
-            targetId: target.id,
-            targetType: params.target.targetType,
-            transactionUserId: target.transactionUserId,
-          },
+        // Free credits are Mainnet's: named here for every caller.
+        ({ bucketId } = await grantCredits({
+          scope: createNetworkScope("mainnet"),
           tx,
-        ));
+          kind:
+            params.referenceType === "CMO_TESTER_CREDITS"
+              ? "cmo_tester"
+              : "free",
+          owner: freeCreditOwner(
+            params.target.targetType,
+            target.id,
+            params.projectId,
+          ),
+          credits: params.credits,
+          expiresAt,
+          grantId,
+          note: referenceNote,
+          wakeTasks: true,
+        }));
       } catch (error) {
         if (error instanceof GrantFreeCreditsError) {
           throw new FreeCreditValidationError(error.message);
         }
         throw error;
       }
-
-      await markOutOfCreditsTasksAsToppedUp({
-        organizationId,
-        projectId: params.projectId,
-        tx,
-        userId: target.transactionUserId,
-      });
 
       return {
         bucketId,
