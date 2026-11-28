@@ -32,7 +32,11 @@ const requireAdmin = createMiddleware(async (c, next) => {
 // 403 stop otherwise. See the mount comment in ../index.ts.
 
 const app = new OpenAPIHonoWithAuth({
-  mainnetOnly: [{ path: "/soko-bots/cmo-spend", methods: ["GET"] }],
+  mainnetOnly: [
+    { path: "/soko-bots/cmo-spend", methods: ["GET"] },
+    "/invoices",
+    "/invoices/*",
+  ],
 });
 
 app.use("*", requireAdmin);

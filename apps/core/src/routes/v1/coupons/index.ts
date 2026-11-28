@@ -3,7 +3,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountClaimCoupon from "./[couponId]/claim/post.js";
 import mountGetCouponDetails from "./[couponId]/get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({ mainnetOnly: true });
 
 mountGetCouponDetails(app);
 mountClaimCoupon(app);

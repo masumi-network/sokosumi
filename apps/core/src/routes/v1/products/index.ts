@@ -9,7 +9,7 @@ import mountGetSubscriptionCatalog from "./subscription/get.js";
  * product's prices; `/credits/catalog` returns tiered lookup-key pricing;
  * `/subscription` exposes self-serve subscription plans.
  */
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({ mainnetOnly: true });
 
 mountListCreditPrices(app);
 mountGetCreditTopUpPriceCatalog(app);

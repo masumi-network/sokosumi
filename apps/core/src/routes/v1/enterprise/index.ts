@@ -10,7 +10,7 @@ const requireEnterpriseAdmin = createMiddleware(async (c, next) => {
   await next();
 });
 
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({ mainnetOnly: true });
 
 app.use("*", requireEnterpriseAdmin);
 app.route("/contracts", contractsRouter);
