@@ -249,14 +249,23 @@ if (enabled) {
 
 /** Random values in a statement or a row, each under a name. */
 const labels = new Map<string, string>();
+/**
+ * The Core log entries a case expects: those of its observed calls, which
+ * are compared with the base, and those its setup steps declare. Any other
+ * entry fails the case (`src/test/core-log.ts`).
+ */
+const expectedLogs: { level: "warn" | "error"; message: string }[] = [];
 const made = {
   userIds: [] as string[],
   organizationIds: [] as string[],
   subscriptionReferences: [] as string[],
 };
 
-async function createUser(name: string): Promise<string> {
-  const id = randomUUID();
+/** A person; `id` names one the product would not make ("" for an empty id). */
+async function createUser(
+  name: string,
+  id: string = randomUUID(),
+): Promise<string> {
   await core.prisma.user.create({
     data: {
       id,
@@ -269,7 +278,7 @@ async function createUser(name: string): Promise<string> {
   });
   made.userIds.push(id);
   made.subscriptionReferences.push(id);
-  labels.set(id, `<${name}>`);
+  if (id !== "") labels.set(id, `<${name}>`);
   return id;
 }
 
@@ -423,7 +432,8 @@ function rawRelations(
     // Each bucket's reference, activation and expiry against the row it is
     // for, on the raw values: `plain` hides the times in them.
     buckets: left.buckets.map((bucket) => {
-      const prefix = bucket.userId ? "user:" : "org:";
+      // An empty user id is a person's: only null is no person.
+      const prefix = bucket.userId !== null ? "user:" : "org:";
       const owner = bucket.userId ?? bucket.organizationId;
       const fields = {
         fresh: !known.has(bucket.id),
@@ -614,13 +624,15 @@ async function observe(
     }
   });
   const left = await rows(owner, (id) => firstSent.get(id) ?? -1);
+  const logged = coreLogEntries()
+    .slice(loggedBefore)
+    .map(({ level, message }) => ({ level, message }));
+  expectedLogs.push(...logged);
   return plain(
     {
       outcome: asAnswered(outcome),
       captured: capturedErrors(),
-      logged: coreLogEntries()
-        .slice(loggedBefore)
-        .map(({ level, message }) => ({ level, message })),
+      logged,
       ...(perFlow ? byFlow(log) : sent(log)),
       rows: left,
       raw: rawRelations(left, before, started, ended),
@@ -724,6 +736,9 @@ async function removeMade(): Promise<void> {
     where: { id: { in: made.organizationIds } },
   });
   await core.prisma.user.deleteMany({ where: { id: { in: made.userIds } } });
+  await core.prisma.lock.deleteMany({
+    where: { key: { in: [...CRON_LOCK_KEYS] } },
+  });
   made.userIds = [];
   made.organizationIds = [];
   made.subscriptionReferences = [];
@@ -742,19 +757,17 @@ function inCase(name: string, run: () => Promise<void>) {
         await run();
       } finally {
         await removeMade();
-        // What the observed call logged is compared with the base (`logged`);
-        // a setup step that fails on the split layout logs too.
-        declareEverythingLogged();
+        declareExpectedLogs();
       }
     },
     CASE_TIMEOUT,
   );
 }
 
-/** Declares each Core log entry of the test as many times as it came. */
-function declareEverythingLogged(): void {
+/** Declares each expected Core log entry of the case, as often as expected. */
+function declareExpectedLogs(): void {
   const counts = new Map<string, number>();
-  for (const { level, message } of coreLogEntries()) {
+  for (const { level, message } of expectedLogs.splice(0)) {
     const key = JSON.stringify([level, message]);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
@@ -767,14 +780,47 @@ function declareEverythingLogged(): void {
 /**
  * A setup step through the code compared. On the split layout `origin/main`
  * cannot write these grants, so a step that fails there leaves the rows it
- * leaves, and the case compares what follows from them.
+ * leaves, and the case compares what follows from them. It logs exactly
+ * `onSplit` there (error entries, by message) and nothing on today's layout.
  */
-async function prepared(step: () => Promise<unknown>): Promise<void> {
+async function prepared(
+  step: () => Promise<unknown>,
+  onSplit: readonly string[] = [],
+): Promise<void> {
+  const loggedBefore = coreLogEntries().length;
   try {
     await step();
   } catch (error) {
     if (!onSplitLayout) throw error;
   }
+  const logged = coreLogEntries()
+    .slice(loggedBefore)
+    .map(({ level, message }) => ({ level, message }));
+  const expected = (onSplitLayout ? onSplit : []).map((message) => ({
+    level: "error" as const,
+    message,
+  }));
+  expect(logged).toEqual(expected);
+  expectedLogs.push(...expected);
+}
+
+/** The two crons' lock rows. */
+const CRON_LOCK_KEYS = [
+  "free-subscriptions-renewal-sync",
+  "enterprise-contracts-renewal-sync",
+] as const;
+
+/**
+ * Puts a cron's lock where a deployed cron finds it after its first run:
+ * there and free. Every cron case starts from it, so no case depends on
+ * another having run first, and two ticks at once never race to create it.
+ */
+async function freeCronLock(key: (typeof CRON_LOCK_KEYS)[number]) {
+  await core.prisma.lock.upsert({
+    where: { key },
+    create: { key, isLocked: false, lockedAt: null, lockedBy: null },
+    update: { isLocked: false, lockedAt: null, lockedBy: null },
+  });
 }
 
 /** A free plan's period as the local free helpers write it, ending `endsIn` from now. */
@@ -828,10 +874,37 @@ async function paidPlan(
           : new Date(Date.now() - period.endedAgo),
     },
   });
-  return stripeSubscriptionId;
+  return { stripeId: stripeSubscriptionId, periodEnd };
 }
 
 const CREDIT = convertCreditsToCents(1);
+
+/**
+ * A person's local free period given before, as its writer keys it:
+ * `user:<id>:local-free:<periodEnd>:subscription`, 250 credits, ending with
+ * the period. Written as the fixture's own, outside the code compared.
+ */
+async function givenFreePeriod(userId: string, periodEnd: Date) {
+  const cents = 250n * CREDIT;
+  await core.mainnet().transaction.create({
+    data: {
+      amount: cents,
+      userId,
+      organizationId: null,
+      sourceCreditBucket: {
+        create: {
+          amount: cents,
+          activatesAt: null,
+          expiresAt: periodEnd,
+          userId,
+          organizationId: null,
+          referenceId: `user:${userId}:local-free:${periodEnd.toISOString()}:subscription`,
+          referenceType: "STRIPE_SUBSCRIPTION_PERIOD",
+        },
+      },
+    },
+  });
+}
 
 /** A draft enterprise contract of the Organization. */
 async function draftContract(
@@ -1010,6 +1083,20 @@ describe.skipIf(!enabled)(
         return hook({ organization } as Parameters<typeof hook>[0]);
       };
 
+      // Better Auth types the id a string; a null reaches the hook only at run time.
+      inCase("answers a null Organization id as origin/main does", async () => {
+        const organization = await createOrganization(
+          "Organization for a null id",
+        );
+
+        expectAsOnBaseHere(
+          "Organization creation, a null id",
+          await observe({ organizationId: organization.id }, () =>
+            create({ ...organization, id: null as unknown as string }),
+          ),
+        );
+      });
+
       inCase("grants the initial free period", async () => {
         const organization = await createOrganization("new Organization");
 
@@ -1075,6 +1162,32 @@ describe.skipIf(!enabled)(
           metadata: { customerType: "organization", organizationId },
         } as unknown as Parameters<typeof core.handleCustomerCreatedEvent>[0]);
 
+      for (const [shown, metadata] of [
+        [
+          "a null Organization id",
+          { customerType: "organization", organizationId: null },
+        ],
+        ["an empty user id", { customerType: "user", userId: "" }],
+        ["a null user id", { customerType: "user", userId: null }],
+      ] as const) {
+        inCase(`writes nothing for ${shown}`, async () => {
+          expectAsOnBaseHere(
+            `customer created, ${shown}`,
+            await observe(
+              { userId: "" },
+              () =>
+                core.handleCustomerCreatedEvent({
+                  id: "cus_fixture",
+                  metadata,
+                } as unknown as Parameters<
+                  typeof core.handleCustomerCreatedEvent
+                >[0]),
+              { sql: false },
+            ),
+          );
+        });
+      }
+
       inCase("grants the initial free period it finds missing", async () => {
         const { id } = await createOrganization("customer Organization");
 
@@ -1125,8 +1238,38 @@ describe.skipIf(!enabled)(
 
     describe("the free plan's renewal cron", () => {
       const renew = () => core.cron("/free-subscriptions-renewal");
+      const lock = () => freeCronLock("free-subscriptions-renewal-sync");
+
+      inCase(
+        "rolls over the period of a person whose id is empty",
+        async () => {
+          await lock();
+          await createUser("person with an empty id", "");
+          await freePeriod("", -5 * MINUTE);
+
+          expectAsOnBaseHere(
+            "free renewal, a person with an empty id",
+            await observe({ userId: "" }, renew),
+          );
+        },
+      );
+
+      inCase(
+        "rolls over the period of an Organization whose id is empty",
+        async () => {
+          await lock();
+          await createOrganization("Organization with an empty id", "");
+          await freePeriod("", -5 * MINUTE);
+
+          expectAsOnBaseHere(
+            "free renewal, an Organization with an empty id",
+            await observe({ organizationId: "" }, renew),
+          );
+        },
+      );
 
       inCase("rolls a person's overdue period over", async () => {
+        await lock();
         const userId = await createUser("overdue person");
         await freePeriod(userId, -5 * MINUTE);
 
@@ -1137,6 +1280,7 @@ describe.skipIf(!enabled)(
       });
 
       inCase("rolls an Organization's overdue period over", async () => {
+        await lock();
         const { id } = await createOrganization("overdue Organization");
         await freePeriod(id, -5 * MINUTE, { seats: 3 });
 
@@ -1147,6 +1291,7 @@ describe.skipIf(!enabled)(
       });
 
       inCase("grants the next period before the current one ends", async () => {
+        await lock();
         const { id } = await createOrganization("upcoming Organization");
         await freePeriod(id, 5 * MINUTE);
 
@@ -1157,9 +1302,12 @@ describe.skipIf(!enabled)(
       });
 
       inCase("grants nothing when it runs again", async () => {
+        await lock();
         const userId = await createUser("renewed person");
         await freePeriod(userId, -5 * MINUTE);
-        await renew();
+        await prepared(renew, [
+          "Could not renew an overdue local free subscription",
+        ]);
 
         expectAsOnBaseHere(
           "free renewal, again",
@@ -1168,6 +1316,7 @@ describe.skipIf(!enabled)(
       });
 
       inCase("runs once for two ticks at once", async () => {
+        await lock();
         const userId = await createUser("doubly renewed person");
         await freePeriod(userId, -5 * MINUTE);
 
@@ -1180,6 +1329,7 @@ describe.skipIf(!enabled)(
       });
 
       inCase("renews an empty owner id as origin/main does", async () => {
+        await lock();
         made.subscriptionReferences.push("");
         await freePeriod("", -5 * MINUTE);
 
@@ -1197,10 +1347,63 @@ describe.skipIf(!enabled)(
         >[0]);
 
       inCase(
+        "covers the rest of the period of a person whose id is empty",
+        async () => {
+          await createUser("downgraded person with an empty id", "");
+          const { stripeId } = await paidPlan("", {
+            endsIn: 10 * DAY,
+            endedAgo: MINUTE,
+          });
+
+          expectAsOnBaseHere(
+            "paid to free, a person with an empty id",
+            await observe({ userId: "" }, () => deleted(stripeId)),
+          );
+        },
+      );
+
+      inCase(
+        "covers the rest of the period of an Organization whose id is empty",
+        async () => {
+          await createOrganization(
+            "downgraded Organization with an empty id",
+            "",
+          );
+          const { stripeId } = await paidPlan("", {
+            endsIn: 10 * DAY,
+            endedAgo: MINUTE,
+          });
+
+          expectAsOnBaseHere(
+            "paid to free, an Organization with an empty id",
+            await observe({ organizationId: "" }, () => deleted(stripeId)),
+          );
+        },
+      );
+
+      inCase(
+        "grants nothing again to a person whose id is empty and whose period was given",
+        async () => {
+          await createUser("given person with an empty id", "");
+          const { stripeId, periodEnd } = await paidPlan("", {
+            endsIn: 10 * DAY,
+            endedAgo: MINUTE,
+          });
+          // The rest of a period canceled early ends where the paid one did.
+          await givenFreePeriod("", periodEnd);
+
+          expectAsOnBaseHere(
+            "paid to free, a person with an empty id whose period was given",
+            await observe({ userId: "" }, () => deleted(stripeId)),
+          );
+        },
+      );
+
+      inCase(
         "covers the rest of a period canceled early with free credits",
         async () => {
           const { id } = await createOrganization("downgraded Organization");
-          const stripeId = await paidPlan(id, {
+          const { stripeId } = await paidPlan(id, {
             endsIn: 10 * DAY,
             endedAgo: MINUTE,
           });
@@ -1214,7 +1417,7 @@ describe.skipIf(!enabled)(
 
       inCase("starts a person's free plan after the paid period", async () => {
         const userId = await createUser("downgraded person");
-        const stripeId = await paidPlan(userId, {
+        const { stripeId } = await paidPlan(userId, {
           endsIn: -MINUTE,
           endedAgo: null,
         });
@@ -1229,7 +1432,7 @@ describe.skipIf(!enabled)(
         const { id } = await createOrganization(
           "again downgraded Organization",
         );
-        const stripeId = await paidPlan(id, {
+        const { stripeId } = await paidPlan(id, {
           endsIn: 10 * DAY,
           endedAgo: MINUTE,
         });
@@ -1245,7 +1448,7 @@ describe.skipIf(!enabled)(
         const { id } = await createOrganization(
           "doubly downgraded Organization",
         );
-        const stripeId = await paidPlan(id, {
+        const { stripeId } = await paidPlan(id, {
           endsIn: 10 * DAY,
           endedAgo: MINUTE,
         });
@@ -1266,7 +1469,7 @@ describe.skipIf(!enabled)(
 
       inCase("answers an empty owner id as origin/main does", async () => {
         made.subscriptionReferences.push("");
-        const stripeId = await paidPlan("", {
+        const { stripeId } = await paidPlan("", {
           endsIn: 10 * DAY,
           endedAgo: MINUTE,
         });
@@ -1279,6 +1482,34 @@ describe.skipIf(!enabled)(
     });
 
     describe("a personal Workspace", () => {
+      inCase(
+        "answers a person whose id is empty as origin/main does",
+        async () => {
+          await createUser("person with an empty id", "");
+
+          expectAsOnBaseHere(
+            "personal Workspace, a person with an empty id",
+            await observe({ userId: "" }, async () => {
+              const workspace = await core.createPersonalWorkspace("");
+              return { workspace: workspace.userId };
+            }),
+          );
+        },
+      );
+
+      // Typed a string; a null reaches it only at run time.
+      inCase("answers a null user id as origin/main does", async () => {
+        expectAsOnBaseHere(
+          "personal Workspace, a null user id",
+          await observe({ userId: "" }, async () => {
+            const workspace = await core.createPersonalWorkspace(
+              null as unknown as string,
+            );
+            return { workspace: workspace.userId };
+          }),
+        );
+      });
+
       inCase("answers an empty user id as origin/main does", async () => {
         made.subscriptionReferences.push("");
 
@@ -1318,7 +1549,10 @@ describe.skipIf(!enabled)(
           "again enterprise Organization",
         );
         const contractId = await draftContract(id, { topUp: true });
-        await activate(contractId);
+        await prepared(
+          () => activate(contractId),
+          ["Kept a database schema mismatch out of Sentry"],
+        );
 
         expectAsOnBaseHere(
           "activation, again",
@@ -1362,10 +1596,12 @@ describe.skipIf(!enabled)(
 
     describe("the enterprise renewal cron", () => {
       const renew = () => core.cron("/enterprise-contracts-renewal");
+      const lock = () => freeCronLock("enterprise-contracts-renewal-sync");
 
       inCase(
         "grants the due period, the next one ahead, and expires the last",
         async () => {
+          await lock();
           const { id } = await createOrganization("renewing enterprise");
           await runningContract(id);
 
@@ -1377,9 +1613,10 @@ describe.skipIf(!enabled)(
       );
 
       inCase("grants nothing when it runs again", async () => {
+        await lock();
         const { id } = await createOrganization("renewed enterprise");
         await runningContract(id);
-        await renew();
+        await prepared(renew, ["A scheduled sync failed"]);
 
         expectAsOnBaseHere(
           "enterprise renewal, again",
@@ -1388,6 +1625,7 @@ describe.skipIf(!enabled)(
       });
 
       inCase("runs once for two ticks at once", async () => {
+        await lock();
         const { id } = await createOrganization("doubly renewed enterprise");
         await runningContract(id);
 
@@ -1400,6 +1638,7 @@ describe.skipIf(!enabled)(
       });
 
       inCase("grants an Organization whose id is empty as given", async () => {
+        await lock();
         await createOrganization("renewing enterprise with an empty id", "");
         await runningContract("");
 
@@ -1427,7 +1666,10 @@ describe.skipIf(!enabled)(
       inCase("expires nothing when it is canceled again", async () => {
         const { id } = await createOrganization("canceled enterprise");
         const contract = await liveContract(id);
-        await cancel(contract.id);
+        await prepared(
+          () => cancel(contract.id),
+          ["Kept a database schema mismatch out of Sentry"],
+        );
 
         expectAsOnBaseHere(
           "cancellation, again",
