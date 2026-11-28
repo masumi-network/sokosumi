@@ -49,6 +49,8 @@ export const CORE_API_ERROR_KINDS = {
   INSUFFICIENT_BALANCE: "insufficient_balance",
   /** A valid OAuth access token without `sokosumi:api` (RFC 6750 §3.1). */
   INSUFFICIENT_SCOPE: "insufficient_scope",
+  /** The feature is available on Mainnet only, not Preprod. */
+  MAINNET_ONLY_FEATURE: "mainnet_only_feature",
   MEMBER_NOT_FOUND: "member_not_found",
   /** A Coworker's payment names another Network than `X-Sokosumi-Network`. */
   NETWORK_MISMATCH: "network_mismatch",

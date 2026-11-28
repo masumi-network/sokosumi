@@ -21,7 +21,8 @@ export async function copyPostgresTestDatabase(
     | "cron_test"
     | "credit_grant_test"
     | "credit_refund_test"
-    | "files_import_test",
+    | "files_import_test"
+    | "mainnet_only_test",
 ) {
   const { Client } = await import("pg");
 

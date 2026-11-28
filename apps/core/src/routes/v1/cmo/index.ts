@@ -69,7 +69,7 @@ import mountMarkCmoUpgradeSeenForProject from "./projects/[projectId]/upgrade-se
  * (`/projects/{projectId}/…`); only hiring and the list of the caller's
  * Cusos go by the caller alone. No organization header is needed.
  */
-const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHonoWithAuth({ mainnetOnly: true });
 
 app.use("*", cmoClientCheck);
 

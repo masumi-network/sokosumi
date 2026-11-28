@@ -10,6 +10,7 @@ import mountPost from "./post.js";
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
   requireOrganizationProductSeat: true,
+  mainnetOnly: [{ path: "/:id/find", methods: ["POST"] }],
 });
 
 mountGet(app);
