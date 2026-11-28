@@ -128,7 +128,7 @@ export async function buildOrganizationPoolScopeSql(
 export async function hasAssignedOrganizationSeat(
   userId: string,
   organizationId: string | null,
-  tx: Prisma.TransactionClient,
+  tx: SharedDb,
 ): Promise<boolean> {
   if (!organizationId) {
     return true;

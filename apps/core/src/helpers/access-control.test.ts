@@ -29,6 +29,7 @@ import {
   requireJobRead,
   requireJobReadForRouteVars,
   requireMutableTaskWriteAccess,
+  requireParentTaskNotParked,
   requireTaskAssignableCoworker,
   requireTaskAssignableUser,
   requireTaskCollaboration,
@@ -2046,7 +2047,11 @@ describe("requireCoworkerChatCapabilityInWorkspace", () => {
 });
 
 function jobReadScope(tx: Prisma.TransactionClient) {
-  return { networkDb: { job: tx.job } } as NetworkScope;
+  return {
+    network: "mainnet",
+    networkDb: { job: tx.job },
+    sharedDb: tx,
+  } as unknown as NetworkScope;
 }
 
 // The callers must choose a Network, including on today's layout.
@@ -2055,6 +2060,12 @@ if (false) {
   void requireJobRead(jobReadWorkspaceContext, "job_123");
   // @ts-expect-error A route Job read requires a Network scope.
   void requireJobReadForRouteVars({} as EnvVariables["Variables"], "job_123");
+  // @ts-expect-error Job ownership requires a Network scope.
+  void requireJobOwnership(sessionUserContext, "job_123");
+  // @ts-expect-error Job collaboration requires a Network scope.
+  void requireJobCollaboration(userAuthContext, "job_123");
+  // @ts-expect-error Parent Task parked check requires a Network scope.
+  void requireParentTaskNotParked({ taskId: "tsk_123" });
 }
 
 describe("requireJobRead", () => {
@@ -2154,7 +2165,7 @@ describe("requireJobOwnership", () => {
       id: "job_123",
     } as never);
 
-    await requireJobOwnership(sessionUserContext, "job_123", tx);
+    await requireJobOwnership(sessionUserContext, "job_123", jobReadScope(tx));
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: {
@@ -2169,7 +2180,7 @@ describe("requireJobOwnership", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobOwnership(sessionUserContext, "job_123", tx),
+      requireJobOwnership(sessionUserContext, "job_123", jobReadScope(tx)),
     ).rejects.toThrow("You can only access your own jobs");
   });
 });
@@ -2463,7 +2474,7 @@ describe("requireJobCollaboration", () => {
     } as never);
 
     await expect(
-      requireJobCollaboration(userAuthContext, "job_123", tx),
+      requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx)),
     ).resolves.toMatchObject({ id: "job_123" });
   });
 
@@ -2472,7 +2483,7 @@ describe("requireJobCollaboration", () => {
     vi.mocked(tx.job.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobCollaboration(userAuthContext, "job_123", tx),
+      requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx)),
     ).rejects.toThrow("You can only access your own jobs");
   });
 
@@ -2492,7 +2503,7 @@ describe("requireJobCollaboration", () => {
       requireJobCollaboration(
         { ...userAuthContext, userId: "member_456" },
         "job_of_another_member",
-        tx,
+        jobReadScope(tx),
       ),
     ).rejects.toThrow("You can only access your own jobs");
   });
@@ -2515,7 +2526,7 @@ describe("requireJobCollaboration", () => {
       jobWithoutOwner(tx);
 
       await expect(
-        requireJobCollaboration(userAuthContext, "job_123", tx),
+        requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx)),
       ).resolves.toMatchObject({ id: "job_123" });
       expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
         "user_123",
@@ -2532,7 +2543,7 @@ describe("requireJobCollaboration", () => {
       });
 
       await expect(
-        requireJobCollaboration(userAuthContext, "job_123", tx, {
+        requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx), {
           right: "manage",
         }),
       ).resolves.toMatchObject({ id: "job_123" });
@@ -2546,7 +2557,7 @@ describe("requireJobCollaboration", () => {
       );
 
       await expect(
-        requireJobCollaboration(userAuthContext, "job_123", tx, {
+        requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx), {
           right: "manage",
         }),
       ).rejects.toMatchObject({ status: 403 });
@@ -2560,7 +2571,7 @@ describe("requireJobCollaboration", () => {
       });
 
       await expect(
-        requireJobCollaboration(userAuthContext, "job_123", tx, {
+        requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx), {
           right: "manage",
         }),
       ).rejects.toMatchObject({
@@ -2591,7 +2602,11 @@ describe("requireJobCollaboration", () => {
         pendingVendorGrantId: null,
       } as never);
 
-    await requireJobCollaboration(delegatedCoworkerContext, "job_123", tx);
+    await requireJobCollaboration(
+      delegatedCoworkerContext,
+      "job_123",
+      jobReadScope(tx),
+    );
 
     expect(tx.job.findFirst).toHaveBeenCalledWith({
       where: { id: "job_123", ownerId: "user_delegate" },
@@ -2614,7 +2629,7 @@ describe("requireJobCollaboration", () => {
     } as never);
 
     await expect(
-      requireJobCollaboration(userAuthContext, "job_123", tx),
+      requireJobCollaboration(userAuthContext, "job_123", jobReadScope(tx)),
     ).rejects.toSatisfy((error: unknown) => {
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).cause).toMatchObject({
@@ -2642,7 +2657,11 @@ describe("requireJobCollaboration", () => {
     } as never);
 
     await expect(
-      requireJobCollaboration(delegatedCoworkerContext, "job_123", tx),
+      requireJobCollaboration(
+        delegatedCoworkerContext,
+        "job_123",
+        jobReadScope(tx),
+      ),
     ).rejects.toThrow("You can only access jobs assigned to your coworker");
   });
 
@@ -2651,7 +2670,11 @@ describe("requireJobCollaboration", () => {
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
 
     await expect(
-      requireJobCollaboration(delegatedCoworkerContext, "job_123", tx),
+      requireJobCollaboration(
+        delegatedCoworkerContext,
+        "job_123",
+        jobReadScope(tx),
+      ),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
 
     expect(tx.job.findFirst).not.toHaveBeenCalled();
@@ -2662,7 +2685,7 @@ describe("requireJobCollaboration", () => {
     const bareCoworkerContext = createCoworkerContext("cow_123");
 
     await expect(
-      requireJobCollaboration(bareCoworkerContext, "job_123", tx),
+      requireJobCollaboration(bareCoworkerContext, "job_123", jobReadScope(tx)),
     ).rejects.toThrow("Context headers");
 
     expect(tx.job.findFirst).not.toHaveBeenCalled();
@@ -2710,7 +2733,11 @@ describe("shared Soko Bot collaboration", () => {
     [
       "requireJobCollaboration",
       (tx: Prisma.TransactionClient) =>
-        requireJobCollaboration(sharedSokoBotAuthContext, "job_123", tx),
+        requireJobCollaboration(
+          sharedSokoBotAuthContext,
+          "job_123",
+          jobReadScope(tx),
+        ),
     ],
     [
       "requireTaskCommentAccess",

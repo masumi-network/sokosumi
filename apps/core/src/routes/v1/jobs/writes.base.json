@@ -1,0 +1,2330 @@
+{
+  "patch_owner_standalone:implicit": {
+    "status": 200,
+    "body": "b066440acb4896f2c7660827a1f721cfc2127935f45e8b5943b7dab0eafa7052",
+    "jobRowsExact": "91c4d672f77f8d6bde1d011f5174fa5b703a6c83bc69c36f91d4fbffd2e6ed28",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "8bc385ebb8089e42bec2ca7d197e32783fbe3c706ff324fc8aecefeb528c1d94",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 34,
+    "statementsOrdered": "fa9ef01bb7a35f667f119fbb007733cb55bc2d13e8825e320ba3a57bcfbd09e0",
+    "txBoundaries": [
+      {
+        "index": 12,
+        "text": "BEGIN"
+      },
+      {
+        "index": 33,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_member_other_owned:implicit": {
+    "status": 403,
+    "body": "91ef82afd287f7f0f438635a8b264678120af8e2f8150be74b7d071b1fb63a3b",
+    "jobRowsExact": "91c4d672f77f8d6bde1d011f5174fa5b703a6c83bc69c36f91d4fbffd2e6ed28",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "8bc385ebb8089e42bec2ca7d197e32783fbe3c706ff324fc8aecefeb528c1d94",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "00912015dd23f18a23fa4bb3d1ce030059187ef17b3b530146c01e06765c6af9",
+    "txBoundaries": []
+  },
+  "patch_missing_job:implicit": {
+    "status": 403,
+    "body": "7401eb5f1222e7dd16775a7a6b279c53657a35ff9ddb9223a767eabe5c7f40bd",
+    "jobRowsExact": "91c4d672f77f8d6bde1d011f5174fa5b703a6c83bc69c36f91d4fbffd2e6ed28",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "8bc385ebb8089e42bec2ca7d197e32783fbe3c706ff324fc8aecefeb528c1d94",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "ffa78954f69fbae6a71764029d8ee68cf3ad7653877a43254a26d96448cb4c15",
+    "txBoundaries": []
+  },
+  "patch_no_owner_member_seated:implicit": {
+    "status": 200,
+    "body": "95865eadbbb0366afc15edaf6d22ea3320f8c22f4d0089c542f94be51d34c4a5",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 38,
+    "statementsOrdered": "893314219ea5731cda9457d1424bcdd1e9f57a7cf481c6a583e8010fdda9aa34",
+    "txBoundaries": [
+      {
+        "index": 16,
+        "text": "BEGIN"
+      },
+      {
+        "index": 37,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_no_owner_unseated_personal_ctx:implicit": {
+    "status": 403,
+    "body": "776bb54f8b3dcaabf520be415e5f756c7be5541c471727760d9fe65fc214e373",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "7131095ceb2dd9da12ad2dd64ae0fab4a16799d4ddef4adf3174ebcc737d593d",
+    "txBoundaries": []
+  },
+  "patch_no_owner_outsider:implicit": {
+    "status": 403,
+    "body": "776bb54f8b3dcaabf520be415e5f756c7be5541c471727760d9fe65fc214e373",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "28f1804e2ceea19eaafb3594c1f1adbecd2e8336d47ac3832ad6f940ade9c1a5",
+    "txBoundaries": []
+  },
+  "patch_parked_task:implicit": {
+    "status": 403,
+    "body": "f03fb60971e0cfbed793294bc350044f295fac7187f4598d82925bd8790c1bda",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "06d015c764f02b63facb4c746a33295e06d399cf551f4bc79de2140df5f8d092",
+    "txBoundaries": []
+  },
+  "patch_archived_task:implicit": {
+    "status": 404,
+    "body": "f568cce79e46523a2747ae9454cd1d850293b84917f63d364d5f7a9a4acd8d29",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "6537a1d9b6b463a817c1455b768ba97e3cd2c58cc2fae51b25647cc0593ea024",
+    "txBoundaries": []
+  },
+  "patch_cw_assigned:implicit": {
+    "status": 200,
+    "body": "9879a63990dc999f338d873ed9ed48bac93cf7f8f3f01b27f60aa6f0848c962b",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 34,
+    "statementsOrdered": "f02c4a2b0f7488223eb36b2e7c92eb957df9c70c1afaa737c5921ecdc716b935",
+    "txBoundaries": [
+      {
+        "index": 12,
+        "text": "BEGIN"
+      },
+      {
+        "index": 33,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_cw_unassigned:implicit": {
+    "status": 403,
+    "body": "0cc1043821176a8b42a0a2698085271d1ec0c49ec78b6f82b748c67c895f10a6",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "0b6aecbe019d2c36ead097b71b78bcb01ae13cc81ddaf6b1807acc0340b69305",
+    "txBoundaries": []
+  },
+  "patch_cw_standalone:implicit": {
+    "status": 403,
+    "body": "e7c83414243137240a2d0f7b31d27ed8d69a78f867c28695cf1747fa0f1b2fc8",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 9,
+    "statementsOrdered": "228dfcdd8eb1e55a0d9f0e1ebded1663d9b1fb6f71e6a543d7d451d3a0bae02f",
+    "txBoundaries": []
+  },
+  "patch_cw_nocap:implicit": {
+    "status": 403,
+    "body": "25e1fa6e66e862fc4b267da375404ff1dbfe10977c54ba7fda37e8708a334a63",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 9,
+    "statementsOrdered": "60cf37251d8135a16e15cbb9c9ddac9b774399d0dd0888272f638fa204f2bd12",
+    "txBoundaries": []
+  },
+  "patch_cw_bare:implicit": {
+    "status": 403,
+    "body": "daac2b329509746147946dc3559fca87802fa962b5bbf443152ac052df86dcf9",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 4,
+    "statementsOrdered": "d90a5611d8f68233d4431c3425a8b50e185fabba9e6c0fb7491d5a3282ba76b9",
+    "txBoundaries": []
+  },
+  "patch_bot_assigned:implicit": {
+    "status": 200,
+    "body": "2a06647709e3e49b3eba10c97b3ea2a2bd5ebc31fae745ad6300bd16748858d3",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "f6209b40560490d0e6752591aebfcf383167c50295a00e9cc401d4804fcb27dc",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 33,
+    "statementsOrdered": "7c72434a2bb63b27fcad2ccf5a25758f0b08ca9a7481a8761b765868dae85cdc",
+    "txBoundaries": [
+      {
+        "index": 11,
+        "text": "BEGIN"
+      },
+      {
+        "index": 32,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_bot_other_ws:implicit": {
+    "status": 404,
+    "body": "707b46a0d8f8727ebbdb96fbbf2b9d67888bbe990fac867434ff369435392d6e",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "f6209b40560490d0e6752591aebfcf383167c50295a00e9cc401d4804fcb27dc",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 7,
+    "statementsOrdered": "20ab286d42bf466a3645178ce27b9ca5e766f7b17abf0248f295e7ebc7005d5c",
+    "txBoundaries": []
+  },
+  "input_owner_ok:implicit": {
+    "status": 201,
+    "body": "d19e6c16f488c0c48dfbb8d2c2f47fa8459ae76cf8a03b56e064e4bb94f570be",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-standalone",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "42"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 24,
+    "statementsOrdered": "d97ab05ecdcf817070468f47ce965f3683b9a124e08fb7b7bfec378c8cea4bae",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      },
+      {
+        "index": 18,
+        "text": "BEGIN"
+      },
+      {
+        "index": 23,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_already_provided:implicit": {
+    "status": 409,
+    "body": "883b9896e50d40595bfd97030595f9cb8a7560110b8f1fbb1b1d038c1d018ed0",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "e0b80ccfb848df5b2e0ebda63d4e0c5c1648443f6102443ca227ca14675ac316",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_no_schema:implicit": {
+    "status": 422,
+    "body": "b42c1d266bd8a3f72be81e9f4d8c4d50e97adba9d347ab156496a887e766d665",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "1ffef9accd863f5a98038d5784a54907860f0373c0a991088904c75923ee4cb7",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_empty_data:implicit": {
+    "status": 400,
+    "body": "273eb309cd56fcd2065a3b37fc591870e2e7c9d932af5a8e2017ec5ec7924dba",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 10,
+    "statementsOrdered": "9538f9f285f83654f004922f52cc96918d247131cb84ad5d8fbba65999bd9d49",
+    "txBoundaries": []
+  },
+  "input_event_not_found:implicit": {
+    "status": 404,
+    "body": "909c3eb62d8505ad3bf28e03acc7bf1f2fdda69381ff9769eca592fa126d1ab4",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "0edb1bdee8c47eaa351bed2703302dc2cf244f9fc6ce8d2dc3eab9368ae72609",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_no_owner_member_ok:implicit": {
+    "status": 201,
+    "body": "b29325e40dff023c78a97ca1bc24cdc85fe35792ad527dfab5d3fc848d25c9e7",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-no-owner",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "yes"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 29,
+    "statementsOrdered": "93a0eaf501df14de4cc131f0304de555ba9eadec42b3e5c5aa50034ff72fe1bc",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 22,
+        "text": "COMMIT"
+      },
+      {
+        "index": 23,
+        "text": "BEGIN"
+      },
+      {
+        "index": 28,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_no_owner_unseated_403:implicit": {
+    "status": 403,
+    "body": "025c3ff71a4c5ffbb6d69de72d787e1f88c3fc291e01f8aee4c386cd660578d7",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "a1fc12add90f73c010db19712f214683608239cdd9f00d74678fe36f882cc4a2",
+    "txBoundaries": [
+      {
+        "index": 5,
+        "text": "BEGIN"
+      },
+      {
+        "index": 12,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_parked_task_403:implicit": {
+    "status": 403,
+    "body": "c3f2935a3fbcdce8d57c13c068fbda067c5faa44a7d80853e941e281756907fb",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "ea96cab27fddd9546d0167c10089dd96fc2cccba07f84fe435e5a149ebba06e1",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 13,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_archived_task_404:implicit": {
+    "status": 404,
+    "body": "e2985217b5da5d63df4b22e7c7daec8436046acaad43e0043f09804d9c74828f",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "f7970cbfa6bcce81de48b1bc1990756ea2ffd168fc48bf26ae48b0788bbce231",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 13,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_cw_assigned_ok:implicit": {
+    "status": 201,
+    "body": "fbbda2dd234e0ec2a5e3253f783b2716b4079b7ad084d8b7254682858489e048",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "ea6c688c79599f173b4a0d162e5be09ef48d9c00d6483499b4c4aa284cac35af",
+    "rows": "91cc8ce6234d733144e17be64def3010126535fdf264ddd484271f884d422e04",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-public-task",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "cw"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 24,
+    "statementsOrdered": "90fd4068c8502266d532ca640018de29d8e711ad9cddbaaadb558dafb2ca9f0c",
+    "txBoundaries": [
+      {
+        "index": 7,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      },
+      {
+        "index": 18,
+        "text": "BEGIN"
+      },
+      {
+        "index": 23,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_cw_other_403:implicit": {
+    "status": 403,
+    "body": "841d830e5da4d4fa50792cc89fec5884e9898f9021132ebba20c3b7b7491bef1",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "ea6c688c79599f173b4a0d162e5be09ef48d9c00d6483499b4c4aa284cac35af",
+    "rows": "91cc8ce6234d733144e17be64def3010126535fdf264ddd484271f884d422e04",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "4c2bcc089858e1b2bcec95c2942c3fce4850b64322369877c56d460e287022ee",
+    "txBoundaries": [
+      {
+        "index": 7,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_bot_ok:implicit": {
+    "status": 201,
+    "body": "5f72599e7bbd385147192a05c362c943d2a699b16a30747114d0b5c10c4a41ea",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "9de8b713389bbe331ddc1127766b35643ef7fc5750c3ea81ad65aed73caf486d",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-bot-task",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "bot"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 22,
+    "statementsOrdered": "6f1472da6a018c29c0e77a502d83f6365db49a413f284b781056822a5ee32989",
+    "txBoundaries": [
+      {
+        "index": 6,
+        "text": "BEGIN"
+      },
+      {
+        "index": 15,
+        "text": "COMMIT"
+      },
+      {
+        "index": 16,
+        "text": "BEGIN"
+      },
+      {
+        "index": 21,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "link_standalone_ok:implicit": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "324ecccee66963b27bcd69d353c6fb3bf0d7e2c3aebbae5f831d015c941e7caa",
+    "txBoundaries": []
+  },
+  "link_standalone_idempotent:implicit": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "e3b3e84a44384f958ac0e5eb17aa56d0fc725858bb94ea7a63a952e5455e49bf",
+    "txBoundaries": []
+  },
+  "link_conflict_other_proj:implicit": {
+    "status": 409,
+    "body": "fc9ae7196017f7157d0cdbe553ce710a5979d45bfe0985127e60e26eab52b311",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "700bde413d982126b4db2dbd1c2a1b14c5074b2f1d3dcdc2b7379dbc0befa11e",
+    "txBoundaries": []
+  },
+  "link_private_task_other_member_404:implicit": {
+    "status": 404,
+    "body": "b6ddbdd7a3799edad3a4bddcf31ce00b4ea6a570a9fc23b84afe7fa3c047d64c",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "687068c4a00ff873d636947e062064d0cd5cd06b375edebadbc5ef04b4a40029",
+    "txBoundaries": []
+  },
+  "link_private_task_owner_ok:implicit": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "c1642bfdd64251a8b26590420b7a9a245dc66c415f205d7775c6bdf5c5375a12",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "b378718e27914a21799bf616260985214518b0506eb7c254e7decf056a77b7e8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "32ba0bd7581979574fe48b5cd238bdf3d0a5d09474b87c34de130efec290bceb",
+    "txBoundaries": []
+  },
+  "link_public_task_member_ok:implicit": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "a0d79bec87b0b090a5fe710e0bb22529de4588a3d8b33882d9ae668be677e48e",
+    "txBoundaries": []
+  },
+  "link_missing_project_404:implicit": {
+    "status": 404,
+    "body": "3caa95c91cd391bc1bffe6b24f8d618f5f27ba0816543fc00cc6fe005a5badba",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "77aef9c33751ac4760bbb86869edf9b9fe74b1f98d67f3771a6a040db21cfa7d",
+    "txBoundaries": []
+  },
+  "link_missing_job_404:implicit": {
+    "status": 404,
+    "body": "b6ddbdd7a3799edad3a4bddcf31ce00b4ea6a570a9fc23b84afe7fa3c047d64c",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "81c8ede42923f6984872fb2c5b7016ce62643b586976a15a8ed79a8815da237d",
+    "txBoundaries": []
+  },
+  "unlink_private_task_other_member_404:implicit": {
+    "status": 404,
+    "body": "633c61b6f0fb76bb26b6beda97089cc12a2e28bd8753e0b54bac226b33fda627",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "15013147b2a5ade9a0af820dbe69297dca63e74c95355ffe633e2aa8510ae8d9",
+    "txBoundaries": []
+  },
+  "unlink_private_task_owner_ok:implicit": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "997764c863cb4147728ff520b58a13c6b09dc423170cd119620d325cf77249c5",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "59a9ad17e5f575189f10249c1f7a9bde464cc756fbb83633bc12d98421532bcf",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "316f160de66f050ccc7e7c0548da42c960d64d99f1e25af83523ba2d48e78275",
+    "txBoundaries": []
+  },
+  "unlink_standalone_ok:implicit": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "197f07248c85b2d6842faf0a5b13a596590a99d7f428db313081aec8aa9d6d08",
+    "txBoundaries": []
+  },
+  "unlink_already_unlinked_404:implicit": {
+    "status": 404,
+    "body": "6063a937e65e3a25d427e0b8b6cd364c0207c148e1c66351de1ff168bc1fc307",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "197f07248c85b2d6842faf0a5b13a596590a99d7f428db313081aec8aa9d6d08",
+    "txBoundaries": []
+  },
+  "unlink_missing_project_404:implicit": {
+    "status": 404,
+    "body": "fdd56ce569592423653d4653638880d05e48bde674a482bab325871fd8039d4d",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "77aef9c33751ac4760bbb86869edf9b9fe74b1f98d67f3771a6a040db21cfa7d",
+    "txBoundaries": []
+  },
+  "move_job_noop:implicit": {
+    "status": 200,
+    "body": "317d9a92424bf92dcd148b1ca63eabfbf0a2865c4082d00e0090de34353ec04c",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 34,
+    "statementsOrdered": "470add8b781cfc48b02cf84ca519451037f3efdaee21a09dbea2f812b5ba162c",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 33,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_job_task_attached_409:implicit": {
+    "status": 409,
+    "body": "ff5b2879c08edcffe70f96f05eb1b6f67f2121e72972fc1da4633de4bc69e60c",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 15,
+    "statementsOrdered": "ec62954ec3e9fc9a8991208f842db948a0bea9ce86ca36cdcd1a02983d917de2",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 14,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_cmo_project_409:implicit": {
+    "status": 409,
+    "body": "4ee4bf9c8fae168b813a938fde8448ae0b316eed29a5c112a281e7be60406597",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 20,
+    "statementsOrdered": "02669ca60ec3c915c69a4583366f4f3c584f0c1416ed10acd93fcb060c0a9829",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 19,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_no_owner_member_403:implicit": {
+    "status": 403,
+    "body": "b188f8f2074730e12333ed8692b865052609382c9fc00462eacac80a39f36f25",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 21,
+    "statementsOrdered": "42116ab50276e621d25caec2a9d537a67fd958779694d9c07784792735dd561a",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 20,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_no_owner_to_personal_400:implicit": {
+    "status": 400,
+    "body": "9cd27bea2fdc7c87f262feba1b407bdef3a404ee38c90b22a0fb365f21050585",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 22,
+    "statementsOrdered": "a0bba87548137784641f1b7929c3c58a1f618572a657f691c4585d838b15e66f",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 21,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_no_owner_admin_to_org_b:implicit": {
+    "status": 200,
+    "body": "71a9caa16ce3f7b7f48045d2e83484b1eb754209a48af5bf7d6c9ae205554725",
+    "jobRowsExact": "c4047a0e1a93dc114ee82bfae5ad25ccda5f1bcf53d1b6129ec5466ca5414b36",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "48817d7c192c875c7fd10e5c2db2e30436a2190705f760c48eb05ccbeef21e15",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 45,
+    "statementsOrdered": "75f5e32c716cfda9c62b3e6d0202c18ceffb4684eeda8c1d827160b485a14bb7",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 44,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_job_with_project_to_org_b:implicit": {
+    "status": 200,
+    "body": "51099fa77839a8d09e5520164e206dc20dcaed409ef20bf9aca849e22f2ed845",
+    "jobRowsExact": "74801a28730a15fcf637000de7e42eb6f9b4149f6eee553c8379bb7c50f5128e",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7af9c70bdf65160030e6be83208794528673e3221b91f85ce109ff8547ae3bc3",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 39,
+    "statementsOrdered": "ec3b86c92b5ffd20c42aaea971b4a5f0212c23c5e5dafe808a58cfe487e2e610",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 38,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_job_personal_to_org_b:implicit": {
+    "status": 200,
+    "body": "0379fd2bfed3ab11baba0b4daa48d3be2b1287006f9e79f1c830239de2cbc1de",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 33,
+    "statementsOrdered": "e1153fd2dfccd5c8e5facec61c0da8f624997966d4181d62a895789f7cd04567",
+    "txBoundaries": [
+      {
+        "index": 5,
+        "text": "BEGIN"
+      },
+      {
+        "index": 6,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 32,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_task_noop:implicit": {
+    "status": 200,
+    "body": "55352b0f135a360e2122383f8b4078232e316d712023cc6f3a8762e5d5337e82",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 73,
+    "statementsOrdered": "9b169e21b711d31b50b8283ca3c7e2f4698ca30534be6f8ecc9efa8900c7270d",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 72,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_task_parked_403:implicit": {
+    "status": 403,
+    "body": "05208549d6c5179f8b4912743bf01c42d479405073ce250a111000930b0e5b0c",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "3501b5786c574a1dc733d1fb14577ed1c6230df95488a7f8b7ea62f6015e31be",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 13,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_task_private_to_personal_400:implicit": {
+    "status": 400,
+    "body": "67b1cb7407b22746806fc19dff4b82f4ea0cdd70eedb236b6d3509428911312e",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 15,
+    "statementsOrdered": "35b395b90662137a8cf33da2f3c42e7e8555a5fc86f57997dce5cd7f6e84e32e",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 14,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_task_linked_409:implicit": {
+    "status": 409,
+    "body": "c6034d8e660fcb262ffd48a97b2991ad62ea0fabac1fbbdf13a96fb09e060e3e",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 26,
+    "statementsOrdered": "87a9982d33559df63689ca6b3d5f4e3a56694bc78a83fe196eec766b55ae9ff3",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 25,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_task_with_job_to_org_b:implicit": {
+    "status": 200,
+    "body": "555b4839b21e1287f9001b98dc964a8ca2cf76510ea6d374a875ad557506fa94",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [
+      "25300000-0000-4000-8000-000000000001",
+      "25300000-0000-4000-8000-000000000002"
+    ],
+    "statementCount": 88,
+    "statementsOrdered": "bc1dcbac38c8a55771f8f769a7aa1928b18fe4c415b8e9c1279e2d0c0d4303d5",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 87,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "share_put_owner_ok:implicit": {
+    "status": 200,
+    "body": "899157266490cb4f34827ff7113d78d4226457ab2071ff55408475c578b5bd7b",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "476abed579a32491e21d7944e4a09588adc2b2782af57b15f6dcb1fd97ebf03b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 20,
+    "statementsOrdered": "35695a9bc4234ba1b03f2c1d2a5c96a77585e5a0db9f8049f6baf91b690870fc",
+    "txBoundaries": [
+      {
+        "index": 11,
+        "text": "BEGIN"
+      },
+      {
+        "index": 19,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "share_put_private_task_400:implicit": {
+    "status": 400,
+    "body": "64c9029f3c655183439bc4ad39ac0b5671de6d2037db667952395ba4d3283fb1",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "476abed579a32491e21d7944e4a09588adc2b2782af57b15f6dcb1fd97ebf03b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "8ce11af378f2167b482b23ea6334547def9920b24b1663f5ed5781efed39963c",
+    "txBoundaries": []
+  },
+  "share_delete_owner_ok:implicit": {
+    "status": 200,
+    "body": "e4fe6556606ea926b6ab281c3efd7f9e4f96dd1d11b364003917dcff7d65eb6f",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "7e690c6541c2c50b3d597e32226f71c74b87db771a767f99e2d3797bb2c4d6d3",
+    "txBoundaries": []
+  },
+  "jobs_options_share:implicit": {
+    "status": 204,
+    "body": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 0,
+    "statementsOrdered": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "txBoundaries": []
+  },
+  "jobs_wrong_method_share:implicit": {
+    "status": 404,
+    "body": "31b6273306ce2832626bd4e1debbf04d7e45e7ead3c83d79a7e74d933ec90c49",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 10,
+    "statementsOrdered": "9538f9f285f83654f004922f52cc96918d247131cb84ad5d8fbba65999bd9d49",
+    "txBoundaries": []
+  },
+  "jobs_unserved_path:implicit": {
+    "status": 404,
+    "body": "31b6273306ce2832626bd4e1debbf04d7e45e7ead3c83d79a7e74d933ec90c49",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 10,
+    "statementsOrdered": "9538f9f285f83654f004922f52cc96918d247131cb84ad5d8fbba65999bd9d49",
+    "txBoundaries": []
+  },
+  "share_put_invalid_header:implicit": {
+    "status": 400,
+    "body": "d83fbd8f001882511c4c5c8463cf9ed6a1d0d1909975b1f597ebe8943c0417cf",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 0,
+    "statementsOrdered": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "txBoundaries": []
+  },
+  "input_seller_fail_422:implicit": {
+    "status": 422,
+    "body": "b09fab1376a664a921cdc627c7f347c3809d6f5c81bb8f4640e4643220832a9c",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-standalone",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "x"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "42b193018765a0d6c790743f68d523cdb68afdb98d60c951eb89a27673eee7c0",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_owner_standalone:mainnet": {
+    "status": 200,
+    "body": "b066440acb4896f2c7660827a1f721cfc2127935f45e8b5943b7dab0eafa7052",
+    "jobRowsExact": "91c4d672f77f8d6bde1d011f5174fa5b703a6c83bc69c36f91d4fbffd2e6ed28",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "8bc385ebb8089e42bec2ca7d197e32783fbe3c706ff324fc8aecefeb528c1d94",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 34,
+    "statementsOrdered": "fa9ef01bb7a35f667f119fbb007733cb55bc2d13e8825e320ba3a57bcfbd09e0",
+    "txBoundaries": [
+      {
+        "index": 12,
+        "text": "BEGIN"
+      },
+      {
+        "index": 33,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_member_other_owned:mainnet": {
+    "status": 403,
+    "body": "91ef82afd287f7f0f438635a8b264678120af8e2f8150be74b7d071b1fb63a3b",
+    "jobRowsExact": "91c4d672f77f8d6bde1d011f5174fa5b703a6c83bc69c36f91d4fbffd2e6ed28",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "8bc385ebb8089e42bec2ca7d197e32783fbe3c706ff324fc8aecefeb528c1d94",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "00912015dd23f18a23fa4bb3d1ce030059187ef17b3b530146c01e06765c6af9",
+    "txBoundaries": []
+  },
+  "patch_missing_job:mainnet": {
+    "status": 403,
+    "body": "7401eb5f1222e7dd16775a7a6b279c53657a35ff9ddb9223a767eabe5c7f40bd",
+    "jobRowsExact": "91c4d672f77f8d6bde1d011f5174fa5b703a6c83bc69c36f91d4fbffd2e6ed28",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "8bc385ebb8089e42bec2ca7d197e32783fbe3c706ff324fc8aecefeb528c1d94",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "ffa78954f69fbae6a71764029d8ee68cf3ad7653877a43254a26d96448cb4c15",
+    "txBoundaries": []
+  },
+  "patch_no_owner_member_seated:mainnet": {
+    "status": 200,
+    "body": "95865eadbbb0366afc15edaf6d22ea3320f8c22f4d0089c542f94be51d34c4a5",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 38,
+    "statementsOrdered": "893314219ea5731cda9457d1424bcdd1e9f57a7cf481c6a583e8010fdda9aa34",
+    "txBoundaries": [
+      {
+        "index": 16,
+        "text": "BEGIN"
+      },
+      {
+        "index": 37,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_no_owner_unseated_personal_ctx:mainnet": {
+    "status": 403,
+    "body": "776bb54f8b3dcaabf520be415e5f756c7be5541c471727760d9fe65fc214e373",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "7131095ceb2dd9da12ad2dd64ae0fab4a16799d4ddef4adf3174ebcc737d593d",
+    "txBoundaries": []
+  },
+  "patch_no_owner_outsider:mainnet": {
+    "status": 403,
+    "body": "776bb54f8b3dcaabf520be415e5f756c7be5541c471727760d9fe65fc214e373",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "28f1804e2ceea19eaafb3594c1f1adbecd2e8336d47ac3832ad6f940ade9c1a5",
+    "txBoundaries": []
+  },
+  "patch_parked_task:mainnet": {
+    "status": 403,
+    "body": "f03fb60971e0cfbed793294bc350044f295fac7187f4598d82925bd8790c1bda",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "06d015c764f02b63facb4c746a33295e06d399cf551f4bc79de2140df5f8d092",
+    "txBoundaries": []
+  },
+  "patch_archived_task:mainnet": {
+    "status": 404,
+    "body": "f568cce79e46523a2747ae9454cd1d850293b84917f63d364d5f7a9a4acd8d29",
+    "jobRowsExact": "3915b421289ce767174b7df53318ac736ac02b3e5462dabab8a1a7528d5ad2f5",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "dd1319fa2fcaf5cdae89f2e2c9b7cbaa683e6d0e5d21767ea9f34bd2ea6f17df",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "6537a1d9b6b463a817c1455b768ba97e3cd2c58cc2fae51b25647cc0593ea024",
+    "txBoundaries": []
+  },
+  "patch_cw_assigned:mainnet": {
+    "status": 200,
+    "body": "9879a63990dc999f338d873ed9ed48bac93cf7f8f3f01b27f60aa6f0848c962b",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 34,
+    "statementsOrdered": "f02c4a2b0f7488223eb36b2e7c92eb957df9c70c1afaa737c5921ecdc716b935",
+    "txBoundaries": [
+      {
+        "index": 12,
+        "text": "BEGIN"
+      },
+      {
+        "index": 33,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_cw_unassigned:mainnet": {
+    "status": 403,
+    "body": "0cc1043821176a8b42a0a2698085271d1ec0c49ec78b6f82b748c67c895f10a6",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 11,
+    "statementsOrdered": "0b6aecbe019d2c36ead097b71b78bcb01ae13cc81ddaf6b1807acc0340b69305",
+    "txBoundaries": []
+  },
+  "patch_cw_standalone:mainnet": {
+    "status": 403,
+    "body": "e7c83414243137240a2d0f7b31d27ed8d69a78f867c28695cf1747fa0f1b2fc8",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 9,
+    "statementsOrdered": "228dfcdd8eb1e55a0d9f0e1ebded1663d9b1fb6f71e6a543d7d451d3a0bae02f",
+    "txBoundaries": []
+  },
+  "patch_cw_nocap:mainnet": {
+    "status": 403,
+    "body": "25e1fa6e66e862fc4b267da375404ff1dbfe10977c54ba7fda37e8708a334a63",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 9,
+    "statementsOrdered": "60cf37251d8135a16e15cbb9c9ddac9b774399d0dd0888272f638fa204f2bd12",
+    "txBoundaries": []
+  },
+  "patch_cw_bare:mainnet": {
+    "status": 403,
+    "body": "daac2b329509746147946dc3559fca87802fa962b5bbf443152ac052df86dcf9",
+    "jobRowsExact": "31b2e0fcfa7cc3296a0127a7330fcdbfa3601bea58bed86714783d5050ec9b3f",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "4c0012aae2eff515723d88a65b94ec0007532b5c4379e39a40513e0982471209",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 4,
+    "statementsOrdered": "d90a5611d8f68233d4431c3425a8b50e185fabba9e6c0fb7491d5a3282ba76b9",
+    "txBoundaries": []
+  },
+  "patch_bot_assigned:mainnet": {
+    "status": 200,
+    "body": "2a06647709e3e49b3eba10c97b3ea2a2bd5ebc31fae745ad6300bd16748858d3",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "f6209b40560490d0e6752591aebfcf383167c50295a00e9cc401d4804fcb27dc",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 33,
+    "statementsOrdered": "7c72434a2bb63b27fcad2ccf5a25758f0b08ca9a7481a8761b765868dae85cdc",
+    "txBoundaries": [
+      {
+        "index": 11,
+        "text": "BEGIN"
+      },
+      {
+        "index": 32,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "patch_bot_other_ws:mainnet": {
+    "status": 404,
+    "body": "707b46a0d8f8727ebbdb96fbbf2b9d67888bbe990fac867434ff369435392d6e",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "01d38bf895a3792dbc34780908224b8eae3d05f90f164618fce1be3248958997",
+    "rows": "f6209b40560490d0e6752591aebfcf383167c50295a00e9cc401d4804fcb27dc",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 7,
+    "statementsOrdered": "20ab286d42bf466a3645178ce27b9ca5e766f7b17abf0248f295e7ebc7005d5c",
+    "txBoundaries": []
+  },
+  "input_owner_ok:mainnet": {
+    "status": 201,
+    "body": "d19e6c16f488c0c48dfbb8d2c2f47fa8459ae76cf8a03b56e064e4bb94f570be",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-standalone",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "42"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 24,
+    "statementsOrdered": "d97ab05ecdcf817070468f47ce965f3683b9a124e08fb7b7bfec378c8cea4bae",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      },
+      {
+        "index": 18,
+        "text": "BEGIN"
+      },
+      {
+        "index": 23,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_already_provided:mainnet": {
+    "status": 409,
+    "body": "883b9896e50d40595bfd97030595f9cb8a7560110b8f1fbb1b1d038c1d018ed0",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "e0b80ccfb848df5b2e0ebda63d4e0c5c1648443f6102443ca227ca14675ac316",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_no_schema:mainnet": {
+    "status": 422,
+    "body": "b42c1d266bd8a3f72be81e9f4d8c4d50e97adba9d347ab156496a887e766d665",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "1ffef9accd863f5a98038d5784a54907860f0373c0a991088904c75923ee4cb7",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_empty_data:mainnet": {
+    "status": 400,
+    "body": "273eb309cd56fcd2065a3b37fc591870e2e7c9d932af5a8e2017ec5ec7924dba",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 10,
+    "statementsOrdered": "9538f9f285f83654f004922f52cc96918d247131cb84ad5d8fbba65999bd9d49",
+    "txBoundaries": []
+  },
+  "input_event_not_found:mainnet": {
+    "status": 404,
+    "body": "909c3eb62d8505ad3bf28e03acc7bf1f2fdda69381ff9769eca592fa126d1ab4",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "b903695c2a18bf81498554b935a4d83f8dc9f0e70386c9b0c50fe391f83d544c",
+    "rows": "279bc01a072e7c55aa77de2fa8340238e29374d522ec3963e9589d8cd08421c8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "0edb1bdee8c47eaa351bed2703302dc2cf244f9fc6ce8d2dc3eab9368ae72609",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_no_owner_member_ok:mainnet": {
+    "status": 201,
+    "body": "b29325e40dff023c78a97ca1bc24cdc85fe35792ad527dfab5d3fc848d25c9e7",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-no-owner",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "yes"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 29,
+    "statementsOrdered": "93a0eaf501df14de4cc131f0304de555ba9eadec42b3e5c5aa50034ff72fe1bc",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 22,
+        "text": "COMMIT"
+      },
+      {
+        "index": 23,
+        "text": "BEGIN"
+      },
+      {
+        "index": 28,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_no_owner_unseated_403:mainnet": {
+    "status": 403,
+    "body": "025c3ff71a4c5ffbb6d69de72d787e1f88c3fc291e01f8aee4c386cd660578d7",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "a1fc12add90f73c010db19712f214683608239cdd9f00d74678fe36f882cc4a2",
+    "txBoundaries": [
+      {
+        "index": 5,
+        "text": "BEGIN"
+      },
+      {
+        "index": 12,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_parked_task_403:mainnet": {
+    "status": 403,
+    "body": "c3f2935a3fbcdce8d57c13c068fbda067c5faa44a7d80853e941e281756907fb",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "ea96cab27fddd9546d0167c10089dd96fc2cccba07f84fe435e5a149ebba06e1",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 13,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_archived_task_404:mainnet": {
+    "status": 404,
+    "body": "e2985217b5da5d63df4b22e7c7daec8436046acaad43e0043f09804d9c74828f",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "f3e64b883f82210844b6108ddadf222885ff1409f9c20a5401e6774751370390",
+    "rows": "99b38e399cb4009af16d3a0cde68a448d0a2749419ecf52916370baf6f8b72d4",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "f7970cbfa6bcce81de48b1bc1990756ea2ffd168fc48bf26ae48b0788bbce231",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 13,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_cw_assigned_ok:mainnet": {
+    "status": 201,
+    "body": "fbbda2dd234e0ec2a5e3253f783b2716b4079b7ad084d8b7254682858489e048",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "ea6c688c79599f173b4a0d162e5be09ef48d9c00d6483499b4c4aa284cac35af",
+    "rows": "91cc8ce6234d733144e17be64def3010126535fdf264ddd484271f884d422e04",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-public-task",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "cw"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 24,
+    "statementsOrdered": "90fd4068c8502266d532ca640018de29d8e711ad9cddbaaadb558dafb2ca9f0c",
+    "txBoundaries": [
+      {
+        "index": 7,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      },
+      {
+        "index": 18,
+        "text": "BEGIN"
+      },
+      {
+        "index": 23,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "input_cw_other_403:mainnet": {
+    "status": 403,
+    "body": "841d830e5da4d4fa50792cc89fec5884e9898f9021132ebba20c3b7b7491bef1",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "ea6c688c79599f173b4a0d162e5be09ef48d9c00d6483499b4c4aa284cac35af",
+    "rows": "91cc8ce6234d733144e17be64def3010126535fdf264ddd484271f884d422e04",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "4c2bcc089858e1b2bcec95c2942c3fce4850b64322369877c56d460e287022ee",
+    "txBoundaries": [
+      {
+        "index": 7,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "input_bot_ok:mainnet": {
+    "status": 201,
+    "body": "5f72599e7bbd385147192a05c362c943d2a699b16a30747114d0b5c10c4a41ea",
+    "jobRowsExact": "dfd9649723e5c876ac88668b45945f1a8312fe8daa2cceac69d0827a46775e82",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "9de8b713389bbe331ddc1127766b35643ef7fc5750c3ea81ad65aed73caf486d",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-bot-task",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "bot"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 22,
+    "statementsOrdered": "6f1472da6a018c29c0e77a502d83f6365db49a413f284b781056822a5ee32989",
+    "txBoundaries": [
+      {
+        "index": 6,
+        "text": "BEGIN"
+      },
+      {
+        "index": 15,
+        "text": "COMMIT"
+      },
+      {
+        "index": 16,
+        "text": "BEGIN"
+      },
+      {
+        "index": 21,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "link_standalone_ok:mainnet": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "324ecccee66963b27bcd69d353c6fb3bf0d7e2c3aebbae5f831d015c941e7caa",
+    "txBoundaries": []
+  },
+  "link_standalone_idempotent:mainnet": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "e3b3e84a44384f958ac0e5eb17aa56d0fc725858bb94ea7a63a952e5455e49bf",
+    "txBoundaries": []
+  },
+  "link_conflict_other_proj:mainnet": {
+    "status": 409,
+    "body": "fc9ae7196017f7157d0cdbe553ce710a5979d45bfe0985127e60e26eab52b311",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "700bde413d982126b4db2dbd1c2a1b14c5074b2f1d3dcdc2b7379dbc0befa11e",
+    "txBoundaries": []
+  },
+  "link_private_task_other_member_404:mainnet": {
+    "status": 404,
+    "body": "b6ddbdd7a3799edad3a4bddcf31ce00b4ea6a570a9fc23b84afe7fa3c047d64c",
+    "jobRowsExact": "0c4c5a9566678041241b6996c90c9f29b6e6da144da8c571201677d394541763",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7f12842f3880b86de891dece83e841a78ab93f3da7f1f998a57282ef41c9e80e",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "687068c4a00ff873d636947e062064d0cd5cd06b375edebadbc5ef04b4a40029",
+    "txBoundaries": []
+  },
+  "link_private_task_owner_ok:mainnet": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "c1642bfdd64251a8b26590420b7a9a245dc66c415f205d7775c6bdf5c5375a12",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "b378718e27914a21799bf616260985214518b0506eb7c254e7decf056a77b7e8",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "32ba0bd7581979574fe48b5cd238bdf3d0a5d09474b87c34de130efec290bceb",
+    "txBoundaries": []
+  },
+  "link_public_task_member_ok:mainnet": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "a0d79bec87b0b090a5fe710e0bb22529de4588a3d8b33882d9ae668be677e48e",
+    "txBoundaries": []
+  },
+  "link_missing_project_404:mainnet": {
+    "status": 404,
+    "body": "3caa95c91cd391bc1bffe6b24f8d618f5f27ba0816543fc00cc6fe005a5badba",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "77aef9c33751ac4760bbb86869edf9b9fe74b1f98d67f3771a6a040db21cfa7d",
+    "txBoundaries": []
+  },
+  "link_missing_job_404:mainnet": {
+    "status": 404,
+    "body": "b6ddbdd7a3799edad3a4bddcf31ce00b4ea6a570a9fc23b84afe7fa3c047d64c",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "81c8ede42923f6984872fb2c5b7016ce62643b586976a15a8ed79a8815da237d",
+    "txBoundaries": []
+  },
+  "unlink_private_task_other_member_404:mainnet": {
+    "status": 404,
+    "body": "633c61b6f0fb76bb26b6beda97089cc12a2e28bd8753e0b54bac226b33fda627",
+    "jobRowsExact": "0e3047b3b71f6fcf71e497a7e704026813e03f5ca74c9a10b98fbf5fea54b99f",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "8d5981425930e131b4747ad8639fc77d953d5758ce8f4c68d67f8a8f4371e019",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "15013147b2a5ade9a0af820dbe69297dca63e74c95355ffe633e2aa8510ae8d9",
+    "txBoundaries": []
+  },
+  "unlink_private_task_owner_ok:mainnet": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "997764c863cb4147728ff520b58a13c6b09dc423170cd119620d325cf77249c5",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "59a9ad17e5f575189f10249c1f7a9bde464cc756fbb83633bc12d98421532bcf",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "316f160de66f050ccc7e7c0548da42c960d64d99f1e25af83523ba2d48e78275",
+    "txBoundaries": []
+  },
+  "unlink_standalone_ok:mainnet": {
+    "status": 200,
+    "body": "324b076b84f58ef90d2c8443f5c1e98a88b3ed68f4e8a871ca9494215cc9ef15",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "197f07248c85b2d6842faf0a5b13a596590a99d7f428db313081aec8aa9d6d08",
+    "txBoundaries": []
+  },
+  "unlink_already_unlinked_404:mainnet": {
+    "status": 404,
+    "body": "6063a937e65e3a25d427e0b8b6cd364c0207c148e1c66351de1ff168bc1fc307",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "197f07248c85b2d6842faf0a5b13a596590a99d7f428db313081aec8aa9d6d08",
+    "txBoundaries": []
+  },
+  "unlink_missing_project_404:mainnet": {
+    "status": 404,
+    "body": "fdd56ce569592423653d4653638880d05e48bde674a482bab325871fd8039d4d",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "77aef9c33751ac4760bbb86869edf9b9fe74b1f98d67f3771a6a040db21cfa7d",
+    "txBoundaries": []
+  },
+  "move_job_noop:mainnet": {
+    "status": 200,
+    "body": "317d9a92424bf92dcd148b1ca63eabfbf0a2865c4082d00e0090de34353ec04c",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 34,
+    "statementsOrdered": "470add8b781cfc48b02cf84ca519451037f3efdaee21a09dbea2f812b5ba162c",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 33,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_job_task_attached_409:mainnet": {
+    "status": 409,
+    "body": "ff5b2879c08edcffe70f96f05eb1b6f67f2121e72972fc1da4633de4bc69e60c",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 15,
+    "statementsOrdered": "ec62954ec3e9fc9a8991208f842db948a0bea9ce86ca36cdcd1a02983d917de2",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 14,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_cmo_project_409:mainnet": {
+    "status": 409,
+    "body": "4ee4bf9c8fae168b813a938fde8448ae0b316eed29a5c112a281e7be60406597",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 20,
+    "statementsOrdered": "02669ca60ec3c915c69a4583366f4f3c584f0c1416ed10acd93fcb060c0a9829",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 19,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_no_owner_member_403:mainnet": {
+    "status": 403,
+    "body": "b188f8f2074730e12333ed8692b865052609382c9fc00462eacac80a39f36f25",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 21,
+    "statementsOrdered": "42116ab50276e621d25caec2a9d537a67fd958779694d9c07784792735dd561a",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 20,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_no_owner_to_personal_400:mainnet": {
+    "status": 400,
+    "body": "9cd27bea2fdc7c87f262feba1b407bdef3a404ee38c90b22a0fb365f21050585",
+    "jobRowsExact": "d96f270f9b27ff40741422dea09b416b4a4c024b85da1efc1c0c9b1ae7e87d10",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "e20d000d07fad78f8eebaabbb2651d83b5a96ecc3e1a3b849465d6b5e80e137b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 22,
+    "statementsOrdered": "a0bba87548137784641f1b7929c3c58a1f618572a657f691c4585d838b15e66f",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 21,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_job_no_owner_admin_to_org_b:mainnet": {
+    "status": 200,
+    "body": "71a9caa16ce3f7b7f48045d2e83484b1eb754209a48af5bf7d6c9ae205554725",
+    "jobRowsExact": "c4047a0e1a93dc114ee82bfae5ad25ccda5f1bcf53d1b6129ec5466ca5414b36",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "48817d7c192c875c7fd10e5c2db2e30436a2190705f760c48eb05ccbeef21e15",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 45,
+    "statementsOrdered": "75f5e32c716cfda9c62b3e6d0202c18ceffb4684eeda8c1d827160b485a14bb7",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 44,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_job_with_project_to_org_b:mainnet": {
+    "status": 200,
+    "body": "51099fa77839a8d09e5520164e206dc20dcaed409ef20bf9aca849e22f2ed845",
+    "jobRowsExact": "74801a28730a15fcf637000de7e42eb6f9b4149f6eee553c8379bb7c50f5128e",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "7af9c70bdf65160030e6be83208794528673e3221b91f85ce109ff8547ae3bc3",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 39,
+    "statementsOrdered": "ec3b86c92b5ffd20c42aaea971b4a5f0212c23c5e5dafe808a58cfe487e2e610",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 38,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_job_personal_to_org_b:mainnet": {
+    "status": 200,
+    "body": "0379fd2bfed3ab11baba0b4daa48d3be2b1287006f9e79f1c830239de2cbc1de",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 33,
+    "statementsOrdered": "e1153fd2dfccd5c8e5facec61c0da8f624997966d4181d62a895789f7cd04567",
+    "txBoundaries": [
+      {
+        "index": 5,
+        "text": "BEGIN"
+      },
+      {
+        "index": 6,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 32,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_task_noop:mainnet": {
+    "status": 200,
+    "body": "55352b0f135a360e2122383f8b4078232e316d712023cc6f3a8762e5d5337e82",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 73,
+    "statementsOrdered": "9b169e21b711d31b50b8283ca3c7e2f4698ca30534be6f8ecc9efa8900c7270d",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 72,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "move_task_parked_403:mainnet": {
+    "status": 403,
+    "body": "05208549d6c5179f8b4912743bf01c42d479405073ce250a111000930b0e5b0c",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 14,
+    "statementsOrdered": "3501b5786c574a1dc733d1fb14577ed1c6230df95488a7f8b7ea62f6015e31be",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 13,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_task_private_to_personal_400:mainnet": {
+    "status": 400,
+    "body": "67b1cb7407b22746806fc19dff4b82f4ea0cdd70eedb236b6d3509428911312e",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 15,
+    "statementsOrdered": "35b395b90662137a8cf33da2f3c42e7e8555a5fc86f57997dce5cd7f6e84e32e",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 14,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_task_linked_409:mainnet": {
+    "status": 409,
+    "body": "c6034d8e660fcb262ffd48a97b2991ad62ea0fabac1fbbdf13a96fb09e060e3e",
+    "jobRowsExact": "cdc64661d53c3e2145bdedd6ac02bdea77e75521f6681ff1663c4f4eed713ea2",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96cfc7becf3aafe1c28abfa5599e8e2773cc26bc0e7c8c5b346e00558923860b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 26,
+    "statementsOrdered": "87a9982d33559df63689ca6b3d5f4e3a56694bc78a83fe196eec766b55ae9ff3",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 25,
+        "text": "ROLLBACK"
+      }
+    ]
+  },
+  "move_task_with_job_to_org_b:mainnet": {
+    "status": 200,
+    "body": "555b4839b21e1287f9001b98dc964a8ca2cf76510ea6d374a875ad557506fa94",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [
+      "25300000-0000-4000-8000-000000000001",
+      "25300000-0000-4000-8000-000000000002"
+    ],
+    "statementCount": 88,
+    "statementsOrdered": "bc1dcbac38c8a55771f8f769a7aa1928b18fe4c415b8e9c1279e2d0c0d4303d5",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 11,
+        "text": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+      },
+      {
+        "index": 87,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "share_put_owner_ok:mainnet": {
+    "status": 200,
+    "body": "899157266490cb4f34827ff7113d78d4226457ab2071ff55408475c578b5bd7b",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "476abed579a32491e21d7944e4a09588adc2b2782af57b15f6dcb1fd97ebf03b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 20,
+    "statementsOrdered": "35695a9bc4234ba1b03f2c1d2a5c96a77585e5a0db9f8049f6baf91b690870fc",
+    "txBoundaries": [
+      {
+        "index": 11,
+        "text": "BEGIN"
+      },
+      {
+        "index": 19,
+        "text": "COMMIT"
+      }
+    ]
+  },
+  "share_put_private_task_400:mainnet": {
+    "status": 400,
+    "body": "64c9029f3c655183439bc4ad39ac0b5671de6d2037db667952395ba4d3283fb1",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "476abed579a32491e21d7944e4a09588adc2b2782af57b15f6dcb1fd97ebf03b",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 13,
+    "statementsOrdered": "8ce11af378f2167b482b23ea6334547def9920b24b1663f5ed5781efed39963c",
+    "txBoundaries": []
+  },
+  "share_delete_owner_ok:mainnet": {
+    "status": 200,
+    "body": "e4fe6556606ea926b6ab281c3efd7f9e4f96dd1d11b364003917dcff7d65eb6f",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 12,
+    "statementsOrdered": "7e690c6541c2c50b3d597e32226f71c74b87db771a767f99e2d3797bb2c4d6d3",
+    "txBoundaries": []
+  },
+  "jobs_options_share:mainnet": {
+    "status": 204,
+    "body": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 0,
+    "statementsOrdered": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "txBoundaries": []
+  },
+  "jobs_wrong_method_share:mainnet": {
+    "status": 404,
+    "body": "31b6273306ce2832626bd4e1debbf04d7e45e7ead3c83d79a7e74d933ec90c49",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 10,
+    "statementsOrdered": "9538f9f285f83654f004922f52cc96918d247131cb84ad5d8fbba65999bd9d49",
+    "txBoundaries": []
+  },
+  "jobs_unserved_path:mainnet": {
+    "status": 404,
+    "body": "31b6273306ce2832626bd4e1debbf04d7e45e7ead3c83d79a7e74d933ec90c49",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 10,
+    "statementsOrdered": "9538f9f285f83654f004922f52cc96918d247131cb84ad5d8fbba65999bd9d49",
+    "txBoundaries": []
+  },
+  "share_put_invalid_header:mainnet": {
+    "status": 400,
+    "body": "d83fbd8f001882511c4c5c8463cf9ed6a1d0d1909975b1f597ebe8943c0417cf",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [],
+    "publishedInvalidations": [],
+    "statementCount": 0,
+    "statementsOrdered": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "txBoundaries": []
+  },
+  "input_seller_fail_422:mainnet": {
+    "status": 422,
+    "body": "b09fab1376a664a921cdc627c7f347c3809d6f5c81bb8f4640e4643220832a9c",
+    "jobRowsExact": "1480d33be79639978a076ed381fdbce00a9b4172e815030e960e3482a3957faa",
+    "jobInputRowsExact": "3c4335aaf92949795ec377b676e38059a7e28d684df04308ea43ff3b6bf73a20",
+    "rows": "96e01dfa4d4745c6ae53a0956ea6e12391b35fb2a6d45a7408599cb6304a0992",
+    "sellerCalls": [
+      {
+        "agent": {
+          "id": "jw-agent",
+          "name": "Agent-mainnet",
+          "blockchainIdentifier": "chain-mainnet",
+          "apiBaseUrl": "https://seller.mainnet.example.test",
+          "metadataOverride": null
+        },
+        "agentJobId": "seller-job-mainnet-jw-job-standalone",
+        "inputSchema": "{\"input_data\":[{\"id\":\"answer\",\"type\":\"string\"}]}",
+        "inputData": {
+          "answer": "x"
+        }
+      }
+    ],
+    "publishedInvalidations": [],
+    "statementCount": 18,
+    "statementsOrdered": "42b193018765a0d6c790743f68d523cdb68afdb98d60c951eb89a27673eee7c0",
+    "txBoundaries": [
+      {
+        "index": 10,
+        "text": "BEGIN"
+      },
+      {
+        "index": 17,
+        "text": "COMMIT"
+      }
+    ]
+  }
+}
