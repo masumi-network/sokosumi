@@ -18,7 +18,6 @@ import {
   Pencil,
   Repeat,
   RotateCcw,
-  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
@@ -159,7 +158,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
           disabled={actionsDisabled}
           onClick={handleArchive}
         >
-          <Trash2 className="size-4" aria-hidden />
+          <Archive className="size-4" aria-hidden />
         </Button>
       ) : null}
       {canMutateTask && taskVisibility !== "PRIVATE" ? (
