@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { updateMock, deleteMock, toastErrorMock } = vi.hoisted(() => ({
@@ -19,6 +26,7 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: toastErrorMock },
 }));
 
+import { SCHEDULE_FORM_FOCUS_ID } from "./schedule-form-focus";
 import { ScheduleRowActions } from "./schedule-row-actions.client";
 
 const REFUSED = { ok: false, error: { message: "Core is down" } };
@@ -127,6 +135,83 @@ describe("ScheduleRowActions", () => {
     expect(
       await screen.findByRole("alertdialog", { name: "deleteTitle Dreaming" }),
     ).toBeInTheDocument();
+  });
+
+  it("hands focus to New schedule when its row leaves after a delete", async () => {
+    deleteMock.mockResolvedValueOnce({ ok: true, value: null });
+    // The console drops the row as soon as the delete starts.
+    function Row() {
+      const [removed, setRemoved] = useState(false);
+      return (
+        <>
+          {removed ? null : (
+            <ScheduleRowActions
+              scheduleId="s1"
+              name="Dreaming"
+              enabled
+              onRemovedChange={setRemoved}
+            />
+          )}
+          <button type="button" id={SCHEDULE_FORM_FOCUS_ID}>
+            New schedule
+          </button>
+        </>
+      );
+    }
+    render(<Row />);
+
+    const trigger = screen.getByRole("button", {
+      name: "deleteNamed Dreaming",
+    });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "deleteConfirm" }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "New schedule" }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it("hands focus to the open form's Name when its row leaves after a delete", async () => {
+    deleteMock.mockResolvedValueOnce({ ok: true, value: null });
+    // New schedule is open, so its button is gone and Name holds the id.
+    function Row() {
+      const [removed, setRemoved] = useState(false);
+      return (
+        <>
+          {removed ? null : (
+            <ScheduleRowActions
+              scheduleId="s1"
+              name="Dreaming"
+              enabled
+              onRemovedChange={setRemoved}
+            />
+          )}
+          <label>
+            Name
+            <input id={SCHEDULE_FORM_FOCUS_ID} />
+          </label>
+        </>
+      );
+    }
+    render(<Row />);
+
+    const trigger = screen.getByRole("button", {
+      name: "deleteNamed Dreaming",
+    });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "deleteConfirm" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Name" })).toHaveFocus(),
+    );
   });
 
   it.each([

@@ -110,6 +110,15 @@ function Row({
   );
 }
 
+/**
+ * A chip's name for screen readers, read before the value it shows ("Time
+ * 09:00"). An aria-label would replace the value, so a listener heard only
+ * "Time" and a voice user could not say what they see (WCAG 2.5.3).
+ */
+function ChipLabel({ children }: { children: string }) {
+  return <span className="sr-only">{children} </span>;
+}
+
 function MenuChip({
   label,
   value,
@@ -127,7 +136,8 @@ function MenuChip({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" aria-label={label} className={chipClass(false)}>
+        <button type="button" className={chipClass(false)}>
+          <ChipLabel>{label}</ChipLabel>
           <span className="text-foreground">{current?.label}</span>
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
@@ -169,11 +179,8 @@ function TimeChip({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={t("time")}
-          className={chipClass(false)}
-        >
+        <button type="button" className={chipClass(false)}>
+          <ChipLabel>{t("time")}</ChipLabel>
           <Clock className="size-3.5" aria-hidden />
           <span className="text-foreground tabular-nums">{value}</span>
         </button>
@@ -239,11 +246,8 @@ function TimezoneChip({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={t("timezone")}
-          className={chipClass(false)}
-        >
+        <button type="button" className={chipClass(false)}>
+          <ChipLabel>{t("timezone")}</ChipLabel>
           <Globe className="size-3.5" aria-hidden />
           {value}
         </button>
@@ -297,7 +301,8 @@ function DateChip({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={label} className={chipClass(false)}>
+        <button type="button" className={chipClass(false)}>
+          <ChipLabel>{label}</ChipLabel>
           <CalendarDays className="size-3.5" aria-hidden />
           <span className={cn(selected && "text-foreground")}>
             {selected
