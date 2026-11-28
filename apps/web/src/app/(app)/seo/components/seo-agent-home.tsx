@@ -331,6 +331,10 @@ function SeoAgentPanel({
         </Button>
       </div>
     ) : null;
+  const planDiff = message ? runDiffFold(selectedPlan.report?.id) : null;
+  const hasPlanFigures = Boolean(
+    planDiff || auditReport || numbers.keywords || numbers.searches || traffic,
+  );
   return (
     <section
       aria-labelledby="seo-agent-title"
@@ -352,12 +356,7 @@ function SeoAgentPanel({
       </p>
       {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
       {banner}
-      {analyticsStep && !setup ? (
-        <SeoAgentStatistics model={model} line={analyticsLine} />
-      ) : null}
-      {/* The pictures come first: the keyword searches say what the site can win before the verdict says
-          what to fix. */}
-      {setup ? null : <SeoAgentGraphics model={model} />}
+      {/* Keep the pending approval above the plan, and its supporting charts below the next action. */}
       {setup ? null : message ? (
         <SeoPlanMessage
           selected={selectedPlan}
@@ -382,17 +381,21 @@ function SeoAgentPanel({
             </>
           }
           figures={
-            <>
-              {/* The plan stays on its audit after a newer focused check: it compares its own check. */}
-              {runDiffFold(selectedPlan.report?.id)}
-              {auditReport && <SeoPropertyPerformance evidence={auditReport} />}
-              <SeoAgentFigures
-                model={model}
-                traffic={traffic}
-                periodId={periodId}
-                trafficLead={false}
-              />
-            </>
+            hasPlanFigures ? (
+              <>
+                {/* The plan stays on its audit after a newer focused check: it compares its own check. */}
+                {planDiff}
+                {auditReport && (
+                  <SeoPropertyPerformance evidence={auditReport} />
+                )}
+                <SeoAgentFigures
+                  model={model}
+                  traffic={traffic}
+                  periodId={periodId}
+                  trafficLead={false}
+                />
+              </>
+            ) : undefined
           }
         />
       ) : (
@@ -511,6 +514,10 @@ function SeoAgentPanel({
           ) : null}
         </div>
       )}
+      {analyticsStep && !setup ? (
+        <SeoAgentStatistics model={model} line={analyticsLine} />
+      ) : null}
+      {!setup && <SeoAgentGraphics model={model} />}
       {/* The setup card has no line for upkeep, so it sits under the card. */}
       {setup && upkeep ? <div className="px-2">{upkeep}</div> : null}
       {!setup && !model.data.observations.length ? (

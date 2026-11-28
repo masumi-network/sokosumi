@@ -12,10 +12,12 @@ export function SeoCopyButton({
   text,
   label,
   className,
+  variant = "outline",
 }: {
   text: string;
   label: string;
   className?: string;
+  variant?: "outline" | "primary";
 }) {
   const t = useTranslations("App.Seo");
   const { copied, copy } = useClipboard({
@@ -25,7 +27,7 @@ export function SeoCopyButton({
   return (
     <Button
       size="sm"
-      variant="outline"
+      variant={variant}
       className={className}
       onClick={() => {
         void copy(text);
@@ -48,6 +50,18 @@ export function useSeoActionInstructions(
   const t = useSeoResultTranslations("App.Seo");
   return [
     t("actions.copyAgentLead"),
+    seoActionDetails(t, action, finding),
+  ].join("\n\n");
+}
+
+type ReportTranslator = ReturnType<typeof useSeoResultTranslations<"App.Seo">>;
+
+export function seoActionDetails(
+  t: ReportTranslator,
+  action: ProjectSeoAction,
+  finding: string,
+): string {
+  return [
     action.title,
     `${t("actions.copyPage")}: ${action.pageUrl}`,
     finding,

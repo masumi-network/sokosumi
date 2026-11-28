@@ -3,7 +3,7 @@ import type {
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
 import { expect, it } from "vitest";
-import { seoPlanMessage } from "./seo-plan-message-model";
+import { seoPlanExcerpt, seoPlanMessage } from "./seo-plan-message-model";
 import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
 
 type Plan = NonNullable<
@@ -46,6 +46,19 @@ const action = (
   ...over,
 });
 const none = () => null;
+
+it("keeps both prices together in a short lead and preserves an unsplittable explanation in the fold", () => {
+  const prices = "The markup says $9.99. The page shows $6.49.";
+  const explanation =
+    "Compare the offer, locale, stock status and billing period on each page before changing "
+      .repeat(3)
+      .trimEnd() + ".";
+  expect(seoPlanExcerpt(prices + " " + explanation)).toEqual({
+    lead: prices,
+    rest: explanation,
+  });
+  expect(seoPlanExcerpt(explanation)).toEqual({ lead: "", rest: explanation });
+});
 
 it("shows no written plan for a report without one, or without its summary", () => {
   expect(seoPlanMessage({ actions: [] }, undefined, none)).toBeNull();
