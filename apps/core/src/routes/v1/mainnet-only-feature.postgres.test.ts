@@ -316,7 +316,7 @@ async function closePools(): Promise<void> {
   delete (globalThis as { coreDatabase?: unknown }).coreDatabase;
 }
 
-/** Matches every route in Core's live v1 route table that belongs to slice 28-1. */
+/** Matches every route in Core's live v1 route table that belongs to ticket 28 (slices 28-1 and 28-2). */
 function classifyGatedV1Route(
   method: string,
   path: string,
@@ -362,6 +362,45 @@ function classifyGatedV1Route(
   }
   if (method === "GET" && path === "/admin/soko-bots/cmo-spend") {
     return { family: "CMO", mount: "GET /v1/admin/soko-bots/cmo-spend" };
+  }
+  // Slice 28-2: billing routes
+  if (path === "/checkout" || path.startsWith("/checkout/")) {
+    return { family: "Billing", mount: "/v1/checkout" };
+  }
+  if (path === "/products" || path.startsWith("/products/")) {
+    return { family: "Billing", mount: "/v1/products" };
+  }
+  if (path === "/coupons" || path.startsWith("/coupons/")) {
+    return { family: "Billing", mount: "/v1/coupons" };
+  }
+  if (path === "/enterprise" || path.startsWith("/enterprise/")) {
+    return { family: "Billing", mount: "/v1/enterprise" };
+  }
+  if (path === "/admin/invoices" || path.startsWith("/admin/invoices/")) {
+    return { family: "Billing", mount: "/v1/admin/invoices" };
+  }
+  if (
+    (method === "GET" &&
+      (path === "/organizations/:id/billing-details" ||
+        path === "/organizations/:id/billing-plan" ||
+        path === "/organizations/:id/enterprise-contract-summary" ||
+        path === "/organizations/:id/stripe-customer" ||
+        path === "/organizations/:id/seat-summary" ||
+        path === "/organizations/:id/credit-spend")) ||
+    (method === "POST" && path === "/organizations/:id/stripe-customer") ||
+    path === "/organizations/:id/subscription" ||
+    path.startsWith("/organizations/:id/subscription/")
+  ) {
+    return { family: "Billing", mount: "/v1/organizations/:id/<billing>" };
+  }
+  if (
+    (method === "GET" &&
+      (path === "/users/:id/billing-details" ||
+        path === "/users/:id/stripe-customer" ||
+        path === "/users/:id/subscription")) ||
+    (method === "POST" && path === "/users/:id/stripe-customer")
+  ) {
+    return { family: "Billing", mount: "/v1/users/:id/<billing>" };
   }
   return null;
 }
@@ -1476,6 +1515,18 @@ describe.skipIf(!enabled)(
       expect(countsByMount.get("POST /v1/contacts/:id/enrich")).toBe(1);
       expect(countsByMount.get("/v1/cmo")).toBeGreaterThanOrEqual(50);
       expect(countsByMount.get("GET /v1/admin/soko-bots/cmo-spend")).toBe(1);
+      // Slice 28-2 billing mount floors
+      expect(countsByMount.get("/v1/checkout")).toBeGreaterThanOrEqual(2);
+      expect(countsByMount.get("/v1/products")).toBeGreaterThanOrEqual(3);
+      expect(countsByMount.get("/v1/coupons")).toBeGreaterThanOrEqual(2);
+      expect(countsByMount.get("/v1/enterprise")).toBeGreaterThanOrEqual(7);
+      expect(countsByMount.get("/v1/admin/invoices")).toBeGreaterThanOrEqual(5);
+      expect(
+        countsByMount.get("/v1/organizations/:id/<billing>"),
+      ).toBeGreaterThanOrEqual(11);
+      expect(
+        countsByMount.get("/v1/users/:id/<billing>"),
+      ).toBeGreaterThanOrEqual(4);
 
       // Measure exact auth-only statement count for OAuth bearer (no workspace/scope/handler queries).
       recorded.statements.length = 0;
@@ -2259,13 +2310,23 @@ describe.skipIf(!enabled)(
         });
       }
 
-      // Guard against a filter bug silently dropping ungated routes.
+      // Guard against a filter bug silently dropping ungated routes, and
+      // explicitly verify Seat entitlement/assignment and generic org routes
+      // stay open on Preprod.
       expect(ungatedRoutes.length).toBeGreaterThanOrEqual(700);
-      expect(
-        ungatedRoutes.some(
-          (r) => r.method === "GET" && r.path === "/contacts/:id",
-        ),
-      ).toBe(true);
+      for (const [method, path] of [
+        ["GET", "/contacts/:id"],
+        ["GET", "/organizations/:id"],
+        ["GET", "/organizations/:id/members/me/seat"],
+        ["PUT", "/organizations/:id/members/:memberId/seat"],
+        ["DELETE", "/organizations/:id/members/:memberId/seat"],
+        ["PUT", "/admin/organizations/:slug/members/:memberId/seat"],
+        ["DELETE", "/admin/organizations/:slug/members/:memberId/seat"],
+      ] as const) {
+        expect(
+          ungatedRoutes.some((r) => r.method === method && r.path === path),
+        ).toBe(true);
+      }
 
       // Sending an unknown X-Organization-Slug stops non-gated OpenAPIHonoWithAuth
       // routes at organizationContextMiddleware (after auth and AFTER any

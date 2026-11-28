@@ -128,3 +128,121 @@ describe("auth router token requests", () => {
     },
   );
 });
+
+describe("auth router Mainnet-only billing guard", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  async function createAuthApp() {
+    const { Hono } = await import("hono");
+    const { errorHandler } = await import("@/helpers/error-handler");
+    const { default: authRouter } = await import("./index.js");
+    const app = new Hono();
+    app.onError(errorHandler);
+    app.route("/auth", authRouter);
+    return app;
+  }
+
+  it.each([
+    ["GET", "/auth/subscription/list"],
+    ["POST", "/auth/subscription/upgrade"],
+    ["POST", "/auth/subscription/cancel"],
+    ["POST", "/auth/subscription/restore"],
+    ["GET", "/auth/subscription/success"],
+    ["POST", "/auth/subscription/billing-portal"],
+    ["GET", "/auth/subscription/future-endpoint"],
+  ])(
+    "refuses %s %s with 422 mainnet_only_feature on preprod without calling auth.handler",
+    async (method, path) => {
+      const app = await createAuthApp();
+      const { auth } = await import("@/lib/auth.js");
+      vi.mocked(auth.handler).mockResolvedValue(new Response("{}"));
+
+      const response = await app.request(`https://core.sokosumi.com${path}`, {
+        method,
+        headers: { "X-Sokosumi-Network": "preprod" },
+      });
+
+      expect(response.status).toBe(422);
+      await expect(response.json()).resolves.toMatchObject({
+        kind: "mainnet_only_feature",
+        message: "This feature is available on Mainnet only.",
+      });
+      expect(auth.handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it("allows /auth/subscription/list on mainnet and no-header and keeps /auth/stripe/webhook and /auth/get-session open on preprod", async () => {
+    const app = await createAuthApp();
+    const { auth } = await import("@/lib/auth.js");
+    vi.mocked(auth.handler).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const allowedHeaders: Record<string, string>[] = [
+      {},
+      { "X-Sokosumi-Network": "mainnet" },
+    ];
+    for (const headers of allowedHeaders) {
+      const res = await app.request(
+        "https://core.sokosumi.com/auth/subscription/list",
+        { method: "GET", headers },
+      );
+      expect(res.status).toBe(200);
+    }
+
+    const webhookRes = await app.request(
+      "https://core.sokosumi.com/auth/stripe/webhook",
+      {
+        method: "POST",
+        headers: { "X-Sokosumi-Network": "preprod" },
+        body: "{}",
+      },
+    );
+    expect(webhookRes.status).toBe(200);
+
+    const sessionRes = await app.request(
+      "https://core.sokosumi.com/auth/get-session",
+      {
+        method: "GET",
+        headers: { "X-Sokosumi-Network": "preprod" },
+      },
+    );
+    expect(sessionRes.status).toBe(200);
+
+    expect(auth.handler).toHaveBeenCalledTimes(4);
+  });
+
+  it("leaves OPTIONS preflight and unserved methods on /auth/subscription/* untouched under preprod", async () => {
+    const app = await createAuthApp();
+    const { auth } = await import("@/lib/auth.js");
+
+    const preflight = await app.request(
+      "https://core.sokosumi.com/auth/subscription/list",
+      {
+        method: "OPTIONS",
+        headers: {
+          origin: "https://app.sokosumi.com",
+          "access-control-request-method": "GET",
+          "X-Sokosumi-Network": "preprod",
+        },
+      },
+    );
+    expect(preflight.status).toBe(204);
+
+    const delRes = await app.request(
+      "https://core.sokosumi.com/auth/subscription/list",
+      {
+        method: "DELETE",
+        headers: { "X-Sokosumi-Network": "preprod" },
+      },
+    );
+    expect(delRes.status).toBe(404);
+    expect(auth.handler).not.toHaveBeenCalled();
+  });
+});
