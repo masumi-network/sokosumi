@@ -464,7 +464,7 @@ export function RoomHeaderChrome({
                       data-testid="room-title-face"
                       className={CHAT_TITLE_MARK_CLASS}
                     >
-                      <Avatar className="size-6">
+                      <Avatar className="size-6 md:size-5">
                         <AvatarImage
                           alt=""
                           src={directFace.image ?? undefined}

@@ -721,6 +721,11 @@ describe("RoomsClient room header chrome", () => {
     // too: no width swaps the face for the generic Direct icon.
     expect(face.className).not.toMatch(/(^|\s)\w+:hidden/);
     expect(heading.querySelector("svg")).toBeNull();
+    // The face fills its mark box: 24 px on a phone, the 20 px box from md.
+    expect(face.querySelector("[data-slot=avatar]")).toHaveClass(
+      "size-6",
+      "md:size-5",
+    );
     expect(face).toHaveAttribute("aria-hidden", "true");
     expect(heading).toHaveAccessibleName("Bob");
     // Only the face: presence or a bot's status hidden here would be seen
