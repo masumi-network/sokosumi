@@ -247,46 +247,61 @@ describe.skipIf(!enabled)("detached turn resume on PostgreSQL", () => {
     await fund(userId);
     const recorder = recordStatements();
     try {
-      const settlement = controlPlane.expireTurn(turn.id);
-      if (onSplitLayout) {
-        // The original settlement reads SokoBotUsage through the shared client.
-        await expect(settlement).rejects.toMatchObject({ code: "P2021" });
-      } else {
-        await expect(settlement).resolves.toBe(true);
-      }
+      // The original settlement reads SokoBotUsage through the shared client.
+      // That raised P2021 on split. Expiry must commit on both layouts.
+      await expect(controlPlane.expireTurn(turn.id)).resolves.toBe(true);
       await Promise.all(background.splice(0));
     } finally {
       recorder.restore();
     }
     expect(recorder.statements.flat()).not.toContain(keys[0]);
     expect(recorder.statements.flat()).not.toContain(keys[1]);
-    const usage = await mainnet.networkDb.sokoBotUsage.findMany({
-      where: { referenceId: turn.id },
-      select: { cents: true },
-    });
-    const ledger = await mainnet.networkDb.transaction.findMany({
-      where: { userId, amount: { lt: 0 } },
-      select: { amount: true },
-    });
     // The debit is the credits module's: `recordSpend`'s two inserts, where
     // Prisma's nested create sent three (soko-bot-usage-spend.postgres.test.ts).
-    const expectedStatements = onSplitLayout ? 10 : 34;
-    expect(recorder.statements.length).toBe(expectedStatements);
-    expect(await loadTurn(turn.id)).toMatchObject(
-      onSplitLayout
-        ? { status: "RUNNING" }
-        : { status: "FAILED", errorKind: "turn_deadline_exceeded" },
-    );
+    expect(recorder.statements).toHaveLength(34);
+    await expect(controlPlane.expireTurn(turn.id)).resolves.toBe(false);
+    expect(await loadTurn(turn.id)).toMatchObject({
+      status: "FAILED",
+      errorKind: "turn_deadline_exceeded",
+    });
     expect(
       await prisma.sokoBot.findUnique({ where: { id: bot.id } }),
-    ).toMatchObject({ status: onSplitLayout ? "RUNNING" : "ERROR" });
+    ).toMatchObject({ status: "ERROR" });
     expect(
       await prisma.sokoBotDelivery.count({ where: { turnId: turn.id } }),
-    ).toBe(onSplitLayout ? 0 : 1);
-    expect(usage).toEqual(onSplitLayout ? [] : [{ cents: 100_000_000_000n }]);
-    expect(ledger).toEqual(
-      onSplitLayout ? [] : [{ amount: -100_000_000_000n }],
-    );
+    ).toBe(1);
+    const charge = 100_000_000_000n;
+    for (const { network, networkDb } of preprod
+      ? [mainnet, preprod]
+      : [mainnet]) {
+      const debits = await networkDb.transaction.findMany({
+        where: { userId, amount: { lt: 0 } },
+        select: { id: true, amount: true },
+      });
+      expect(debits.map(({ amount }) => amount)).toEqual(
+        network === "mainnet" ? [-charge] : [],
+      );
+      const paid =
+        network === "mainnet"
+          ? [{ transactionId: debits[0].id, cents: charge }]
+          : [];
+      expect(
+        await networkDb.sokoBotUsage.findMany({
+          where: { referenceId: turn.id },
+          select: { transactionId: true, cents: true },
+        }),
+      ).toEqual(paid);
+      expect(
+        await networkDb.creditConsumption.findMany({
+          where: { bucket: { userId } },
+          select: { transactionId: true, amount: true },
+        }),
+      ).toEqual(
+        network === "mainnet"
+          ? [{ transactionId: debits[0].id, amount: charge }]
+          : [],
+      );
+    }
   });
 
   it("refuses a missing turn Network after the catch-up gate", async () => {

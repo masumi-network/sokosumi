@@ -339,7 +339,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
 
   // Classification and context still join Network tables via the shared client.
   it.skipIf(onSplitLayout).each(["mainnet", "preprod"] as const)(
-    "persists the turn input's %s Network",
+    "reserves a fresh turn only when its %s Network admits it",
     async (network) => {
       const { userId, workspaceId } = await seedBot();
       const session = vi
@@ -374,7 +374,7 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
           });
         });
       }
-      const started = await sokoBotControlPlane.startTurn({
+      const starting = sokoBotControlPlane.startTurn({
         network,
         userId,
         workspaceId,
@@ -382,6 +382,18 @@ describe.skipIf(!enabled)("Soko Bot Network writers", () => {
         message: "How is my board doing?",
         presetRoute: { route: "DIRECT_RESPONSE", reason: "Fixture" },
       });
+      if (network === "preprod") {
+        await expect(starting).rejects.toMatchObject({
+          status: 503,
+          kind: "preprod_control_unavailable",
+        });
+        expect(session).not.toHaveBeenCalled();
+        await expect(
+          prisma.sokoBotTurn.count({ where: { workspaceId } }),
+        ).resolves.toBe(0);
+        return;
+      }
+      const started = await starting;
       await expect(
         prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: started.turnId } }),
       ).resolves.toMatchObject({ network });

@@ -17,6 +17,7 @@ const {
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
+  networkPrisma: () => ({ sokoBotUsage: { aggregate: usageAggregateMock } }),
   default: {
     task: { count: taskCountMock, findMany: taskFindManyMock },
     taskEvent: { findMany: eventFindManyMock },

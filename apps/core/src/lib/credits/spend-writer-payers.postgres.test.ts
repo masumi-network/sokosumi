@@ -23,7 +23,6 @@ import {
   chargeSokoBotCredits,
   sokoBotUsageCents,
 } from "@/services/soko-bot-billing.service";
-import { onSplitLayout } from "@/test/split-layout";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -313,9 +312,7 @@ describe.skipIf(!enabled)(
       CASE_TIMEOUT,
     );
 
-    // On the split layout the charge stops at its usage check, before any
-    // debit, until ticket 30 (`soko-bot-usage-spend.postgres.test.ts`).
-    it.skipIf(onSplitLayout)(
+    it(
       "Soko Bot: keeps a Project bot's charge in its Project's history",
       async () => {
         const payer = await organizationWithProject();
