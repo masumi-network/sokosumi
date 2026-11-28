@@ -97,6 +97,7 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
 });
 
 vi.mock("@/lib/db/prisma", async () => ({
+  networkPrisma: () => ({ job: { findFirst: jobFindFirstMock } }),
   default: {
     member: {
       findUnique: (await import("@/test-fixtures/organization-membership"))
