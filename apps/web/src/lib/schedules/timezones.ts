@@ -87,7 +87,8 @@ export function getTimezoneOptions(preferred?: string | null): string[] {
       ? Intl.supportedValuesOf("timeZone")
       : [...FALLBACK_TIMEZONES];
 
-  const unique = new Set(zones);
+  // Some runtimes list only region zones; UTC is valid everywhere and must stay pickable.
+  const unique = new Set(["UTC", ...zones]);
   if (preferred) {
     unique.add(preferred);
   }

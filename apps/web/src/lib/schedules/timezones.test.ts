@@ -5,6 +5,7 @@ import {
   calendarZoneInstant,
   formatTimezoneLabel,
   getDefaultTimezone,
+  getTimezoneOptions,
 } from "./timezones";
 
 const SUMMER = new Date("2026-10-05T12:00:00Z");
@@ -244,5 +245,24 @@ describe("getDefaultTimezone", () => {
     });
 
     expect(getDefaultTimezone()).toBe("UTC");
+  });
+});
+
+describe("getTimezoneOptions", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("offers UTC when the runtime lists only region zones", () => {
+    vi.spyOn(Intl, "supportedValuesOf").mockReturnValue([
+      "Europe/Berlin",
+      "America/New_York",
+    ]);
+
+    expect(getTimezoneOptions()).toEqual([
+      "America/New_York",
+      "Europe/Berlin",
+      "UTC",
+    ]);
   });
 });

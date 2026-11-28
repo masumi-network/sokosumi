@@ -46,7 +46,11 @@ export function TeamStandupForm({
   const [timezone, setTimezone] = useState(initial.timezone);
   const [weekDay, setWeekDay] = useState(String(initial.weekInReviewWeekday));
   const [pending, startTransition] = useTransition();
-  const zones = useMemo(() => getTimezoneOptions(timezone), [timezone]);
+  // The saved zone stays listed while another is picked, even when the runtime does not list it.
+  const zones = useMemo(
+    () => getTimezoneOptions(saved.timezone),
+    [saved.timezone],
+  );
   const changed =
     enabled !== saved.enabled ||
     timeOfDay !== saved.timeOfDay ||

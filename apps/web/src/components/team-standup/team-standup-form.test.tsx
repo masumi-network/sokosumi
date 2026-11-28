@@ -34,9 +34,11 @@ const initial = {
   weekdays: [1, 2, 3, 4, 5],
   timezone: "Europe/Berlin",
   weekInReviewWeekday: 1,
+  roomId: null,
+  lastRunAt: null,
   nextRunAt: null,
   weekInReviewNextRunAt: null,
-} as unknown as TeamStandup;
+} satisfies TeamStandup;
 
 describe("TeamStandupForm", () => {
   beforeEach(() => {
@@ -55,6 +57,50 @@ describe("TeamStandupForm", () => {
     );
 
     expect(screen.getByLabelText("timeLabel")).toHaveAttribute("type", "time");
+  });
+
+  it("offers UTC and saves it over a Berlin stand-up", async () => {
+    render(
+      <TeamStandupForm
+        organizationId="org-1"
+        initial={initial}
+        canEdit
+        includeMyWeek
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "timezoneLabel" }));
+    fireEvent.click(await screen.findByRole("option", { name: "UTC" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "save" }));
+    });
+
+    await waitFor(() =>
+      expect(saveTeamStandup).toHaveBeenCalledWith(
+        expect.objectContaining({ timezone: "UTC" }),
+      ),
+    );
+  });
+
+  it("keeps the saved zone in the list after picking another", async () => {
+    render(
+      <TeamStandupForm
+        organizationId="org-1"
+        initial={{ ...initial, timezone: "Etc/GMT-14" }}
+        canEdit
+        includeMyWeek
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "timezoneLabel" }));
+    fireEvent.click(
+      await screen.findByRole("option", { name: "Europe/Berlin" }),
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "timezoneLabel" }));
+
+    expect(
+      await screen.findByRole("option", { name: "Etc/GMT-14" }),
+    ).toBeInTheDocument();
   });
 
   it("saves the time zone picked from the list", async () => {
