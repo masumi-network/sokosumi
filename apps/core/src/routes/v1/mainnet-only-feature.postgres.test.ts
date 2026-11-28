@@ -242,7 +242,8 @@ const SWEEP_TIMEOUT = 60_000;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TS_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}\.\d{3}Z?$/;
+const TS_RE =
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)?$/;
 const TOKEN_RE = /^[A-Za-z0-9_-]{32,}$/;
 
 function normalizeValue(v: unknown, key = ""): unknown {
@@ -287,6 +288,19 @@ function normalizeStatement(s: RecordedStatement): string {
     text: s.text,
     values: normalizeValue(s.values),
   });
+}
+
+function describeSqlStatement(sql: string): string {
+  const s = sql.trim().replace(/\s+/g, " ");
+  let match = s.match(/^SELECT\b.*?\bFROM\s+("[^"]+"\."[^"]+")/i);
+  if (match && !/^WITH\b/i.test(s)) return `SELECT ${match[1]}`;
+  match = s.match(/^INSERT\s+INTO\s+("[^"]+"\."[^"]+")/i);
+  if (match) return `INSERT ${match[1]}`;
+  match = s.match(/^UPDATE\s+("[^"]+"\."[^"]+")/i);
+  if (match) return `UPDATE ${match[1]}`;
+  match = s.match(/^DELETE\s+FROM\s+("[^"]+"\."[^"]+")/i);
+  if (match) return `DELETE ${match[1]}`;
+  return s.slice(0, 60);
 }
 
 async function drainBackground(): Promise<void> {
@@ -1044,28 +1058,52 @@ describe.runIf(enabled && !onSplitLayout)(
     it("produces identical status, body, SQL statements with bound values, and provider calls with no header and with mainnet header", {
       timeout: 120_000,
     }, async () => {
+      // Guard against whole-second Postgres timestamps escaping normalization (m3).
+      expect(normalizeValue("2026-11-28 09:46:50")).toBe("<TS>");
+      expect(normalizeValue("2026-11-28T09:46:50Z")).toBe("<TS>");
+      expect(normalizeValue("2026-11-28 09:46:50.123")).toBe("<TS>");
+
       const noHeader = await runMainnetOperations();
       const mainnetHeader = await runMainnetOperations("mainnet");
 
-      // Expected statuses and provider calls pinned from the origin/main baseline recording.
+      // Expected statuses, provider calls, and SQL statement counts pinned from
+      // the origin/main (56b37da22) baseline recording on today's layout.
       const expectedStatusAndProviders: Record<
         string,
-        { status: number; providers: string[]; concurrentReads?: boolean }
+        {
+          status: number;
+          statementCount: number;
+          providers: string[];
+          concurrentReads?: boolean;
+        }
       > = {
-        seo_audits_read: { status: 200, providers: [], concurrentReads: true },
-        seo_audits_write: { status: 204, providers: [] },
-        project_seo_read: { status: 200, providers: [], concurrentReads: true },
+        seo_audits_read: {
+          status: 200,
+          statementCount: 15,
+          providers: [],
+          concurrentReads: true,
+        },
+        seo_audits_write: { status: 204, statementCount: 31, providers: [] },
+        project_seo_read: {
+          status: 200,
+          statementCount: 37,
+          providers: [],
+          concurrentReads: true,
+        },
         project_seo_write: {
           status: 200,
+          statementCount: 62,
           providers: [],
           concurrentReads: true,
         },
         image_studio_catalog_read: {
           status: 200,
+          statementCount: 5,
           providers: ["fal.ensureImageCatalogFresh"],
         },
         image_studio_state_read: {
           status: 200,
+          statementCount: 43,
           providers: [
             "fal.fetchQueueStatus",
             "fal.fetchQueueResult",
@@ -1076,6 +1114,7 @@ describe.runIf(enabled && !onSplitLayout)(
         },
         project_image_studio_read: {
           status: 200,
+          statementCount: 49,
           providers: [
             "fal.fetchQueueStatus",
             "fal.fetchQueueResult",
@@ -1086,23 +1125,202 @@ describe.runIf(enabled && !onSplitLayout)(
         },
         project_image_studio_talking_videos_read: {
           status: 200,
+          statementCount: 15,
           providers: [],
         },
-        project_image_studio_write: { status: 200, providers: [] },
-        v1_image_studio_agent_read: { status: 200, providers: [] },
-        v1_image_studio_agent_write: { status: 201, providers: [] },
+        project_image_studio_write: {
+          status: 200,
+          statementCount: 13,
+          providers: [],
+        },
+        v1_image_studio_agent_read: {
+          status: 200,
+          statementCount: 3,
+          providers: [],
+        },
+        v1_image_studio_agent_write: {
+          status: 201,
+          statementCount: 9,
+          providers: [],
+        },
         root_image_studio_agent_read: {
           status: 200,
+          statementCount: 2,
           providers: ["fal.ensureImageCatalogFresh"],
         },
-        root_image_studio_agent_write: { status: 200, providers: [] },
-        project_competitors_read: { status: 200, providers: [] },
-        project_competitors_write: { status: 200, providers: [] },
-        contact_list_find_write: { status: 200, providers: ["exa.searchExa"] },
-        contact_enrich_write: { status: 200, providers: ["exa.searchExa"] },
-        cmo_read: { status: 200, providers: [] },
-        cmo_write: { status: 200, providers: [] },
-        admin_cmo_spend_read: { status: 200, providers: [] },
+        root_image_studio_agent_write: {
+          status: 200,
+          statementCount: 6,
+          providers: [],
+        },
+        project_competitors_read: {
+          status: 200,
+          statementCount: 15,
+          providers: [],
+        },
+        project_competitors_write: {
+          status: 200,
+          statementCount: 22,
+          providers: [],
+        },
+        contact_list_find_write: {
+          status: 200,
+          statementCount: 16,
+          providers: ["exa.searchExa"],
+        },
+        contact_enrich_write: {
+          status: 200,
+          statementCount: 14,
+          providers: ["exa.searchExa"],
+        },
+        cmo_read: { status: 200, statementCount: 9, providers: [] },
+        cmo_write: { status: 200, statementCount: 13, providers: [] },
+        admin_cmo_spend_read: {
+          status: 200,
+          statementCount: 17,
+          providers: [],
+        },
+      };
+
+      // Exact SQL statement lists recorded on origin/main (56b37da22) across
+      // all 5 families and every guard placement so any DB read added by the
+      // guard on a Mainnet request fails immediately.
+      const originMainStatementsByFamily: Record<string, readonly string[]> = {
+        // SEO (OpenAPIHonoWithAuth mainnetOnly: true)
+        seo_audits_write: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."workspace"',
+          "BEGIN",
+          'SELECT "public"."member"',
+          "SELECT pg_advisory_xact_lock( hashtextextended($1::TEXT, 0) ",
+          'SELECT "public"."user"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."seo_audit"',
+          'UPDATE "public"."seo_audit"',
+          'SELECT "public"."project_seo_analysis"',
+          'SELECT "public"."seo_audit_chat_turn"',
+          'SELECT "public"."task_schedule"',
+          'UPDATE "public"."seo_audit"',
+          'SELECT "public"."seo_audit"',
+          'SELECT "public"."project_seo_analysis"',
+          'SELECT "public"."project_seo_action_task"',
+          'SELECT "public"."task"',
+          'SELECT "public"."task"',
+          'SELECT "public"."task"',
+          'UPDATE "public"."task"',
+          'UPDATE "public"."seo_audit"',
+          "COMMIT",
+        ],
+        // Image Studio (/v1/image-studio, /v1/image-studio-agent, root /image-studio-agent)
+        image_studio_catalog_read: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."workspace"',
+        ],
+        v1_image_studio_agent_read: [
+          'SELECT "public"."project"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."project_studio_product_catalog"',
+        ],
+        root_image_studio_agent_read: [
+          'SELECT "public"."project"',
+          'SELECT "public"."workspace"',
+        ],
+        // Competitor checks (OpenAPIHonoWithAuth mainnetOnly path rule)
+        project_competitors_read: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."project"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."soko_bot"',
+          'SELECT "public"."tracked_competitor"',
+          'SELECT "public"."competitor_signal"',
+          'SELECT "public"."competitor_signal"',
+          'SELECT "public"."competitor_check"',
+          'SELECT "public"."project_social_connection"',
+          'SELECT "public"."project"',
+          'SELECT "public"."competitor_feed"',
+        ],
+        // Contacts Find & Enrich (OpenAPIHonoWithAuth mainnetOnly method rule)
+        contact_list_find_write: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."contact_list"',
+          'SELECT "public"."workspace"',
+          "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.a",
+          'SELECT "public"."contact_suggestion"',
+          'SELECT "public"."contact_channel"',
+          "BEGIN",
+          "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+          'INSERT "public"."contact_people_search"',
+          'SELECT "public"."contact_suggestion"',
+          "COMMIT",
+        ],
+        contact_enrich_write: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."contact"',
+          'SELECT "public"."contact_channel"',
+          'SELECT "public"."workspace"',
+          "WITH bucket_avail AS ( SELECT (cb.amount - COALESCE(SUM(cc.a",
+          "BEGIN",
+          "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE",
+          'INSERT "public"."contact_people_search"',
+          "COMMIT",
+        ],
+        // CMO (/v1/cmo and /v1/admin/soko-bots/cmo-spend)
+        cmo_read: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          'SELECT "public"."soko_bot"',
+          'SELECT "public"."project"',
+          'SELECT "public"."workspace"',
+          'SELECT "public"."marketing_strategy"',
+          'SELECT "public"."organization"',
+        ],
+        admin_cmo_spend_read: [
+          'SELECT "public"."oauthAccessToken"',
+          'SELECT "public"."oauthRefreshToken"',
+          'SELECT "public"."user"',
+          'SELECT "public"."oauthClient"',
+          "SELECT clock_timestamp() AT TIME ZONE 'UTC' AS now",
+          'SELECT "public"."eval_lane"',
+          'SELECT "public"."soko_bot"',
+          'SELECT "public"."project"',
+          'WITH RECURSIVE lab_up AS ( SELECT t."id" AS "start", t."pare',
+          'SELECT "public"."user"',
+          'SELECT "public"."soko_bot_turn"',
+          'SELECT "public"."soko_bot_turn"',
+          'SELECT "public"."soko_bot_tool_call"',
+          'SELECT "public"."project_image_job"',
+          'SELECT "public"."soko_bot_usage"',
+          'SELECT "public"."soko_bot_tool_call"',
+          'SELECT "public"."soko_bot_turn"',
+        ],
       };
 
       for (const [name, expected] of Object.entries(
@@ -1112,6 +1330,25 @@ describe.runIf(enabled && !onSplitLayout)(
         const b = mainnetHeader[name]!;
         expect([name, a.status]).toEqual([name, expected.status]);
         expect([name, b.status]).toEqual([name, expected.status]);
+        expect([name, a.statements.length]).toEqual([
+          name,
+          expected.statementCount,
+        ]);
+        expect([name, b.statements.length]).toEqual([
+          name,
+          expected.statementCount,
+        ]);
+        const pinnedStatements = originMainStatementsByFamily[name];
+        if (pinnedStatements) {
+          expect([
+            name,
+            a.statements.map((s) => describeSqlStatement(s.text)),
+          ]).toEqual([name, [...pinnedStatements]]);
+          expect([
+            name,
+            b.statements.map((s) => describeSqlStatement(s.text)),
+          ]).toEqual([name, [...pinnedStatements]]);
+        }
         expect([name, a.providers.map((p) => p.provider)]).toEqual([
           name,
           expected.providers,
@@ -1365,7 +1602,7 @@ describe.skipIf(!enabled)(
       expect(digestAfter).toEqual(digestBefore);
     });
 
-    it("automatically gates a route added later under any gated router", async () => {
+    it("automatically gates a route added later under any gated /v1 router", async () => {
       let probeHit = 0;
       const probe = (c: { json: (v: unknown) => Response }) => {
         probeHit += 1;
@@ -1383,9 +1620,6 @@ describe.skipIf(!enabled)(
       const { default: v1AgentRouter } = await import(
         "@/routes/v1/image-studio-agent/index"
       );
-      const { default: rootAgentRouter } = await import(
-        "@/routes/image-studio-agent/index"
-      );
 
       seoRouter.get("/__probe-28-1", probe);
       imageStudioRouter.get("/__probe-28-1", probe);
@@ -1394,7 +1628,6 @@ describe.skipIf(!enabled)(
       projectsRouter.get("/:id/image-studio/__probe-28-1", probe);
       projectsRouter.get("/:id/competitors/__probe-28-1", probe);
       v1AgentRouter.get("/__probe-28-1", probe);
-      rootAgentRouter.get("/__probe-28-1", probe);
 
       // Re-mount into a test app so Hono's router compiles the added probes.
       const { errorHandler } = await import("@/helpers/error-handler");
@@ -1409,7 +1642,6 @@ describe.skipIf(!enabled)(
       probeApp.route("/v1/cmo", cmoRouter);
       probeApp.route("/v1/projects", projectsRouter);
       probeApp.route("/v1/image-studio-agent", v1AgentRouter);
-      probeApp.route("/image-studio-agent", rootAgentRouter);
 
       const probes: [string, string][] = [
         ["/v1/seo/__probe-28-1", ADMIN_OAUTH_TOKEN],
@@ -1425,7 +1657,6 @@ describe.skipIf(!enabled)(
           ADMIN_OAUTH_TOKEN,
         ],
         ["/v1/image-studio-agent/__probe-28-1", seeded.agentToken],
-        ["/image-studio-agent/__probe-28-1", seeded.agentToken],
       ];
 
       for (const [path, token] of probes) {
@@ -1443,6 +1674,244 @@ describe.skipIf(!enabled)(
         });
       }
       expect(probeHit).toBe(0);
+    });
+
+    it("keeps root /image-studio-agent identical to origin/main (56b37da22) for every non-preprod request while refusing valid preprod on served handlers", async () => {
+      const sharedSchema = testSchemaNames().DATABASE_SCHEMA_SHARED;
+      const grantAuthStatements = [
+        `SELECT "${sharedSchema}"."project"`,
+        `SELECT "${sharedSchema}"."workspace"`,
+      ];
+      const grantHeaders = { authorization: `Bearer ${seeded.agentToken}` };
+
+      async function callRoot(
+        method: string,
+        path: string,
+        headers: Record<string, string>,
+      ) {
+        recorded.statements.length = 0;
+        const res = await loaded.app.request(`${ORIGIN}${path}`, {
+          method,
+          headers: { origin: ORIGIN, ...headers },
+        });
+        const bodyText = await res.text();
+        await drainBackground();
+        return {
+          status: res.status,
+          bodyText,
+          statements: recorded.statements.map((s) =>
+            describeSqlStatement(s.text),
+          ),
+        };
+      }
+
+      // Recorded on origin/main (56b37da22): OPTIONS on all 6 served paths
+      // answer 404 "404 Not Found" with 0 SQL statements regardless of grant
+      // or X-Sokosumi-Network header.
+      const servedPaths = [
+        "/image-studio-agent/access",
+        "/image-studio-agent/sessions/eve-session-fixed/authorize",
+        "/image-studio-agent/options",
+        "/image-studio-agent/versions",
+        "/image-studio-agent/generations",
+        "/image-studio-agent/generations/22222222-2222-4222-8222-222222222222",
+      ];
+      const optionsHeaderVariants: Record<string, string>[] = [
+        {},
+        grantHeaders,
+        { [HEADER]: "testnet" },
+        { ...grantHeaders, [HEADER]: "preprod" },
+      ];
+      for (const path of servedPaths) {
+        for (const headers of optionsHeaderVariants) {
+          expect([path, await callRoot("OPTIONS", path, headers)]).toEqual([
+            path,
+            { status: 404, bodyText: "404 Not Found", statements: [] },
+          ]);
+        }
+      }
+
+      // Recorded on origin/main (56b37da22): unserved paths and wrong methods
+      // answer 404 "404 Not Found" with 0 SQL statements (never running the 2
+      // grant access statements, even with a valid grant or invalid header).
+      const unservedAndWrongMethod: [string, string, Record<string, string>][] =
+        [
+          ["GET", "/image-studio-agent/__nope", {}],
+          ["GET", "/image-studio-agent/__nope", grantHeaders],
+          [
+            "GET",
+            "/image-studio-agent/__nope",
+            { ...grantHeaders, [HEADER]: "testnet" },
+          ],
+          [
+            "GET",
+            "/image-studio-agent/__nope",
+            { ...grantHeaders, [HEADER]: "Mainnet" },
+          ],
+          [
+            "GET",
+            "/image-studio-agent/__nope",
+            { ...grantHeaders, [HEADER]: "preprod" },
+          ],
+          ["GET", "/image-studio-agent/access", {}],
+          ["GET", "/image-studio-agent/access", grantHeaders],
+          ["DELETE", "/image-studio-agent/options", grantHeaders],
+          ["POST", "/image-studio-agent/versions", grantHeaders],
+          ["GET", "/image-studio-agent/generations", grantHeaders],
+        ];
+      for (const [method, path, headers] of unservedAndWrongMethod) {
+        expect([method, path, await callRoot(method, path, headers)]).toEqual([
+          method,
+          path,
+          { status: 404, bodyText: "404 Not Found", statements: [] },
+        ]);
+      }
+
+      // Recorded on origin/main (56b37da22): invalid header values ("testnet",
+      // "Mainnet") are ignored on served handlers (200 with grant, 401 without
+      // grant, 404 for unknown job).
+      const optionsTestnet = await callRoot(
+        "GET",
+        "/image-studio-agent/options",
+        { ...grantHeaders, [HEADER]: "testnet" },
+      );
+      expect(optionsTestnet.status).toBe(200);
+      expect(JSON.parse(optionsTestnet.bodyText)).toMatchObject({ ok: true });
+      expect(optionsTestnet.statements).toEqual(grantAuthStatements);
+
+      const optionsMainnetCase = await callRoot(
+        "GET",
+        "/image-studio-agent/options",
+        { ...grantHeaders, [HEADER]: "Mainnet" },
+      );
+      expect(optionsMainnetCase.status).toBe(200);
+      expect(JSON.parse(optionsMainnetCase.bodyText)).toMatchObject({
+        ok: true,
+      });
+      expect(optionsMainnetCase.statements).toEqual(grantAuthStatements);
+
+      expect(
+        await callRoot("GET", "/image-studio-agent/options", {
+          [HEADER]: "testnet",
+        }),
+      ).toEqual({
+        status: 401,
+        bodyText: '{"ok":false,"error":"unauthorized"}',
+        statements: [],
+      });
+
+      expect(
+        await callRoot("POST", "/image-studio-agent/access", {
+          ...grantHeaders,
+          [HEADER]: "testnet",
+        }),
+      ).toEqual({
+        status: 200,
+        bodyText: '{"ok":true}',
+        statements: grantAuthStatements,
+      });
+
+      const missingJobMainnetCase = await callRoot(
+        "GET",
+        "/image-studio-agent/generations/22222222-2222-4222-8222-222222222222",
+        { ...grantHeaders, [HEADER]: "Mainnet" },
+      );
+      expect(missingJobMainnetCase.status).toBe(404);
+      expect(missingJobMainnetCase.bodyText).toBe(
+        '{"ok":false,"error":"not_found"}',
+      );
+
+      // Valid "preprod" header on the 6 served handlers: 401 before guard when
+      // unauthenticated, 422 mainnet_only_feature after the 2 auth statements
+      // when authorized.
+      const servedHandlers: [string, string][] = [
+        ["POST", "/image-studio-agent/access"],
+        ["POST", "/image-studio-agent/sessions/eve-session-fixed/authorize"],
+        ["GET", "/image-studio-agent/options"],
+        ["GET", "/image-studio-agent/versions"],
+        ["POST", "/image-studio-agent/generations"],
+        [
+          "GET",
+          "/image-studio-agent/generations/22222222-2222-4222-8222-222222222222",
+        ],
+      ];
+      for (const [method, path] of servedHandlers) {
+        expect([
+          method,
+          path,
+          await callRoot(method, path, { [HEADER]: "preprod" }),
+        ]).toEqual([
+          method,
+          path,
+          {
+            status: 401,
+            bodyText: '{"ok":false,"error":"unauthorized"}',
+            statements: [],
+          },
+        ]);
+
+        const preprodAuth = await callRoot(method, path, {
+          ...grantHeaders,
+          [HEADER]: "preprod",
+        });
+        expect([method, path, preprodAuth.status]).toEqual([method, path, 422]);
+        expect(JSON.parse(preprodAuth.bodyText)).toMatchObject({
+          kind: CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
+          message: EXPECTED_MESSAGE,
+        });
+        expect([method, path, preprodAuth.statements]).toEqual([
+          method,
+          path,
+          grantAuthStatements,
+        ]);
+      }
+
+      // Secret unset: recorded on origin/main — OPTIONS, unserved paths, and
+      // wrong methods stay 404 "404 Not Found" (0 statements), while served
+      // handlers answer 503 {"ok":false,"error":"not_configured"} (0 statements)
+      // even when X-Sokosumi-Network is invalid or "preprod".
+      const envModule = await import("@/config/env");
+      const realEnv = envModule.getEnv();
+      const envSpy = vi.spyOn(envModule, "getEnv").mockReturnValue({
+        ...realEnv,
+        IMAGE_STUDIO_AGENT_SECRET: undefined,
+      });
+      try {
+        for (const [method, path] of [
+          ["OPTIONS", "/image-studio-agent/options"],
+          ["GET", "/image-studio-agent/__nope"],
+          ["GET", "/image-studio-agent/access"],
+        ] as const) {
+          expect([method, path, await callRoot(method, path, {})]).toEqual([
+            method,
+            path,
+            { status: 404, bodyText: "404 Not Found", statements: [] },
+          ]);
+        }
+        const secretUnsetHeaders: Record<string, string>[] = [
+          {},
+          { [HEADER]: "testnet" },
+          { [HEADER]: "preprod" },
+        ];
+        for (const headers of secretUnsetHeaders) {
+          expect(
+            await callRoot("GET", "/image-studio-agent/options", headers),
+          ).toEqual({
+            status: 503,
+            bodyText: '{"ok":false,"error":"not_configured"}',
+            statements: [],
+          });
+          expect(
+            await callRoot("POST", "/image-studio-agent/access", headers),
+          ).toEqual({
+            status: 503,
+            bodyText: '{"ok":false,"error":"not_configured"}',
+            statements: [],
+          });
+        }
+      } finally {
+        envSpy.mockRestore();
+      }
     });
 
     it("closes the Image Studio reconciliation hole under preprod and still reconciles without the header", async () => {
@@ -1577,6 +2046,12 @@ describe.skipIf(!enabled)(
         headers: authPreprod,
       });
       expect(listContacts.status).toBe(200);
+
+      const getContact = await loaded.app.request(
+        `${ORIGIN}/v1/contacts/${CONTACT_ID}`,
+        { headers: authPreprod },
+      );
+      expect(getContact.status).toBe(200);
 
       const createContact = await loaded.app.request(`${ORIGIN}/v1/contacts`, {
         method: "POST",
@@ -1751,14 +2226,93 @@ describe.skipIf(!enabled)(
       expect(claimRes.status).toBe(200);
     });
 
-    it("keeps 400 network_unknown for invalid headers and 401 for unauthenticated requests across all mounts", async () => {
-      const paths: [string, string][] = [
+    it("never answers 422 mainnet_only_feature for any non-gated /v1 handler in the runtime route table under preprod", {
+      timeout: SWEEP_TIMEOUT,
+    }, async () => {
+      const seen = new Set<string>();
+      const ungatedRoutes: {
+        method: string;
+        path: string;
+        fullPath: string;
+      }[] = [];
+
+      for (const route of loaded.apiV1.routes) {
+        if (
+          route.method === "ALL" ||
+          route.path.includes("*") ||
+          route.path === "/openapi.json"
+        ) {
+          continue;
+        }
+        if (classifyGatedV1Route(route.method, route.path) !== null) continue;
+        const key = `${route.method} /v1${route.path}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const placeholderPath = route.path.replace(
+          /:([A-Za-z0-9_]+)/g,
+          "22222222-2222-4222-8222-222222222222",
+        );
+        ungatedRoutes.push({
+          method: route.method,
+          path: route.path,
+          fullPath: `/v1${placeholderPath}`,
+        });
+      }
+
+      // Guard against a filter bug silently dropping ungated routes.
+      expect(ungatedRoutes.length).toBeGreaterThanOrEqual(700);
+      expect(
+        ungatedRoutes.some(
+          (r) => r.method === "GET" && r.path === "/contacts/:id",
+        ),
+      ).toBe(true);
+
+      // Sending an unknown X-Organization-Slug stops non-gated OpenAPIHonoWithAuth
+      // routes at organizationContextMiddleware (after auth and AFTER any
+      // mainnetOnly guard), preventing unrelated handlers from calling external
+      // providers or mutating seeded rows while still triggering any erroneous
+      // mainnetOnly gate immediately after authMiddleware.
+      const gatedViolations: string[] = [];
+      for (const route of ungatedRoutes) {
+        const res = await loaded.app.request(`${ORIGIN}${route.fullPath}`, {
+          method: route.method,
+          headers: {
+            origin: ORIGIN,
+            authorization: `Bearer ${PLAIN_OAUTH_TOKEN}`,
+            "x-organization-slug": "nonexistent-org-slug-28-1",
+            [HEADER]: "preprod",
+            ...(route.method !== "GET" && route.method !== "DELETE"
+              ? { "content-type": "application/json" }
+              : {}),
+          },
+          ...(route.method !== "GET" && route.method !== "DELETE"
+            ? { body: "{}" }
+            : {}),
+        });
+        await drainBackground();
+        if (res.status === 422) {
+          const text = await res.text();
+          let kind: string | undefined;
+          try {
+            kind = (JSON.parse(text) as { kind?: string }).kind;
+          } catch {
+            // non-JSON 422
+          }
+          if (kind === CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE) {
+            gatedViolations.push(`${route.method} /v1${route.path}`);
+          }
+        }
+      }
+      expect(gatedViolations).toEqual([]);
+    });
+
+    it("keeps 400 network_unknown for invalid headers on /v1 mounts and 401 for unauthenticated requests across all mounts", async () => {
+      const v1Paths: [string, string][] = [
         ["GET", "/v1/seo/audits"],
         ["GET", `/v1/projects/${PROJECT_ID}/seo`],
         ["GET", "/v1/image-studio/state"],
         ["GET", `/v1/projects/${PROJECT_ID}/image-studio`],
         ["GET", "/v1/image-studio-agent/products"],
-        ["GET", "/image-studio-agent/options"],
         ["GET", `/v1/projects/${PROJECT_ID}/competitors`],
         ["POST", `/v1/contact-lists/${LIST_ID}/find`],
         ["POST", `/v1/contacts/${CONTACT_ID}/enrich`],
@@ -1766,7 +2320,7 @@ describe.skipIf(!enabled)(
         ["GET", "/v1/admin/soko-bots/cmo-spend"],
       ];
 
-      for (const [method, path] of paths) {
+      for (const [method, path] of v1Paths) {
         const unknown = await loaded.app.request(`${ORIGIN}${path}`, {
           method,
           headers: { origin: ORIGIN, [HEADER]: "testnet" },
@@ -1775,7 +2329,12 @@ describe.skipIf(!enabled)(
         expect(await unknown.json()).toMatchObject({
           kind: CORE_API_ERROR_KINDS.NETWORK_UNKNOWN,
         });
+      }
 
+      for (const [method, path] of [
+        ...v1Paths,
+        ["GET", "/image-studio-agent/options"] as [string, string],
+      ]) {
         const unauth = await loaded.app.request(`${ORIGIN}${path}`, {
           method,
           headers: { origin: ORIGIN, [HEADER]: "preprod" },

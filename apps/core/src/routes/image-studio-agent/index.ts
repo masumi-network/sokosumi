@@ -1,5 +1,5 @@
 import { productBrief } from "@sokosumi/utils";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { createNetworkScope } from "@/lib/db/network-scope";
 import prisma from "@/lib/db/prisma";
@@ -10,7 +10,7 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
 import { requireMainnetOnlyFeature } from "@/middleware/mainnet-only-feature";
-import { requestNetworkMiddleware } from "@/middleware/network-scope";
+import { NETWORK_HEADER } from "@/middleware/network-scope";
 import { createAgentImageJobSchema } from "@/schemas/project-image-studio.schema";
 import { studioBrandAssetsSchema } from "@/schemas/studio-brand-kit.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
@@ -31,10 +31,7 @@ import {
   readStudioProductCatalog,
 } from "@/services/studio-product-catalog.service";
 
-import {
-  type AgentGrantContext,
-  authorizeAgentGrant as authorize,
-} from "./authorize";
+import { type AgentGrantContext, authorizeAgentGrant } from "./authorize";
 
 /**
  * The surface the image-studio agent calls.
@@ -50,16 +47,16 @@ import {
  * bytes have one authorized route which requires a browser session.
  */
 
-const app = new Hono<{ Variables: { agentGrant: AgentGrantContext } }>();
+const app = new Hono();
 
-app.use("*", requestNetworkMiddleware);
-app.use("*", async (c, next) => {
-  const context = await authorize(c.req.raw);
+async function authorize(c: Context): Promise<AgentGrantContext | Response> {
+  const context = await authorizeAgentGrant(c.req.raw);
   if (context instanceof Response) return context;
-  requireMainnetOnlyFeature(c);
-  c.set("agentGrant", context);
-  await next();
-});
+  if (c.req.header(NETWORK_HEADER) === "preprod") {
+    requireMainnetOnlyFeature(c);
+  }
+  return context;
+}
 
 /**
  * Confirm the grant's user still has access to the grant's project.
@@ -68,11 +65,14 @@ app.use("*", async (c, next) => {
  * reaching the handler at all is the answer.
  */
 app.post("/access", async (c) => {
+  const context = await authorize(c);
+  if (context instanceof Response) return context;
   return c.json({ ok: true });
 });
 
 app.post("/sessions/:eveSessionId/authorize", async (c) => {
-  const context = c.var.agentGrant;
+  const context = await authorize(c);
+  if (context instanceof Response) return context;
 
   const eveSessionId = c.req.param("eveSessionId");
   if (!eveSessionId) return c.json({ ok: false, error: "invalid_input" }, 400);
@@ -86,12 +86,15 @@ app.post("/sessions/:eveSessionId/authorize", async (c) => {
 });
 
 app.get("/options", async (c) => {
+  const context = await authorize(c);
+  if (context instanceof Response) return context;
   await ensureImageCatalogFresh();
   return c.json({ ok: true, catalog: getImageCatalog("agent") });
 });
 
 app.get("/versions", async (c) => {
-  const context = c.var.agentGrant;
+  const context = await authorize(c);
+  if (context instanceof Response) return context;
 
   await reconcileProjectJobs(createNetworkScope("mainnet"), context.projectId);
   const [assetPage, jobs] = await Promise.all([
@@ -128,7 +131,8 @@ app.get("/versions", async (c) => {
 });
 
 app.post("/generations", async (c) => {
-  const context = c.var.agentGrant;
+  const context = await authorize(c);
+  if (context instanceof Response) return context;
   // A CMO Project's Studio is CMO's (ADR 0066); Cuso's own media go through
   // Core's services, not this surface.
   if (await isCmoProject(context.projectId)) {
@@ -276,7 +280,8 @@ app.post("/generations", async (c) => {
 });
 
 app.get("/generations/:jobId", async (c) => {
-  const context = c.var.agentGrant;
+  const context = await authorize(c);
+  if (context instanceof Response) return context;
 
   const jobId = c.req.param("jobId");
   await reconcileProjectJobs(createNetworkScope("mainnet"), context.projectId);

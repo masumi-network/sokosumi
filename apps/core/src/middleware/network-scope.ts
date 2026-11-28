@@ -152,6 +152,37 @@ export async function preprodScopeFor(
 }
 
 /**
+ * Resolves the effective Network of an authenticated caller from
+ * `X-Sokosumi-Network` and a verified API key's Network (`apiKeyNetwork`).
+ * Returns `mismatchError` (403 `api_key_network_mismatch`) when the header
+ * explicitly contradicts the key's Network. Unknown header values throw 400
+ * `network_unknown` via `namedNetwork`.
+ */
+export function resolveCallerNetwork(
+  c: Context,
+  caller: AuthenticationContext | undefined = c.get("authContext") as
+    | AuthenticationContext
+    | undefined,
+): { network: Network; mismatchError: HTTPException | null } {
+  const { network, sent } = namedNetwork(c);
+  const keyNetwork =
+    caller?.actor === "user" ? caller.apiKeyNetwork : undefined;
+  if (keyNetwork && sent && keyNetwork !== network) {
+    return {
+      network,
+      mismatchError: forbidden(
+        `This API key is for ${keyNetwork}, and ${NETWORK_HEADER} names ${network}`,
+        { kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH },
+      ),
+    };
+  }
+  return {
+    network: sent ? network : (keyNetwork ?? network),
+    mismatchError: null,
+  };
+}
+
+/**
  * The scope of an authenticated request. An API key carries its Network while
  * Preprod is on (`apiKeyNetwork`): without the header the request is for the
  * key's Network, and a header that names the other one gets a scope that
@@ -165,18 +196,11 @@ async function callerScope(
   caller: AuthenticationContext | undefined,
   access: AuthenticationContext | undefined,
 ): Promise<NetworkScope> {
-  const { network, sent } = namedNetwork(c);
-  const keyNetwork =
-    caller?.actor === "user" ? caller.apiKeyNetwork : undefined;
-  if (keyNetwork && sent && keyNetwork !== network) {
-    return createRefusedNetworkScope(
-      forbidden(
-        `This API key is for ${keyNetwork}, and ${NETWORK_HEADER} names ${network}`,
-        { kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH },
-      ),
-    );
+  const { network, mismatchError } = resolveCallerNetwork(c, caller);
+  if (mismatchError) {
+    return createRefusedNetworkScope(mismatchError);
   }
-  return (sent ? network : (keyNetwork ?? network)) === "mainnet"
+  return network === "mainnet"
     ? createNetworkScope("mainnet")
     : preprodScopeFor(async () => access);
 }

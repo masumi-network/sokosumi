@@ -2,9 +2,8 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 
-import { forbidden, unprocessableEntity } from "@/helpers/error";
-import type { AuthenticationContext } from "@/middleware/auth";
-import { NETWORK_HEADER, requestNetwork } from "@/middleware/network-scope";
+import { unprocessableEntity } from "@/helpers/error";
+import { resolveCallerNetwork } from "@/middleware/network-scope";
 
 export const MAINNET_ONLY_FEATURE_MESSAGE =
   "This feature is available on Mainnet only.";
@@ -22,24 +21,12 @@ export const MAINNET_ONLY_FEATURE_MESSAGE =
  * header contradicts stays 403 `api_key_network_mismatch`.
  */
 export function requireMainnetOnlyFeature(c: Context): void {
-  const headerNetwork = requestNetwork(c);
-  const headerSent = c.req.header(NETWORK_HEADER) !== undefined;
-  const authContext = c.get("authContext") as AuthenticationContext | undefined;
-  const keyNetwork =
-    authContext?.actor === "user" ? authContext.apiKeyNetwork : undefined;
-
-  if (keyNetwork && headerSent && keyNetwork !== headerNetwork) {
-    throw forbidden(
-      `This API key is for ${keyNetwork}, and ${NETWORK_HEADER} names ${headerNetwork}`,
-      { kind: CORE_API_ERROR_KINDS.API_KEY_NETWORK_MISMATCH },
-    );
+  const { network, mismatchError } = resolveCallerNetwork(c);
+  if (mismatchError) {
+    throw mismatchError;
   }
 
-  const effectiveNetwork = headerSent
-    ? headerNetwork
-    : (keyNetwork ?? headerNetwork);
-
-  if (effectiveNetwork === "preprod") {
+  if (network === "preprod") {
     throw unprocessableEntity(MAINNET_ONLY_FEATURE_MESSAGE, {
       kind: CORE_API_ERROR_KINDS.MAINNET_ONLY_FEATURE,
     });
